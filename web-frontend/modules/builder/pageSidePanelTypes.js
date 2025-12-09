@@ -57,7 +57,7 @@ export class GeneralPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.general')
+    return this.app?.i18n?.t('pageSidePanelType.general')
   }
 
   get component() {
@@ -75,7 +75,7 @@ export class StylePageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.style')
+    return this.app?.i18n?.t('pageSidePanelType.style')
   }
 
   get component() {
@@ -93,7 +93,7 @@ export class VisibilityPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.visibility')
+    return this.app?.i18n?.t('pageSidePanelType.visibility')
   }
 
   get component() {
@@ -111,7 +111,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.events')
+    return this.app?.i18n?.t('pageSidePanelType.events')
   }
 
   get component() {
@@ -166,7 +166,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
       })
 
       if (hasActionInError) {
-        return this.app.i18n.t('pageSidePanelType.eventsTabInError')
+        return this.app?.i18n?.t('pageSidePanelType.eventsTabInError')
       }
     }
 

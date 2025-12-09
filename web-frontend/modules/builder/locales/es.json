@@ -1,961 +1,961 @@
 {
-    "builderForm": {
-        "submit": "Añadir aplicación"
-    },
-    "sidebarComponentBuilder": {
-        "settings": "Configuración",
-        "createPage": "Nueva página"
-    },
-    "builderSettingsModal": {
-        "title": "Aplicación"
-    },
-    "builderSettingTypes": {
-        "integrationsName": "Integraciones",
-        "themeName": "Tema",
-        "domainsName": "Dominios",
-        "userSourcesName": "Usuarios",
-        "generalName": "General"
-    },
-    "createPageModal": {
-        "header": "Crear página",
-        "submit": "Añadir página"
-    },
-    "pageForm": {
-        "nameLabel": "Nombre",
-        "errorNameNotUnique": "Ya existe una página con este nombre",
-        "defaultName": "Página",
-        "nameTitle": "Nombre",
-        "pathSubtitle": "Se puede añadir un parámetro mediante :parámetro",
-        "pathParamsTitle": "Parámetros de ruta",
-        "nameSubtitle": "Nombre único de la página",
-        "pathParamsSubtitle": "Están definidos por el :parámetro en la ruta",
-        "pathParamsSubtitleTutorial": "Los parámetros de ruta se pueden utilizar para cargar datos dinámicamente, en función del parámetro proporcionado. Añada el :parámetro a la ruta para añadir uno.",
-        "pathTitle": "Ruta",
-        "namePlaceholder": "Introduzca un nombre...",
-        "pathPlaceholder": "Introduzca una ruta..."
-    },
-    "headingElementForm": {
-        "textError": "El valor es inválido.",
-        "textPlaceholder": "Introducir texto...",
-        "levelTitle": "Nivel",
-        "textTitle": "Texto",
-        "headingName": "Título {nivel} <h{nivel}>"
-    },
-    "tableElementForm": {
-        "addField": "añadir campo",
-        "itemsPerPage": "Artículos por página",
-        "fieldType": "Tipo",
-        "fieldValueLabel": "Valor",
-        "fieldDefaultName": "Columna",
-        "dataSource": "Fuente de datos",
-        "fieldValuePlaceholder": "Introducir valor...",
-        "itemsPerPagePlaceholder": "Introducir valor...",
-        "fields": "Campos",
-        "buttonColor": "Color de los botones",
-        "selectSourceFirst": "Elige un origen para los datos y/o propiedad para comenzar a configurar tus campos.",
-        "refreshFieldsFromDataSource": "Actualizar los campos de la fuente de datos",
-        "name": "Nombre",
-        "orientation": "Orientación",
-        "orientationHorizontal": "Horizontal",
-        "orientationVertical": "Vertical",
-        "buttonLoadMoreLabel": "Mostrar más etiqueta",
-        "propertySelectorMissingArrays": "No se encontró que se utilizaran campos de múltiples valores como datos."
-    },
-    "linkElementForm": {
-        "paramPlaceholder": "Introduce un valor...",
-        "targetSelf": "Misma pestaña",
-        "variantButton": "Botón",
-        "paramsInErrorButton": "Actualizar parámetros",
-        "targetNewTab": "Nueva pestaña",
-        "variantLink": "Enlace",
-        "url": "URL de destino",
-        "navigateToNotSet": "Sin destino",
-        "navigateToCustom": "URL personalizada",
-        "urlPlaceholder": "Introducir una URL...",
-        "pageParameterTypeError": "Tipo inválido",
-        "text": "Texto",
-        "variant": "Variante",
-        "textPlaceholder": "Introducir texto...",
-        "navigateTo": "Navegar a",
-        "target": "Abrir en...",
-        "paramsInErrorDescription": "Los parámetros guardados no coinciden con los parámetros de la página. Es probable que la página se haya eliminado o actualizado.",
-        "buttonColor": "Color del botón"
-    },
-    "textElement": {
-        "noValue": "Párrafo vacío...",
-        "missingValue": "Falta texto...",
-        "emptyValue": "Texto vacío..."
-    },
-    "linkFieldForm": {
-        "fieldLinkNamePlaceholder": "Introducir valor...",
-        "fieldValuePlaceholder": "Introducir valor...",
-        "fieldLinkNameLabel": "Texto del enlace",
-        "fieldValueLabel": "URL",
-        "buttonColor": "Color de los botones"
-    },
-    "imageElementForm": {
-        "uploadFileButton": "Subir archivo",
-        "fileSourceTypeURL": "URL",
-        "altTextTitle": "Texto alternativo",
-        "urlWarning": "Nota: asegúrate de que controlas o confías en la URL introducida.",
-        "fileLabel": "Imagen",
-        "invalidUrlError": "URL inválida",
-        "fileSourceTypeUpload": "Subir",
-        "altTextDescription": "Es utilizado por los lectores de pantalla y se muestra si la imagen no se puede cargar",
-        "maxWidthLabel": "Anchura máxima",
-        "maxHeightLabel": "Altura máxima",
-        "maxHeightPlaceholder": "Introduce una altura máxima en píxeles.",
-        "maxWidthPlaceholder": "Introduce una anchura máxima en porcentaje.",
-        "imageConstraintCover": "Portada",
-        "imageConstraintCoverDisabled": "No disponible con altura máxima vacía.",
-        "imageConstraintContain": "Contener",
-        "imageConstraintContainDisabled": "No disponible con altura máxima.",
-        "imageConstraintsLabel": "Restricciones",
-        "imageConstraintFullWidth": "Extender a la anchura máxima"
-    },
-    "dataSourceForm": {
-        "servicePlaceholder": "Selecciona un servicio",
-        "namePlaceholder": "Nombre de la fuente",
-        "errorUniqueName": "El nombre de la fuente de datos debe ser único.",
-        "integrationPlaceholder": "Selecciona una integración",
-        "nameLabel": "Nombre",
-        "actionLabel": "Acción",
-        "integrationLabel": "Integración"
-    },
-    "elementType": {
-        "table": "Tabla",
-        "formContainer": "Formulario",
-        "textDescription": "Texto multilínea",
-        "heading": "Título",
-        "inputText": "Introducción de texto",
-        "inputTextDescription": "Un campo de entrada de texto",
-        "text": "Párrafo",
-        "headingDescription": "Título de la página",
-        "image": "Imagen",
-        "tableDescription": "Un elemento de la tabla",
-        "columnDescription": "Contenedor de columnas",
-        "button": "Botón",
-        "link": "Enlace",
-        "column": "Columnas",
-        "imageDescription": "Mostrar imagen",
-        "buttonDescription": "Un elemento de botón",
-        "formContainerDescription": "Un elemento de formulario",
-        "linkDescription": "Un enlace a la página/URL",
-        "dropdown": "Desplegable",
-        "dropdownDescription": "Elemento desplegable",
-        "checkbox": "Casilla de verificación",
-        "checkboxDescription": "Elemento casilla de verificación",
-        "iframe": "iframe",
-        "iframeDescription": "Marco en línea",
-        "authForm": "Formulario de acceso",
-        "authFormDescription": "Un formulario de acceso de usuario",
-        "repeat": "Repetir",
-        "repeatDescription": "Un conjunto repetible de elementos",
-        "choice": "Selección",
-        "choiceDescription": "Para la selección de uno o varios valores",
-        "recordSelector": "Selector de registro",
-        "recordSelectorDescription": "Un selector de registros relacionados",
-        "dateTimePicker": "Selector de fecha y hora",
-        "dateTimePickerDescription": "Un campo de entrada de fecha y hora",
-        "headerDescription": "Contenedor compartido en varias páginas",
-        "footer": "Pie de página de varias páginas",
-        "footerDescription": "Un contenedor compartido entre páginas",
-        "notAllowedUnlessBottom": "Este elemento solo está permitido en la parte inferior de la página",
-        "notAllowedUnlessHeader": "Este elemento solo está permitido dentro del encabezado de la página",
-        "notAllowedUnlessFooter": "Este elemento solo está permitido dentro del pie de página",
-        "notAllowedInsideContainer": "Este elemento no está permitido dentro de un contenedor",
-        "notAllowedInsideSameType": "Este elemento no está permitido en un contenedor del mismo tipo",
-        "notAllowedLocation": "Este elemento no está permitido en esta ubicación",
-        "header": "Encabezado de varias páginas",
-        "notAllowedUnlessTop": "Este elemento solo está permitido en la parte superior de la página"
-    },
-    "verticalAlignmentSelector": {
-        "alignmentTop": "Arriba",
-        "alignmentBottom": "Fondo",
-        "alignmentCenter": "Medio",
-        "alignment": "Alineación vertical"
-    },
-    "dnsStatus": {
-        "hostHeader": "Anfitrión",
-        "valueHeader": "Valor",
-        "typeHeader": "Tipo",
-        "description": "Visita la configuración DNS de tu dominio y realiza los siguientes cambios"
-    },
-    "horizontalAlignmentSelector": {
-        "alignmentLeft": "Izquierda",
-        "alignmentRight": "A la derecha",
-        "alignment": "Alineación horizontal",
-        "alignmentCenter": "Centro"
-    },
-    "duplicatePageJobType": {
-        "duplicating": "Duplicando",
-        "duplicatedTitle": "Página duplicada"
-    },
-    "defaultStyleForm": {
-        "widthLabel": "Anchura",
-        "boxTop": "Arriba",
-        "backgroundLabel": "Fondo",
-        "backgroundColor": "Color de fondo",
-        "boxBottom": "Abajo",
-        "boxLeft": "Izquierda",
-        "boxRight": "Derecha",
-        "backgroundImage": "Imagen",
-        "backgroundImageMode": "Modo de relleno"
-    },
-    "updateUserSourceForm": {
-        "nameFieldLabel": "Nombre",
-        "nameFieldPlaceholder": "Introduce un nombre...",
-        "integrationFieldLabel": "Integración",
-        "authTitle": "Autenticación",
-        "addProvider": "Añadir proveedor"
-    },
-    "elementForms": {
-        "urlInputPlaceholder": "Introducir URL...",
-        "textInputPlaceholder": "Introducir texto...",
-        "invalidFormula": "La fórmula es inválida"
-    },
-    "mainThemeConfigBlock": {
-        "colorsLabel": "Colores",
-        "primaryColor": "Primario",
-        "headingValue": "Título <h{i}>",
-        "typography": "Tipografía",
-        "headingLabel": "Título {i} (h{i})",
-        "secondaryColor": "Secundario"
-    },
-    "domainSettings": {
-        "noDomainMessage": "Aún no has asociado un dominio a esta aplicación. Debes añadir un dominio para poder publicar tu aplicación. Puedes publicar diferentes versiones de tu aplicación para cada dominio listado aquí.",
-        "addDomain": "Añadir dominio",
-        "titleOverview": "Dominios",
-        "titleAddDomain": "Añadir dominio"
-    },
-    "elementMenu": {
-        "moveRight": "Mover a la derecha",
-        "moveDown": "Bajar",
-        "moveUp": "Subir",
-        "moveLeft": "Mover a la izquierda",
-        "selectParent": "Seleccionar padre"
-    },
-    "pageHeaderItemTypes": {
-        "labelVariables": "Variables",
-        "labelElements": "Elementos",
-        "labelSettings": "Configuración de página",
-        "labelDataSource": "Datos"
-    },
-    "inputTextElementForm": {
-        "placeholderPlaceholder": "Introduce un marcador de posición (opcional)",
-        "valueTitle": "Valor por defecto",
-        "valuePlaceholder": "Introducir un valor por defecto (opcional)",
-        "placeholderTitle": "Marcador de posición",
-        "labelTitle": "Etiqueta",
-        "requiredTitle": "Requerido",
-        "labelPlaceholder": "Introducir una etiqueta (opcional)",
-        "rowsTitle": "Número de líneas",
-        "multilineTitle": "Multilínea",
-        "rowsPlaceholder": "Introduce el número de filas de esta entrada",
-        "validationTypeAnyLabel": "Cualquier",
-        "validationTypeIntegerLabel": "Número",
-        "validationTypeIntegerDescription": "Aplicar un valor numérico en esta entrada.",
-        "validationTypeEmailLabel": "Correo electrónico",
-        "validationTypeEmailDescription": "Implemente un valor de dirección de correo electrónico en esta entrada.",
-        "validationTypeAnyDescription": "Permite establecer cualquier valor en esta entrada.",
-        "inputType": "Tipo de entrada",
-        "inputTypeTextLabel": "Texto",
-        "inputTypePasswordLabel": "Contraseña",
-        "passwordTypeWarning": "Las contraseñas son datos sensibles. Tenga cuidado con la forma en que maneja y almacena las contraseñas en su aplicación."
-    },
-    "widthSelector": {
-        "widthFull": "Anchura completa",
-        "widthAuto": "Auto",
-        "width": "Anchura"
-    },
-    "domainCard": {
-        "detailLabel": "Mostrar detalles",
-        "refresh": "Actualizar configuración"
-    },
-    "buttonElementForm": {
-        "valuePlaceholder": "Introducir texto...",
-        "valueLabel": "Texto del botón",
-        "buttonColor": "Color de los botones"
-    },
-    "workflowActionTypes": {
-        "updateRowLabel": "Actualizar fila",
-        "createRowLabel": "Crear fila",
-        "notificationLabel": "Mostrar notificación",
-        "openPageLabel": "Abrir página",
-        "logoutLabel": "Cerrar sesión",
-        "refreshDataSourceLabel": "Refrescar fuente de datos",
-        "deleteRowLabel": "Borrar fila"
-    },
-    "widthTypes": {
-        "full": "Anchura completa",
-        "small": "Pequeño",
-        "medium": "Medio",
-        "normal": "Normal",
-        "fullBleed": "Sangrado total",
-        "fullWidth": "Anchura total"
-    },
-    "userSourceSettings": {
-        "titleOverview": "Fuentes del usuario",
-        "titleUpdateUserSource": "Editar fuente de usuario",
-        "titleAddUserSource": "Nueva fuente de usuarios",
-        "addUserSource": "Añadir fuente de usuario",
-        "noUserSourceMessage": "Aún no has añadido un origen de usuario a esta aplicación. Debes añadir un origen de usuario si quieres que los usuarios puedan autenticar tu aplicación."
-    },
-    "publicPage": {
-        "pageNotFound": "Página no encontrada",
-        "siteNotFound": "Sitio no encontrado"
-    },
-    "integrationSettings": {
-        "integrationMessage": "Se pueden crear nuevas integraciones añadiendo fuente de datos, acción o autenticación de usuario.",
-        "noIntegrationMessage": "Aún no has creado ninguna conexión. Se pueden crear añadiendo fuente de datos, acción o autenticación de usuario.",
-        "title": "Integraciones"
-    },
-    "upsertRowWorkflowActionForm": {
-        "rowIdPlaceholder": "Selecciona un ID de fila",
-        "fieldMappingPlaceholder": "Elige un valor de campo",
-        "integrationDropdownLabel": "Integración",
-        "rowIdLabel": "ID de fila",
-        "noTableSelectedMessage": "Elige una tabla para empezar a configurar tus campos."
-    },
-    "customDomainForm": {
-        "domainNameLabel": "Nombre de dominio"
-    },
-    "subDomainDetails": {
-        "text": "Los ajustes DNS del dominio ya han sido configurados y comprobados. Funciona sin realizar ningún cambio adicional."
-    },
-    "imageElement": {
-        "emptyState": "No hay texto alternativo definido...",
-        "missingValue": "Falta texto alternativo...",
-        "emptyValue": "Texto alternativo vacío..."
-    },
-    "columnElementForm": {
-        "columnGapPlaceholder": "Introducir espacio entre columnas...",
-        "columnGapTitle": "Espacio entre columnas",
-        "columnAmountTitle": "Disposición",
-        "columnAmountName": "sin columnas | 1 columna | {columnaCantidad} columnas",
-        "verticalAlignment": "Alineación vertical"
-    },
-    "pageSettings": {
-        "pageUpdatedTitle": "Cambiado",
-        "pageUpdatedDescription": "Se ha actualizado la configuración de la página.",
-        "title": "Página"
-    },
-    "notificationWorkflowActionForm": {
-        "descriptionLabel": "Descripción",
-        "descriptionPlaceholder": "Introducir texto...",
-        "titleLabel": "Título",
-        "titlePlaceholder": "Introducir texto..."
-    },
-    "dataSourceContext": {
-        "addDataSource": "Añadir nueva fuente de datos",
-        "noDataSourceMessage": "Las fuentes de datos pueden utilizarse para obtener datos de fuentes internas o externas y mostrarlos en la página.",
-        "noDataSourceTitle": "Aún no has añadido una fuente de datos.",
-        "sharedDataSourceTitle": "Compartido entre páginas",
-        "pageDataSourceTitle": "Para esta página",
-        "sharedDataSourceDescription": "Accesible en todas las páginas y se obtiene una vez en la primera carga de la página.",
-        "pageDataSourceDescription": "Se obtiene cuando el usuario navega a esta página."
-    },
-    "pageSettingsTypes": {
-        "pageName": "Página"
-    },
-    "publishActionModal": {
-        "publish": "Publicar",
-        "publishSucceedDescription": "El sitio se ha publicado correctamente.",
-        "publishSucceedTitle": "Sitio publicado",
-        "description": "Publica tu aplicación en uno de los dominios. Ten en cuenta que tu aplicación puede tener varios dominios, cada uno con una versión diferente de la aplicación.",
-        "title": "Publicar",
-        "publishFailedTitle": "Error en la publicación del sitio",
-        "openInNewTab": "Abrir en una pestaña nueva",
-        "noDomain": "Necesitas tener al menos un dominio para poder publicar tu aplicación.",
-        "publishFailedDescription": "La publicación del sitio ha fallado. Vuelva a intentarlo más tarde.",
-        "importingState": "Importando"
-    },
-    "currentRecordDataProviderType": {
-        "index": "Índice",
-        "firstPartName": "Fuente de datos: {nombre}",
-        "schemaProperty": "{prefixName}: {schemaProperty}"
-    },
-    "pageSidePanelType": {
-        "visibility": "Visibilidad",
-        "general": "General",
-        "events": "Eventos",
-        "style": "Estilo",
-        "eventsTabDeactivatedNoEvents": "Este elemento no admite eventos"
-    },
-    "addElementModal": {
-        "title": "Añadir nuevo elemento",
-        "searchPlaceholder": "Buscar elementos",
-        "disabledElementTooltip": "No disponible dentro de este elemento",
-        "elementInProgress": "Añadiendo elemento..."
-    },
-    "domainTypes": {
-        "subDomain": "Subdominio de {dominio}",
-        "customName": "Dominio personalizado",
-        "subDomainName": "Subdominio"
-    },
-    "domainForm": {
-        "notUniqueDomain": "El dominio proporcionado ya está en uso",
-        "invalidDomain": "El nombre de dominio proporcionado es inválido"
-    },
-    "dispatchWorkflowActionError": {
-        "defaultMessage": "Se ha producido un error que ha provocado este evento.",
-        "defaultTitle": "Error de evento",
-        "formDataInvalidTitle": "Formulario inválido",
-        "formDataInvalidMessage": "Uno o más campos contienen valores no válidos."
-    },
-    "dataProviderType": {
-        "currentRecord": "Fuente de datos",
-        "formData": "Datos del formulario",
-        "pageParameter": "Parámetro",
-        "dataSource": "Registros de datos",
-        "user": "Usuario",
-        "previousAction": "Acción previa",
-        "dataSourceContext": "Opciones disponibles",
-        "metadata": "Metadatos"
-    },
-    "openPageWorkflowActionForm": {
-        "urlLabel": "URL",
-        "urlPlaceholder": "Introducir texto..."
-    },
-    "collectionFieldType": {
-        "text": "Texto",
-        "link": "Enlace",
-        "boolean": "Booleano",
-        "tags": "Etiquetas",
-        "image": "Imagen",
-        "button": "Botón"
-    },
-    "elementsContext": {
-        "searchPlaceholder": "Buscar elementos",
-        "noElements": "No se han encontrado elementos",
-        "noPageElements": "Sin elementos para esta página"
-    },
-    "textElementForm": {
-        "textTitle": "Texto",
-        "textError": "El valor es inválido.",
-        "textPlaceholder": "Introducir texto...",
-        "textFormatTypeLabel": "Formato",
-        "textFormatTypePlain": "Texto plano",
-        "textFormatTypeMarkdown": "Markdown"
-    },
-    "createUserSourceForm": {
-        "userSourceName": "Nombre",
-        "userSourceIntegration": "Integración",
-        "userSourceType": "Tipo"
-    },
-    "event": {
-        "addAction": "añadir acción"
-    },
-    "pageErrors": {
-        "errorStartingSlash": "Una ruta debe empezar por '/'",
-        "errorUniquePathParams": "Los parámetros de la ruta deben ser únicos.",
-        "errorPathNotUnique": "Ya existe una ruta con este nombre",
-        "errorValidPathCharacters": "La ruta contiene caracteres inválidos",
-        "errorNameNotUnique": "Ya existe una página con este nombre"
-    },
-    "addElementButton": {
-        "label": "Elemento"
-    },
-    "buttonElement": {
-        "noValue": "Sin nombre...",
-        "missingValue": "Falta el texto del botón...",
-        "emptyValue": "Texto del botón vacío..."
-    },
-    "formDataProviderType": {
-        "nodeMissing": "Falta"
-    },
-    "lastPublishedDomainDate": {
-        "lastPublished": "Última publicación:",
-        "neverPublished": "nunca"
-    },
-    "textFieldForm": {
-        "fieldValuePlaceholder": "Introducir valor...",
-        "fieldValueLabel": "Valor"
-    },
-    "tableElement": {
-        "empty": "No se ha encontrado ningún artículo.",
-        "showMore": "Ver más"
-    },
-    "fontSidePanelForm": {
-        "label": "Color de fuente"
-    },
-    "emptySidePanelState": {
-        "message": "Haz clic en uno de los elementos para ver más detalles"
-    },
-    "styleBoxForm": {
-        "borderLabel": "Tamaño",
-        "paddingLabel": "Acolchado",
-        "error": "El valor debe ser un número entero entre 0 y 200.",
-        "borderColor": "Color del borde",
-        "marginLabel": "Margen"
-    },
-    "backgroundTypes": {
-        "color": "Color",
-        "none": "Ninguno"
-    },
-    "linkElement": {
-        "noValue": "Sin nombre...",
-        "missingValue": "Falta el texto del enlace...",
-        "emptyValue": "Texto del enlace vacío..."
-    },
-    "pagePreview": {
-        "emptyMessage": "Haz clic para crear un elemento",
-        "header": "ENCABEZAMIENTO",
-        "footer": "PIE DE PÁGINA"
-    },
-    "eventTypes": {
-        "submitLabel": "Al enviar",
-        "clickLabel": "Al hacer clic",
-        "afterLoginLabel": "Después de iniciar sesión"
-    },
-    "pageActionTypes": {
-        "publish": "Publicar",
-        "preview": "Previsualizar"
-    },
-    "headingElement": {
-        "noValue": "Sin título...",
-        "emptyValue": "Título vacío...",
-        "missingValue": "Falta el título..."
-    },
-    "formContainerElementForm": {
-        "submitButtonLabel": "Botón de envío",
-        "submitButtonPlaceholder": "Introducir valor...",
-        "buttonColor": "Color de los botones",
-        "resetToInitialValuesTitle": "Restablecer los valores por defecto tras el envío",
-        "resetToInitialValuesDescription": "Si está marcada, los valores por defecto del formulario se utilizarán para restablecer el formulario después de un envío exitoso. Si no está marcada, se mantendrán los valores del usuario."
-    },
-    "subDomainForm": {
-        "domainNameLabel": "Nombre de dominio"
-    },
-    "linkField": {
-        "details": "Detalles"
-    },
-    "getFormulaComponent": {
-        "errorTooltip": "Referencia inválida"
-    },
-    "pathParamTypes": {
-        "textName": "Texto",
-        "numericName": "Numérico"
-    },
-    "dropdownOptionSelector": {
-        "value": "Valor",
-        "name": "Nombre",
-        "addOption": "añadir opción",
-        "label": "Opciones"
-    },
-    "checkboxElementForm": {
-        "labelTitle": "Nombre de la opción",
-        "valueTitle": "Valor por defecto",
-        "requiredTitle": "Requerido"
-    },
-    "generalForm": {
-        "placeholderPlaceholder": "Introduce un marcador de posición (opcional)",
-        "requiredTitle": "Requerido",
-        "labelTitle": "Etiqueta",
-        "labelPlaceholder": "Introduce una etiqueta (opcional)",
-        "valueTitle": "Valor por defecto",
-        "valuePlaceholder": "Introduce un valor por defecto (opcional)",
-        "placeholderTitle": "Marcador de posición",
-        "validationTitle": "Validación"
-    },
-    "iframeElementForm": {
-        "empty": "Iframe vacío...",
-        "sourceTypeLabel": "Tipo de fuente",
-        "urlLabel": "URL",
-        "urlPlaceholder": "Enlace al recurso externo que se va a incrustar",
-        "urlHelp": "Nota: asegúrate de que controlas o confías en la URL introducida.",
-        "embedLabel": "Incrustar",
-        "embedPlaceholder": "Contenido HTML en bruto para incrustar",
-        "heightLabel": "Altura (en px)",
-        "heightPlaceholder": "Altura en píxeles",
-        "missingValue": "Falta la fuente IFrame...",
-        "emptyValue": "Fuente IFrame vacía..."
-    },
-    "linkNavigationSelection": {
-        "navigateTo": "Navegar a",
-        "navigateToCustom": "URL personalizada",
-        "paramPlaceholder": "Introduce un valor...",
-        "paramsInErrorButton": "Actualizar parámetros",
-        "url": "URL de destino",
-        "urlPlaceholder": "Introduce una URL...",
-        "paramsInErrorDescription": "Los parámetros guardados no coinciden con los parámetros de la página. Es probable que la página se haya eliminado o actualizado.",
-        "target": "Abrir en...",
-        "targetSelf": "Misma pestaña",
-        "targetNewTab": "Nueva pestaña"
-    },
-    "dispatchDataSourceError": {
-        "defaultTitle": "Error de carga de datos",
-        "defaultMessage": "Se ha producido un error al cargar los datos de la página."
-    },
-    "authFormElementForm": {
-        "userSource": "Fuente del usuario"
-    },
-    "authFormElement": {
-        "email": "Correo electrónico",
-        "password": "Contraseña",
-        "emailPlaceholder": "Introduce tu correo electrónico...",
-        "passwordPlaceholder": "Introduce tu contraseña...",
-        "selectOrConfigureUserSourceFirst": "Elige un origen de usuario para empezar a utilizar este elemento de inicio de sesión."
-    },
-    "userSourceUsersContext": {
-        "searchPlaceholder": "Buscar usuario",
-        "unnamed": "Sin nombre",
-        "anonymous": "Anónimo",
-        "noEmail": "Sin correo electrónico"
-    },
-    "userSelector": {
-        "viewAs": "Ver como: {usuario}",
-        "anonymous": "Anónimo",
-        "member": "{prefix} miembro"
-    },
-    "formContainerElement": {
-        "submitDeactivatedText": "Rellena todos los campos obligatorios para enviar",
-        "defaultSubmitButtonLabel": "Enviar"
-    },
-    "visibilityForm": {
-        "allVisitors": "Todos los visitantes",
-        "loggedInVisitors": "Visitantes registrados",
-        "notLoggedInVisitors": "Visitantes no registrados",
-        "warningTitle": "Mejoramos constantemente la seguridad",
-        "warningMessage": "Por el momento, la visibilidad sólo se aplica en la interfaz de usuario, los datos subyacentes siguen siendo accesibles desde la API. Consulta la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'>documentación</a> para obtener más información sobre la seguridad de los datos.",
-        "excludedRolesLabel": "todos los roles excepto",
-        "switchAllowLabel": "Permitir",
-        "switchDisallowLabel": "No permitir",
-        "rolesSelectAll": "Seleccionar todo",
-        "rolesDeselectAll": "Deseleccionar todo",
-        "rolesSelectHint": "Selecciona uno o varios roles",
-        "roleTypesHint": "Selecciona un tipo de función",
-        "roleTypeAllowAllRoles": "Todos los roles",
-        "roleTypeAllowAllRolesExcept": "No permitir roles...",
-        "roleTypeDisallowAllRolesExcept": "Permitir roles...",
-        "rolesAllMembersOf": "Todos los miembros de {name}",
-        "noRole": "Sin función",
-        "errorFetchingRolesTitle": "No se han podido recuperar los roles de usuario",
-        "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario."
-    },
-    "generalSettings": {
-        "titleOverview": "General",
-        "labelForm": "Favicon",
-        "labelDescription": "Escoge un ICO, PNG, GIF o JPEG de 128x128px.",
-        "cantUploadFaviconTitle": "No se puede cargar el archivo favicon",
-        "cantUpdateApplicationTitle": "No se ha podido actualizar la aplicación",
-        "cantUpdateApplicationDescription": "Lo sentimos, no se ha podido actualizar la aplicación.",
-        "labelButton": "Subir favicon",
-        "cantUploadFaviconDescription": "Lo sentimos, no se ha podido cargar la imagen del favicon. Asegúrese de que el archivo de imagen es único y tiene un formato de imagen compatible."
-    },
-    "repeatElement": {
-        "empty": "No se ha encontrado ningún artículo.",
-        "missingDataSourceTooltip": "Elige una fuente de datos para empezar a añadir elementos.",
-        "showMore": "Ver más",
-        "missingSchemaPropertyTooltip": "Elige una propiedad para comenzar a agregar elementos.",
-        "emptyState": "No se han encontrado registros."
-    },
-    "repeatElementForm": {
-        "dataSource": "Fuente de datos",
-        "itemsPerPage": "Artículos por página",
-        "itemsPerRowLabel": "Artículos por fila",
-        "orientationLabel": "Orientación",
-        "orientationHorizontal": "Horizontal",
-        "itemsPerPagePlaceholder": "Introduce el valor...",
-        "itemsPerRowDescription": "Número de columnas por fila y tipo de dispositivo.",
-        "orientationVertical": "Vertical",
-        "buttonLoadMoreLabel": "Mostrar más etiqueta",
-        "toggleEditorRepetitionsLabel": "Desactivar temporalmente las repeticiones",
-        "propertySelectorMissingArrays": "No se encontraron campos de valores múltiples para crear los patrones."
-    },
-    "tagsFieldForm": {
-        "fieldValuesLabel": "Valores",
-        "fieldValuesPlaceholder": "Introducir valores...",
-        "fieldColorsPlaceholder": "Introducir colores...",
-        "fieldColorsLabel": "Colores"
-    },
-    "buttonFieldForm": {
-        "labelPlaceholder": "Introduce una etiqueta...",
-        "infoMessage": "Para configurar las acciones de este botón, abre la pestaña «Eventos» del elemento actual."
-    },
-    "imageInput": {
-        "labelDescription": "Descripción por defecto",
-        "labelButton": "Cargar"
-    },
-    "userDataProviderType": {
-        "isAuthenticated": "Está autenticado",
-        "id": "ID",
-        "email": "Correo electrónico",
-        "username": "Usuario",
-        "role": "Rol"
-    },
-    "buttonField": {
-        "noLabel": "Sin nombre..."
-    },
-    "themeConfigBlockType": {
-        "color": "Colores",
-        "button": "Botón",
-        "link": "Enlace",
-        "page": "Página",
-        "typography": "Tipografía",
-        "image": "Imagen",
-        "input": "Entrada",
-        "table": "Tabla"
-    },
-    "colorThemeConfigBlock": {
-        "secondaryColor": "Secundario",
-        "borderColor": "Borde",
-        "successColor": "Éxito",
-        "warningColor": "Aviso",
-        "errorColor": "Error",
-        "primaryColor": "Principal",
-        "transparent": "Transparente"
-    },
-    "pageThemeConfigBlock": {
-        "backgroundColor": "Color de fondo",
-        "backgroundImage": "Imagen de fondo",
-        "backgroundMode": "Modo de fondo"
-    },
-    "colorThemeConfigBlockType": {
-        "primary": "Principal",
-        "secondary": "Secundario",
-        "success": "Éxito",
-        "warning": "Aviso",
-        "error": "Error",
-        "border": "Borde",
-        "transparent": "Transparente"
-    },
-    "typographyThemeConfigBlock": {
-        "headingLabel": "Encabezamiento {i} (h{i})",
-        "headingValue": "Encabezamiento <h{i}>",
-        "color": "Color",
-        "size": "Tamaño",
-        "textAlignment": "Alineación",
-        "bodyLabel": "Cuerpo",
-        "fontFamily": "Fuente"
-    },
-    "buttonThemeConfigBlock": {
-        "backgroundColor": "Color de fondo",
-        "button": "Botón",
-        "defaultState": "Estado por defecto",
-        "hoverState": "Estado de la imagen flotante",
-        "textAlignment": "Alineación del texto",
-        "alignment": "Alineación",
-        "width": "Anchura",
-        "padding": "Acolchado",
-        "textColor": "Color del texto",
-        "size": "Tamaño de letra",
-        "borderRadius": "Radio del borde",
-        "borderColor": "Color del borde",
-        "borderSize": "Tamaño del borde",
-        "fontFamily": "Fuente"
-    },
-    "linkThemeConfigBlock": {
-        "defaultState": "Estado por defecto",
-        "alignment": "Alineación",
-        "fontFamily": "Fuente",
-        "link": "Enlace",
-        "color": "Color",
-        "hoverState": "Estado de la imagen flotante"
-    },
-    "imageThemeConfigBlock": {
-        "alignment": "Alineación",
-        "maxWidthLabel": "Anchura máxima",
-        "maxHeightLabel": "Altura máxima",
-        "maxHeightPlaceholder": "Introduce una altura máxima",
-        "maxWidthPlaceholder": "Introduce una anchura máxima",
-        "imageConstraintsLabel": "Restricciones",
-        "imageConstraintFullWidth": "Extender a la anchura máxima",
-        "imageConstraintCover": "Portada",
-        "imageConstraintContain": "Contener",
-        "imageConstraintContainDisabled": "No disponible con altura máxima.",
-        "imageConstraintCoverDisabled": "No disponible con altura máxima vacía."
-    },
-    "choiceElementForm": {
-        "multiple": "Permitir varios valores",
-        "display": "Visualizar",
-        "dropdown": "Desplegable",
-        "checkbox": "Casilla de verificación",
-        "radio": "Radio"
-    },
-    "choiceOptionSelector": {
-        "value": "Valores de las opciones",
-        "valuePlaceholder": "Introducir valor",
-        "name": "Nombres de las opciones",
-        "namePlaceholder": "Introducir nombre",
-        "optionType": "Tipo de opciones",
-        "manual": "Manual",
-        "dataSource": "Fuente de datos",
-        "formulas": "Fórmulas",
-        "label": "Opciones",
-        "addOption": "añadir opción",
-        "addOptionDescription": "Haz clic en «añadir opción» para añadir opciones a tu desplegable"
-    },
-    "choiceElement": {
-        "addOptions": "Añadir opciones para empezar a utilizar este elemento..."
-    },
-    "backgroundModes": {
-        "tile": "Azulejo",
-        "fit": "Encajar",
-        "fill": "Llenar"
-    },
-    "customStyle": {
-        "themeOverrides": "Anulación de temas",
-        "configureThemeOverrides": "Configurar las modificaciones del tema para este elemento"
-    },
-    "resetButton": {
-        "reset": "Restablecer el valor predeterminado del tema"
-    },
-    "inputThemeConfigBlock": {
-        "textColor": "Color del texto",
-        "borderColor": "Color del borde",
-        "borderSize": "Tamaño del borde",
-        "borderRadius": "Radio del borde",
-        "padding": "Acolchado",
-        "fontFamily": "Fuente",
-        "size": "Tamaño de letra",
-        "label": "Etiqueta",
-        "input": "Entrada",
-        "backgroundColor": "Color de fondo"
-    },
-    "tableThemeConfigBlock": {
-        "borderColor": "Color del borde",
-        "backgroundColor": "Color de fondo",
-        "textColor": "Color del texto",
-        "padding": "Acolchado",
-        "fontFamily": "Fuente",
-        "size": "Tamaño",
-        "fontSize": "Tamaño de letra",
-        "table": "Tabla",
-        "header": "Cabecera",
-        "borderRadius": "Radio del borde",
-        "separators": "Separadores",
-        "verticalSeparatorColor": "Color vertical",
-        "borderSize": "Tamaño del borde",
-        "backgroundAlternateColor": "Color de las filas pares",
-        "alignment": "Alineación",
-        "cells": "Células",
-        "verticalSeparatorSize": "Tamaño vertical",
-        "horizontalSeparatorColor": "Color horizontal",
-        "horizontalSeparatorSize": "Tamaño horizontal"
-    },
-    "abTable": {
-        "empty": "No se ha encontrado ningún artículo.",
-        "loading": "Cargando..."
-    },
-    "localBaserowServiceForm": {
-        "integrationDropdownLabel": "Integración",
-        "rowIdLabel": "ID de fila",
-        "rowIdPlaceholder": "Seleccione un ID de fila"
-    },
-    "fieldMappingContext": {
-        "enableField": "Habilitar campo",
-        "disableField": "Desactivar campo"
-    },
-    "dropdown": {
-        "empty": "No hay opciones disponibles"
-    },
-    "collectionElementForm": {
-        "noSchemaPropertyMessage": "Elige una propiedad de origen de datos para usarla como el origen de los datos para tu elemento.",
-        "noDataSourceMessage": "Elige una fuente de datos con varias filas para enumerar todos los resultados, o un origen para los datos de una sola fila para elegir una propiedad dentro de esta fila.",
-        "propertyOptionLabel": "Acciones del usuario"
-    },
-    "imageFieldForm": {
-        "fieldAltLabel": "Texto alternativo",
-        "fieldAltPlaceholder": "Introducir valor...",
-        "fieldSrcLabel": "Origen de la imagen",
-        "fieldSrcPlaceholder": "Introducir valor",
-        "fieldAltHelp": "Es utilizado por los lectores de pantalla y se muestra si la imagen no se puede cargar"
-    },
-    "serviceSchemaPropertySelector": {
-        "label": "Propiedad",
-        "noProperties": "No hay propiedades disponibles"
-    },
-    "dataSourceDropdown": {
-        "label": "Origen de los datos",
-        "noDataSources": "Sin origen para los datos disponibles",
-        "shared": "compartido",
-        "pageOnly": "esta página",
-        "noSharedDataSources": "No hay fuentes de datos compartidas"
-    },
-    "recordSelectorElementForm": {
-        "selectRecordsFrom": "Seleccionar registros de",
-        "noDataSourceMessage": "Elija una fuente de datos con múltiples filas para listar todos los resultados.",
-        "optionNameSuffix": "Sufijo del nombre de la opción",
-        "optionNameSuffixPlaceholder": "Introduce un sufijo...",
-        "optionNameSuffixHelper": "Este sufijo se añade a cada nombre de opción al abrir el desplegable y ayuda a distinguirlas.",
-        "itemsPerPagePlaceholder": "Introduce el valor...",
-        "multipleLabel": "Permitir varios valores",
-        "record": "Registro {id}",
-        "itemsPerPage": "Artículos por página"
-    },
-    "dataSourceCreateEditModal": {
-        "editTitle": "Editar fuente de datos",
-        "createTitle": "Crear fuente de datos",
-        "sharedWarning": "Esta fuente de datos se comparte, por lo que los cambios pueden afectar a varias páginas."
-    },
-    "dataSourceItem": {
-        "notConfigured": "No configurado"
-    },
-    "dataSourceItemContext": {
-        "shareBetweenPages": "Compartir entre páginas",
-        "unshareBetweenPages": "Descompartir de otras páginas"
-    },
-    "propertyOptionForm": {
-        "sortHeading": "Ordenar",
-        "searchHeading": "Búsqueda",
-        "formDescription": "Elige qué propiedades de la fuente de datos de este elemento pueden filtrar, ordenar y buscar los usuarios externos.",
-        "fieldHeading": "Campo",
-        "filterHeading": "Filtro",
-        "optionUnavailable": "No disponible",
-        "noPropertiesAvailable": "No hay campos disponibles."
-    },
-    "recordSelectorElement": {
-        "emptyState": "No se han encontrado registros.",
-        "emptyAdhocState": "No se han encontrado registros que coincidan con '{query}'."
-    },
-    "common": {
-        "dateFormatTitle": "Formato de la fecha",
-        "dateFormatEU": "Europeo",
-        "dateFormatISO": "ISO",
-        "timeFormatTitle": "Formato de hora",
-        "timeFormat24Hour": "24 horas",
-        "timeFormat12Hour": "12 horas",
-        "dateFormatUS": "Americano"
-    },
-    "dateTimePickerElementForm": {
-        "includeTime": "Incluir fecha y hora",
-        "invalidDateError": "Fecha no válida. Asegúrese de que la fecha ingresada coincida con el formato indicado."
-    },
-    "themeSettings": {
-        "titleOverview": "Tema"
-    },
-    "pageVisibilitySettingsTypes": {
-        "pageName": "Divulgación",
-        "logInPageWarningTitle": "La página de inicio de sesión no está configurada",
-        "logInPagewarningMessage": "Cuando un usuario anónimo intente acceder a esta página, será redirigido a una página de inicio de sesión. Establezca la página de inicio de sesión en la configuración general de la aplicación.",
-        "logInPageInfoMessage": "Los usuarios anónimos que intenten acceder a esta página serán redirigidos a la página {logInPageName}.",
-        "logInPageInfoTitle": "Los usuarios anónimos serán redirigidos"
-    },
-    "pageVisibilitySettings": {
-        "allVisitors": "Todos los visitantes",
-        "loggedInVisitors": "Visitantes registrados",
-        "description": "¿Quién puede ver esta página?",
-        "title": "Visibilidad"
-    },
-    "builderLoginPageForm": {
-        "pageDropdownLabel": "Página de inicio de sesión",
-        "pageDropdownPlaceholder": "Seleccione una página",
-        "pageDropdownDescription": "Seleccione la página de inicio de sesión a la que deben redirigirse los usuarios que no hayan iniciado sesión cuando intenten acceder a una página restringida."
-    },
-    "multiPageContainerElementForm": {
-        "behaviour": "Comportamiento",
-        "display": "Visualizar",
-        "pagePosition": "Posición",
-        "selectAll": "Seleccionar todo",
-        "deselectAll": "Deseleccionar todo"
-    },
-    "pageShareType": {
-        "all": "En todas las páginas",
-        "only": "Solo en páginas seleccionadas",
-        "except": "Excluir páginas seleccionadas"
-    },
-    "pageEditor": {
-        "pageNotFound": "Página no encontrada"
-    }
+  "builderForm": {
+    "submit": "Añadir aplicación"
+  },
+  "sidebarComponentBuilder": {
+    "settings": "Configuración",
+    "createPage": "Nueva página"
+  },
+  "builderSettingsModal": {
+    "title": "Aplicación"
+  },
+  "builderSettingTypes": {
+    "integrationsName": "Integraciones",
+    "themeName": "Tema",
+    "domainsName": "Dominios",
+    "userSourcesName": "Usuarios",
+    "generalName": "General"
+  },
+  "createPageModal": {
+    "header": "Crear página",
+    "submit": "Añadir página"
+  },
+  "pageForm": {
+    "nameLabel": "Nombre",
+    "errorNameNotUnique": "Ya existe una página con este nombre",
+    "defaultName": "Página",
+    "nameTitle": "Nombre",
+    "pathSubtitle": "Se puede añadir un parámetro mediante :parámetro",
+    "pathParamsTitle": "Parámetros de ruta",
+    "nameSubtitle": "Nombre único de la página",
+    "pathParamsSubtitle": "Están definidos por el :parámetro en la ruta",
+    "pathParamsSubtitleTutorial": "Los parámetros de ruta se pueden utilizar para cargar datos dinámicamente, en función del parámetro proporcionado. Añada el :parámetro a la ruta para añadir uno.",
+    "pathTitle": "Ruta",
+    "namePlaceholder": "Introduzca un nombre...",
+    "pathPlaceholder": "Introduzca una ruta..."
+  },
+  "headingElementForm": {
+    "textError": "El valor es inválido.",
+    "textPlaceholder": "Introducir texto...",
+    "levelTitle": "Nivel",
+    "textTitle": "Texto",
+    "headingName": "Título {nivel} <h{nivel}>"
+  },
+  "tableElementForm": {
+    "addField": "añadir campo",
+    "itemsPerPage": "Artículos por página",
+    "fieldType": "Tipo",
+    "fieldValueLabel": "Valor",
+    "fieldDefaultName": "Columna",
+    "dataSource": "Fuente de datos",
+    "fieldValuePlaceholder": "Introducir valor...",
+    "itemsPerPagePlaceholder": "Introducir valor...",
+    "fields": "Campos",
+    "buttonColor": "Color de los botones",
+    "selectSourceFirst": "Elige un origen para los datos y/o propiedad para comenzar a configurar tus campos.",
+    "refreshFieldsFromDataSource": "Actualizar los campos de la fuente de datos",
+    "name": "Nombre",
+    "orientation": "Orientación",
+    "orientationHorizontal": "Horizontal",
+    "orientationVertical": "Vertical",
+    "buttonLoadMoreLabel": "Mostrar más etiqueta",
+    "propertySelectorMissingArrays": "No se encontró que se utilizaran campos de múltiples valores como datos."
+  },
+  "linkElementForm": {
+    "paramPlaceholder": "Introduce un valor...",
+    "targetSelf": "Misma pestaña",
+    "variantButton": "Botón",
+    "paramsInErrorButton": "Actualizar parámetros",
+    "targetNewTab": "Nueva pestaña",
+    "variantLink": "Enlace",
+    "url": "URL de destino",
+    "navigateToNotSet": "Sin destino",
+    "navigateToCustom": "URL personalizada",
+    "urlPlaceholder": "Introducir una URL...",
+    "pageParameterTypeError": "Tipo inválido",
+    "text": "Texto",
+    "variant": "Variante",
+    "textPlaceholder": "Introducir texto...",
+    "navigateTo": "Navegar a",
+    "target": "Abrir en...",
+    "paramsInErrorDescription": "Los parámetros guardados no coinciden con los parámetros de la página. Es probable que la página se haya eliminado o actualizado.",
+    "buttonColor": "Color del botón"
+  },
+  "textElement": {
+    "noValue": "Párrafo vacío...",
+    "missingValue": "Falta texto...",
+    "emptyValue": "Texto vacío..."
+  },
+  "linkFieldForm": {
+    "fieldLinkNamePlaceholder": "Introducir valor...",
+    "fieldValuePlaceholder": "Introducir valor...",
+    "fieldLinkNameLabel": "Texto del enlace",
+    "fieldValueLabel": "URL",
+    "buttonColor": "Color de los botones"
+  },
+  "imageElementForm": {
+    "uploadFileButton": "Subir archivo",
+    "fileSourceTypeURL": "URL",
+    "altTextTitle": "Texto alternativo",
+    "urlWarning": "Nota: asegúrate de que controlas o confías en la URL introducida.",
+    "fileLabel": "Imagen",
+    "invalidUrlError": "URL inválida",
+    "fileSourceTypeUpload": "Subir",
+    "altTextDescription": "Es utilizado por los lectores de pantalla y se muestra si la imagen no se puede cargar",
+    "maxWidthLabel": "Anchura máxima",
+    "maxHeightLabel": "Altura máxima",
+    "maxHeightPlaceholder": "Introduce una altura máxima en píxeles.",
+    "maxWidthPlaceholder": "Introduce una anchura máxima en porcentaje.",
+    "imageConstraintCover": "Portada",
+    "imageConstraintCoverDisabled": "No disponible con altura máxima vacía.",
+    "imageConstraintContain": "Contener",
+    "imageConstraintContainDisabled": "No disponible con altura máxima.",
+    "imageConstraintsLabel": "Restricciones",
+    "imageConstraintFullWidth": "Extender a la anchura máxima"
+  },
+  "dataSourceForm": {
+    "servicePlaceholder": "Selecciona un servicio",
+    "namePlaceholder": "Nombre de la fuente",
+    "errorUniqueName": "El nombre de la fuente de datos debe ser único.",
+    "integrationPlaceholder": "Selecciona una integración",
+    "nameLabel": "Nombre",
+    "actionLabel": "Acción",
+    "integrationLabel": "Integración"
+  },
+  "elementType": {
+    "table": "Tabla",
+    "formContainer": "Formulario",
+    "textDescription": "Texto multilínea",
+    "heading": "Título",
+    "inputText": "Introducción de texto",
+    "inputTextDescription": "Un campo de entrada de texto",
+    "text": "Párrafo",
+    "headingDescription": "Título de la página",
+    "image": "Imagen",
+    "tableDescription": "Un elemento de la tabla",
+    "columnDescription": "Contenedor de columnas",
+    "button": "Botón",
+    "link": "Enlace",
+    "column": "Columnas",
+    "imageDescription": "Mostrar imagen",
+    "buttonDescription": "Un elemento de botón",
+    "formContainerDescription": "Un elemento de formulario",
+    "linkDescription": "Un enlace a la página/URL",
+    "dropdown": "Desplegable",
+    "dropdownDescription": "Elemento desplegable",
+    "checkbox": "Casilla de verificación",
+    "checkboxDescription": "Elemento casilla de verificación",
+    "iframe": "iframe",
+    "iframeDescription": "Marco en línea",
+    "authForm": "Formulario de acceso",
+    "authFormDescription": "Un formulario de acceso de usuario",
+    "repeat": "Repetir",
+    "repeatDescription": "Un conjunto repetible de elementos",
+    "choice": "Selección",
+    "choiceDescription": "Para la selección de uno o varios valores",
+    "recordSelector": "Selector de registro",
+    "recordSelectorDescription": "Un selector de registros relacionados",
+    "dateTimePicker": "Selector de fecha y hora",
+    "dateTimePickerDescription": "Un campo de entrada de fecha y hora",
+    "headerDescription": "Contenedor compartido en varias páginas",
+    "footer": "Pie de página de varias páginas",
+    "footerDescription": "Un contenedor compartido entre páginas",
+    "notAllowedUnlessBottom": "Este elemento solo está permitido en la parte inferior de la página",
+    "notAllowedUnlessHeader": "Este elemento solo está permitido dentro del encabezado de la página",
+    "notAllowedUnlessFooter": "Este elemento solo está permitido dentro del pie de página",
+    "notAllowedInsideContainer": "Este elemento no está permitido dentro de un contenedor",
+    "notAllowedInsideSameType": "Este elemento no está permitido en un contenedor del mismo tipo",
+    "notAllowedLocation": "Este elemento no está permitido en esta ubicación",
+    "header": "Encabezado de varias páginas",
+    "notAllowedUnlessTop": "Este elemento solo está permitido en la parte superior de la página"
+  },
+  "verticalAlignmentSelector": {
+    "alignmentTop": "Arriba",
+    "alignmentBottom": "Fondo",
+    "alignmentCenter": "Medio",
+    "alignment": "Alineación vertical"
+  },
+  "dnsStatus": {
+    "hostHeader": "Anfitrión",
+    "valueHeader": "Valor",
+    "typeHeader": "Tipo",
+    "description": "Visita la configuración DNS de tu dominio y realiza los siguientes cambios"
+  },
+  "horizontalAlignmentSelector": {
+    "alignmentLeft": "Izquierda",
+    "alignmentRight": "A la derecha",
+    "alignment": "Alineación horizontal",
+    "alignmentCenter": "Centro"
+  },
+  "duplicatePageJobType": {
+    "duplicating": "Duplicando",
+    "duplicatedTitle": "Página duplicada"
+  },
+  "defaultStyleForm": {
+    "widthLabel": "Anchura",
+    "boxTop": "Arriba",
+    "backgroundLabel": "Fondo",
+    "backgroundColor": "Color de fondo",
+    "boxBottom": "Abajo",
+    "boxLeft": "Izquierda",
+    "boxRight": "Derecha",
+    "backgroundImage": "Imagen",
+    "backgroundImageMode": "Modo de relleno"
+  },
+  "updateUserSourceForm": {
+    "nameFieldLabel": "Nombre",
+    "nameFieldPlaceholder": "Introduce un nombre...",
+    "integrationFieldLabel": "Integración",
+    "authTitle": "Autenticación",
+    "addProvider": "Añadir proveedor"
+  },
+  "elementForms": {
+    "urlInputPlaceholder": "Introducir URL...",
+    "textInputPlaceholder": "Introducir texto...",
+    "invalidFormula": "La fórmula es inválida"
+  },
+  "mainThemeConfigBlock": {
+    "colorsLabel": "Colores",
+    "primaryColor": "Primario",
+    "headingValue": "Título <h{i}>",
+    "typography": "Tipografía",
+    "headingLabel": "Título {i} (h{i})",
+    "secondaryColor": "Secundario"
+  },
+  "domainSettings": {
+    "noDomainMessage": "Aún no has asociado un dominio a esta aplicación. Debes añadir un dominio para poder publicar tu aplicación. Puedes publicar diferentes versiones de tu aplicación para cada dominio listado aquí.",
+    "addDomain": "Añadir dominio",
+    "titleOverview": "Dominios",
+    "titleAddDomain": "Añadir dominio"
+  },
+  "elementMenu": {
+    "moveRight": "Mover a la derecha",
+    "moveDown": "Bajar",
+    "moveUp": "Subir",
+    "moveLeft": "Mover a la izquierda",
+    "selectParent": "Seleccionar padre"
+  },
+  "pageHeaderItemTypes": {
+    "labelVariables": "Variables",
+    "labelElements": "Elementos",
+    "labelSettings": "Configuración de página",
+    "labelDataSource": "Datos"
+  },
+  "inputTextElementForm": {
+    "placeholderPlaceholder": "Introduce un marcador de posición (opcional)",
+    "valueTitle": "Valor por defecto",
+    "valuePlaceholder": "Introducir un valor por defecto (opcional)",
+    "placeholderTitle": "Marcador de posición",
+    "labelTitle": "Etiqueta",
+    "requiredTitle": "Requerido",
+    "labelPlaceholder": "Introducir una etiqueta (opcional)",
+    "rowsTitle": "Número de líneas",
+    "multilineTitle": "Multilínea",
+    "rowsPlaceholder": "Introduce el número de filas de esta entrada",
+    "validationTypeAnyLabel": "Cualquier",
+    "validationTypeIntegerLabel": "Número",
+    "validationTypeIntegerDescription": "Aplicar un valor numérico en esta entrada.",
+    "validationTypeEmailLabel": "Correo electrónico",
+    "validationTypeEmailDescription": "Implemente un valor de dirección de correo electrónico en esta entrada.",
+    "validationTypeAnyDescription": "Permite establecer cualquier valor en esta entrada.",
+    "inputType": "Tipo de entrada",
+    "inputTypeTextLabel": "Texto",
+    "inputTypePasswordLabel": "Contraseña",
+    "passwordTypeWarning": "Las contraseñas son datos sensibles. Tenga cuidado con la forma en que maneja y almacena las contraseñas en su aplicación."
+  },
+  "widthSelector": {
+    "widthFull": "Anchura completa",
+    "widthAuto": "Auto",
+    "width": "Anchura"
+  },
+  "domainCard": {
+    "detailLabel": "Mostrar detalles",
+    "refresh": "Actualizar configuración"
+  },
+  "buttonElementForm": {
+    "valuePlaceholder": "Introducir texto...",
+    "valueLabel": "Texto del botón",
+    "buttonColor": "Color de los botones"
+  },
+  "workflowActionTypes": {
+    "updateRowLabel": "Actualizar fila",
+    "createRowLabel": "Crear fila",
+    "notificationLabel": "Mostrar notificación",
+    "openPageLabel": "Abrir página",
+    "logoutLabel": "Cerrar sesión",
+    "refreshDataSourceLabel": "Refrescar fuente de datos",
+    "deleteRowLabel": "Borrar fila"
+  },
+  "widthTypes": {
+    "full": "Anchura completa",
+    "small": "Pequeño",
+    "medium": "Medio",
+    "normal": "Normal",
+    "fullBleed": "Sangrado total",
+    "fullWidth": "Anchura total"
+  },
+  "userSourceSettings": {
+    "titleOverview": "Fuentes del usuario",
+    "titleUpdateUserSource": "Editar fuente de usuario",
+    "titleAddUserSource": "Nueva fuente de usuarios",
+    "addUserSource": "Añadir fuente de usuario",
+    "noUserSourceMessage": "Aún no has añadido un origen de usuario a esta aplicación. Debes añadir un origen de usuario si quieres que los usuarios puedan autenticar tu aplicación."
+  },
+  "publicPage": {
+    "pageNotFound": "Página no encontrada",
+    "siteNotFound": "Sitio no encontrado"
+  },
+  "integrationSettings": {
+    "integrationMessage": "Se pueden crear nuevas integraciones añadiendo fuente de datos, acción o autenticación de usuario.",
+    "noIntegrationMessage": "Aún no has creado ninguna conexión. Se pueden crear añadiendo fuente de datos, acción o autenticación de usuario.",
+    "title": "Integraciones"
+  },
+  "upsertRowWorkflowActionForm": {
+    "rowIdPlaceholder": "Selecciona un ID de fila",
+    "fieldMappingPlaceholder": "Elige un valor de campo",
+    "integrationDropdownLabel": "Integración",
+    "rowIdLabel": "ID de fila",
+    "noTableSelectedMessage": "Elige una tabla para empezar a configurar tus campos."
+  },
+  "customDomainForm": {
+    "domainNameLabel": "Nombre de dominio"
+  },
+  "subDomainDetails": {
+    "text": "Los ajustes DNS del dominio ya han sido configurados y comprobados. Funciona sin realizar ningún cambio adicional."
+  },
+  "imageElement": {
+    "emptyState": "No hay texto alternativo definido...",
+    "missingValue": "Falta texto alternativo...",
+    "emptyValue": "Texto alternativo vacío..."
+  },
+  "columnElementForm": {
+    "columnGapPlaceholder": "Introducir espacio entre columnas...",
+    "columnGapTitle": "Espacio entre columnas",
+    "columnAmountTitle": "Disposición",
+    "columnAmountName": "sin columnas | 1 columna | {columnaCantidad} columnas",
+    "verticalAlignment": "Alineación vertical"
+  },
+  "pageSettings": {
+    "pageUpdatedTitle": "Cambiado",
+    "pageUpdatedDescription": "Se ha actualizado la configuración de la página.",
+    "title": "Página"
+  },
+  "notificationWorkflowActionForm": {
+    "descriptionLabel": "Descripción",
+    "descriptionPlaceholder": "Introducir texto...",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Introducir texto..."
+  },
+  "dataSourceContext": {
+    "addDataSource": "Añadir nueva fuente de datos",
+    "noDataSourceMessage": "Las fuentes de datos pueden utilizarse para obtener datos de fuentes internas o externas y mostrarlos en la página.",
+    "noDataSourceTitle": "Aún no has añadido una fuente de datos.",
+    "sharedDataSourceTitle": "Compartido entre páginas",
+    "pageDataSourceTitle": "Para esta página",
+    "sharedDataSourceDescription": "Accesible en todas las páginas y se obtiene una vez en la primera carga de la página.",
+    "pageDataSourceDescription": "Se obtiene cuando el usuario navega a esta página."
+  },
+  "pageSettingsTypes": {
+    "pageName": "Página"
+  },
+  "publishActionModal": {
+    "publish": "Publicar",
+    "publishSucceedDescription": "El sitio se ha publicado correctamente.",
+    "publishSucceedTitle": "Sitio publicado",
+    "description": "Publica tu aplicación en uno de los dominios. Ten en cuenta que tu aplicación puede tener varios dominios, cada uno con una versión diferente de la aplicación.",
+    "title": "Publicar",
+    "publishFailedTitle": "Error en la publicación del sitio",
+    "openInNewTab": "Abrir en una pestaña nueva",
+    "noDomain": "Necesitas tener al menos un dominio para poder publicar tu aplicación.",
+    "publishFailedDescription": "La publicación del sitio ha fallado. Vuelva a intentarlo más tarde.",
+    "importingState": "Importando"
+  },
+  "currentRecordDataProviderType": {
+    "index": "Índice",
+    "firstPartName": "Fuente de datos: {nombre}",
+    "schemaProperty": "{prefixName}: {schemaProperty}"
+  },
+  "pageSidePanelType": {
+    "visibility": "Visibilidad",
+    "general": "General",
+    "events": "Eventos",
+    "style": "Estilo",
+    "eventsTabDeactivatedNoEvents": "Este elemento no admite eventos"
+  },
+  "addElementModal": {
+    "title": "Añadir nuevo elemento",
+    "searchPlaceholder": "Buscar elementos",
+    "disabledElementTooltip": "No disponible dentro de este elemento",
+    "elementInProgress": "Añadiendo elemento..."
+  },
+  "domainTypes": {
+    "subDomain": "Subdominio de {dominio}",
+    "customName": "Dominio personalizado",
+    "subDomainName": "Subdominio"
+  },
+  "domainForm": {
+    "notUniqueDomain": "El dominio proporcionado ya está en uso",
+    "invalidDomain": "El nombre de dominio proporcionado es inválido"
+  },
+  "dispatchWorkflowActionError": {
+    "defaultMessage": "Se ha producido un error que ha provocado este evento.",
+    "defaultTitle": "Error de evento",
+    "formDataInvalidTitle": "Formulario inválido",
+    "formDataInvalidMessage": "Uno o más campos contienen valores no válidos."
+  },
+  "dataProviderType": {
+    "currentRecord": "Fuente de datos",
+    "formData": "Datos del formulario",
+    "pageParameter": "Parámetro",
+    "dataSource": "Registros de datos",
+    "user": "Usuario",
+    "previousAction": "Acción previa",
+    "dataSourceContext": "Opciones disponibles",
+    "metadata": "Metadatos"
+  },
+  "openPageWorkflowActionForm": {
+    "urlLabel": "URL",
+    "urlPlaceholder": "Introducir texto..."
+  },
+  "collectionFieldType": {
+    "text": "Texto",
+    "link": "Enlace",
+    "boolean": "Booleano",
+    "tags": "Etiquetas",
+    "image": "Imagen",
+    "button": "Botón"
+  },
+  "elementsContext": {
+    "searchPlaceholder": "Buscar elementos",
+    "noElements": "No se han encontrado elementos",
+    "noPageElements": "Sin elementos para esta página"
+  },
+  "textElementForm": {
+    "textTitle": "Texto",
+    "textError": "El valor es inválido.",
+    "textPlaceholder": "Introducir texto...",
+    "textFormatTypeLabel": "Formato",
+    "textFormatTypePlain": "Texto plano",
+    "textFormatTypeMarkdown": "Markdown"
+  },
+  "createUserSourceForm": {
+    "userSourceName": "Nombre",
+    "userSourceIntegration": "Integración",
+    "userSourceType": "Tipo"
+  },
+  "event": {
+    "addAction": "añadir acción"
+  },
+  "pageErrors": {
+    "errorStartingSlash": "Una ruta debe empezar por '/'",
+    "errorUniquePathParams": "Los parámetros de la ruta deben ser únicos.",
+    "errorPathNotUnique": "Ya existe una ruta con este nombre",
+    "errorValidPathCharacters": "La ruta contiene caracteres inválidos",
+    "errorNameNotUnique": "Ya existe una página con este nombre"
+  },
+  "addElementButton": {
+    "label": "Elemento"
+  },
+  "buttonElement": {
+    "noValue": "Sin nombre...",
+    "missingValue": "Falta el texto del botón...",
+    "emptyValue": "Texto del botón vacío..."
+  },
+  "formDataProviderType": {
+    "nodeMissing": "Falta"
+  },
+  "lastPublishedDomainDate": {
+    "lastPublished": "Última publicación:",
+    "neverPublished": "nunca"
+  },
+  "textFieldForm": {
+    "fieldValuePlaceholder": "Introducir valor...",
+    "fieldValueLabel": "Valor"
+  },
+  "tableElement": {
+    "empty": "No se ha encontrado ningún artículo.",
+    "showMore": "Ver más"
+  },
+  "fontSidePanelForm": {
+    "label": "Color de fuente"
+  },
+  "emptySidePanelState": {
+    "message": "Haz clic en uno de los elementos para ver más detalles"
+  },
+  "styleBoxForm": {
+    "borderLabel": "Tamaño",
+    "paddingLabel": "Acolchado",
+    "error": "El valor debe ser un número entero entre 0 y 200.",
+    "borderColor": "Color del borde",
+    "marginLabel": "Margen"
+  },
+  "backgroundTypes": {
+    "color": "Color",
+    "none": "Ninguno"
+  },
+  "linkElement": {
+    "noValue": "Sin nombre...",
+    "missingValue": "Falta el texto del enlace...",
+    "emptyValue": "Texto del enlace vacío..."
+  },
+  "pagePreview": {
+    "emptyMessage": "Haz clic para crear un elemento",
+    "header": "ENCABEZAMIENTO",
+    "footer": "PIE DE PÁGINA"
+  },
+  "eventTypes": {
+    "submitLabel": "Al enviar",
+    "clickLabel": "Al hacer clic",
+    "afterLoginLabel": "Después de iniciar sesión"
+  },
+  "pageActionTypes": {
+    "publish": "Publicar",
+    "preview": "Previsualizar"
+  },
+  "headingElement": {
+    "noValue": "Sin título...",
+    "emptyValue": "Título vacío...",
+    "missingValue": "Falta el título..."
+  },
+  "formContainerElementForm": {
+    "submitButtonLabel": "Botón de envío",
+    "submitButtonPlaceholder": "Introducir valor...",
+    "buttonColor": "Color de los botones",
+    "resetToInitialValuesTitle": "Restablecer los valores por defecto tras el envío",
+    "resetToInitialValuesDescription": "Si está marcada, los valores por defecto del formulario se utilizarán para restablecer el formulario después de un envío exitoso. Si no está marcada, se mantendrán los valores del usuario."
+  },
+  "subDomainForm": {
+    "domainNameLabel": "Nombre de dominio"
+  },
+  "linkField": {
+    "details": "Detalles"
+  },
+  "getFormulaComponent": {
+    "errorTooltip": "Referencia inválida"
+  },
+  "pathParamTypes": {
+    "textName": "Texto",
+    "numericName": "Numérico"
+  },
+  "dropdownOptionSelector": {
+    "value": "Valor",
+    "name": "Nombre",
+    "addOption": "añadir opción",
+    "label": "Opciones"
+  },
+  "checkboxElementForm": {
+    "labelTitle": "Nombre de la opción",
+    "valueTitle": "Valor por defecto",
+    "requiredTitle": "Requerido"
+  },
+  "generalForm": {
+    "placeholderPlaceholder": "Introduce un marcador de posición (opcional)",
+    "requiredTitle": "Requerido",
+    "labelTitle": "Etiqueta",
+    "labelPlaceholder": "Introduce una etiqueta (opcional)",
+    "valueTitle": "Valor por defecto",
+    "valuePlaceholder": "Introduce un valor por defecto (opcional)",
+    "placeholderTitle": "Marcador de posición",
+    "validationTitle": "Validación"
+  },
+  "iframeElementForm": {
+    "empty": "Iframe vacío...",
+    "sourceTypeLabel": "Tipo de fuente",
+    "urlLabel": "URL",
+    "urlPlaceholder": "Enlace al recurso externo que se va a incrustar",
+    "urlHelp": "Nota: asegúrate de que controlas o confías en la URL introducida.",
+    "embedLabel": "Incrustar",
+    "embedPlaceholder": "Contenido HTML en bruto para incrustar",
+    "heightLabel": "Altura (en px)",
+    "heightPlaceholder": "Altura en píxeles",
+    "missingValue": "Falta la fuente IFrame...",
+    "emptyValue": "Fuente IFrame vacía..."
+  },
+  "linkNavigationSelection": {
+    "navigateTo": "Navegar a",
+    "navigateToCustom": "URL personalizada",
+    "paramPlaceholder": "Introduce un valor...",
+    "paramsInErrorButton": "Actualizar parámetros",
+    "url": "URL de destino",
+    "urlPlaceholder": "Introduce una URL...",
+    "paramsInErrorDescription": "Los parámetros guardados no coinciden con los parámetros de la página. Es probable que la página se haya eliminado o actualizado.",
+    "target": "Abrir en...",
+    "targetSelf": "Misma pestaña",
+    "targetNewTab": "Nueva pestaña"
+  },
+  "dispatchDataSourceError": {
+    "defaultTitle": "Error de carga de datos",
+    "defaultMessage": "Se ha producido un error al cargar los datos de la página."
+  },
+  "authFormElementForm": {
+    "userSource": "Fuente del usuario"
+  },
+  "authFormElement": {
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "emailPlaceholder": "Introduce tu correo electrónico...",
+    "passwordPlaceholder": "Introduce tu contraseña...",
+    "selectOrConfigureUserSourceFirst": "Elige un origen de usuario para empezar a utilizar este elemento de inicio de sesión."
+  },
+  "userSourceUsersContext": {
+    "searchPlaceholder": "Buscar usuario",
+    "unnamed": "Sin nombre",
+    "anonymous": "Anónimo",
+    "noEmail": "Sin correo electrónico"
+  },
+  "userSelector": {
+    "viewAs": "Ver como: {usuario}",
+    "anonymous": "Anónimo",
+    "member": "{prefix} miembro"
+  },
+  "formContainerElement": {
+    "submitDeactivatedText": "Rellena todos los campos obligatorios para enviar",
+    "defaultSubmitButtonLabel": "Enviar"
+  },
+  "visibilityForm": {
+    "allVisitors": "Todos los visitantes",
+    "loggedInVisitors": "Visitantes registrados",
+    "notLoggedInVisitors": "Visitantes no registrados",
+    "warningTitle": "Mejoramos constantemente la seguridad",
+    "warningMessage": "Por el momento, la visibilidad sólo se aplica en la interfaz de usuario, los datos subyacentes siguen siendo accesibles desde la API. Consulta la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentación&lt;/a&gt; para obtener más información sobre la seguridad de los datos.",
+    "excludedRolesLabel": "todos los roles excepto",
+    "switchAllowLabel": "Permitir",
+    "switchDisallowLabel": "No permitir",
+    "rolesSelectAll": "Seleccionar todo",
+    "rolesDeselectAll": "Deseleccionar todo",
+    "rolesSelectHint": "Selecciona uno o varios roles",
+    "roleTypesHint": "Selecciona un tipo de función",
+    "roleTypeAllowAllRoles": "Todos los roles",
+    "roleTypeAllowAllRolesExcept": "No permitir roles...",
+    "roleTypeDisallowAllRolesExcept": "Permitir roles...",
+    "rolesAllMembersOf": "Todos los miembros de {name}",
+    "noRole": "Sin función",
+    "errorFetchingRolesTitle": "No se han podido recuperar los roles de usuario",
+    "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario."
+  },
+  "generalSettings": {
+    "titleOverview": "General",
+    "labelForm": "Favicon",
+    "labelDescription": "Escoge un ICO, PNG, GIF o JPEG de 128x128px.",
+    "cantUploadFaviconTitle": "No se puede cargar el archivo favicon",
+    "cantUpdateApplicationTitle": "No se ha podido actualizar la aplicación",
+    "cantUpdateApplicationDescription": "Lo sentimos, no se ha podido actualizar la aplicación.",
+    "labelButton": "Subir favicon",
+    "cantUploadFaviconDescription": "Lo sentimos, no se ha podido cargar la imagen del favicon. Asegúrese de que el archivo de imagen es único y tiene un formato de imagen compatible."
+  },
+  "repeatElement": {
+    "empty": "No se ha encontrado ningún artículo.",
+    "missingDataSourceTooltip": "Elige una fuente de datos para empezar a añadir elementos.",
+    "showMore": "Ver más",
+    "missingSchemaPropertyTooltip": "Elige una propiedad para comenzar a agregar elementos.",
+    "emptyState": "No se han encontrado registros."
+  },
+  "repeatElementForm": {
+    "dataSource": "Fuente de datos",
+    "itemsPerPage": "Artículos por página",
+    "itemsPerRowLabel": "Artículos por fila",
+    "orientationLabel": "Orientación",
+    "orientationHorizontal": "Horizontal",
+    "itemsPerPagePlaceholder": "Introduce el valor...",
+    "itemsPerRowDescription": "Número de columnas por fila y tipo de dispositivo.",
+    "orientationVertical": "Vertical",
+    "buttonLoadMoreLabel": "Mostrar más etiqueta",
+    "toggleEditorRepetitionsLabel": "Desactivar temporalmente las repeticiones",
+    "propertySelectorMissingArrays": "No se encontraron campos de valores múltiples para crear los patrones."
+  },
+  "tagsFieldForm": {
+    "fieldValuesLabel": "Valores",
+    "fieldValuesPlaceholder": "Introducir valores...",
+    "fieldColorsPlaceholder": "Introducir colores...",
+    "fieldColorsLabel": "Colores"
+  },
+  "buttonFieldForm": {
+    "labelPlaceholder": "Introduce una etiqueta...",
+    "infoMessage": "Para configurar las acciones de este botón, abre la pestaña «Eventos» del elemento actual."
+  },
+  "imageInput": {
+    "labelDescription": "Descripción por defecto",
+    "labelButton": "Cargar"
+  },
+  "userDataProviderType": {
+    "isAuthenticated": "Está autenticado",
+    "id": "ID",
+    "email": "Correo electrónico",
+    "username": "Usuario",
+    "role": "Rol"
+  },
+  "buttonField": {
+    "noLabel": "Sin nombre..."
+  },
+  "themeConfigBlockType": {
+    "color": "Colores",
+    "button": "Botón",
+    "link": "Enlace",
+    "page": "Página",
+    "typography": "Tipografía",
+    "image": "Imagen",
+    "input": "Entrada",
+    "table": "Tabla"
+  },
+  "colorThemeConfigBlock": {
+    "secondaryColor": "Secundario",
+    "borderColor": "Borde",
+    "successColor": "Éxito",
+    "warningColor": "Aviso",
+    "errorColor": "Error",
+    "primaryColor": "Principal",
+    "transparent": "Transparente"
+  },
+  "pageThemeConfigBlock": {
+    "backgroundColor": "Color de fondo",
+    "backgroundImage": "Imagen de fondo",
+    "backgroundMode": "Modo de fondo"
+  },
+  "colorThemeConfigBlockType": {
+    "primary": "Principal",
+    "secondary": "Secundario",
+    "success": "Éxito",
+    "warning": "Aviso",
+    "error": "Error",
+    "border": "Borde",
+    "transparent": "Transparente"
+  },
+  "typographyThemeConfigBlock": {
+    "headingLabel": "Encabezamiento {i} (h{i})",
+    "headingValue": "Encabezamiento <h{i}>",
+    "color": "Color",
+    "size": "Tamaño",
+    "textAlignment": "Alineación",
+    "bodyLabel": "Cuerpo",
+    "fontFamily": "Fuente"
+  },
+  "buttonThemeConfigBlock": {
+    "backgroundColor": "Color de fondo",
+    "button": "Botón",
+    "defaultState": "Estado por defecto",
+    "hoverState": "Estado de la imagen flotante",
+    "textAlignment": "Alineación del texto",
+    "alignment": "Alineación",
+    "width": "Anchura",
+    "padding": "Acolchado",
+    "textColor": "Color del texto",
+    "size": "Tamaño de letra",
+    "borderRadius": "Radio del borde",
+    "borderColor": "Color del borde",
+    "borderSize": "Tamaño del borde",
+    "fontFamily": "Fuente"
+  },
+  "linkThemeConfigBlock": {
+    "defaultState": "Estado por defecto",
+    "alignment": "Alineación",
+    "fontFamily": "Fuente",
+    "link": "Enlace",
+    "color": "Color",
+    "hoverState": "Estado de la imagen flotante"
+  },
+  "imageThemeConfigBlock": {
+    "alignment": "Alineación",
+    "maxWidthLabel": "Anchura máxima",
+    "maxHeightLabel": "Altura máxima",
+    "maxHeightPlaceholder": "Introduce una altura máxima",
+    "maxWidthPlaceholder": "Introduce una anchura máxima",
+    "imageConstraintsLabel": "Restricciones",
+    "imageConstraintFullWidth": "Extender a la anchura máxima",
+    "imageConstraintCover": "Portada",
+    "imageConstraintContain": "Contener",
+    "imageConstraintContainDisabled": "No disponible con altura máxima.",
+    "imageConstraintCoverDisabled": "No disponible con altura máxima vacía."
+  },
+  "choiceElementForm": {
+    "multiple": "Permitir varios valores",
+    "display": "Visualizar",
+    "dropdown": "Desplegable",
+    "checkbox": "Casilla de verificación",
+    "radio": "Radio"
+  },
+  "choiceOptionSelector": {
+    "value": "Valores de las opciones",
+    "valuePlaceholder": "Introducir valor",
+    "name": "Nombres de las opciones",
+    "namePlaceholder": "Introducir nombre",
+    "optionType": "Tipo de opciones",
+    "manual": "Manual",
+    "dataSource": "Fuente de datos",
+    "formulas": "Fórmulas",
+    "label": "Opciones",
+    "addOption": "añadir opción",
+    "addOptionDescription": "Haz clic en «añadir opción» para añadir opciones a tu desplegable"
+  },
+  "choiceElement": {
+    "addOptions": "Añadir opciones para empezar a utilizar este elemento..."
+  },
+  "backgroundModes": {
+    "tile": "Azulejo",
+    "fit": "Encajar",
+    "fill": "Llenar"
+  },
+  "customStyle": {
+    "themeOverrides": "Anulación de temas",
+    "configureThemeOverrides": "Configurar las modificaciones del tema para este elemento"
+  },
+  "resetButton": {
+    "reset": "Restablecer el valor predeterminado del tema"
+  },
+  "inputThemeConfigBlock": {
+    "textColor": "Color del texto",
+    "borderColor": "Color del borde",
+    "borderSize": "Tamaño del borde",
+    "borderRadius": "Radio del borde",
+    "padding": "Acolchado",
+    "fontFamily": "Fuente",
+    "size": "Tamaño de letra",
+    "label": "Etiqueta",
+    "input": "Entrada",
+    "backgroundColor": "Color de fondo"
+  },
+  "tableThemeConfigBlock": {
+    "borderColor": "Color del borde",
+    "backgroundColor": "Color de fondo",
+    "textColor": "Color del texto",
+    "padding": "Acolchado",
+    "fontFamily": "Fuente",
+    "size": "Tamaño",
+    "fontSize": "Tamaño de letra",
+    "table": "Tabla",
+    "header": "Cabecera",
+    "borderRadius": "Radio del borde",
+    "separators": "Separadores",
+    "verticalSeparatorColor": "Color vertical",
+    "borderSize": "Tamaño del borde",
+    "backgroundAlternateColor": "Color de las filas pares",
+    "alignment": "Alineación",
+    "cells": "Células",
+    "verticalSeparatorSize": "Tamaño vertical",
+    "horizontalSeparatorColor": "Color horizontal",
+    "horizontalSeparatorSize": "Tamaño horizontal"
+  },
+  "abTable": {
+    "empty": "No se ha encontrado ningún artículo.",
+    "loading": "Cargando..."
+  },
+  "localBaserowServiceForm": {
+    "integrationDropdownLabel": "Integración",
+    "rowIdLabel": "ID de fila",
+    "rowIdPlaceholder": "Seleccione un ID de fila"
+  },
+  "fieldMappingContext": {
+    "enableField": "Habilitar campo",
+    "disableField": "Desactivar campo"
+  },
+  "dropdown": {
+    "empty": "No hay opciones disponibles"
+  },
+  "collectionElementForm": {
+    "noSchemaPropertyMessage": "Elige una propiedad de origen de datos para usarla como el origen de los datos para tu elemento.",
+    "noDataSourceMessage": "Elige una fuente de datos con varias filas para enumerar todos los resultados, o un origen para los datos de una sola fila para elegir una propiedad dentro de esta fila.",
+    "propertyOptionLabel": "Acciones del usuario"
+  },
+  "imageFieldForm": {
+    "fieldAltLabel": "Texto alternativo",
+    "fieldAltPlaceholder": "Introducir valor...",
+    "fieldSrcLabel": "Origen de la imagen",
+    "fieldSrcPlaceholder": "Introducir valor",
+    "fieldAltHelp": "Es utilizado por los lectores de pantalla y se muestra si la imagen no se puede cargar"
+  },
+  "serviceSchemaPropertySelector": {
+    "label": "Propiedad",
+    "noProperties": "No hay propiedades disponibles"
+  },
+  "dataSourceDropdown": {
+    "label": "Origen de los datos",
+    "noDataSources": "Sin origen para los datos disponibles",
+    "shared": "compartido",
+    "pageOnly": "esta página",
+    "noSharedDataSources": "No hay fuentes de datos compartidas"
+  },
+  "recordSelectorElementForm": {
+    "selectRecordsFrom": "Seleccionar registros de",
+    "noDataSourceMessage": "Elija una fuente de datos con múltiples filas para listar todos los resultados.",
+    "optionNameSuffix": "Sufijo del nombre de la opción",
+    "optionNameSuffixPlaceholder": "Introduce un sufijo...",
+    "optionNameSuffixHelper": "Este sufijo se añade a cada nombre de opción al abrir el desplegable y ayuda a distinguirlas.",
+    "itemsPerPagePlaceholder": "Introduce el valor...",
+    "multipleLabel": "Permitir varios valores",
+    "record": "Registro {id}",
+    "itemsPerPage": "Artículos por página"
+  },
+  "dataSourceCreateEditModal": {
+    "editTitle": "Editar fuente de datos",
+    "createTitle": "Crear fuente de datos",
+    "sharedWarning": "Esta fuente de datos se comparte, por lo que los cambios pueden afectar a varias páginas."
+  },
+  "dataSourceItem": {
+    "notConfigured": "No configurado"
+  },
+  "dataSourceItemContext": {
+    "shareBetweenPages": "Compartir entre páginas",
+    "unshareBetweenPages": "Descompartir de otras páginas"
+  },
+  "propertyOptionForm": {
+    "sortHeading": "Ordenar",
+    "searchHeading": "Búsqueda",
+    "formDescription": "Elige qué propiedades de la fuente de datos de este elemento pueden filtrar, ordenar y buscar los usuarios externos.",
+    "fieldHeading": "Campo",
+    "filterHeading": "Filtro",
+    "optionUnavailable": "No disponible",
+    "noPropertiesAvailable": "No hay campos disponibles."
+  },
+  "recordSelectorElement": {
+    "emptyState": "No se han encontrado registros.",
+    "emptyAdhocState": "No se han encontrado registros que coincidan con '{query}'."
+  },
+  "common": {
+    "dateFormatTitle": "Formato de la fecha",
+    "dateFormatEU": "Europeo",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "Formato de hora",
+    "timeFormat24Hour": "24 horas",
+    "timeFormat12Hour": "12 horas",
+    "dateFormatUS": "Americano"
+  },
+  "dateTimePickerElementForm": {
+    "includeTime": "Incluir fecha y hora",
+    "invalidDateError": "Fecha no válida. Asegúrese de que la fecha ingresada coincida con el formato indicado."
+  },
+  "themeSettings": {
+    "titleOverview": "Tema"
+  },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "Divulgación",
+    "logInPageWarningTitle": "La página de inicio de sesión no está configurada",
+    "logInPagewarningMessage": "Cuando un usuario anónimo intente acceder a esta página, será redirigido a una página de inicio de sesión. Establezca la página de inicio de sesión en la configuración general de la aplicación.",
+    "logInPageInfoMessage": "Los usuarios anónimos que intenten acceder a esta página serán redirigidos a la página {logInPageName}.",
+    "logInPageInfoTitle": "Los usuarios anónimos serán redirigidos"
+  },
+  "pageVisibilitySettings": {
+    "allVisitors": "Todos los visitantes",
+    "loggedInVisitors": "Visitantes registrados",
+    "description": "¿Quién puede ver esta página?",
+    "title": "Visibilidad"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownLabel": "Página de inicio de sesión",
+    "pageDropdownPlaceholder": "Seleccione una página",
+    "pageDropdownDescription": "Seleccione la página de inicio de sesión a la que deben redirigirse los usuarios que no hayan iniciado sesión cuando intenten acceder a una página restringida."
+  },
+  "multiPageContainerElementForm": {
+    "behaviour": "Comportamiento",
+    "display": "Visualizar",
+    "pagePosition": "Posición",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo"
+  },
+  "pageShareType": {
+    "all": "En todas las páginas",
+    "only": "Solo en páginas seleccionadas",
+    "except": "Excluir páginas seleccionadas"
+  },
+  "pageEditor": {
+    "pageNotFound": "Página no encontrada"
+  }
 }

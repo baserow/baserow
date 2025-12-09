@@ -13,10 +13,9 @@
       :hide-tooltip="!isInvalid"
       @click.stop="emitToEditor('data-node-clicked', node)"
     >
-      <template v-for="(part, index) in pathParts">
+      <template v-for="(part, index) in pathParts" :key="index">
         <i
           v-if="index > 0"
-          :key="index"
           class="get-formula-component__caret iconoir-nav-arrow-right"
         />
 

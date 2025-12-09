@@ -14,6 +14,7 @@ export default {
       return this.$registry.getOrderedList('themeConfigBlock')
     },
     style() {
+      if (!this.builder || !this.builder.theme) return {}
       return ThemeConfigBlockType.getAllStyles(
         this.themeConfigBlocks,
         this.builder.theme
