@@ -45,7 +45,7 @@ export default {
     value: {
       type: [String, Number, Boolean, Object, Array],
       required: false,
-      default: null,
+      default: undefined,
     },
     /**
      * Vue 3 v-model compatibility (modelValue)
@@ -53,7 +53,7 @@ export default {
     modelValue: {
       type: [String, Number, Boolean, Object, Array],
       required: false,
-      default: null,
+      default: undefined,
     },
     /**
      * A string that is used to filter the dropdown items.
@@ -186,7 +186,7 @@ export default {
   computed: {
     // Support both Vue 2 (value) and Vue 3 (modelValue)
     currentValue() {
-      return this.modelValue !== null ? this.modelValue : this.value
+      return this.modelValue !== undefined ? this.modelValue : this.value
     },
     selectedName() {
       return this.getSelectedProperty(this.currentValue, 'name')
@@ -488,11 +488,15 @@ export default {
         } else {
           newValue.splice(index, 1)
         }
+        // emitting the updated value Vue 2 style.
         this.$emit('input', newValue)
+        // emitting the updated value Vue 3 style.
         this.$emit('update:modelValue', newValue) // Vue 3 compatibility
         this.$emit('change', newValue)
       } else {
+        // emitting the updated value Vue 2 style.
         this.$emit('input', value)
+        // emitting the updated value Vue 3 style.
         this.$emit('update:modelValue', value) // Vue 3 compatibility
         this.$emit('change', value)
         this.hide()
