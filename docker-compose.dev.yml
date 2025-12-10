@@ -90,6 +90,11 @@ services:
     networks:
       local:
     command: "storybook-dev"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:6006 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:
@@ -167,6 +172,11 @@ services:
     restart: unless-stopped
     stop_signal: SIGQUIT
     command: "celery-flower"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:5555 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       REDIS_HOST:
       REDIS_PORT:
@@ -177,6 +187,10 @@ services:
     depends_on:
       - backend
     volumes:
+      - ./backend:/baserow/backend
+      - ./premium/backend/:/baserow/premium/backend
+      - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
       - media:/baserow/media
     ports:
       - "5555:5555" # web ui
@@ -187,12 +201,13 @@ services:
     tty: true
 
   mjml-email-compiler:
-    
     image: baserow_web-frontend:dev
     depends_on:
       - web-frontend
     user: "${UID}:${GID}"
     command: "bash -c 'cd /baserow/backend/email_compiler/ && yarn install && yarn run watch'"
+    healthcheck:
+      disable: true
     volumes:
       - ./backend:/baserow/backend
       - ./web-frontend/docker:/baserow/web-frontend/docker
