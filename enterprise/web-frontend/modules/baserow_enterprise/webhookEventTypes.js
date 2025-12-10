@@ -8,7 +8,7 @@ import { AdvancedWebhooksPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 class EnterpriseWebhookEventType extends WebhookEventType {
   getDeactivatedText() {
-    return this.app.i18n.t('enterprise.deactivated')
+    return this.app.$i18n.t('enterprise.deactivated')
   }
 
   getDeactivatedClickModal() {
@@ -26,7 +26,7 @@ class EnterpriseWebhookEventType extends WebhookEventType {
   }
 
   getFeatureName() {
-    return this.app.i18n.t('enterpriseFeatures.advancedWebhooks')
+    return this.app.$i18n.t('enterpriseFeatures.advancedWebhooks')
   }
 }
 

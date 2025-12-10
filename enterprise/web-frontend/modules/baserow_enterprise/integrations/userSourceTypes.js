@@ -27,7 +27,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   get name() {
-    return this.app.i18n.t('userSourceType.localBaserow')
+    return this.app.$i18n.t('userSourceType.localBaserow')
   }
 
   get image() {
@@ -99,7 +99,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
     ](application, userSource.integration_id)
 
     if (!integration) {
-      return this.app.i18n.t('localBaserowUserSourceType.notConfigured')
+      return this.app.$i18n.t('localBaserowUserSourceType.notConfigured')
     }
 
     const databases = integration.context_data?.databases
@@ -110,7 +110,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
       .find(({ id }) => id === userSource.table_id)
 
     if (!tableSelected) {
-      return `${integration.name} - ${this.app.i18n.t(
+      return `${integration.name} - ${this.app.$i18n.t(
         'localBaserowUserSourceType.notConfigured'
       )}`
     }
@@ -118,11 +118,11 @@ export class LocalBaserowUserSourceType extends UserSourceType {
     const summaryParts = [integration.name, tableSelected.name]
     if (!userSource.email_field_id || !userSource.name_field_id) {
       summaryParts.push(
-        this.app.i18n.t('localBaserowUserSourceType.notConfigured')
+        this.app.$i18n.t('localBaserowUserSourceType.notConfigured')
       )
     } else if (userSource.user_count_updated_at !== null) {
       summaryParts.push(
-        this.app.i18n.t('userSourceType.userCountSummary', {
+        this.app.$i18n.t('userSourceType.userCountSummary', {
           count: userSource.user_count,
           lastUpdated: moment.utc(userSource.user_count_updated_at).fromNow(),
         })

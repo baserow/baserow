@@ -28,7 +28,7 @@ export class SyncedFieldsConfigureDataSyncType extends ConfigureDataSyncType {
   }
 
   get name() {
-    return this.app.i18n.t('configureDataSyncModal.syncedFields')
+    return this.app.$i18n.t('configureDataSyncModal.syncedFields')
   }
 
   get iconClass() {
@@ -46,7 +46,7 @@ export class SettingsConfigureDataSyncType extends ConfigureDataSyncType {
   }
 
   get name() {
-    return this.app.i18n.t('configureDataSyncModal.syncSettings')
+    return this.app.$i18n.t('configureDataSyncModal.syncSettings')
   }
 
   get iconClass() {

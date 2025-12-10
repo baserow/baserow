@@ -34,7 +34,7 @@ export class GeneralAutomationSettingsType extends AutomationSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.generalName')
+    return this.app.$i18n.t('builderSettingTypes.generalName')
   }
 
   get icon() {
@@ -60,7 +60,7 @@ export class IntegrationsAutomationSettingsType extends AutomationSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.integrationsName')
+    return this.app.$i18n.t('builderSettingTypes.integrationsName')
   }
 
   get icon() {

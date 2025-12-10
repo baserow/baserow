@@ -28,7 +28,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedClickModal() {
@@ -542,7 +542,7 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   getSharedViewText() {
-    return this.app.i18n.t('calendarViewType.sharedViewText')
+    return this.app.$i18n.t('calendarViewType.sharedViewText')
   }
 
   isShared(view) {

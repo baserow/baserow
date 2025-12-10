@@ -8,7 +8,7 @@ export class SlackBotIntegrationType extends IntegrationType {
   }
 
   get name() {
-    return this.app.i18n.t('integrationType.slackBot')
+    return this.app.$i18n.t('integrationType.slackBot')
   }
 
   get image() {
@@ -17,9 +17,9 @@ export class SlackBotIntegrationType extends IntegrationType {
 
   getSummary(integration) {
     if (!integration.token) {
-      return this.app.i18n.t('slackBotIntegrationType.slackBotNoToken')
+      return this.app.$i18n.t('slackBotIntegrationType.slackBotNoToken')
     }
-    return this.app.i18n.t('slackBotIntegrationType.slackBotSummary')
+    return this.app.$i18n.t('slackBotIntegrationType.slackBotSummary')
   }
 
   get formComponent() {

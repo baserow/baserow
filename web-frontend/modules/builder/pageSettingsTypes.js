@@ -30,7 +30,7 @@ export class PagePageSettingsType extends PageSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('pageSettingsTypes.pageName')
+    return this.app.$i18n.t('pageSettingsTypes.pageName')
   }
 
   get icon() {
@@ -52,7 +52,7 @@ export class PageVisibilitySettingsType extends PageSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('pageVisibilitySettingsTypes.pageName')
+    return this.app.$i18n.t('pageVisibilitySettingsTypes.pageName')
   }
 
   get icon() {

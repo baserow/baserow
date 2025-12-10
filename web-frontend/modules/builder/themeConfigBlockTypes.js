@@ -168,7 +168,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.color')
+    return this.app.$i18n.t('themeConfigBlockType.color')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -261,7 +261,7 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.typography')
+    return this.app.$i18n.t('themeConfigBlockType.typography')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -357,7 +357,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.button')
+    return this.app.$i18n.t('themeConfigBlockType.button')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -415,7 +415,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.link')
+    return this.app.$i18n.t('themeConfigBlockType.link')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -551,7 +551,7 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.image')
+    return this.app.$i18n.t('themeConfigBlockType.image')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -651,7 +651,7 @@ export class PageThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.page')
+    return this.app.$i18n.t('themeConfigBlockType.page')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -706,7 +706,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.input')
+    return this.app.$i18n.t('themeConfigBlockType.input')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -764,7 +764,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.table')
+    return this.app.$i18n.t('themeConfigBlockType.table')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {

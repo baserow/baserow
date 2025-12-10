@@ -35,7 +35,7 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.notificationLabel')
+    return this.app.$i18n.t('workflowActionTypes.notificationLabel')
   }
 
   execute({ workflowAction: { title, description }, resolveFormula }) {
@@ -64,7 +64,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.openPageLabel')
+    return this.app.$i18n.t('workflowActionTypes.openPageLabel')
   }
 
   /**
@@ -76,7 +76,9 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
   getErrorMessage(workflowAction, applicationContext) {
     if (workflowAction.navigation_type === 'page') {
       if (!workflowAction.navigate_to_page_id) {
-        return this.app.i18n.t('workflowActionTypes.errorNavigateToPageMissing')
+        return this.app.$i18n.t(
+          'workflowActionTypes.errorNavigateToPageMissing'
+        )
       }
       if (
         pathParametersInError(
@@ -86,13 +88,13 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
           )
         )
       ) {
-        return this.app.i18n.t('workflowActionTypes.errorPageParameterInError')
+        return this.app.$i18n.t('workflowActionTypes.errorPageParameterInError')
       }
     } else if (
       workflowAction.navigation_type === 'custom' &&
       !workflowAction.navigate_to_url
     ) {
-      return this.app.i18n.t('workflowActionTypes.errorNavigationUrlMissing')
+      return this.app.$i18n.t('workflowActionTypes.errorNavigationUrlMissing')
     }
 
     return super.getErrorMessage(workflowAction, applicationContext)
@@ -154,7 +156,7 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.logoutLabel')
+    return this.app.$i18n.t('workflowActionTypes.logoutLabel')
   }
 
   execute({ applicationContext }) {
@@ -182,12 +184,12 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.refreshDataSourceLabel')
+    return this.app.$i18n.t('workflowActionTypes.refreshDataSourceLabel')
   }
 
   getErrorMessage(workflowAction, applicationContext) {
     if (!workflowAction.data_source_id) {
-      return this.app.i18n.t('workflowActionTypes.errorDataSourceMissing')
+      return this.app.$i18n.t('workflowActionTypes.errorDataSourceMissing')
     }
 
     return super.getErrorMessage(workflowAction, applicationContext)
@@ -231,7 +233,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
       handleDispatchError(
         error,
         this.app,
-        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+        this.app.$i18n.t('builderToast.errorDataSourceDispatch', {
           name: dataSource.name,
         })
       )

@@ -27,7 +27,7 @@ export class PasswordAuthProviderType extends AuthProviderType {
   }
 
   getName() {
-    return this.app.i18n.t('authProviderTypes.password')
+    return this.app.$i18n.t('authProviderTypes.password')
   }
 
   getProviderName(provider) {
@@ -72,16 +72,16 @@ export const SamlAuthProviderTypeMixin = (Base) =>
     }
 
     getName() {
-      return this.app.i18n.t('authProviderTypes.saml')
+      return this.app.$i18n.t('authProviderTypes.saml')
     }
 
     getProviderName(provider) {
       if (provider.domain) {
-        return this.app.i18n.t('authProviderTypes.ssoSamlProviderName', {
+        return this.app.$i18n.t('authProviderTypes.ssoSamlProviderName', {
           domain: provider.domain,
         })
       } else {
-        return this.app.i18n.t(
+        return this.app.$i18n.t(
           'authProviderTypes.ssoSamlProviderNameUnconfigured'
         )
       }

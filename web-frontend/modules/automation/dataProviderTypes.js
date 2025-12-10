@@ -7,7 +7,7 @@ export class PreviousNodeDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.previousNode')
+    return this.app.$i18n.t('dataProviderType.previousNode')
   }
 
   getNodeSchema({ automation, node }) {
@@ -84,7 +84,7 @@ export class CurrentIterationDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.currentIteration')
+    return this.app.$i18n.t('dataProviderType.currentIteration')
   }
 
   getNodeSchema({ automation, node }) {
@@ -118,7 +118,7 @@ export class CurrentIterationDataProviderType extends DataProviderType {
             properties: {
               item: {
                 ...schema.items,
-                title: this.app.i18n.t('dataProviderType.item'),
+                title: this.app.$i18n.t('dataProviderType.item'),
               },
               index: { type: 'number', title: 'index' },
             },
