@@ -277,10 +277,46 @@
     "routerForm": {
         "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada",
         "defaultEdgeLabelPlaceholder": "Predeterminado",
-        "defaultEdgeLabelDescription": "Opcionalmente elige la etiqueta para mostrar en la rama predeterminada."
+        "defaultEdgeLabelDescription": "Opcionalmente elige la etiqueta para mostrar en la rama predeterminada.",
+        "branchesHeading": "Ramas",
+        "branchesDescription": "Las ramas te permiten ejecutar nodos solo cuando se cumple una condición. Las ramas se ejecutan de izquierda a derecha hasta que se cumpla una condición; de lo contrario, se ejecutará la rama predeterminada. ",
+        "branchLabel": "Etiqueta",
+        "branchConditionLabel": "Condición",
+        "branchConditionPlaceholder": "Introduce una condición…",
+        "addEdge": "Añadir rama",
+        "edgeDefaultName": "Rama",
+        "noLabel": "Sin etiqueta",
+        "edgeDeletionLastEdge": "No puedes eliminar la última rama.",
+        "edgeDeletionHasOutput": "No se puede eliminar una rama si tiene una salida."
     },
     "coreIterationServiceForm": {
         "source": "Fuente",
         "sourcePlaceholder": "Selecciona una fuente…"
+    },
+    "periodicForm": {
+        "intervalLabel": "Intervalo",
+        "intervalHelper": "Elige con qué frecuencia quieres que este flujo de trabajo se ejecute",
+        "everyMinute": "Cada {minute} minutos",
+        "everyMinuteDefault": "Cada minutos especificados",
+        "everyHour": "Cada hora",
+        "everyDay": "Cada día",
+        "everyWeek": "Cada semana",
+        "everyMonth": "Cada mes",
+        "hour": "Hora",
+        "minute": "Minuto",
+        "minuteFrequency": "Cada minutos",
+        "dayOfWeek": "Día de la semana",
+        "dayOfMonth": "Día del mes",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "minuteFrequencyPlaceholder": "15",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Este flujo de trabajo se ejecutará cada minutos especificados",
+        "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado en tu zona horaria local ({timezone})",
+        "dayHelper": "Este flujo de trabajo se ejecutará todos los días a la hora especificada en tu zona horaria local ({timezone})",
+        "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados en tu zona horaria local ({timezone})",
+        "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y la hora especificados en tu zona horaria local ({timezone})",
+        "deactivatedTitle": "Disparador periódico desactivado",
+        "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos."
     }
 }
