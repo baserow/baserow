@@ -125,8 +125,11 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // to the visible range.
     while (limit < maxRequestSize) {
       const previous = rows[offset - 1]
-      const next = rows[offset + limit + 1]
 
+      // Note: limit is a count value, so the index of the last item is actually
+      // `limit -1`. Here we want to reach the next last value, so the value should be
+      // `limit  -1 + 1`.
+      const next = rows[offset + limit]
       // If both the previous and next item are not `null`, which means there is
       // no un-fetched row before or after the range anymore, we want to stop the for
       // loop because there is nothing to fetch.
