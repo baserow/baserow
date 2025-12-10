@@ -243,7 +243,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/clientHandler.js'))
 
     addPlugin(resolve('plugins/permissions.js'))
-    addPlugin(resolve('plugins/bus.client.js'))
+    addPlugin(resolve('plugins/bus.js'))
     addPlugin(resolve('plugins/realTimeHandler.js'))
     addPlugin(resolve('plugins/hasFeature.js'))
     addPlugin(resolve('plugins/featureFlags.js'))

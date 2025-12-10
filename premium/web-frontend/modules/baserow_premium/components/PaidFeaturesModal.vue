@@ -1,11 +1,14 @@
 <template>
   <Modal ref="modal" :left-sidebar="true">
     <template #sidebar>
-      <template v-for="(features, planName) in paidFeaturePlans">
-        <div :key="planName + 'title'" class="modal-sidebar__title">
+      <template
+        v-for="(features, planName) in paidFeaturePlans"
+        :key="planName + 'title'"
+      >
+        <div class="modal-sidebar__title">
           {{ planName }}
         </div>
-        <ul :key="planName + 'items'" class="modal-sidebar__nav">
+        <ul class="modal-sidebar__nav">
           <li v-for="feature in features" :key="feature.getType()">
             <a
               class="modal-sidebar__nav-link"

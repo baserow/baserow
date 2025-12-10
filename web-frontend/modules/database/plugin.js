@@ -353,6 +353,7 @@ import {
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default defineNuxtPlugin({
+  name: 'database',
   dependsOn: ['core'],
   setup(nuxtApp) {
     const { $registry } = nuxtApp
