@@ -105,10 +105,11 @@ const actions = {
     commit('UNSELECT')
   },
   async forceDelete({ commit }, { builder, page }) {
+    const router = userRouter()
     if (page._.selected) {
       commit('UNSELECT')
       // Redirect back to the dashboard because the page doesn't exist anymore.
-      await this.$router.push({ name: 'dashboard' })
+      await router.push({ name: 'dashboard' })
     }
 
     commit('DELETE_ITEM', { builder, id: page.id })
@@ -117,7 +118,8 @@ const actions = {
     { commit, dispatch },
     { builder, name, path, pathParams, queryParams }
   ) {
-    const { data: page } = await PageService(this.$client).create(
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data: page } = await PageService($client).create(
       builder.id,
       name,
       path,
@@ -132,7 +134,8 @@ const actions = {
     return page
   },
   async update({ dispatch }, { builder, page, values }) {
-    const { data } = await PageService(this.$client).update(page.id, values)
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data } = await PageService($client).update(page.id, values)
 
     const update = Object.keys(values).reduce((result, key) => {
       result[key] = data[key]
@@ -142,7 +145,8 @@ const actions = {
     await dispatch('forceUpdate', { builder, page, values: update })
   },
   async delete({ dispatch }, { builder, page }) {
-    await PageService(this.$client).delete(page.id)
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    await PageService($client).delete(page.id)
 
     await dispatch('forceDelete', { builder, page })
   },
@@ -150,10 +154,11 @@ const actions = {
     { commit, getters },
     { builder, order, oldOrder, isHashed = false }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('ORDER_PAGES', { builder, order, isHashed })
 
     try {
-      await PageService(this.$client).order(builder.id, order)
+      await PageService($client).order(builder.id, order)
     } catch (error) {
       commit('ORDER_PAGES', { builder, order: oldOrder, isHashed })
       throw error
@@ -163,7 +168,8 @@ const actions = {
     commit('SET_DEVICE_TYPE_SELECTED', deviceType)
   },
   async duplicate({ commit, dispatch }, { page }) {
-    const { data: job } = await PageService(this.$client).duplicate(page.id)
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data: job } = await PageService($client).duplicate(page.id)
 
     await dispatch('job/create', job, { root: true })
 

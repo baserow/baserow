@@ -116,6 +116,7 @@ const actions = {
     { dispatch },
     { page, workflowActionType, eventType, configuration = null }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const { data: workflowAction } = await WorkflowActionService(
       this.$client
     ).create(page.id, workflowActionType, eventType, configuration)
@@ -125,24 +126,27 @@ const actions = {
     return workflowAction
   },
   async fetch({ commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const { data: workflowActions } = await WorkflowActionService(
-      this.$client
+      $client
     ).fetchAll(page.id)
 
     commit('SET_ITEMS', { page, workflowActions })
   },
   async fetchPublished({ commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const { data: workflowActions } = await PublishedBuilderService(
-      this.$client
+      $client
     ).fetchWorkflowActions(page.id)
 
     commit('SET_ITEMS', { page, workflowActions })
   },
   async delete({ dispatch }, { page, workflowAction }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     dispatch('forceDelete', { page, workflowActionId: workflowAction.id })
 
     try {
-      await WorkflowActionService(this.$client).delete(workflowAction.id)
+      await WorkflowActionService($client).delete(workflowAction.id)
     } catch (error) {
       await dispatch('forceCreate', { page, workflowAction })
       throw error
@@ -152,6 +156,7 @@ const actions = {
     { dispatch, commit },
     { page, workflowAction, values }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     // These values should not be updated via a regular update request
     const excludeValues = ['order']
 
@@ -183,7 +188,7 @@ const actions = {
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
-          const { data } = await WorkflowActionService(this.$client).update(
+          const { data } = await WorkflowActionService($client).update(
             workflowAction.id,
             toUpdate
           )
@@ -228,7 +233,8 @@ const actions = {
     })
   },
   async dispatchAction({ dispatch }, { workflowActionId, data, files }) {
-    const { data: result } = await WorkflowActionService(this.$client).dispatch(
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data: result } = await WorkflowActionService($client).dispatch(
       workflowActionId,
       data,
       files
@@ -236,6 +242,7 @@ const actions = {
     return result
   },
   async order({ commit, getters }, { page, order, element = null }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const workflowActions =
       element !== null
         ? getters.getElementWorkflowActions(page, element.id)
@@ -246,11 +253,7 @@ const actions = {
     commit('ORDER_ITEMS', { page, order })
 
     try {
-      await WorkflowActionService(this.$client).order(
-        page.id,
-        order,
-        element.id
-      )
+      await WorkflowActionService($client).order(page.id, order, element.id)
     } catch (error) {
       commit('ORDER_ITEMS', { page, order: oldOrder })
       throw error
