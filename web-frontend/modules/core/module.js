@@ -12,7 +12,7 @@ import es from './locales/es.json'
 import it from './locales/it.json'
 import pl from './locales/pl.json'
 import ko from './locales/ko.json'
-import zh_Hans from './locales/zh_Hans.json'
+import zh from './locales/zh_Hans.json'
 import { setDefaultResultOrder } from 'dns'
 const { readFileSync } = require('fs')
 
@@ -154,7 +154,7 @@ export default function CoreModule(options) {
     { code: 'it', name: 'Italiano', file: 'it.json' },
     { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
     { code: 'ko', name: '한국인', file: 'ko.json' },
-    { code: 'zh_Hans', name: '简体中文', file: 'zh_Hans.json' }
+    { code: 'zh', name: '简体中文', file: 'zh_Hans.json' }
   ]
 
   this.requireModule([
@@ -179,7 +179,7 @@ export default function CoreModule(options) {
   let alreadyExtended = false
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
     if (alreadyExtended) return
-    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko, zh_Hans })
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko, zh })
     alreadyExtended = true
   })
 
