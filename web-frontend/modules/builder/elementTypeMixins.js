@@ -50,7 +50,7 @@ export const ContainerElementTypeMixin = (Base) =>
 
       // A container element needs at least one child.
       if (!children.length) {
-        return this.app.i18n.t('elementType.errorEmptyContainer')
+        return this.app.$i18n.t('elementType.errorEmptyContainer')
       }
 
       return super.getErrorMessage(element, applicationContext)
@@ -351,20 +351,20 @@ export const CollectionElementTypeMixin = (Base) =>
 
       // The data source is missing. May be it has been removed.
       if (!dataSource) {
-        return this.app.i18n.t('elementType.errorDataSourceMissing')
+        return this.app.$i18n.t('elementType.errorDataSourceMissing')
       }
 
       const serviceType = this.app.$registry.get('service', dataSource.type)
 
       // If the data source type doesn't return a list, we should have a schema_property
       if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
-        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+        return this.app.$i18n.t('elementType.errorSchemaPropertyMissing')
       }
 
       // If the current element is not the one with the data source it should have
       // a schema_property
       if (parentWithDataSource.id !== element.id && !element.schema_property) {
-        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+        return this.app.$i18n.t('elementType.errorSchemaPropertyMissing')
       }
       return null
     }

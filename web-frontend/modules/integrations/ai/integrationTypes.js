@@ -7,7 +7,7 @@ export class AIIntegrationType extends IntegrationType {
   }
 
   get name() {
-    return this.app.i18n.t('integrationType.ai')
+    return this.app.$i18n.t('integrationType.ai')
   }
 
   get iconClass() {
@@ -19,10 +19,10 @@ export class AIIntegrationType extends IntegrationType {
     const overrideCount = Object.keys(aiSettings).length
 
     if (overrideCount === 0) {
-      return this.app.i18n.t('aiIntegrationType.inheritingWorkspace')
+      return this.app.$i18n.t('aiIntegrationType.inheritingWorkspace')
     }
 
-    return this.app.i18n.tc(
+    return this.app.$i18n.tc(
       'aiIntegrationType.overridingProviders',
       overrideCount
     )

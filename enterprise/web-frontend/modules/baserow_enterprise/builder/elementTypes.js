@@ -27,11 +27,11 @@ export class AuthFormElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.authForm')
+    return this.app.$i18n.t('elementType.authForm')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.authFormDescription')
+    return this.app.$i18n.t('elementType.authFormDescription')
   }
 
   get iconClass() {
@@ -73,7 +73,7 @@ export class AuthFormElementType extends ElementType {
     const hasLoginOptions = Object.keys(loginOptions).length !== 0
 
     if (!hasLoginOptions) {
-      return this.app.i18n.t('elementType.errorUserSourceHasNoLoginOption')
+      return this.app.$i18n.t('elementType.errorUserSourceHasNoLoginOption')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -113,11 +113,11 @@ export class FileInputElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.fileInput')
+    return this.app.$i18n.t('elementType.fileInput')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.fileInputDescription')
+    return this.app.$i18n.t('elementType.fileInputDescription')
   }
 
   get iconClass() {
@@ -231,7 +231,7 @@ export class FileInputElementType extends FormElementType {
         workspace.id
       )
     ) {
-      return this.app.i18n.t('enterprise.deactivated')
+      return this.app.$i18n.t('enterprise.deactivated')
     }
     return super.isDeactivatedReason({ workspace })
   }

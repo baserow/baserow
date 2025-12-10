@@ -16,7 +16,7 @@ export class ChartWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('chartWidget.name')
+    return this.app.$i18n.t('chartWidget.name')
   }
 
   get createWidgetImage() {
@@ -34,7 +34,7 @@ export class ChartWidgetType extends WidgetType {
   get variations() {
     return [
       {
-        name: this.app.i18n.t('chartWidget.bar'),
+        name: this.app.$i18n.t('chartWidget.bar'),
         createWidgetImage: ChartBarWidgetSvg,
         type: this,
         params: {
@@ -43,7 +43,7 @@ export class ChartWidgetType extends WidgetType {
         dropdownIcon: 'baserow-icon-bar-chart',
       },
       {
-        name: this.app.i18n.t('chartWidget.line'),
+        name: this.app.$i18n.t('chartWidget.line'),
         createWidgetImage: ChartLineWidgetSvg,
         type: this,
         params: {
@@ -109,7 +109,7 @@ export class PieChartWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('pieChartWidget.name')
+    return this.app.$i18n.t('pieChartWidget.name')
   }
 
   get createWidgetImage() {
@@ -127,7 +127,7 @@ export class PieChartWidgetType extends WidgetType {
   get variations() {
     return [
       {
-        name: this.app.i18n.t('pieChartWidget.pie'),
+        name: this.app.$i18n.t('pieChartWidget.pie'),
         createWidgetImage: ChartPieWidgetSvg,
         type: this,
         params: {
@@ -136,7 +136,7 @@ export class PieChartWidgetType extends WidgetType {
         dropdownIcon: 'baserow-icon-pie-chart',
       },
       {
-        name: this.app.i18n.t('pieChartWidget.doughnut'),
+        name: this.app.$i18n.t('pieChartWidget.doughnut'),
         createWidgetImage: ChartDonutWidgetSvg,
         type: this,
         params: {

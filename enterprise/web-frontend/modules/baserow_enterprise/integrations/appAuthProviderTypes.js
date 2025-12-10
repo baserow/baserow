@@ -20,7 +20,7 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
   }
 
   get name() {
-    return this.app.i18n.t('appAuthProviderType.localBaserowPassword')
+    return this.app.$i18n.t('appAuthProviderType.localBaserowPassword')
   }
 
   get component() {
@@ -65,7 +65,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   AppAuthProviderType
 ) {
   get name() {
-    return this.app.i18n.t('appAuthProviderType.commonSaml')
+    return this.app.$i18n.t('appAuthProviderType.commonSaml')
   }
 
   get component() {
@@ -125,7 +125,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     const queryParamName = `saml_error__${userSource.id}`
     const errorCode = route.query[queryParamName]
     if (errorCode) {
-      return { message: this.app.i18n.t(`loginError.${errorCode}`), code: 500 }
+      return { message: this.app.$i18n.t(`loginError.${errorCode}`), code: 500 }
     }
   }
 
@@ -170,14 +170,14 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
   }
 
   getName() {
-    return this.app.i18n.t('appAuthProviderType.openIdConnect')
+    return this.app.$i18n.t('appAuthProviderType.openIdConnect')
   }
 
   getProviderName(provider) {
     if (provider.name) {
       return provider.name
     } else {
-      return this.app.i18n.t(
+      return this.app.$i18n.t(
         'authProviderTypes.ssoOIDCProviderNameUnconfigured'
       )
     }

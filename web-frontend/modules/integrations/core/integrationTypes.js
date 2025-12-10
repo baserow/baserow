@@ -7,7 +7,7 @@ export class SMTPIntegrationType extends IntegrationType {
   }
 
   get name() {
-    return this.app.i18n.t('integrationType.smtp')
+    return this.app.$i18n.t('integrationType.smtp')
   }
 
   get iconClass() {
@@ -15,7 +15,7 @@ export class SMTPIntegrationType extends IntegrationType {
   }
 
   getSummary(integration) {
-    return this.app.i18n.t('smtpIntegrationType.smtpSummary', {
+    return this.app.$i18n.t('smtpIntegrationType.smtpSummary', {
       host: integration.host,
       port: integration.port,
     })

@@ -10,7 +10,7 @@ export class CustomCodeBuilderSettingType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.customCode')
+    return this.app.$i18n.t('builderSettingTypes.customCode')
   }
 
   get icon() {
@@ -32,7 +32,7 @@ export class CustomCodeBuilderSettingType extends BuilderSettingType {
         workspace.id
       )
     ) {
-      return this.app.i18n.t('enterprise.deactivated')
+      return this.app.$i18n.t('enterprise.deactivated')
     }
     return super.isDeactivatedReason({ workspace })
   }

@@ -26,7 +26,7 @@ export class DataSourceDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.dataSource')
+    return this.app.$i18n.t('dataProviderType.dataSource')
   }
 
   showDataSourceErrors(page, failedDataSources) {
@@ -39,7 +39,7 @@ export class DataSourceDataProviderType extends DataProviderType {
       handleDispatchError(
         fakeError,
         this.app,
-        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+        this.app.$i18n.t('builderToast.errorDataSourceDispatch', {
           name: dataSourceName,
         })
       )
@@ -261,7 +261,7 @@ export class DataSourceContextDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.dataSourceContext')
+    return this.app.$i18n.t('dataProviderType.dataSourceContext')
   }
 
   getDataChunk(applicationContext, path) {
@@ -347,7 +347,7 @@ export class PageParameterDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.pageParameter')
+    return this.app.$i18n.t('dataProviderType.pageParameter')
   }
 
   async init(applicationContext) {
@@ -440,7 +440,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.currentRecord')
+    return this.app.$i18n.t('dataProviderType.currentRecord')
   }
 
   get indexKey() {
@@ -573,7 +573,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
     const properties = {
       [this.indexKey]: {
         type: 'number',
-        title: this.app.i18n.t('currentRecordDataProviderType.index'),
+        title: this.app.$i18n.t('currentRecordDataProviderType.index'),
         sortable: false,
         filterable: false,
         searchable: false,
@@ -631,13 +631,16 @@ export class CurrentRecordDataProviderType extends DataProviderType {
           prefixName = fieldType.getName()
         }
         const propertyTitle = schemaField.title
-        return this.app.i18n.t('currentRecordDataProviderType.schemaProperty', {
-          prefixName,
-          schemaProperty: propertyTitle,
-        })
+        return this.app.$i18n.t(
+          'currentRecordDataProviderType.schemaProperty',
+          {
+            prefixName,
+            schemaProperty: propertyTitle,
+          }
+        )
       }
 
-      return this.app.i18n.t('currentRecordDataProviderType.firstPartName', {
+      return this.app.$i18n.t('currentRecordDataProviderType.firstPartName', {
         name: dataSource.name,
       })
     }
@@ -652,7 +655,7 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.formData')
+    return this.app.$i18n.t('dataProviderType.formData')
   }
 
   getActionDispatchContext(applicationContext) {
@@ -809,7 +812,7 @@ export class FormDataProviderType extends DataProviderType {
         parseInt(elementId)
       )
       if (!element) {
-        return this.app.i18n.t('formDataProviderType.nodeMissing')
+        return this.app.$i18n.t('formDataProviderType.nodeMissing')
       }
     }
 
@@ -823,7 +826,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.previousAction')
+    return this.app.$i18n.t('dataProviderType.previousAction')
   }
 
   get needBackendContext() {
@@ -931,7 +934,7 @@ export class UserDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.user')
+    return this.app.$i18n.t('dataProviderType.user')
   }
 
   getDataSourceDispatchContext(applicationContext) {
@@ -974,7 +977,7 @@ export class UserDataProviderType extends DataProviderType {
       ](builder, loggedUser.user_source_uid)
 
       if (userSource) {
-        context.role = this.app.i18n.t('visibilityForm.rolesAllMembersOf', {
+        context.role = this.app.$i18n.t('visibilityForm.rolesAllMembersOf', {
           name: userSource.name,
         })
       }
@@ -988,24 +991,24 @@ export class UserDataProviderType extends DataProviderType {
       type: 'object',
       properties: {
         is_authenticated: {
-          title: this.app.i18n.t('userDataProviderType.isAuthenticated'),
+          title: this.app.$i18n.t('userDataProviderType.isAuthenticated'),
           type: 'boolean',
         },
         id: {
           type: 'number',
-          title: this.app.i18n.t('userDataProviderType.id'),
+          title: this.app.$i18n.t('userDataProviderType.id'),
         },
         email: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.email'),
+          title: this.app.$i18n.t('userDataProviderType.email'),
         },
         username: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.username'),
+          title: this.app.$i18n.t('userDataProviderType.username'),
         },
         role: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.role'),
+          title: this.app.$i18n.t('userDataProviderType.role'),
         },
       },
     }

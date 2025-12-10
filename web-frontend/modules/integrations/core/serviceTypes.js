@@ -22,11 +22,11 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreHTTPRequest')
+    return this.app.$i18n.t('serviceType.coreHTTPRequest')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreHTTPRequestDescription')
+    return this.app.$i18n.t('serviceType.coreHTTPRequestDescription')
   }
 
   getErrorMessage({ service }) {
@@ -37,7 +37,7 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
       service.url !== undefined &&
       !service.url.formula
     ) {
-      return this.app.i18n.t('serviceType.errorUrlMissing')
+      return this.app.$i18n.t('serviceType.errorUrlMissing')
     }
 
     return super.getErrorMessage({ service })
@@ -64,11 +64,11 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreSMTPEmail')
+    return this.app.$i18n.t('serviceType.coreSMTPEmail')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreSMTPEmailDescription')
+    return this.app.$i18n.t('serviceType.coreSMTPEmailDescription')
   }
 
   get icon() {
@@ -81,7 +81,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
       service.from_email !== undefined &&
       !service.from_email.formula
     ) {
-      return this.app.i18n.t('serviceType.errorFromEmailMissing')
+      return this.app.$i18n.t('serviceType.errorFromEmailMissing')
     }
 
     if (
@@ -89,7 +89,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
       service.to_emails !== undefined &&
       !service.to_emails.formula
     ) {
-      return this.app.i18n.t('serviceType.errorToEmailsMissing')
+      return this.app.$i18n.t('serviceType.errorToEmailsMissing')
     }
 
     return super.getErrorMessage({ service })
@@ -116,11 +116,11 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreRouter')
+    return this.app.$i18n.t('serviceType.coreRouter')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreRouterDescription')
+    return this.app.$i18n.t('serviceType.coreRouterDescription')
   }
 
   get icon() {
@@ -129,9 +129,9 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
 
   getEdgeErrorMessage(edge) {
     if (!edge.label.length) {
-      return this.app.i18n.t('serviceType.coreRouterEdgeLabelRequired')
+      return this.app.$i18n.t('serviceType.coreRouterEdgeLabelRequired')
     } else if (!edge.condition.formula) {
-      return this.app.i18n.t('serviceType.coreRouterEdgeConditionRequired')
+      return this.app.$i18n.t('serviceType.coreRouterEdgeConditionRequired')
     }
     return null
   }
@@ -141,7 +141,7 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
       return null
     }
     if (!service.edges?.length) {
-      return this.app.i18n.t('serviceType.coreRouterEdgesRequired')
+      return this.app.$i18n.t('serviceType.coreRouterEdgesRequired')
     }
     for (const edge of service.edges) {
       const errorMessage = this.getEdgeErrorMessage(edge)
@@ -173,11 +173,11 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+    return this.app.$i18n.t('serviceType.coreHTTPTrigger')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
+    return this.app.$i18n.t('serviceType.coreHTTPTriggerDescription')
   }
 
   get formComponent() {
@@ -213,11 +213,11 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreIteration')
+    return this.app.$i18n.t('serviceType.coreIteration')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreIterationDescription')
+    return this.app.$i18n.t('serviceType.coreIterationDescription')
   }
 
   get icon() {
@@ -226,7 +226,7 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
 
   getErrorMessage({ service }) {
     if (!service?.source?.formula) {
-      return this.app.i18n.t('serviceType.errorIterationSourceMissing')
+      return this.app.$i18n.t('serviceType.errorIterationSourceMissing')
     }
 
     return super.getErrorMessage({ service })
@@ -253,11 +253,11 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.corePeriodic')
+    return this.app.$i18n.t('serviceType.corePeriodic')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.corePeriodicDescription')
+    return this.app.$i18n.t('serviceType.corePeriodicDescription')
   }
 
   get formComponent() {
@@ -274,7 +274,7 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   getErrorMessage({ service }) {
     if (!service?.interval) {
-      return this.app.i18n.t('serviceType.corePeriodicErrorIntervalMissing')
+      return this.app.$i18n.t('serviceType.corePeriodicErrorIntervalMissing')
     }
     return super.getErrorMessage({ service })
   }

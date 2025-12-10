@@ -189,7 +189,6 @@ export default {
       }
     },
     elements() {
-      console.log('page', this.currentPage)
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     sharedPage() {

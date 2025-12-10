@@ -148,7 +148,7 @@ export class PasswordAuthProviderType extends AuthProviderType {
   }
 
   getName() {
-    return this.app.i18n.t('authProviderTypes.password')
+    return this.app.$i18n.t('authProviderTypes.password')
   }
 
   getProviderName(provider) {

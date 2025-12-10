@@ -33,7 +33,7 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedModal() {

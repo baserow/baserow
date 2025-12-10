@@ -484,7 +484,7 @@ export class ViewType extends Registerable {
    * @returns {null|String}
    */
   getSharedViewText() {
-    return this.app.i18n.t('shareViewLink.shareViewText')
+    return this.app.$i18n.t('shareViewLink.shareViewText')
   }
 
   /**
