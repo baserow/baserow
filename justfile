@@ -546,6 +546,8 @@ dc-dev *ARGS:
         esac
     fi
 
+alias dcd := dc-dev
+
 # Start tmux dev session with all services (Docker Compose)
 [private]
 _dc-dev-tmux:
@@ -810,6 +812,8 @@ dc-prod *ARGS:
         fi
     fi
 
+alias dcp := dc-prod
+
 # Build deployment images
 [group('3 - production')]
 [doc("Build image: backend, web-frontend, all-in-one, heroku, cloudron, etc.")]
@@ -1006,7 +1010,7 @@ test_db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
 
 # Ramdisk PostgreSQL for fast tests (2-5x faster)
 [group('4 - testing')]
-[doc("Test database: just test-db <up|down|status>")]
+[doc("Test database: just test-db <up|down|ps>")]
 test-db cmd="":
     #!/usr/bin/env bash
     case "{{ cmd }}" in
@@ -1016,8 +1020,8 @@ test-db cmd="":
         down|stop)
             just _test-db-stop
             ;;
-        status)
-            just _test-db-status
+        ps)
+            just _test-db-ps
             ;;
         *)
             echo "Ramdisk PostgreSQL for fast tests (2-5x faster)"
@@ -1027,7 +1031,7 @@ test-db cmd="":
             echo "Commands:"
             echo "  up, start    Start test database on port {{ test_db_port }}"
             echo "  down, stop   Stop and remove test database"
-            echo "  status       Check if test database is running"
+            echo "  ps       Check if test database is running"
             echo ""
             echo "Example:"
             echo "  just test-db up"
@@ -1089,7 +1093,7 @@ _test-db-stop:
     docker rm -f {{ test_db_name }} 2>/dev/null || true
 
 [private]
-_test-db-status:
+_test-db-ps:
     #!/usr/bin/env bash
     if docker ps --format '{{ '{{.Names}}' }}' | grep -q "^{{ test_db_name }}$"; then
         echo "Test database is running on port {{ test_db_port }}"

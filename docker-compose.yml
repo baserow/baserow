@@ -371,6 +371,15 @@ services:
     image: baserow/backend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
     command: celery-beat
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-beat-healthcheck"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       <<: *backend-variables
     # See https://github.com/sibson/redbeat/issues/129#issuecomment-1057478237

@@ -399,7 +399,11 @@ case "$1" in
            "startup errors."
       sleep "$BASEROW_CELERY_BEAT_STARTUP_DELAY"
       export OTEL_SERVICE_NAME="celery-beat"
-      exec celery -A baserow beat -l "${BASEROW_CELERY_BEAT_DEBUG_LEVEL}" -S redbeat.RedBeatScheduler "${@:2}"
+      exec celery -A baserow beat  --pidfile=/tmp/celerybeat.pid -l "${BASEROW_CELERY_BEAT_DEBUG_LEVEL}" -S redbeat.RedBeatScheduler "${@:2}"
+    ;;
+    celery-beat-healthcheck)
+      echo "Running celery beat healthcheck..."
+      exec test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid) || exit 1
     ;;
     celery-flower)
       exec celery -A baserow flower "$@"
