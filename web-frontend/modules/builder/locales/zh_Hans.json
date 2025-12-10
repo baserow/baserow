@@ -99,7 +99,7 @@
   "elementType": {
     "heading": "标题",
     "headingDescription": "页面标题",
-    "text": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "text": "文本",
     "textDescription": "多行文本",
     "link": "链接",
     "linkDescription": "指向页面/网址的链接",
@@ -224,7 +224,7 @@
   },
   "headingElementForm": {
     "levelTitle": "等级",
-    "textTitle": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "textTitle": "文本",
     "textPlaceholder": "请输入文本……",
     "headingName": "标题 {level} <h{level}>",
     "textError": "该值无效。"
@@ -234,10 +234,10 @@
     "emptyValue": "空文本..."
   },
   "textElementForm": {
-    "textTitle": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "textTitle": "文本",
     "textPlaceholder": "请输入文本……",
     "textError": "该值无效。",
-    "textFormatTypeLabel": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n格式",
+    "textFormatTypeLabel": "格式",
     "textFormatTypePlain": "纯文本",
     "textFormatTypeMarkdown": "Markdown"
   },
@@ -292,7 +292,7 @@
     "valuePlaceholder": "请输入数值",
     "placeholderTitle": "占位符",
     "placeholderPlaceholder": "请输入占位符",
-    "requiredTitle": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "requiredTitle": "必填",
     "validationTitle": "验证"
   },
   "inputTextElementForm": {
@@ -306,12 +306,12 @@
     "validationTypeEmailLabel": "电子邮件",
     "validationTypeEmailDescription": "在此输入框中强制输入有效的电子邮件地址。",
     "inputType": "输入类型",
-    "inputTypeTextLabel": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "inputTypeTextLabel": "文本",
     "inputTypePasswordLabel": "密码",
     "passwordTypeWarning": "密码是敏感数据。请谨慎处理和存储应用程序中的密码。"
   },
   "dateTimePickerElementForm": {
-    "includeTime": "请尊重原意，保持原有格式，并将以下内容改写为简体中文。\n\n包含时间",
+    "includeTime": "包含时间",
     "invalidDateError": "日期无效。请确保输入的日期符合指定格式。"
   },
   "imageElementForm": {
@@ -415,7 +415,7 @@
     "targetNewTab": "新标签页"
   },
   "linkElementForm": {
-    "text": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "text": "文本",
     "textPlaceholder": "请输入文本……",
     "variant": "变体",
     "variantLink": "链接",
@@ -486,11 +486,11 @@
     "pathParamsSubtitleTutorial": "路径参数可用于根据提供的参数动态加载数据。通过在路径中添加 :parameter 来添加一个参数。"
   },
   "pathParamTypes": {
-    "textName": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "textName": "文本",
     "numericName": "数字"
   },
   "queryParamTypes": {
-    "textName": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "textName": "文本",
     "numericName": "数值"
   },
   "pageEditor": {
@@ -571,7 +571,7 @@
     "button": "按钮",
     "link": "链接",
     "image": "图像",
-    "input": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "input": "输入",
     "table": "表格"
   },
   "colorThemeConfigBlock": {
@@ -655,7 +655,7 @@
   },
   "inputThemeConfigBlock": {
     "label": "标签",
-    "input": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "input": "输入",
     "backgroundColor": "背景颜色",
     "textColor": "文字颜色",
     "borderColor": "边框颜色",
@@ -834,7 +834,7 @@
   "collectionFieldType": {
     "boolean": "布尔",
     "button": "按钮",
-    "text": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "text": "文本",
     "link": "链接",
     "tags": "标签",
     "image": "图像",
@@ -916,7 +916,7 @@
   "checkboxElementForm": {
     "labelTitle": "选项名称",
     "valueTitle": "默认值",
-    "requiredTitle": "请尊重原意，保持原有格式，将以下内容改写为简体中文。"
+    "requiredTitle": "必选"
   },
   "choiceElement": {
     "addOptions": "添加选项以开始使用此元素..."

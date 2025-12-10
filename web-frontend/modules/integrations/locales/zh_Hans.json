@@ -104,12 +104,12 @@
     "modelPlaceholder": "请选择一个模型...",
     "outputTypeLabel": "输出类型",
     "outputTypeHelp": "请选择AI应如何格式化其回复。如果您定义了选项，则会强制模型仅从这些选项中选择一个进行回复。",
-    "outputTypeText": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "outputTypeText": "文本",
     "outputTypeChoice": "选择",
     "temperatureLabel": "温度",
     "temperaturePlaceholder": "例如：0.7",
     "temperatureHelp": "控制随机性。较低的值（0-0.3）更集中且确定性强；较高的值（0.7-2.0）更具创造性和多样性。",
-    "promptLabel": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "promptLabel": "Prompt",
     "promptPlaceholder": "请在此输入您的提示...",
     "choicesLabel": "选择",
     "choicePlaceholder": "请输入一个选择选项...",
@@ -266,7 +266,7 @@
     "bodyPlaceholder": "您的邮件内容……"
   },
   "coreIterationServiceForm": {
-    "source": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "source": "来源",
     "sourcePlaceholder": "请选择一个来源..."
   },
   "routerForm": {

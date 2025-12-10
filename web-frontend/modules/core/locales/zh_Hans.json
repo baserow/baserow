@@ -91,7 +91,7 @@
   "saveBackupCode": {
     "description": "如果您无法访问身份验证应用或手机，无法接收或生成验证码，可以使用此备份。该备份仅可使用一次。请务必将其记录下来或复制到安全的地方，以便在无需登录的情况下能够访问。",
     "backupCodes": "备份代码",
-    "copy": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "copy": "复制",
     "continue": "继续",
     "backupCodesCopiedTitle": "已复制！",
     "backupCodesCopiedMessage": "备份代码已复制到剪贴板。"
@@ -372,7 +372,7 @@
     "title": "模板"
   },
   "templateHeader": {
-    "use": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n使用此模板"
+    "use": "使用此模板"
   },
   "trashSidebar": {
     "unnamedWorkspace": "未命名工作区 {id}",
@@ -636,7 +636,7 @@
   "formSidebar": {
     "actions": {
       "addAll": "全部添加",
-      "removeAll": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n删除所有",
+      "removeAll": "删除所有",
       "addField": "添加字段"
     },
     "notifyUserOnSubmit": "提交时接收通知",
@@ -655,7 +655,7 @@
         "description": "如果你想用数据预先填充表单，可以通过在公共表单 URL 中添加查询参数来实现。这些查询参数以 `prefill` 为前缀，以避免与未来可能出现的查询参数发生冲突。"
       },
       "format": {
-        "title": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n格式",
+        "title": "格式",
         "description": "查询参数的格式如下：",
         "codeSnippet": "?prefill_<字段名>=<值>"
       },
@@ -872,7 +872,7 @@
   "richTextEditorFloatingMenu": {
     "hierarchy": "层级结构",
     "lists": "列表",
-    "paragraph": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n段落",
+    "paragraph": "段落",
     "heading1": "标题 1",
     "heading2": "二级标题",
     "heading3": "三级标题",

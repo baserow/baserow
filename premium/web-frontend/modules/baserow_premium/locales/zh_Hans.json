@@ -328,10 +328,10 @@
   },
   "gridViewFieldAI": {
     "generate": "生成",
-    "regenerate": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n重新生成"
+    "regenerate": "重新生成"
   },
   "fieldAISubForm": {
-    "prompt": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "prompt": "提示词",
     "promptPlaceholder": "什么是Baserow？",
     "premiumFeature": "人工智能领域是一项高端功能",
     "emptyFileField": "无",
@@ -350,7 +350,7 @@
   "aiFormulaModal": {
     "title": "使用AI生成公式",
     "description": "请注意，生成的公式可能并不总是按预期工作。我们正在为模型构建提示，然后将输出加载到公式输入中。该方法在使用高参数模型（如 gpt-4-turbo-preview）时效果最佳。",
-    "label": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "label": "提示词",
     "labelDescription": "请描述您希望生成的公式",
     "generate": "生成",
     "noModels": "您的 Baserow 实例和工作区未配置任何 AI 模型。请导航至主页，点击您的工作区名称，然后进入设置进行配置。"
@@ -360,7 +360,7 @@
     "featureName": "使用AI生成公式"
   },
   "aiOutputType": {
-    "text": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n文本",
+    "text": "文本",
     "textDescription": "根据提示生成自由文本。",
     "choice": "选择",
     "choiceDescription": "仅选择一个字段选项。"

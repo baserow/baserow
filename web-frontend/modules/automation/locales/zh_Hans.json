@@ -195,7 +195,7 @@
     "buttonLabelShowError": "显示错误",
     "sampleDataModalTitle": "{nodeLabel} 的负载",
     "sampleDataModalSubTitle": "JSON 负载",
-    "sampleDataCopy": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "sampleDataCopy": "复制。",
     "errorOccurred": "发生错误……",
     "sampleDataCopied": "内容已复制到剪贴板"
   }

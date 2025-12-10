@@ -84,7 +84,7 @@
     "viewAPIDocs": "查看 API 文档",
     "generateNewToken": "生成新令牌",
     "showOrHide": "显示或隐藏令牌",
-    "copyToClipboard": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n复制到剪贴板",
+    "copyToClipboard": "复制到剪贴板",
     "showDatabases": "show databases"
   },
   "apiTokenSettings": {
@@ -264,7 +264,7 @@
     "dateFormatEuropean": "欧洲",
     "dateFormatUS": "美国",
     "dateFormatISO": "ISO",
-    "includeTimeLabel": "请尊重原意，保持原有格式，并将以下内容改写为简体中文。\n\n包含时间",
+    "includeTimeLabel": "包含时间",
     "showTimezoneLabel": "显示时区",
     "forceTimezoneLabel": "为所有协作者设置时区",
     "forceTimezoneValue": "时区",
@@ -302,7 +302,7 @@
     "spacePeriod": "空格，句号（1 000 000.00）",
     "commaPeriod": "逗号，句号（1,000,000.00）",
     "periodComma": "句号，逗号（1.000.000,0）",
-    "noFormatting": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n无格式",
+    "noFormatting": "无格式",
     "defaultValueLabel": "默认值",
     "defaultValuePlaceholder": "输入默认值"
   },
@@ -835,7 +835,7 @@
     "description": "了解更多关于我们的代码"
   },
   "formViewField": {
-    "required": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "required": "必选",
     "descriptionPlaceholder": "描述",
     "includeAllSelectOptions": "包含所有选择选项",
     "includeAllSelectOptionsHelper": "请选择必须包含在表单中的选项，使用此下拉菜单进行选择",
