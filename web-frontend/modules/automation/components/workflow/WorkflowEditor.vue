@@ -47,9 +47,9 @@
 </template>
 
 <script setup>
-import { VueFlow, useVueFlow } from '@vue2-flow/core'
-import { Background } from '@vue2-flow/background'
-import { Controls } from '@vue2-flow/controls'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
 import { ref, watch, toRefs, onMounted } from 'vue'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
