@@ -573,7 +573,7 @@ export default {
       this.$realtime.subscribe(realtimePage.page, realtimePage.params)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.table) {
       this.$realtime.unsubscribe(
         this.realtimePage.page,

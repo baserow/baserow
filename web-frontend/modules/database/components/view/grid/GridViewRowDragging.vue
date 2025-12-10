@@ -110,7 +110,7 @@ export default {
       }),
     }
   },*/
-  beforeDestroy() {
+  beforeUnmount() {
     this.cancel()
   },
   methods: {

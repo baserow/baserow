@@ -23,7 +23,7 @@ export default {
   mounted() {
     window.addEventListener('keyup', this.keyup)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.keyup)
   },
   methods: {

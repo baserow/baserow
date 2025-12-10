@@ -242,7 +242,6 @@ export default {
 
         if (
           matchSearchFilters(
-            this.$registry,
             conditionType,
             conditions,
             field.condition_groups,

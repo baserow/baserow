@@ -178,7 +178,7 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {

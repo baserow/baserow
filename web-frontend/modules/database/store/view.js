@@ -52,8 +52,9 @@ export function populateDecoration(decoration) {
   return decoration
 }
 
-export function populateView(view, registry) {
-  const type = registry.get('view', view.type)
+export function populateView(view) {
+  const { $registry } = useNuxtApp()
+  const type = $registry.get('view', view.type)
 
   view._ = view._ || {
     type: type.serialize(),
@@ -144,7 +145,7 @@ export const mutations = {
       const index = state.items.findIndex((item) => item.id === id)
       Object.assign(state.items[index], state.items[index], values)
       if (repopulate === true) {
-        populateView(state.items[index], this.$registry)
+        populateView(state.items[index])
       }
     } else {
       Object.assign(view, view, values)
@@ -341,7 +342,7 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
-    const { $registry, $client } = useNuxtApp()
+    const { $client } = useNuxtApp()
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
 
@@ -354,7 +355,7 @@ export const actions = {
         true
       )
       data.forEach((part, index, d) => {
-        populateView(data[index], $registry)
+        populateView(data[index])
       })
       commit('SET_ITEMS', data)
       commit('SET_LOADING', false)
@@ -401,8 +402,7 @@ export const actions = {
    * Forcefully create a new view without making a request to the server.
    */
   forceCreate({ commit }, { data }) {
-    const { $registry, $client } = useNuxtApp()
-    populateView(data, $registry)
+    populateView(data)
     commit('ADD_ITEM', data)
     return { view: data }
   },
@@ -419,7 +419,7 @@ export const actions = {
       optimisticUpdate = true,
     }
   ) {
-    const { $registry, $client } = useNuxtApp()
+    const { $client } = useNuxtApp()
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
     const newValues = {}
@@ -662,9 +662,11 @@ export const actions = {
       parentGroupId = null,
     }
   ) {
+    const { $client, $registry } = useNuxtApp()
+
     // If the type is not provided we are going to choose the first available type.
     if (!Object.prototype.hasOwnProperty.call(values, 'type')) {
-      const viewFilterTypes = this.$registry.getAll('viewFilter')
+      const viewFilterTypes = $registry.getAll('viewFilter')
       const compatibleType = Object.values(viewFilterTypes).find(
         (viewFilterType) => {
           return viewFilterType.fieldIsCompatible(field)
@@ -680,7 +682,7 @@ export const actions = {
 
     // If the value is not provided, then we use the default value related to the type.
     if (!Object.prototype.hasOwnProperty.call(values, 'value')) {
-      const viewFilterType = this.$registry.get('viewFilter', values.type)
+      const viewFilterType = $registry.get('viewFilter', values.type)
       values.value = viewFilterType.getDefaultValue(field)
     }
 
@@ -730,7 +732,7 @@ export const actions = {
         // The group needs to be created first before we can create the filter
         // in the case we're trying to create a new filter in a new group.
         try {
-          const { data } = await FilterService(this.$client).createGroup(
+          const { data } = await FilterService($client).createGroup(
             view.id,
             parentGroupId,
             undoRedoActionGroupId
@@ -751,7 +753,7 @@ export const actions = {
       }
 
       try {
-        const { data } = await FilterService(this.$client).create(
+        const { data } = await FilterService($client).create(
           view.id,
           values,
           undoRedoActionGroupId
@@ -771,6 +773,8 @@ export const actions = {
    * removed from the store.
    */
   async createFilterGroup({ commit }, { view, readOnly = false }) {
+    const { $client } = useNuxtApp()
+
     const filterGroup = {}
     populateFilterGroup(filterGroup)
     filterGroup.id = ulid()
@@ -780,7 +784,7 @@ export const actions = {
     commit('ADD_FILTER_GROUP', { view, filterGroup })
 
     try {
-      const { data } = await FilterService(this.$client).createGroup(view.id)
+      const { data } = await FilterService($client).createGroup(view.id)
       commit('FINALIZE_FILTER_GROUP', {
         view,
         oldId: filterGroup.id,
@@ -817,6 +821,7 @@ export const actions = {
     { dispatch, commit },
     { filter, values, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     const oldValues = {}
@@ -836,7 +841,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).update(filter.id, values)
+        await FilterService($client).update(filter.id, values)
       }
       commit('SET_FILTER_LOADING', { filter, value: false })
     } catch (error) {
@@ -852,6 +857,7 @@ export const actions = {
     { dispatch },
     { filterGroup, values, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -868,7 +874,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).updateGroup(filterGroup.id, values)
+        await FilterService($client).updateGroup(filterGroup.id, values)
       }
     } catch (error) {
       dispatch('forceUpdateFilterGroup', {
@@ -895,11 +901,12 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteFilter({ dispatch, commit }, { view, filter, readOnly = false }) {
+    const { $client } = useNuxtApp()
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).delete(filter.id)
+        await FilterService($client).delete(filter.id)
       }
       dispatch('forceDeleteFilter', { view, filter })
     } catch (error) {
@@ -921,6 +928,7 @@ export const actions = {
     { dispatch, commit },
     { view, filterGroup, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     const filters = view.filters.filter((f) => f.group === filterGroup.id)
     for (const filter of filters) {
       commit('SET_FILTER_LOADING', { filter, value: true })
@@ -928,7 +936,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).deleteGroup(filterGroup.id)
+        await FilterService($client).deleteGroup(filterGroup.id)
       }
       dispatch('forceDeleteFilterGroup', {
         view,
@@ -983,6 +991,7 @@ export const actions = {
    * the decorator ID will be updatede, but if it fails it will be removed from the store.
    */
   async createDecoration({ commit }, { view, values, readOnly = false }) {
+    const { $client } = useNuxtApp()
     const decoration = { ...values }
     populateDecoration(decoration)
     decoration.id = ulid()
@@ -992,7 +1001,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        const { data } = await DecorationService(this.$client).create(
+        const { data } = await DecorationService($client).create(
           view.id,
           values
         )
@@ -1025,6 +1034,7 @@ export const actions = {
     { dispatch, commit },
     { decoration, values, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     commit('SET_DECORATION_LOADING', { decoration, value: true })
 
     const oldValues = {}
@@ -1040,7 +1050,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await DecorationService(this.$client).update(decoration.id, values)
+        await DecorationService($client).update(decoration.id, values)
       }
       commit('SET_DECORATION_LOADING', { decoration, value: false })
     } catch (error) {
@@ -1064,12 +1074,13 @@ export const actions = {
     { dispatch, commit },
     { view, decoration, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     commit('SET_DECORATION_LOADING', { decoration, value: true })
     dispatch('forceDeleteDecoration', { view, decoration })
 
     try {
       if (!readOnly) {
-        await DecorationService(this.$client).delete(decoration.id)
+        await DecorationService($client).delete(decoration.id)
       }
     } catch (error) {
       // Restore decoration in case of error
@@ -1098,6 +1109,8 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createSort({ getters, commit }, { view, values, readOnly = false }) {
+    const { $client } = useNuxtApp()
+
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
       values.order = 'ASC'
@@ -1112,7 +1125,7 @@ export const actions = {
 
     if (!readOnly) {
       try {
-        const { data } = await SortService(this.$client).create(view.id, values)
+        const { data } = await SortService($client).create(view.id, values)
         commit('FINALIZE_SORT', { view, oldId: sort.id, id: data.id })
       } catch (error) {
         commit('DELETE_SORT', { view, id: sort.id })
@@ -1135,6 +1148,7 @@ export const actions = {
    * changes will be undone.
    */
   async updateSort({ dispatch, commit }, { sort, values, readOnly = false }) {
+    const { $client } = useNuxtApp()
     commit('SET_SORT_LOADING', { sort, value: true })
 
     const oldValues = {}
@@ -1150,7 +1164,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await SortService(this.$client).update(sort.id, values)
+        await SortService($client).update(sort.id, values)
       }
       commit('SET_SORT_LOADING', { sort, value: false })
     } catch (error) {
@@ -1170,11 +1184,12 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteSort({ dispatch, commit }, { view, sort, readOnly = false }) {
+    const { $client } = useNuxtApp()
     commit('SET_SORT_LOADING', { sort, value: true })
 
     try {
       if (!readOnly) {
-        await SortService(this.$client).delete(sort.id)
+        await SortService($client).delete(sort.id)
       }
       dispatch('forceDeleteSort', { view, sort })
     } catch (error) {
@@ -1208,6 +1223,8 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createGroupBy({ getters, commit }, { view, values, readOnly = false }) {
+    const { $client } = useNuxtApp()
+
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
       values.order = 'ASC'
@@ -1226,7 +1243,7 @@ export const actions = {
 
     if (!readOnly) {
       try {
-        const { data } = await GroupByService(this.$client).create(
+        const { data } = await GroupByService($client).create(
           view.id,
           values
         )
@@ -1255,6 +1272,7 @@ export const actions = {
     { dispatch, commit },
     { groupBy, values, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     const oldValues = {}
@@ -1270,7 +1288,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await GroupByService(this.$client).update(groupBy.id, values)
+        await GroupByService($client).update(groupBy.id, values)
       }
       commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
     } catch (error) {
@@ -1293,11 +1311,12 @@ export const actions = {
     { dispatch, commit },
     { view, groupBy, readOnly = false }
   ) {
+    const { $client } = useNuxtApp()
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     try {
       if (!readOnly) {
-        await GroupByService(this.$client).delete(groupBy.id)
+        await GroupByService($client).delete(groupBy.id)
       }
       dispatch('forceDeleteGroupBy', { view, groupBy })
     } catch (error) {
@@ -1366,12 +1385,13 @@ export const actions = {
    * to the delete field.
    */
   fieldUpdated({ dispatch, commit, getters }, { field, fieldType }) {
+    const { $registry } = useNuxtApp()
     getters.getAll.forEach((view) => {
       // Remove all filters are not compatible anymore.
       view.filters
         .filter((filter) => filter.field === field.id)
         .forEach((filter) => {
-          const filterType = this.$registry.get('viewFilter', filter.type)
+          const filterType = $registry.get('viewFilter', filter.type)
           const compatible = filterType.fieldIsCompatible(field)
           if (!compatible) {
             commit('DELETE_FILTER', { view, id: filter.id })

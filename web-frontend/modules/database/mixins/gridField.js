@@ -46,7 +46,7 @@ export default {
       this._select()
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     // It could be that the cell has already been unselected, in that case we don't
     // have to before unselect twice.
     if (this.selected) {
