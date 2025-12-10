@@ -83,7 +83,7 @@ export default defineNuxtConfig({
   vite: {
     plugins: [
       nodePolyfills({
-        include: ['util', 'crypto'],
+        include: ['util'],
       }),
       svgLoader(),
     ],
