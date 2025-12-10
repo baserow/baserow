@@ -296,7 +296,10 @@
         "promptPlaceholder": "¿Qué es Baserow?",
         "outputType": "Tipo de salida",
         "outputTypeTooltip": "Selecciona el formato de salida que desees para guiar al LLM en la generación de respuestas que se ajusten a tus opciones deseadas.",
-        "outputTypeChangedWarning": "Borra los valores de celda generados."
+        "outputTypeChangedWarning": "Borra los valores de celda generados.",
+        "autoUpdate": "Actualización automática",
+        "autoUpdateHelp": "Cuando esté habilitado, el valor del campo IA se regenerará automáticamente cuando cualquiera de los campos referenciados en el prompt se actualice.",
+        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados"
     },
     "rowEditFieldAI": {
         "generate": "Generar",
@@ -311,14 +314,14 @@
     },
     "aiFormulaModal": {
         "generate": "Generar",
-        "noModels": "Tu instancia de Baserow y tu espacio de trabajo no tienen ningún modelo AI configurado. Haz clic en los tres puntos junto a tu espacio de trabajo y luego en configuración para configurarlos.",
+        "noModels": "Tu instancia de Baserow y tu espacio de trabajo no tienen ningún modelo de IA configurado. Navega a la página de inicio, haz clic en el nombre de tu espacio de trabajo y, luego, en «Ajustes» para configurarlos.",
         "title": "Generar fórmulas con IA",
         "description": "Ten en cuenta que las fórmulas generadas pueden no funcionar siempre como se espera. Estamos construyendo un indicador para el modelo, y cargamos la salida en la entrada de la fórmula. Funciona mejor con un modelo de parámetros altos como gpt-4-turbo-preview.",
         "label": "Pregunta",
         "labelDescription": "Describe la fórmula que deseas generar"
     },
     "formulaFieldAI": {
-        "generateWithAI": "Generar con IA",
+        "generateWithAI": "Generar usando IA",
         "featureName": "Generar fórmulas con IA"
     },
     "calendarViewType": {
@@ -381,5 +384,30 @@
     },
     "kanbanView": {
         "addStack": "Añadir una pila"
+    },
+    "publicViewExport": {
+        "export": "Exportar"
+    },
+    "chart": {
+        "true": "verdadero",
+        "false": "falso",
+        "other": "Otro"
+    },
+    "generateAIValuesModal": {
+        "title": "Generar todos los valores de IA"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Alcance",
+        "entireTable": "Tabla completa",
+        "skipPopulated": "Generar solo valores para celdas vacías",
+        "warningTitle": "Advertencia de uso de token",
+        "warningMessage": "Generar todos los valores de IA consumirá tokens de API y puede tomar un tiempo considerable dependiendo del número de filas."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Generar con IA",
+        "close": "Cerrar"
+    },
+    "jobType": {
+        "generateAIValues": "Regenerar los valores del campo IA"
     }
 }
