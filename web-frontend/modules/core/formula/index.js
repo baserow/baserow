@@ -193,9 +193,9 @@ export const getFormulaFunctionsByCategory = (app, i18n = null) => {
  * @param {Object} i18n The i18n instance (optional, will be extracted from app if not provided)
  * @returns {Array} Array of function nodes ready for FormulaInputField
  */
-export const buildFormulaFunctionNodes = (app, i18n = null) => {
+export const buildFormulaFunctionNodes = (app) => {
   // Support both Option API (this.$t) and Composition API (app.i18n)
-  const i18nInstance = i18n || app.i18n || app
+  const i18nInstance = app.$i18n
   const { functionNodes, operatorNodes } = getFormulaFunctionsByCategory(
     app,
     i18nInstance
