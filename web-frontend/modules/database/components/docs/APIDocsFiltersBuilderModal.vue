@@ -127,8 +127,7 @@ export default {
         filters: [this.getNewFilterObject(null)],
         filter_groups: [],
         filter_type: 'AND',
-      },
-      this.$registry
+      }
     )
     return {
       view,

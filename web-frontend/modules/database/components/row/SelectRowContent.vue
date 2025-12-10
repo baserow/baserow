@@ -277,7 +277,7 @@ export default {
       this.focusSearch
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.focusSearch)
   },
   methods: {
@@ -289,7 +289,7 @@ export default {
       try {
         const { data } = await FieldService(this.$client).fetchAll(tableId)
         data.forEach((part, index, d) => {
-          populateField(data[index], this.$registry)
+          populateField(data[index])
         })
         const primaryIndex = data.findIndex((item) => item.primary === true)
         this.primary =

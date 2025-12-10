@@ -548,7 +548,7 @@ export default {
       this.$realtime.subscribe('table', { table_id: this.table.id })
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.table) {
       this.$realtime.unsubscribe('table', { table_id: this.table.id })
     }

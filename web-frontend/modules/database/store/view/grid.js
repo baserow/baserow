@@ -3283,7 +3283,6 @@ export const actions = {
    * override values that not actually belong to the row to do some preliminary checks.
    */
   updateMatchFilters({ commit }, { view, row, fields, overrides = {} }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
     const values = JSON.parse(JSON.stringify(row))
     Object.assign(values, overrides)
 
@@ -3291,7 +3290,6 @@ export const actions = {
     const matches = view.filters_disabled
       ? true
       : matchSearchFilters(
-          $registry,
           view.filter_type,
           view.filters,
           view.filter_groups,

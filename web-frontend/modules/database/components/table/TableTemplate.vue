@@ -83,7 +83,7 @@ export default {
             this.$client
           ).fetchAll(table.id)
           fieldsData.forEach((part, index, d) => {
-            populateField(fieldsData[index], this.$registry)
+            populateField(fieldsData[index])
           })
           this.fields = fieldsData
 
@@ -96,7 +96,7 @@ export default {
             true
           )
           viewsData.forEach((part, index, d) => {
-            populateView(viewsData[index], this.$registry)
+            populateView(viewsData[index])
           })
           this.views = viewsData
 

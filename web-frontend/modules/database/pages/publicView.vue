@@ -122,7 +122,7 @@ export default {
       this.$realtime.subscribe('view', { slug: this.$route.params.slug, token })
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     document.body.removeEventListener('keydown', this.$el.keydownEvent)
 
     if (!this.$config.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS) {

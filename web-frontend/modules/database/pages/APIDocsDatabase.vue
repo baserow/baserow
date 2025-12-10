@@ -290,7 +290,7 @@ export default {
     window.addEventListener('resize', this.$el.resizeEvent)
     this.updateNav()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     document.body.removeEventListener('click', this.$el.clickOutsideEvent)
     window.removeEventListener('scroll', this.$el.scrollEvent)
     window.removeEventListener('resize', this.$el.resizeEvent)

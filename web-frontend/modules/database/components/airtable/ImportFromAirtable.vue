@@ -56,7 +56,7 @@ export default {
       loading: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {

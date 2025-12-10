@@ -135,13 +135,13 @@ describe('matchSearchFilters', () => {
     const filterGroups = []
     const fields = [{ id: 1, type: 'text' }]
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'a',
       })
     ).toBe(true)
 
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'b',
       })
     ).toBe(false)
@@ -152,12 +152,12 @@ describe('matchSearchFilters', () => {
     const filterGroups = [{ filter_type: 'OR', id: 1 }]
     const fields = [{ id: 1, type: 'text' }]
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'a',
       })
     ).toBe(true)
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'b',
       })
     ).toBe(false)
@@ -177,28 +177,28 @@ describe('matchSearchFilters', () => {
     ]
 
     expect(
-      matchSearchFilters(registry, 'OR', filters, filterGroups, fields, {
+      matchSearchFilters('OR', filters, filterGroups, fields, {
         field_1: 'Ada',
         field_2: 'Lovelace',
       })
     ).toBe(true)
 
     expect(
-      matchSearchFilters(registry, 'OR', filters, filterGroups, fields, {
+      matchSearchFilters('OR', filters, filterGroups, fields, {
         field_1: 'Alan',
         field_2: 'Turing',
       })
     ).toBe(false)
 
     expect(
-      matchSearchFilters(registry, 'OR', filters, filterGroups, fields, {
+      matchSearchFilters('OR', filters, filterGroups, fields, {
         field_1: 'John',
         field_2: 'Travolta',
       })
     ).toBe(false)
 
     expect(
-      matchSearchFilters(registry, 'OR', filters, filterGroups, fields, {
+      matchSearchFilters('OR', filters, filterGroups, fields, {
         field_1: 'John',
         field_2: 'Turing',
       })
@@ -219,28 +219,28 @@ describe('matchSearchFilters', () => {
     ]
 
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'John',
         field_2: 'Lennon',
       })
     ).toBe(false)
 
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'Alan',
         field_2: 'Turing',
       })
     ).toBe(false)
 
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'John',
         field_2: 'Travolta',
       })
     ).toBe(true)
 
     expect(
-      matchSearchFilters(registry, 'AND', filters, filterGroups, fields, {
+      matchSearchFilters('AND', filters, filterGroups, fields, {
         field_1: 'John',
         field_2: 'Turing',
       })

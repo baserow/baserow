@@ -342,7 +342,7 @@ export default {
       this.populateAndEditRow(this.row)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$el.resizeObserver.unobserve(this.$el)
     this.$refs.scroll.removeEventListener('scroll', this.$el.scrollEvent)
   },

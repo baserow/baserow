@@ -1,8 +1,9 @@
 import FieldService from '@baserow/modules/database/services/field'
 import { clone } from '@baserow/modules/core/utils/object'
 
-export function populateField(field, registry) {
-  const type = registry.get('field', field.type)
+export function populateField(field) {
+  const { $registry } = useNuxtApp()
+  const type = $registry.get('field', field.type)
 
   field._ = {
     type: type.serialize(),
@@ -89,9 +90,8 @@ export const actions = {
     return getters.getAll
   },
   forceSetFields({ commit, rootGetters }, { fields }) {
-    const { $registry, $client } = useNuxtApp()
     fields.forEach((part, index) => {
-      populateField(fields[index], $registry)
+      populateField(fields[index])
     })
 
     commit('SET_ITEMS', fields)
@@ -156,10 +156,10 @@ export const actions = {
    * any field specific state.
    */
   async fieldRestored(context, { table, selectedView, values }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry } = useNuxtApp()
     const { commit } = context
     const fieldType = $registry.get('field', values.type)
-    const populatedField = populateField(values, this.$registry)
+    const populatedField = populateField(values)
     commit('ADD_ITEM', populatedField)
 
     if (selectedView) {
@@ -178,10 +178,10 @@ export const actions = {
    * Forcefully create a new field without making a call to the backend.
    */
   async forceCreate(context, { table, values, relatedFields = [] }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry } = useNuxtApp()
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', values.type)
-    const data = populateField(values, $registry)
+    const data = populateField(values)
     commit('ADD_ITEM', data)
 
     // Call the field created event on all the registered views because they might
@@ -259,10 +259,10 @@ export const actions = {
    * Forcefully update an existing field without making a request to the backend.
    */
   async forceUpdate(context, { field, oldField, data, relatedFields = [] }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry } = useNuxtApp()
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', data.type)
-    data = populateField(data, this.$registry)
+    data = populateField(data)
 
     commit('UPDATE_ITEM', { id: field.id, values: data })
     commit('UPDATE_ITEM', { id: field.id, values: data })

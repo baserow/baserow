@@ -622,7 +622,7 @@ export default {
       this.populateAndEditRow(this.row)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$el.resizeObserver.unobserve(this.$el)
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)

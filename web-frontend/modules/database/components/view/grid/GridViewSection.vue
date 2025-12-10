@@ -522,7 +522,7 @@ export default {
     }
     this.$el.addEventListener('scroll', this.$el.horizontalScrollEvent)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$el.resizeObserver.unobserve(this.$el)
     this.$el.removeEventListener('scroll', this.$el.horizontalScrollEvent)
   },

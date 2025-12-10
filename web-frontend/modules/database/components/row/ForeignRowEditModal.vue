@@ -108,7 +108,7 @@ export default {
         this.tableId
       )
       fieldData.forEach((part, index) => {
-        populateField(fieldData[index], this.$registry)
+        populateField(fieldData[index])
       })
       this.fields = fieldData
 
