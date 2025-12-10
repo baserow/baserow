@@ -296,7 +296,19 @@
         "hasAnySelectOptionEqual": "tiene alguna opción de selección igual",
         "hasNoneSelectOptionEqual": "no tiene ninguna opción de selección igual",
         "hasAnyOf": "tiene alguno de",
-        "hasNotAnyOf": "no tiene ninguno de"
+        "hasNotAnyOf": "no tiene ninguno de",
+        "hasDateEqual": "tiene fecha igual",
+        "hasNotDateEqual": "no tiene fecha igual",
+        "hasDateBefore": "tiene fecha anterior",
+        "hasNotDateBefore": "no tiene fecha anterior",
+        "hasDateOnOrBefore": "tiene fecha en o antes de",
+        "hasNotDateOnOrBefore": "no tiene fecha en o antes de",
+        "hasDateAfter": "tiene fecha posterior",
+        "hasNotDateAfter": "no tiene fecha posterior",
+        "hasDateOnOrAfter": "tiene fecha en o después de",
+        "hasNotDateOnOrAfter": "no tiene fecha en o después de",
+        "hasDateWithin": "tiene fecha dentro",
+        "hasNotDateWithin": "no tiene fecha dentro"
     },
     "viewType": {
         "grid": "Cuadrícula",
@@ -317,7 +329,9 @@
         "field": "campo",
         "row": "fila",
         "view": "vista",
-        "rows": "filas"
+        "rows": "filas",
+        "automation_workflow": "flujo de trabajo de automatización",
+        "automation_node": "nodo de automatización"
     },
     "webhook": {
         "request": "Requerimiento",
@@ -620,5 +634,8 @@
     },
     "fieldConstraintParametersText": {
         "placeholder": "Introduce valor de restricción"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} fuente | {count} fuentes"
     }
 }
