@@ -209,14 +209,14 @@ export class ElementType extends Registerable {
         if (beforeElement && beforeElement.page_id === sharedPage.id) {
           // It's not allowed to add these elements as root inside header before
           // another multi page element
-          return this.app.i18n.t('elementType.notAllowedLocation')
+          return this.app.$i18n.t('elementType.notAllowedLocation')
         }
       }
 
       if (pagePlace === PAGE_PLACES.FOOTER) {
         if (!beforeElement) {
           // Not allowed as last child of footer
-          return this.app.i18n.t('elementType.notAllowedLocation')
+          return this.app.$i18n.t('elementType.notAllowedLocation')
         } else {
           const footerElements = this.app.$store.getters[
             'element/getRootElements'
@@ -228,7 +228,7 @@ export class ElementType extends Registerable {
           if (beforeElement.id !== footerElements[0].id) {
             // It's not allowed to add these elements as root inside footer after
             // another multi page element
-            return this.app.i18n.t('elementType.notAllowedLocation')
+            return this.app.$i18n.t('elementType.notAllowedLocation')
           }
         }
       }
@@ -360,7 +360,7 @@ export class ElementType extends Registerable {
       this.getEvents(element).length > 0 &&
       this.workflowActionsInError(element, applicationContext)
     ) {
-      return this.app.i18n.t('elementType.errorWorkflowActionInError')
+      return this.app.$i18n.t('elementType.errorWorkflowActionInError')
     }
 
     return null
@@ -966,11 +966,11 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.formContainer')
+    return this.app.$i18n.t('elementType.formContainer')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.formContainerDescription')
+    return this.app.$i18n.t('elementType.formContainerDescription')
   }
 
   get iconClass() {
@@ -1013,7 +1013,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
         includeSelf: true,
       }).length
       if (hasSameTypeAncestor) {
-        return this.app.i18n.t('elementType.notAllowedInsideSameType')
+        return this.app.$i18n.t('elementType.notAllowedInsideSameType')
       }
     }
     return super.isDisallowedReason({
@@ -1044,7 +1044,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     ](elementPage, element.id)
 
     if (!workflowActions.length) {
-      return this.app.i18n.t('elementType.errorNoWorkflowAction')
+      return this.app.$i18n.t('elementType.errorNoWorkflowAction')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -1061,11 +1061,11 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.column')
+    return this.app.$i18n.t('elementType.column')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.columnDescription')
+    return this.app.$i18n.t('elementType.columnDescription')
   }
 
   get iconClass() {
@@ -1108,7 +1108,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
         includeSelf: true,
       }).length
       if (hasSameTypeAncestor) {
-        return this.app.i18n.t('elementType.notAllowedInsideSameType')
+        return this.app.$i18n.t('elementType.notAllowedInsideSameType')
       }
     }
     return super.isDisallowedReason({
@@ -1143,11 +1143,11 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.simpleContainer')
+    return this.app.$i18n.t('elementType.simpleContainer')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.simpleContainerDescription')
+    return this.app.$i18n.t('elementType.simpleContainerDescription')
   }
 
   get iconClass() {
@@ -1197,11 +1197,11 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.table')
+    return this.app.$i18n.t('elementType.table')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.tableDescription')
+    return this.app.$i18n.t('elementType.tableDescription')
   }
 
   get iconClass() {
@@ -1259,7 +1259,7 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
     })
 
     if (hasCollectionFieldInError) {
-      return this.app.i18n.t('elementType.errorCollectionFieldInError')
+      return this.app.$i18n.t('elementType.errorCollectionFieldInError')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -1278,11 +1278,11 @@ export class RepeatElementType extends CollectionElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.repeat')
+    return this.app.$i18n.t('elementType.repeat')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.repeatDescription')
+    return this.app.$i18n.t('elementType.repeatDescription')
   }
 
   get iconClass() {
@@ -1412,11 +1412,11 @@ export class InputTextElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.inputText')
+    return this.app.$i18n.t('elementType.inputText')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.inputTextDescription')
+    return this.app.$i18n.t('elementType.inputTextDescription')
   }
 
   get iconClass() {
@@ -1469,11 +1469,11 @@ export class HeadingElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.heading')
+    return this.app.$i18n.t('elementType.heading')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.headingDescription')
+    return this.app.$i18n.t('elementType.headingDescription')
   }
 
   get iconClass() {
@@ -1498,7 +1498,7 @@ export class HeadingElementType extends ElementType {
    */
   getErrorMessage(element, applicationContext) {
     if (!element.value.formula) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage(element, applicationContext)
   }
@@ -1517,11 +1517,11 @@ export class TextElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.text')
+    return this.app.$i18n.t('elementType.text')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.textDescription')
+    return this.app.$i18n.t('elementType.textDescription')
   }
 
   get iconClass() {
@@ -1546,7 +1546,7 @@ export class TextElementType extends ElementType {
    */
   getErrorMessage(element, applicationContext) {
     if (!element.value.formula) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage(element, applicationContext)
   }
@@ -1565,11 +1565,11 @@ export class LinkElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.link')
+    return this.app.$i18n.t('elementType.link')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.linkDescription')
+    return this.app.$i18n.t('elementType.linkDescription')
   }
 
   get iconClass() {
@@ -1600,12 +1600,12 @@ export class LinkElementType extends ElementType {
 
     // A Link without any text isn't usable
     if (!element.value.formula) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
 
     if (element.navigation_type === 'page') {
       if (!element.navigate_to_page_id) {
-        return this.app.i18n.t('elementType.errorNavigateToPageMissing')
+        return this.app.$i18n.t('elementType.errorNavigateToPageMissing')
       }
       if (
         pathParametersInError(
@@ -1613,13 +1613,13 @@ export class LinkElementType extends ElementType {
           this.app.$store.getters['page/getVisiblePages'](builder)
         )
       ) {
-        return this.app.i18n.t('elementType.errorPageParameterInError')
+        return this.app.$i18n.t('elementType.errorPageParameterInError')
       }
     } else if (
       element.navigation_type === 'custom' &&
       !element.navigate_to_url.formula
     ) {
-      return this.app.i18n.t('elementType.errorNavigationUrlMissing')
+      return this.app.$i18n.t('elementType.errorNavigationUrlMissing')
     }
     return super.getErrorMessage(element, applicationContext)
   }
@@ -1662,11 +1662,11 @@ export class ImageElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.image')
+    return this.app.$i18n.t('elementType.image')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.imageDescription')
+    return this.app.$i18n.t('elementType.imageDescription')
   }
 
   get iconClass() {
@@ -1695,12 +1695,12 @@ export class ImageElementType extends ElementType {
       element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD &&
       !element.image_file?.url
     ) {
-      return this.app.i18n.t('elementType.errorImageFileMissing')
+      return this.app.$i18n.t('elementType.errorImageFileMissing')
     } else if (
       element.image_source_type === IMAGE_SOURCE_TYPES.URL &&
       !element.image_url
     ) {
-      return this.app.i18n.t('elementType.errorImageUrlMissing')
+      return this.app.$i18n.t('elementType.errorImageUrlMissing')
     }
     return super.getErrorMessage(element, applicationContext)
   }
@@ -1719,11 +1719,11 @@ export class ButtonElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.button')
+    return this.app.$i18n.t('elementType.button')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.buttonDescription')
+    return this.app.$i18n.t('elementType.buttonDescription')
   }
 
   get iconClass() {
@@ -1754,7 +1754,7 @@ export class ButtonElementType extends ElementType {
     const { builder } = applicationContext
     // If Button without any label should be considered invalid
     if (!element.value.formula) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
@@ -1766,7 +1766,7 @@ export class ButtonElementType extends ElementType {
     ](elementPage, element.id)
 
     if (!workflowActions.length) {
-      return this.app.i18n.t('elementType.errorNoWorkflowAction')
+      return this.app.$i18n.t('elementType.errorNoWorkflowAction')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -1786,11 +1786,11 @@ export class ChoiceElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.choice')
+    return this.app.$i18n.t('elementType.choice')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.choiceDescription')
+    return this.app.$i18n.t('elementType.choiceDescription')
   }
 
   get iconClass() {
@@ -1926,11 +1926,11 @@ export class ChoiceElementType extends FormElementType {
   getErrorMessage(element, applicationContext) {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
-        return this.app.i18n.t('elementType.errorOptionsMissing')
+        return this.app.$i18n.t('elementType.errorOptionsMissing')
       }
     } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
       if (element.formula_value === '') {
-        return this.app.i18n.t('elementType.errorOptionsMissing')
+        return this.app.$i18n.t('elementType.errorOptionsMissing')
       }
     }
     return super.getErrorMessage(element, applicationContext)
@@ -1959,11 +1959,11 @@ export class CheckboxElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.checkbox')
+    return this.app.$i18n.t('elementType.checkbox')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.checkboxDescription')
+    return this.app.$i18n.t('elementType.checkboxDescription')
   }
 
   get iconClass() {
@@ -2006,11 +2006,11 @@ export class IFrameElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.iframe')
+    return this.app.$i18n.t('elementType.iframe')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.iframeDescription')
+    return this.app.$i18n.t('elementType.iframeDescription')
   }
 
   get iconClass() {
@@ -2039,12 +2039,12 @@ export class IFrameElementType extends ElementType {
       element.source_type === IFRAME_SOURCE_TYPES.URL &&
       !element.url.formula
     ) {
-      return this.app.i18n.t('elementType.errorIframeUrlMissing')
+      return this.app.$i18n.t('elementType.errorIframeUrlMissing')
     } else if (
       element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
       !element.embed.formula
     ) {
-      return this.app.i18n.t('elementType.errorIframeContentMissing')
+      return this.app.$i18n.t('elementType.errorIframeContentMissing')
     }
     return super.getErrorMessage(element, applicationContext)
   }
@@ -2069,11 +2069,11 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.recordSelector')
+    return this.app.$i18n.t('elementType.recordSelector')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.recordSelectorDescription')
+    return this.app.$i18n.t('elementType.recordSelectorDescription')
   }
 
   get iconClass() {
@@ -2258,11 +2258,11 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.header')
+    return this.app.$i18n.t('elementType.header')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.headerDescription')
+    return this.app.$i18n.t('elementType.headerDescription')
   }
 
   get iconClass() {
@@ -2313,7 +2313,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
-      return this.app.i18n.t('elementType.notAllowedInsideContainer')
+      return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2324,7 +2324,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       pagePlace !== PAGE_PLACES.HEADER
     ) {
       // can't be inserted outside of header
-      return this.app.i18n.t('elementType.notAllowedUnlessHeader')
+      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
     }
 
     if (page.id !== sharedPage.id) {
@@ -2332,7 +2332,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
         this.app.$store.getters['element/getElementsOrdered'](page)
       // Can't be inserted after the first element of the page
       if (beforeElement && beforeElement.id !== orderedElements[0].id) {
-        return this.app.i18n.t('elementType.notAllowedUnlessTop')
+        return this.app.$i18n.t('elementType.notAllowedUnlessTop')
       }
     }
     return null
@@ -2353,11 +2353,11 @@ export class FooterElementType extends HeaderElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.footer')
+    return this.app.$i18n.t('elementType.footer')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.footerDescription')
+    return this.app.$i18n.t('elementType.footerDescription')
   }
 
   get iconClass() {
@@ -2391,7 +2391,7 @@ export class FooterElementType extends HeaderElementType {
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
-      return this.app.i18n.t('elementType.notAllowedInsideContainer')
+      return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2401,13 +2401,13 @@ export class FooterElementType extends HeaderElementType {
       pagePlace !== PAGE_PLACES.FOOTER
     ) {
       // can't be inserted outside of header
-      return this.app.i18n.t('elementType.notAllowedUnlessFooter')
+      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
     }
 
     if (page.id !== sharedPage.id) {
       // Can't be inserted before the end of the page
       if (beforeElement && beforeElement.page_id !== sharedPage.id) {
-        return this.app.i18n.t('elementType.notAllowedUnlessBottom')
+        return this.app.$i18n.t('elementType.notAllowedUnlessBottom')
       }
     }
     return null
@@ -2420,11 +2420,11 @@ export class RatingInputElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.ratingInput')
+    return this.app.$i18n.t('elementType.ratingInput')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.ratingInputDescription')
+    return this.app.$i18n.t('elementType.ratingInputDescription')
   }
 
   get iconClass() {
@@ -2474,11 +2474,11 @@ export class RatingElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.rating')
+    return this.app.$i18n.t('elementType.rating')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.ratingDescription')
+    return this.app.$i18n.t('elementType.ratingDescription')
   }
 
   get iconClass() {
@@ -2504,11 +2504,11 @@ export class MenuElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.menu')
+    return this.app.$i18n.t('elementType.menu')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.menuDescription')
+    return this.app.$i18n.t('elementType.menuDescription')
   }
 
   get iconClass() {
@@ -2554,7 +2554,7 @@ export class MenuElementType extends ElementType {
     const { builder } = applicationContext
     // There must be at least one menu item
     if (!element.menu_items?.length) {
-      return this.app.i18n.t('elementType.errorNoMenuItem')
+      return this.app.$i18n.t('elementType.errorNoMenuItem')
     }
 
     const elementPage = this.app.$store.getters['page/getById'](
@@ -2572,7 +2572,7 @@ export class MenuElementType extends ElementType {
         })
       })
     ) {
-      return this.app.i18n.t('elementType.errorMenuItemInError')
+      return this.app.$i18n.t('elementType.errorMenuItemInError')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -2589,7 +2589,7 @@ export class MenuElementType extends ElementType {
           return this.menuItemErrorMessage(child, builder, workflowActions)
         })
       ) {
-        return this.app.i18n.t('elementType.errorSubMenuItemInError')
+        return this.app.$i18n.t('elementType.errorSubMenuItemInError')
       }
     } else {
       return this.menuItemErrorMessage(menuItem, builder, workflowActions)
@@ -2604,21 +2604,21 @@ export class MenuElementType extends ElementType {
         return null
       case 'button':
         if (!menuItem.name) {
-          return this.app.i18n.t('elementType.errorNameMissing')
+          return this.app.$i18n.t('elementType.errorNameMissing')
         }
         if (!workflowActions.length) {
-          return this.app.i18n.t('elementType.errorNoWorkflowAction')
+          return this.app.$i18n.t('elementType.errorNoWorkflowAction')
         }
         break
       case 'link':
         if (!menuItem.name) {
-          return this.app.i18n.t('elementType.errorNameMissing')
+          return this.app.$i18n.t('elementType.errorNameMissing')
         }
 
         if (!menuItem.children?.length) {
           if (menuItem.navigation_type === 'page') {
             if (!menuItem.navigate_to_page_id) {
-              return this.app.i18n.t('elementType.errorNavigateToPageMissing')
+              return this.app.$i18n.t('elementType.errorNavigateToPageMissing')
             }
             if (
               pathParametersInError(
@@ -2626,7 +2626,7 @@ export class MenuElementType extends ElementType {
                 this.app.$store.getters['page/getVisiblePages'](builder)
               )
             ) {
-              return this.app.i18n.t('elementType.errorPageParameterInError')
+              return this.app.$i18n.t('elementType.errorPageParameterInError')
             }
           }
 
@@ -2634,7 +2634,7 @@ export class MenuElementType extends ElementType {
             menuItem.navigation_type === 'custom' &&
             !menuItem.navigate_to_url.formula
           ) {
-            return this.app.i18n.t('elementType.errorNavigationUrlMissing')
+            return this.app.$i18n.t('elementType.errorNavigationUrlMissing')
           }
         }
         break

@@ -13,8 +13,7 @@
         data-highlight="builder-preview"
         @keydown="handleKeyDown"
       >
-        <!-- //TODO MIG Enable this again when themeProvider is working again properly -->
-        <!-- <ThemeProvider class="page">
+        <ThemeProvider class="page">
           <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
@@ -120,7 +119,7 @@
               show-paid-features-modal
             />
           </client-only>
-        </ThemeProvider> -->
+        </ThemeProvider>
       </div>
       <AddElementModal ref="addElementModal" :page="currentPage" />
     </div>
@@ -190,6 +189,7 @@ export default {
       }
     },
     elements() {
+      console.log('page', this.currentPage)
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     sharedPage() {
