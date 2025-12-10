@@ -112,7 +112,7 @@ const emit = defineEmits([
   'duplicate-node',
 ])
 
-const { app } = useContext()
+const app = useNuxtApp()
 
 const instance = getCurrentInstance()
 const refs = instance.proxy.$refs

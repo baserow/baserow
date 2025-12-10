@@ -17,7 +17,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const { app } = useContext()
+    const app = useNuxtApp()
     const sidePanelType = computed(() => {
       return props.activeSidePanel
         ? app.$registry.get('editorSidePanel', props.activeSidePanel)
