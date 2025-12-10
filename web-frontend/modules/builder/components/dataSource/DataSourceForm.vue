@@ -64,6 +64,7 @@
         ref="subForm"
         :application="builder"
         :service="dataSource"
+        :service-type="serviceType"
         :default-values="defaultValues"
         :context-data="integration.context_data"
         @values-changed="emitChange($event)"

@@ -17,10 +17,10 @@
     <LocalBaserowTableSelector
       v-if="selectedIntegration"
       v-model="fakeTableId"
-      :view-id.sync="values.view_id"
       :databases="databases"
+      :service-type="serviceType"
+      :view-id.sync="values.view_id"
       :display-view-dropdown="enableViewPicker"
-      :disallow-data-synced-tables="disallowDataSyncedTables"
     />
     <FormGroup
       v-if="enableRowId && values.integration_id"
@@ -64,6 +64,10 @@ export default {
       type: Object,
       required: true,
     },
+    serviceType: {
+      type: Object,
+      required: true,
+    },
     enableRowId: {
       type: Boolean,
       required: false,
@@ -88,15 +92,6 @@ export default {
       type: Boolean,
       required: false,
       default: true,
-    },
-    /**
-     * Whether to disallow the selection of data synced tables. Data sources
-     * can select them, but a create-row workflow action cannot.
-     */
-    disallowDataSyncedTables: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
   data() {

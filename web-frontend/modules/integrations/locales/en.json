@@ -229,7 +229,8 @@
     "tableFieldLabel": "Table",
     "chooseNoView": "Not selected",
     "databaseFieldLabel": "Database",
-    "dataSyncedTableDescription": "Data synced table"
+    "oneWayDataSyncedTableDescription": "One-way synced",
+    "twoWayDataSyncedTableDescription": "Two-way synced"
   },
   "smtpIntegrationType": {
     "smtpSummary": "SMTP - {host}:{port}"

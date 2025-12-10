@@ -27,6 +27,7 @@
       small
       :loading="nodeLoading"
       :service="node.service"
+      :service-type="nodeType.serviceType"
       :application="automation"
       enable-integration-picker
       :default-values="node.service"
