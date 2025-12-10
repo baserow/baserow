@@ -699,7 +699,7 @@ dt *ARGS:
 
 # Attach to a running container (interactive shell)
 [group('2 - docker-dev')]
-[doc("Attach to running container: just dc-attach [name]")]
+[doc("Attach to running container: just dc-attach [filter]")]
 dc-attach container="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -712,55 +712,68 @@ dc-attach container="":
     BOLD='\033[1m'
     NC='\033[0m' # No Color
 
+    # Get running containers, optionally filtered by name
     if [ -n "{{ container }}" ]; then
-        docker exec -it "{{ container }}" bash
+        mapfile -t containers < <(docker ps --format '{{ '{{.Names}}\t{{.Image}}\t{{.Status}}' }}' | grep -i "{{ container }}" || true)
     else
-        # Get running containers
         mapfile -t containers < <(docker ps --format '{{ '{{.Names}}\t{{.Image}}\t{{.Status}}' }}')
+    fi
 
-        if [ ${#containers[@]} -eq 0 ]; then
-            echo -e "${YELLOW}No running containers found.${NC}"
-            exit 1
-        fi
-
-        echo -e "${BOLD}Running containers:${NC}"
-        echo ""
-        for i in "${!containers[@]}"; do
-            name=$(echo "${containers[$i]}" | cut -f1)
-            image=$(echo "${containers[$i]}" | cut -f2)
-            status=$(echo "${containers[$i]}" | cut -f3)
-            printf "  ${CYAN}%2d)${NC} ${GREEN}%-30s${NC} ${DIM}%-40s${NC} ${YELLOW}%s${NC}\n" "$((i+1))" "$name" "$image" "$status"
-        done
-        echo ""
-        echo -e "  ${DIM}q)  Quit${NC}"
-        echo ""
-
-        # Read single character without waiting for Enter
-        printf "Select container [1-${#containers[@]}]: "
-        read -rsn1 choice
-
-        # Handle ESC (reads as empty with -s, or as escape sequence)
-        if [[ "$choice" == $'\x1b' || -z "$choice" ]]; then
-            echo ""
-            exit 0
-        fi
-
-        # Handle quit
-        if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
-            echo "$choice"
-            exit 0
-        fi
-
-        # For numbers, check if valid single digit selection
-        if [[ "$choice" =~ ^[0-9]$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#containers[@]} ]; then
-            echo "$choice"
-            name=$(echo "${containers[$((choice-1))]}" | cut -f1)
-            docker exec -it "$name" bash
+    if [ ${#containers[@]} -eq 0 ]; then
+        if [ -n "{{ container }}" ]; then
+            echo -e "${YELLOW}No running containers matching '{{ container }}'.${NC}"
         else
-            echo "$choice"
-            echo -e "${YELLOW}Invalid selection${NC}"
-            exit 1
+            echo -e "${YELLOW}No running containers found.${NC}"
         fi
+        exit 1
+    fi
+
+    # If only one container, attach immediately
+    if [ ${#containers[@]} -eq 1 ]; then
+        name=$(echo "${containers[0]}" | cut -f1)
+        echo -e "Attaching to ${GREEN}${name}${NC}..."
+        docker exec -it "$name" bash
+        exit 0
+    fi
+
+    # Multiple containers - show selection menu
+    echo -e "${BOLD}Running containers:${NC}"
+    echo ""
+    for i in "${!containers[@]}"; do
+        name=$(echo "${containers[$i]}" | cut -f1)
+        image=$(echo "${containers[$i]}" | cut -f2)
+        status=$(echo "${containers[$i]}" | cut -f3)
+        printf "  ${CYAN}%2d)${NC} ${GREEN}%-30s${NC} ${DIM}%-40s${NC} ${YELLOW}%s${NC}\n" "$((i+1))" "$name" "$image" "$status"
+    done
+    echo ""
+    echo -e "  ${DIM}q)  Quit${NC}"
+    echo ""
+
+    # Read single character without waiting for Enter
+    printf "Select container [1-${#containers[@]}]: "
+    read -rsn1 choice
+
+    # Handle ESC (reads as empty with -s, or as escape sequence)
+    if [[ "$choice" == $'\x1b' || -z "$choice" ]]; then
+        echo ""
+        exit 0
+    fi
+
+    # Handle quit
+    if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
+        echo "$choice"
+        exit 0
+    fi
+
+    # For numbers, check if valid single digit selection
+    if [[ "$choice" =~ ^[0-9]$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#containers[@]} ]; then
+        echo "$choice"
+        name=$(echo "${containers[$((choice-1))]}" | cut -f1)
+        docker exec -it "$name" bash
+    else
+        echo "$choice"
+        echo -e "${YELLOW}Invalid selection${NC}"
+        exit 1
     fi
 
 # Shortcut alias for dc-attach

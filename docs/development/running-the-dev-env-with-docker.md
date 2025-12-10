@@ -115,6 +115,7 @@ just logs -n 100 backend
 # Open a shell in a container
 just a                              # Interactive container picker
 just a backend                      # Direct shell into backend
+just a celery                       # Interactive container picker, filtered
 just dc-dev exec backend bash       # Alternative
 
 # Run Django management commands

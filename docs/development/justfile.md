@@ -69,7 +69,7 @@ just dc-dev shell backend bash
 just dc-dev exec backend bash
 
 # Run command in container
-just dc-dev exec backend python manage.py migrate
+just dc-dev exec backend python baserow migrate
 
 # Stop containers
 just dc-dev down
