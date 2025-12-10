@@ -1818,22 +1818,13 @@ export class RuntimeLength extends RuntimeFormulaFunction {
   }
 
   execute(context, [value]) {
-    try {
-      const val = ensureObject(value)
-      if (typeof val === 'object' && !Array.isArray(val)) {
-        return Object.keys(val).length
-      }
-    } catch {}
-
-    try {
-      const val = ensureArray(value)
-      return val.length
-    } catch {}
-
-    try {
-      const val = ensureString(value)
-      return val.length
-    } catch {}
+    if (Array.isArray(value)) {
+      return value.length
+    } else if (value !== null && typeof value === "object") {
+      return Object.keys(value).length
+    } else if (typeof value === 'string') {
+      return value.length
+    }
 
     return null
   }
@@ -1847,15 +1838,11 @@ export class RuntimeLength extends RuntimeFormulaFunction {
     return [
       {
         formula: "length('Hello, world!')",
-        result: "'13'",
+        result: "13",
       },
       {
-        formula: 'length(\'{"a": "b", "c": "d"}\')',
-        result: "'2'",
-      },
-      {
-        formula: 'length(\'["foo", "bar", "baz"]\')',
-        result: "'3'",
+        formula: 'length(to_array("foo, bar"))',
+        result: "2",
       },
     ]
   }
@@ -1883,25 +1870,15 @@ export class RuntimeContains extends RuntimeFormulaFunction {
 
   execute(context, args) {
     const value = args[0]
+    const toCheck = args[1]
 
-    try {
-      const val = ensureObject(value)
-      const isArrayOrObject =
-        val !== null && (Array.isArray(val) || typeof val === 'object')
-
-      if (isArrayOrObject) {
-        if (Array.isArray(val)) {
-          return val.includes(args[1])
-        } else {
-          return Object.keys(val).includes(args[1])
-        }
-      }
-    } catch {}
-
-    try {
-      const val = ensureString(value)
-      return val.includes(args[1])
-    } catch {}
+    if (Array.isArray(value)) {
+      return value.includes(toCheck)
+    } else if (value !== null && typeof value === "object") {
+      return Object.keys(value).includes(toCheck)
+    } else if (typeof value === 'string') {
+      return value.includes(toCheck)
+    }
 
     return null
   }
@@ -1918,11 +1895,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
         result: 'true',
       },
       {
-        formula: 'contains(\'{"a": "b", "c": "d"}\', "a")',
-        result: 'true',
-      },
-      {
-        formula: 'contains(\'["foo", "bar", "baz"]\', "foo")',
+        formula: 'contains(to_array("foo", "bar"), "foo")',
         result: 'true',
       },
     ]
@@ -1947,12 +1920,15 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
   }
 
   execute(context, [arg]) {
-    try {
-      const val = ensureArray(arg)
-      return val.reverse()
-    } catch {}
+    if (Array.isArray(arg)) {
+      return arg.reverse()
+    }
 
-    return reverseString(arg)
+    if (typeof arg === 'string') {
+      return reverseString(arg)
+    }
+
+    return null
   }
 
   getDescription() {
@@ -1971,7 +1947,7 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
         result: "'🚀💙😀",
       },
       {
-        formula: 'reverse(\'["foo", "bar"]\')',
+        formula: 'reverse(to_array("foo, bar"))',
         result: "'bar,foo'",
       },
     ]
@@ -1993,26 +1969,23 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new AnyBaserowRuntimeFormulaArgumentType(),
+      new ArrayBaserowRuntimeFormulaArgumentType(),
       new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
 
   execute(context, args) {
+    const val = args[0]
     let separator = ','
     if (args.length === 2) {
       separator = args[1]
     }
 
-    try {
-      const val = ensureArray(args[0])
+    if (Array.isArray(val)) {
+      return val.join(separator)
+    }
 
-      if (Array.isArray(val)) {
-        return val.join(separator)
-      }
-    } catch {}
-
-    return args[0]
+    return null
   }
 
   getDescription() {
@@ -2023,12 +1996,12 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: 'join(\'["foo", "bar"]\')',
+        formula: 'join(to_array("foo, bar"))',
         result: "'foo,bar'",
       },
       {
-        formula: 'join(\'["foo", "bar"]\', ' * ')',
-        result: "'foo*bar'",
+        formula: 'join(to_array("foo, bar"), " * ")',
+        result: "'foo * bar'",
       },
     ]
   }
@@ -2064,7 +2037,7 @@ export class RuntimeSplit extends RuntimeFormulaFunction {
 
   getDescription() {
     const { i18n } = this.app
-    return i18n.t('runtimeFormulaTypes.joinDescription')
+    return i18n.t('runtimeFormulaTypes.splitDescription')
   }
 
   getExamples() {
@@ -2103,18 +2076,9 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
       return true
     }
 
-    try {
-      const val = ensureObject(arg)
-      const isArrayOrObject =
-        val !== null && (Array.isArray(val) || typeof val === 'object')
-      if (isArrayOrObject) {
-        if (Array.isArray(val)) {
-          return val.length === 0
-        } else {
-          return Object.keys(val).length === 0
-        }
-      }
-    } catch {}
+    if (Array.isArray(arg)) {
+      return arg.length === 0
+    }
 
     if (typeof arg === 'string') {
       const trimmed = arg.trim()
@@ -2136,7 +2100,7 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
 
   getDescription() {
     const { i18n } = this.app
-    return i18n.t('runtimeFormulaTypes.joinDescription')
+    return i18n.t('runtimeFormulaTypes.isEmptyDescription')
   }
 
   getExamples() {
@@ -2146,11 +2110,11 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
         result: 'true',
       },
       {
-        formula: 'is_empty(\'"{}"\')',
+        formula: "is_empty(0)",
         result: 'true',
       },
       {
-        formula: 'is_empty(\'"[]"\')',
+        formula: 'is_empty(to_array(""))',
         result: 'true',
       },
       {
@@ -2158,11 +2122,11 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
         result: 'false',
       },
       {
-        formula: 'is_empty(\'{"foo": "bar"}\')',
+        formula: "is_empty(1)",
         result: 'false',
       },
       {
-        formula: 'is_empty(\'["foo"]\')',
+        formula: 'is_empty(to_array("foo,bar"))',
         result: 'false',
       },
     ]
@@ -2244,15 +2208,11 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: 'sum(\'"[1, 2, 3]"\')',
+        formula: 'sum(to_array("1, 2, 3"))',
         result: '6',
       },
       {
-        formula: 'sum(\'"[1, 2, 3]"\')',
-        result: '6',
-      },
-      {
-        formula: 'sum(\'["1", 2.5, 3]\')',
+        formula: 'sum(to_array("1, 2.5, 3"))',
         result: '6.5',
       },
     ]
@@ -2294,7 +2254,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "avg('[1, 2, 3, 4]')",
+        formula: "avg(to_array('1, 2, 3, 4'))",
         result: '2.5',
       },
     ]
@@ -2316,7 +2276,7 @@ export class RuntimeAt extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new AnyBaserowRuntimeFormulaArgumentType(),
+      new ArrayBaserowRuntimeFormulaArgumentType(),
       new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
     ]
   }
@@ -2324,9 +2284,8 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   execute(context, args) {
     const [array, index] = args
     try {
-      const val = ensureArray(array)
-      if (index + 1 <= val.length) {
-        return val[index]
+      if (index + 1 <= array.length) {
+        return array[index]
       }
     } catch {
       return null
@@ -2341,12 +2300,52 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: 'at(\'["foo", "bar"]\', 1)',
-        result: '"foo"',
+        formula: 'at(to_array("foo, bar")), 1)',
+        result: '"bar"',
       },
       {
-        formula: 'at(\'["foo", "bar"]\', 3)',
+        formula: 'at(to_array("foo, bar")), 3)',
         result: 'null',
+      },
+    ]
+  }
+}
+
+export class RuntimeToArray extends RuntimeFormulaFunction {
+  static getType() {
+    return 'to_array'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return ensureArray(arg)
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.toArrayDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "to_array('foo,bar')",
+        result: '["foo", "bar"]',
       },
     ]
   }
