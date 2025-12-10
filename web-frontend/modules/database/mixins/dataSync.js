@@ -14,7 +14,7 @@ export default {
       updateLoading: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   computed: {

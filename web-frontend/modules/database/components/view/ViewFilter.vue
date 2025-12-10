@@ -65,7 +65,7 @@ export default {
   beforeMount() {
     this.$bus.$on('view-filter-created', this.filterCreated)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('view-filter-created', this.filterCreated)
   },
   methods: {

@@ -62,8 +62,7 @@ export default {
           primary: true,
           read_only: false,
           text_default: '',
-        },
-        this.$registry
+        }
       )
 
       const instances = [primaryTextField]
@@ -78,8 +77,7 @@ export default {
               primary: false,
               hidden: false,
               ...field,
-            },
-            this.$registry
+            }
           )
         )
       })
@@ -109,7 +107,6 @@ export default {
           public: false,
           slug: '',
         },
-        this.$registry
       )
       return [gridView1]
     },

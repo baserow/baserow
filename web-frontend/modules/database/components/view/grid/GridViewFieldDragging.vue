@@ -69,7 +69,7 @@ export default {
       autoScrolling: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.cancel()
   },
   methods: {

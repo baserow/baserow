@@ -482,7 +482,7 @@ export default {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
     this.$el.resizeObserver.observe(this.$el)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('table-refresh', this.refresh)
     this.$el.resizeObserver.unobserve(this.$el)
     this.$bus.$off('open-table-views-context', this.openTableViewsContext)

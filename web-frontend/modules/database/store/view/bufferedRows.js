@@ -318,6 +318,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       context,
       { viewId, fields, adhocFiltering, adhocSorting, initialRowArguments = {} }
     ) {
+      const { $client } = useNuxtApp()
       const { commit, getters, rootGetters } = context
       commit('SET_VIEW_ID', viewId)
       commit('SET_SEARCH', {
@@ -326,7 +327,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
       const view = rootGetters['view/get'](viewId)
-      const { data } = await service(this.$client).fetchRows({
+      const { data } = await service($client).fetchRows({
         viewId,
         offset: 0,
         limit: getters.getRequestSize,
@@ -362,6 +363,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, getters, commit, rootGetters },
       parameters
     ) {
+      const { $client } = useNuxtApp()
       const viewId = getters.getViewId
       const { startIndex, endIndex } = parameters
 
@@ -409,7 +411,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_FETCHING', true)
       lastRequestController = new AbortController()
       try {
-        const { data } = await service(this.$client).fetchRows({
+        const { data } = await service($client).fetchRows({
           viewId,
           offset: rangeToFetch.offset,
           limit: rangeToFetch.limit,
@@ -459,6 +461,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, commit, getters, rootGetters },
       { fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
     ) {
+      const { $client } = useNuxtApp()
       const viewId = getters.getViewId
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
@@ -478,7 +481,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         commit('SET_FETCHING', true)
         const {
           data: { count },
-        } = await service(this.$client).fetchCount({
+        } = await service($client).fetchCount({
           viewId,
           signal: lastRequestController.signal,
           search: getters.getServerSearchTerm,
@@ -517,7 +520,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const { data } = await service(this.$client).fetchRows({
+          const { data } = await service($client).fetchRows({
             viewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,
@@ -583,7 +586,6 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       return view.filters_disabled
         ? true
         : matchSearchFilters(
-            this.$registry,
             view.filter_type,
             view.filters,
             view.filter_groups,
@@ -597,8 +599,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * figure out which `null` object could have been the row in the store.
      */
     findIndexOfNotExistingRow({ getters }, { view, fields, row }) {
+      const { $registry } = useNuxtApp()
       const sortFunction = getRowSortFunction(
-        this.$registry,
+        $registry,
         view.sortings,
         fields
       )
@@ -634,8 +637,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * the row.
      */
     findIndexOfExistingRow({ dispatch, getters }, { view, fields, row }) {
+      const { $registry } = useNuxtApp()
       const sortFunction = getRowSortFunction(
-        this.$registry,
+        $registry,
         view.sortings,
         fields
       )
@@ -677,12 +681,13 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { commit, getters, rootGetters },
       { table, row }
     ) {
+      const { $client } = useNuxtApp()
       commit('SET_ROW_FETCHING', { row, value: true })
       const gridId = getters.getViewId
       const publicUrl = rootGetters['page/view/public/getIsPublic']
       const publicAuthToken = rootGetters['page/view/public/getAuthToken']
       try {
-        const { data } = await ViewService(this.$client).fetchRow(
+        const { data } = await ViewService($client).fetchRow(
           table.id,
           row.id,
           gridId,
@@ -703,10 +708,11 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, commit, getters },
       { view, table, fields, values }
     ) {
-      const preparedRow = prepareRowForRequest(values, fields, this.$registry)
+      const { $client, $registry } = useNuxtApp()
+      const preparedRow = prepareRowForRequest(values, fields, $registry)
 
       commit('SET_CREATING', true)
-      const { data } = await RowService(this.$client).create(
+      const { data } = await RowService($client).create(
         table.id,
         preparedRow,
         null,
@@ -777,6 +783,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { commit, dispatch, getters },
       { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
+      const { $client, $registry } = useNuxtApp()
       await dispatch('afterExistingRowUpdated', {
         view,
         fields,
@@ -801,7 +808,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
             Object.assign({ id: row.id }, updateRequestValues),
           ]
           commit('SET_ROW_FETCHING', { row, value: true })
-          const { data } = await RowService(this.$client).batchUpdate(
+          const { data } = await RowService($client).batchUpdate(
             table.id,
             updateRowsData,
             null,
@@ -831,7 +838,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
               updatedRowData,
               fields,
               updatedFieldIds,
-              this.$registry
+              $registry
             )
             commit('UPDATE_ROW', { row: rowToUpdate, values: updateValues })
           }
@@ -859,6 +866,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch },
       { table, view, row, field, fields, value, oldValue }
     ) {
+      const { $registry } = useNuxtApp()
       const { newRowValues, oldRowValues, updateRequestValues } =
         prepareNewOldAndUpdateRequestValues(
           row,
@@ -866,7 +874,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           field,
           value,
           oldValue,
-          this.$registry
+          $registry
         )
       await dispatch('updatePreparedRowValues', {
         table,
@@ -884,6 +892,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * the row in the backend.
      */
     prepareMultipleRowValues(context, { row, fields, values, oldValues }) {
+      const { $registry } = useNuxtApp()
       let preparedValues = {}
       let preparedOldValues = {}
       let updateRequestValues = {}
@@ -901,7 +910,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           field,
           value,
           oldValue,
-          this.$registry
+          $registry
         )
         preparedValues = { ...preparedValues, ...newRowValues }
         preparedOldValues = { ...preparedOldValues, ...oldRowValues }
@@ -1107,6 +1116,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * the row is moved back to the position.
      */
     async stopRowDrag({ dispatch, commit, getters }, { table, view, fields }) {
+      const { $client } = useNuxtApp()
       const row = getters.getDraggingRow
 
       if (row === null) {
@@ -1122,7 +1132,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
 
       if (originalBefore !== before) {
         try {
-          const { data } = await RowService(this.$client).move(
+          const { data } = await RowService($client).move(
             table.id,
             row.id,
             before !== null ? before.id : null
@@ -1210,6 +1220,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { commit, getters, rootGetters },
       { row, fields, overrides, forced = false }
     ) {
+      const { $registry } = useNuxtApp()
       // Avoid computing search on table loading
       if (getters.getActiveSearchTerm || forced) {
         const rowSearchMatches = calculateSingleRowSearchMatches(
@@ -1217,7 +1228,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           getters.getActiveSearchTerm,
           getters.isHidingRowsNotMatchingSearch,
           fields,
-          this.$registry,
+          $registry,
           getDefaultSearchModeFromEnv(this.$config),
           overrides
         )
