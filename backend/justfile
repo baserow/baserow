@@ -13,7 +13,6 @@ import? 'local.just'
 # Default: loads .env.dev if exists, otherwise .env
 
 # Note: just doesn't support dynamic dotenv-filename, so we handle env loading in recipes
-# For automatic env loading, use direnv with .envrc
 
 # Default recipe - show help
 default:
@@ -73,10 +72,10 @@ venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")
 # Export for uv to use
 export UV_PROJECT_ENVIRONMENT := venv_dir
 
-# Use --active to respect VIRTUAL_ENV from direnv, since venv may be in parent dir
+# Use --active to respect VIRTUAL_ENV, since venv may be in parent dir
 uv_run := "uv run --active"
 
-# Helper to load .env.local if present (for local dev without direnv)
+# Helper to load .env.local if present 
 # Include this at the start of bash recipes that need env vars
 _load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi'
 
@@ -114,9 +113,6 @@ init: _setup-env _create-venv
     @echo "To activate the virtual environment:"
     @echo "  source {{ venv_dir }}/bin/activate"
     @echo ""
-    @echo "Or use direnv (recommended):"
-    @echo "  direnv allow"
-    @echo ""
     @echo "Or run commands directly with:"
     @echo "  just run <command>"
     @echo "  uv run <command>"
@@ -137,9 +133,6 @@ activate:
     @echo "Run this command to activate the virtual environment:"
     @echo ""
     @echo "  source {{ venv_dir }}/bin/activate"
-    @echo ""
-    @echo "Or if you have direnv installed, run:"
-    @echo "  direnv allow"
 
 # Create Python 3.11 virtual environment with uv
 _create-venv:
@@ -204,6 +197,9 @@ uv *ARGS:
 # Run all lint checks
 [group('4 - code-quality')]
 lint: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
     {{ uv_run }} flake8 {{ backend_source_dirs }} {{ backend_tests_dirs }}
     {{ uv_run }} black {{ backend_source_dirs }} {{ backend_tests_dirs }} --check --config=pyproject.toml
     {{ uv_run }} isort --check --skip generated {{ backend_source_dirs }} {{ backend_tests_dirs }}
@@ -214,11 +210,17 @@ lint: _check-dev
 # Format code with black
 [group('4 - code-quality')]
 format: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
     {{ uv_run }} black --config=pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # Sort imports with isort
 [group('4 - code-quality')]
 sort: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
     {{ uv_run }} isort --skip generated --overwrite-in-place {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # Fix code style (sort imports + format)
@@ -346,6 +348,7 @@ ci-check-startup-oss-only: _check-dev
 make-translations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
+    {{ _load_env }}
     for pkg_dir in ./ ../premium/backend/ ../enterprise/backend/; do
         echo "Processing $pkg_dir"
         cd "$pkg_dir"
@@ -362,6 +365,7 @@ make-translations: _check-dev
 ci-test-python: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
+    {{ _load_env }}
     mkdir -p reports/
     cd "{{ justfile_directory() }}/.."
     COVERAGE_FILE=backend/reports/.coverage.{{ pytest_split_group }} \
@@ -381,6 +385,7 @@ ci-test-python: _check-dev
 ci-coverage-report: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
+    {{ _load_env }}
     cd "{{ justfile_directory() }}/.."
     cp backend/reports/.coverage.* .
     export COVERAGE_RCFILE=backend/.coveragerc
@@ -393,6 +398,7 @@ ci-coverage-report: _check-dev
 ci-check-startup-python: _check-dev
     #!/usr/bin/env bash
     set -euxo pipefail
+    {{ _load_env }}
     DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} django-admin check
     DJANGO_SETTINGS_MODULE={{ django_settings }} timeout --preserve-status 10s \
         {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
@@ -403,6 +409,7 @@ ci-check-startup-python: _check-dev
 ci-check-startup-python-oss-only: _check-dev
     #!/usr/bin/env bash
     set -euxo pipefail
+    {{ _load_env }}
     BASEROW_OSS_ONLY=true DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} django-admin check
     BASEROW_OSS_ONLY=true DJANGO_SETTINGS_MODULE={{ django_settings }} timeout --preserve-status 10s \
         {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \

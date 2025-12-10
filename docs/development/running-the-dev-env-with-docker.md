@@ -39,7 +39,7 @@ cd baserow
 just dc-dev up -d
 
 # View logs (Ctrl+C to stop following)
-just logs -f
+just dc-dev logs -f
 ```
 
 Once started, access:
@@ -65,6 +65,8 @@ The Docker dev environment runs these services:
 | `mjml-email-compiler` | MJML to HTML email compiler | 28101 |
 | `otel-collector` | OpenTelemetry metrics | 4317 |
 | `volume-permissions-fixer` | Fixes media file permissions on startup | - |
+| `web-frontend-storybook` | Component development UI | 6006 |
+| `celery-flower` | Celery task monitoring | 5555 |
 
 ### Docker Compose Files
 
@@ -75,11 +77,13 @@ The `just dc-dev` command combines both files automatically.
 
 ## Common Commands
 
+Shortcuts: `dcd` = `dc-dev`, `a` = `dc-attach`, `dct` = `dc-dev tabs`
+
 ### Starting and Stopping
 
 ```bash
 # Start all services (detached)
-just dc-dev up -d
+just dc-dev up -d        # or: just dcd up -d
 
 # Stop all services (preserves data)
 just dc-dev stop
@@ -95,18 +99,18 @@ just dc-dev down -v
 
 ```bash
 # All logs
-just logs
+just dc-dev logs
 
 # Follow logs in real-time
-just logs -f
+just dc-dev logs -f
 
 # Specific services
-just logs backend
-just logs frontend
-just logs celery
+just dc-dev logs backend
+just dc-dev logs web-frontend
+just dc-dev logs celery
 
 # Last 100 lines of backend
-just logs -n 100 backend
+just dc-dev logs -n 100 backend
 ```
 
 ### Running Commands in Containers
@@ -126,6 +130,16 @@ just dc-dev exec backend python manage.py shell_plus
 # Run tests inside the container
 just dc-dev exec backend just test
 just dc-dev exec web-frontend yarn test
+```
+
+### Terminal Tabs and Tmux
+
+```bash
+# Open terminal tabs for each service (like the old dev.sh)
+just dc-dev tabs                    # or: just dct
+
+# Start a tmux session with all services
+just dc-dev tmux
 ```
 
 ### Building Images
@@ -241,23 +255,12 @@ just dc-dev up -d
 
 ### Environment Files
 
-| File | Purpose |
-|------|---------|
-| `.env.docker-dev` | Docker dev environment (auto-created from `.env.docker-dev.example`) |
-| `.env` | Production Docker (copy from `.env.example`) |
-
-The `just dc-dev` command automatically creates `.env.docker-dev` if it doesn't exist.
+The `just dc-dev` command uses `.env.docker-dev` to define the environment variables used by the `dev` containers. 
+This file is automatically created from `.env.docker-dev.example` if it doesn't exist.
 
 ### Customizing Settings
 
-Edit `.env.docker-dev` to customize:
-
-```bash
-# Example customizations
-BASEROW_PUBLIC_URL=http://localhost:3000
-DEBUG=on
-BASEROW_AMOUNT_OF_WORKERS=2
-```
+Look at [Configuration](../installation/configuration.md) to customize your  `.env.docker-dev`.
 
 ### UID/GID for File Permissions
 
@@ -333,19 +336,9 @@ just dc-dev logs db
 ```
 
 ## IDE Integration
+- VS Code: see [vscode-setup.md](vscode-setup.md).
+- IntelliJ/PyCharm:  see [intellij-setup.md](intellij-setup.md).
 
-### VS Code
-
-See [vscode-setup.md](vscode-setup.md) for:
-- Remote Containers extension setup
-- Python/JavaScript debugging configuration
-- Recommended extensions
-
-### IntelliJ/PyCharm
-
-See [intellij-setup.md](intellij-setup.md) for:
-- Docker interpreter configuration
-- Remote debugging setup
 
 ## Further Reading
 

@@ -12,7 +12,6 @@ automatic style fixers to make your life as easy as possible.
 Install the following tools:
 - [just](https://github.com/casey/just) - command runner
 - [uv](https://github.com/astral-sh/uv) - Python package manager
-- [direnv](https://direnv.net/) (optional but recommended) - automatic environment loading
 
 ## Setup Steps
 
@@ -31,13 +30,11 @@ Install the following tools:
        just b init
        ```
        This creates a virtualenv at `.venv/` in the project root.
-    2. If using direnv, run `direnv allow` to automatically activate the environment.
-       Otherwise, activate manually: `source .venv/bin/activate`
-    3. Then you will most likely need to select it as default interpreter for the project:
+    2. Then you will most likely need to select it as default interpreter for the project:
          1. Type: Ctrl + Shift + P or open the command palette
          1. Type: Python: select interpreter
          1. Find and select your virtualenvs `bin/python` executable (`.venv/bin/python`)
-    4. If do not see the python tests in the testing menu:
+    3. If do not see the python tests in the testing menu:
          1. Type: Ctrl + Shift + P or open the command palette
          1. Type: Python: Configure Tests
 1. Install and get a postgresql database running locally:

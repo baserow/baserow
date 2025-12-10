@@ -1,91 +1,51 @@
 # Running the Dev Environment
 
-There are two ways to run the Baserow development environment:
+Baserow offers two development approaches. Choose based on your priorities:
 
-| Approach | Best For | Guide |
-|----------|----------|-------|
-| **Docker** | Quick start, consistent environment, minimal setup | [Running with Docker](running-the-dev-env-with-docker.md) |
-| **Local** | Faster iteration, easier debugging, IDE integration | [Running Locally](running-the-dev-env-locally.md) |
+| Approach | Guide |
+|----------|-------|
+| **Docker** | [Running with Docker](running-the-dev-env-with-docker.md) |
+| **Local** | [Running Locally](running-the-dev-env-locally.md) |
 
-## Quick Start
+## Which Should I Use?
 
-### Option 1: Docker (Recommended for Getting Started)
+### Use Docker if you want:
 
-Everything runs in containers. Requires only Docker and `just`.
+- **Quick start** - Only requires Docker and `just`, no language runtimes to install
+- **Consistency** - Identical environment across all machines and OSes
+- **Isolation** - Dependencies contained in images, won't conflict with other projects
+- **Security** - Code runs in sandboxed containers
 
-```bash
-git clone --branch develop https://github.com/baserow/baserow.git
-cd baserow
-just dc-dev up -d
-just logs -f
-just a  # Show a list of containers where it's possible to open a bash 
-```
+### Use Local development if you want:
 
-Access http://localhost:3000 to start using Baserow.
-
-See [Running with Docker](running-the-dev-env-with-docker.md) for details.
-
-### Option 2: Local Development
-
-Backend and frontend run natively. Docker only for PostgreSQL/Redis.
-
-```bash
-git clone --branch develop https://github.com/baserow/baserow.git
-cd baserow
-just init       # First time: install dependencies
-just dev up     # Start all services (Ctrl+C to stop)
-```
-
-Or run in background:
-
-```bash
-just dev up -d  # Start in background
-just dev logs   # View logs
-just dev stop   # Stop services
-```
-
-Access http://localhost:3000 to start using Baserow.
-
-See [Running Locally](running-the-dev-env-locally.md) for details.
-
-## Prerequisites
-
-### Minimal (Docker only)
-
-- Docker Desktop (or Docker Engine + Compose)
-- Git
-- just
-
-### Full (Local development)
-
-- All of the above, plus:
-- Python 3.11 + uv
-- Node.js 24 + Yarn
+- **Speed** - Faster startup, instant hot reload, no container overhead
+- **Lower resources** - No Docker daemon or container memory overhead
+- **Better debugging** - Direct IDE integration, native breakpoints, no remote debugging setup
+- **Simpler tooling** - Standard Python/Node workflows you already know
 
 ## Comparison
 
 | Aspect | Docker | Local |
 |--------|--------|-------|
-| Setup complexity | Minimal | More prerequisites |
-| Startup time | Slower | Faster |
-| Hot reload | Via volume mounts | Native |
-| Debugging | Remote debugging | Direct IDE integration |
-| Resource usage | Higher | Lower |
-| Cross-platform consistency | Identical | Varies |
+| **Setup time** | Minutes (just Docker) | Longer (Python, Node, uv, Yarn) |
+| **Startup speed** | Slower (container boot) | Faster |
+| **Hot reload** | Via volume mounts (slower on macOS) | Native (instant) |
+| **Resource usage** | Higher (~4GB+ RAM for containers) | Lower |
+| **Debugging** | Remote debugging setup required | Direct IDE integration |
+| **Environment consistency** | Identical across machines | Depends on local setup |
+| **Dependency isolation** | Complete (containerized) | Shared with system |
+
+## Recommendation
+
+- **New contributors / trying things out**: Start with Docker
+- **Active daily development**: Consider Local for faster iteration
+- **CI/testing production behavior**: Docker mirrors production closely
+
+Both approaches use the same `just` commands and can be switched between freely.
 
 ## Further Reading
 
-- [Running with Docker](running-the-dev-env-with-docker.md) - Complete Docker guide
-- [Running Locally](running-the-dev-env-locally.md) - Complete local development guide
-- [Building Production Images](building-and-running-production-images.md) - Build and test production images
-- [justfile.md](justfile.md) - Command reference
+- [Running with Docker](running-the-dev-env-with-docker.md) - Complete Docker setup and commands
+- [Running Locally](running-the-dev-env-locally.md) - Complete local development setup
+- [justfile.md](justfile.md) - Command reference for both approaches
 - [running-tests.md](running-tests.md) - Testing guide
-
----
-
-## Deprecated: dev.sh
-
-> **Warning:** `dev.sh` is deprecated and will be removed in a future release.
-> Please use `just` commands instead.
-
-See [dev_sh.md](dev_sh.md) for migration information.

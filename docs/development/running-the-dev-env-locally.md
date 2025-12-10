@@ -91,6 +91,7 @@ just dev up -d   # Start in background
 just dev logs    # View logs
 just dev ps      # Check what's running
 just dev stop    # Stop all services
+just dev tmux    # Alternative: start tmux session with all services
 ```
 
 ## How It Works
@@ -120,7 +121,7 @@ All processes log to `/tmp/`:
 
 ### The .env.local File
 
-The `just init` command creates `.env.local` in the project root with sensible defaults:
+The `just init` command creates `.env.local` in the project root with sensible defaults, taken from `.env.local.example`:
 
 ```bash
 # Key settings in .env.local
@@ -137,47 +138,18 @@ All backend commands automatically load this file.
 
 ### Customizing Settings
 
-Edit `.env.local` to customize your environment:
-
-```bash
-# Enable SQL query logging
-DATABASE_DEBUG=on
-
-# Enable Django debug toolbar
-DEBUG=on
-
-# Change ports if needed
-DATABASE_PORT=5433
-REDIS_PORT=6380
-```
-
-### Using direnv (Optional)
-
-For automatic environment loading when entering the directory:
-
-```bash
-# Install direnv
-brew install direnv  # macOS
-# or: apt install direnv  # Linux
-
-# Add to ~/.bashrc or ~/.zshrc
-eval "$(direnv hook bash)"  # or zsh
-
-# Allow the project
-cd baserow
-direnv allow
-```
-
-The `.envrc` file loads `.env.local` and activates the venv automatically.
+Look at [Configuration](../installation/configuration.md) to customize your environment.
 
 ## Common Commands
 
+Shortcuts: `b` = `backend`, `f` = `frontend`
+
 ### Backend Commands
 
-All backend commands can be run from the project root with `just b` or from `backend/`:
+All backend commands can be run from the project root with `just backend` (or `just b`) or from `backend/`:
 
 ```bash
-# From project root
+# From project root (just b is shorthand for just backend)
 just b test              # Run tests
 just b lint              # Run linters
 just b fix               # Auto-fix code style
@@ -195,7 +167,7 @@ just shell
 ### Frontend Commands
 
 ```bash
-# From project root
+# From project root (just f is shorthand for just frontend)
 just f lint              # Run ESLint + Stylelint
 just f test              # Run Jest tests
 just f fix               # Auto-fix code style
@@ -208,18 +180,16 @@ just test
 
 ### Viewing Logs
 
+Works like `docker compose logs` - services and options can be in any order:
+
 ```bash
-# All logs (backend + celery)
-just logs
-
-# Follow in real-time
-just logs -f
-
-# Specific services
-just logs backend
-just logs celery
-just logs frontend
-just logs -f backend     # Follow backend only
+just dev logs                      # All services (backend, celery, frontend)
+just dev logs -f                   # Follow all logs in real-time
+just dev logs backend              # Backend only
+just dev logs backend celery       # Backend and celery
+just dev logs -f backend           # Follow backend only
+just dev logs backend -n 100       # Last 100 lines of backend
+just dev logs -n 50 backend celery # Last 50 lines of backend and celery
 ```
 
 ### Managing Docker Services

@@ -184,7 +184,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends \
     xmlsec1
 
-ENV DOCKER_USER=baserow_user \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="backend" \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/baserow/venv \
@@ -193,8 +193,8 @@ ENV DOCKER_USER=baserow_user \
     PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src:/baserow/backend/tests:/baserow/premium/backend/tests:/baserow/enterprise/backend/tests" \
     DJANGO_SETTINGS_MODULE='baserow.config.settings.test'
 
-RUN groupadd --system --gid $GID baserow_user && \
-      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m baserow_user
+RUN groupadd --system --gid $GID ${DOCKER_USER} && \
+      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini      
@@ -241,7 +241,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     vim \
     sudo
 
-ENV DOCKER_USER=baserow_dev \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="backend" \
     UV_PYTHON_DOWNLOADS=0 \
     UV_COMPILE_BYTECODE=1 \
@@ -253,10 +253,10 @@ ENV DOCKER_USER=baserow_dev \
     PYTHONPATH=/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src:/baserow/backend/tests:/baserow/premium/backend/tests:/baserow/enterprise/backend/tests \
     DJANGO_SETTINGS_MODULE=baserow.config.settings.dev
 
-RUN getent group $GID || groupadd --system --gid $GID baserow_dev && \
-    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m baserow_dev && \
-    echo "baserow_dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/baserow_dev && \
-    chmod 0440 /etc/sudoers.d/baserow_dev
+RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
+    chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
@@ -326,7 +326,7 @@ ARG UID
 ARG GID
 
 ENV POSTGRES_VERSION=15 \
-    DOCKER_USER=baserow_user \
+    DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="backend" \
     UV_PROJECT_ENVIRONMENT=/baserow/venv \
     PYTHONUNBUFFERED=1 \
@@ -345,8 +345,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     xmlsec1 \
     gettext
 
-RUN groupadd --system --gid $GID baserow_user && \
-      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m baserow_user
+RUN groupadd --system --gid $GID ${DOCKER_USER} && \
+      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY ./backend/docker/mime.types /etc/
