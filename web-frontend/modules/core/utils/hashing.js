@@ -1,8 +1,6 @@
-import crypto from 'crypto'
+import { sha256 } from 'js-sha256'
 
-export async function generateHash(input) {
-  const data = new TextEncoder().encode(input)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-  //return crypto.createHash('sha256').update(value.toString()).digest('hex')
+export function generateHash(value) {
+  // TODO MIG do we want to use browser async version
+  return sha256(value)
 }

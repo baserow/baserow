@@ -493,6 +493,7 @@
     "numericName": "Numeric"
   },
   "pageEditor": {
+    "title": "Baserow | Application Builder",
     "pageNotFound": "Page not found"
   },
   "publicPage": {

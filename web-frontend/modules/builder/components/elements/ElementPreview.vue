@@ -259,7 +259,7 @@ export default {
     }
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.observer) {
       this.observer.disconnect()
     }
