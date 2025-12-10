@@ -190,7 +190,15 @@ export default {
       }
     },
     valuesChanged() {
-      this.isValid = this.$refs.form.isFormValid()
+      const form = this.$refs.form
+
+      if (!form || typeof form.isFormValid !== 'function') {
+        this.isValid = false
+        this.job = null
+        return
+      }
+
+      this.isValid = form.isFormValid()
       this.job = null
     },
   },

@@ -263,6 +263,7 @@ export default {
       addRowHover: false,
       currentHoveredRow: null,
       fieldWidthOverride: {},
+      keydownEvent: null,
     }
   },
   computed: {
@@ -283,7 +284,7 @@ export default {
     },
   },
   mounted() {
-    const keydownEvent = (event) => {
+    this.keydownEvent = (event) => {
       if (
         // If we allow row hovering, we also want to allow keyboard navigation.
         this.showHoveredRow &&
@@ -311,10 +312,12 @@ export default {
         }
       }
     }
-    document.body.addEventListener('keydown', keydownEvent)
-    this.$once('hide', () => {
-      document.body.removeEventListener('keydown', keydownEvent)
-    })
+    document.body.addEventListener('keydown', this.keydownEvent)
+  },
+  beforeUnmount() {
+    if (this.keydownEvent) {
+      document.body.removeEventListener('keydown', this.keydownEvent)
+    }
   },
   methods: {
     getHorizontalScrollbarElement() {
