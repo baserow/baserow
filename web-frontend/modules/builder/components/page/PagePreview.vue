@@ -327,7 +327,7 @@ export default {
     this.resizeObserver.observe(this.$el)
     this.onWindowResized()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizeObserver.disconnect()
     document.removeEventListener('keydown', this.preventScrollIfFocused)
   },
@@ -359,6 +359,8 @@ export default {
       // The widths are the minimum width the preview must have. If the preview dom
       // element becomes smaller than the target, it will be scaled down so that the
       // actual width remains the same, and it will preview the correct device.
+
+      console.log(toRaw(this.$refs))
 
       const { clientWidth: currentWidth, clientHeight: currentHeight } =
         this.$refs.preview

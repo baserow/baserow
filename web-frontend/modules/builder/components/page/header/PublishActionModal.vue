@@ -138,7 +138,7 @@ export default {
       }
     },
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
