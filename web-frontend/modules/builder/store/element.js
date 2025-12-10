@@ -72,14 +72,16 @@ const updateCachedValues = (page) => {
 
 const mutations = {
   SET_ITEMS(state, { builder, page, elements }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     builder.selectedElement = null
     page.elements = elements.map((element) =>
-      populateElement(element, this.$registry)
+      populateElement(element, $registry)
     )
     updateCachedValues(page)
   },
   ADD_ITEM(state, { page, element, beforeId = null }) {
-    page.elements.push(populateElement(element, this.$registry))
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    page.elements.push(populateElement(element, $registry))
     updateCachedValues(page)
   },
   UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
@@ -218,9 +220,10 @@ const actions = {
       forceCreate = true,
     }
   ) {
-    const elementType = this.$registry.get('element', elementTypeName)
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
-    const { data: element } = await ElementService(this.$client).create(
+    const { data: element } = await ElementService($client).create(
       page.id,
       elementTypeName,
       beforeId,
@@ -236,6 +239,7 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -248,7 +252,7 @@ const actions = {
     await dispatch('forceUpdate', { builder, page, element, values: newValues })
 
     try {
-      await ElementService(this.$client).update(element.id, values)
+      await ElementService($client).update(element.id, values)
     } catch (error) {
       await dispatch('forceUpdate', {
         builder,
@@ -264,6 +268,7 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -286,7 +291,7 @@ const actions = {
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
-          await ElementService(this.$client).update(element.id, toUpdate)
+          await ElementService($client).update(element.id, toUpdate)
           updateContext.lastUpdatedValues = null
           resolve()
         } catch (error) {
@@ -320,6 +325,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
@@ -333,7 +339,7 @@ const actions = {
     await dispatch('forceDelete', { builder, page, elementId })
 
     try {
-      await ElementService(this.$client).delete(elementId)
+      await ElementService($client).delete(elementId)
     } catch (error) {
       await dispatch('forceCreate', {
         page,
@@ -349,9 +355,8 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { builder, page }) {
-    const { data: elements } = await ElementService(this.$client).fetchAll(
-      page.id
-    )
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data: elements } = await ElementService($client).fetchAll(page.id)
 
     commit('SET_ITEMS', { builder, page, elements })
 
@@ -365,8 +370,9 @@ const actions = {
     return elements
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const { data: elements } = await PublicBuilderService(
-      this.$client
+      $client
     ).fetchElements(page)
 
     commit('SET_ITEMS', { builder, page, elements })
@@ -463,13 +469,15 @@ const actions = {
     return elements
   },
   emitElementEvent({ getters }, { event, elements, ...rest }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     elements.forEach((element) => {
-      const elementType = this.$registry.get('element', element.type)
+      const elementType = $registry.get('element', element.type)
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
-    const elementType = this.$registry.get('element', element.type)
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const elementType = $registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
       element,
       page

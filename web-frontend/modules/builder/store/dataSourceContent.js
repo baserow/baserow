@@ -45,6 +45,7 @@ const actions = {
     { commit },
     { page, data: queryData, mode }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService
@@ -54,10 +55,7 @@ const actions = {
 
     const failedDataSources = []
     try {
-      const { data } = await service(this.app.$client).dispatchAll(
-        page.id,
-        queryData
-      )
+      const { data } = await service($client).dispatchAll(page.id, queryData)
 
       Object.entries(data).forEach(([dataSourceIdStr, dataContent]) => {
         const dataSourceId = parseInt(dataSourceIdStr, 10)
@@ -83,6 +81,7 @@ const actions = {
     { commit },
     { page, dataSourceId, dispatchContext, mode, replace = false }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService
@@ -91,7 +90,7 @@ const actions = {
     }
 
     try {
-      const { data } = await service(this.app.$client).dispatch(
+      const { data } = await service($client).dispatch(
         dataSourceId,
         dispatchContext,
         { range: null }
