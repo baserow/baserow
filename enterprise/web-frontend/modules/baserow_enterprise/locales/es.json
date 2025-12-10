@@ -346,7 +346,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "Correo electrónico/contraseña",
-        "commonSaml": "SAML SSO"
+        "commonSaml": "SAML SSO",
+        "openIdConnect": "Conexión OpenID"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Seleccionar campo de contraseña",
@@ -359,7 +360,7 @@
         "showBaserowHelpMessage": "Mostrar un mensaje de ayuda",
         "showBaserowHelpMessageDescription": "Indica si el mensaje de la solicitud de ayuda debe mostrarse en el panel.",
         "coBrandingLogo": "Logotipo",
-        "coBrandingLogoDescription": "Reemplaza el logotipo de Baserow por una alternativa personalizada de un logotipo de una marca (176x29)."
+        "coBrandingLogoDescription": "Reemplaza el logo de Baserow por una alternativa personalizada de marca (176×29). Si está configurado, también elimina la descripción de Baserow en el pie de página de todos los correos electrónicos."
     },
     "enterpriseModal": {
         "title": "Actualiza para utilizar el {name}",
@@ -385,7 +386,9 @@
         "authorizing": "Está autorizando a su cuenta a seleccionar los datos de la tabla de origen.",
         "database": "Base de datos",
         "table": "Tabla",
-        "workspace": "Espacio de trabajo"
+        "workspace": "Espacio de trabajo",
+        "view": "Vista",
+        "viewHelper": "Solo los campos y filas visibles que coinciden con los filtros se sincronizan."
     },
     "enterpriseDataSyncType": {
         "localBaserowTable": "Sincronizar tabla Baserow",
@@ -402,7 +405,11 @@
         "jiraUsername": "Nombre de usuario de Jira",
         "usernameHelper": "El nombre de usuario de la cuenta de Jira utilizada para autenticarse. Este es el correo electrónico que se utiliza para iniciar sesión.",
         "apiToken": "Token API de Jira",
-        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens."
+        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "authenticationLabel": "Autenticación",
+        "authenticationHelper": "Elige cómo autenticarte con Jira.",
+        "personalAccessToken": "Token de acceso personal de Jira",
+        "personalAccessTokenHelper": "El token API de la cuenta de Jira usado para la autenticación. Puede crearse en https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "repo": "Repositorio",
@@ -440,13 +447,18 @@
         "acsTitle": "URL de inicio de sesión único por dominio (Haz clic para copiar)"
     },
     "commonSamlSettingForm": {
-        "authProviderInError": "Por favor, edita este proveedor para corregir el error."
+        "authProviderInError": "Por favor, edita este proveedor para corregir el error.",
+        "relayStateTitle": "URL de estado de retransmisión predeterminada (Haz clic para copiar)",
+        "acsTitle": "Enlace de inicio de sesión único [SSO] (Haz clic para copiar)",
+        "addDomainNotice": "Disponible cuando se haya añadido uno o más dominios"
     },
     "advanced": {
         "license": "Avanzado"
     },
     "commonOidcSettingForm": {
-        "preview": "Vista previa"
+        "preview": "Vista previa",
+        "callbackTitle": "URLs de retorno (Haz clic para copiar)",
+        "callbackHelperText": "Añade estas URLs a la configuración de «Redirect URI» de tu proveedor de conexión «OpenID»."
     },
     "enterpriseTwoWaySyncStrategyType": {
         "realtimePushDescription": "Permite editar los valores de las celdas directamente en Baserow y los envía en tiempo real a la fuente de sincronización de datos. Ten en cuenta que los cambios no se extraen en tiempo real porque dependen de la acción de sincronización (periódica) para completarse. Se recomienda encarecidamente crear copias de seguridad de la base de datos PostgreSQL para evitar modificaciones accidentales."
@@ -459,5 +471,112 @@
     },
     "assistantSidebarItem": {
         "title": "Kuma IA"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Hola {name}",
+        "question": "¡Mi nombre es Kuma!",
+        "subtitle": "Te ayudaré a soportar la carga para que nunca se sienta pesada. Elige entre los prompts a continuación o simplemente ¡dime lo que necesitas!",
+        "subtitleWithoutSuggestions": "Te ayudaré a soportar la carga para que nunca se sienta pesada. ¡Solo dime lo que necesitas!",
+        "promptCreateDatabaseTitle": "Crea una base de datos",
+        "promptCreateDatabasePrompt": "Construye una base de datos de gestión de proyectos.",
+        "promptCreateAutomationTitle": "Crea una automatización",
+        "promptCreateAutomationPrompt": "Crea una automatización que cada martes por la mañana pregunte en el canal de desarrolladores de Slack si hay algo para demostrar.",
+        "promptInviteUsersTitle": "Invitar usuarios",
+        "promptInviteUsersPrompt": "¿Cómo invito a los usuarios a mi espacio de trabajo?",
+        "promptCreateTableTitle": "Crear una tabla",
+        "promptCreateTablePrompt": "Crea una tabla nueva llamada «tareas».",
+        "promptWhichTablesTitle": "Cuáles tablas",
+        "promptWhichTablesPrompt": "¿Qué tablas tengo en esta base de datos?",
+        "promptCreateFormTitle": "Crear un formulario",
+        "promptCreateFormPrompt": "Crear un formulario para esta tabla.",
+        "promptCreateFilterTitle": "Crear un filtro",
+        "promptCreateFilterPrompt": "Mostrar solo las filas donde el campo principal está vacío."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "El asistente está listo para ayudar",
+        "statusRunning": "Ejecutándose…",
+        "placeholder": "Pregúntame lo que quieras…",
+        "send": "Enviar mensaje",
+        "stop": "Detener la generación"
+    },
+    "assistant": {
+        "statusThinking": "Pensando...",
+        "statusAnswering": "Respondiendo…",
+        "statusCancelling": "Cancelando...",
+        "messageCancelled": "Mensaje cancelado"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "No hay historial de chat disponible",
+        "loading": "Cargando historial de chat…"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} fuente | {count} fuentes"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma puede cometer errores, por favor verifica las respuestas"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Ayúdanos a mejorar",
+        "copiedToClipboard": "Copiado al portapapeles",
+        "feedbackContextPlaceholder": "¿En qué podemos mejorar? (opcional)",
+        "copiedContentToast": "El contenido de la respuesta del Asistente se ha copiado en tu portapapeles",
+        "copyFailed": "Error al copiar al portapapeles"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Configuración periódica"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Configuración periódica",
+        "saved": "Guardado",
+        "deactivatedTitle": "Sincronización de datos periódica desactivada",
+        "deactivatedText": "La sincronización de datos periódica se desactivó porque falló demasiadas veces consecutivas. Por favor, intenta sincronizar manualmente y, si funciona como se espera, haz clic en el botón de activar.",
+        "activate": "Activar sincronización periódica",
+        "enterprise": "La sincronización de datos periódica es una función avanzada/enterprise.",
+        "more": "Más información"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "manual": "Manual",
+        "daily": "Diario",
+        "intervalLabel": "Intervalo",
+        "intervalHelper": "Con qué frecuencia debe sincronizarse automáticamente la sincronización de datos.",
+        "hourly": "Horario",
+        "whenHelper": "Indica la hora, minuto y segundo exactos en los que la sincronización de datos debe ejecutarse.",
+        "whenHourlyHelper": "Indica el minuto y segundo exactos en los que la sincronización de datos debe ejecutarse.",
+        "hour": "Hora",
+        "minute": "Minuto",
+        "second": "Segundo"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} con {provider}"
+    },
+    "chartWidget": {
+        "name": "Gráfico",
+        "bar": "Gráfico de barras",
+        "line": "Gráfico de líneas"
+    },
+    "pieChartWidget": {
+        "name": "Gráfico de pastel",
+        "pie": "Gráfico de pastel",
+        "doughnut": "Gráfico de dona",
+        "polarArea": "Gráfico polar de áreas"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Series",
+        "addSeries": "Añadir series",
+        "data": "Datos",
+        "sourceFieldLabel": "Fuente",
+        "viewFieldLabel": "Vista",
+        "notSelected": "No seleccionado"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Resumen",
+        "deleteSeries": "Eliminar series",
+        "chartType": "Tipo de gráfico",
+        "barChart": "Barra",
+        "lineChart": "Línea",
+        "pieChart": "Pastel",
+        "doughnutChart": "Dona",
+        "polarAreaChart": "Área polar"
     }
 }
