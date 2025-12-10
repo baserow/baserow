@@ -257,7 +257,7 @@ just b test
 just b test -n=auto
 
 # Run specific test file
-just b test tests/baserow/core/test_models.py
+just b test tests/baserow/core/test_core_models.py
 
 # Run with coverage
 just b test-coverage
@@ -269,13 +269,13 @@ For 2-5x faster tests, use a PostgreSQL container with tmpfs:
 
 ```bash
 # Start ramdisk database (port 5433)
-just start-test-db
+just test-db start
 
 # Run tests against it
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=auto
 
 # Stop when done
-just stop-test-db
+just test-db stop
 ```
 
 ### Frontend Tests
@@ -363,38 +363,12 @@ For VS Code, add to `.vscode/launch.json`:
 }
 ```
 
-### SQL Query Logging
-
-```bash
-# Enable in .env.local
-DATABASE_DEBUG=on
-
-# Or in Django shell
-just b shell  # Automatically enables SQL logging
-```
-
 ### Celery Debugging
 
 ```bash
 # Run with debug logging
 CELERY_LOG_LEVEL=DEBUG just b run-dev-celery
 ```
-
-## IDE Integration
-
-### VS Code
-
-1. Open the workspace: `code .`
-2. Install recommended extensions (Python, ESLint, Vetur/Volar)
-3. Select Python interpreter: `.venv/bin/python`
-4. See [vscode-setup.md](vscode-setup.md) for detailed configuration
-
-### PyCharm/IntelliJ
-
-1. Open the project
-2. Set Python interpreter to `.venv/bin/python`
-3. Mark `backend/src` as Sources Root
-4. See [intellij-setup.md](intellij-setup.md) for detailed configuration
 
 ## Troubleshooting
 
@@ -427,6 +401,8 @@ lsof -i :8000
 lsof -i :3000
 
 # Kill the process or change the port
+kill -9 $(lsof -i :8000 | awk 'NR==2 {print $2}')
+kill -9 $(lsof -i :3000 | awk 'NR==2 {print $2}')
 ```
 
 ### Permission Errors
@@ -456,18 +432,6 @@ just f install
 # Clear Nuxt cache
 rm -rf web-frontend/.nuxt
 ```
-
-## Comparison: Local vs Docker Development
-
-| Aspect | Local Development | Docker Development |
-|--------|-------------------|-------------------|
-| **Startup time** | Faster | Slower (container startup) |
-| **Hot reload** | Native, instant | Volume mounts (slower on macOS) |
-| **Debugging** | Direct IDE integration | Remote debugging setup |
-| **Resource usage** | Lower (no container overhead) | Higher |
-| **Setup complexity** | More prerequisites | Minimal (just Docker) |
-| **Consistency** | Depends on local env | Identical across machines |
-| **Best for** | Active development | Testing, CI, quick start |
 
 ## Further Reading
 
