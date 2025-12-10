@@ -16,6 +16,7 @@
 </template>
 
 <script setup>
+import { useHead, useAsyncData } from '#imports'
 import { ref, computed, watch, provide } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
@@ -61,7 +62,9 @@ provide('mode', mode)
 provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide('applicationContext', applicationContext)
 
-console.log('page setup invoked')
+useHead(() => ({
+  title: $i18n.t('dashboard.title'),
+}))
 
 // Load page data
 const { error: pageError } = await useAsyncData(
@@ -71,7 +74,6 @@ const { error: pageError } = await useAsyncData(
     const pageId = parseInt(route.params.pageId)
 
     try {
-      console.log('dispatch starts')
       const loadedBuilder = await $store.dispatch(
         'application/selectById',
         builderId
@@ -83,7 +85,6 @@ const { error: pageError } = await useAsyncData(
         'workspace/selectById',
         loadedBuilder.workspace.id
       )
-      console.log('continue')
 
       const builderApplicationType = $registry.get(
         'application',
@@ -95,7 +96,6 @@ const { error: pageError } = await useAsyncData(
         builder: loadedBuilder,
         pageId,
       })
-      console.log('after')
 
       // Shared pages cannot be edited
       if (page.shared) {
@@ -119,15 +119,14 @@ const { error: pageError } = await useAsyncData(
         mode,
       })
 
-      console.log('found page', page)
-
       workspace.value = loadedWorkspace
       builder.value = loadedBuilder
       currentPage.value = page
 
+      console.log('current page is', page)
+
       return { success: true }
     } catch (e) {
-      console.log('error', e)
       // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
