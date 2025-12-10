@@ -20,7 +20,6 @@ import page from '../builder/services/page'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
-
 //import head from './head'
 // import { routes as customRoutes } from './routes'
 
@@ -34,6 +33,7 @@ import pl from './locales/pl.json'*/
 
 const require = createRequire(import.meta.url)
 
+// TODO MIG share that for all modules
 const locales = [
   { code: 'en', name: 'English', file: 'en.json' },
   { code: 'fr', name: 'Français', file: 'fr.json' },
@@ -100,12 +100,6 @@ export default defineNuxtModule({
     // Universal mode
     //nuxt.options.ssr = true
 
-    // Equivalent DNS
-    // setDefaultResultOrder('ipv4first')
-
-    // Supprimer les routes auto-générées (Nuxt 3 n'en génère plus si `pages: false`)
-    //nuxt.options.pages = false
-
     // Merge du head
     // nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)
 
@@ -119,36 +113,10 @@ export default defineNuxtModule({
       process.env.PUBLIC_WEB_FRONTEND_URL = BASEROW_PUBLIC_URL
     }
 
-    /*addLayout(
-      {
-        write: true,
-        src: pathe.resolve(__dirname, './layouts/app.vue'),
-        filename: 'app.vue',
-      },
-      'app'
-    )
-
-    addLayout(
-      {
-        write: true,
-        src: pathe.resolve(__dirname, './layouts/login.vue'),
-        filename: 'login.vue',
-      },
-      'login'
-    )*/
-
     // Add routes
     extendPages((pages) => {
       pages.push(...routes)
     })
-
-    // TODO: UTILISER LES ENV VARS DEPUIS LE .env
-
-    /*nuxt.options.runtimeConfig = defu(nuxt.options.runtimeConfig, {
-      privateBackendUrl: 'http://backend:8000',
-    })*/
-
-    // Public env vars
 
     nuxt.options.runtimeConfig.public = defu(
       nuxt.options.runtimeConfig.public,
@@ -236,15 +204,6 @@ export default defineNuxtModule({
       })
     })
 
-    //
-    // Static middleware
-    //
-    /*addServerHandler({
-      route: '/',
-      handler: resolve('./static'),
-      middleware: false,
-    })*/
-
     // Load public assets (images and fonts)
     nuxt.hook('nitro:config', async (nitroConfig) => {
       nitroConfig.publicAssets ||= []
@@ -253,32 +212,6 @@ export default defineNuxtModule({
         dir: resolve('static'),
       })
     })
-
-    // nuxt.hook('nitro:dev:reload', (ctx) => {
-    //   try {
-    //     JSON.stringify(ctx) // or any debug object
-    //   } catch (e) {
-    //     console.error('Non-serializable in ctx', e)
-    //   }
-    // })
-
-    //
-    // Layouts
-    //
-    /*addLayout({
-      name: 'error',
-      file: resolver.resolve('layouts/error.vue'),
-    })
-
-    addLayout({
-      name: 'app',
-      file: resolver.resolve('layouts/app.vue'),
-    })
-
-    addLayout({
-      name: 'login',
-      file: resolver.resolve('layouts/login.vue'),
-    })*/
 
     addLayout(
       { src: resolve('layouts/error.vue'), filename: 'error.vue' },
@@ -321,20 +254,6 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/vueDatepicker.js'))
     //addPlugin(resolve('plugins/router.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
-
-    //
-    //
-    // nuxt.hook('pages:extend', (routes) => {
-    //   console.log('existing routes', routes)
-    //   // supprimer pages auto
-    //   routes.length = 0
-
-    //   routes.push(...customRoutes)
-    // })
-
-    //
-    // Middleware
-    //
 
     addRouteMiddleware({
       name: 'authentication',
@@ -383,13 +302,13 @@ export default defineNuxtModule({
     const patchedIconoirPath = pathe.join(
       nuxt.options.buildDir,
       'baserow',
-      'iconoir.scss',
+      'iconoir.scss'
     )
     mkdirSync(pathe.dirname(patchedIconoirPath), { recursive: true })
     const originalIconoirCss = readFileSync(iconoirCssPath, 'utf-8')
     const patchedIconoirCss = originalIconoirCss.replace(
       /stroke-width="1\.5"/g,
-      'stroke-width="2.0"',
+      'stroke-width="2.0"'
     )
     writeFileSync(patchedIconoirPath, patchedIconoirCss, 'utf-8')
 

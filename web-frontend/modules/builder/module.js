@@ -6,6 +6,7 @@ import {
   addTemplate,
 } from 'nuxt/kit'
 import { routes } from './routes'
+import { readFileSync } from 'node:fs'
 
 const locales = [
   { code: 'en', name: 'English', file: 'en.json' },
@@ -26,17 +27,12 @@ export default defineNuxtModule({
       nuxt: '^3.0.0',
     },
   },
+  dependsOn: ['core'],
   async setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
     // Add main plugin
     addPlugin(resolve('./plugin.js'))
-
-    // Add router plugin
-    addPlugin({
-      src: resolve('./plugins/router.js'),
-      mode: 'client',
-    })
 
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
@@ -45,6 +41,15 @@ export default defineNuxtModule({
     extendPages((pages) => {
       pages.push(...routes)
     })
+
+    // Create a "fake" template with the existing Nuxt router file that can be used by the
+    // `plugins/router.js` above.
+    const template = addTemplate({
+      filename: 'custom-router.js',
+      getContents: () => readFileSync(resolve('./router.js'), 'utf-8'),
+    })
+
+    nuxt.options.alias['#app/router'] = template.dst
 
     // Register i18n translations
     nuxt.hook('i18n:registerModule', (register) => {
