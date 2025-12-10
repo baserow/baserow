@@ -75,6 +75,8 @@ import es from '@baserow_premium/locales/es.json'
 import it from '@baserow_premium/locales/it.json'
 import pl from '@baserow_premium/locales/pl.json'
 import ko from '@baserow_premium/locales/ko.json'
+import zh from '@baserow_premium/locales/zh_Hans.json'
+
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
 import { PersonalViewOwnershipType } from '@baserow_premium/viewOwnershipTypes'
 import { ViewOwnershipPermissionManagerType } from '@baserow_premium/permissionManagerTypes'
@@ -137,6 +139,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
     i18n.mergeLocaleMessage('ko', ko)
+    i18n.mergeLocaleMessage('zh', zh)
   }
 
   store.registerModule('row_comments', rowCommentsStore)

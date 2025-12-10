@@ -6,6 +6,8 @@ import es from '@baserow/modules/automation/locales/es.json'
 import it from '@baserow/modules/automation/locales/it.json'
 import pl from '@baserow/modules/automation/locales/pl.json'
 import ko from '@baserow/modules/automation/locales/ko.json'
+import zh from '@baserow/modules/automation/locales/zh_Hans.json'
+
 import {
   GeneralAutomationSettingsType,
   IntegrationsAutomationSettingsType,
@@ -66,6 +68,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
     i18n.mergeLocaleMessage('ko', ko)
+    i18n.mergeLocaleMessage('zh', zh)
   }
 
   registerRealtimeEvents(app.$realtime)

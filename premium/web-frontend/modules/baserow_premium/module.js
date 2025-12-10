@@ -10,12 +10,13 @@ import es from './locales/es.json'
 import it from './locales/it.json'
 import pl from './locales/pl.json'
 import ko from './locales/ko.json'
+import zh from './locales/zh_Hans.json'
 
 export default function () {
   let alreadyExtended = false
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
     if (alreadyExtended) return
-    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko, zh })
     alreadyExtended = true
   })
 

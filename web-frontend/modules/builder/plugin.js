@@ -6,6 +6,7 @@ import es from '@baserow/modules/builder/locales/es.json'
 import it from '@baserow/modules/builder/locales/it.json'
 import pl from '@baserow/modules/builder/locales/pl.json'
 import ko from '@baserow/modules/builder/locales/ko.json'
+import zh from '@baserow/modules/builder/locales/zh_Hans.json'
 import {
   GeneralBuilderSettingsType,
   DomainsBuilderSettingsType,
@@ -168,6 +169,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
     i18n.mergeLocaleMessage('ko', ko)
+    i18n.mergeLocaleMessage('zh', zh)
   }
 
   registerRealtimeEvents(app.$realtime)

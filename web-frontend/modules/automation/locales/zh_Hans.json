@@ -1,0 +1,202 @@
+{
+  "automationWelcomeGuidedTourStep": {
+    "title": "欢迎使用 Baserow 自动化功能！",
+    "content": "让我们快速浏览一下。您将了解如何设置触发器、添加操作、测试工作流并发布它——无需编写代码。"
+  },
+  "automationGraphGuidedTourStep": {
+    "title": "在此处管理您的工作流图",
+    "content": "在此处创建触发器和操作，以定义工作流应执行的操作。选择一个触发器或操作，在侧边面板中进行配置。"
+  },
+  "automationTestRunGuidedTourStep": {
+    "title": "测试你的工作流程",
+    "content": "准备就绪后，开始测试运行以查看您的工作流实际运行情况。触发器将运行一次，以模拟完整的执行过程。"
+  },
+  "automationHistoryGuidedTourStep": {
+    "title": "查看工作流历史",
+    "content": "使用历史面板查看过去的测试运行和已发布的执行。这是调试或确认结果的绝佳方式。"
+  },
+  "automationPublishGuidedTourStep": {
+    "title": "发布您的工作流程",
+    "content": "在您测试并优化好设置后，发布您的工作流以使其生效。其触发器将从此按计划自动运行。"
+  },
+  "automationWorkflowStateGuidedTourStep": {
+    "title": "控制工作流状态",
+    "content": "从这里，您可以随时暂停或恢复您的工作流程。您始终可以控制其处于激活或禁用状态。"
+  },
+  "automationDocsGuidedTourStep": {
+    "title": "查阅文档",
+    "content": "如果您遇到困难或想了解更多内容，请点击高亮按钮，查看有关在 Baserow 中构建自动化功能的详细指南和常见问题解答。"
+  },
+  "sidebarComponentAutomation": {
+    "createAutomationWorkflow": "新工作流程"
+  },
+  "createAutomationWorkflowModal": {
+    "header": "创建工作流",
+    "submit": "添加工作流"
+  },
+  "automationWorkflowForm": {
+    "defaultName": "工作流程",
+    "nameTitle": "姓名",
+    "nameSubtitle": "工作流的唯一名称",
+    "namePlaceholder": "请输入一个名字……"
+  },
+  "duplicateAutomationWorkflowJobType": {
+    "name": "重复自动化工作流",
+    "duplicating": "复制",
+    "duplicatedTitle": "工作流重复"
+  },
+  "automationWorkflowErrors": {
+    "errorNameNotUnique": "已存在同名的工作流",
+    "errorNameNotUniqueDescription": "请输入一个唯一的流程名称"
+  },
+  "trashType": {
+    "workflow": "工作流程",
+    "automation": "自动化"
+  },
+  "generalSettings": {
+    "titleOverview": "通用",
+    "nameLabel": "自动化名称",
+    "notificationLabel": "通知",
+    "notificationCheckboxLabel": "当此自动化失败时接收通知",
+    "cantUpdateAutomationTitle": "无法更新自动化",
+    "cantUpdateAutomationDescription": "抱歉，无法更新自动化设置。"
+  },
+  "integrationSettings": {
+    "title": "集成",
+    "noIntegrationMessage": "您尚未创建任何集成。可以通过添加数据源、操作或用户认证来创建集成。",
+    "integrationMessage": "您可以通过添加数据源、操作或用户认证来创建新的集成。"
+  },
+  "automationHeader": {
+    "startTestRun": "开始测试运行",
+    "stopTestRun": "停止测试运行",
+    "publishBtn": "发布",
+    "settingsBtn": "设置",
+    "historyBtn": "历史",
+    "docsBtn": "文档",
+    "switchLabelDraft": "草稿",
+    "switchLabelDisabled": "禁用",
+    "switchLabelPaused": "暂停",
+    "switchLabelLive": "直播",
+    "lastPublished": "上次发布"
+  },
+  "dataProviderType": {
+    "currentIteration": "当前迭代",
+    "item": "物品",
+    "previousNode": "上一节点"
+  },
+  "nodeSidePanel": {
+    "labelTitle": "标签"
+  },
+  "historySidePanel": {
+    "title": "历史",
+    "noRunsTitle": "尚未有记录",
+    "noRunsDescription": "当此工作流运行后，结果将在此处显示。",
+    "statusSuccess": "成功运行",
+    "statusError": "运行失败",
+    "statusDisabled": "由 Baserow 禁用",
+    "completedInSeconds": "耗时 {s} 秒完成。",
+    "completedInLessThanSecond": "在不到1秒内完成。",
+    "testRun": "测试"
+  },
+  "nodeType": {
+    "triggerDeletionError": "触发器无法删除，只能替换。",
+    "localBaserowRowsCreatedLabel": "在 {tableName} 中创建了行",
+    "localBaserowRowsUpdatedLabel": "{tableName} 中的行已更新",
+    "localBaserowRowsDeletedLabel": "在 {tableName} 中删除了行",
+    "localBaserowCreateRowLabel": "在 {tableName} 中创建一行",
+    "localBaserowUpdateRowLabel": "在 {tableName} 中更新一行",
+    "localBaserowDeleteRowLabel": "在 {tableName} 中删除一行",
+    "localBaserowGetRowLabel": "读取 {tableName} 中的一行",
+    "localBaserowListRowsLabel": "列出 {tableName} 中的行",
+    "localBaserowAggregateRowsLabel": "在 {tableName} 中汇总行",
+    "httpRequestLabel": "发送 HTTP 请求",
+    "smtpEmailLabel": "发送电子邮件",
+    "routerLabel": "请遵循 {edgeCount} 个分支中的 1 个",
+    "iterationLabel": "遍历项目",
+    "routerDefaultEdgeLabelFallback": "默认",
+    "routerWithOutputNodesDeleteError": "无法删除，直到其 {outputCount} 个输出节点被移除。",
+    "routerWithOutputNodesReplaceError": "在移除其 {outputCount} 个输出节点之前，无法替换。",
+    "iteratorWithChildrenNodesDeleteError": "在删除其子节点之前，无法删除。",
+    "iteratorWithChildrenNodesReplaceError": "在子节点被移除之前无法替换。",
+    "periodicTriggerLabel": "周期性触发",
+    "aiAgent": "AI提示",
+    "slackWriteMessageName": "发送一条 Slack 消息",
+    "slackWriteMessageLabel": "向 #{channel} 发送消息"
+  },
+  "workflowNode": {
+    "actionDelete": "删除",
+    "actionReplace": "替换",
+    "actionDuplicate": "重复",
+    "actionConfigure": "配置",
+    "beforeLabelTrigger": "开始于",
+    "beforeLabelAction": "然后",
+    "beforeLabelCondition": "如果条件满足",
+    "beforeLabelConditionDefault": "如果未满足任何条件",
+    "beforeLabelRepeat": "每项",
+    "moreEdit": "编辑",
+    "moreReplace": "替换",
+    "nodeOptions": "节点选项",
+    "displayLabelDebug": "ID: {id} | 上一个节点: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "重复"
+  },
+  "workflowAddNode": {
+    "displayTitle": "创建自动化节点"
+  },
+  "workflowNodeContext": {
+    "searchPlaceholderTrigger": "搜索触发器...",
+    "searchPlaceholderActions": "搜索操作...",
+    "noResults": "未找到结果"
+  },
+  "serviceType": {
+    "periodicTrigger": "周期性触发",
+    "periodicTriggerDescription": "按指定间隔周期性触发工作流",
+    "periodicTriggerTriggeredAt": "触发于",
+    "errorIntervalMissing": "需要一个间隔。",
+    "coreHTTPTrigger": "HTTP 触发器",
+    "coreHTTPTriggerDescription": "接收 HTTP 请求以触发工作流"
+  },
+  "periodicTriggerServiceForm": {
+    "intervalLabel": "间隔",
+    "intervalHelper": "请选择您希望此工作流运行的频率",
+    "everyMinute": "每一分钟",
+    "everyHour": "每小时",
+    "everyDay": "每天",
+    "everyWeek": "每周",
+    "everyMonth": "每月",
+    "hour": "小时",
+    "minute": "分钟",
+    "dayOfWeek": "星期",
+    "dayOfMonth": "每月的日期",
+    "hourPlaceholder": "0-23",
+    "minutePlaceholder": "0-59",
+    "dayOfMonthPlaceholder": "1-31",
+    "minuteHelper": "此工作流将每分钟运行一次",
+    "hourHelper": "此工作流将在您本地时区（{timezone}）的指定分钟每小时运行一次。",
+    "dayHelper": "此工作流将在您本地时区（{timezone}）的指定时间每天运行一次。",
+    "weekHelper": "此工作流将在您本地时区（{timezone}）的指定日期和时间每周运行一次。",
+    "monthHelper": "此工作流将在您本地时区（{timezone}）的指定日期和时间每月运行一次。",
+    "deactivatedTitle": "周期性触发已停用",
+    "deactivatedText": "此周期性触发器因连续失败已被自动停用。"
+  },
+  "workflowEditor": {
+    "chooseEvent": "请选择一个事件……"
+  },
+  "simulateDispatch": {
+    "sampleDataLabel": "输出",
+    "triggerNodeAwaitingEvent": "节点正在等待。请手动触发事件以填充负载并完成测试。",
+    "simulationInProgress": "节点测试正在进行中...",
+    "errorNodeNotConfigured": "节点必须在测试前进行配置。",
+    "errorPreviousNodeNotConfigured": "前一个节点 \"{node}\" 必须进行配置。",
+    "errorPreviousNodesNotTested": "前一个节点“{node}”必须先进行测试。",
+    "buttonLabelTest": "测试事件",
+    "buttonLabelTestAgain": "再次测试事件",
+    "testNodeDescription": "测试此事件以确认配置正确。此测试的数据可用于后续步骤。",
+    "buttonLabelShowPayload": "显示负载",
+    "buttonLabelShowError": "显示错误",
+    "sampleDataModalTitle": "{nodeLabel} 的负载",
+    "sampleDataModalSubTitle": "JSON 负载",
+    "sampleDataCopy": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "errorOccurred": "发生错误……",
+    "sampleDataCopied": "内容已复制到剪贴板"
+  }
+}

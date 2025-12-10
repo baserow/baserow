@@ -6,6 +6,7 @@ import es from '@baserow/modules/integrations/locales/es.json'
 import it from '@baserow/modules/integrations/locales/it.json'
 import pl from '@baserow/modules/integrations/locales/pl.json'
 import ko from '@baserow/modules/integrations/locales/ko.json'
+import zh from '@baserow/modules/integrations/locales/zh_Hans.json'
 
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
@@ -47,6 +48,7 @@ export default (context) => {
     i18n.mergeLocaleMessage('it', it)
     i18n.mergeLocaleMessage('pl', pl)
     i18n.mergeLocaleMessage('ko', ko)
+    i18n.mergeLocaleMessage('zh', zh)
   }
 
   app.$registry.register(
