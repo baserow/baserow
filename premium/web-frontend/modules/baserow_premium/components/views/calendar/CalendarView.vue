@@ -66,10 +66,7 @@
       @toggle-field-visibility="toggleFieldVisibility"
       @field-updated="$emit('refresh', $event)"
       @field-deleted="$emit('refresh')"
-      @field-created="
-        fieldCreated($event)
-        showHiddenFieldsInRowModal = true
-      "
+      @field-created="fieldCreated($event), (showHiddenFieldsInRowModal = true)"
       @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
       @navigate-previous="$emit('navigate-previous', $event)"
       @navigate-next="$emit('navigate-next', $event)"

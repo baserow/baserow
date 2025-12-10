@@ -1,7 +1,7 @@
-<template functional>
+<template>
   <div
     class="left-border-decorator"
-    :class="props.value ? `background-color--${props.value}` : ''"
+    :class="borderClass"
   ></div>
 </template>
 
@@ -12,6 +12,11 @@ export default {
     value: {
       type: String,
       required: true,
+    },
+  },
+  computed: {
+    borderClass() {
+      return this.value ? `background-color--${this.value}` : null
     },
   },
 }

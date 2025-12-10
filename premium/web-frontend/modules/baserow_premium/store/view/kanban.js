@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import _ from 'lodash'
 import { clone } from '@baserow/modules/core/utils/object'
 import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
@@ -73,7 +72,7 @@ export const mutations = {
     state.singleSelectFieldId = singleSelectFieldId
   },
   SET_ROW_LOADING(state, { row, value }) {
-    Vue.set(row._, 'loading', value)
+    row._.loading = value
   },
   REPLACE_ALL_STACKS(state, stacks) {
     state.stacks = stacks
@@ -105,7 +104,7 @@ export const mutations = {
     }
   },
   ADD_STACK(state, { id, stack }) {
-    Vue.set(state.stacks, id.toString(), stack)
+    state.stacks[id.toString()] = stack
   },
   START_ROW_DRAG(state, { row, currentStackId, currentBefore }) {
     row._.dragging = true

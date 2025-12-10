@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -105,7 +104,7 @@ export const mutations = {
     state.loadingRows = loading
   },
   SET_ROW_LOADING(state, { row, value }) {
-    Vue.set(row._, 'loading', value)
+    row._.loading = value
   },
   SET_ROW_SEARCH_MATCHES(state, { row, matchSearch }) {
     row._.matchSearch = matchSearch
@@ -131,7 +130,7 @@ export const mutations = {
     state.dateStacks[date].results.push(...rows)
   },
   ADD_STACK(state, { date, stack }) {
-    Vue.set(state.dateStacks, date, stack)
+    state.dateStacks[date] = stack
   },
   REPLACE_ALL_FIELD_OPTIONS(state, fieldOptions) {
     state.fieldOptions = fieldOptions

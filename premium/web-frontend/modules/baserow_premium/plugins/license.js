@@ -11,7 +11,25 @@
  */
 import { LicenseHandler } from '@baserow_premium/handlers/license'
 
-export default function ({ app }, inject) {
+export default defineNuxtPlugin({
+  name: 'license',
+  dependsOn: ['store', 'bus'],
+  async setup(nuxtApp) {
+    const licenseHandler = new LicenseHandler(nuxtApp)
+
+    licenseHandler.listenToBusEvents()
+
+    return {
+      provide: {
+        licenseHandler,
+        highestLicenseType:
+          licenseHandler.highestInstanceWideLicenseType.bind(licenseHandler),
+      },
+    }
+  },
+})
+
+/*export default function ({ app }, inject) {
   const licenseHandler = new LicenseHandler(app)
   licenseHandler.listenToBusEvents()
   inject('licenseHandler', licenseHandler)
@@ -19,4 +37,4 @@ export default function ({ app }, inject) {
     'highestLicenseType',
     licenseHandler.highestInstanceWideLicenseType.bind(licenseHandler)
   )
-}
+}*/
