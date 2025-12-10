@@ -136,8 +136,8 @@ export class ClickEvent extends Event {
       applicationContextAdditions,
       name: namePrefix ? `${namePrefix}_click` : 'click',
       label: labelSuffix
-        ? `${app.i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
-        : app.i18n.t('eventTypes.clickLabel'),
+        ? `${app.$i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
+        : app.$i18n.t('eventTypes.clickLabel'),
     })
   }
 }
@@ -146,7 +146,7 @@ export class SubmitEvent extends Event {
   constructor(args) {
     super({
       name: 'submit',
-      label: args.app.i18n.t('eventTypes.submitLabel'),
+      label: args.app.$i18n.t('eventTypes.submitLabel'),
       ...args,
     })
   }
@@ -156,7 +156,7 @@ export class AfterLoginEvent extends Event {
   constructor(args) {
     super({
       name: 'after_login',
-      label: args.app.i18n.t('eventTypes.afterLoginLabel'),
+      label: args.app.$i18n.t('eventTypes.afterLoginLabel'),
       ...args,
     })
   }

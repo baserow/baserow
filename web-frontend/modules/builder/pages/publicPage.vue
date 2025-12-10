@@ -109,7 +109,7 @@ export default {
       } catch (e) {
         return error({
           statusCode: 404,
-          message: app.i18n.t('publicPage.siteNotFound'),
+          message: app.$i18n.t('publicPage.siteNotFound'),
         })
       }
 
@@ -194,7 +194,7 @@ export default {
     if (!found) {
       return error({
         statusCode: 404,
-        message: app.i18n.t('publicPage.pageNotFound'),
+        message: app.$i18n.t('publicPage.pageNotFound'),
       })
     }
 
@@ -203,7 +203,7 @@ export default {
     if (pageFound.shared) {
       return error({
         statusCode: 404,
-        message: app.i18n.t('publicPage.pageNotFound'),
+        message: app.$i18n.t('publicPage.pageNotFound'),
       })
     }
 
@@ -242,7 +242,7 @@ export default {
         // published in the meantime. Page IDs aren't valid anymore
         return error({
           statusCode: 404,
-          message: app.i18n.t('publicPage.pageNotFound'),
+          message: app.$i18n.t('publicPage.pageNotFound'),
         })
       } else {
         throw error
