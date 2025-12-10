@@ -81,7 +81,7 @@ import { computed, ref } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
-const { app } = useContext()
+const app = useNuxtApp()
 const store = useStore()
 
 const automation = inject('automation')

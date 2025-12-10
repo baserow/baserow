@@ -65,7 +65,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const instance = getCurrentInstance()
-    const { app } = useContext()
+    const app = useNuxtApp()
 
     const settingSelected = ref(null)
     const displaySelectedSettingForm = ref(false)

@@ -193,7 +193,7 @@ const openReplaceContext = async () => {
 }
 
 const store = useStore()
-const { app } = useContext()
+const app = useNuxtApp()
 const workflow = inject('workflow')
 const automation = inject('automation')
 
