@@ -42,7 +42,6 @@
 </template>
 
 <script>
-import { computed } from '@nuxtjs/composition-api'
 import AutomationHeader from '@baserow/modules/automation/components/AutomationHeader'
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'

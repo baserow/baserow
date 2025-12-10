@@ -116,7 +116,6 @@
 <script setup>
 import { ref } from 'vue'
 import { useVueFlow } from '@vue2-flow/core'
-import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'

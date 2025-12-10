@@ -26,7 +26,6 @@
 </template>
 
 <script setup>
-import { computed, useStore } from '@nuxtjs/composition-api'
 import HistorySection from '@baserow/modules/automation/components/workflow/sidePanels/HistorySection'
 const store = useStore()
 
