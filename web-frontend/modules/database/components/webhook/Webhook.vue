@@ -24,7 +24,7 @@
       <div class="webhook__head-right">
         <div class="webhook__head-trigger">
           {{
-            $tc('webhook.triggerDescription', calculateNumberOfEvents, {
+            $t('webhook.triggerDescription', {
               count: calculateNumberOfEvents,
             })
           }}
