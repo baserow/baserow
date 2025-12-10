@@ -652,3 +652,59 @@ class TestViewDistributionAggregation:
         # the boolean field distribution:
         for value, count in result[f"field_{boolean_formula_field.id}"]:
             assert self.expected_distributions[boolean_field].get(value) == count
+
+
+@pytest.mark.django_db
+def test_view_distribution_aggregation_for_multiple_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+    option_1 = data_fixture.create_select_option(
+        field=multiple_select_field, value="Option 1"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=multiple_select_field, value="Option 2"
+    )
+    option_3 = data_fixture.create_select_option(
+        field=multiple_select_field, value="Option 3"
+    )
+
+    multiple_select_field_name = f"field_{multiple_select_field.id}"
+    model = table.get_model()
+    rows_data = [
+        {
+            multiple_select_field_name: [option_1, option_2, option_3],
+        },
+        {
+            multiple_select_field_name: [option_1],
+        },
+        {
+            multiple_select_field_name: [],
+        },
+        {
+            multiple_select_field_name: [option_3],
+        },
+    ]
+    for row_data in rows_data:
+        row = model.objects.create()
+        getattr(row, multiple_select_field_name).set(
+            [x.id for x in row_data[multiple_select_field_name]]
+        )
+
+    grid_view = data_fixture.create_grid_view(table=table)
+    result = ViewHandler().get_field_aggregations(
+        user,
+        grid_view,
+        [
+            (multiple_select_field, "distribution"),
+        ],
+    )
+
+    assert result == {
+        multiple_select_field_name: [
+            ("Option 1", 2),
+            ("Option 3", 2),
+            ("Option 2", 1),
+            (None, 1),
+        ],
+    }
