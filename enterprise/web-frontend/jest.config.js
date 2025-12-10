@@ -37,7 +37,6 @@ module.exports = {
     '^.+\\.(gif|ico|jpg|jpeg|png|svg)$':
       '../../web-frontend/test/helpers/stubFileTransformer.js',
   },
-  transformIgnorePatterns: ['/node_modules/(?!@nuxtjs/composition-api)'],
   setupFilesAfterEnv: [
     path.join(__dirname, '/../../enterprise/web-frontend/jest.setup.js'),
   ],

@@ -77,11 +77,6 @@
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
-import {
-  useContext,
-  computed,
-  getCurrentInstance,
-} from '@nuxtjs/composition-api'
 import WorkflowNodeContent from '@baserow/modules/automation/components/workflow/WorkflowNodeContent'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
 import WorkflowConnector from '@baserow/modules/automation/components/workflow/WorkflowConnector'

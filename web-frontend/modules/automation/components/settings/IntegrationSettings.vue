@@ -52,7 +52,6 @@
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { defineComponent, ref, computed, onMounted, toRefs } from 'vue'
-import { useStore, useContext } from '@nuxtjs/composition-api'
 
 export default defineComponent({
   name: 'IntegrationSettings',

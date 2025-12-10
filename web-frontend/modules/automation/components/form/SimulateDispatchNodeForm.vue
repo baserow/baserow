@@ -78,8 +78,6 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-
-import { inject, useContext, useStore } from '@nuxtjs/composition-api'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
