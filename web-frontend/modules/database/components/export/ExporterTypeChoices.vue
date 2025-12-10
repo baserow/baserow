@@ -9,7 +9,7 @@
         v-for="exporterType in exporterTypes"
         :key="exporterType.type"
         :exporter-type="exporterType"
-        :active="value !== null && value === exporterType.type"
+        :active="modelValue !== null && modelValue === exporterType.type"
         :disabled="loading"
         :database="database"
         @selected="switchToExporterType(exporterType.type)"
@@ -53,7 +53,7 @@ export default {
       required: true,
       type: Array,
     },
-    value: {
+    modelValue: {
       required: false,
       type: String,
       default: null,
@@ -69,7 +69,7 @@ export default {
         return
       }
 
-      this.$emit('input', exporterType)
+      this.$emit('update:modelValue', exporterType)
     },
   },
 }
