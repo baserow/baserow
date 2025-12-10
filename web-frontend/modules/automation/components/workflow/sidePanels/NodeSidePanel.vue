@@ -42,14 +42,6 @@
 </template>
 
 <script setup>
-import {
-  inject,
-  provide,
-  useStore,
-  useContext,
-  computed,
-  watch,
-} from '@nuxtjs/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'

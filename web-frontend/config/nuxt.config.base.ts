@@ -24,8 +24,8 @@ function baserowModuleConfig(
     `./modules/database/module.js`,
     `./modules/dashboard/module.js`,
     `./modules/builder/module.js`,
+    `./modules/automation/module.js`,
     //`${base}/modules/integrations/module.js`,
-    //`${base}/modules/automation/module.js`,
   ]
 
   /*if (!process.env.BASEROW_OSS_ONLY) {

@@ -43,7 +43,6 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import { defineComponent, ref, computed, watch, getCurrentInstance } from 'vue'
-import { useContext } from '@nuxtjs/composition-api'
 
 export default defineComponent({
   name: 'AutomationSettingsModal',

@@ -34,7 +34,6 @@
 <script setup>
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
-import { useContext, computed } from '@nuxtjs/composition-api'
 const { app } = useContext()
 
 const props = defineProps({

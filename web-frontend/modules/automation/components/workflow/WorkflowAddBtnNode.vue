@@ -15,7 +15,6 @@
 
 <script setup>
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
-import { ref } from '@nuxtjs/composition-api'
 import { useVueFlow } from '@vue2-flow/core'
 
 const props = defineProps({

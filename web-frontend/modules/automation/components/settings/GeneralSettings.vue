@@ -44,7 +44,6 @@ import {
   toRefs,
   watch,
 } from 'vue'
-import { useStore, useContext } from '@nuxtjs/composition-api'
 import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { isSubObject } from '@baserow/modules/core/utils/object'
