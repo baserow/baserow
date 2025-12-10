@@ -1370,6 +1370,28 @@ def test_local_baserow_view_service_type_prepare_values(data_fixture):
     )
 
 
+@pytest.mark.django_db
+def test_local_baserow_view_service_type_prepare_values_rejects_personal_views(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    personal_view = data_fixture.create_grid_view(table=table, owned_by=user)
+
+    service_type = LocalBaserowViewServiceType
+    service_type.model_class = Mock()
+    instance = data_fixture.create_local_baserow_list_rows_service(table=table)
+
+    with pytest.raises(DRFValidationError) as exc:
+        service_type().prepare_values(
+            {"view_id": personal_view.id}, user, instance
+        )
+    
+    assert exc.value.detail["error"] == "personal_view_not_allowed"
+    assert "personal view" in str(exc.value.detail["detail"]).lower()
+
+
 @pytest.fixture
 def local_baserow_get_context_data_fixture(data_fixture):
     """

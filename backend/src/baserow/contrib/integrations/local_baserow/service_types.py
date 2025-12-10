@@ -443,22 +443,66 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         user: AbstractUser,
         instance: Optional[ServiceSubClass] = None,
     ) -> Dict[str, Any]:
-        """Load the table instance instead of the ID."""
+        """Load the table & view instance instead of the ID."""
 
-        # Check if we already have a table. We may have already
-        # added it in `LocalBaserowViewServiceType.prepare_values`.
-        if "table_id" in values and "table" not in values:
-            table_id = values.pop("table_id")
-            if table_id is not None:
+        values = super().prepare_values(values, user, instance)
+
+        if "table" in values:
+            if (
+                "view_id" not in values
+                and instance
+                and instance.view_id
+                and instance.view.table_id != values["table"].id
+            ):
+                values["view"] = None
+
+        if "view_id" in values:
+            view_id = values.pop("view_id")
+            if view_id is not None:
                 try:
-                    table = TableService().get_table(user, table_id)
-                except TableDoesNotExist:
+                    view = ViewService().get_view(user, view_id)
+                except ViewDoesNotExist as exc:
                     raise DRFValidationError(
-                        f"The table with ID {table_id} does not exist."
+                        detail={
+                            "detail": f"The view with ID {view_id} does not exist.",
+                            "error": "view_does_not_exist",
+                        },
+                        code="view_does_not_exist",
+                    ) from exc
+
+                if view.owned_by_id is not None:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": f"The view with ID {view_id} is a personal view and cannot be used in integrations.",
+                            "error": "personal_view_not_allowed",
+                        },
+                        code="personal_view_not_allowed",
                     )
-                values["table"] = table
+                table_to_validate = values.get(
+                    "table", getattr(instance, "table", None)
+                )
+
+                if not table_to_validate:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": "A table ID is required alongside the view ID.",
+                            "error": "required",
+                        },
+                        code="required",
+                    )
+
+                if view.table_id != table_to_validate.id:
+                    raise DRFValidationError(
+                        detail=f"The view with ID {view_id} is not related to the "
+                        f"given table {table_to_validate.id}.",
+                        code="invalid_view",
+                    )
+                else:
+                    # Add the missing table
+                    values["table"] = view.table
+                values["view"] = view
             else:
-                values["table"] = None
+                values["view"] = None
 
         return super().prepare_values(values, user, instance)
 
@@ -838,6 +882,15 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                         },
                         code="view_does_not_exist",
                     ) from exc
+
+                if view.owned_by_id is not None:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": f"The view with ID {view_id} is a personal view and cannot be used in integrations.",
+                            "error": "personal_view_not_allowed",
+                        },
+                        code="personal_view_not_allowed",
+                    )
 
                 # If we're PATCHing with a `table_id` alongside the `view_id`,
                 # validate with that table, otherwise we're PATCHing with just a

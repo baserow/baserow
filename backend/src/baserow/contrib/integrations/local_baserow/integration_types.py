@@ -159,7 +159,7 @@ class LocalBaserowIntegrationType(IntegrationType):
         views = ViewHandler().list_workspace_views(user, workspace, specific=False)
 
         views = list(
-            views.only(
+            views.filter(owned_by__isnull=True).only(
                 "id",
                 "name",
                 "table_id",

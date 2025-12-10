@@ -274,3 +274,31 @@ def test_after_import(data_fixture):
     integration.refresh_from_db()
 
     assert integration.authorized_user == user
+
+
+@pytest.mark.django_db
+def test_get_local_baserow_databases_excludes_personal_views(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user, application=builder
+    )
+    database = data_fixture.create_database_application(
+        user=user, workspace=workspace, order=1
+    )
+    table = data_fixture.create_database_table(database=database, order=1)
+    
+    regular_view = data_fixture.create_grid_view(table=table, order=1)
+    personal_view = data_fixture.create_grid_view(table=table, order=2, owned_by=user)
+
+    databases = LocalBaserowIntegrationType.get_local_baserow_databases(integration)
+
+    assert len(databases) == 1
+    assert databases[0].id == database.id
+    assert len(databases[0].tables) == 1
+    assert databases[0].tables[0].id == table.id
+    
+    view_ids = [v.id for v in databases[0].views]
+    assert regular_view.id in view_ids
+    assert personal_view.id not in view_ids
