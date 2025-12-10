@@ -118,13 +118,9 @@ class AnyBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
 class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
     BaserowRuntimeFormulaArgumentType
 ):
-    def __init__(self, *args, **kwargs):
-        self.allow_literal_array = kwargs.pop("allow_literal_array", False)
-        super().__init__(*args, **kwargs)
-
     def test(self, value):
         try:
-            value = ensure_array(value, allow_literal_array=self.allow_literal_array)
+            value = ensure_array(value)
         except ValidationError:
             return False
 
@@ -137,7 +133,7 @@ class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
         return True
 
     def parse(self, value):
-        value = ensure_array(value, allow_literal_array=self.allow_literal_array)
+        value = ensure_array(value)
 
         data = []
         for item in value:

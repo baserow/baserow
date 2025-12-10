@@ -1826,7 +1826,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
     } catch {}
 
     try {
-      const val = ensureArray(value, { allowLiteralArray: true })
+      const val = ensureArray(value)
       return val.length
     } catch {}
 
@@ -1948,7 +1948,7 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      const val = ensureArray(arg, { allowLiteralArray: true })
+      const val = ensureArray(arg)
       return val.reverse()
     } catch {}
 
@@ -2005,7 +2005,7 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
     }
 
     try {
-      const val = ensureArray(args[0], { allowLiteralArray: true })
+      const val = ensureArray(args[0])
 
       if (Array.isArray(val)) {
         return val.join(separator)
@@ -2224,7 +2224,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new ArrayBaserowRuntimeFormulaArgumentType({ allowLiteralArray: true }),
+      new ArrayBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -2274,7 +2274,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new ArrayBaserowRuntimeFormulaArgumentType({ allowLiteralArray: true }),
+      new ArrayBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -2324,7 +2324,7 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   execute(context, args) {
     const [array, index] = args
     try {
-      const val = ensureArray(array, { allowLiteralArray: true })
+      const val = ensureArray(array)
       if (index + 1 <= val.length) {
         return val[index]
       }

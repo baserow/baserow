@@ -144,14 +144,12 @@ export const ensureStringOrInteger = (value, { allowEmpty = true } = {}) => {
  *
  * @param {*} value - The value to ensure as an array.
  * @param {Boolean} allowEmpty - Whether we should throw an error if `value` is empty.
- * @param {Boolean} allowLiteralArray - Whether a literal string representation of
-    an array should be allowed.
  * @returns {any[]} The value as an array.
  * @throws {Error} if !allowEmpty and `value` is empty.
  */
 export const ensureArray = (
   value,
-  { allowEmpty = true, allowLiteralArray = false } = {}
+  { allowEmpty = true } = {}
 ) => {
   if (
     value === null ||
@@ -168,19 +166,6 @@ export const ensureArray = (
   if (Array.isArray(value)) {
     result = value
   } else if (typeof value === 'string') {
-    if (allowLiteralArray) {
-      if (value.startsWith('[') && value.endsWith(']')) {
-        try {
-          return JSON.parse(value)
-        } catch {
-          throw new Error("Value isn't a literal string array.")
-        }
-      } else {
-        throw new Error(
-          'Literal string array must start with `[` and end with `]`.'
-        )
-      }
-    }
     result = value.split(',').map((item) => item.trim())
   } else {
     result = [value]

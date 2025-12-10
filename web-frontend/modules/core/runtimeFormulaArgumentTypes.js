@@ -115,14 +115,10 @@ export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
 }
 
 export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
-  constructor(options = {}) {
-    super(options)
-    this.allowLiteralArray = options.allowLiteralArray ?? false
-  }
 
   test(value) {
     try {
-      ensureArray(value, { allowLiteralArray: this.allowLiteralArray })
+      ensureArray(value)
       return true
     } catch (e) {
       return false
@@ -130,7 +126,7 @@ export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormul
   }
 
   parse(value) {
-    return ensureArray(value, { allowLiteralArray: this.allowLiteralArray })
+    return ensureArray(value)
   }
 }
 

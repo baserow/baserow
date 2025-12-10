@@ -453,7 +453,7 @@ class RuntimeLength(RuntimeFormulaFunction):
             pass
 
         try:
-            return len(ensure_array(value, allow_literal_array=True))
+            return len(ensure_array(value))
         except ValidationError:
             pass
 
@@ -502,7 +502,7 @@ class RuntimeReverse(RuntimeFormulaFunction):
         value = args[0]
 
         try:
-            value = ensure_array(value, allow_literal_array=True)
+            value = ensure_array(value)
             return list(reversed(value))
         except ValidationError:
             pass
@@ -523,7 +523,7 @@ class RuntimeJoin(RuntimeFormulaFunction):
         separator = args[1] if len(args) == 2 else ","
 
         try:
-            value = ensure_array(value, allow_literal_array=True)
+            value = ensure_array(value)
             return separator.join(value)
         except ValidationError:
             pass
@@ -610,7 +610,7 @@ class RuntimeSum(RuntimeFormulaFunction):
     type = "sum"
 
     args = [
-        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(allow_literal_array=True),
+        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
@@ -624,7 +624,7 @@ class RuntimeAvg(RuntimeFormulaFunction):
     type = "avg"
 
     args = [
-        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(allow_literal_array=True),
+        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
@@ -646,7 +646,7 @@ class RuntimeAt(RuntimeFormulaFunction):
         value = args[0]
         index = args[1]
         try:
-            list_of_values = ensure_array(value, allow_literal_array=True)
+            list_of_values = ensure_array(value)
             if index + 1 <= len(list_of_values):
                 return list_of_values[index]
         except ValidationError:
