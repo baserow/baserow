@@ -1,737 +1,1153 @@
 {
-    "table": {
-        "chooseView": "选择视图",
-        "adjacentRow": {
-            "notification": {
-                "notFound": {
-                    "next": {
-                        "title": "没有更多行",
-                        "message": "没有下一行"
-                    },
-                    "previous": {
-                        "title": "没有更多行",
-                        "message": "没有上一行"
-                    }
-                },
-                "error": {
-                    "title": "发生错误",
-                    "message": "检索相邻行时出错"
-                }
-            }
-        }
-    },
-    "webhookModal": {
-        "title": "{name} Webhooks",
-        "createWebhook": "创建Webhook",
-        "backToList": "返回列表"
-    },
-    "deleteWebhookModal": {
-        "title": "删除 {webhookName}",
-        "deleteButton": "删除Webhook",
-        "body": "您确定要删除这个 Webhook 吗？以后您将无法恢复它。"
-    },
-    "webhookList": {
-        "noWebhooksMessage": "您还没有创建任何 Webhook。当 Baserow 中的行创建、更新或删除时，可以使用 Webhook 通知第三方系统。"
-    },
-    "testWebhookModal": {
-        "title": "测试 Webhook",
-        "unreachable": "服务器不可达"
-    },
-    "webhookForm": {
-        "inputLabels": {
-            "name": "名称",
-            "value": "值",
-            "requestMethod": "请求方法",
-            "url": "URL",
-            "userFieldNames": "用户字段名",
-            "events": "哪些事件应该触发这个 Webhook？",
-            "headers": "附加http headers",
-            "example": "示例载荷"
-        },
-        "errors": {
-            "urlField": "必须是一个以 'https://' 或 'http://' 开头的有效 url。",
-            "invalidHeaders": "其中一个http header无效。"
-        },
-        "checkbox": {
-            "sendUserFieldNames": "使用字段名代替 id"
-        },
-        "radio": {
-            "allEvents": "把所有东西都发给我",
-            "customEvents": "让我选择个别事件"
-        },
-        "triggerButton": "触发测试Webhook",
-        "deactivated": {
-            "title": "Webhook 已停用",
-            "content": "此webhook已被停用，因为连续失败太多。详情请查看通话记录。点击下方按钮再次激活。激活后不要忘记保存webhook。",
-            "activate": "激活"
-        },
-        "deprecatedEventType": {
-            "title": "不推荐使用的事件类型",
-            "description": "此 webhook 不会一次接收所有更改行的信息。请将其转换为批处理样式的事件类型。这会将 JSON 正文负载更改为包含多行的格式。",
-            "convert": "转换"
-        }
-    },
-    "webhook": {
-        "details": "详情",
-        "lastCall": "最后一次调用：{lastCallTime}",
-        "noCalls": "没有调用",
-        "callLog": "调用记录",
-        "triggerDescription": "每个事件触发 | {count} 个事件触发 | {count} 个事件触发"
-    },
-    "createWebhook": {
-        "errorTableWebhookMaxLimitExceededTitle": "超过最大webhook限制",
-        "errorTableWebhookMaxLimitExceededDescription": "无法创建 webhook，因为已超过每个表的最大 webhook 数量。"
-    },
-    "sidebar": {
-        "viewAPI": "查看 API 文档",
-        "createTable": "创建表"
-    },
-    "sidebarItem": {
-        "exportTable": "导出表"
-    },
-    "duplicateTableJobType": {
-        "duplicating": "副本创建中",
-        "duplicatedTitle": "表副本已创建"
-    },
-    "apiToken": {
-        "create": "create",
-        "read": "read",
-        "update": "update",
-        "delete": "delete",
-        "tokenPrefix": "Token:",
-        "viewAPIDocs": "查看 API 文档",
-        "generateNewToken": "生成新Token",
-        "showOrHide": "显示或隐藏Token",
-        "copyToClipboard": "复制到剪贴板",
-        "showDatabases": "显示数据库"
-    },
-    "apiTokenSettings": {
-        "title": "个人 API Token",
-        "createToken": "创建Token",
-        "noTokensMessage": "您尚未创建 API Token。您可以使用 API Token对 REST API 端点进行身份验证，您可以在其中创建、读取、更新和删除行。可以在表级别设置权限。",
-        "hasFullPermissions": "拥有全部权限，对所有孩子也一样。",
-        "hasOnlySelectedPermissions": "只对选定的孩子有权限。",
-        "noPermissions": "没有权限。",
-        "createNewTitle": "创建新的 API Token",
-        "backToOverview": "返回概览"
-    },
-    "apiTokenForm": {
-        "nameLabel": "名称",
-        "workspaceLabel": "分组"
-    },
-    "apiDocsSelectDatabase": {
-        "needOneDatabase": "您需要至少有一个数据库才能查看 API 文档。"
-    },
-    "apiDocsExample": {
-        "requestSample": "Request样本",
-        "responseSample": "Response样本",
-        "userFieldNames": "用户字段名"
-    },
-    "apiDocsParameter": {
-        "optional": "可选",
-        "defaultValue": "默认值：{value}"
-    },
-    "apiDocsTableGetRow": {
-        "description": "获取单个 {name} 行。",
-        "rowId": "被请求的行的唯一标识符。"
-    },
-    "apiDocsErrors": {
-        "errorCode": "错误代码",
-        "name": "名称",
-        "description": "描述",
-        "okDescription": "请求成功完成。",
-        "badRequestDescription": "请求包含无效值或无法解析 JSON。",
-        "unauthorizedDescription": "当您尝试访问没有有效令牌的端点时。",
-        "notFoundDescription": "未找到行或表。",
-        "requestEntityTooLargeDescription": "请求超出了允许的最大负载大小。",
-        "internalErrorDescription": "服务器遇到了意外情况。",
-        "badGatewayDescription": "Baserow 正在重新启动或发生意外中断。",
-        "unavailableDescription": "服务器无法及时处理您的请求。"
-    },
-    "apiDocsTableFields": {
-        "tableTitle": "{name} 表",
-        "tableId": "这个表的ID是：",
-        "description": "{name} 表中的每一行都包含以下字段。",
-        "id": "ID",
-        "name": "名称",
-        "type": "类型",
-        "compatibleFilters": "兼容的过滤器"
-    },
-    "apiDocsTableListRows": {
-        "description": "要列出 *{name}* 表中的行，必须向 *{name}* 端点发出 `GET` 请求。响应是分页的，默认情况下会返回第一页。正确的页面可以通过提供 `page` 和 `size` 查询参数来获取。",
-        "page": "定义应该返回哪一页行。",
-        "size": "定义每页应该返回多少行。",
-        "userFieldNames": "如果为 `user_field_names` GET 参数提供了任何值，则此端点返回的字段名称将是字段的实际名称。\n\n 如果未提供 `user_field_names` GET 参数，则所有返回的字段名称将是 `field_` 后跟字段的 id。例如 `field_1` 指的是 id 为 `1` 的字段。\n\n 此外，当设置 `user_field_names` 时，其他的行为GET 参数 `order_by`、`include` 和 `exclude` 发生了变化。相反，它们需要以逗号分隔的实际字段名称列表。",
-        "search": "如果只提供与搜索查询匹配的数据行将被返回。",
-        "orderBy": "可选地，行可以按以逗号分隔的字段排序。默认情况下，或者如果前面带有 '+'，则字段按升序 (A-Z) 顺序排列，但通过在字段前面加上 '-' 它可以按降序排列 (Z-A)。\n\n #### 使用 `user_field_names`:\n\n `order_by` 应该是一个逗号分隔的字段名称列表，以进行排序。例如，如果您提供以下 GET 参数`order_by=My Field,-My Field 2` 行将按名为 `My Field` 的字段升序排列。如果某些字段具有相同的值，则该子集将按名为 `My Field 2` 的字段排序降序。\n\n 确保名称以 `+` 或 `-` 开头的字段显式附加另一个 `+` 或 `-`。例如 `+-Name`。\n\n 字段的名称包含逗号必须用引号括起来：`\"Name ,\"`。如果字段名称包含引号，则必须使用 `\\` 字符对其进行转义。例如：`Name \\\"`。 \n\n#### 如果没有 `user_field_names`：\n\n `order_by` 应该是一个逗号分隔的 `field_` 列表，后跟要排序的字段的 id。例如，如果您提供以下 GET 参数 `order_by=field_1,-field_2`，则行将按 `field_1` 升序排列。如果某些字段具有相同的值，则该子集将按 `field_2` 降序排列。",
-        "filter": "可以选择通过视图可用的相同视图过滤器过滤行。如果它们遵循相同的格式，可以提供多个过滤器。`field`和`filter`变量指示如何过滤，值指示在哪里进行过滤。\n\n 例如，如果您提供以下 GET 参数 `filter__field_1__equal=test`，则只会返回 field_1 的值等于 test 的行。",
-        "filterLink": "可以在这里找到所有过滤器的列表。",
-        "filterType": "- `AND`: 表示行必须匹配所有提供的过滤器。\n- `OR`: 表示行只需要匹配其中一个过滤器。\n\n 这仅适用于两个提供或更多过滤器。",
-        "include": "默认情况下，所有字段都包含在响应中。 您可以通过提供 include 查询参数来选择要包含的字段子集。\n\n #### 使用 `user_field_names`：\n\n `include` 应该是要包含在结果中的字段名称的逗号分隔列表 . 例如，如果您提供以下 GET 参数：`include=My Field,-My Field 2`，则仅包含这些字段（除非明确排除）。\n\n 包含逗号的字段名称必须用 引号：`\"名称，\"`。 如果字段名称包含引号，则必须使用 `\\` 字符对其进行转义。 例如：`Name \\\"`。\n\n #### 没有 `user_field_names`：\n\n `include` 应该是逗号分隔的 `field_` 列表，后跟要包含的字段的 id 结果。例如：如果您提供以下 GET 参数 `exclude=field_1,field_2` 则 ID 为 1 和 ID 为 2 的字段将仅包含这些字段（除非它们被明确排除）",
-        "exclude": "默认情况下所有字段都包含在响应中。您可以通过提供 exclude 查询参数来选择要排除的字段子集。\n\n #### With `user_field_names`:\n\n ` exclude` 应该是要从结果中排除的字段名称的逗号分隔列表。例如，如果您提供以下 GET 参数：`exclude=My Field,-My Field 2`，则将排除这些字段。\n\n包含逗号的字段名称必须用引号括起来：`\"Name ,\"`。如果字段名称包含引号，则必须使用 `\\` 字符对其进行转义。例如：`Name \\\"` .\n\n #### 没有 `user_field_names`:\n\n `exclude` 应该是一个逗号分隔的 `field_` 列表，后跟要从结果中排除的字段的 id。例如：如果您提供以下 GET 参数 `exclude=field_1,field_2`，则 id 为 `1` 和 id `2` 的字段将被排除。",
-        "viewId": "默认情况下，不应用查询参数中定义的过滤器和排序。您可以通过在 `view_id` GET 参数中提供视图的`id`来添加视图的过滤器和排序。对于例如，如果您提供以下 GET 参数 `view_id=1`，则将应用在 id 为 `1` 的视图中定义的过滤器和排序。您可以在任何给定视图的上下文菜单中找到 `view_id`。它是视图名称后面括号中的数字。\n\n #### 使用 `filter__{field}__{filter}` \n\n 查询参数中提供的过滤器和视图中定义的过滤器都将被应用。 \n\n #### 使用 `order_by` \n\n 如果提供了 `order_by`，则视图中定义的排序将被忽略。"
-    },
-    "apiDocsIntro": {
-        "intro": "{name} 数据库提供了一种将数据与任何外部系统集成的简便方法。API 遵循 REST 语义，使用 JSON 编码对象并依赖标准 HTTP 代码、机器和人类可读错误来指示操作结果.",
-        "autoDocDescription": "此文档是根据您数据库中的表和字段自动生成的。如果您对数据库、表或字段进行更改，则可能是 API 接口也发生了更改。因此，请确保您相应地更新您的 API 实现。",
-        "databaseId": "这个数据库的ID是：",
-        "jsClient": "JavaScript 示例 API 客户端：",
-        "pythonClient": "Python 示例 API 客户端："
-    },
-    "apiDocsTableListFields": {
-        "description": "要列出 {name} 表的字段，必须向 {name} 字段端点发出 `GET` 请求。只有在令牌具有读取、创建或更新权限时才能列出字段。",
-        "resultFieldProperties": "结果字段属性",
-        "id": "字段主键。可以通过添加`field_`前缀来生成数据库列名。",
-        "name": "字段名。",
-        "tableId": "相关表id。",
-        "order": "表中的字段顺序。第一个字段为 0。",
-        "primary": "表示该字段是否为主字段。如果为 `true`，则该字段不能被删除，该值应代表整行。",
-        "type": "为该字段定义的类型。",
-        "extraProps": "一些额外的属性在这里没有描述，因为它们是特定于类型的。",
-        "readOnly": "表示该字段是否为只读字段。如果为true，则无法更新单元格值。"
-    },
-    "apiDocsTableDeleteRow": {
-        "description": "删除现有的 {name} 行。",
-        "rowId": "需要删除的行的唯一标识。"
-    },
-    "apiDocsTableDeleteRows": {
-        "description": "删除现有的 {name} 行。",
-        "items": "应该删除的行 ID 数组。"
-    },
-    "apiDocsTableMoveRow": {
-        "description": "将现有的 {name} 行移动到另一行之前。如果没有提供 `before_id`，则该行将移动到表的末尾。",
-        "rowId": "移动与值相关的行。",
-        "before": "将与给定 `row_id` 相关的行移动到与提供的值相关的行之前。如果未提供，则该行将移动到末尾。"
-    },
-    "apiDocsUploadFile": {
-        "description": "通过直接上传文件内容将文件上传到 Baserow。一个 `file` 多部分应该包含文件内容。然后可以使用响应来[将文件上传到一行]({PUBLIC_BACKEND_URL}/api /redoc/#tag/Database-table-rows/operation/update_database_table_row).",
-        "file": "包含文件内容的 `file` 多部分。"
-    },
-    "apiDocsUploadFileViaURL": {
-        "description": "通过从提供的 URL 下载文件将文件上传到 Baserow。然后可以使用响应 [将文件上传到行]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows /operation/update_database_table_row).",
-        "url": "您希望 Baserow 代表您下载和上传的 URL。"
-    },
-    "apiDocsTableUpdateRow": {
-        "description": "更新现有的 {name} 行。",
-        "rowId": "需要更新的行的唯一标识。",
-        "before": "如果提供，则新创建的行将位于具有提供的 id 的行之前。"
-    },
-    "apiDocsTableUpdateRows": {
-        "description": "更新现有的 {name} 行。",
-        "id": "行 ID。"
-    },
-    "apiDocsTableCreateRow": {
-        "description": "创建一个新的 {name} 行。",
-        "before": "如果提供，则新创建的行将位于具有提供的 id 的行之前。"
-    },
-    "apiDocsTableCreateRows": {
-        "description": "创建新的 {name} 行。",
-        "before": "如果提供，那么新创建的行将被定位在具有提供的 id 的行之前。"
-    },
-    "apiDocsAuth": {
-        "description": "Baserow 使用简单的基于令牌的身份验证。您需要在 {settingsLink} 中生成至少一个 API 令牌才能使用下面描述的端点。可以授予创建、读取、更新和删除权限直到表每个令牌的级别。您可以通过在 HTTP 授权承载令牌标头中提供您的 API 令牌来对 API 进行身份验证。所有 API 请求都必须经过身份验证并通过 HTTPS 发出。",
-        "settingsLink": "设置"
-    },
-    "apiDocsFilters": {
-        "filter": "过滤器",
-        "exampleValue": "示例值",
-        "example": "完整示例",
-        "field": "字段 {name}"
-    },
-    "fieldTextSubForm": {
-        "placeholder": "默认文本"
-    },
-    "fieldSingleSelectSubForm": {
-        "optionsLabel": "选项"
-    },
-    "fieldSingleSelectDropdown": {
-        "notFound": "未找到选项"
-    },
-    "fieldmultipleCollaboratorsDropdown": {
-        "notFound": "未找到合作者"
-    },
-    "fieldDateSubForm": {
-        "dateFormatLabel": "日期格式",
-        "dateFormatEuropean": "欧洲",
-        "dateFormatUS": "美国",
-        "dateFormatISO": "ISO",
-        "includeTimeLabel": "包括时间",
-        "timeFormatLabel": "时间格式",
-        "24小时": "24 小时",
-        "12小时": "12 小时"
-    },
-    "fieldLinkRowSubForm": {
-        "noTable": "您至少需要在同一个数据库中链接另一个表。",
-        "selectTableLabel": "选择要链接的表",
-        "hasRelatedFieldLabel": "在链接表中创建相关字段"
-    },
-    "fieldSelectOptions": {
-        "add": "添加一个选项"
-    },
-    "fieldNumberSubForm": {
-        "typeLabel": "数字类型",
-        "integer": "整型",
-        "decimal": "十进制小数",
-        "decimalPlacesLabel": "小数位数",
-        "allowNegative": "允许负数"
-    },
-    "fieldContext": {
-        "editField": "编辑字段",
-        "deleteField": "删除字段",
-        "hideField": "隐藏字段",
-        "showField": "显示字段"
-    },
-    "fieldForm": {
-        "name": "名称",
-        "fieldAlreadyExists": "同名字段已经存在。",
-        "nameNotAllowed": "该字段名不允许。",
-        "nameTooLong": "这个字段名太长了。"
-    },
-    "fieldLookupSubForm": {
-        "noTable": "您至少需要一个链接行字段来创建查找的字段。",
-        "selectThroughFieldLabel": "选择一个链接行字段",
-        "selectTargetFieldLabel": "选择要查找的字段"
-    },
-    "fieldFormulaNumberSubForm": {
-        "typeLabel": "数字类型",
-        "integer": "整型",
-        "decimal": "十进制小数",
-        "decimalPlacesLabel": "小数位数",
-        "allowNegative": "允许负值"
-    },
-    "fieldRatingSubForm": {
-        "maxValue": "最大值",
-        "color": "颜色",
-        "style": "样式"
-    },
-    "rowCreateModal": {
-        "addField": "添加字段"
-    },
-    "selectRowContent": {
-        "search": "搜索行"
-    },
-    "rowEditModal": {
-        "addField": "添加字段",
-        "showHiddenFields": "显示隐藏字段",
-        "hideHiddenFields": "隐藏隐藏字段"
-    },
-    "rowEditFieldMultipleSelect": {
-        "addOption": "添加另一个选项"
-    },
-    "rowEditFieldMultipleCollaborators": {
-        "addCollaborator": "添加合作者"
-    },
-    "rowEditFieldFile": {
-        "addFile": "添加文件",
-        "sizes": {
-            "0": "字节",
-            "1": "KB",
-            "2": "MB",
-            "3": "GB",
-            "4": "TB",
-            "5": "PB"
-        }
-    },
-    "rowEditFieldLinkRow": {
-        "addLink": "添加另一个链接"
-    },
-    "tableCSVImporter": {
-        "chooseFileLabel": "选择 CSV 文件",
-        "chooseFileDescription": "您可以通过上传带有表格数据的 .CSV 文件来导入现有的 CSV。大多数电子表格应用程序都允许您将电子表格导出为 .CSV 文件。",
-        "chooseFile": "选择 CSV 文件",
-        "columnSeparator": "列分隔符",
-        "recordSeparator": "记录分隔符",
-        "unitSeparator": "单位分隔符",
-        "encoding": "编码",
-        "firstRowHeader": "第一行是标题",
-        "limitFileSize": "最大文件大小为 {limit}MB。",
-        "limitError": "不能导入超过 {limit} 行。",
-        "emptyCSV": "此 CSV 文件为空。"
-    },
-    "importer": {
-        "fieldDefaultName": "Field {count}",
-        "loading": "Loading file",
-        "decoding": "Decoding data",
-        "parsing": "Parsing data",
-        "preparing": "Preparing data",
-        "inProgress": "In progress..."
-    },
-    "tableForm": {
-        "name": "名称"
-    },
-    "tableXMLImporter": {
-        "fileLabel": "选择 XML 文件",
-        "fileDescription": "您可以通过上传带有表格数据的 .XML 文件来导入现有的 XML，例如：",
-        "chooseButton": "选择 XML 文件",
-        "processingError": "处理 XML 时出错：{errors}",
-        "emptyError": "此 XML 文件为空。",
-        "limitFileSize": "最大文件大小为 {limit}MB。",
-        "limitError": "不能导入超过 {limit} 行。"
-    },
-    "tableJSONImporter": {
-        "fileLabel": "选择 JSON 文件",
-        "fileDescription": "您可以通过上传带有表格数据的 .json 文件来导入现有的 JSON 文件，例如：",
-        "chooseButton": "选择 JSON 文件",
-        "encodingLabel": "编码",
-        "processingError": "解析 JSON 时出错：{error}",
-        "arrayError": "JSON 文件不是数组。",
-        "emptyError": "此 JSON 文件为空。",
-        "limitFileSize": "最大文件大小为 {limit}MB。",
-        "limitError": "不能导入超过 {limit} 行。"
-    },
-    "tablePasteImporter": {
-        "pasteLabel": "粘贴表格数据",
-        "pasteDescription": "您可以从电子表格中复制单元格并将它们粘贴到下方。",
-        "firstRowHeader": "第一行是字段名",
-        "limitError": "不能导入超过 {limit} 行。"
-    },
-    "importFileModal": {
-        "title": "创建新表",
-        "changeImporterType": "更改导入类型",
-        "additionalImportTitle": "导入 {table}",
-        "importLabel": "要导入现有数据吗？",
-        "newTable": "从新表开始",
-        "addButton": "添加表格",
-        "showTable": "显示表",
-        "importButton": "导入",
-        "uploading": "上传中...",
-        "preparing": "正在准备数据...",
-        "importError": "文件导入过程中出现问题",
-        "openCreatedTable": "打开创建的表",
-        "showReport": "显示错误报告",
-        "reportTitleFailure": "失败的行",
-        "reportTitleSuccess": "导入成功但是...",
-        "reportMessage": "以下行索引无法导入：",
-        "stateRowCreation": "正在导入...",
-        "statePreValidation": "验证数据...",
-        "stateCreateTable": "正在创建表...",
-        "fieldMappingTitle": "字段映射",
-        "fieldMappingDescription": "我们已经自动映射了您表格中 Baserow 字段的列。您可以在下面更改它们。任何不兼容的单元格在导入后将保持为空。",
-        "selectImportMessage": "请选择要导入的数据。",
-        "filePreview": "文件内容预览",
-        "importPreview": "导入预览"
-    },
-    "formulaAdvancedEditContext": {
-        "textAreaFormulaInputPlaceholder": "点击编辑公式",
-        "fields": "字段",
-        "functions": "函数",
-        "operators": "操作符",
-        "fieldType": "{type}字段"
-    },
-    "fieldFormulaInitialSubForm": {
-        "formulaInputPlaceholder": "点击编辑公式",
-        "refreshFormulaOptions": "刷新公式选项"
-    },
-    "formulaFieldItemDescription": {
-        "syntax": "语法",
-        "examples": "示例"
-    },
-    "viewSearchContext": {
-        "searchInRows": "搜索所有行",
-        "hideNotMatching": "隐藏不匹配的行"
-    },
-    "viewsContext": {
-        "searchView": "搜索视图",
-        "noViews": "未找到视图"
-    },
-    "viewFilterTypeLinkRow": {
-        "unnamed": "未命名行 {value}",
-        "choose": "选择行"
-    },
-    "viewFilterContext": {
-        "addFilter": "添加过滤器",
-        "disableAllFilters": "全部已禁用",
-        "noFilterTitle": "您还没有创建过滤器",
-        "noFilterText": "过滤器允许您显示适用于您的条件的行。",
-        "where": "条件是",
-        "and": "与",
-        "or": "或",
-        "relatedFieldNotFound": "未找到相关字段。",
-        "filterTypeNotFound": "过滤器类型不兼容。"
-    },
-    "viewFilterTypeFileTypeDropdown": {
-        "image": "图片",
-        "document": "文档"
-    },
-    "createViewModal": {
-        "createNew": "创建新的 {view}",
-        "add": "添加 {view}"
-    },
-    "shareViewLink": {
-        "shareView": "分享 {viewTypeSharingLinkName}",
-        "shareViewTitle": "创建一个指向 {viewTypeSharingLinkName} 的私有共享链接",
-        "sharedViewTitle": "此 {viewTypeSharingLinkName} 目前通过私人链接共享",
-        "sharedViewDescription": "知道链接的人可以看到 {viewTypeSharingLinkName}。",
-        "disableLink": "禁用共享链接",
-        "generateNewUrl": "生成新网址",
-        "copyURL": "复制 URL",
-        "EnablePassword": "使用密码限制访问",
-        "DisablePassword": "访问受密码保护",
-        "ChangePassword": "更改"
-    },
-    "viewSortContext": {
-        "noSortTitle": "你还没有创建排序",
-        "noSortText": "排序允许您按字段对行进行排序。",
-        "sortBy": "排序依据",
-        "thenBy": "然后再依据",
-        "addSort": "选择要排序的字段"
-    },
-    "viewSort": {
-        "sort": "排序 | 1 次排序 | {count} 次排序"
-    },
-    "viewDecorator": {
-        "decorator": "颜色 | 1 种颜色 | {count} 种颜色"
-    },
-    "viewRotateSlugModal": {
-        "title": "刷新网址",
-        "refreshWarning": "您确定要刷新 {viewName} 的 URL 吗？刷新后会生成一个新的 URL，并且无法通过旧 URL 访问 {viewTypeSharingLinkName}。您拥有的所有人与之共享 URL，将无法访问 {viewTypeSharingLinkName}。",
-        "generateNewURL": "生成新 URL"
-    },
-    "shareViewEnablePasswordModal": {
-        "newPasswordTitle": "输入密码",
-        "newPasswordDescription": "公共链接只有在输入密码后才能访问。这个密码将被加密保存。",
-        "newPasswordSave": "设置密码",
-        "changePasswordTitle": "更改密码",
-        "changePasswordDescription": "更改密码后，之前的密码将失效。此密码将被加密保存。",
-        "changePasswordSave": "更改密码"
-    },
-    "shareViewDisablePasswordModal": {
-        "title": "禁用密码保护",
-        "description": "您确定要禁用此公共链接的密码保护吗？禁用后密码将被删除且无法恢复",
-        "disable": "禁用"
-    },
-    "publicViewAuthLogin": {
-        "title": "此页面受密码保护",
-        "description": "输入正确的密码访问页面。",
-        "enter": "进入",
-        "error": {
-            "incorrectPasswordTitle": "密码错误",
-            "incorrectPasswordText": "提供的密码不正确。"
-        }
-    },
-    "viewFieldsContext": {
-        "coverField": "封面字段",
-        "noCover": "没有封面",
-        "search": "搜索字段",
-        "hideAll": "全部隐藏",
-        "showAll": "显示全部"
-    },
-    "viewFilterTypeBoolean": {
-        "selected": "已选中"
-    },
-    "viewFilter": {
-        "filter": "过滤器 | 1 个过滤器 | {count} 个过滤器"
-    },
-    "viewContext": {
-        "exportView": "导出视图",
-        "duplicateView": "创建副本视图",
-        "renameView": "重命名视图",
-        "webhooks": "Webhooks",
-        "importFile": "导入文件",
-        "deleteView": "删除视图"
-    },
-    "deleteViewModal": {
-        "title": "删除 {name}",
-        "description": "您确定要删除视图 {name} 吗？表数据将被保留，但与视图相关的过滤器、排序和字段宽度将被删除。",
-        "delete": "删除视图"
-    },
-    "viewForm": {
-        "name": "名称"
-    },
-    "galleryViewHeader": {
-        "customizeCards": "自定义卡片"
-    },
-    "gridViewHide": {
-        "hideField": "隐藏字段 | 1 个隐藏字段 | {count} 个隐藏字段"
-    },
-    "gridViewFieldType": {
-        "insertLeft": "向左插入",
-        "insertRight": "插入右边",
-        "createFilter": "创建过滤器",
-        "duplicate": "创建副本字段",
-        "sortField": "排序",
-        "hideField": "隐藏字段"
-    },
-    "gridViewRow": {
-        "rowNotMatchingFilters": "行不匹配过滤器",
-        "rowNotMatchingSearch": "行不匹配搜索",
-        "rowHasMoved": "行已移动"
-    },
-    "gridView": {
-        "selectRow": "选择行",
-        "insertRowAbove": "在上面插入行",
-        "insertRowBelow": "在下面插入行",
-        "duplicateRow": "创建副本行",
-        "enlargeRow": "放大行",
-        "deleteRow": "删除行",
-        "deleteRows": "删除行",
-        "copyCells": "复制单元格",
-        "rowCount": "无行 | 1 行 | {count} 行"
-    },
-    "gridViewFieldFile": {
-        "dropHere": "放在这里",
-        "dropFileHere": "把文件放到这里"
-    },
-    "gridViewFieldLinkRow": {
-        "unnamed": "未命名行 {value}"
-    },
-    "gridViewIdentifierOptions": {
-        "id": "行标识符",
-        "count": "计数"
-    },
-    "formViewMeta": {
-        "includeRowId": "使用 {row_id} 在 URL 中包含新创建的行 ID。"
-    },
-    "previewAny": {
-        "externalWarning": "通过外部服务打开您的文件会将您的文件暴露给他们的服务器。"
-    },
-    "exportTableModal": {
-        "failedTitle": "导出失败",
-        "failedDescription": "由于服务器错误，导出失败。",
-        "cancelledTitle": "导出取消",
-        "cancelledDescription": "导出被取消。"
-    },
-    "exporterTypeChoices": {
-        "formatLabel": "您要导出到哪种格式？"
-    },
-    "exportTableForm": {
-        "viewLabel": "选择要导出的视图：",
-        "typeError": "没有可用的导出器类型，请选择其他的视图或整个表。"
-    },
-    "exportTableLoadingBar": {
-        "export": "导出",
-        "download": "下载"
-    },
-    "exportTableDropdown": {
-        "exportEntireTable": "导出整个表"
-    },
-    "tableCSVExporter": {
-        "columnSeparatorLabel": "列分隔符",
-        "recordSeparator": "记录分隔符",
-        "unitSeparator": "单元分隔符",
-        "encodingLabel": "编码",
-        "firstRowIsHeaderLabel": "第一行是字段名"
-    },
-    "apiDocsDatabase": {
-        "pageTitle": "{name} 数据库 API 文档",
-        "back": "返回仪表板",
-        "openDatabase": "打开数据库"
-    },
-    "apiDocsComponent": {
-        "title": "REST API",
-        "intro": "在 {settingsLink} 创建数据库架构和 API 密钥后，Baserow 数据库会提供他自己的 REST API 端点来创建、读取、更新和删除行。",
-        "settings": "设置",
-        "selectApplicationTitle": "您想查看哪个数据库的文档？",
-        "signIn": "登录开始使用",
-        "back": "返回仪表板"
-    },
-    "viewAggregationType": {
-        "emptyCount": "空",
-        "notEmptyCount": "已填充",
-        "emptyPercentage": "空的百分比",
-        "notEmptyPercentage": "填充百分比",
-        "checkedCount": "已勾选",
-        "notCheckedCount": "未勾选",
-        "checkedPercentage": "勾选百分比",
-        "notCheckedPercentage": "未勾选百分比",
-        "min": "最小",
-        "max": "最大",
-        "earliestDate": "最早日期",
-        "earliestDateShort": "最早的",
-        "latestDate": "最后日期",
-        "latestDateShort": "最后的",
-        "uniqueCount": "去重后",
-        "sum": "求和",
-        "average": "平均",
-        "median": "中位数",
-        "stdDev": "标准差",
-        "stdDevShort": "标准差",
-        "variance": "方差"
-    },
-    "databaseForm": {
-        "importLabel": "要导入现有数据吗？",
-        "emptyLabel": "从零开始",
-        "airtableLabel": "从 Airtable (beta) 导入"
-    },
-    "importFromAirtable": {
-        "airtableShareLinkTitle": "分享一个链接到你的基地",
-        "airtableShareLinkDescription": "要导入您的Airtable基地，您需要有一个指向您整个基地的共享链接。在Airtable中，打开您的基地后点击右上角的分享按钮。之后您必须选择“Access to base”选项。在共享模式中，您可以单击“创建到整个基地的共享链接”按钮，然后单击“私有只读链接”。复制公共链接并将其粘贴到下面的输入中.",
-        "airtableShareLinkBeta": "请注意，此功能处于测试阶段，您的表格、字段（公式、查找和计数除外）和数据将被导入。您的视图不会被导入。",
-        "airtableShareLinkPaste": "在此处粘贴链接",
-        "importButtonLabel": "从 Airtable 导入",
-        "openButtonLabel": "打开导入的数据库",
-        "importError": "出了点问题",
-        "statePending": "等待开始",
-        "stateFailed": "失败",
-        "stateFinished": "完成",
-        "stateDownloadingBase": "下载基础架构",
-        "stateConverting": "转换为 Baserow",
-        "stateDownloadingFiles": "正在下载文件",
-        "stateImporting": "正在导入",
-        "stateImportingTable": "正在导入表 {table}",
-        "errorJobAlreadyRunningTitle": "已经在运行",
-        "errorJobAlreadyRunningDescription": "另一个导入作业已在运行。您需要等待该作业完成后再开始另一个作业。",
-        "linkError": "链接应该是这样的：https://airtable.com/shrxxxxxxxxxxxxxx"
-    },
-    "chooseSingleSelectField": {
-        "addSelectField": "添加单选字段"
-    },
-    "viewDecoratorContext": {
-        "addDecorator": "添加装饰器"
-    },
-    "databaseDashboardSidebarLinks": {
-        "apiDocumentation": "API 文档"
-    },
-    "formViewField": {
-        "required": "必填",
-        "descriptionPlaceholder": "描述",
-        "showWhenMatchingConditions": "条件满足时显示",
-        "addCondition": "添加条件"
-    },
-    "duplicateFieldContext": {
-        "duplicate": "创建副本字段",
-        "cloneData": "复制数据",
-        "readOnlyField": "单元格值会自动填充。"
-    },
-    "snapshotsModal": {
-        "title": "快照",
-        "description": "快照是创建时数据库的完整副本。恢复时将创建该数据的副本。一年后会自动删除快照。",
-        "descriptionLimits": "每个组最多可以有 {n} 个快照。| 每个组最多可以有 {n} 个快照。| 每个组最多可以有 {n} 个快照。",
-        "createLabel": "创建一个新快照",
-        "create": "创建快照",
-        "snapshotRestoredErrorTitle": "发生错误",
-        "snapshotRestoredErrorMessage": "快照无法恢复，请稍后再试。",
-        "snapshotDeletedErrorTitle": "发生错误",
-        "snapshotDeletedErrorMessage": "快照无法删除，请稍后再试。",
-        "limitReached": "已达到最大快照数限制。",
-        "snapshot": "快照",
-        "importingState": "正在创建",
-        "reset": "创建另一个"
-    },
-    "deleteSnapshotModal": {
-        "title": "删除快照",
-        "content": "您确定要永久删除快照 {name}？",
-        "confirm": "删除"
-    },
-    "snapshotListItem": {
-        "restore": "恢复",
-        "delete": "删除",
-        "created": "已创建"
-    },
-    "formViewModeType": {
-        "form": "表单",
-        "formDescription": "所有字段都可见且垂直堆叠。"
-    },
-    "formViewHeader": {
-        "mode": "模式",
-        "preview": "预览",
-        "fields": "字段"
-    },
-    "formViewModePreviewForm": {
-        "addCoverImage": "添加封面图片",
-        "addLogo": "添加Logo",
-        "titlePlaceholder": "标题",
-        "descriptionPlaceholder": "描述",
-        "noFields": "此表单没有任何字段。单击左侧边栏中的字段添加一个。"
+  "webhookModal": {
+    "title": "{name} Webhooks",
+    "createWebhook": "创建 webhook",
+    "backToList": "返回列表"
+  },
+  "deleteWebhookModal": {
+    "title": "删除 {webhookName}",
+    "deleteButton": "删除 webhook",
+    "body": "您确定要删除此 webhook 吗？删除后将无法恢复。"
+  },
+  "webhookList": {
+    "noWebhooksMessage": "您尚未创建任何 webhook。webhook 可用于在 Baserow 中的某行数据被创建、更新或删除时，通知第三方系统。"
+  },
+  "testWebhookModal": {
+    "title": "测试 webhook",
+    "unreachable": "服务器无法访问"
+  },
+  "webhookForm": {
+    "inputLabels": {
+      "name": "姓名",
+      "value": "价值",
+      "requestMethod": "方法",
+      "url": "URL",
+      "userFieldNames": "用户字段名称",
+      "events": "应触发此 webhook 的事件有哪些？",
+      "headers": "附加头信息",
+      "example": "示例负载"
+    },
+    "errors": {
+      "urlField": "必须是一个以 'https://' 或 'http://' 开头的有效 URL。",
+      "invalidHeaders": "其中一个标题无效。"
+    },
+    "checkbox": {
+      "sendUserFieldNames": "使用字段名代替 id"
+    },
+    "radio": {
+      "allEvents": "把所有东西都发给我",
+      "customEvents": "请让我选择单个事件"
+    },
+    "triggerButton": "触发测试 webhook",
+    "deactivated": {
+      "title": "Webhook 已停用",
+      "content": "此 webhook 因连续失败次数过多已被停用。请查看调用日志以获取更多详情。点击下方按钮重新激活。激活后请勿忘记保存 webhook。",
+      "activate": "激活"
+    },
+    "triggerWhenFieldsHaveChanged": "当字段发生更改时触发",
+    "helpTriggerWhenFieldsHaveChanged": "仅当所选字段的单元格值发生更改时才会触发。"
+  },
+  "webhook": {
+    "details": "详情",
+    "lastCall": "最后提醒：{lastCallTime}",
+    "noCalls": "未拨出任何电话",
+    "callLog": "通话记录",
+    "triggerDescription": "每个事件触发 | 在 {count} 个事件上触发 | 在 {count} 个事件上触发"
+  },
+  "createWebhook": {
+    "errorTableWebhookMaxLimitExceededTitle": "超出最大 webhook 数量限制",
+    "errorTableWebhookMaxLimitExceededDescription": "无法创建 webhook，因为每个表的 webhook 数量已达到上限。"
+  },
+  "sidebar": {
+    "viewAPI": "查看 API 文档",
+    "createTable": "新表格"
+  },
+  "sidebarItem": {
+    "exportTable": "导出表格",
+    "webhooks": "Webhooks",
+    "lastSynced": "上次同步",
+    "notSynced": "未同步",
+    "sync": "同步表",
+    "updateSyncConfig": "更新同步配置"
+  },
+  "duplicateTableJobType": {
+    "name": "重复表",
+    "duplicating": "复制",
+    "duplicatedTitle": "表格重复"
+  },
+  "apiToken": {
+    "create": "创建",
+    "read": "阅读",
+    "update": "更新",
+    "delete": "删除",
+    "tokenPrefix": "Token：",
+    "viewAPIDocs": "查看 API 文档",
+    "generateNewToken": "生成新令牌",
+    "showOrHide": "显示或隐藏令牌",
+    "copyToClipboard": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n复制到剪贴板",
+    "showDatabases": "show databases"
+  },
+  "apiTokenSettings": {
+    "title": "数据库令牌",
+    "createToken": "创建令牌",
+    "noTokensMessage": "您尚未创建数据库令牌。您可以使用数据库令牌通过 REST API 端点进行身份验证，从而创建、读取、更新和删除数据行。还可以在表级别设置权限。",
+    "hasFullPermissions": "拥有全部权限，包括所有子项。",
+    "hasOnlySelectedPermissions": "仅对所选子项具有权限。",
+    "noPermissions": "没有权限。",
+    "createNewTitle": "创建新的数据库令牌",
+    "backToOverview": "返回概览"
+  },
+  "apiTokenForm": {
+    "nameLabel": "姓名",
+    "workspaceLabel": "工作区"
+  },
+  "apiDocsSelectDatabase": {
+    "needOneDatabase": "您需要至少有一个数据库才能查看 API 文档。"
+  },
+  "apiDocsExample": {
+    "requestSample": "索取样品",
+    "responseSample": "响应示例",
+    "userFieldNames": "用户字段名称"
+  },
+  "apiDocsParameter": {
+    "optional": "可选",
+    "defaultValue": "默认值：{value}"
+  },
+  "apiDocsTableGetRow": {
+    "description": "获取单行 {name}。",
+    "rowId": "所请求行的唯一标识符。"
+  },
+  "apiDocsErrors": {
+    "errorCode": "错误代码",
+    "name": "姓名",
+    "description": "描述",
+    "okDescription": "请求已成功完成。",
+    "badRequestDescription": "请求包含无效值或无法解析 JSON。",
+    "unauthorizedDescription": "当你尝试在没有有效数据库令牌的情况下访问端点时。",
+    "notFoundDescription": "未找到行或表。",
+    "requestEntityTooLargeDescription": "请求超出允许的最大负载大小。",
+    "internalErrorDescription": "服务器遇到了意外情况。",
+    "badGatewayDescription": "Baserow 正在重启或发生意外中断。",
+    "unavailableDescription": "服务器未能及时处理您的请求。"
+  },
+  "apiDocsTableFields": {
+    "tableTitle": "{name} 表",
+    "tableId": "该表的ID为：",
+    "description": "{name} 表中的每一行包含以下字段。",
+    "id": "ID",
+    "name": "姓名",
+    "type": "类型",
+    "compatibleFilters": "兼容滤芯"
+  },
+  "apiDocsTableListRows": {
+    "description": "要列出 *{name}* 表中的行，需向 *{name}* 端点发送 `GET` 请求。响应结果是分页的，默认返回第一页。通过提供 `page` 和 `size` 查询参数，可以获取指定页的数据。",
+    "page": "定义应返回哪一页的行数据。",
+    "size": "定义每页应返回的行数。",
+    "userFieldNames": "当提供 `user_field_names` GET 参数，且其值为以下之一：`y`、`yes`、`true`、`t`、`on`、`1` 或空字符串时，该端点返回的字段名称将为字段的实际名称。\n\n如果未提供 `user_field_names` GET 参数，或其值不匹配上述任何值，则所有返回的字段名称将为 `field_` 加上字段的 ID。例如，`field_1` 表示 ID 为 `1` 的字段。\n\n此外，当设置 `user_field_names` 时，其他 GET 参数 `order_by`、`include` 和 `exclude` 的行为会发生变化：它们将期望接收以逗号分隔的实际字段名称列表，而非字段 ID。",
+    "search": "如果仅提供与搜索查询匹配的数据行，则将返回这些行。",
+    "orderBy": "可选地，行可以按用逗号分隔的字段进行排序。默认情况下，或在字段前加上“+”时，字段按升序（A-Z）排列；若在字段前加上“-”，则按降序（Z-A）排列。\n\n#### 使用 `user_field_names` 时：\n\n`order_by` 应为要排序的字段名称的逗号分隔列表。例如，若提供如下 GET 参数 `order_by=My Field,-My Field 2`，则行将首先按名为 `My Field` 的字段升序排列；若某些字段值相同，则该子集将按名为 `My Field 2` 的字段降序排列。\n\n确保字段名称以“+”或“-”开头时，需显式地在其前再添加一个“+”或“-”。例如：`+-Name`。\n\n包含逗号的字段名称必须用引号括起来：`\"Name ,\"`。如果字段名称中包含引号，则必须使用反斜杠“\\”进行转义。例如：`Name \\\"`。\n\n#### 不使用 `user_field_names` 时：\n\n`order_by` 应为 `field_` 后跟字段 ID 的逗号分隔列表。例如，若提供如下 GET 参数 `order_by=field_1,-field_2`，则行将首先按 `field_1` 升序排列；若某些字段值相同，则该子集将按 `field_2` 降序排列。",
+    "filters": "可选地，行可以通过与视图可用的相同视图过滤器进行过滤。此参数接受一个包含要应用于当前视图的过滤器树的 JSON 序列化字符串。过滤器树是一个嵌套结构，包含需要应用的过滤器。\n\n#### 使用 `user_field_names` 时：\n\n一个有效的过滤器树示例如下：`{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}`。\n\n#### 不使用 `user_field_names` 时：\n\n例如，如果您可选地提供以下 GET 参数：`{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`。\n\n请注意，如果提供了此参数，则所有其他 `filter__{field}__{filter}` 参数将被忽略，同时 `filter_type` 参数也会被忽略。",
+    "filter": "行可选地使用与视图可用的相同视图过滤器进行过滤。如果多个过滤器遵循相同的格式，可以同时应用多个过滤器。`field` 和 `filter` 变量分别指示如何以及在何处应用过滤器。\n\n#### 使用 `user_field_names`：\n\n例如，如果您可选地提供以下 GET 参数：`filter__Name__equal=test`，则仅返回 `Name` 字段值等于 'test' 的行。此方法向后兼容，如果按名称过滤失败，将尝试使用 `field_id` 进行匹配。\n\n#### 不使用 `user_field_names`：\n\n例如，如果您可选地提供以下 GET 参数：`filter__field_1__equal=test`，则仅返回 `field_1` 字段值等于 'test' 的行。\n\n请注意，如果提供了 filters 参数，则此参数将被忽略。",
+    "filterLink": "所有过滤器的列表可在此处找到。",
+    "filterType": "- `AND`：表示行必须匹配所有提供的筛选条件。  \n- `OR`：表示行只需匹配其中一个筛选条件。\n\n此功能仅在提供两个或更多筛选条件时有效。",
+    "include": "默认情况下，所有字段均包含在响应中。您可以通过提供 `include` 查询参数，选择包含部分字段。\n\n#### 使用 `user_field_names` 时：\n\n`include` 应为一个逗号分隔的字段名称列表，用于指定包含在结果中的字段。例如，如果您提供如下 GET 参数：`include=My Field,-My Field 2`，则仅包含这些字段（除非它们被明确排除）。\n\n包含逗号的字段名称必须用引号括起来：`\"Name ,\"`。如果字段名称中包含引号，则必须使用反斜杠 `\\` 进行转义。例如：`Name \\\"`。\n\n#### 不使用 `user_field_names` 时：\n\n`include` 应为一个逗号分隔的 `field_` 加上字段 ID 的列表，用于指定包含在结果中的字段。例如，如果您提供如下 GET 参数：`include=field_1,field_2`，则仅包含 ID 为 `1` 和 `2` 的字段（除非它们被明确排除）。",
+    "exclude": "默认情况下，所有字段均包含在响应中。您可以通过提供 `exclude` 查询参数，选择排除部分字段。\n\n#### 使用 `user_field_names` 时：\n\n`exclude` 应为一个逗号分隔的字段名称列表，用于指定从结果中排除的字段。例如，如果您提供如下 GET 参数：`exclude=My Field,-My Field 2`，则这些字段将被排除。\n\n包含逗号的字段名称必须用引号括起来：`\"Name ,\"`。如果字段名称中包含引号，则必须使用反斜杠 `\\` 进行转义。例如：`Name \\\"`。\n\n#### 未使用 `user_field_names` 时：\n\n`exclude` 应为一个逗号分隔的 `field_` 加上要排除字段的 ID 的列表。例如，如果您提供如下 GET 参数：`exclude=field_1,field_2`，则 ID 为 `1` 和 `2` 的字段将被排除。",
+    "viewId": "默认情况下，除查询参数中定义的过滤器和排序外，其他过滤器和排序均不会应用。您可以通过在 `view_id` GET 参数中提供视图的 `id`，来添加该视图的过滤器和排序。例如，如果您提供如下 GET 参数 `view_id=1`，则将应用 ID 为 `1` 的视图中定义的过滤器和排序。您可以在任意视图的上下文菜单中找到 `view_id`，它位于视图名称后括号中的数字。\n\n#### 使用 `filter__{field}__{filter}`\n\n查询参数中提供的过滤器与视图中定义的过滤器将同时应用。\n\n#### 使用 `order_by`\n\n如果提供了 `order_by`，则视图中定义的排序将被忽略。",
+    "filtersBuilder": "打开筛选参数构建器",
+    "join": "使您能够通过现有的链接行字段，从目标表中查询字段值。参数名称必须是现有链接行字段的名称，后跟 __join。参数值应为一个字段名称列表，表示希望查询附加值的字段。您可以提供一个或多个目标字段。无法查询目标表中链接行字段本身的值。\n\n#### 使用 `user_field_names` 时：\n\n`join` 应为一个逗号分隔的字段名称列表，这些字段将包含在结果中。例如：如果您提供如下 GET 参数 `LinkRowField__join=MyField,MyField2`，则在通过 `LinkRowField` 关联的表中，`MyField` 和 `MyField2` 的值将包含在响应中。\n\n#### 不使用 `user_field_names` 时：\n\n`join` 应为一个逗号分隔的 `field_` 加上字段 ID 的列表，表示要包含在结果中的字段。例如：如果您提供如下 GET 参数 `field_1__join=field_2,field_3`，则在通过 `field_1` 关联的表中，`field_2` 和 `field_3` 的值将包含在响应中。"
+  },
+  "apiDocsIntro": {
+    "intro": "{name} 数据库提供了一种简便的方式，用于将数据与任何外部系统集成。该 API 遵循 REST 语义，使用 JSON 对象编码，并依赖标准 HTTP 状态码以及机器和人类可读的错误信息来指示操作结果。",
+    "autoDocDescription": "本文档是根据您数据库中的表和字段自动生成的。如果您对数据库、表或字段进行了修改，API 接口也可能随之发生变化。因此，请确保相应更新您的 API 实现。",
+    "databaseId": "该数据库的ID是：",
+    "jsClient": "JavaScript 示例 API 客户端：",
+    "pythonClient": "Python 示例 API 客户端："
+  },
+  "apiDocsTableListFields": {
+    "description": "要列出 {name} 表的字段，需向 {name} 字段端点发送 `GET` 请求。只有当数据库令牌具有读取、创建或更新权限时，才能列出字段。",
+    "resultFieldProperties": "结果字段属性",
+    "id": "字段主键。可用于通过添加 `field_` 前缀生成数据库列名。",
+    "name": "字段名称。",
+    "tableId": "相关表ID。",
+    "order": "表中的字段顺序。0 表示第一个字段。",
+    "primary": "表示该字段是否为主字段。如果为 `true`，则该字段不可删除，且其值应代表整行数据。",
+    "type": "此字段定义的类型。",
+    "extraProps": "某些额外属性未在此处描述，因为它们是特定于类型的。",
+    "readOnly": "表示该字段是否为只读字段。如果为 true，则无法更新单元格的值。",
+    "descriptionField": "字段描述"
+  },
+  "apiDocsTableDeleteRow": {
+    "description": "删除现有的 {name} 行。",
+    "rowId": "需要删除的行的唯一标识符。"
+  },
+  "apiDocsTableDeleteRows": {
+    "description": "删除现有的 {name} 行。",
+    "items": "应删除的行 ID 数组。"
+  },
+  "apiDocsTableMoveRow": {
+    "description": "将现有的 {name} 行移动到另一行之前。如果未提供 `before_id`，则该行将被移动到表格末尾。",
+    "rowId": "移动与该值相关的行。",
+    "before": "将与给定 `row_id` 相关的行移动到与所提供值相关行的前面。如果未提供值，则该行将被移动到末尾。"
+  },
+  "apiDocsUploadFile": {
+    "description": "通过直接上传文件内容将文件上传至 Baserow。需要包含文件内容的 `file` 多部分（multipart）数据。然后可以使用返回结果来[向某行上传文件]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)。",
+    "file": "包含文件内容的 `file` multipart。"
+  },
+  "apiDocsUploadFileViaURL": {
+    "description": "通过从提供的 URL 下载文件，将其上传至 Baserow。然后可以使用返回结果来[向某行上传文件]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)。",
+    "url": "您希望 Baserow 代为下载和上传的 URL。"
+  },
+  "apiDocsTableUpdateRow": {
+    "description": "更新现有的 {name} 行。",
+    "rowId": "需要更新的行的唯一标识符。",
+    "before": "如果提供，则新创建的行将位于具有指定 id 的行之前。"
+  },
+  "apiDocsTableUpdateRows": {
+    "description": "更新现有的 {name} 行。",
+    "id": "行 ID。"
+  },
+  "apiDocsTableCreateRow": {
+    "description": "创建一个新的 {name} 行。",
+    "before": "如果提供了该参数，则新创建的行将位于具有指定 id 的行之前。"
+  },
+  "apiDocsTableCreateRows": {
+    "description": "创建新的 {name} 行。",
+    "before": "如果提供该参数，则新创建的行将位于具有指定 id 的行之前。"
+  },
+  "apiDocsAuth": {
+    "description": "Baserow 使用基于简单令牌的身份验证。您需要在您的 {settingsLink} 中至少生成一个数据库令牌，才能使用以下描述的接口。每个令牌可以设置创建、读取、更新和删除权限，且权限可细化至表级别。您可以通过在 HTTP 请求的授权头中提供令牌（使用 Bearer 格式）来对接口进行身份验证。所有 API 请求都必须经过身份验证，并通过 HTTPS 发送。",
+    "settingsLink": "设置"
+  },
+  "apiDocsFilters": {
+    "filter": "过滤器",
+    "exampleValue": "示例值",
+    "example": "完整示例",
+    "field": "字段 {name}",
+    "deprecated": "已弃用"
+  },
+  "apiDocsFiltersBuilderModal": {
+    "title": "过滤器参数构建器",
+    "userFieldNames": "用户字段名称",
+    "json": "JSON",
+    "queryParameter": "查询参数"
+  },
+  "apiDocsPasswordFieldAuthentication": {
+    "title": "{name} 认证",
+    "description": "检查提供的密码和行是否与单元格中存储的内容匹配。",
+    "fieldId": "要检查密码的字段ID。",
+    "rowId": "要检查密码的行ID。",
+    "password": "必须验证其正确性的密码。"
+  },
+  "apiDocsListTables": {
+    "listTables": "列出所有表",
+    "listTablesDescription": "此端点仅与令牌认证配合使用。它列出令牌具有创建、读取、更新或删除权限的所有表。"
+  },
+  "fieldTextSubForm": {
+    "placeholder": "默认文本"
+  },
+  "fieldSingleSelectSubForm": {
+    "optionsLabel": "选项",
+    "defaultOptionLabel": "默认选项"
+  },
+  "fieldMultipleSelectSubForm": {
+    "optionsLabel": "选项",
+    "defaultOptionsLabel": "默认选项"
+  },
+  "fieldSingleSelectDropdown": {
+    "notFound": "未找到选项"
+  },
+  "fieldmultipleCollaboratorsDropdown": {
+    "notFound": "未找到协作人员"
+  },
+  "fieldDateSubForm": {
+    "dateFormatLabel": "日期格式",
+    "dateFormatEuropean": "欧洲",
+    "dateFormatUS": "美国",
+    "dateFormatISO": "ISO",
+    "includeTimeLabel": "请尊重原意，保持原有格式，并将以下内容改写为简体中文。\n\n包含时间",
+    "showTimezoneLabel": "显示时区",
+    "forceTimezoneLabel": "为所有协作者设置时区",
+    "forceTimezoneValue": "时区",
+    "addTimezoneOffsetLabel": "转换值（加上 {utcOffsetDiff} 分钟）",
+    "subTimezoneOffsetLabel": "转换数值（减去 {utcOffsetDiff} 分钟）",
+    "timeFormatLabel": "时间格式",
+    "24Hour": "24小时",
+    "12Hour": "12小时"
+  },
+  "fieldLinkRowSubForm": {
+    "noTable": "你需要在同一数据库中至少还有一个其他表可以进行关联。",
+    "selectTableLabel": "选择要链接的表",
+    "hasRelatedFieldLabel": "在关联表中创建相关字段",
+    "limitToView": "限制选择以查看",
+    "limitToViewDescription": "请注意，这仅是视觉上的显示。仍可通过关联表或API在视图之外建立关系。",
+    "allowMultipleRelations": "允许多重关系"
+  },
+  "fieldBooleanSubForm": {
+    "defaultValue": "默认"
+  },
+  "fieldSelectOptions": {
+    "add": "添加一个选项"
+  },
+  "fieldNumberSubForm": {
+    "typeLabel": "数字类型",
+    "integer": "整数",
+    "decimal": "十进制",
+    "decimalPlacesLabel": "小数位数",
+    "allowNegative": "允许负值",
+    "separatorLabel": "千位分隔符和小数分隔符",
+    "prefixPlaceholder": "前缀",
+    "suffixPlaceholder": "后缀",
+    "prefixAndSuffixLabel": "前缀 / 后缀",
+    "spaceComma": "空格，逗号（1 000 000,00）",
+    "spacePeriod": "空格，句号（1 000 000.00）",
+    "commaPeriod": "逗号，句号（1,000,000.00）",
+    "periodComma": "句号，逗号（1.000.000,0）",
+    "noFormatting": "请尊重原意，保持原有格式，将以下内容改写为简体中文。\n\n无格式",
+    "defaultValueLabel": "默认值",
+    "defaultValuePlaceholder": "输入默认值"
+  },
+  "fieldDurationSubForm": {
+    "durationFormatLabel": "时长格式"
+  },
+  "fieldContext": {
+    "editField": "编辑字段",
+    "deleteField": "删除字段",
+    "hideField": "隐藏字段",
+    "showField": "显示字段",
+    "changePrimaryField": "更改主字段"
+  },
+  "fieldForm": {
+    "name": "姓名",
+    "description": "描述",
+    "fieldAlreadyExists": "已存在同名字段。",
+    "nameNotAllowed": "该字段名称不允许使用。",
+    "nameTooLong": "此字段名称过长。",
+    "addDescription": "添加描述",
+    "dbIndex": "目录",
+    "dbIndexError": "此字段类型不能建立索引。请在保存前将其删除或更改字段类型。",
+    "dbIndexDescription": "索引可以显著提高过滤性能，但会减慢创建、更新和删除操作的速度。",
+    "defaultValueDisabledByConstraint": "无法在唯一约束下设置默认值",
+    "dbIndexDisabledTooltip": "此字段类型不支持索引。"
+  },
+  "fieldSelectThroughFieldSubForm": {
+    "noTable": "您至少需要一个指向表字段的链接才能创建此字段。",
+    "selectThroughFieldLabel": "选择一个链接到表字段的链接"
+  },
+  "fieldRollupSubForm": {
+    "label": "汇总函数",
+    "selectTargetFieldLabel": "请选择一个字段进行汇总"
+  },
+  "fieldLookupSubForm": {
+    "selectTargetFieldLabel": "请选择一个字段进行查找"
+  },
+  "fieldFormulaNumberSubForm": {
+    "typeLabel": "数字类型",
+    "integer": "整数",
+    "decimal": "十进制",
+    "decimalPlacesLabel": "小数位数",
+    "allowNegative": "允许负值"
+  },
+  "fieldRatingSubForm": {
+    "maxValue": "Max",
+    "color": "颜色",
+    "style": "风格"
+  },
+  "rowCreateModal": {
+    "addField": "添加字段"
+  },
+  "selectRowContent": {
+    "search": "搜索行",
+    "hideFields": "隐藏字段"
+  },
+  "rowEditModal": {
+    "addField": "添加字段",
+    "showHiddenFields": "显示隐藏字段",
+    "hideHiddenFields": "隐藏隐藏字段"
+  },
+  "rowEditFieldMultipleSelect": {
+    "addOption": "请选择一个选项"
+  },
+  "rowEditFieldMultipleCollaborators": {
+    "addCollaborator": "选择一位合作者"
+  },
+  "rowEditFieldFile": {
+    "addFile": "添加文件",
+    "sizes": {
+      "0": "字节",
+      "1": "KB",
+      "2": "MB",
+      "3": "GB",
+      "4": "TB",
+      "5": "PB"
     }
+  },
+  "rowEditFieldLinkRow": {
+    "addLink": "请选择一个链接",
+    "keepOnlyOneValue": "仅保留一个值。此字段仅支持一种关系。如果仅剩一种关系，则保存该值。"
+  },
+  "tableCSVImporter": {
+    "chooseFileLabel": "选择 CSV 文件",
+    "chooseFileDescription": "您可以导入现有的CSV文件，通过上传包含表格数据的.CSV文件实现。大多数电子表格应用程序都允许您将电子表格导出为.CSV文件。",
+    "chooseFile": "选择 CSV 文件",
+    "columnSeparator": "列分隔符",
+    "recordSeparator": "记录分隔符",
+    "unitSeparator": "单元分隔符",
+    "encoding": "编码",
+    "firstRowHeader": "第一行为表头",
+    "limitFileSize": "文件最大大小为 {limit}MB。",
+    "limitError": "无法导入超过 {limit} 行的数据。",
+    "emptyCSV": "该CSV文件为空。"
+  },
+  "importer": {
+    "fieldDefaultName": "字段 {count}",
+    "loading": "加载文件",
+    "decoding": "解码数据",
+    "parsing": "解析数据",
+    "preparing": "准备数据",
+    "inProgress": "进行中..."
+  },
+  "tableForm": {
+    "name": "姓名"
+  },
+  "tableXMLImporter": {
+    "fileLabel": "选择 XML 文件",
+    "fileDescription": "您可以导入现有的XML文件，通过上传包含表格数据的.XML文件，即：",
+    "chooseButton": "选择 XML 文件",
+    "processingError": "处理 XML 时发生错误：{errors}",
+    "emptyError": "此 XML 文件为空。",
+    "limitFileSize": "文件最大大小为 {limit}MB。",
+    "limitError": "无法导入超过 {limit} 行的数据。"
+  },
+  "tableJSONImporter": {
+    "fileLabel": "选择 JSON 文件",
+    "fileDescription": "您可以上传包含表格数据的.json文件，以导入现有的JSON文件，即：",
+    "chooseButton": "选择 JSON 文件",
+    "encodingLabel": "编码",
+    "processingError": "解析 JSON 时发生错误：{error}",
+    "arrayError": "JSON 文件不是一个数组。",
+    "emptyError": "此 JSON 文件为空。",
+    "limitFileSize": "文件最大大小为 {limit}MB。",
+    "limitError": "无法导入超过 {limit} 行的数据。"
+  },
+  "tablePasteImporter": {
+    "pasteLabel": "粘贴表格数据",
+    "pasteDescription": "你可以从电子表格中复制单元格，并将其粘贴到下方。",
+    "firstRowHeader": "第一行为表头",
+    "limitError": "无法导入超过 {limit} 行的数据。"
+  },
+  "createTableModal": {
+    "title": "创建新表",
+    "defaultName": "表格",
+    "importLabel": "您是否要导入现有数据？",
+    "newTable": "从一张新表格开始"
+  },
+  "createTable": {
+    "showTable": "显示表格",
+    "addButton": "添加表格",
+    "uploading": "上传中……",
+    "preparing": "正在准备数据...",
+    "importError": "文件导入过程中出现错误",
+    "stateRowCreation": "导入中...",
+    "statePreValidation": "正在验证数据...",
+    "stateCreateTable": "正在创建表格..."
+  },
+  "importErrorReport": {
+    "reportTitleFailure": "失败的行",
+    "reportTitleSuccess": "导入成功但...",
+    "reportMessage": "以下行索引无法导入："
+  },
+  "importFileModal": {
+    "defaultName": "表格",
+    "additionalImportTitle": "导入到 {table}",
+    "importLabel": "您是否要导入现有数据？",
+    "newTable": "从新表格开始",
+    "showTable": "显示表格",
+    "importButton": "导入",
+    "uploading": "上传中...",
+    "preparing": "正在准备数据...",
+    "importError": "文件导入过程中出现错误",
+    "fieldMappingTitle": "字段映射",
+    "fieldMappingDescription": "我们已自动将您表格中 Baserow 字段的列进行映射，您可以在下方进行修改。导入后，任何不兼容的单元格将保持为空。",
+    "selectImportMessage": "请选择要导入的数据。",
+    "filePreview": "文件内容预览",
+    "importPreview": "导入预览",
+    "useUpsertField": "如果行已存在，则更新这些行",
+    "upsertTooltip": "使用唯一字段匹配现有行，用导入的值覆盖数据。",
+    "stateRowCreation": "导入中...",
+    "statePreValidation": "正在验证数据...",
+    "stateCreateTable": "正在创建表格..."
+  },
+  "formulaAdvancedEditContext": {
+    "textAreaFormulaInputPlaceholder": "点击以编辑公式",
+    "fields": "领域",
+    "functions": "功能",
+    "operators": "运营商",
+    "fieldType": "一个 {type} 字段"
+  },
+  "fieldFormulaInitialSubForm": {
+    "formulaInputPlaceholder": "点击编辑公式",
+    "refreshFormulaOptions": "刷新公式选项"
+  },
+  "fieldLongTextSubForm": {
+    "enableRichTextFormatting": "启用富文本格式"
+  },
+  "formulaFieldItemDescription": {
+    "syntax": "语法",
+    "examples": "示例"
+  },
+  "viewSearchContext": {
+    "searchInRows": "在所有行中搜索",
+    "hideNotMatching": "隐藏不匹配的行"
+  },
+  "viewsContext": {
+    "searchView": "搜索视图",
+    "noViews": "未找到任何观点",
+    "collaborative": "协作"
+  },
+  "viewFilterTypeLinkRow": {
+    "unnamed": "未命名行 {value}",
+    "choose": "选择行"
+  },
+  "viewFieldConditionsForm": {
+    "addCondition": "添加条件",
+    "addConditionGroup": "添加条件组"
+  },
+  "viewFieldConditionItem": {
+    "filterMisconfigured": "此筛选器关联的字段已被移至回收站。"
+  },
+  "viewFilterContext": {
+    "addFilter": "添加筛选",
+    "addFilterGroup": "添加筛选组",
+    "disableAllFilters": "全部禁用",
+    "noFilterTitle": "您尚未创建筛选条件",
+    "noFilterText": "筛选器允许您显示符合您条件的行。",
+    "where": "何处",
+    "and": "和",
+    "or": "或",
+    "relatedFieldNotFound": "未找到相关字段。",
+    "filterTypeNotFound": "过滤器类型不兼容。",
+    "noCompatibleFilterTypesErrorTitle": "无兼容的过滤器类型",
+    "noCompatibleFilterTypesErrorMessage": "您的所有字段均无兼容的筛选类型"
+  },
+  "viewFilterTypeFileTypeDropdown": {
+    "image": "图像",
+    "document": "文档"
+  },
+  "createViewModal": {
+    "createNew": "创建新 {视图}",
+    "add": "添加 {view}"
+  },
+  "createViewLink": {
+    "inCompatibleWithDataSync": "此视图类型与数据同步表不兼容。"
+  },
+  "shareViewLink": {
+    "shareViewText": "私有共享链接允许任何人查看此视图中的数据。",
+    "shareView": "分享 {viewTypeSharingLinkName}",
+    "createPrivateLink": "创建私密链接",
+    "shareViewTitle": "您尚未分享该观点",
+    "sharedViewTitle": "此 {viewTypeSharingLinkName} 目前通过私有链接共享",
+    "sharedViewDescription": "拥有该链接的人可以查看 {viewTypeSharingLinkName}。",
+    "disableLink": "关闭共享链接",
+    "generateNewUrl": "生成新网址",
+    "copyURL": "复制网址",
+    "EnablePassword": "使用密码限制访问",
+    "DisablePassword": "访问受密码保护",
+    "ChangePassword": "变更",
+    "notSharedYetText": "允许任何人查看此视图中的数据或将事件同步到您的外部日历。"
+  },
+  "viewGroupByContext": {
+    "noGroupByTitle": "您尚未创建任何分组",
+    "noGroupByText": "按字段将行分组。",
+    "groupBy": "按组分组",
+    "thenBy": "然后通过",
+    "addGroupBy": "选择一个字段进行分组"
+  },
+  "viewGroupBy": {
+    "groupBy": "分组 | 按 1 个字段分组 | 按 {count} 个字段分组"
+  },
+  "viewSortContext": {
+    "noSortTitle": "您尚未创建排序",
+    "noSortText": "排序功能允许您根据某个字段对行进行排序。",
+    "sortBy": "按排序",
+    "thenBy": "然后通过",
+    "addSort": "选择一个字段进行排序"
+  },
+  "viewSort": {
+    "sort": "排序 | 1 排序 | {count} 排序"
+  },
+  "viewDecorator": {
+    "decorator": "颜色 | 1种颜色 | {count}种颜色"
+  },
+  "viewRotateSlugModal": {
+    "title": "刷新 URL",
+    "refreshWarning": "您确定要刷新 {viewName} 的 URL 吗？刷新后将生成新的 URL，旧 URL 将无法访问 {viewTypeSharingLinkName}。您已共享该 URL 的所有人员将无法再访问 {viewTypeSharingLinkName}。",
+    "generateNewURL": "生成新 URL"
+  },
+  "shareViewEnablePasswordModal": {
+    "newPasswordTitle": "请输入密码",
+    "newPasswordDescription": "公开链接只有在输入密码后才能访问。该密码将被加密保存。",
+    "newPasswordSave": "设置密码",
+    "changePasswordTitle": "修改密码",
+    "changePasswordDescription": "通过更改密码，原来的密码将不再有效。此密码将以加密形式保存。",
+    "changePasswordSave": "修改密码"
+  },
+  "shareViewDisablePasswordModal": {
+    "title": "取消密码保护",
+    "description": "您确定要取消此公开链接的密码保护吗？取消后，密码将被删除，且无法恢复。",
+    "disable": "禁用"
+  },
+  "publicViewAuthLogin": {
+    "title": "此页面受密码保护",
+    "description": "请输入正确的密码以访问该页面。",
+    "enter": "进入",
+    "error": {
+      "incorrectPasswordTitle": "密码错误",
+      "incorrectPasswordText": "提供的密码不正确。"
+    }
+  },
+  "viewFieldsContext": {
+    "coverField": "封面字段",
+    "noCover": "无封面",
+    "search": "搜索字段",
+    "hideAll": "隐藏所有",
+    "showAll": "显示全部"
+  },
+  "viewFilterTypeBoolean": {
+    "selected": "已选中"
+  },
+  "viewFilter": {
+    "filter": "筛选 | 1 筛选 | {count} 筛选",
+    "hasAllValuesEqual": "所有值都相等",
+    "hasValueHigherThan": "具有高于",
+    "hasValueHigherThanOrEqual": "具有大于或等于的值",
+    "hasValueLowerThan": "值低于",
+    "hasValueLowerThanOrEqual": "具有小于或等于的值",
+    "hasNotValueHigherThan": "没有高于",
+    "hasNotValueHigherThanOrEqual": "没有大于或等于的值",
+    "hasNotValueLowerThan": "没有低于",
+    "hasNotValueLowerThanOrEqual": "不具有小于或等于的值"
+  },
+  "viewContext": {
+    "exportView": "导出视图",
+    "duplicateView": "重复视图",
+    "renameView": "重命名视图",
+    "toPersonal": "致个人",
+    "toCollaborative": "致协作",
+    "webhooks": "Webhooks",
+    "importFile": "导入文件",
+    "deleteView": "删除视图"
+  },
+  "deleteViewModal": {
+    "title": "删除 {name}",
+    "description": "您确定要删除视图 {name} 吗？表数据将被保留，但与该视图相关的筛选条件、排序设置和字段宽度将被删除。",
+    "delete": "删除视图"
+  },
+  "viewForm": {
+    "name": "姓名",
+    "whoCanEdit": "谁可以编辑此视图？"
+  },
+  "viewOwnershipType": {
+    "collaborative": "协作",
+    "collaborativeDescription": "每个人都可以查看所有数据，如果拥有相应权限，还可以修改属性。"
+  },
+  "galleryViewHeader": {
+    "customizeCards": "定制卡片"
+  },
+  "gridViewHide": {
+    "hideField": "隐藏字段 | 1 个隐藏字段 | {count} 个隐藏字段"
+  },
+  "gridViewFieldType": {
+    "insertLeft": "插入左",
+    "insertRight": "插入右侧",
+    "createFilter": "创建筛选条件",
+    "duplicate": "重复字段",
+    "sortField": "排序",
+    "hideField": "隐藏字段",
+    "dataSyncField": "该字段为只读，且属于表的数据同步部分。",
+    "dataSyncFieldTwoWaySync": "该字段与表的数据同步保持一致。",
+    "noWriteValues": "此字段的更改受到限制。"
+  },
+  "gridViewRow": {
+    "rowNotMatchingFilters": "行不符合筛选条件",
+    "rowNotMatchingSearch": "行与搜索条件不匹配",
+    "rowHasMoved": "Row 已移动"
+  },
+  "gridView": {
+    "selectRow": "选择行",
+    "insertRowAbove": "在上方插入行",
+    "insertRowBelow": "在下方插入行",
+    "duplicateRow": "重复行",
+    "copyRowURL": "复制行链接",
+    "copiedRowURL": "复制行链接",
+    "copiedRowURLMessage": "第{id}行的URL已复制到剪贴板。",
+    "enlargeRow": "扩大行",
+    "deleteRow": "删除行",
+    "deleteRows": "删除行",
+    "copyCells": "复制单元格",
+    "copyCellsWithHeader": "复制带标题的单元格",
+    "generateCellsValues": "用人工智能生成价值",
+    "generateAllAiValues": "生成所有AI值",
+    "rowCount": "无行 | 1 行 | {count} 行",
+    "hiddenRowsInsertedTitle": "新增行",
+    "hiddenRowsInsertedMessage": "已添加 {number} 行新数据，但由于当前筛选条件，这些数据不可见。",
+    "tooManyItemsTitle": "物品过多",
+    "tooManyItemsDescription": "一次无法更新超过 {limit} 行，因此我们只更新了前几行。",
+    "AIValuesGenerationErrorTitle": "AI价值生成失败",
+    "AIValuesGenerationErrorMessage": "请检查您的 API_KEY 并确认所选模型。"
+  },
+  "gridViewFieldFile": {
+    "dropHere": "放在这里",
+    "dropFileHere": "在此处放置文件"
+  },
+  "gridViewFieldLinkRow": {
+    "unnamed": "未命名行 {value}",
+    "keepOnlyOneValue": "仅保留一个值"
+  },
+  "gridViewIdentifierOptions": {
+    "id": "行标识符",
+    "count": "计数"
+  },
+  "gridViewRowsAddContext": {
+    "title": "创建多行",
+    "choice": "添加 {rowAmountChoice} 行"
+  },
+  "formViewMeta": {
+    "includeRowId": "使用 {row_id} 将新创建的行 ID 包含在 URL 中。"
+  },
+  "formViewMetaControls": {
+    "whenSubmittedLabel": "当表单提交时",
+    "showMessage": "显示一条消息",
+    "urlRedirect": "重定向至 URL",
+    "theMessage": "信息",
+    "theURL": "网址"
+  },
+  "previewAny": {
+    "externalWarning": "通过外部服务打开您的文件，会使您的文件暴露在他们的服务器上。"
+  },
+  "exportTableModal": {
+    "title": "导出 {name}",
+    "failedTitle": "导出失败",
+    "failedDescription": "导出因服务器错误而失败。",
+    "cancelledTitle": "出口已取消",
+    "cancelledDescription": "出口已取消。"
+  },
+  "exporterTypeChoices": {
+    "formatLabel": "您希望导出为哪种格式？"
+  },
+  "exportTableForm": {
+    "viewLabel": "请选择要导出的视图：",
+    "typeError": "无可用的出口商类型，请选择其他视图或整个表格。"
+  },
+  "exportTableLoadingBar": {
+    "export": "出口",
+    "download": "下载"
+  },
+  "exportTableDropdown": {
+    "exportEntireTable": "导出整个表格"
+  },
+  "tableCSVExporter": {
+    "columnSeparatorLabel": "列分隔符",
+    "recordSeparator": "记录分隔符",
+    "unitSeparator": "单元分隔符",
+    "encodingLabel": "编码",
+    "includeHeader": "包含字段名称作为表头"
+  },
+  "apiDocsDatabase": {
+    "pageTitle": "{name} 数据库 API 文档",
+    "back": "返回仪表盘",
+    "openDatabase": "打开数据库"
+  },
+  "apiDocsComponent": {
+    "title": "REST API",
+    "intro": "在您于{settingsLink}中创建数据库架构和API密钥后，您的Baserow数据库将提供自己的REST API端点，用于创建、读取、更新和删除行数据。",
+    "settings": "设置",
+    "selectApplicationTitle": "您想查看哪个数据库的文档？",
+    "signIn": "登录以开始使用",
+    "back": "返回仪表盘"
+  },
+  "viewAggregationType": {
+    "count": "计数",
+    "notEmptyCount": "已填满",
+    "emptyPercentage": "空占比",
+    "notEmptyPercentage": "填充百分比",
+    "checkedCount": "已核对",
+    "notCheckedCount": "未检查",
+    "checkedPercentage": "已检查百分比",
+    "notCheckedPercentage": "未勾选百分比",
+    "min": "Min",
+    "max": "Max",
+    "earliestDate": "最早日期",
+    "earliestDateShort": "最早",
+    "latestDate": "最新日期",
+    "latestDateShort": "最新",
+    "uniqueCount": "独特",
+    "sum": "总和",
+    "average": "平均",
+    "median": "中位数",
+    "stdDev": "标准差",
+    "stdDevShort": "标准差",
+    "variance": "方差",
+    "distribution": "分布",
+    "othersCount": "其他",
+    "emptyCount": "（空）"
+  },
+  "databaseForm": {
+    "importLabel": "您是否要导入现有数据？",
+    "emptyLabel": "从零开始",
+    "airtableLabel": "从 Airtable 导入"
+  },
+  "importFromAirtable": {
+    "airtableShareLinkTitle": "分享你的 Base 的链接",
+    "airtableShareLinkDescription": "要导入您的 Airtable 数据库，您需要拥有整个数据库的共享链接。在 Airtable 中，打开您的数据库后，点击右上角的“分享”按钮。接着，您必须选择“通过链接分享”选项。在分享弹窗中，点击“公开分享”标签，然后点击“启用共享数据库链接”。复制生成的公开链接，并将其粘贴到下方的输入框中。",
+    "airtableShareLinkBeta": "此功能将导入大部分数据，但存在一些不兼容的情况。因此，将添加一个名为“Airtable 导入报告”的表格，其中包含未导入或部分导入的内容列表。",
+    "airtableShareLinkPaste": "请将链接粘贴在此处",
+    "importButtonLabel": "从 Airtable 导入",
+    "openButtonLabel": "打开导入的数据库",
+    "importError": "出错了",
+    "statePending": "等待开始",
+    "stateFailed": "失败",
+    "stateFinished": "完成",
+    "stateDownloadingBase": "下载基础模式",
+    "stateConverting": "转换为 Baserow",
+    "stateDownloadingFiles": "下载文件",
+    "stateImporting": "导入",
+    "stateImportingTable": "导入表 {table}",
+    "errorJobAlreadyRunningTitle": "正在运行",
+    "errorJobAlreadyRunningDescription": "另一个导入任务正在运行中。您需要等待该任务完成后再开始新的导入。",
+    "linkError": "链接应显示为：https://airtable.com/shrxxxxxxxxxxxxxx",
+    "skipFiles": "跳过导入文件",
+    "skipFilesHelper": "包含大量文件的Airtable数据库可能会减慢导入速度。启用此选项将跳过文件的导入。",
+    "useSession": "会话认证",
+    "useSessionHelper": "如果公开共享的基础需要身份验证，请使用此选项。",
+    "sessionDescription": "如果导入时提示“Airtable 数据库需要身份验证”，则可能是 Airtable 的组织设置阻止了在未先进行身份验证的情况下访问该数据库。为此，需要手动提取会话和签名信息。请在浏览器中访问该公开共享数据库的 URL，并在需要时登录。点击右上角的应用程序菜单 -> “更多工具” -> “开发者工具”。打开“Application”（在 Firefox 中为“Storage”）选项卡，然后点击“https://airtable.com”。接着找到“__Host-airtable-session”和“__Host-airtable-session.sig”这两个 Cookie 的值，并将其粘贴到下方的输入框中。",
+    "sessionLabel": "会话 cookie (__Host-airtable-session)",
+    "sessionSignatureLabel": "会话签名 Cookie（__Host-airtable-session.sig）"
+  },
+  "chooseSingleSelectField": {
+    "addSelectField": "添加单选字段",
+    "warningWhenNothingToChooseOrCreate": "没有可供选择的单选字段，且您没有权限创建一个。"
+  },
+  "viewDecoratorContext": {
+    "addDecorator": "添加装饰器"
+  },
+  "databaseDashboardResourceLinks": {
+    "title": "API 文档",
+    "description": "了解更多关于我们的代码"
+  },
+  "formViewField": {
+    "required": "请尊重原意，保持原有格式，将以下内容改写为简体中文。",
+    "descriptionPlaceholder": "描述",
+    "includeAllSelectOptions": "包含所有选择选项",
+    "includeAllSelectOptionsHelper": "请选择必须包含在表单中的选项，使用此下拉菜单进行选择",
+    "showWhenMatchingConditions": "在满足条件时显示",
+    "addCondition": "添加条件",
+    "addConditionGroup": "添加条件组",
+    "showFieldAs": "显示字段为",
+    "noSelectOptions": "没有可用的选项可供选择。",
+    "noCollaboratorsAvailable": "没有可用的协作者。",
+    "cannotSumitValues": "此字段为只读，不会在表单中显示。"
+  },
+  "duplicateFieldContext": {
+    "duplicate": "重复字段",
+    "cloneData": "复制数据",
+    "readOnlyField": "单元格值将自动填充。"
+  },
+  "changePrimaryFieldModal": {
+    "title": "更改主字段",
+    "change": "变更",
+    "primaryFieldLabel": "主要领域",
+    "existingPrimary": "\"{name}\" 目前是主要字段。"
+  },
+  "snapshotsModal": {
+    "title": "快照",
+    "description": "快照是创建时您的{applicationTypeName}的完整副本。恢复时将创建该数据的副本。快照在一年后会自动删除。",
+    "descriptionLimits": "每个工作区最多可拥有 {n} 个快照。 | 每个工作区最多可拥有 {n} 个快照。 | 每个工作区最多可拥有 {n} 个快照。",
+    "createLabel": "创建新快照",
+    "create": "创建快照",
+    "cancel": "取消",
+    "snapshotRestoredErrorTitle": "发生错误",
+    "snapshotRestoredErrorMessage": "快照无法恢复，请稍后再试。",
+    "snapshotDeletedErrorTitle": "发生错误",
+    "snapshotDeletedErrorMessage": "快照无法删除，请稍后再试。",
+    "limitReached": "已达到最大快照数量限制。",
+    "snapshot": "快照",
+    "importingState": "创建",
+    "reset": "再创建一个",
+    "noSnapshots": "此应用程序尚无快照。",
+    "nameAlreadyExists": "已存在同名的快照。"
+  },
+  "deleteSnapshotModal": {
+    "title": "删除快照",
+    "content": "您确定要永久删除快照 {name} 吗？",
+    "confirm": "删除"
+  },
+  "snapshotListItem": {
+    "restore": "恢复",
+    "delete": "删除",
+    "created": "创建"
+  },
+  "formViewModeType": {
+    "form": "表单",
+    "formDescription": "所有字段均可见，并垂直堆叠排列。"
+  },
+  "formViewHeader": {
+    "mode": "模式",
+    "preview": "预览",
+    "fields": "领域"
+  },
+  "formViewModePreviewForm": {
+    "addCoverImage": "添加封面图片",
+    "addLogo": "添加标志",
+    "titlePlaceholder": "标题",
+    "descriptionPlaceholder": "描述",
+    "noFieldsTitle": "此表单没有任何字段",
+    "noFieldsContent": "点击左侧边栏中的一个字段以添加。"
+  },
+  "table": {
+    "adjacentRow": {
+      "toast": {
+        "notFound": {
+          "next": {
+            "title": "没有更多行",
+            "message": "没有下一行"
+          },
+          "previous": {
+            "title": "没有更多行",
+            "message": "没有前一行"
+          }
+        },
+        "error": {
+          "title": "发生错误",
+          "message": "获取相邻行时发生错误"
+        }
+      }
+    },
+    "chooseView": "选择视图"
+  },
+  "fileField": {
+    "errorEmptyFileNameTitle": "无效的文件名",
+    "errorEmptyFileNameMessage": "不能为文件设置空名称。"
+  },
+  "fieldCollaboratorSubForm": {
+    "notifyUserWhenAdded": "添加时通知用户"
+  },
+  "collaboratorAddedToRowNotification": {
+    "title": "{sender} 将您分配至 {tableName} 表中第 {rowId} 行的 {fieldName} 字段",
+    "unknownUser": "一位未知用户"
+  },
+  "formSubmittedNotification": {
+    "title": "{formName} 已在表单 {tableName} 中提交：",
+    "moreValues": "0 | 以及 1 个更多字段。| 以及 {count} 个更多字段。"
+  },
+  "rowHistorySidebar": {
+    "name": "历史",
+    "empty": "尚未进行任何更改。您将能够在此处跟踪本行的任何更改。",
+    "you": "你",
+    "created": "创建了这一行",
+    "updated": "更新此行",
+    "submitted": "提交了此行",
+    "deleted": "删除此行",
+    "restored": "恢复了这一行",
+    "createdUndo": "取消行创建",
+    "updatedUndo": "撤销行更新",
+    "deletedUndo": "撤销行删除"
+  },
+  "fieldPasswordSubForm": {
+    "allowEndpointAuthentication": "允许 API 端点认证",
+    "allowEndpointAuthenticationHelp": "这暴露了一个端点，可用于验证行 ID 和密码是否正确，从而允许将 Baserow 用作认证后端。",
+    "description": "密码字段也可用于应用程序构建器中的用户身份验证。"
+  },
+  "rowEditFieldPassword": {
+    "setPassword": "设置密码"
+  },
+  "rowHistoryFieldPassword": {
+    "passwordSet": "密码已设置",
+    "passwordUpdated": "密码已更新",
+    "passwordDeleted": "密码已被删除"
+  },
+  "dataProviderTypes": {
+    "fieldsName": "领域"
+  },
+  "userMentionInRichTextFieldNotification": {
+    "title": "{sender} 在 {tableName} 表的第 {rowId} 行 {fieldName} 字段中提到了你",
+    "deletedUser": "已删除用户"
+  },
+  "databaseImportStep": {
+    "title": "导入您的数据",
+    "description": "只需点击几次，即可将您的数据迁移到 Baserow。",
+    "tableNameLabel": "表名"
+  },
+  "databaseScratchTrackFieldsStep": {
+    "title": "为每一行选择字段",
+    "description": "最多选择 {selectedFieldsLimitCount} 个字段。稍后可添加更多。",
+    "fieldName": "姓名",
+    "fieldType": "字段类型",
+    "fieldDescription": "描述",
+    "fieldDetails": "详情",
+    "fieldNumber": "数字",
+    "fieldDate": "日期",
+    "fieldBoolean": "完成",
+    "fieldDuration": "时长",
+    "fieldUrl": "URL",
+    "fieldEmail": "电子邮件",
+    "fieldRating": "评分",
+    "fieldCategory": "类别",
+    "fieldKickoffDate": "开赛日期",
+    "fieldDueDate": "截止日期",
+    "fieldBudget": "预算",
+    "fieldCompleted": "已完成",
+    "fieldNotes": "注释",
+    "fieldRole": "角色",
+    "fieldPhone": "电话",
+    "fieldActive": "活跃",
+    "fieldEstimatedDays": "预计天数",
+    "fieldStartDate": "开始日期",
+    "fieldEndDate": "截止日期",
+    "projectsCategoryDesign": "设计",
+    "projectsCategoryDevelopment": "发展",
+    "projectsCategoryMarketing": "市场营销",
+    "projectsNotesRow1": "Acme 正在寻求对其网站进行全面的品牌重塑，具体遵循以下指导方针。",
+    "projectsNotesRow2": "调查当前Soylent用户是否对新的用户门户感兴趣。",
+    "projectsNotesRow3": "在脸书广告抵制之后，不确定这样做是否值得。研究表明，付费广告活动的效果正变得越来越差。",
+    "teamsRoleDesigner": "设计师",
+    "teamsRoleDeveloper": "开发者",
+    "teamsRoleMarketer": "营销人员",
+    "tasksDetailsRow1": "标志需要改进，以使行动号召（CTA）更加清晰。",
+    "tasksDetailsRow2": "结构有点不太对，因此我们可能也需要在这里调整一下站点地图。",
+    "tasksDetailsRow3": "新页脚应包含我们的联系方式，并附带一个小型（但清晰）的行动号召（CTA）。",
+    "campaignsDetailsRow1": "用我们的火热夏季大促点燃你的储蓄，所有心仪产品均享超值折扣！",
+    "campaignsDetailsRow2": "通过我们诱人的忠诚度奖励计划，提升客户留存率和参与度，该计划专为奖励您最忠实的客户而设计。",
+    "campaignsDetailsRow3": "重振您的业务，通过与当今市场趋势和客户需求完美契合的动态品牌重塑，吸引您的受众。",
+    "customFieldsDescriptionRow1": "深色厚重的装饰，优雅地置于华丽的装饰之上，显得格外精致。",
+    "customFieldsDescriptionRow2": "生命正直，获得宏大的发酵物，其穗状花序并非直径。",
+    "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt."
+  },
+  "databaseScratchTrackStep": {
+    "title": "你想追踪什么？",
+    "description": "从常用场景中选择，或自行创建。",
+    "addYourOwn": "请自行添加",
+    "tableName": "表名",
+    "rowName": "行名",
+    "thisIncludes": "这包括：",
+    "projects": "项目",
+    "productsRow1": "重新设计网站",
+    "productsRow2": "客户调研",
+    "productsRow3": "付费广告活动",
+    "teams": "团队",
+    "teamsRow1": "销售",
+    "teamsRow2": "HR",
+    "teamsRow3": "市场营销",
+    "tasks": "任务",
+    "tasksRow1": "标志重新设计",
+    "tasksRow2": "发送邮件",
+    "tasksRow3": "撰写博客文章",
+    "campaigns": "活动",
+    "campaignsRow1": "夏季促销",
+    "campaignsRow2": "忠诚奖励",
+    "campaignsRow3": "品牌重启"
+  },
+  "databaseStep": {
+    "title": "创建您的第一个数据库",
+    "description": "请选择您希望从何处开始：",
+    "databaseNameLabel": "数据库名称",
+    "scratch": "Scratch",
+    "import": "文件",
+    "airtable": "Airtable",
+    "template": "模板"
+  },
+  "ViewFilterTypeDateUpgradeToMultiStep": {
+    "migrateButtonText": "迁移到多步骤日期筛选器",
+    "migrateButtonTooltip": "新滤镜已上线。点击升级。功能保持不变。"
+  },
+  "dataSyncType": {
+    "syncError": "同步错误",
+    "icalCalendar": "同步 iCal 订阅源",
+    "postgresql": "同步 PostgreSQL 表"
+  },
+  "iCalCalendarDataSync": {
+    "name": "iCal URL",
+    "description": "iCal 日历同步功能会自动与指定 URL 的日历文件中的条目进行同步。它仅支持 ICS（互联网日历和日程安排）文件格式。"
+  },
+  "postgreSQLDataSync": {
+    "description": "根据以下提供的详细信息，将 PostgreSQL 表与 Baserow 表进行同步。请注意，当同步开始时，它将选择所提供表中的所有行。尽管 Baserow 仅读取数据，但我们强烈建议将用户权限限制为只读连接。",
+    "host": "主持人",
+    "username": "用户名",
+    "password": "密码",
+    "database": "数据库",
+    "schema": "模式",
+    "table": "表格",
+    "port": "港口",
+    "sslMode": "SSL 模式"
+  },
+  "createDataSync": {
+    "next": "下一步",
+    "fields": "请选择您希望同步的字段",
+    "create": "创建并同步表",
+    "error": "同步过程中出现错误",
+    "autoAddLabel": "自动添加新属性",
+    "autoAddHelper": "自动将数据源中新增的属性添加并同步到 Baserow 表中。请注意，为使此功能正常工作，所有属性都必须同步。",
+    "twoWaySyncLabel": "双向同步"
+  },
+  "syncTableModal": {
+    "title": "同步 {name}",
+    "description": "此表格已连接至数据同步功能。当您点击同步按钮时，数据将与源数据进行同步。在此过程中，会对更新的行加锁，可能会暂时减慢 API 请求或表格修改的速度。",
+    "sync": "同步表",
+    "hide": "隐藏"
+  },
+  "gridViewRowHeight": {
+    "name": "身高",
+    "small": "小",
+    "medium": "中等",
+    "large": "大"
+  },
+  "configureDataSyncModal": {
+    "title": "数据同步",
+    "syncedFields": "同步字段",
+    "syncSettings": "同步设置"
+  },
+  "configureDataSyncVisibleFields": {
+    "title": "更改同步字段",
+    "fields": "同步字段",
+    "syncTable": "保存时同步"
+  },
+  "configureDataSyncSettings": {
+    "title": "变更数据同步",
+    "syncTable": "保存时同步"
+  },
+  "webhookDeactivatedNotification": {
+    "body": "{name} webhook 因连续多次失败已被停用。"
+  },
+  "webhookPayloadTooLargeNotification": {
+    "body": "{name} Webhook 的事件 ID {event_id} 的负载过大。内容已被拆分为多个批次，但超出批次限制 {batch_limit} 的数据已被丢弃。"
+  },
+  "tablesGuidedTourStep": {
+    "title": "设置表格",
+    "content": "表格整齐地存储您的信息。在数据库中创建新表格，开始对数据进行结构化整理。"
+  },
+  "filterSortGroupGuidedTourStep": {
+    "title": "查找并整理您的数据",
+    "content": "通过在行上进行筛选和排序，快速定位信息。即时按任意字段分组，清晰呈现模式，简化您的工作流程。"
+  },
+  "addFieldGuidedTourStep": {
+    "title": "自定义您的数据",
+    "content": "点击“+”添加新字段（列）。从多种字段类型中选择，精确捕捉对您的项目最重要的内容。"
+  },
+  "createViewGuidedTourStep": {
+    "title": "个性化您的视图",
+    "content": "创建自定义视图，如网格、日历、看板或画廊，以完全按照您的需求可视化数据。"
+  },
+  "createFormViewGuidedTourStep": {
+    "title": "创建表单",
+    "content": "快速从您的表格创建表单，直接将响应收集到表格中，简化数据收集流程。"
+  },
+  "viewOptionsGuidedTourStep": {
+    "title": "查看选项",
+    "content": "点击视图旁边的三个点，可导出、导入、复制和配置 webhook。"
+  },
+  "fieldRules": {
+    "errorTitle": "字段规则处理过程中出现错误",
+    "ruleDoesNotExist": "规则不存在",
+    "ruleTypeDoesNotExist": "规则类型不存在",
+    "ruleAlreadyExists": "规则已存在"
+  }
 }

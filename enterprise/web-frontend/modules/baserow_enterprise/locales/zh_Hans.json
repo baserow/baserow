@@ -1,5 +1,714 @@
 {
     "enterprise": {
-        "license": ""
+        "sso": "单点登录",
+        "deactivated": "高级/企业版中可用",
+        "license": "企业版",
+        "sidebarTooltip": "您的账户已全局启用企业功能",
+        "rbac": "基于角色的访问控制",
+        "licenseDescription": "查看者在Baserow企业版中免费使用。如果用户在任何工作区中拥有其他角色，则将自动占用一个付费席位。",
+        "overflowWarning": "您的非查看者用户过多，已用尽所有付费席位。请在各工作区成员页面中将用户角色变更为查看者。"
+    },
+    "clientHandler": {
+        "cannotDisableAllAuthProvidersTitle": "最后启用的提供商",
+        "cannotDisableAllAuthProvidersDescription": "无法禁用或删除最后启用的提供商。"
+    },
+    "trashType": {
+        "team": "团队"
+    },
+    "createTeamModal": {
+        "title": "创建团队",
+        "invalidNameMessage": "该团队名称已在指定工作区中使用。",
+        "invalidNameTitle": "请使用其他名称"
+    },
+    "updateTeamModal": {
+        "title": "更新{teamName}",
+        "invalidNameTitle": "请使用其他名称",
+        "invalidNameMessage": "该团队名称已在指定工作区中使用。"
+    },
+    "manageTeamModals": {
+        "subheading": "团队允许您批量授予或限制多人的权限。"
+    },
+    "manageTeamForm": {
+        "submit": "保存",
+        "nameTitle": "名称",
+        "roleTitle": "默认角色",
+        "inviteMembers": "添加成员",
+        "membersTitle": "成员",
+        "noSubjectsSelected": "点击“{buttonLabel}”可选择性添加团队成员。",
+        "roleHelpText": "用户特定角色始终优先于团队角色。"
+    },
+    "editTeamContext": {
+        "remove": "删除团队",
+        "edit": "编辑团队"
+    },
+    "teamsTable": {
+        "title": "{workspaceName}中的{teamCount}个团队",
+        "createNew": "创建团队",
+        "nameColumn": "名称",
+        "createdColumn": "创建于",
+        "subjectsColumn": "成员",
+        "roleColumn": "默认角色",
+        "roleHelpText": "可通过数据库和表格的角色进行覆盖。"
+    },
+    "teamsSettings": {
+        "teamsTabTitle": "团队"
+    },
+    "adminType": {
+        "AuditLog": "审计日志",
+        "Authentication": "身份验证"
+    },
+    "auditLog": {
+        "filterUserTitle": "用户",
+        "filterActionTypeTitle": "事件类型",
+        "filterFromTimestampTitle": "起始日期",
+        "filterWorkspaceTitle": "工作区",
+        "workspace": "工作区",
+        "allWorkspaces": "所有工作区",
+        "adminTitle": "审计日志",
+        "workspaceTitle": "审计日志 - {workspaceName}",
+        "filterToTimestampTitle": "截止日期",
+        "filterToTimestamp": "截止日期",
+        "user": "用户",
+        "timestamp": "时间戳",
+        "actionType": "事件类型",
+        "description": "描述",
+        "ip_address": "IP地址",
+        "exportToCsv": "导出为CSV",
+        "exportModalTitle": "导出为CSV",
+        "clearFilters": "清除",
+        "allUsers": "所有用户",
+        "allActionTypes": "所有事件类型",
+        "filterFromTimestamp": "起始日期"
+    },
+    "subjectSampleField": {
+        "titleAttr": "此团队中有{subjectCount}名成员。"
+    },
+    "auditLogExportModal": {
+        "title": "导出为CSV",
+        "exportFilename": "管理员审计日志导出 - {date}",
+        "exportWorkspaceFilename": "工作区({workspaceId})审计日志导出 - {date}",
+        "cancelledTitle": "导出失败",
+        "cancelledDescription": "导出审计日志时出现错误。请重试。"
+    },
+    "authProviders": {
+        "noProviders": "尚未配置任何身份验证提供商。",
+        "addProvider": "添加提供商",
+        "title": "身份验证提供商"
+    },
+    "authProviderTypes": {
+        "password": "邮箱和密码身份验证",
+        "ssoSamlProviderNameUnconfigured": "未配置的SSO SAML",
+        "saml": "SSO SAML提供商",
+        "ssoOIDCProviderNameUnconfigured": "未配置的OpenId连接",
+        "ssoSamlProviderName": "SSO SAML：{domain}"
+    },
+    "editAuthProviderMenuContext": {
+        "edit": "编辑",
+        "delete": "删除"
+    },
+    "samlSettingsForm": {
+        "domain": "SAML域名",
+        "domainPlaceholder": "输入公司域名...",
+        "invalidDomain": "无效的域名",
+        "domainAlreadyExists": "此域名的SAML提供商已存在",
+        "metadata": "元数据",
+        "metadataPlaceholder": "粘贴身份提供商元数据...",
+        "relayStateUrl": "默认中继状态URL",
+        "acsUrl": "单点登录URL",
+        "invalidMetadata": "身份提供商的XML元数据无效",
+        "providerIsVerified": "提供商已验证",
+        "emailAttrKey": "电子邮件",
+        "firstNameAttrKeyHelper": "用户的名字，如果未提供“姓氏”，则为全名。",
+        "samlResponseSettings": "SAML响应属性",
+        "emailAttrKeyHelper": "将用作用户用户名的电子邮件地址。",
+        "lastNameAttrKeyHelper": "用户的姓氏（可选）。清除此值以通过“名字”提供全名。",
+        "defaultAttrs": "默认",
+        "customAttrs": "自定义",
+        "firstNameAttrKey": "名字",
+        "lastNameAttrKey": "姓氏"
+    },
+    "loginError": {
+        "errorInvalidSamlRequest": "SAML请求无效。",
+        "errorInvalidSamlResponse": "SAML响应无效。",
+        "errorProviderDoesNotExist": "此身份验证提供程序不存在或不可用。",
+        "errorWorkspaceInvitationEmailMismatch": "您的电子邮件地址与邀请不匹配。",
+        "loginText": "已有账户？",
+        "help": "请联系您的管理员寻求帮助。",
+        "errorAuthFlowError": "使用所选提供程序进行身份验证流程时发生错误。",
+        "errorDifferentProvider": "请使用您最初注册时使用的提供程序。",
+        "errorSignupDisabled": "注册功能已被管理员禁用。",
+        "title": "出现错误：",
+        "defaultErrorMessage": "无法完成SSO登录流程。",
+        "errorSsoFeatureNotActive": "SSO功能未激活。请联系您的管理员。",
+        "errorUserDeactivated": "用户已被禁用。"
+    },
+    "roles": {
+        "builder": {
+            "name": "构建者",
+            "description": "可以完全配置和编辑应用程序。"
+        },
+        "commenter": {
+            "name": "评论者",
+            "description": "只能读取和评论数据。"
+        },
+        "admin": {
+            "name": "管理员",
+            "description": "可以完全配置和编辑工作空间和应用程序。"
+        },
+        "editor": {
+            "name": "编辑者",
+            "description": "可以完全编辑数据，但不能配置应用程序或工作空间。"
+        },
+        "noAccess": {
+            "name": "无访问权限",
+            "description": "无法访问任何内容。"
+        },
+        "noRoleLowPriority": {
+            "name": "无角色",
+            "description": "从其团队获取默认工作空间角色。"
+        },
+        "viewer": {
+            "name": "查看者",
+            "description": "只能读取数据。"
+        }
+    },
+    "memberRolesTab": {
+        "table": {
+            "warningMessage": "其他用户可能通过其在父数据库或工作空间上的相应角色继承访问权限。",
+            "headerTooltip": "表角色将覆盖工作空间和数据库角色。",
+            "title": "{name} 表",
+            "warningTitle": "其他用户可能继承访问权限！",
+            "selectMembers": "选择成员",
+            "everyoneHasAccess": "{name} 工作空间的所有人都可以访问此表。",
+            "onlyYouHaveAccess": "只有您可以访问此表。"
+        },
+        "database": {
+            "title": "{name} 数据库",
+            "warningTitle": "其他用户可能继承访问权限！",
+            "everyoneHasAccess": "{name} 工作空间的所有人都可以访问此数据库。",
+            "onlyYouHaveAccess": "只有您可以访问此数据库。",
+            "warningMessage": "其他用户可能通过其在父工作空间上的相应角色继承访问权限。",
+            "headerTooltip": "数据库角色将覆盖工作空间角色。",
+            "selectMembers": "选择成员"
+        },
+        "view": {
+            "title": "{name} 视图",
+            "selectMembers": "选择成员",
+            "everyoneHasAccess": "{name} 工作区的所有成员都可以访问此视图。",
+            "onlyYouHaveAccess": "只有您可以访问此视图。",
+            "warningTitle": "其他用户可能继承访问权限！",
+            "warningMessage": "其他用户可能通过其在父表、数据库或工作区中的相应角色继承访问权限。",
+            "headerTooltip": "视图角色将覆盖工作区、数据库和表格角色。"
+        }
+    },
+    "loginWithSaml": {
+        "loginText": "已有密码？",
+        "signInWithSaml": "使用SAML SSO登录",
+        "redirecting": "正在重定向到身份提供程序...",
+        "continueWithSaml": "继续到SAML SSO提供程序",
+        "requestError": "此域未配置SAML SSO"
+    },
+    "memberRolesShareToggle": {
+        "subLabel": "{totalUserAmount} 个工作空间成员",
+        "label": "与 {name} 的所有人共享"
+    },
+    "updateSettingsAuthProviderModal": {
+        "title": "编辑 {name}"
+    },
+    "deleteAuthProviderModal": {
+        "title": "删除 {name}",
+        "comment": "您确定要删除此 {type} 吗？"
+    },
+    "memberRolesModal": {
+        "memberRolesDatabaseTabTitle": "数据库",
+        "error": {
+            "title": "无法获取数据",
+            "description": "获取成员数据时发生错误。"
+        },
+        "memberRolesTableTabTitle": "表",
+        "memberRolesViewTabTitle": "视图"
+    },
+    "createSettingsAuthProviderModal": {
+        "title": "添加新的 {type}"
+    },
+    "memberRolesDatabaseContexItem": {
+        "label": "管理成员",
+        "additionalRoles": "附加角色"
+    },
+    "memberRolesTableContexItem": {
+        "label": "管理成员",
+        "additionalRoles": "附加角色"
+    },
+    "memberRolesMembersList": {
+        "adminHelpText": "管理员可以限制其他管理员的角色。",
+        "remove": "移除",
+        "teamMembersCount": "{count} 位团队成员",
+        "noMembers": "未选择任何成员。使用选择按钮添加一个。"
+    },
+    "roleAssignmentModal": {
+        "membersTab": "成员",
+        "teamsTab": "团队",
+        "subjectTypeNameMembers": "成员",
+        "subjectTypeNameTeams": "团队"
+    },
+    "selectMembersList": {
+        "searchPlaceholder": "查找成员...",
+        "selectedAmountLabel": "{count} 位成员已选择"
+    },
+    "selectTeamsList": {
+        "searchPlaceholder": "查找团队...",
+        "selectedAmountLabel": "{count} 个团队已选择"
+    },
+    "selectSubjectsListFooter": {
+        "types": {
+            "teams": "团队",
+            "members": "成员"
+        },
+        "invite": "邀请 {count} 个 {type}",
+        "helpTooltip": "成员角色分配覆盖团队角色分配。"
+    },
+    "oauthSettingsForm": {
+        "baseUrl": "URL",
+        "baseUrlPlaceholder": "提供商的基础URL",
+        "invalidBaseUrl": "输入的URL不是有效的提供商URL",
+        "callbackUrl": "回调URL",
+        "providerName": "名称",
+        "secretPlaceholder": "提供商的密钥",
+        "secret": "密钥",
+        "clientId": "客户端ID",
+        "clientIdPlaceholder": "提供商的客户端ID",
+        "providerNamePlaceholder": "自定义提供商名称",
+        "duplicateBaseUrl": "输入的URL已存在于另一个提供商中",
+        "useIdToken": "使用 ID 令牌获取用户信息",
+        "responseSettings": "OIDC 响应属性",
+        "defaultAttrs": "默认",
+        "customAttrs": "自定义",
+        "emailAttrKey": "邮箱",
+        "emailAttrKeyHelper": "将用作用户名的邮箱地址。",
+        "firstNameAttrKey": "名字",
+        "lastNameAttrKey": "姓氏",
+        "firstNameAttrKeyHelper": "用户的名字，如果未提供“姓氏”则填写全名。",
+        "lastNameAttrKeyHelper": "用户的姓氏（可选）。清空此值可通过“名字”字段提供全名。"
+    },
+    "loginButton": {
+        "continueWith": "继续使用"
+    },
+    "enterpriseFeatures": {
+        "sso": "单点登录",
+        "rbac": "基于角色的访问控制",
+        "coBranding": "联合品牌标识替换",
+        "auditLogs": "审计日志",
+        "support": "直接支持",
+        "dataSync": "数据同步",
+        "ssoContent": "通过SAML、Google、Facebook、GitHub、GitLab或OpenID Connect实现安全无缝登录。支持同时使用多个提供商。请注意，Baserow工具本身以及应用构建器的身份验证系统均支持单点登录（SSO）。",
+        "rbacContent": "精细管理权限。在工作区、数据库或表格级别分配管理员、构建者、编辑者、评论者或查看者等角色。您还可以按团队管理访问权限。",
+        "auditLogsContent": "追踪所有动态。查看实例或工作区的完整操作历史记录，可按用户、操作等条件筛选。",
+        "dataSyncContent": "通过与其他Baserow表格或Jira、GitHub、GitLab、HubSpot等外部数据源同步，自动保持表格最新状态。支持定期同步，并为兼容的同步类型启用双向数据同步。",
+        "coBrandingContent": "使用自定义徽标个性化Baserow界面。请注意系统会添加“由Baserow驱动”标识。",
+        "supportContent": "随时获取帮助。可直接在平台内联系Baserow团队。",
+        "advancedWebhooks": "高级网络钩子",
+        "advancedWebhooksContent": "当行进入特定视图时触发网络钩子——非常适合基于筛选条件自动化工作流程。",
+        "fieldLevelPermissions": "字段级权限",
+        "fieldLevelPermissionsContent": "控制可编辑表格中特定字段的人员。为编辑者、构建者、管理员设置权限，或完全禁止修改字段值。",
+        "builderBranding": "应用品牌定制",
+        "builderBrandingContent": "移除应用页脚的“由Baserow制作”标识，实现应用品牌的白标化。",
+        "builderFileInputElement": "文件输入组件",
+        "builderFileInputElementContent": "文件输入组件允许您向应用页面添加文件上传字段。让用户能够存储重要文档或图像。",
+        "builderCustomCode": "应用自定义代码",
+        "builderCustomCodeContent": "可添加自定义CSS/JavaScript代码，进一步定制应用外观与行为。例如，可集成分析工具或社交媒体等外部服务。",
+        "dateDependency": "日期依赖关系",
+        "dateDependencyContent": "您可以在两个日期和持续时间之间定义依赖关系，如开始/结束日期和持续时间。通过日期依赖，如果一个值发生变化，其他值将相应调整。"
+    },
+    "chatwootSupportSidebarWorkspace": {
+        "directSupport": "直接支持"
+    },
+    "userTeamsField": {
+        "no_records": "无团队"
+    },
+    "membersPagePlugin": {
+        "roleHelpText": "可以通过数据库和表上的角色进行覆盖。"
+    },
+    "membersRoleField": {
+        "noAccessHelpText": "此用户需要明确访问资源。",
+        "adminHelpText": "管理员可以限制其他管理员的角色。"
+    },
+    "snapshotModalWarning": {
+        "message": "请注意，快照将包括应用程序及其表上设置的任何权限。"
+    },
+    "localBaserowUserSourceType": {
+        "notConfigured": "未配置"
+    },
+    "localBaserowUserSourceForm": {
+        "emailFieldLabel": "选择电子邮件字段",
+        "emailFieldLabelPlaceholder": "选择一个字段...",
+        "noFields": "无字段",
+        "nameFieldLabel": "选择姓名字段",
+        "description": "表中的每一行都是一个用户账户。请选择表中的匹配字段。电子邮件字段将用于识别。",
+        "nameFieldPlaceholder": "选择一个字段...",
+        "roleFieldLabel": "选择角色字段",
+        "roleFieldPlaceholder": "选择一个字段..."
+    },
+    "auditLogSidebarWorkspace": {
+        "title": "审计日志"
+    },
+    "localBaserowPasswordAppAuthProviderForm": {
+        "passwordFieldLabel": "选择密码字段",
+        "noFields": "无兼容字段"
+    },
+    "enterpriseSettings": {
+        "coBrandingLogoDescription": "替换Baserow标识为自定义联合品牌替代标识（176x29）。如果设置，还会移除所有电子邮件页脚中的Baserow描述。",
+        "showBaserowHelpMessage": "显示帮助信息",
+        "deactivated": "企业版可用",
+        "uploadFileButton": "上传图片",
+        "showBaserowHelpMessageDescription": "指示是否应在仪表板上显示帮助请求信息。",
+        "coBrandingLogo": "标识",
+        "branding": "品牌"
+    },
+    "appAuthProviderType": {
+        "localBaserowPassword": "电子邮件/密码",
+        "commonSaml": "Saml SSO",
+        "openIdConnect": "OpenID Connect"
+    },
+    "authFormElementForm": {
+        "userSource": "用户来源",
+        "loginButtonLabel": "登录按钮标签",
+        "loginButtonLabelPlaceholder": "输入标签..."
+    },
+    "authFormElement": {
+        "email": "电子邮件",
+        "selectOrConfigureUserSourceFirst": "选择用户来源以开始使用此登录元素。",
+        "password": "密码",
+        "passwordPlaceholder": "输入您的密码...",
+        "emailPlaceholder": "输入您的电子邮件..."
+    },
+    "localBaserowTableDataSync": {
+        "workspace": "工作空间",
+        "database": "数据库",
+        "name": "源表ID",
+        "authorizing": "您正在授权您的账户从源表中选择数据。",
+        "table": "表格",
+        "view": "查看",
+        "viewHelper": "仅同步可见字段和符合筛选条件的行。"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "同步 Baserow 表格",
+        "jiraIssues": "同步Jira问题",
+        "githubIssues": "同步GitHub问题",
+        "gitlabIssues": "同步GitLab问题",
+        "hubspotContacts": "同步HubSpot联系人"
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "使用 SAML 登录",
+        "provideEmail": "提供您的 SAML 账户邮箱",
+        "emailPlaceholder": "输入您的邮箱..."
+    },
+    "configureDataSyncPeriodicInterval": {
+        "deactivatedText": "由于连续多次失败，定期数据同步已被停用。请尝试手动同步，如果一切正常，请点击激活按钮。",
+        "saved": "已保存",
+        "deactivatedTitle": "定期数据同步已停用",
+        "title": "定期设置",
+        "more": "更多信息",
+        "activate": "激活定期同步",
+        "enterprise": "定期数据同步是一项高级/企业功能。"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "基础 URL",
+        "accessToken": "访问令牌",
+        "accessTokenHelper": "可在此处生成 https://gitlab.com/-/user_settings/personal_access_tokens，点击 `添加新令牌`，选择 `read_api`。",
+        "urlHelper": "您的 GitLab 实例的基础 URL。（例如 https://gitlab.com）",
+        "projectId": "项目 ID",
+        "projectIdHelper": "您希望同步问题的项目 ID。可通过访问您的项目页面（例如 https://gitlab.com/baserow/baserow），点击右上角的三个点，然后点击“复制项目 ID：12345678”找到。"
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "私有应用访问令牌",
+        "accessTokenHelper": "要在 HubSpot 中生成私有应用访问令牌，请点击顶部栏中的“设置”，导航至“集成”>“私有应用”，并创建一个新的私有应用。分配以下权限范围：crm.objects.contacts.read、crm.schemas.contacts.read 和 crm.objects.custom.read。最后，点击“创建应用”以生成令牌。"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "定期设置"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "间隔",
+        "intervalHelper": "数据同步应自动同步的频率。",
+        "manual": "手动",
+        "daily": "每日",
+        "hourly": "每小时",
+        "whenHelper": "提供数据同步应执行的确切小时、分钟和秒。",
+        "minute": "分钟",
+        "second": "秒",
+        "hour": "小时",
+        "whenHourlyHelper": "提供数据同步应执行的具体分钟和秒。"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "使用 {provider} 登录"
+    },
+    "advanced": {
+        "license": "高级"
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma AI"
+    },
+    "assistantPanel": {
+        "title": "AI助手",
+        "close": "关闭AI助手",
+        "history": "聊天历史",
+        "back": "返回"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "你好，{name}",
+        "question": "我叫Kuma！",
+        "subtitle": "我会帮你分担重担，让它不再沉重。请从以下提示中选择，或直接告诉我你的需求！",
+        "subtitleWithoutSuggestions": "我会帮你分担重担，让它不再沉重。直接告诉我你的需求即可！",
+        "promptCreateDatabaseTitle": "创建数据库",
+        "promptCreateDatabasePrompt": "构建一个项目管理数据库。",
+        "promptCreateAutomationTitle": "创建自动化",
+        "promptCreateAutomationPrompt": "创建一个自动化，每周二早上在Slack开发者频道询问是否有任何内容需要演示。",
+        "promptInviteUsersTitle": "邀请用户",
+        "promptInviteUsersPrompt": "如何邀请用户到我的工作空间？",
+        "promptCreateTableTitle": "创建表格",
+        "promptCreateTablePrompt": "创建一个名为tasks的新表格。",
+        "promptWhichTablesTitle": "哪些表格",
+        "promptWhichTablesPrompt": "这个数据库中有哪些表格？",
+        "promptCreateFormTitle": "创建表单",
+        "promptCreateFormPrompt": "为此表格创建一个表单。",
+        "promptCreateFilterTitle": "创建筛选器",
+        "promptCreateFilterPrompt": "仅显示主字段为空的行。"
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "助手已准备就绪",
+        "statusRunning": "运行中...",
+        "placeholder": "问我任何问题...",
+        "send": "发送消息",
+        "stop": "停止生成"
+    },
+    "assistant": {
+        "statusThinking": "思考中...",
+        "statusAnswering": "回答中...",
+        "statusCancelling": "取消中...",
+        "messageCancelled": "消息已取消"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "暂无聊天历史",
+        "loading": "正在加载聊天历史..."
+    },
+    "assistantMessageSources": {
+        "sources": "{count}个来源"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma可能会出错，请仔细核对回答"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "帮助我们改进",
+        "feedbackContextPlaceholder": "我们可以改进什么？（可选）",
+        "copiedToClipboard": "已复制到剪贴板",
+        "copiedContentToast": "助手的回答内容已复制到您的剪贴板",
+        "copyFailed": "复制到剪贴板失败"
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "请注意，导出将不包括应用程序及其表格上设置的任何权限。"
+    },
+    "commonSamlSettingForm": {
+        "relayStateTitle": "默认中继状态URL（点击复制）",
+        "acsTitle": "单点登录URL（点击复制）",
+        "addDomainNotice": "添加一个或多个域后可用"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "回调URL（点击复制）",
+        "callbackHelperText": "将这些URL添加到您的OpenID Connect提供商的重定向URI设置中。",
+        "preview": "预览"
+    },
+    "jiraIssuesDataSync": {
+        "jiraUrl": "Jira实例URL",
+        "urlHelper": "您的Jira实例的基础URL（例如，https://your-domain.atlassian.net）。",
+        "authenticationLabel": "身份验证",
+        "authenticationHelper": "选择如何与Jira进行身份验证。",
+        "projectKey": "Jira项目键（可选）",
+        "projectKeyHelper": "Jira项目的项目键（例如，PROJ）。可通过在Jira中点击“项目设置”找到。如果未提供，将返回所有问题。",
+        "jiraUsername": "Jira用户名",
+        "usernameHelper": "用于身份验证的Jira账户用户名。这是您登录时使用的电子邮件。",
+        "apiToken": "Jira API令牌",
+        "apiTokenHelper": "用于身份验证的Jira账户API令牌。可在 https://id.atlassian.com/manage-profile/security/api-tokens 创建。",
+        "personalAccessToken": "Jira个人访问令牌",
+        "personalAccessTokenHelper": "用于身份验证的Jira账户API令牌。可在 https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html 创建。"
+    },
+    "githubIssuesDataSync": {
+        "owner": "所有者",
+        "ownerHelper": "仓库的用户名或所有者。通常在左上角显示为 `所有者 / 仓库`",
+        "repo": "仓库",
+        "repoHelper": "仓库的名称。通常在左上角显示为 `所有者 / 仓库`",
+        "apiToken": "API令牌",
+        "apiTokenHelper": "可在此处 https://github.com/settings/tokens 生成，点击 `生成新令牌`，选择 `所有仓库`，然后在 `仓库权限` 下将 `问题` 设置为 `只读`。"
+    },
+    "chartWidget": {
+        "name": "图表",
+        "bar": "条形图",
+        "line": "折线图"
+    },
+    "pieChartWidget": {
+        "name": "饼图",
+        "pie": "饼图",
+        "doughnut": "环形图",
+        "polarArea": "极地区域图"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "系列",
+        "addSeries": "添加系列",
+        "data": "数据",
+        "sourceFieldLabel": "来源",
+        "viewFieldLabel": "视图",
+        "notSelected": "未选择"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "字段",
+        "aggregationTypeLabel": "摘要",
+        "deleteSeries": "删除系列",
+        "chartType": "图表类型",
+        "barChart": "条形图",
+        "lineChart": "折线图",
+        "pieChart": "饼图",
+        "doughnutChart": "环形图",
+        "polarAreaChart": "极地区域图"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "分组依据",
+        "groupByNone": "无",
+        "groupByRowId": "行ID"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "排序依据",
+        "none": "无",
+        "ascending": "升序",
+        "descending": "降序"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "{name} 定期数据同步已停用，因为它连续失败次数过多。",
+        "licenseUnavailable": "{name} 定期数据同步已禁用，因为工作区不再拥有有效许可证。请更新许可证以恢复自动同步。"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} 双向同步更新失败：{error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "{name} 双向同步已停用，因为更新连续失败次数过多。请手动同步，并在问题解决后重新激活。"
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "行进入视图"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "当行进入视图时触发。",
+        "helpTriggerWhenRowsEnterView": "仅在选中 `行进入视图` 且当前符合筛选条件的行进入视图时触发。"
+    },
+    "fileInputElementForm": {
+        "defaultNameTitle": "初始文件名|初始文件名列表",
+        "defaultNamePlaceholder": "输入文件名...|输入文件名列表...",
+        "defaultNameHelp": "名称数量必须与URL数量匹配。",
+        "defaultUrlTitle": "初始文件URL|初始文件URL列表",
+        "defaultUrlPlaceholder": "输入默认URL...|输入默认URL列表...",
+        "helpTextTitle": "帮助文本",
+        "helpTextPlaceholder": "留空以使用默认值...",
+        "multiple": "多文件？",
+        "required": "必填",
+        "fileTypes": "文件类型",
+        "fileTypesHelper": "选择允许的文件扩展名（每行一个）通过文件输入（例如 jpg、png、svg、pdf）。您可以指定 image/*、video/* 或 audio/* 以允许所有此类文件。留空以允许所有文件类型。",
+        "preview": "预览图像？",
+        "maxFileSize": "最大文件大小",
+        "maxFileSizePlaceholder": "输入数字...",
+        "addFileType": "添加文件类型"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "拖放文件到此处或点击选择",
+        "fileSizeExceeded": "文件过大。最大 {max}MB。"
+    },
+    "fieldPermissionModal": {
+        "title": "编辑字段权限",
+        "description": "选择谁可以编辑 {fieldName} 中的值。",
+        "question": "谁可以编辑此字段？",
+        "editorTitle": "编辑者及以上（默认）",
+        "editorDescription": "具有编辑者、构建者和管理员角色的用户",
+        "builderTitle": "构建者及以上",
+        "builderDescription": "具有构建者和管理员角色的用户",
+        "adminTitle": "仅管理员",
+        "adminDescription": "具有管理员角色的用户",
+        "nobodyTitle": "无人",
+        "nobodyDescription": "无用户",
+        "allowInForms": "允许在通过表单创建的行中设置此字段",
+        "linkRowWarning": "这是一个“链接到表格”字段。为确保值无法从链接的表格中更改，请确保也在链接的表格上设置正确的权限。"
+    },
+    "builderSettingTypes": {
+        "customCode": "自定义 CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "自定义 CSS",
+        "customJS": "自定义 JavaScript",
+        "customCSSPlaceholder": "输入一些自定义 CSS 代码...",
+        "customJSPlaceholder": "输入一些自定义 JS 代码...",
+        "externalScripts": "外部脚本/样式表",
+        "noScript": "使用外部脚本或样式表增强您的应用程序",
+        "customCodeTitle": "自定义代码",
+        "customCodeHelp": "自定义代码仅在预览或已发布的应用程序中可见，结果在编辑器中不可见。",
+        "addExternalScript": "添加外部脚本"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "类型",
+        "loadType": "加载类型",
+        "url": "URL",
+        "urlPlaceholder": "输入脚本 URL...",
+        "crossorigin": "跨域",
+        "includeCredentials": "包含凭据",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "正常",
+        "loadTypeDefer": "延迟",
+        "loadTypeAsync": "异步",
+        "crossoriginTypeNone": "正常",
+        "crossoriginTypeAnonymous": "匿名",
+        "crossoriginTypeCredentials": "使用凭据"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "所选用户源没有登录选项",
+        "errorUserSourceMissing": "未选择用户源"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "编辑字段权限"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "允许直接在 Baserow 中编辑单元格值，并实时推送到数据同步源。请注意，更改不会实时拉取，因为它们依赖于（定期）同步操作完成。强烈建议创建 PostgreSQL 数据库的备份以避免意外更改。"
+    },
+    "dateDependencyModal": {
+        "errorTitle": "日期依赖",
+        "dependencyFieldTooltip": "配置日期依赖",
+        "dependencyFieldTooltipError": "字段规则包含错误",
+        "contextMenuItemLabel": "配置日期依赖",
+        "title": "{tableName} 的日期依赖",
+        "description": "指定哪些行依赖于其他行。当一行重新安排时，其依赖行会自动调整。",
+        "enableDateDependency": "为项目启用日期依赖",
+        "startDateFieldLabel": "开始日期",
+        "endDateFieldLabel": "结束日期",
+        "durationFieldLabel": "持续时间",
+        "durationFieldHint": "此字段必须使用“d h”格式。",
+        "dependencyLinkrowFieldLabel": "前置任务",
+        "dependencyLinkrowFieldHint": "使用链接到表字段将行与其前置任务连接。",
+        "dependencyBufferTypeLabel": "重新排程逻辑",
+        "durationBufferLabel": "时间缓冲",
+        "dependencyConnectionTypeLabel": "类型",
+        "advancedSettingsLabel": "高级设置",
+        "includeWeekendsLabel": "计算持续时间时包含周末",
+        "dependencyFieldForReaderTooltip": "此字段包含在日期依赖字段规则中",
+        "fieldInvalidTitle": "日期依赖字段错误",
+        "addNewField": "添加新字段",
+        "linkRowFieldTitle": "父任务"
+    },
+    "dateDependency": {
+        "invalidChildRow": "后续行无效",
+        "invalidParentRow": "前置行无效",
+        "invalidParentEndDateAfterChildStartDate": "前置行结束日期晚于后续行开始日期",
+        "invalidStartDateEmpty": "开始日期为空",
+        "invalidEndDateEmpty": "结束日期为空",
+        "invalidEndDateBeforeStartDate": "结束日期早于开始日期",
+        "invalidDurationEmpty": "持续时间为空",
+        "invalidDurationValue": "持续时间值无效",
+        "invalidDurationMismatch": "持续时间值不匹配"
+    },
+    "viewOwnershipType": {
+        "restricted": "受限",
+        "restrictedDescription": "编辑者及以下权限仅能查看筛选后的数据和可见字段。可以管理成员。"
     }
 }
