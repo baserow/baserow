@@ -149,7 +149,8 @@
     },
     "trashSidebar": {
         "title": "Papelera",
-        "unnamedWorkspace": "Espacio de trabajo sin nombre {id}"
+        "unnamedWorkspace": "Espacio de trabajo sin nombre {id}",
+        "workspaces": "Espacios de trabajo"
     },
     "trashContents": {
         "message": "Restaurar elementos eliminados del pasado {duration}",
@@ -253,7 +254,8 @@
         "emptyWorkspace": "Este espacio de trabajo está vacío",
         "emptyWorkspaceMessage": "Empieza por crear una nueva base de datos o aplicación.",
         "addNew": "Añadir nuevo...",
-        "noWorkspace": "Sin espacio de trabajo"
+        "noWorkspace": "Sin espacio de trabajo",
+        "starOnGitHub": "Apóyanos con una estrella en GitHub"
     },
     "login": {
         "title": "Bienvenido de nuevo",
@@ -761,7 +763,9 @@
         "openRouter": "OpenRouter",
         "openRouterApiKeyDescription": "Proporciona una clave API de OpenRouter si deseas habilitar la integración. [Obtener una clave de API](https://openrouter.ai/settings/keys).",
         "openRouterModelsLabel": "Modelos habilitados",
-        "openRouterModelsDescription": "Proporciona una lista de [OpenRouter models](https://openrouter.ai/models) separados por comas que pueden ser utilizados en Baserow. (por ejemplo, `openai/gpt-4o,anthropic/claude-3-haiku`)"
+        "openRouterModelsDescription": "Proporciona una lista de [OpenRouter models](https://openrouter.ai/models) separados por comas que pueden ser utilizados en Baserow. (por ejemplo, `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openaiBaseUrl": "URL base",
+        "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://<your‑resource‑name>.openai.azure.com, o cualquier otra API compatible con OpenAI."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
