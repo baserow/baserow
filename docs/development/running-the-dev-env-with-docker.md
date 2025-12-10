@@ -335,13 +335,10 @@ just dc-dev exec db pg_isready -U baserow
 just dc-dev logs db
 ```
 
-## IDE Integration
-- VS Code: see [vscode-setup.md](vscode-setup.md).
-- IntelliJ/PyCharm:  see [intellij-setup.md](intellij-setup.md).
-
-
 ## Further Reading
 
 - [justfile.md](justfile.md) - Complete command reference
 - [running-tests.md](running-tests.md) - Running tests in Docker
 - [running-the-dev-env-locally.md](running-the-dev-env-locally.md) - Alternative: local development
+- [vscode-setup.md](vscode-setup.md) - VS Code configuration
+- [intellij-setup.md](intellij-setup.md) - IntelliJ/PyCharm configuration

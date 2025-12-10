@@ -11,7 +11,7 @@ just b test -n=auto            # Run tests in parallel
 just b test tests/path/        # Run specific tests
 
 # With ramdisk database (2-5x faster)
-just start-test-db             # Start PostgreSQL with tmpfs
+just test-db start             # Start PostgreSQL with tmpfs
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=auto
 ```
 
@@ -33,10 +33,10 @@ All backend justfile commands (`just test`, `just lint`, etc.) work identically 
 |---------|:----:|:---------:|-------|
 | `just b test` | ✓ | ✓ | Works in both environments |
 | `just b lint` | ✓ | ✓ | Works in both environments |
-| `just start-test-db` | ✓ | ✗ | Host only (starts a Docker container) |
-| `just stop-test-db` | ✓ | ✗ | Host only |
+| `just test-db start` | ✓ | ✗ | Host only (starts a Docker container) |
+| `just test-db stop` | ✓ | ✗ | Host only |
 
-**Note:** The `just start-test-db` command starts a separate PostgreSQL container with tmpfs storage. This can only be run from the host machine, not from inside a container. When running tests inside the backend container, use the existing `db` service instead.
+**Note:** The `just test-db start` command starts a separate PostgreSQL container with tmpfs storage. This can only be run from the host machine, not from inside a container. When running tests inside the backend container, use the existing `db` service instead.
 
 #### Running Tests Locally
 
@@ -82,13 +82,13 @@ Use a PostgreSQL container with tmpfs (in-memory storage) for 2-5x faster tests:
 
 ```bash
 # Start ramdisk database on port 5433
-just start-test-db
+just test-db start
 
 # Run tests against it
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=auto
 
 # Stop when done
-just stop-test-db
+just test-db stop
 ```
 
 The ramdisk database runs with optimized settings:
