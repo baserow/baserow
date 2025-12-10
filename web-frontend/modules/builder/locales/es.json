@@ -32,7 +32,11 @@
         "pathParamsSubtitleTutorial": "Los parámetros de ruta se pueden utilizar para cargar datos dinámicamente, en función del parámetro proporcionado. Añada el :parámetro a la ruta para añadir uno.",
         "pathTitle": "Ruta",
         "namePlaceholder": "Introduzca un nombre...",
-        "pathPlaceholder": "Introduzca una ruta..."
+        "pathPlaceholder": "Introduzca una ruta...",
+        "addAnotherParameter": "Agregar otro parámetro de cadena de consulta",
+        "addParameter": "Agregar parámetro de cadena de consulta",
+        "queryParamsSubtitleTutorial": "Los parámetros de consulta pueden usarse para cargar datos dinámicamente, según el parámetro proporcionado.",
+        "queryParamsTitle": "Parámetros de cadena de consulta"
     },
     "headingElementForm": {
         "textError": "El valor es inválido.",
@@ -285,7 +289,7 @@
         "rowsPlaceholder": "Introduce el número de filas de esta entrada",
         "validationTypeAnyLabel": "Cualquier",
         "validationTypeIntegerLabel": "Número",
-        "validationTypeIntegerDescription": "Aplicar un valor numérico en esta entrada.",
+        "validationTypeIntegerDescription": "Forzar un valor numérico en este campo (acepta enteros y decimales).",
         "validationTypeEmailLabel": "Correo electrónico",
         "validationTypeEmailDescription": "Implemente un valor de dirección de correo electrónico en esta entrada.",
         "validationTypeAnyDescription": "Permite establecer cualquier valor en esta entrada.",
@@ -301,7 +305,8 @@
     },
     "domainCard": {
         "detailLabel": "Mostrar detalles",
-        "refresh": "Actualizar configuración"
+        "refresh": "Actualizar configuración",
+        "unpublishedDomainWarning": "Por favor, publica la aplicación para que esté disponible en este dominio."
     },
     "buttonElementForm": {
         "valuePlaceholder": "Introducir texto...",
@@ -334,7 +339,11 @@
     },
     "publicPage": {
         "pageNotFound": "Página no encontrada",
-        "siteNotFound": "Sitio no encontrado"
+        "siteNotFound": "Sitio no encontrado",
+        "loginToastTitle": "Autenticación exitosa",
+        "loginToastMessage": "Has iniciado sesión correctamente.",
+        "authorizedToastTitle": "Autenticación requerida",
+        "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar."
     },
     "integrationSettings": {
         "integrationMessage": "Se pueden crear nuevas integraciones añadiendo fuente de datos, acción o autenticación de usuario.",
@@ -1054,5 +1063,9 @@
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "El elemento contenedor no tiene ninguna opción de configuración."
+    },
+    "queryParamTypes": {
+        "textName": "Texto",
+        "numericName": "Numérico"
     }
 }
