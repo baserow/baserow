@@ -87,27 +87,38 @@ just dc build --parallel
 
 ### Viewing Logs
 
-The `just logs` command provides a unified way to view logs from Docker containers or local processes:
+Use the appropriate logs command based on your development approach:
 
+**Local development** (`just dev logs`):
 ```bash
 # View all backend logs (backend + celery)
-just logs
+just dev logs
 
 # View specific services
-just logs backend          # Backend only
-just logs celery           # All celery workers
-just logs frontend         # Web frontend
-just logs backend celery   # Multiple services
+just dev logs backend          # Backend only
+just dev logs celery           # Celery workers
+just dev logs frontend         # Web frontend
 
 # With options
-just logs -f               # Follow logs (like tail -f)
-just logs -n 100           # Last 100 lines
-just logs -f backend       # Follow backend logs only
+just dev logs -f               # Follow logs (like tail -f)
+just dev logs -n 100           # Last 100 lines
+just dev logs -f backend       # Follow backend logs only
 ```
 
-The command automatically detects whether you're running Docker or local processes:
-- **Docker**: Uses `docker compose logs` (celery expands to celery + celery-export-worker + celery-beat-worker)
-- **Local**: Tails log files from `/tmp/baserow-*.log`
+**Docker development** (`just dc-dev logs`):
+```bash
+# View all logs
+just dc-dev logs
+
+# View specific services
+just dc-dev logs backend
+just dc-dev logs web-frontend
+just dc-dev logs celery
+
+# With options
+just dc-dev logs -f            # Follow logs
+just dc-dev logs -n 100        # Last 100 lines
+```
 
 ### Full Local Development Environment
 
@@ -118,7 +129,7 @@ Start the entire local dev stack with a single command:
 | `just dev up` | Start and follow logs (Ctrl+C stops everything) |
 | `just dev up -d` | Start in background (detached) |
 | `just dev stop` | Stop all services |
-| `just dev logs` | View logs (same as `just logs`) |
+| `just dev logs` | View logs from local processes |
 | `just dev status` | Show running services |
 
 ```bash
@@ -165,7 +176,7 @@ The `just dev up` command:
 - `/tmp/baserow-celery.log`
 - `/tmp/baserow-web-frontend.log`
 
-Use `just dev logs` or `just logs` to view them (see [Viewing Logs](#viewing-logs)).
+Use `just dev logs` to view them (see [Viewing Logs](#viewing-logs)).
 
 ### Calling Backend Commands from Root
 
@@ -230,24 +241,6 @@ Baserow uses different env files for different purposes:
 **For Docker development**:
 - `just dc-dev` creates `.env.docker-dev` from `.env.docker-dev.example`
 - Contains: UID/GID for permissions, Docker networking URLs
-
-#### Using direnv (optional)
-
-For automatic environment loading when entering the directory, use [direnv](https://direnv.net/):
-
-```bash
-# Install direnv
-brew install direnv  # macOS
-# or: apt install direnv  # Linux
-
-# Add to your shell config (~/.bashrc or ~/.zshrc)
-eval "$(direnv hook bash)"  # or zsh
-
-# Allow the project's .envrc
-direnv allow
-```
-
-The `.envrc` file loads `.env.local` and activates the venv automatically.
 
 ### Setup & Installation
 
@@ -514,6 +507,8 @@ Starts a tmux session with Docker containers:
 
 ```bash
 just dc-dev tabs
+or
+just dct
 ```
 
 Opens terminal tabs for each service (similar to the old `dev.sh` behavior). Works with:
@@ -643,13 +638,9 @@ From the `backend/` directory:
 # Option 1: Source env and run (one-liner)
 source ../.env.local && uv run pytest ../enterprise/backend/tests/
 
-# Option 2: Use direnv (automatic - recommended)
-# If you have direnv set up, .env.local is already loaded
-uv run pytest ../enterprise/backend/tests/
-
-# Option 3: Activate venv first
+# Option 2: Activate venv first
 source ../.venv/bin/activate
-source ../.env.local  # or use direnv
+source ../.env.local
 pytest ../enterprise/backend/tests/
 ```
 
@@ -669,8 +660,6 @@ exec bash
 ```
 
 **Note:** The recipes output commands that you `eval` because just runs in a subshell and can't modify your parent shell directly.
-
-If using **direnv**, it automatically loads/unsets variables when you enter/leave the directory.
 
 ### When to Use Each Approach
 

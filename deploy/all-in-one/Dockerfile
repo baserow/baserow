@@ -22,7 +22,7 @@ ARG GID
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV DOCKER_USER=baserow_user \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="all-in-one" \
     DATA_DIR=/baserow/data \
     POSTGRES_VERSION=15 \
@@ -58,8 +58,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
     tar -xf caddy.tar.gz && mv caddy /usr/bin/ && rm caddy.tar.gz && \
     # Setup user and group with fixed UID/GID for volume permission consistency
-    getent group $GID || groupadd --system --gid $GID baserow_user && \
-    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m baserow_user && \
+    getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
     # Setup supervisor
     ln -sf /dev/stdout /var/log/supervisor/supervisord.log && \
     # Create data and plugin directories with correct ownership
@@ -117,8 +117,8 @@ ENV PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enter
     sed -i '/^logfile/d' /etc/redis/redis.conf && \
     chown redis:redis /etc/redis/redis.conf
 
-RUN echo "baserow_user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/baserow_user && \
-    chmod 0440 /etc/sudoers.d/baserow_user
+RUN echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
+    chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
 # Backend venv and frontend deps
 COPY --chown=$UID:$GID --from=backend_image ${UV_PROJECT_ENVIRONMENT} ${UV_PROJECT_ENVIRONMENT}

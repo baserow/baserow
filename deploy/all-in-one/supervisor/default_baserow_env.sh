@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-export DOCKER_USER=${DOCKER_USER:-baserow_user}
+export DOCKER_USER=${DOCKER_USER:-baserow_docker_user}
 export DATA_DIR=${DATA_DIR:-/baserow/data}
 export BASEROW_PLUGIN_DIR=${BASEROW_PLUGIN_DIR:-$DATA_DIR/plugins}
 

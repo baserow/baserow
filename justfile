@@ -95,14 +95,73 @@ dev *ARGS:
                 echo ""
                 echo "Following logs (Ctrl+C to stop all services)..."
                 echo ""
-                just logs -f backend celery frontend
+                just dev logs -f backend celery frontend
             fi
             ;;
         stop|down)
             just _dev-stop
             ;;
         logs)
-            just logs "${REST[@]:-}"
+            BACKEND_LOG="{{ backend_log_file }}"
+            CELERY_LOG="{{ celery_log_file }}"
+            FRONTEND_LOG="{{ frontend_log_file }}"
+
+            # Parse args: known service names go to SERVICES, everything else to OPTS
+            OPTS=()
+            SERVICES=()
+            VALID_SERVICES="backend celery frontend"
+            for arg in ${REST[@]+"${REST[@]}"}; do
+                if [[ " $VALID_SERVICES " == *" $arg "* ]]; then
+                    SERVICES+=("$arg")
+                else
+                    OPTS+=("$arg")
+                fi
+            done
+
+            # Show all services if none specified
+            if [ ${#SERVICES[@]} -eq 0 ]; then
+                SERVICES=(backend frontend celery)
+            fi
+
+            # Map service names to log files
+            FILES=()
+            for svc in "${SERVICES[@]}"; do
+                case "$svc" in
+                    backend)  [ -f "$BACKEND_LOG" ] && FILES+=("$BACKEND_LOG") ;;
+                    celery)   [ -f "$CELERY_LOG" ] && FILES+=("$CELERY_LOG") ;;
+                    frontend) [ -f "$FRONTEND_LOG" ] && FILES+=("$FRONTEND_LOG") ;;
+                esac
+            done
+
+            if [ ${#FILES[@]} -gt 0 ]; then
+                RED=$'\033[38;5;196m'; YLW=$'\033[38;5;214m'; GRN=$'\033[38;5;40m'; CYN=$'\033[38;5;51m'; RST=$'\033[0m'
+                # Check if we're following logs or just viewing
+                FOLLOWING=false
+                for opt in "${OPTS[@]:-}"; do
+                    [[ "$opt" == "-f" || "$opt" == "-F" ]] && FOLLOWING=true
+                done
+                # If not following and files are empty, show helpful message
+                if [[ "$FOLLOWING" == "false" ]]; then
+                    TOTAL_SIZE=0
+                    for f in "${FILES[@]}"; do
+                        SIZE=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null || echo 0)
+                        TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+                    done
+                    if [ "$TOTAL_SIZE" -eq 0 ]; then
+                        echo "Log files exist but are empty - services may still be starting up."
+                        echo "Use 'just dev logs -f' to follow logs as they appear."
+                        exit 0
+                    fi
+                fi
+                tail "${OPTS[@]}" "${FILES[@]}" | sed \
+                    -e "s/\(ERROR\)/${RED}\1${RST}/g" \
+                    -e "s/\(WARNING\)/${YLW}\1${RST}/g" \
+                    -e "s/\(INFO\)/${GRN}\1${RST}/g" \
+                    -e "s/\(DEBUG\)/${CYN}\1${RST}/g"
+            else
+                echo "No logs found."
+                echo "Start the local dev environment first: just dev up"
+            fi
             ;;
         ps)
             echo "==> Process Status"
@@ -399,71 +458,6 @@ backend_log_file := "/tmp/baserow-backend.log"
 celery_log_file := "/tmp/baserow-celery.log"
 frontend_log_file := "/tmp/baserow-web-frontend.log"
 
-# View logs (works with Docker or local processes)
-[group('1 - local-dev')]
-[doc("View logs: just logs [-f] [-n 100] [backend] [celery] [frontend]")]
-logs *ARGS:
-    #!/usr/bin/env bash
-    BACKEND_LOG="{{ backend_log_file }}"
-    CELERY_LOG="{{ celery_log_file }}"
-    FRONTEND_LOG="{{ frontend_log_file }}"
-
-    # Parse args: separate options (start with -) from services
-    OPTS=()
-    SERVICES=()
-    for arg in {{ ARGS }}; do
-        if [[ "$arg" == -* ]]; then
-            OPTS+=("$arg")
-        else
-            SERVICES+=("$arg")
-        fi
-    done
-
-    # Default to backend and celery if none specified
-    if [ ${#SERVICES[@]} -eq 0 ]; then
-        SERVICES=(backend celery)
-    fi
-
-    # Check if docker backend is running
-    if just dc-dev ps backend 2>/dev/null | grep -q "Up"; then
-        echo "==> Logs from Docker containers"
-        # Expand service names to docker compose service names
-        DOCKER_SERVICES=()
-        for svc in "${SERVICES[@]}"; do
-            case "$svc" in
-                backend)  DOCKER_SERVICES+=(backend) ;;
-                celery)   DOCKER_SERVICES+=(celery celery-export-worker celery-beat-worker) ;;
-                frontend) DOCKER_SERVICES+=(web-frontend) ;;
-            esac
-        done
-        just dc-dev logs "${OPTS[@]}" "${DOCKER_SERVICES[@]}"
-        exit 0
-    fi
-
-    # Map service names to log files
-    FILES=()
-    for svc in "${SERVICES[@]}"; do
-        case "$svc" in
-            backend)  [ -f "$BACKEND_LOG" ] && FILES+=("$BACKEND_LOG") ;;
-            celery)   [ -f "$CELERY_LOG" ] && FILES+=("$CELERY_LOG") ;;
-            frontend) [ -f "$FRONTEND_LOG" ] && FILES+=("$FRONTEND_LOG") ;;
-        esac
-    done
-
-    if [ ${#FILES[@]} -gt 0 ]; then
-        echo "==> Logs from local files"
-        RED=$'\033[38;5;196m'; YLW=$'\033[38;5;214m'; GRN=$'\033[38;5;40m'; CYN=$'\033[38;5;51m'; RST=$'\033[0m'
-        tail "${OPTS[@]}" "${FILES[@]}" | sed \
-            -e "s/\(ERROR\)/${RED}\1${RST}/g" \
-            -e "s/\(WARNING\)/${YLW}\1${RST}/g" \
-            -e "s/\(INFO\)/${GRN}\1${RST}/g" \
-            -e "s/\(DEBUG\)/${CYN}\1${RST}/g"
-    else
-        echo "No logs found."
-        echo "If running locally, start with: just b run-dev-server"
-        echo "If running in Docker, start with: just dc-dev up backend"
-    fi
-
 # =============================================================================
 # Docker Development (everything runs in containers - easier setup)
 # =============================================================================
@@ -473,7 +467,7 @@ _dc_help:
     @echo "       just dc-dev <cmd> [args]   (development - builds dev images)"
     @echo ""
     @echo "Examples:"
-    @echo "  just dc-dev tabs                 # Open terminal tabs for each service (like dev.sh). Alias: just dt"
+    @echo "  just dc-dev tabs                 # Open terminal tabs for each service (like dev.sh). Alias: just dct"
     @echo "  just dc-dev up -d                # Start containers (detached)"
     @echo "  just dc-dev up -d backend db     # Start specific services"
     @echo "  just dc-dev tmux                 # Start tmux session with all services"
@@ -694,7 +688,7 @@ _dc-dev-tabs *ARGS:
 
 # Shortcut for dc-dev tabs
 [private]
-dt *ARGS:
+dct *ARGS:
     @just dc-dev tabs {{ ARGS }}
 
 # Attach to a running container (interactive shell)

@@ -85,11 +85,6 @@ If you want to contribute to Baserow you can setup a development environment lik
 git clone https://github.com/baserow/baserow.git
 cd baserow
 
-# Option 1: Local development (faster iteration)
-just init        # First time: install dependencies
-just dev up      # Start all services (Ctrl+C to stop)
-
-# Option 2: Docker (easier setup, everything containerized)
 just dc-dev build --parallel
 just dc-dev up -d
 ```

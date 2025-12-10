@@ -95,13 +95,13 @@ ARG GID
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV DOCKER_USER=baserow_user \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend"
 
-RUN groupadd --system --gid $GID baserow_user && \
-    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m baserow_user
+RUN groupadd --system --gid $GID ${DOCKER_USER} && \
+    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+    COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
 
 RUN mkdir -p /baserow/web-frontend/.cache /baserow/reports /baserow/.cache /baserow/.yarn /baserow/web-frontend/reports/coverage && \
@@ -150,7 +150,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     vim \
     sudo
 
-ENV DOCKER_USER=baserow_dev \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend" \
     YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache
 
@@ -162,10 +162,10 @@ COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
 COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
-RUN getent group $GID || groupadd --system --gid $GID baserow_dev && \
-    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m baserow_dev && \
-    echo "baserow_dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/baserow_dev && \
-    chmod 0440 /etc/sudoers.d/baserow_dev
+RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
+    chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
 RUN mkdir -p /baserow/web-frontend /baserow/premium/web-frontend /baserow/enterprise/web-frontend && \
     chown -R $UID:$GID /baserow
@@ -217,7 +217,7 @@ ARG GID
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ENV DOCKER_USER=baserow_user \
+ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend" \
     NODE_ENV=production \
     YARN_CACHE_FOLDER=/tmp/.yarn-cache
@@ -226,8 +226,8 @@ COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
 
-RUN groupadd --system --gid $GID baserow_user && \
-    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m baserow_user
+RUN groupadd --system --gid $GID ${DOCKER_USER} && \
+    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
 USER $UID:$GID
 RUN mkdir -p /baserow/web-frontend

@@ -12,7 +12,6 @@ automatic style fixers to make your life as easy as possible.
 Install the following tools:
 - [just](https://github.com/casey/just) - command runner
 - [uv](https://github.com/astral-sh/uv) - Python package manager
-- [direnv](https://direnv.net/) (optional but recommended) - automatic environment loading
 
 ## Setup Steps
 
@@ -31,9 +30,7 @@ Install the following tools:
        just b init
        ```
        This creates a virtualenv at `.venv/` in the project root.
-    2. If using direnv, run `direnv allow` to automatically activate the environment.
-       Otherwise, activate manually: `source .venv/bin/activate`
-    3. Now back in Intellij, press F4 or right-click on the top level baserow folder and
+    2. Now back in Intellij, press F4 or right-click on the top level baserow folder and
        select `module settings`:
         1. Make sure the `backend` module SDK is set to the python virtualenv you just
            made (`.venv/bin/python`).
