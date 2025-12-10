@@ -108,7 +108,7 @@ const actions = {
     )
   },
   async forceDelete({ commit }, { automation, workflow }) {
-    if (workflow._.selected) {
+    if (workflow._?.selected) {
       // Redirect back to the dashboard because the workflow doesn't exist anymore.
       await this.$router.push({ name: 'dashboard' })
       commit('UNSELECT')
