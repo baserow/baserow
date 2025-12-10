@@ -7,7 +7,7 @@ export class PeriodicIntervalFieldsConfigureDataSyncType extends ConfigureDataSy
   }
 
   get name() {
-    return this.app.i18n.t('configureDataSyncModal.periodicInterval')
+    return this.app.$i18n.t('configureDataSyncModal.periodicInterval')
   }
 
   get iconClass() {

@@ -44,9 +44,9 @@ const router = useRouter()
 const { $store, $registry, $i18n } = useNuxtApp()
 
 const panelWidth = ref(360)
-const workspace = ref(null)
+/*const workspace = ref(null)
 const builder = ref(null)
-const currentPage = ref(null)
+const currentPage = ref(null)*/
 
 // Provide values for child components
 const applicationContext = computed(() => ({
@@ -55,20 +55,18 @@ const applicationContext = computed(() => ({
   mode,
 }))
 
-provide('workspace', workspace)
-provide('builder', builder)
-provide('currentPage', currentPage)
-provide('mode', mode)
-provide('formulaComponent', ApplicationBuilderFormulaInput)
-provide('applicationContext', applicationContext)
-
 useHead(() => ({
-  title: $i18n.t('dashboard.title'),
+  title: $i18n.t('pageEditor.title'),
 }))
 
 // Load page data
-const { error: pageError } = await useAsyncData(
-  `page-editor-${route.params.builderId}-${route.params.pageId}`,
+const {
+  data: pageData,
+  error: pageError,
+  pending: pagePending,
+  refresh: refreshPage,
+} = await useAsyncData(
+  () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     const builderId = parseInt(route.params.builderId)
     const pageId = parseInt(route.params.pageId)
@@ -78,9 +76,11 @@ const { error: pageError } = await useAsyncData(
         'application/selectById',
         builderId
       )
+
       $store.dispatch('userSourceUser/setCurrentApplication', {
         application: loadedBuilder,
       })
+
       const loadedWorkspace = await $store.dispatch(
         'workspace/selectById',
         loadedBuilder.workspace.id
@@ -91,13 +91,11 @@ const { error: pageError } = await useAsyncData(
         BuilderApplicationType.getType()
       )
 
-      // Select the page first - this will validate it exists
       const page = await $store.dispatch('page/selectById', {
         builder: loadedBuilder,
         pageId,
       })
 
-      // Shared pages cannot be edited
       if (page.shared) {
         throw createError({
           statusCode: 404,
@@ -119,15 +117,12 @@ const { error: pageError } = await useAsyncData(
         mode,
       })
 
-      workspace.value = loadedWorkspace
-      builder.value = loadedBuilder
-      currentPage.value = page
-
-      console.log('current page is', page)
-
-      return { success: true }
+      return {
+        workspace: loadedWorkspace,
+        builder: loadedBuilder,
+        page,
+      }
     } catch (e) {
-      // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
@@ -139,6 +134,10 @@ const { error: pageError } = await useAsyncData(
     }
   }
 )
+
+const workspace = computed(() => pageData.value?.workspace ?? null)
+const builder = computed(() => pageData.value?.builder ?? null)
+const currentPage = computed(() => pageData.value?.page ?? null)
 
 // Computed properties
 const dataSources = computed(() => {
@@ -171,6 +170,13 @@ const applicationDispatchContext = computed(() => {
     { builder: builder.value, mode }
   )
 })
+
+provide('workspace', workspace)
+provide('builder', builder)
+provide('currentPage', currentPage)
+provide('mode', mode)
+provide('formulaComponent', ApplicationBuilderFormulaInput)
+provide('applicationContext', applicationContext)
 
 // Watchers
 watch(

@@ -114,7 +114,7 @@ export class Event {
         handleDispatchError(
           e,
           this.app,
-          this.app.i18n.t('builderToast.errorWorkflowActionDispatch', {
+          this.app.$i18n.t('builderToast.errorWorkflowActionDispatch', {
             name: workflowActionType.label,
           })
         )

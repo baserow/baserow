@@ -20,7 +20,7 @@ export class TextQueryParamType extends QueryParamType {
   }
 
   get name() {
-    return this.app.i18n.t('queryParamTypes.textName')
+    return this.app.$i18n.t('queryParamTypes.textName')
   }
 
   get icon() {
@@ -38,7 +38,7 @@ export class NumericQueryParamType extends QueryParamType {
   }
 
   get name() {
-    return this.app.i18n.t('queryParamTypes.numericName')
+    return this.app.$i18n.t('queryParamTypes.numericName')
   }
 
   get icon() {

@@ -58,7 +58,9 @@ watch(
   }
 )
 
-const { app, store } = useContext()
+const app = useNuxtApp()
+const { $store } = app
+//const { app, store } = useContext()
 
 const isInSidePanel = computed(() => {
   return applicationContext.value?.element !== undefined
@@ -104,11 +106,11 @@ const formulaStr = computed(() => {
 })
 
 const dataSourceLoading = computed(() => {
-  return store.getters['dataSource/getLoading'](elementPage)
+  return $store.getters['dataSource/getLoading'](elementPage)
 })
 
 const dataSourceContentLoading = computed(() => {
-  return store.getters['dataSourceContent/getLoading'](elementPage)
+  return $store.getters['dataSourceContent/getLoading'](elementPage)
 })
 
 /**

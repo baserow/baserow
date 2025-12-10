@@ -1131,7 +1131,7 @@ export class TextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.text')
+    return this.app.$i18n.t('fieldDocs.text')
   }
 
   getDocsRequestExample(field) {
@@ -1251,7 +1251,7 @@ export class LongTextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.longText')
+    return this.app.$i18n.t('fieldDocs.longText')
   }
 
   getDocsRequestExample(field) {
@@ -1502,7 +1502,9 @@ export class LinkRowFieldType extends FieldType {
       if (link.value) {
         return link.value
       }
-      return this.app.i18n.t('gridViewFieldLinkRow.unnamed', { value: link.id })
+      return this.app.$i18n.t('gridViewFieldLinkRow.unnamed', {
+        value: link.id,
+      })
     })
 
     // Use papa to generate a CSV string
@@ -1594,7 +1596,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.linkRow', {
+    return this.app.$i18n.t('fieldDocs.linkRow', {
       table: field.link_row_table_id,
     })
   }
@@ -1792,11 +1794,11 @@ export class NumberFieldType extends FieldType {
 
     const nrValue = new BigNumber(value)
     if (nrValue.isNaN() || !nrValue.isFinite()) {
-      return this.app.i18n.t('fieldErrors.invalidNumber')
+      return this.app.$i18n.t('fieldErrors.invalidNumber')
     }
     const maxVal = new BigNumber(`10e${NumberFieldType.getMaxNumberLength()}`)
     if (nrValue.absoluteValue().isGreaterThanOrEqualTo(maxVal)) {
-      return this.app.i18n.t('fieldErrors.maxDigits', {
+      return this.app.$i18n.t('fieldErrors.maxDigits', {
         max: NumberFieldType.getMaxNumberLength(),
       })
     }
@@ -1847,7 +1849,7 @@ export class NumberFieldType extends FieldType {
     if (!field.number_negative) {
       t += 'Positive'
     }
-    return this.app.i18n.t(`fieldDocs.${t}`, {
+    return this.app.$i18n.t(`fieldDocs.${t}`, {
       places: field.number_decimal_places,
     })
   }
@@ -2022,7 +2024,7 @@ export class RatingFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t(`fieldDocs.rating`)
+    return this.app.$i18n.t(`fieldDocs.rating`)
   }
 
   getDocsRequestExample(field) {
@@ -2176,7 +2178,7 @@ export class BooleanFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.boolean')
+    return this.app.$i18n.t('fieldDocs.boolean')
   }
 
   getDocsRequestExample(field) {
@@ -2415,8 +2417,8 @@ class BaseDateFieldType extends FieldType {
 
   getDocsDescription(field) {
     return field.date_include_time
-      ? this.app.i18n.t('fieldDocs.dateTime')
-      : this.app.i18n.t('fieldDocs.date')
+      ? this.app.$i18n.t('fieldDocs.dateTime')
+      : this.app.$i18n.t('fieldDocs.date')
   }
 
   getDocsRequestExample(field) {
@@ -2547,10 +2549,10 @@ export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
 
   getDocsDescription(field, firstPartOverwrite) {
     const firstPart =
-      firstPartOverwrite || this.app.i18n.t('fieldDocs.readOnly')
+      firstPartOverwrite || this.app.$i18n.t('fieldDocs.readOnly')
     return field.date_include_time
-      ? `${firstPart} ${this.app.i18n.t('fieldDocs.dateTimeResponse')}`
-      : `${firstPart} ${this.app.i18n.t('fieldDocs.dateResponse')}`
+      ? `${firstPart} ${this.app.$i18n.t('fieldDocs.dateTimeResponse')}`
+      : `${firstPart} ${this.app.$i18n.t('fieldDocs.dateResponse')}`
   }
 
   getDocsRequestExample(field) {
@@ -2583,7 +2585,7 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
   getDocsDescription(field) {
     return super.getDocsDescription(
       field,
-      this.app.i18n.t('fieldDocs.lastModifiedReadOnly')
+      this.app.$i18n.t('fieldDocs.lastModifiedReadOnly')
     )
   }
 
@@ -2612,7 +2614,7 @@ export class CreatedOnFieldType extends CreatedOnLastModifiedBaseFieldType {
   getDocsDescription(field) {
     return super.getDocsDescription(
       field,
-      this.app.i18n.t('fieldDocs.createdOnReadOnly')
+      this.app.$i18n.t('fieldDocs.createdOnReadOnly')
     )
   }
 
@@ -2753,7 +2755,7 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.lastModifiedBy')
+    return this.app.$i18n.t('fieldDocs.lastModifiedBy')
   }
 
   getDocsRequestExample() {
@@ -2895,7 +2897,7 @@ export class CreatedByFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.createdBy')
+    return this.app.$i18n.t('fieldDocs.createdBy')
   }
 
   getDocsRequestExample() {
@@ -2941,7 +2943,7 @@ export class DurationFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.duration', {
+    return this.app.$i18n.t('fieldDocs.duration', {
       format: field.duration_format,
     })
   }
@@ -3020,14 +3022,14 @@ export class DurationFieldType extends FieldType {
     }
 
     if (totalSecs === null) {
-      return this.app.i18n.t('fieldErrors.invalidDuration', {
+      return this.app.$i18n.t('fieldErrors.invalidDuration', {
         durationFormat: this.getDocsRequestExample(field),
       })
     } else if (
       totalSecs > MAX_BACKEND_DURATION_VALUE_NUMBER_OF_SECS ||
       totalSecs < MIN_BACKEND_DURATION_VALUE_NUMBER_OF_SECS
     ) {
-      return this.app.i18n.t('fieldErrors.overflowDuration')
+      return this.app.$i18n.t('fieldErrors.overflowDuration')
     }
     return null
   }
@@ -3135,7 +3137,7 @@ export class URLFieldType extends FieldType {
       return null
     }
     if (!isValidURL(value)) {
-      return this.app.i18n.t('fieldErrors.invalidUrl')
+      return this.app.$i18n.t('fieldErrors.invalidUrl')
     }
     return null
   }
@@ -3145,7 +3147,7 @@ export class URLFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.url')
+    return this.app.$i18n.t('fieldDocs.url')
   }
 
   getDocsRequestExample(field) {
@@ -3238,10 +3240,10 @@ export class EmailFieldType extends FieldType {
       return null
     }
     if (value.length > 254) {
-      return this.app.i18n.t('fieldErrors.max254Chars')
+      return this.app.$i18n.t('fieldErrors.max254Chars')
     }
     if (!isValidEmail(value)) {
-      return this.app.i18n.t('fieldErrors.invalidEmail')
+      return this.app.$i18n.t('fieldErrors.invalidEmail')
     }
     return null
   }
@@ -3251,7 +3253,7 @@ export class EmailFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.email')
+    return this.app.$i18n.t('fieldDocs.email')
   }
 
   getDocsRequestExample(field) {
@@ -3426,7 +3428,7 @@ export class FileFieldType extends FieldType {
   }
 
   getDocsDescription() {
-    return this.app.i18n.t('fieldDocs.file')
+    return this.app.$i18n.t('fieldDocs.file')
   }
 
   getDocsRequestExample() {
@@ -3676,7 +3678,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       .join('\n')
 
     return `
-      ${this.app.i18n.t('fieldDocs.singleSelect')}
+      ${this.app.$i18n.t('fieldDocs.singleSelect')}
       <br />
       ${options}
     `
@@ -3951,7 +3953,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       .join('\n')
 
     return `
-      ${this.app.i18n.t('fieldDocs.multipleSelect')}
+      ${this.app.$i18n.t('fieldDocs.multipleSelect')}
       <br />
       ${options}
     `
@@ -4128,7 +4130,7 @@ export class PhoneNumberFieldType extends FieldType {
       return null
     }
     if (!isSimplePhoneNumber(value)) {
-      return this.app.i18n.t('fieldErrors.invalidPhoneNumber')
+      return this.app.$i18n.t('fieldErrors.invalidPhoneNumber')
     }
     return null
   }
@@ -4142,7 +4144,7 @@ export class PhoneNumberFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.phoneNumber')
+    return this.app.$i18n.t('fieldDocs.phoneNumber')
   }
 
   getDocsRequestExample(field) {
@@ -4281,7 +4283,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.formula')
+    return this.app.$i18n.t('fieldDocs.formula')
   }
 
   getDocsRequestExample(field) {
@@ -4409,7 +4411,7 @@ export class CountFieldType extends FormulaFieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.count')
+    return this.app.$i18n.t('fieldDocs.count')
   }
 
   getFormComponent() {
@@ -4436,7 +4438,7 @@ export class RollupFieldType extends FormulaFieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.rollup')
+    return this.app.$i18n.t('fieldDocs.rollup')
   }
 
   getFormComponent() {
@@ -4463,7 +4465,7 @@ export class LookupFieldType extends FormulaFieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.lookup')
+    return this.app.$i18n.t('fieldDocs.lookup')
   }
 
   getFormComponent() {
@@ -4678,7 +4680,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.multipleCollaborators')
+    return this.app.$i18n.t('fieldDocs.multipleCollaborators')
   }
 
   getDocsRequestExample() {
@@ -4786,7 +4788,7 @@ export class UUIDFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.uuid')
+    return this.app.$i18n.t('fieldDocs.uuid')
   }
 
   getDocsRequestExample(field) {
@@ -4901,7 +4903,7 @@ export class AutonumberFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.autonumber')
+    return this.app.$i18n.t('fieldDocs.autonumber')
   }
 
   getDocsRequestExample(field) {
@@ -4960,7 +4962,7 @@ export class PasswordFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.password')
+    return this.app.$i18n.t('fieldDocs.password')
   }
 
   getDocsRequestExample(field) {
@@ -4978,10 +4980,10 @@ export class PasswordFieldType extends FieldType {
 
     const stringValue = value.toString()
     if (stringValue.length < 1) {
-      return this.app.i18n.t('fieldErrors.minChars', { min: 1 })
+      return this.app.$i18n.t('fieldErrors.minChars', { min: 1 })
     }
     if (stringValue.length > 128) {
-      return this.app.i18n.t('fieldErrors.maxChars', { max: 128 })
+      return this.app.$i18n.t('fieldErrors.maxChars', { max: 128 })
     }
     return null
   }

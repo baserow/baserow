@@ -41,7 +41,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
   getErrorMessage({ service }) {
     if (service !== undefined) {
       if (!service.table_id) {
-        return this.app.i18n.t('serviceType.errorNoTableSelected')
+        return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
     }
     return super.getErrorMessage({ service })
@@ -121,14 +121,14 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
     if (service !== undefined) {
       const filtersInError = service.filters?.some((filter) => filter.trashed)
       if (filtersInError) {
-        return this.app.i18n.t('serviceType.errorFilterInError')
+        return this.app.$i18n.t('serviceType.errorFilterInError')
       }
 
       const sortingsInError = service.sortings?.some(
         (sorting) => sorting.trashed
       )
       if (sortingsInError) {
-        return this.app.i18n.t('serviceType.errorSortingInError')
+        return this.app.$i18n.t('serviceType.errorSortingInError')
       }
     }
     return super.getErrorMessage({ service })
@@ -141,7 +141,7 @@ export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableSe
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowGetRow')
+    return this.app.$i18n.t('serviceType.localBaserowGetRow')
   }
 
   get formComponent() {
@@ -149,7 +149,7 @@ export class LocalBaserowGetRowServiceType extends DataSourceLocalBaserowTableSe
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowGetRowDescription')
+    return this.app.$i18n.t('serviceType.localBaserowGetRowDescription')
   }
 
   get icon() {
@@ -184,7 +184,7 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowListRows')
+    return this.app.$i18n.t('serviceType.localBaserowListRows')
   }
 
   get formComponent() {
@@ -192,7 +192,7 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowListRowsDescription')
+    return this.app.$i18n.t('serviceType.localBaserowListRowsDescription')
   }
 
   get icon() {
@@ -315,11 +315,11 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowAggregateRows')
+    return this.app.$i18n.t('serviceType.localBaserowAggregateRows')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowAggregateRowsDescription')
+    return this.app.$i18n.t('serviceType.localBaserowAggregateRowsDescription')
   }
 
   get formComponent() {
@@ -358,14 +358,14 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
   getErrorMessage({ service }) {
     if (service !== undefined) {
       if (!service.field_id) {
-        return this.app.i18n.t('serviceType.errorNoFieldSelected')
+        return this.app.$i18n.t('serviceType.errorNoFieldSelected')
       }
       if (!service.aggregation_type) {
-        return this.app.i18n.t('serviceType.errorNoAggregationTypeSelected')
+        return this.app.$i18n.t('serviceType.errorNoAggregationTypeSelected')
       }
       const filtersInError = service.filters.some((filter) => filter.trashed)
       if (filtersInError) {
-        return this.app.i18n.t('serviceType.errorFilterInError')
+        return this.app.$i18n.t('serviceType.errorFilterInError')
       }
     }
     return super.getErrorMessage({ service })
@@ -390,7 +390,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
           const fieldName = service.context_data.field.name
           return `${defaultTableDescription} - ${fieldName}`
         } else {
-          return `${defaultTableDescription} - ${this.app.i18n.t(
+          return `${defaultTableDescription} - ${this.app.$i18n.t(
             'serviceType.trashedField'
           )}`
         }
@@ -419,11 +419,11 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowCreateRow')
+    return this.app.$i18n.t('serviceType.localBaserowCreateRow')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowCreateRowDescription')
+    return this.app.$i18n.t('serviceType.localBaserowCreateRowDescription')
   }
 
   get formComponent() {
@@ -443,11 +443,11 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowUpdateRow')
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRow')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowUpdateRowDescription')
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRowDescription')
   }
 
   get formComponent() {
@@ -467,11 +467,11 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowDeleteRow')
+    return this.app.$i18n.t('serviceType.localBaserowDeleteRow')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowDeleteRowDescription')
+    return this.app.$i18n.t('serviceType.localBaserowDeleteRowDescription')
   }
 
   get formComponent() {
@@ -489,7 +489,7 @@ export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   getErrorMessage({ service }) {
     if (service !== undefined) {
       if (!service.table_id) {
-        this.app.i18n.t('serviceType.errorNoTableSelected')
+        this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
     }
     return super.getErrorMessage({ service })
@@ -502,11 +502,11 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTrigg
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowRowsCreated')
+    return this.app.$i18n.t('serviceType.localBaserowRowsCreated')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowRowsCreatedDescription')
+    return this.app.$i18n.t('serviceType.localBaserowRowsCreatedDescription')
   }
 
   get icon() {
@@ -524,11 +524,11 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTrigg
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowRowsUpdated')
+    return this.app.$i18n.t('serviceType.localBaserowRowsUpdated')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowRowsUpdatedDescription')
+    return this.app.$i18n.t('serviceType.localBaserowRowsUpdatedDescription')
   }
 
   get icon() {
@@ -546,11 +546,11 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTrigg
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.localBaserowRowsDeleted')
+    return this.app.$i18n.t('serviceType.localBaserowRowsDeleted')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.localBaserowRowsDeletedDescription')
+    return this.app.$i18n.t('serviceType.localBaserowRowsDeletedDescription')
   }
 
   get icon() {

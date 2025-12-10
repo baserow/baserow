@@ -198,7 +198,7 @@ export class DataProviderType extends Registerable {
         nodes: [
           // Always allow direct access to the entire value
           {
-            name: `${name} (${this.app.i18n.t('common.value')})`,
+            name: `${name} (${this.app.$i18n.t('common.value')})`,
             identifier: '',
             order: 0,
             type: 'unknown',
@@ -291,7 +291,7 @@ export class DataProviderType extends Registerable {
       const nodeSchema = this.getSchemaNode(schemaNode.items, rest)
 
       if (pathParts.at(-1) === '*') {
-        return { ...nodeSchema, title: `[${this.app.i18n.t('common.all')}]` }
+        return { ...nodeSchema, title: `[${this.app.$i18n.t('common.all')}]` }
       }
 
       return nodeSchema

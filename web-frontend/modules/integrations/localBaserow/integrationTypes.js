@@ -8,7 +8,7 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   get name() {
-    return this.app.i18n.t('integrationType.localBaserow')
+    return this.app.$i18n.t('integrationType.localBaserow')
   }
 
   get image() {
@@ -17,10 +17,10 @@ export class LocalBaserowIntegrationType extends IntegrationType {
 
   getSummary(integration) {
     if (!integration.authorized_user) {
-      return this.app.i18n.t('localBaserowIntegrationType.localBaserowNoUser')
+      return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
 
-    return this.app.i18n.t('localBaserowIntegrationType.localBaserowSummary', {
+    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
       name: integration.authorized_user.first_name,
       username: integration.authorized_user.username,
     })
@@ -31,7 +31,7 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   get warning() {
-    return this.app.i18n.t('localBaserowIntegrationType.localBaserowWarning')
+    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowWarning')
   }
 
   getDefaultValues() {

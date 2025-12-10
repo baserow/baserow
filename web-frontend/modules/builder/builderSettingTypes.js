@@ -45,7 +45,7 @@ export class GeneralBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.generalName')
+    return this.app.$i18n.t('builderSettingTypes.generalName')
   }
 
   get icon() {
@@ -67,7 +67,7 @@ export class IntegrationsBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.integrationsName')
+    return this.app.$i18n.t('builderSettingTypes.integrationsName')
   }
 
   get icon() {
@@ -89,7 +89,7 @@ export class ThemeBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.themeName')
+    return this.app.$i18n.t('builderSettingTypes.themeName')
   }
 
   get icon() {
@@ -111,7 +111,7 @@ export class DomainsBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.domainsName')
+    return this.app.$i18n.t('builderSettingTypes.domainsName')
   }
 
   get icon() {
@@ -133,7 +133,7 @@ export class UserSourcesBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.userSourcesName')
+    return this.app.$i18n.t('builderSettingTypes.userSourcesName')
   }
 
   get icon() {

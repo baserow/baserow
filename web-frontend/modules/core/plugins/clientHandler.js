@@ -379,10 +379,10 @@ export class ErrorHandler {
   getNotFoundMessage(name) {
     if (!Object.prototype.hasOwnProperty.call(this.notFoundMap, name)) {
       return new ResponseErrorMessage(
-        this.app.i18n.t('clientHandler.notFoundTitle', {
+        this.app.$i18n.t('clientHandler.notFoundTitle', {
           name: upperCaseFirst(name),
         }),
-        this.app.i18n.t('clientHandler.notFoundDescription', {
+        this.app.$i18n.t('clientHandler.notFoundDescription', {
           name: name.toLowerCase(),
         })
       )
@@ -396,8 +396,8 @@ export class ErrorHandler {
    */
   getNetworkErrorMessage() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.networkErrorTitle'),
-      this.app.i18n.t('clientHandler.networkErrorDescription')
+      this.app.$i18n.t('clientHandler.networkErrorTitle'),
+      this.app.$i18n.t('clientHandler.networkErrorDescription')
     )
   }
 
@@ -407,8 +407,8 @@ export class ErrorHandler {
    */
   getTooManyRequestsError() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.tooManyRequestsTitle'),
-      this.app.i18n.t('clientHandler.tooManyRequestsDescription')
+      this.app.$i18n.t('clientHandler.tooManyRequestsTitle'),
+      this.app.$i18n.t('clientHandler.tooManyRequestsDescription')
     )
   }
 
@@ -441,8 +441,8 @@ export class ErrorHandler {
 
   genericDefaultError() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.notCompletedTitle'),
-      this.app.i18n.t('clientHandler.notCompletedDescription')
+      this.app.$i18n.t('clientHandler.notCompletedTitle'),
+      this.app.$i18n.t('clientHandler.notCompletedDescription')
     )
   }
 

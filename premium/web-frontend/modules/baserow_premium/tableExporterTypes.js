@@ -10,7 +10,7 @@ import { ExportsPaidFeature } from '@baserow_premium/paidFeatures'
 
 class PremiumTableExporterType extends TableExporterType {
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedClickModal() {

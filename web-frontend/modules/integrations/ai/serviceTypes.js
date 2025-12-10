@@ -13,7 +13,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.aiAgent')
+    return this.app.$i18n.t('serviceType.aiAgent')
   }
 
   get icon() {
@@ -29,7 +29,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.aiAgentDescription')
+    return this.app.$i18n.t('serviceType.aiAgentDescription')
   }
 
   getDataSchema(service) {
@@ -47,13 +47,13 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
     }
 
     if (!service.ai_generative_ai_type) {
-      return this.app.i18n.t('serviceType.errorNoAIProviderSelected')
+      return this.app.$i18n.t('serviceType.errorNoAIProviderSelected')
     }
     if (!service.ai_generative_ai_model) {
-      return this.app.i18n.t('serviceType.errorNoAIModelSelected')
+      return this.app.$i18n.t('serviceType.errorNoAIModelSelected')
     }
     if (!service.ai_prompt.formula) {
-      return this.app.i18n.t('serviceType.errorNoPromptProvided')
+      return this.app.$i18n.t('serviceType.errorNoPromptProvided')
     }
     if (service.ai_output_type === 'choice') {
       // Check if choices array is empty or has no valid choices
@@ -63,7 +63,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
         service.ai_choices.length === 0 ||
         service.ai_choices.every((c) => !c || !c.trim())
       ) {
-        return this.app.i18n.t('serviceType.errorNoChoicesProvided')
+        return this.app.$i18n.t('serviceType.errorNoChoicesProvided')
       }
     }
     return super.getErrorMessage({ service })
