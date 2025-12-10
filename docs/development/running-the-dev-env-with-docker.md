@@ -6,14 +6,8 @@ This guide covers running the Baserow development environment using Docker. This
 
 ### Required Tools
 
-1. **Docker**
-   - Install from https://docs.docker.com/desktop/ or similar alternatives
-   - Minimum version: Docker 19.03+, Compose 2.0+
-   - Allocate at least 4GB RAM to Docker (8GB recommended)
-
-2. **Git**
-   - Install from https://git-scm.com/downloads
-
+1. **Docker** - Install from https://docs.docker.com/desktop/ or similar alternatives. Allocate at least 4GB RAM (8GB recommended).
+2. **Git** - Install from https://git-scm.com/downloads
 3. **just** - Command runner
    ```bash
    # macOS
@@ -23,13 +17,15 @@ This guide covers running the Baserow development environment using Docker. This
    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
    ```
 
+See [supported.md](../installation/supported.md) for minimum version requirements.
+
 ### Verify Installation
 
 ```bash
-docker -v          # Docker version 24.0.0 or higher
-docker compose version  # Docker Compose version v2.0.0 or higher
-git --version      # git version 2.x
-just --version     # just 1.x
+docker -v
+docker compose version
+git --version
+just --version
 ```
 
 ## Quick Start
@@ -64,8 +60,11 @@ The Docker dev environment runs these services:
 | `celery-beat-worker` | Scheduled task runner | - |
 | `db` | PostgreSQL database | 5432 |
 | `redis` | Redis cache and message broker | 6379 |
+| `caddy` | Reverse proxy for media files | 4000 |
 | `mailhog` | Email testing UI | 8025 |
+| `mjml-email-compiler` | MJML to HTML email compiler | 28101 |
 | `otel-collector` | OpenTelemetry metrics | 4317 |
+| `volume-permissions-fixer` | Fixes media file permissions on startup | - |
 
 ### Docker Compose Files
 
@@ -164,8 +163,8 @@ By default, all services including optional ones are started:
 
 | Service | Description | Port |
 |---------|-------------|------|
-| `storybook` | Component development UI | 6006 |
-| `flower` | Celery task monitoring | 5555 |
+| `web-frontend-storybook` | Component development UI | 6006 |
+| `celery-flower` | Celery task monitoring | 5555 |
 
 This is controlled by the `COMPOSE_PROFILES` variable in `.env.docker-dev`:
 

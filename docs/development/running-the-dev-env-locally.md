@@ -24,9 +24,8 @@ This guide covers running Baserow's backend and frontend natively on your machin
    brew install python@3.11
 
    # Linux (Ubuntu/Debian)
-   sudo apt install python3.11 python3.11-dev python3.11-venv
+   sudo apt install python3.11 python3.11-dev
    ```
-
 4. **uv** - Fast Python package manager
    ```bash
    # macOS
@@ -46,25 +45,24 @@ This guide covers running Baserow's backend and frontend natively on your machin
    # macOS with Homebrew
    brew install node@24
    ```
-
 6. **Yarn** - Frontend package manager
    ```bash
    npm install -g yarn
    ```
+7. **Git** - Install from https://git-scm.com/downloads
 
-7. **Git**
-   - Install from https://git-scm.com/downloads
+See [supported.md](../installation/supported.md) for minimum version requirements.
 
 ### Verify Installation
 
 ```bash
-docker -v          # Docker version 24.x
-just --version     # just 1.x
-python3.11 --version  # Python 3.11.x
-uv --version       # uv 0.5.x
-node -v            # v24.x
-yarn -v            # 1.22.x
-git --version      # git version 2.x
+docker -v
+just --version
+python3 --version
+uv --version
+node -v
+yarn -v
+git --version
 ```
 
 ## Quick Start
@@ -91,7 +89,7 @@ To run in background:
 ```bash
 just dev up -d   # Start in background
 just dev logs    # View logs
-just dev status  # Check what's running
+just dev ps      # Check what's running
 just dev stop    # Stop all services
 ```
 
