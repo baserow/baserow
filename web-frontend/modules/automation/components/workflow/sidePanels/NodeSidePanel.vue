@@ -53,7 +53,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const store = useStore()
 
-const { app } = useContext()
+const app = useNuxtApp()
 
 provide('formulaComponent', AutomationBuilderFormulaInput)
 provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)

@@ -146,7 +146,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const store = useStore()
-    const { app } = useContext()
+    const app = useNuxtApp()
     const isDev = inject('isDev')
 
     const debug = ref(false)

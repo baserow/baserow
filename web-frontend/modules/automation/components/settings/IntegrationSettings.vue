@@ -66,7 +66,7 @@ export default defineComponent({
   setup(props) {
     const { automation } = toRefs(props)
     const store = useStore()
-    const { app } = useContext()
+    const app = useNuxtApp()
     const state = ref('loaded')
 
     const integrationTypes = computed(() => {

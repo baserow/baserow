@@ -60,7 +60,7 @@ export default defineComponent({
 
   setup(props) {
     const instance = getCurrentInstance()
-    const { app } = useContext()
+    const app = useNuxtApp()
     const i18n = app.i18n
     const store = useStore()
     const { automation } = toRefs(props)

@@ -38,7 +38,7 @@ watch(
   }
 )
 
-const { app } = useContext()
+const app = useNuxtApp()
 
 const dataProviders = computed(() => {
   return props.dataProvidersAllowed.map((dataProviderName) =>

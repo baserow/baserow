@@ -34,7 +34,7 @@
 <script setup>
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
-const { app } = useContext()
+const app = useNuxtApp()
 
 const props = defineProps({
   item: {
