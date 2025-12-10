@@ -52,7 +52,7 @@ const locales = [
 
 export default defineNuxtModule({
   meta: {
-    name: 'database-module',
+    name: 'database',
   },
 
   setup(options, nuxt) {

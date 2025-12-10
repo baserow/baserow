@@ -1,9 +1,8 @@
 <template>
   <div>
-    <template v-for="ctx in fieldRules">
+    <template v-for="ctx in fieldRules" :key="`row-${ctx.rule.id}`">
       <component
         :is="ctx.component"
-        :key="`row-${ctx.rule.id}`"
         :rows="rowsWithDependencies"
         :fields="fields"
         :rule="ctx.rule"

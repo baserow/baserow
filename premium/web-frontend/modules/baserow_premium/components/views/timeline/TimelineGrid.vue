@@ -6,10 +6,12 @@
       width: `${gridWidth}px`,
     }"
   >
-    <template v-for="({ position, item: col }, index) in columnsBuffer">
+    <template
+      v-for="({ position, item: col }, index) in columnsBuffer"
+      :key="`c-${index}`"
+    >
       <div
         v-show="col !== undefined"
-        :key="`c-${index}`"
         :style="{
           position: 'absolute',
           left: `${position.left}px`,

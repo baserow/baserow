@@ -4,9 +4,8 @@ import svgLoader from 'vite-svg-loader'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 function baserowModuleConfig(
-  base = '@',
-  premiumBase = '@/../premium/web-frontend',
-  enterpriseBase = '@/../enterprise/web-frontend'
+  premiumBase = '../premium/web-frontend',
+  enterpriseBase = '../enterprise/web-frontend'
 ) {
   const additionalModulesCsv = process.env.ADDITIONAL_MODULES
   const additionalModules = additionalModulesCsv
@@ -29,13 +28,13 @@ function baserowModuleConfig(
     `./modules/integrations/module.js`,
   ]
 
-  /*if (!process.env.BASEROW_OSS_ONLY) {
-    baseModules.push(
-      premiumBase + '/modules/baserow_premium/module.js',
-      enterpriseBase + '/modules/baserow_enterprise/module.js'
-    )
+  if (!process.env.BASEROW_OSS_ONLY) {
+    /*baseModules.push(
+      premiumBase + '/modules/baserow_premium/module.js'
+      //enterpriseBase + '/modules/baserow_enterprise/module.js'
+    )*/
   }
-  baseModules.push('@nuxtjs/sentry')*/
+  // baseModules.push('@nuxtjs/sentry')
 
   const modules = baseModules.concat(additionalModules)
 
