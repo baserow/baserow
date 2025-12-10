@@ -1095,7 +1095,7 @@
     "hide": "隐藏"
   },
   "gridViewRowHeight": {
-    "name": "身高",
+    "name": "行高",
     "small": "小",
     "medium": "中等",
     "large": "大"
