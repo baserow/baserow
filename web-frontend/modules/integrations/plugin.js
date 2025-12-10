@@ -1,11 +1,4 @@
-import en from '@baserow/modules/integrations/locales/en.json'
-import fr from '@baserow/modules/integrations/locales/fr.json'
-import nl from '@baserow/modules/integrations/locales/nl.json'
-import de from '@baserow/modules/integrations/locales/de.json'
-import es from '@baserow/modules/integrations/locales/es.json'
-import it from '@baserow/modules/integrations/locales/it.json'
-import pl from '@baserow/modules/integrations/locales/pl.json'
-import ko from '@baserow/modules/integrations/locales/ko.json'
+import { defineNuxtPlugin } from '#app'
 
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
@@ -33,69 +26,55 @@ import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceType
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
-export default (context) => {
-  const { app, isDev } = context
+export default defineNuxtPlugin({
+  dependsOn: ['core'],
+  setup(nuxtApp) {
+    const { $registry } = nuxtApp
 
-  // Allow locale file hot reloading in dev
-  if (isDev && app.i18n) {
-    const { i18n } = app
-    i18n.mergeLocaleMessage('en', en)
-    i18n.mergeLocaleMessage('fr', fr)
-    i18n.mergeLocaleMessage('nl', nl)
-    i18n.mergeLocaleMessage('de', de)
-    i18n.mergeLocaleMessage('es', es)
-    i18n.mergeLocaleMessage('it', it)
-    i18n.mergeLocaleMessage('pl', pl)
-    i18n.mergeLocaleMessage('ko', ko)
-  }
+    const context = { app: nuxtApp }
 
-  app.$registry.register(
-    'integration',
-    new LocalBaserowIntegrationType(context)
-  )
-  app.$registry.register('integration', new SMTPIntegrationType(context))
-  app.$registry.register('integration', new AIIntegrationType(context))
-  app.$registry.register('integration', new SlackBotIntegrationType(context))
+    $registry.register('integration', new LocalBaserowIntegrationType(context))
+    $registry.register('integration', new SMTPIntegrationType(context))
+    $registry.register('integration', new AIIntegrationType(context))
+    $registry.register('integration', new SlackBotIntegrationType(context))
 
-  app.$registry.register('service', new LocalBaserowGetRowServiceType(context))
-  app.$registry.register(
-    'service',
-    new LocalBaserowListRowsServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowAggregateRowsServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowCreateRowWorkflowServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowUpdateRowWorkflowServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowDeleteRowWorkflowServiceType(context)
-  )
-  app.$registry.register('service', new CoreHTTPRequestServiceType(context))
-  app.$registry.register('service', new CoreSMTPEmailServiceType(context))
-  app.$registry.register('service', new CoreRouterServiceType(context))
-  app.$registry.register('service', new CoreHTTPTriggerServiceType(context))
-  app.$registry.register('service', new CoreIteratorServiceType(context))
-  app.$registry.register('service', new AIAgentServiceType(context))
-  app.$registry.register('service', new PeriodicTriggerServiceType(context))
-  app.$registry.register('service', new SlackWriteMessageServiceType(context))
-  app.$registry.register(
-    'service',
-    new LocalBaserowRowsCreatedTriggerServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowRowsUpdatedTriggerServiceType(context)
-  )
-  app.$registry.register(
-    'service',
-    new LocalBaserowRowsDeletedTriggerServiceType(context)
-  )
-}
+    $registry.register('service', new LocalBaserowGetRowServiceType(context))
+    $registry.register('service', new LocalBaserowListRowsServiceType(context))
+    $registry.register(
+      'service',
+      new LocalBaserowAggregateRowsServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowCreateRowWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowUpdateRowWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowDeleteRowWorkflowServiceType(context)
+    )
+    $registry.register('service', new CoreHTTPRequestServiceType(context))
+    $registry.register('service', new CoreSMTPEmailServiceType(context))
+    $registry.register('service', new CoreRouterServiceType(context))
+    $registry.register('service', new CoreHTTPTriggerServiceType(context))
+    $registry.register('service', new CoreIteratorServiceType(context))
+    $registry.register('service', new AIAgentServiceType(context))
+    $registry.register('service', new PeriodicTriggerServiceType(context))
+    $registry.register('service', new SlackWriteMessageServiceType(context))
+    $registry.register(
+      'service',
+      new LocalBaserowRowsCreatedTriggerServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowRowsUpdatedTriggerServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowRowsDeletedTriggerServiceType(context)
+    )
+  },
+})
