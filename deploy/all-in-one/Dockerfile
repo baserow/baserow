@@ -146,7 +146,6 @@ RUN printf '%s\n' \
     'export UV_COMPILE_BYTECODE=0' \
     'export UV_CACHE_DIR=/tmp/baserow_uv_cache' \
     'export DJANGO_SETTINGS_MODULE=baserow.config.settings.dev' \
-    'export NODE_ENV=development' \
     '' \
     '# Aliases' \
     'alias j="just"' \

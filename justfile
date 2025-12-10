@@ -60,7 +60,7 @@ init:
 
 # Local development environment management
 [group('1 - local-dev')]
-[doc("Local dev: just dev <up|up -d|stop|logs|status|wipe>")]
+[doc("Local dev: just dev <up|up -d|stop|logs|ps|wipe>")]
 dev *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -78,7 +78,7 @@ dev *ARGS:
                 just dev "${REST[@]}"
             fi
             ;;
-        up)
+        up|start)
             # Check for -d flag
             DETACHED=false
             for arg in "${REST[@]:-}"; do
@@ -98,13 +98,13 @@ dev *ARGS:
                 just logs -f backend celery frontend
             fi
             ;;
-        stop)
+        stop|down)
             just _dev-stop
             ;;
         logs)
             just logs "${REST[@]:-}"
             ;;
-        status)
+        ps)
             echo "==> Process Status"
             for name in backend celery frontend; do
                 pid_file="/tmp/baserow-${name}.pid"
@@ -136,7 +136,7 @@ dev *ARGS:
             echo "  up -d    Start in background (detached)"
             echo "  stop     Stop all services"
             echo "  logs     View logs: just dev logs [-f] [backend|celery|frontend]"
-            echo "  status   Show running services"
+            echo "  ps       Show running services"
             echo "  wipe     Delete database volume (wipe up to restart fresh)"
             echo "  tmux     Start tmux session with all services"
             echo ""
@@ -856,10 +856,18 @@ build target="" tag="latest" *ARGS:
 
     case "{{ target }}" in
         "backend")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
+            TARGET_ARG=""
+            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" ]]; then
+                TARGET_ARG="--target={{ tag }}"
+            fi
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile $TARGET_ARG -t baserow/backend:{{ tag }} .
             ;;
         "web-frontend")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
+            TARGET_ARG=""
+            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" ]]; then
+                TARGET_ARG="--target={{ tag }}"
+            fi
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile $TARGET_ARG -t baserow/web-frontend:{{ tag }} .
             ;;
         "all-in-one")
             echo "Building backend (prod)..."
@@ -930,7 +938,7 @@ build target="" tag="latest" *ARGS:
     esac
     echo ""
     if [[ "$MULTI" != "true" ]]; then
-        echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 'baserow')"
+        echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 '{{ target }}')"
     else
         echo "Multi-platform build complete."
     fi

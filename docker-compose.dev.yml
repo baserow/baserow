@@ -91,10 +91,7 @@ services:
       local:
     command: "storybook-dev"
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:6006 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      disable: true
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:

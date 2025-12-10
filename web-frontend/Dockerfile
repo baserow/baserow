@@ -152,7 +152,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 ENV DOCKER_USER=baserow_dev \
     BASEROW_IMAGE_TYPE="web-frontend" \
-    NODE_ENV=development \
     YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache
 
 # Install rust-just for running justfiles
@@ -187,7 +186,6 @@ RUN echo 'set -g default-command "${SHELL}"' > /baserow/.tmux.conf
 RUN printf '%s\n' \
     '# Baserow Frontend Development Environment' \
     'export PATH="/baserow/web-frontend/node_modules/.bin:$PATH"' \
-    'export NODE_ENV=development' \
     'export YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache' \
     '' \
     '# Aliases' \
