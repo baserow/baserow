@@ -6,15 +6,15 @@ const mutations = {}
 
 const actions = {
   async fetchById({ dispatch }, { builderId }) {
-    const { data } = await PublishedBuilderService(this.$client).fetchById(
-      builderId
-    )
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data } = await PublishedBuilderService($client).fetchById(builderId)
 
     return await dispatch('application/forceCreate', data, { root: true })
   },
 
   async fetchByDomain({ dispatch }, { domain }) {
-    const { data } = await PublishedBuilderService(this.$client).fetchByDomain(
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { data } = await PublishedBuilderService($client).fetchByDomain(
       domain
     )
 

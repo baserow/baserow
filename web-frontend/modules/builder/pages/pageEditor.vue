@@ -29,6 +29,12 @@ import _ from 'lodash'
 
 definePageMeta({
   layout: 'app',
+  middleware: [
+    'settings',
+    'authenticated',
+    'workspacesAndApplications',
+    'pendingJobs',
+  ],
 })
 
 const mode = 'editing'
@@ -55,6 +61,8 @@ provide('mode', mode)
 provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide('applicationContext', applicationContext)
 
+console.log('page setup invoked')
+
 // Load page data
 const { error: pageError } = await useAsyncData(
   `page-editor-${route.params.builderId}-${route.params.pageId}`,
@@ -63,6 +71,7 @@ const { error: pageError } = await useAsyncData(
     const pageId = parseInt(route.params.pageId)
 
     try {
+      console.log('dispatch starts')
       const loadedBuilder = await $store.dispatch(
         'application/selectById',
         builderId
@@ -74,6 +83,7 @@ const { error: pageError } = await useAsyncData(
         'workspace/selectById',
         loadedBuilder.workspace.id
       )
+      console.log('continue')
 
       const builderApplicationType = $registry.get(
         'application',
@@ -85,6 +95,7 @@ const { error: pageError } = await useAsyncData(
         builder: loadedBuilder,
         pageId,
       })
+      console.log('after')
 
       // Shared pages cannot be edited
       if (page.shared) {
@@ -108,12 +119,15 @@ const { error: pageError } = await useAsyncData(
         mode,
       })
 
+      console.log('found page', page)
+
       workspace.value = loadedWorkspace
       builder.value = loadedBuilder
       currentPage.value = page
 
       return { success: true }
     } catch (e) {
+      console.log('error', e)
       // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e

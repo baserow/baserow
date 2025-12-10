@@ -101,8 +101,9 @@ const actions = {
     commit('MOVE_ITEM_PAGE', { pageSource, pageDest, dataSourceId })
   },
   async create({ commit, dispatch }, { page, values, beforeId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('SET_LOADING', { page, value: true })
-    const { data: dataSource } = await DataSourceService(this.$client).create(
+    const { data: dataSource } = await DataSourceService($client).create(
       page.id,
       values,
       beforeId
@@ -114,6 +115,7 @@ const actions = {
     return dataSource
   },
   async update({ commit, dispatch, getters }, { page, dataSourceId, values }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSource = dataSourcesOfPage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -132,7 +134,7 @@ const actions = {
     commit('SET_LOADING', { page, value: true })
     try {
       const { data: updatedDataSource } = await DataSourceService(
-        this.$client
+        $client
       ).update(dataSource.id, values)
 
       await dispatch('forceUpdate', {
@@ -151,6 +153,7 @@ const actions = {
     { dispatch, getters, commit },
     { page, dataSourceId, values }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSource = dataSourcesOfPage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -170,7 +173,7 @@ const actions = {
     // then call the registry's `beforeUpdate` hook to optionally manipulate
     // the values prior to performing an update.
     if (dataSource.type !== null) {
-      const dataSourceType = this.$registry.get('service', dataSource.type)
+      const dataSourceType = $registry.get('service', dataSource.type)
       updateContext.valuesToUpdate = dataSourceType.beforeUpdate(
         updateContext.valuesToUpdate,
         oldValues
@@ -189,7 +192,7 @@ const actions = {
         updateContext.valuesToUpdate = {}
         commit('SET_LOADING', { page, value: true })
         try {
-          const { data } = await DataSourceService(this.$client).update(
+          const { data } = await DataSourceService($client).update(
             dataSource.id,
             toUpdate
           )
@@ -228,6 +231,7 @@ const actions = {
     { commit, dispatch, getters },
     { pageSource, pageDest, dataSourceId }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const dataSourcesOfSourcePage = getters.getPageDataSources(pageSource)
     const dataSource = dataSourcesOfSourcePage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -242,7 +246,7 @@ const actions = {
     commit('SET_LOADING', { page: pageSource, value: true })
     try {
       const { data: updatedDataSource } = await DataSourceService(
-        this.$client
+        $client
       ).update(dataSource.id, {
         page_id: pageDest.id,
       })
@@ -267,6 +271,7 @@ const actions = {
     commit('SET_LOADING', { page: pageSource, value: false })
   },
   async delete({ commit, dispatch, getters }, { page, dataSourceId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSourceIndex = dataSourcesOfPage.findIndex(
       (dataSource) => dataSource.id === dataSourceId
@@ -281,7 +286,7 @@ const actions = {
 
     commit('SET_LOADING', { page, value: true })
     try {
-      await DataSourceService(this.$client).delete(dataSourceId)
+      await DataSourceService($client).delete(dataSourceId)
     } catch (error) {
       await dispatch('forceCreate', {
         page,
@@ -307,15 +312,16 @@ const actions = {
     commit('SET_LOADING', { page, value: false })
   },
   async fetch({ dispatch, commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('SET_LOADING', { page, value: true })
     dispatch(
       'dataSourceContent/clearDataSourceContents',
       { page },
       { root: true }
     )
-    const { data: dataSources } = await DataSourceService(
-      this.$client
-    ).fetchAll(page.id)
+    const { data: dataSources } = await DataSourceService($client).fetchAll(
+      page.id
+    )
 
     commit('CLEAR_ITEMS', { page })
     await Promise.all(
@@ -328,6 +334,7 @@ const actions = {
     return dataSources
   },
   async fetchPublished({ dispatch, commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('SET_LOADING', { page, value: true })
     dispatch(
       'dataSourceContent/clearDataSourceContents',
@@ -336,7 +343,7 @@ const actions = {
     )
 
     const { data: dataSources } = await PublishedBuilderService(
-      this.$client
+      $client
     ).fetchDataSources(page.id)
 
     commit('CLEAR_ITEMS', { page })
@@ -350,13 +357,11 @@ const actions = {
     return dataSources
   },
   async move({ dispatch }, { page, dataSourceId, beforeDataSourceId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     await dispatch('forceMove', { page, dataSourceId, beforeDataSourceId })
 
     try {
-      await DataSourceService(this.$client).move(
-        dataSourceId,
-        beforeDataSourceId
-      )
+      await DataSourceService($client).move(dataSourceId, beforeDataSourceId)
     } catch (error) {
       await dispatch('forceMove', {
         page,

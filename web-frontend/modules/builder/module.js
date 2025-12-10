@@ -42,8 +42,7 @@ export default defineNuxtModule({
       pages.push(...routes)
     })
 
-    // Create a "fake" template with the existing Nuxt router file that can be used by the
-    // `plugins/router.js` above.
+    // Create an alternative router
     const template = addTemplate({
       filename: 'custom-router.js',
       getContents: () => readFileSync(resolve('./router.js'), 'utf-8'),

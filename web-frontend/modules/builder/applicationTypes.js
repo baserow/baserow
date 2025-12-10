@@ -104,36 +104,36 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   delete(application) {
-    const { store, router } = this.app
-    const pageSelected = store.getters['page/getVisiblePages'](
+    const { $store, $router } = this.app
+    const pageSelected = $store.getters['page/getVisiblePages'](
       application
     ).some((page) => page._.selected)
 
     if (pageSelected) {
-      router.push({ name: 'dashboard' })
+      $router.push({ name: 'dashboard' })
     }
   }
 
   async loadExtraData(builder, mode) {
-    const { store, $registry } = this.app
+    const { $store, $registry } = this.app
     if (!builder._loadedOnce) {
-      const sharedPage = store.getters['page/getSharedPage'](builder)
+      const sharedPage = $store.getters['page/getSharedPage'](builder)
       await Promise.all([
-        store.dispatch('userSource/fetch', {
+        $store.dispatch('userSource/fetch', {
           application: builder,
         }),
-        store.dispatch('integration/fetch', {
+        $store.dispatch('integration/fetch', {
           application: builder,
         }),
         // Fetch shared data sources
-        store.dispatch('dataSource/fetch', {
+        $store.dispatch('dataSource/fetch', {
           page: sharedPage,
         }),
-        store.dispatch('element/fetch', {
+        $store.dispatch('element/fetch', {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
+        $store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
       ])
 
       // Initialize application shared stuff like data sources
@@ -145,7 +145,7 @@ export class BuilderApplicationType extends ApplicationType {
         }
       )
 
-      await store.dispatch('application/forceUpdate', {
+      await $store.dispatch('application/forceUpdate', {
         application: builder,
         data: { _loadedOnce: true },
       })
@@ -153,12 +153,12 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   async select(application) {
-    const { router, store, i18n } = this.app
+    const { $router, $store, $i18n } = this.app
 
-    const pages = store.getters['page/getVisiblePages'](application)
+    const pages = $store.getters['page/getVisiblePages'](application)
 
     if (pages.length > 0) {
-      await router.push({
+      await $router.push({
         name: 'builder-page',
         params: {
           builderId: application.id,
@@ -167,9 +167,9 @@ export class BuilderApplicationType extends ApplicationType {
       })
       return true
     } else {
-      store.dispatch('toast/error', {
-        title: i18n.t('applicationType.cantSelectPageTitle'),
-        message: i18n.t('applicationType.cantSelectPageDescription'),
+      $store.dispatch('toast/error', {
+        title: $i18n.t('applicationType.cantSelectPageTitle'),
+        message: $i18n.t('applicationType.cantSelectPageDescription'),
       })
       return false
     }
