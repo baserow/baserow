@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { defineNuxtConfig } from 'nuxt/config'
 import svgLoader from 'vite-svg-loader'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
@@ -25,7 +26,7 @@ function baserowModuleConfig(
     `./modules/dashboard/module.js`,
     `./modules/builder/module.js`,
     `./modules/automation/module.js`,
-    //`${base}/modules/integrations/module.js`,
+    `./modules/integrations/module.js`,
   ]
 
   /*if (!process.env.BASEROW_OSS_ONLY) {
