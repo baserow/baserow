@@ -1,4 +1,61 @@
-import Router from 'vue-router'
+import { createRouter as _createRouter, createWebHistory } from 'vue-router'
+import { routes as fileRoutes } from '#build/routes'
+import { useRuntimeConfig } from '#imports'
+import { useRequestEvent, setResponsePayload } from 'nitro/runtime'
+
+export function createRouter() {
+  let isWebFrontendHostname = true
+
+  // SERVER SIDE
+  if (import.meta.server) {
+    const event = useRequestEvent()
+    if (event) {
+      const runtimeConfig = useRuntimeConfig()
+
+      const frontendHostname = new URL(
+        runtimeConfig.public.publicWebFrontendUrl
+      ).hostname
+
+      const req = event.node.req
+      const hostHeader =
+        req.headers['host'] || req.headers['x-forwarded-host'] || 'localhost'
+
+      const requestHostname = new URL(`http://${hostHeader}`).hostname
+
+      isWebFrontendHostname = frontendHostname === requestHostname
+
+      // Inject SSR → client
+      setResponsePayload(event, (payload) => {
+        payload.isWebFrontendHostname = isWebFrontendHostname
+        return payload
+      })
+    }
+  }
+
+  // CLIENT SIDE
+  if (
+    import.meta.client &&
+    window.__NUXT__?.isWebFrontendHostname !== undefined
+  ) {
+    isWebFrontendHostname = window.__NUXT__.isWebFrontendHostname
+  }
+
+  // Filter routes
+  const newRoutes = fileRoutes.filter((route) => {
+    const isPublished = !!route.meta?.publishedBuilderRoute
+    return (
+      (isWebFrontendHostname && !isPublished) ||
+      (!isWebFrontendHostname && isPublished)
+    )
+  })
+
+  return _createRouter({
+    history: createWebHistory(),
+    routes: newRoutes,
+  })
+}
+
+/*import Router from 'vue-router'
 
 import {
   createRouter as createDefaultRouter,
@@ -14,7 +71,7 @@ import {
  * @param {*} ssrContext
  * @param {*} config
  * @returns the new router instance accessible from `this.$router` in components.
- */
+ *
 export function createRouter(ssrContext, config) {
   let isWebFrontendHostname = true
   // On the server
@@ -71,3 +128,4 @@ export function createRouter(ssrContext, config) {
     routes: newRoutes,
   })
 }
+*/

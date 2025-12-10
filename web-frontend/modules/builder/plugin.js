@@ -155,13 +155,13 @@ import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default defineNuxtPlugin({
-  dependsOn: ['core', 'store'],
+  dependsOn: ['core', 'store', 'realtime'],
   async setup(nuxtApp) {
     const { $store, $registry, $i18n, $realtime, $clientErrorMap } = nuxtApp
     const context = { app: nuxtApp }
 
     // Merge builder translations into i18n
-    if ($i18n) {
+    /*if ($i18n) {
       $i18n.mergeLocaleMessage('en', en)
       $i18n.mergeLocaleMessage('fr', fr)
       $i18n.mergeLocaleMessage('nl', nl)
@@ -170,11 +170,9 @@ export default defineNuxtPlugin({
       $i18n.mergeLocaleMessage('it', it)
       $i18n.mergeLocaleMessage('pl', pl)
       $i18n.mergeLocaleMessage('ko', ko)
-    }
+    }*/
 
-    if ($realtime) {
-      registerRealtimeEvents($realtime)
-    }
+    registerRealtimeEvents($realtime)
 
     $clientErrorMap.setError(
       'ERROR_PAGE_NAME_NOT_UNIQUE',
