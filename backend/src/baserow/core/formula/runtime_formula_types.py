@@ -653,3 +653,16 @@ class RuntimeAt(RuntimeFormulaFunction):
             pass
 
         return None
+
+
+class RuntimeToArray(RuntimeFormulaFunction):
+    type = "to_array"
+
+    args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        try:
+            return ensure_array(args[0])
+        except ValidationError:
+            return None
+

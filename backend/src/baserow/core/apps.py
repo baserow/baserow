@@ -82,6 +82,7 @@ class CoreConfig(AppConfig):
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
+            RuntimeToArray,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())
@@ -130,6 +131,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
+        formula_runtime_function_registry.register(RuntimeToArray())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

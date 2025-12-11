@@ -52,6 +52,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeToday,
     RuntimeUpper,
     RuntimeYear,
+    RuntimeToArray,
 )
 from baserow.test_utils.helpers import AnyBool, AnyFloat, AnyInt
 
@@ -2133,4 +2134,44 @@ def test_runtime_at_validate_type_of_args(args, expected):
 )
 def test_runtime_at_validate_number_of_args(args, expected):
     result = RuntimeAt().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo,bar"], ["foo", "bar"]),
+        ([["foo", "bar"]], ["foo", "bar"]),
+        (['["foo", "bar"]'], ['["foo"', '"bar"]']),
+    ],
+)
+def test_runtime_to_array_execute(args, expected):
+    parsed_args = RuntimeToArray().parse_args(args)
+    result = RuntimeToArray().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["[]"], None),
+        ([[]], None),
+        (["foo,bar"], None),
+    ],
+)
+def test_runtime_to_array_validate_type_of_args(args, expected):
+    result = RuntimeToArray().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_to_array_validate_number_of_args(args, expected):
+    result = RuntimeToArray().validate_number_of_args(args)
     assert result is expected
