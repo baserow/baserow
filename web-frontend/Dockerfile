@@ -41,7 +41,7 @@ USER $UID:$GID
 
 # Create and install the dependencies in separate COPY commands
 COPY --chown=$UID:$GID ./web-frontend /baserow/web-frontend/
-#COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
+COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
 #COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
 
@@ -58,14 +58,15 @@ FROM base AS dev
 
 WORKDIR /baserow/web-frontend
 
-# Install dev dependencies for running nuxt dev + tests.
-RUN yarn install && yarn cache clean
-
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
-# Create symlinks for jest tests
-# RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+# Create symlinks because premium and enterprise are node packages
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules
+#\
 #     && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+
+# Install dev dependencies for running nuxt dev + tests.
+RUN yarn install && yarn cache clean
 
 # We don't bother running build-local in dev mode as it pre-compiles nuxt which won't
 # be used when running the nuxt dev server.
