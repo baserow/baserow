@@ -664,7 +664,18 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a > b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a > b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a > b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -715,7 +726,18 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a < b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a < b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a < b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -766,7 +788,18 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a >= b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a >= b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a >= b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -817,7 +850,18 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a <= b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a <= b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a <= b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -1968,7 +2012,7 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new ArrayBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
       new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
@@ -1982,6 +2026,10 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
 
     if (Array.isArray(val)) {
       return val.join(separator)
+    }
+
+    if (typeof val === 'string') {
+      return val.split('').join(separator)
     }
 
     return null
@@ -2271,20 +2319,22 @@ export class RuntimeAt extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new ArrayBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
       new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
     ]
   }
 
   execute(context, args) {
-    const [array, index] = args
-    try {
-      if (index + 1 <= array.length) {
-        return array[index]
-      }
-    } catch {
-      return null
+    const [value, index] = args
+
+    if (
+      (Array.isArray(value) || typeof value === 'string') &&
+      value.length > index
+    ) {
+      return value[index]
     }
+
+    return null
   }
 
   getDescription() {

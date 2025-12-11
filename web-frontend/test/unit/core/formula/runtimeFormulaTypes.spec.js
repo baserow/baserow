@@ -364,6 +364,8 @@ describe('RuntimeGreaterThan', () => {
     { args: [3, 2], expected: true },
     { args: ['apple', 'ball'], expected: false },
     { args: ['ball', 'apple'], expected: true },
+    { args: ['a', 1], expected: null },
+    { args: [1, 'a'], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeGreaterThan()
     const parsedArgs = formulaType.parseArgs(args)
@@ -408,6 +410,8 @@ describe('RuntimeLessThan', () => {
     { args: [3, 2], expected: false },
     { args: ['apple', 'ball'], expected: true },
     { args: ['ball', 'apple'], expected: false },
+    { args: ['a', 1], expected: null },
+    { args: [1, 'a'], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeLessThan()
     const parsedArgs = formulaType.parseArgs(args)
@@ -452,6 +456,8 @@ describe('RuntimeGreaterThanOrEqual', () => {
     { args: [3, 2], expected: true },
     { args: ['apple', 'ball'], expected: false },
     { args: ['ball', 'apple'], expected: true },
+    { args: ['a', 1], expected: null },
+    { args: [1, 'a'], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeGreaterThanOrEqual()
     const parsedArgs = formulaType.parseArgs(args)
@@ -496,6 +502,8 @@ describe('RuntimeLessThanOrEqual', () => {
     { args: [3, 2], expected: false },
     { args: ['apple', 'ball'], expected: true },
     { args: ['ball', 'apple'], expected: false },
+    { args: ['a', 1], expected: null },
+    { args: [1, 'a'], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeLessThanOrEqual()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1501,8 +1509,8 @@ describe('RuntimeLength', () => {
     { args: ['Hello, world!'], expected: 13 },
     { args: ['0'], expected: 1 },
     { args: [4], expected: null },
-    { args: ['{"a": "b", "c": "d"}'], expected: 20 },
-    { args: ['["a", "b", "c", "d"]'], expected: 20 },
+    { args: [{ a: 'b', c: 'd' }], expected: 2 },
+    { args: [['a', 'b', 'c', 'd']], expected: 4 },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeLength()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1535,9 +1543,9 @@ describe('RuntimeContains', () => {
   test.each([
     { args: ['Hello, world!', 'll'], expected: true },
     { args: ['Hello, world!', 'goodbye'], expected: false },
-    { args: ['{"foo": "bar"}', 'foo'], expected: true },
-    { args: [{"foo": "bar"}, 'foo'], expected: true },
-    { args: [["foo", "bar"], 'foo'], expected: true },
+    { args: [{ foo: 'bar' }, 'foo'], expected: true },
+    { args: [['foo', 'bar'], 'foo'], expected: true },
+    { args: [1, 'foo'], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeContains()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1603,7 +1611,8 @@ describe('RuntimeReverse', () => {
 describe('RuntimeJoin', () => {
   test.each([
     { args: [['foo', 'bar']], expected: 'foo,bar' },
-    { args: ['foo, bar', '*'], expected: 'foo*bar' },
+    { args: ['foo', '*'], expected: 'f*o*o' },
+    { args: [1], expected: null },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeJoin()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1676,6 +1685,7 @@ describe('RuntimeIsEmpty', () => {
     { args: [' '], expected: true },
     { args: ['0'], expected: true },
     { args: [0], expected: true },
+    { args: [0.1], expected: false },
     { args: ['foo'], expected: false },
     { args: [['foo']], expected: false },
     { args: [{ foo: 'bar' }], expected: null },
@@ -1808,8 +1818,8 @@ describe('RuntimeAvg', () => {
 
 describe('RuntimeAt', () => {
   test.each([
-    { args: ['["foo"]', 1], expected: undefined },
     { args: [['foo', 'bar'], 0], expected: 'foo' },
+    { args: ['foobar', 3], expected: 'b' },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeAt()
     const parsedArgs = formulaType.parseArgs(args)
