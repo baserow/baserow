@@ -134,12 +134,4 @@ class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
 
     def parse(self, value):
         value = ensure_array(value)
-
-        data = []
-        for item in value:
-            try:
-                data.append(ensure_numeric(item))
-            except ValidationError:
-                return None
-
-        return data
+        return [ensure_numeric(item) for item in value]

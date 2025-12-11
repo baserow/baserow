@@ -601,10 +601,7 @@ class RuntimeSum(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        try:
-            return sum(args[0])
-        except TypeError:
-            return None
+        return sum(args[0])
 
 
 class RuntimeAvg(RuntimeFormulaFunction):
@@ -615,10 +612,7 @@ class RuntimeAvg(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        try:
-            return sum(args[0]) / len(args[0])
-        except TypeError:
-            return None
+        return sum(args[0]) / len(args[0])
 
 
 class RuntimeAt(RuntimeFormulaFunction):
