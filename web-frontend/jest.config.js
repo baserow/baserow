@@ -3,8 +3,7 @@ const path = require('path')
 
 module.exports = {
   testEnvironment: 'jsdom',
-  // testMatch: ['<rootDir>/test/unit/**/*.spec.js'],
-  testMatch: ['<rootDir>/test/unit/core/formula/runtimeFormulaTypes.spec.js'],
+  testMatch: ['<rootDir>/test/unit/**/*.spec.js'],
   moduleFileExtensions: ['js', 'json', 'vue', '.mjs'],
   moduleNameMapper: {
     '^@baserow/(.*).(scss|sass)$': '<rootDir>/test/helpers/scss.js',
