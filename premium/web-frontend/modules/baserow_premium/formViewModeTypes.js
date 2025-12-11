@@ -11,13 +11,13 @@ export class FormViewSurveyModeType extends FormViewModeType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('formViewModeType.survey')
+    const { $i18n } = this.app
+    return $i18n.t('formViewModeType.survey')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('formViewModeType.surveyDescription')
+    const { $i18n } = this.app
+    return $i18n.t('formViewModeType.surveyDescription')
   }
 
   getIconClass() {
@@ -25,8 +25,8 @@ export class FormViewSurveyModeType extends FormViewModeType {
   }
 
   getDeactivatedText() {
-    const { i18n } = this.app
-    return i18n.t('formViewModeType.onlyForPremium')
+    const { $i18n } = this.app
+    return $i18n.t('formViewModeType.onlyForPremium')
   }
 
   getDeactivatedClickModal() {

@@ -58,13 +58,13 @@ export class TextAIFieldOutputType extends AIFieldOutputType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('aiOutputType.text')
+    const { $i18n } = this.app
+    return $i18n.t('aiOutputType.text')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('aiOutputType.textDescription')
+    const { $i18n } = this.app
+    return $i18n.t('aiOutputType.textDescription')
   }
 
   getBaserowFieldType() {
@@ -84,13 +84,13 @@ export class ChoiceAIFieldOutputType extends AIFieldOutputType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('aiOutputType.choice')
+    const { $i18n } = this.app
+    return $i18n.t('aiOutputType.choice')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('aiOutputType.choiceDescription')
+    const { $i18n } = this.app
+    return $i18n.t('aiOutputType.choiceDescription')
   }
 
   getBaserowFieldType() {

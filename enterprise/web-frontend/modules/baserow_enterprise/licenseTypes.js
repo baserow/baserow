@@ -28,8 +28,8 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('advanced.license')
+    const { $i18n } = this.app
+    return $i18n.t('advanced.license')
   }
 
   getLicenseBadgeColor() {
@@ -37,22 +37,22 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getFeaturesDescription() {
-    const { i18n } = this.app
+    const { $i18n } = this.app
     return [
       {
-        name: i18n.t('license.premiumFeatureName'),
+        name: $i18n.t('license.premiumFeatureName'),
         enabled: true,
       },
       {
-        name: i18n.t('license.advancedFeatureName'),
+        name: $i18n.t('license.advancedFeatureName'),
         enabled: true,
       },
       {
-        name: i18n.t('license.enterpriseFeatureName'),
+        name: $i18n.t('license.enterpriseFeatureName'),
         enabled: false,
       },
       {
-        name: i18n.t('license.supportFeatureName'),
+        name: $i18n.t('license.supportFeatureName'),
         enabled: false,
       },
     ]
@@ -63,8 +63,8 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getTopSidebarTooltip() {
-    const { i18n } = this.app
-    return i18n.t('enterprise.sidebarTooltip')
+    const { $i18n } = this.app
+    return $i18n.t('enterprise.sidebarTooltip')
   }
 
   showInTopSidebarWhenActive() {
@@ -80,13 +80,13 @@ export class AdvancedLicenseType extends LicenseType {
   }
 
   getLicenseDescription(license) {
-    const { i18n } = this.app
-    return i18n.t('enterprise.licenseDescription')
+    const { $i18n } = this.app
+    return $i18n.t('enterprise.licenseDescription')
   }
 
   getLicenseSeatOverflowWarning(license) {
-    const { i18n } = this.app
-    return i18n.t('enterprise.overflowWarning')
+    const { $i18n } = this.app
+    return $i18n.t('enterprise.overflowWarning')
   }
 }
 
@@ -96,8 +96,8 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterprise.license')
+    const { $i18n } = this.app
+    return $i18n.t('enterprise.license')
   }
 
   getFeatures() {

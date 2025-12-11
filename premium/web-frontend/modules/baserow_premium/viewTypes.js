@@ -67,8 +67,8 @@ export class KanbanViewType extends PremiumViewType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.kanban')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.kanban')
   }
 
   canFilter() {
@@ -298,8 +298,8 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.calendar')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.calendar')
   }
 
   canFilter() {
@@ -591,8 +591,8 @@ export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.timeline')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.timeline')
   }
 
   canFilter() {

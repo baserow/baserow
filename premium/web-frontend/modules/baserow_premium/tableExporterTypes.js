@@ -40,8 +40,8 @@ export class JSONTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.json')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.json')
   }
 
   getFormComponent() {
@@ -67,8 +67,8 @@ export class XMLTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.xml')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.xml')
   }
 
   getFormComponent() {
@@ -98,8 +98,8 @@ export class ExcelTableExporterType extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.excel')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.excel')
   }
 
   getFormComponent() {
@@ -129,8 +129,8 @@ export class FileTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.file')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.file')
   }
 
   getFormComponent() {
