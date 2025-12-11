@@ -1938,7 +1938,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
         result: 'true',
       },
       {
-        formula: 'contains(to_array("foo", "bar"), "foo")',
+        formula: 'contains(to_array("foo, bar"), "foo")',
         result: 'true',
       },
     ]
@@ -2345,11 +2345,11 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: 'at(to_array("foo, bar")), 1)',
+        formula: 'at(to_array("foo, bar"), 1)',
         result: '"bar"',
       },
       {
-        formula: 'at(to_array("foo, bar")), 3)',
+        formula: 'at(to_array("foo, bar"), 3)',
         result: 'null',
       },
     ]
