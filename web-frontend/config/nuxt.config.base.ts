@@ -28,12 +28,12 @@ function baserowModuleConfig(
     `./modules/integrations/module.js`,
   ]
 
-  if (!process.env.BASEROW_OSS_ONLY) {
-    baseModules.push(
-      premiumBase + '/modules/baserow_premium/module.js'
-      //enterpriseBase + '/modules/baserow_enterprise/module.js'
-    )
-  }
+  // if (!process.env.BASEROW_OSS_ONLY) {
+  //   baseModules.push(
+  //     // premiumBase + '/modules/baserow_premium/module.js'
+  //     //enterpriseBase + '/modules/baserow_enterprise/module.js'
+  //   )
+  // }
   // baseModules.push('@nuxtjs/sentry')
 
   const modules = baseModules.concat(additionalModules)
@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
-  modules: [...baserow.modules, '@nuxtjs/i18n', '@nuxtjs/storybook'],
+  modules: [...baserow.modules, '@nuxtjs/i18n'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
