@@ -61,12 +61,12 @@ definePageMeta({
 })
 
 const router = useRouter()
-const config = useAppConfig()
 const nuxtApp = useNuxtApp()
 
 
 const {
   $store,
+  $config,
   $i18n: {t: $t},
 } = nuxtApp
 
@@ -77,7 +77,7 @@ useHead(
       {
         rel: 'canonical',
         href:
-          config.PUBLIC_WEB_FRONTEND_URL +
+          $config.public.publicWebFrontendUrl +
           router.resolve({name: 'database-api-docs'}).href,
       },
     ],
