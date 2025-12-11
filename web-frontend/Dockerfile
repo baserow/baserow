@@ -42,7 +42,7 @@ USER $UID:$GID
 # Create and install the dependencies in separate COPY commands
 COPY --chown=$UID:$GID ./web-frontend /baserow/web-frontend/
 COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
-#COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
 
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh && \
@@ -61,9 +61,8 @@ WORKDIR /baserow/web-frontend
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
 # Create symlinks because premium and enterprise are node packages
-RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules
-#\
-#     && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 
 # Install dev dependencies for running nuxt dev + tests.
 RUN yarn install && yarn cache clean

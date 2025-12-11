@@ -24,7 +24,7 @@
       class="datepicker-context"
     >
       <client-only>
-        <date-picker
+        <appdate-picker
           :inline="true"
           :monday-first="true"
           :use-utc="true"
@@ -39,7 +39,7 @@
               $refs.dateContext.hide(),
             ]
           "
-        ></date-picker>
+        ></appdate-picker>
       </client-only>
     </Context>
   </div>
@@ -52,7 +52,8 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG
+//import { en, fr } from 'vuejs3-datepicker'
 
 export default {
   name: 'DateFilter',
@@ -83,8 +84,8 @@ export default {
       dateString: '',
       dateObject: '',
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

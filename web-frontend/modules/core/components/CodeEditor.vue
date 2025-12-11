@@ -50,7 +50,8 @@ export default {
     const { CodeBlockLowlight } = await import(
       '@tiptap/extension-code-block-lowlight'
     )
-    const { lowlight } = await import('lowlight/lib/core')
+    const { createLowlight } = await import('lowlight')
+    const lowlight = createLowlight()
 
     const { default: javascript } = await import(
       'highlight.js/lib/languages/javascript'

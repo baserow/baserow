@@ -1,6 +1,6 @@
 import assistant from '@baserow_enterprise/services/assistant'
-import { v4 as uuidv4 } from 'uuid'
-import Vue from 'vue'
+import { useNuxtApp } from 'nuxt/app'
+import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
 
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message', // The main AI message content, both for partial and final answers
@@ -39,7 +39,7 @@ export const mutations = {
   },
 
   SET_ASSISTANT_CANCELLING(state, { chat, value }) {
-    Vue.set(chat, 'cancelling', value)
+    chat.cancelling = value
   },
 
   SET_MESSAGES(state, messages) {
@@ -68,7 +68,7 @@ export const mutations = {
   },
 
   SET_CURRENT_MESSAGE_ID(state, { chat, messageId }) {
-    Vue.set(chat, 'currentMessageId', messageId)
+    chat.currentMessageId = messageId
   },
 
   SET_CHATS(state, chats) {
@@ -130,6 +130,7 @@ export const actions = {
   },
 
   async selectChat({ commit }, chat) {
+    const { $client } = useNuxtApp()
     commit('SET_CHAT_LOADING', { chat, value: true })
 
     // Set role and loading state for each message
@@ -140,9 +141,7 @@ export const actions = {
     })
 
     try {
-      const { messages } = await assistant(this.$client).fetchChatMessages(
-        chat.id
-      )
+      const { messages } = await assistant($client).fetchChatMessages(chat.id)
       commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', messages.map(parseMessage))
     } finally {
@@ -156,10 +155,11 @@ export const actions = {
   },
 
   async fetchChats({ commit }, workspaceId) {
+    const { $client } = useNuxtApp()
     commit('SET_CHATS_LOADING', true)
 
     try {
-      const { results: chats } = await assistant(this.$client).fetchChats(
+      const { results: chats } = await assistant($client).fetchChats(
         workspaceId
       )
       commit('SET_CHATS', chats)
@@ -169,6 +169,7 @@ export const actions = {
   },
 
   handleStreamingResponse({ commit, state }, { chat, id, update }) {
+    const { $client, $i18n } = useNuxtApp()
     switch (update.type) {
       case MESSAGE_TYPE.AI_STARTED:
         commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: update.message_id })
@@ -177,7 +178,7 @@ export const actions = {
         commit('UPDATE_MESSAGE', {
           id,
           updates: {
-            content: this.$i18n.t('assistant.messageCancelled'),
+            content: $i18n.t('assistant.messageCancelled'),
             loading: false,
             error: false,
             reasoning: false,
@@ -191,7 +192,7 @@ export const actions = {
       case MESSAGE_TYPE.MESSAGE:
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
-          message: this.$i18n.t('assistant.statusAnswering'),
+          message: $i18n.t('assistant.statusAnswering'),
         })
         commit('UPDATE_MESSAGE', {
           id,
@@ -251,6 +252,7 @@ export const actions = {
     { commit, state, dispatch, getters },
     { message, workspace }
   ) {
+    const { $client, $i18n } = useNuxtApp()
     if (!state.currentChatId) {
       await dispatch('createChat', workspace.id)
     }
@@ -276,12 +278,12 @@ export const actions = {
     commit('SET_ASSISTANT_RUNNING', { chat, value: true })
     commit('SET_ASSISTANT_RUNNING_MESSAGE', {
       chat,
-      message: this.$i18n.t('assistant.statusThinking'),
+      message: $i18n.t('assistant.statusThinking'),
     })
     const uiContext = getters.uiContext
 
     try {
-      await assistant(this.$client).sendMessage(
+      await assistant($client).sendMessage(
         state.currentChatId,
         message,
         uiContext,
@@ -323,6 +325,7 @@ export const actions = {
   },
 
   async cancelMessage({ commit, state }) {
+    const { $client, $i18n } = useNuxtApp()
     if (!state.currentChatId) {
       return
     }
@@ -335,11 +338,11 @@ export const actions = {
     commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
     commit('SET_ASSISTANT_RUNNING_MESSAGE', {
       chat,
-      message: this.$i18n.t('assistant.statusCancelling'),
+      message: $i18n.t('assistant.statusCancelling'),
     })
 
     try {
-      await assistant(this.$client).cancelMessage(state.currentChatId)
+      await assistant($client).cancelMessage(state.currentChatId)
     } catch (error) {
       commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
@@ -348,6 +351,7 @@ export const actions = {
   },
 
   async submitFeedback({ commit, state }, { messageId, sentiment, feedback }) {
+    const { $client, $i18n } = useNuxtApp()
     const message = state.messages.find((m) => m.id === messageId)
     if (!message) {
       return
@@ -363,7 +367,7 @@ export const actions = {
     })
 
     try {
-      await assistant(this.$client).submitFeedback(
+      await assistant($client).submitFeedback(
         message.id,
         sentiment,
         feedback?.trim()

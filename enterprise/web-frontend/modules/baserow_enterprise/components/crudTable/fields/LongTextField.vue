@@ -1,10 +1,6 @@
-<template functional>
-  <div
-    :class="[data.staticClass, data.class, 'long-text-field']"
-    :title="props.row[props.column.key]"
-    v-on="listeners"
-  >
-    {{ props.row[props.column.key] }}
+<template>
+  <div class="long-text-field" :title="row[column.key]" v-on="$attrs">
+    {{ row[column.key] }}
   </div>
 </template>
 

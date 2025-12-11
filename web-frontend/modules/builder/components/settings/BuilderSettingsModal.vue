@@ -52,7 +52,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
-import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
+//import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 
 export default {
   name: 'BuilderSettingsModal',
@@ -127,7 +127,7 @@ export default {
 
       const builderApplicationType = this.$registry.get(
         'application',
-        BuilderApplicationType.getType()
+        'builder'
       )
       builderApplicationType.loadExtraData(this.builder)
 
