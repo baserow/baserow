@@ -1,5 +1,17 @@
 <template>
+  <button
+    v-if="tag === 'button'"
+    :is="tag"
+    class="button-icon"
+    :class="classes"
+    :disabled="disabled"
+    v-bind="customBind"
+    :to="to"
+  >
+    <i v-if="!loading" class="button-icon__icon" :class="icon" />
+  </button>
   <component
+    v-else
     :is="tag"
     class="button-icon"
     :class="classes"
