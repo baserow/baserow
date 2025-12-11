@@ -35,6 +35,7 @@ export const routes = [
       },
     ],
   },
+  // TODO MIG Is this necessary?
   {
     name: 'database-root',
     path: '',

@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
+import { maxPossibleOrderValue } from '@baserow/modules/database/utils/view'
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewSidebar from '@baserow/modules/database/components/view/form/FormViewSidebar'
 import FormViewPreview from '@baserow/modules/database/components/view/form/FormViewPreview'

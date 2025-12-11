@@ -29,10 +29,10 @@ function baserowModuleConfig(
   ]
 
   if (!process.env.BASEROW_OSS_ONLY) {
-    /*baseModules.push(
+    baseModules.push(
       premiumBase + '/modules/baserow_premium/module.js'
       //enterpriseBase + '/modules/baserow_enterprise/module.js'
-    )*/
+    )
   }
   // baseModules.push('@nuxtjs/sentry')
 
