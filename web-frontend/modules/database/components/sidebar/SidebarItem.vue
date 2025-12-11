@@ -209,7 +209,7 @@ import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTa
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 
 export default {
-  name: 'DBSidebarItem',
+  name: 'SidebarItem',
   components: {
     ConfigureDataSyncModal,
     ExportTableModal,

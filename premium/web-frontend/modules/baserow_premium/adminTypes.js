@@ -10,13 +10,13 @@ export class LicensesAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.adminType.licenses')
+    const { $i18n } = this.app
+    return $i18n.t('premium.adminType.licenses')
   }
 
   getCategory() {
-    const { i18n } = this.app
-    return i18n.t('sidebar.licenses')
+    const { $i18n } = this.app
+    return $i18n.t('sidebar.licenses')
   }
 
   getRouteName() {
