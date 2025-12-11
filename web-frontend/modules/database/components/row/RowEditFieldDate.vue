@@ -81,7 +81,7 @@ import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
 // import { en, fr } from 'vuejs-datepicker/dist/locale'
-// TODO
+// TODO MIG
 
 export default {
   components: { TimeSelectContext },
