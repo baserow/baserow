@@ -159,9 +159,6 @@ field-diagrams/
 
 *.http
 
-# Intellij needs this package.json to allow running tests from the IDE but this isn't
-# actually a node module and so we ignore it.
-premium/web-frontend/package.json
 .local/
 
 # Storybook
