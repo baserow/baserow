@@ -242,22 +242,32 @@ jobs:
     name: Web-Frontend Lint
     runs-on: ubuntu-latest
     needs:
-      - build-frontend
       - detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
-    permissions:
-      contents: read
-      packages: read
     steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
 
-      - name: Run frontend lint
-        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+          cache-dependency-path: web-frontend/yarn.lock
+
+      - name: Cache lint results
+        uses: actions/cache@v4
+        with:
+          path: web-frontend/.cache
+          key: lint-${{ runner.os }}-${{ hashFiles('web-frontend/.eslintrc.js', 'web-frontend/.stylelintrc.js', 'web-frontend/package.json') }}
+          restore-keys: lint-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: web-frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Run lint
+        working-directory: web-frontend
+        run: yarn lint
 
   dockerfile-lint:
     name: Dockerfile Lint (hadolint)
@@ -458,7 +468,7 @@ jobs:
           comment_mode: off
 
   test-frontend:
-    name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+    name: Web-Frontend Tests
     runs-on: ubuntu-latest
     needs:
       - build-frontend
@@ -469,10 +479,6 @@ jobs:
       packages: read
       checks: write
       pull-requests: write
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -481,13 +487,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run web-frontend tests for shard ${{ matrix.shard }}
+      - name: Run web-frontend tests
         run: |
           mkdir -p reports
           docker run \
             --name=webfrontend_test \
-            -e JEST_SHARD_INDEX=${{ matrix.shard }} \
-            -e JEST_SHARD_TOTAL=4 \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
           docker cp webfrontend_test:/baserow/reports/. ./reports
           docker rm webfrontend_test
@@ -496,7 +500,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: web-frontend-test-reports-shard-${{ matrix.shard }}
+          name: web-frontend-test-reports
           path: reports/
           retention-days: 7
           include-hidden-files: true
@@ -506,7 +510,7 @@ jobs:
         if: always()
         with:
           files: reports/junit.xml
-          check_name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+          check_name: Web-Frontend Tests
           comment_mode: off
 
   test-zapier:

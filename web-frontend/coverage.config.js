@@ -20,6 +20,7 @@ module.exports = {
     '!**/reports/**',
     '!**/test/**',
     '!**/generated/**',
+    '!**/iconoir.js',
   ],
   ...junitReporterConfig,
 }
