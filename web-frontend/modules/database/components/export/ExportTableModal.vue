@@ -115,6 +115,7 @@ export default {
       this.stopPollIfRunning()
     },
     async fetchViews() {
+      return
       if (this.table._.selected) {
         this.views = this.selectedTableViews
         return

@@ -1,6 +1,5 @@
 import {
   BaseBufferedRowViewTypeMixin,
-  maxPossibleOrderValue,
   ViewType,
 } from '@baserow/modules/database/viewTypes'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
@@ -12,7 +11,10 @@ import CalendarViewHeader from '@baserow_premium/components/views/calendar/Calen
 import TimelineViewHeader from '@baserow_premium/components/views/timeline/TimelineViewHeader'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { isAdhocFiltering } from '@baserow/modules/database/utils/view'
+import {
+  isAdhocFiltering,
+  maxPossibleOrderValue,
+} from '@baserow/modules/database/utils/view'
 import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
 import CalendarSharingIcalSlugSection from '@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'
 import {

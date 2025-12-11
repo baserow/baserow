@@ -1243,10 +1243,7 @@ export const actions = {
 
     if (!readOnly) {
       try {
-        const { data } = await GroupByService($client).create(
-          view.id,
-          values
-        )
+        const { data } = await GroupByService($client).create(view.id, values)
         commit('FINALIZE_GROUP_BY', { view, oldId: groupBy.id, id: data.id })
       } catch (error) {
         commit('DELETE_GROUP_BY', { view, id: groupBy.id })

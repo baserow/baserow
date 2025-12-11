@@ -13,13 +13,12 @@ import {
   isAdhocSorting,
   newFieldMatchesActiveSearchTerm,
   sortFieldsByOrderAndIdFunction,
+  maxPossibleOrderValue,
 } from '@baserow/modules/database/utils/view'
 import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 import { waitFor } from '@baserow/modules/core/utils/queue'
-
-export const maxPossibleOrderValue = 32767
 
 export class ViewType extends Registerable {
   /**

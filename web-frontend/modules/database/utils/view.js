@@ -1,11 +1,11 @@
 import { firstBy } from 'thenby'
 import BigNumber from 'bignumber.js'
-import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
+export const maxPossibleOrderValue = 32767
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
 /**
