@@ -30,6 +30,7 @@
 import { hasRealNodes } from '@baserow/modules/core/utils/dom.js'
 
 export default {
+  name: 'Button',
   props: {
     /**
      * The HTML tag to use for the button. Available tags are: a, button.
