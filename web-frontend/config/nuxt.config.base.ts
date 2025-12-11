@@ -28,12 +28,12 @@ function baserowModuleConfig(
     `./modules/integrations/module.js`,
   ]
 
-  // if (!process.env.BASEROW_OSS_ONLY) {
-  //   baseModules.push(
-  //     // premiumBase + '/modules/baserow_premium/module.js'
-  //     //enterpriseBase + '/modules/baserow_enterprise/module.js'
-  //   )
-  // }
+  if (!process.env.BASEROW_OSS_ONLY) {
+    baseModules.push(
+      premiumBase + '/modules/baserow_premium/module.js'
+      //enterpriseBase + '/modules/baserow_enterprise/module.js'
+    )
+  }
   // baseModules.push('@nuxtjs/sentry')
 
   const modules = baseModules.concat(additionalModules)
