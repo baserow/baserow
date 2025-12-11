@@ -1,7 +1,12 @@
 <template>
   <Modal @show="onShow" @hidden="hideError">
     <Error v-if="error.visible" :error="error"></Error>
-    <Tabs v-else :selected-index.sync="selectedTabIndex" no-padding>
+    <Tabs
+      v-else
+      no-padding
+      :selected-index="selectedTabIndex"
+      @update:selectedIndex="selectedTabIndex = $event"
+    >
       <Tab
         v-if="canManageDatabase"
         :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"

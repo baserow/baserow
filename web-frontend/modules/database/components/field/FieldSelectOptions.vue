@@ -28,7 +28,7 @@
           ref="inputs"
           v-model="item.value"
           :error="v$.options[index].$error"
-          @input="$emit('input', value)"
+          @input="$emit('update:modelValue', modelValue)"
           @blur="v$.options[index].$touch()"
         />
         <ButtonIcon
@@ -58,7 +58,7 @@ export default {
   name: 'FieldSelectOptions',
   components: { ColorSelectContext },
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -81,7 +81,7 @@ export default {
     },
   },
   watch: {
-    value: {
+    modelValue: {
       immediate: true,
       handler(newVal) {
         this.options = newVal
@@ -92,7 +92,7 @@ export default {
     remove(index) {
       this.$refs.colorContext.hide()
       this.options.splice(index, 1)
-      this.$emit('input', this.options)
+      this.$emit('update:modelValue', this.options)
     },
     add(optionValue = '') {
       this.options.push({
@@ -100,7 +100,7 @@ export default {
         color: randomColor(this.usedColors),
         id: this.lastSeenId,
       })
-      this.$emit('input', this.options)
+      this.$emit('update:modelValue', this.options)
       this.lastSeenId -= 1
       this.$nextTick(() => {
         this.$refs.options.scrollTop = this.$refs.options.scrollHeight
@@ -121,7 +121,7 @@ export default {
     },
     updateColor(index, color) {
       this.options[index].color = color
-      this.$emit('input', this.value)
+      this.$emit('update:modelValue', this.modelValue)
     },
     order(newOrder, oldOrder) {
       const sortedValue = this.options
@@ -131,12 +131,13 @@ export default {
             newOrder.findIndex((id) => id === a.id) -
             newOrder.findIndex((id) => id === b.id)
         )
-      this.$emit('input', sortedValue)
+      this.$emit('update:modelValue', sortedValue)
     },
   },
   validations() {
     const validations = { options: [] }
-    this.options.forEach((option, index) => {
+    const options = this.options || []
+    options.forEach((option, index) => {
       validations.options[index] = {
         value: { required },
       }

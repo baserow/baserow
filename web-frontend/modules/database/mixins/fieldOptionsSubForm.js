@@ -52,7 +52,7 @@ export default {
       const usedColors = []
       try {
         const { data } = await FieldService(this.$client).getUniqueRowValues(
-          this._props.defaultValues.id,
+          this.defaultValues.id,
           this.$config.BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT,
           splitCommaSeparated
         )
