@@ -79,10 +79,10 @@ class CoreConfig(AppConfig):
             RuntimeSplit,
             RuntimeStrip,
             RuntimeSum,
+            RuntimeToArray,
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
-            RuntimeToArray,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())

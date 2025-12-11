@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
-from baserow.core.formula.validator import ensure_array, ensure_date, ensure_datetime
+from baserow.core.formula.validator import ensure_date, ensure_datetime
 
 
 def test_ensure_date():

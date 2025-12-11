@@ -1,4 +1,3 @@
-import ast
 import json
 import re
 from datetime import date, datetime
@@ -151,9 +150,7 @@ def ensure_string_or_integer(value: Any, allow_empty: bool = True) -> Union[int,
     return ensure_string(value, allow_empty=allow_empty)
 
 
-def ensure_array(
-    value: Any, allow_empty: bool = True
-) -> List[Any]:
+def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
     """
     Ensure that the value is an array or try to convert it.
     Strings will be treated as comma separated values.

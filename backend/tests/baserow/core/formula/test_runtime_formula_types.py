@@ -49,10 +49,10 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeSplit,
     RuntimeStrip,
     RuntimeSum,
+    RuntimeToArray,
     RuntimeToday,
     RuntimeUpper,
     RuntimeYear,
-    RuntimeToArray,
 )
 from baserow.test_utils.helpers import AnyBool, AnyFloat, AnyInt
 
@@ -446,6 +446,8 @@ def test_runtime_not_equal_validate_number_of_args(args, expected):
         ([3, 2], True),
         (["apple", "ball"], False),
         (["ball", "apple"], True),
+        ([1, "a"], None),
+        (["a", 1], None),
     ],
 )
 def test_runtime_greater_than_execute(args, expected):
@@ -497,6 +499,8 @@ def test_runtime_greater_than_validate_number_of_args(args, expected):
         ([3, 2], False),
         (["apple", "ball"], True),
         (["ball", "apple"], False),
+        ([1, "a"], None),
+        (["a", 1], None),
     ],
 )
 def test_runtime_less_than_execute(args, expected):
@@ -548,6 +552,10 @@ def test_runtime_less_than_validate_number_of_args(args, expected):
         ([3, 2], True),
         (["apple", "ball"], False),
         (["ball", "apple"], True),
+        ([[], "a"], None),
+        ([{}, "a"], None),
+        ([1, "a"], None),
+        (["a", 1], None),
     ],
 )
 def test_runtime_greater_than_or_equal_execute(args, expected):
@@ -599,6 +607,10 @@ def test_runtime_greater_than_or_equal_validate_number_of_args(args, expected):
         ([3, 2], False),
         (["apple", "ball"], True),
         (["ball", "apple"], False),
+        ([[], "a"], None),
+        ([{}, "a"], None),
+        ([1, "a"], None),
+        (["a", 1], None),
     ],
 )
 def test_runtime_less_than_or_equal_execute(args, expected):
@@ -1724,9 +1736,9 @@ def test_runtime_replace_validate_number_of_args(args, expected):
     "args,expected",
     [
         (["Hello, world!"], 13),
-        (['{"a": "b", "c": "d"}'], 2),
-        (['["a", "b", "c", "d"]'], 4),
-        ([3], 1),
+        ([{"a": "b", "c": "d"}], 2),
+        ([["a", "b", "c", "d"]], 4),
+        ([3], None),
         (["0"], 1),
     ],
 )
@@ -1767,10 +1779,10 @@ def test_runtime_length_validate_number_of_args(args, expected):
     [
         (["Hello, world!", "ll"], True),
         (["Hello, world!", "goodbye"], False),
-        (['{"foo": "bar"}', "foo"], True),
-        (['{"foo": "bar"}', "bar"], False),
-        (['["foo", "bar"]', "foo"], True),
-        (['["foo", "bar"]', "baz"], False),
+        (['"foo bar"', "foo"], True),
+        ([["foo", "bar"], "foo"], True),
+        ([{"foo": "bar"}, "foo"], True),
+        ([1], None),
     ],
 )
 def test_runtime_contains_execute(args, expected):
@@ -1810,9 +1822,10 @@ def test_runtime_contains_validate_number_of_args(args, expected):
     "args,expected",
     [
         (["Hello, world!"], "!dlrow ,olleH"),
+        ([["Hello", "world!"]], ["world!", "Hello"]),
         (["😀💙🚀"], "🚀💙😀"),
         (["Hello, world!"], "!dlrow ,olleH"),
-        (['["foo", "bar"]'], ["bar", "foo"]),
+        ([1], None),
     ],
 )
 def test_runtime_reverse_execute(args, expected):
@@ -1850,8 +1863,9 @@ def test_runtime_reverse_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["foo", "bar"]'], "foo,bar"),
-        (['["foo", "bar"]', "*"], "foo*bar"),
+        ([["foo", "bar"]], "foo,bar"),
+        ([["foo", "bar"], "*"], "foo*bar"),
+        (["foo", "*"], "f*o*o"),
     ],
 )
 def test_runtime_join_execute(args, expected):
@@ -1928,18 +1942,21 @@ def test_runtime_split_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
+        ([0], True),
+        ([0.0], True),
+        ([0.1], False),
+        ([1], False),
+        (["0"], False),
         ([""], True),
-        ([None], True),
+        ([None], None),
         ([[]], True),
         ([{}], True),
-        (["[]"], True),
-        (["{}"], True),
+        (["[]"], False),
+        (["{}"], False),
         ([" "], True),
         (["foo"], False),
         ([["foo"]], False),
         ([{"foo": "bar"}], False),
-        (['["foo"]'], False),
-        (['{"foo": "bar"}'], False),
     ],
 )
 def test_runtime_is_empty_execute(args, expected):
@@ -2018,8 +2035,6 @@ def test_runtime_strip_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["1", "2", "3"]'], 6.0),
-        (["[1, 2, 3]"], 6.0),
         ([[1, 2, 3]], 6.0),
         ([[1, 2, "foo", 3.5]], None),  # "foo" causes the entire arg to be invalid
     ],
@@ -2059,8 +2074,6 @@ def test_runtime_sum_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["1", "2", "3", "4"]'], 2.5),
-        (["[1, 2, 3, 4]"], 2.5),
         ([[1, 2, 3, 4]], 2.5),
         ([[1, 2, "foo", 3, 4.5]], None),  # "foo" causes the entire arg to be invalid
     ],
@@ -2100,9 +2113,9 @@ def test_runtime_avg_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["foo", "bar"]', 1], "bar"),
-        (['["foo", "bar"]', 3], None),
-        ([["foo", "bar"], 0], "foo"),
+        ([["foo", "bar"], 1], "bar"),
+        ([["foo", "bar"], 2], None),
+        (["foobar", 3], "b"),
     ],
 )
 def test_runtime_at_execute(args, expected):

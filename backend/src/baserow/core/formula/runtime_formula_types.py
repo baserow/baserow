@@ -19,7 +19,7 @@ from baserow.core.formula.argument_types import (
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
-from baserow.core.formula.validator import ensure_array, ensure_object, ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_string
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
@@ -125,7 +125,16 @@ class RuntimeGreaterThan(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] > args[1]
+        a = args[0]
+        b = args[1]
+
+        if isinstance(a, str) and isinstance(b, str):
+            return args[0] > args[1]
+
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return args[0] > args[1]
+
+        return None
 
 
 class RuntimeLessThan(RuntimeFormulaFunction):
@@ -136,7 +145,16 @@ class RuntimeLessThan(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] < args[1]
+        a = args[0]
+        b = args[1]
+
+        if isinstance(a, str) and isinstance(b, str):
+            return args[0] < args[1]
+
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return args[0] < args[1]
+
+        return None
 
 
 class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
@@ -147,7 +165,16 @@ class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] >= args[1]
+        a = args[0]
+        b = args[1]
+
+        if isinstance(a, str) and isinstance(b, str):
+            return args[0] >= args[1]
+
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return args[0] >= args[1]
+
+        return None
 
 
 class RuntimeLessThanOrEqual(RuntimeFormulaFunction):
@@ -158,7 +185,16 @@ class RuntimeLessThanOrEqual(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] <= args[1]
+        a = args[0]
+        b = args[1]
+
+        if isinstance(a, str) and isinstance(b, str):
+            return args[0] <= args[1]
+
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return args[0] <= args[1]
+
+        return None
 
 
 class RuntimeUpper(RuntimeFormulaFunction):
@@ -445,22 +481,8 @@ class RuntimeLength(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
 
-        try:
-            value = ensure_object(value)
-            if isinstance(value, (dict, list)):
-                return len(value)
-        except (TypeError, ValidationError):
-            pass
-
-        try:
-            return len(ensure_array(value))
-        except ValidationError:
-            pass
-
-        try:
-            return len(ensure_string(value))
-        except ValidationError:
-            pass
+        if isinstance(value, (dict, list, str)):
+            return len(value)
 
         return None
 
@@ -476,17 +498,8 @@ class RuntimeContains(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
 
-        try:
-            value = ensure_object(value)
-            if isinstance(value, (dict, list)):
-                return args[1] in value
-        except (TypeError, ValidationError):
-            pass
-
-        try:
-            return args[1] in ensure_string(value)
-        except ValidationError:
-            pass
+        if isinstance(value, (dict, list, str)):
+            return args[1] in value
 
         return None
 
@@ -501,13 +514,13 @@ class RuntimeReverse(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
 
-        try:
-            value = ensure_array(value)
+        if isinstance(value, list):
             return list(reversed(value))
-        except ValidationError:
-            pass
 
-        return "".join(reversed(value))
+        if isinstance(value, str):
+            return "".join(list(reversed(value)))
+
+        return None
 
 
 class RuntimeJoin(RuntimeFormulaFunction):
@@ -522,13 +535,10 @@ class RuntimeJoin(RuntimeFormulaFunction):
         value = args[0]
         separator = args[1] if len(args) == 2 else ","
 
-        try:
-            value = ensure_array(value)
+        if isinstance(value, (list, str)):
             return separator.join(value)
-        except ValidationError:
-            pass
 
-        return value
+        return None
 
 
 class RuntimeSplit(RuntimeFormulaFunction):
@@ -556,37 +566,14 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
-        if not value:
-            return True
 
-        try:
-            value = ensure_object(value)
+        if isinstance(value, (list, str, dict)):
+            if isinstance(value, str):
+                value = value.strip()
             return len(value) == 0
-        except ValidationError:
-            pass
 
-        try:
-            value = ensure_array(value)
-
-            # Handle case where ensure_array converts " " to [""]
-            if len(value) == 1 and not value[0].strip():
-                return True
-
-            return len(value) == 0
-        except ValidationError:
-            pass
-
-        if isinstance(value, str):
-            value = value.strip()
-            try:
-                return not bool(int(value))
-            except ValueError:
-                return not bool(value)
-
-        try:
-            return not bool(int(value))
-        except (TypeError, ValueError):
-            pass
+        if isinstance(value, (int, float)):
+            return value == 0
 
         return None
 
@@ -645,12 +632,9 @@ class RuntimeAt(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
         index = args[1]
-        try:
-            list_of_values = ensure_array(value)
-            if index + 1 <= len(list_of_values):
-                return list_of_values[index]
-        except ValidationError:
-            pass
+
+        if isinstance(value, (list, str)) and len(value) > index:
+            return value[index]
 
         return None
 
@@ -665,4 +649,3 @@ class RuntimeToArray(RuntimeFormulaFunction):
             return ensure_array(args[0])
         except ValidationError:
             return None
-
