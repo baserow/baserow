@@ -16,13 +16,13 @@ export class SingleSelectColorValueProviderType extends DecoratorValueProviderTy
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('decoratorValueProviderType.singleSelectColor')
+    const { $i18n } = this.app
+    return $i18n.t('decoratorValueProviderType.singleSelectColor')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('decoratorValueProviderType.singleSelectColorDescription')
+    const { $i18n } = this.app
+    return $i18n.t('decoratorValueProviderType.singleSelectColorDescription')
   }
 
   getIconClass() {
@@ -98,13 +98,13 @@ export class ConditionalColorValueProviderType extends DecoratorValueProviderTyp
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('decoratorValueProviderType.conditionalColor')
+    const { $i18n } = this.app
+    return $i18n.t('decoratorValueProviderType.conditionalColor')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('decoratorValueProviderType.conditionalColorDescription')
+    const { $i18n } = this.app
+    return $i18n.t('decoratorValueProviderType.conditionalColorDescription')
   }
 
   getIconClass() {

@@ -17,7 +17,7 @@
       <i class="header__filter-icon iconoir-palette"></i>
       <span class="header__filter-name">
         {{
-          $tc('viewDecorator.decorator', decoratorCount, {
+          $t('viewDecorator.decorator', {
             count: decoratorCount,
           })
         }}

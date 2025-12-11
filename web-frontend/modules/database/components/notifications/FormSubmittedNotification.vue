@@ -24,7 +24,7 @@
       </ul>
       <div v-if="hiddenFieldsCount > 0">
         {{
-          $tc('formSubmittedNotification.moreValues', hiddenFieldsCount, {
+          $t('formSubmittedNotification.moreValues', {
             count: hiddenFieldsCount,
           })
         }}

@@ -37,13 +37,13 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.builder.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.builder.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.builder.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.builder.description')
   }
 
   showIsBillable(workspaceId) {
@@ -84,13 +84,13 @@ export class EnterpriseEditorRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.editor.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.editor.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.editor.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.editor.description')
   }
 
   showIsBillable(workspaceId) {
@@ -123,13 +123,13 @@ export class EnterpriseCommenterRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.commenter.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.commenter.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.commenter.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.commenter.description')
   }
 
   showIsBillable(workspaceId) {
@@ -162,13 +162,13 @@ export class EnterpriseViewerRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.viewer.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.viewer.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.viewer.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.viewer.description')
   }
 
   showIsBillable(workspaceId) {
@@ -201,13 +201,13 @@ export class NoAccessRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.noAccess.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.noAccess.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.noAccess.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.noAccess.description')
   }
 
   showIsBillable(workspaceId) {
@@ -240,13 +240,13 @@ export class NoRoleLowPriorityRoleType extends MemberRoleType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('roles.noRoleLowPriority.name')
+    const { $i18n } = this.app
+    return $i18n.t('roles.noRoleLowPriority.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('roles.noRoleLowPriority.description')
+    const { $i18n } = this.app
+    return $i18n.t('roles.noRoleLowPriority.description')
   }
 
   showIsBillable(workspaceId) {
