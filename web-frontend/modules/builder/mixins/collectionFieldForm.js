@@ -25,15 +25,12 @@ export default {
      */
     onFieldStylesChanged(newStyleValues, customStylesContext) {
       const elementToUpdate = { ...this.element }
-      const { defaultStyleValues, styleKey } = customStylesContext
+      const { styleKey } = customStylesContext
       elementToUpdate.fields = elementToUpdate.fields.map((field) => {
         if (field.id === this.defaultValues.id) {
           return {
             ...field,
-            styles: {
-              ...defaultStyleValues,
-              [styleKey]: newStyleValues,
-            },
+            styles: { [styleKey]: newStyleValues },
           }
         }
         return field

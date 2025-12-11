@@ -63,7 +63,7 @@ export default {
           this.element,
           this.workspace.id
         ) ||
-        !this.$refs.panelForm?.isFormValid(true)
+        (this.$refs.panelForm && !this.$refs.panelForm?.isFormValid(true))
       ) {
         return
       }
