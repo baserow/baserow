@@ -17,6 +17,7 @@
           style-key="cell"
           :config-block-types="['table']"
           :theme="baseTheme"
+          :on-styles-changed="onFieldStylesChanged"
           :extra-args="{ onlyCell: true, noAlignment: true }"
           variant="normal"
         />

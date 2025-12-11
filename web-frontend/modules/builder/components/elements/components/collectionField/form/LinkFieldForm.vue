@@ -18,6 +18,7 @@
           style-key="cell"
           :config-block-types="linkFieldBlockTypes"
           :theme="baseTheme"
+          :on-styles-changed="onFieldStylesChanged"
           :extra-args="{ onlyCell: true, noAlignment: true }"
           variant="normal"
         />

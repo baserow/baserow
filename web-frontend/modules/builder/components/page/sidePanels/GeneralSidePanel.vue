@@ -39,8 +39,11 @@ export default {
         theme: {},
         styleKey: '',
         extraArgs: null,
-        defaultValues: {},
+        defaultStyleValues: {},
         configBlockTypes: [],
+        // Optional callback to allow the form component to
+        // modify the final object before sending it to onChange.
+        onStylesChanged: null,
       },
     }
   },
@@ -57,17 +60,27 @@ export default {
       this.elementFormVisible = !this.elementFormVisible
     },
     /**
-     * Called when the values in the `CustomStyleForm` change. It merges
-     * the new values with the default values and emits the `onChange`
-     * event to update the element's styles.
+     * Called when the values in the `CustomStyleForm` change. If the form
+     * component provided an onStylesChanged callback, use that to build the
+     * update object. Otherwise, apply to root element styles (default behavior).
      */
-    onThemeValuesChanged(newValues) {
-      const { styleKey, defaultValues } = this.customStylesContext
-      this.onChange({
-        styles: {
-          [styleKey]: { ...defaultValues, ...newValues },
-        },
-      })
+    onThemeValuesChanged(newStyleValues) {
+      const { styleKey, defaultStyleValues, onStylesChanged } =
+        this.customStylesContext
+
+      // If we have a callback for final modification of the full element,
+      // pass the new style values and context to it. This will most often
+      // be to update a table element's field styles.
+      if (onStylesChanged) {
+        this.onChange(onStylesChanged(newStyleValues, this.customStylesContext))
+      } else {
+        // Otherwise, most of the time, we're just updating this element's root-styles.
+        this.onChange({
+          styles: {
+            [styleKey]: { ...defaultStyleValues, ...newStyleValues },
+          },
+        })
+      }
     },
   },
 }

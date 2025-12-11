@@ -16,9 +16,9 @@
         <div class="custom-style__config-block-content">
           <ThemeConfigBlock
             ref="configBlocks"
-            :theme="customStylesContext.theme"
-            :default-values="customStylesContext.defaultValues"
             :preview="false"
+            :theme="customStylesContext.theme"
+            :default-values="customStylesContext.defaultStyleValues"
             :theme-config-block-type="themeConfigBlock"
             :extra-args="customStylesContext.extraArgs"
             @values-changed="$emit('values-changed', $event)"
@@ -41,7 +41,7 @@ export default {
      * @property {object} theme - The current theme object.
      * @property {string} styleKey - The key of the style being edited.
      * @property {object|null} extraArgs - Any extra args needed for the blocks.
-     * @property {object} defaultValues - The default values for the styles.
+     * @property {object} defaultStyleValues - The default values for the styles.
      * @property {Array<string>} configBlockTypes - The types of config blocks
      *  to render for this custom style form.
      */
