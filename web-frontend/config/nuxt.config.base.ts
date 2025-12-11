@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
-  modules: [...baserow.modules, '@nuxtjs/i18n'],
+  modules: [...baserow.modules, '@nuxtjs/i18n', '@nuxtjs/storybook'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
@@ -78,6 +78,10 @@ export default defineNuxtConfig({
     locales,
     trailingSlash: true,
     vueI18n: './i18n.config.ts',
+  },
+  storybook: {
+    host: 'http://localhost',
+    port: 6006,
   },
   vite: {
     plugins: [

@@ -103,9 +103,13 @@
   },
   "devDependencies": {
     "@nuxt/test-utils": "^3.21.0",
+    "@nuxtjs/storybook": "latest",
+    "@storybook/addon-designs": "^11.1.0",
+    "@storybook/addon-docs": "9.1.16",
     "@vue/test-utils": "^2.4.6",
     "axios-mock-adapter": "1.21.4",
     "happy-dom": "^20.0.11",
+    "storybook": "9.1.16",
     "vitest": "^4.0.15"
   }
 }

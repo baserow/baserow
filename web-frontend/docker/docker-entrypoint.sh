@@ -98,7 +98,7 @@ case "$1" in
     storybook-dev)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn storybook
+      exec yarn dev
     ;;
     lint)
       exec make lint-javascript
