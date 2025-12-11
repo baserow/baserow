@@ -216,6 +216,28 @@ jobs:
           uvx ruff check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
           uvx ruff format --check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
 
+  backend-lint-migrations:
+    name: Backend Lint Migrations
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for missing migrations
+        run: docker run --rm ${{ needs.build-backend.outputs.image }} bash -c "just lint-migrations"
+
   frontend-lint:
     name: Web-Frontend Lint
     runs-on: ubuntu-latest

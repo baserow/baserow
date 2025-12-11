@@ -549,7 +549,7 @@ just test
 just test -n=auto
 
 # Specific test file
-just test tests/baserow/core/test_models.py
+just test tests/baserow/core/test_core_models.py
 
 # With coverage
 just test-coverage
