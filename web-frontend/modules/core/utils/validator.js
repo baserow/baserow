@@ -147,10 +147,7 @@ export const ensureStringOrInteger = (value, { allowEmpty = true } = {}) => {
  * @returns {any[]} The value as an array.
  * @throws {Error} if !allowEmpty and `value` is empty.
  */
-export const ensureArray = (
-  value,
-  { allowEmpty = true } = {}
-) => {
+export const ensureArray = (value, { allowEmpty = true } = {}) => {
   if (
     value === null ||
     value === undefined ||

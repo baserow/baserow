@@ -45,6 +45,7 @@ import {
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
+  RuntimeToArray,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from '@jest/globals'
 
@@ -1499,9 +1500,9 @@ describe('RuntimeLength', () => {
   test.each([
     { args: ['Hello, world!'], expected: 13 },
     { args: ['0'], expected: 1 },
-    { args: [4], expected: 1 },
-    { args: ['{"a": "b", "c": "d"}'], expected: 2 },
-    { args: ['["a", "b", "c", "d"]'], expected: 4 },
+    { args: [4], expected: null },
+    { args: ['{"a": "b", "c": "d"}'], expected: 20 },
+    { args: ['["a", "b", "c", "d"]'], expected: 20 },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeLength()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1535,9 +1536,8 @@ describe('RuntimeContains', () => {
     { args: ['Hello, world!', 'll'], expected: true },
     { args: ['Hello, world!', 'goodbye'], expected: false },
     { args: ['{"foo": "bar"}', 'foo'], expected: true },
-    { args: ['{"foo": "bar"}', 'bar'], expected: false },
-    { args: ['["foo", "bar"]', 'foo'], expected: true },
-    { args: ['["foo", "bar"]', 'baz'], expected: false },
+    { args: [{"foo": "bar"}, 'foo'], expected: true },
+    { args: [["foo", "bar"], 'foo'], expected: true },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeContains()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1571,7 +1571,7 @@ describe('RuntimeReverse', () => {
   test.each([
     { args: ['Hello, world!'], expected: '!dlrow ,olleH' },
     { args: ['😀💙🚀'], expected: '🚀💙😀' },
-    { args: ['["foo", "bar"]'], expected: ['bar', 'foo'] },
+    { args: [['foo', 'bar']], expected: ['bar', 'foo'] },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeReverse()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1602,8 +1602,8 @@ describe('RuntimeReverse', () => {
 
 describe('RuntimeJoin', () => {
   test.each([
-    { args: ['["foo", "bar"]'], expected: 'foo,bar' },
-    { args: ['["foo", "bar"]', '*'], expected: 'foo*bar' },
+    { args: [['foo', 'bar']], expected: 'foo,bar' },
+    { args: ['foo, bar', '*'], expected: 'foo*bar' },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeJoin()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1670,15 +1670,15 @@ describe('RuntimeIsEmpty', () => {
     { args: [undefined], expected: true },
     { args: [null], expected: true },
     { args: [[]], expected: true },
-    { args: [{}], expected: true },
-    { args: ['[]'], expected: true },
-    { args: ['{}'], expected: true },
+    { args: [{}], expected: null },
+    { args: ['[]'], expected: false },
+    { args: ['{}'], expected: false },
     { args: [' '], expected: true },
     { args: ['0'], expected: true },
     { args: [0], expected: true },
     { args: ['foo'], expected: false },
     { args: [['foo']], expected: false },
-    { args: [{ foo: 'bar' }], expected: false },
+    { args: [{ foo: 'bar' }], expected: null },
     { args: ['["foo"]'], expected: false },
     { args: ['{"foo": "bar"}'], expected: false },
   ])('execute returns expected value', ({ args, expected }) => {
@@ -1743,10 +1743,8 @@ describe('RuntimeStrip', () => {
 
 describe('RuntimeSum', () => {
   test.each([
-    { args: ['["2", "3", "4"]'], expected: 9 },
-    { args: ['[2, 3, 4]'], expected: 9 },
-    { args: ['[2.5, 3, 4]'], expected: 9.5 },
-    { args: ['[2.5, 3, "foo", 4]'], expected: 9.5 },
+    { args: [[2.5, 3, 'foo', 4]], expected: 9.5 },
+    { args: [['2', '3', '4']], expected: 9 },
     { args: [[2.5, 3, 4]], expected: 9.5 },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeSum()
@@ -1777,16 +1775,15 @@ describe('RuntimeSum', () => {
 })
 
 describe('RuntimeAvg', () => {
-  test.each([
-    { args: ['["1", "2", "3", "4"]'], expected: 2.5 },
-    { args: ['[1, 2, "foo", 3, 4]'], expected: 2.5 },
-    { args: [[1, 2, 'foo', 3, 4]], expected: 2.5 },
-  ])('execute returns expected value', ({ args, expected }) => {
-    const formulaType = new RuntimeAvg()
-    const parsedArgs = formulaType.parseArgs(args)
-    const result = formulaType.execute({}, parsedArgs)
-    expect(result).toEqual(expected)
-  })
+  test.each([{ args: [[1, 2, 'foo', 3, 4]], expected: 2.5 }])(
+    'execute returns expected value',
+    ({ args, expected }) => {
+      const formulaType = new RuntimeAvg()
+      const parsedArgs = formulaType.parseArgs(args)
+      const result = formulaType.execute({}, parsedArgs)
+      expect(result).toEqual(expected)
+    }
+  )
 
   test.each([
     { args: [''], expected: undefined },
@@ -1811,8 +1808,7 @@ describe('RuntimeAvg', () => {
 
 describe('RuntimeAt', () => {
   test.each([
-    { args: ['["foo", "bar"]', 1], expected: 'bar' },
-    { args: ['["foo", "bar"]', 3], expected: undefined },
+    { args: ['["foo"]', 1], expected: undefined },
     { args: [['foo', 'bar'], 0], expected: 'foo' },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeAt()
@@ -1837,6 +1833,40 @@ describe('RuntimeAt', () => {
     { args: ['foo', 'bar', 'baz'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeAt()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeToArray', () => {
+  test.each([
+    { args: ['1,2,foo,bar'], expected: ['1', '2', 'foo', 'bar'] },
+    { args: ['1'], expected: ['1'] },
+    { args: [1], expected: ['1'] },
+    { args: ['foo'], expected: ['foo'] },
+    { args: [''], expected: [] },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeToArray()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [''], expected: undefined },
+    { args: [[]], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToArray()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToArray()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

@@ -115,7 +115,6 @@ export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
 }
 
 export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
-
   test(value) {
     try {
       ensureArray(value)

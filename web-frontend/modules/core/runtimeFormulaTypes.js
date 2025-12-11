@@ -17,7 +17,6 @@ import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
 import { reverseString } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
-  ensureObject,
   ensureString,
   ensureArray,
 } from '@baserow/modules/core/utils/validator'
@@ -1820,7 +1819,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
   execute(context, [value]) {
     if (Array.isArray(value)) {
       return value.length
-    } else if (value !== null && typeof value === "object") {
+    } else if (value !== null && typeof value === 'object') {
       return Object.keys(value).length
     } else if (typeof value === 'string') {
       return value.length
@@ -1838,11 +1837,11 @@ export class RuntimeLength extends RuntimeFormulaFunction {
     return [
       {
         formula: "length('Hello, world!')",
-        result: "13",
+        result: '13',
       },
       {
         formula: 'length(to_array("foo, bar"))',
-        result: "2",
+        result: '2',
       },
     ]
   }
@@ -1874,7 +1873,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
 
     if (Array.isArray(value)) {
       return value.includes(toCheck)
-    } else if (value !== null && typeof value === "object") {
+    } else if (value !== null && typeof value === 'object') {
       return Object.keys(value).includes(toCheck)
     } else if (typeof value === 'string') {
       return value.includes(toCheck)
@@ -2110,7 +2109,7 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
         result: 'true',
       },
       {
-        formula: "is_empty(0)",
+        formula: 'is_empty(0)',
         result: 'true',
       },
       {
@@ -2122,7 +2121,7 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
         result: 'false',
       },
       {
-        formula: "is_empty(1)",
+        formula: 'is_empty(1)',
         result: 'false',
       },
       {
@@ -2187,9 +2186,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [
-      new ArrayBaserowRuntimeFormulaArgumentType(),
-    ]
+    return [new ArrayBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {
@@ -2233,9 +2230,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [
-      new ArrayBaserowRuntimeFormulaArgumentType(),
-    ]
+    return [new ArrayBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {
