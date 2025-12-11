@@ -44,7 +44,7 @@
       @click="expand"
     >
       {{
-        $tc('calendarMonthDay.hiddenRowsCount', hiddenRowsCount, {
+        $t('calendarMonthDay.hiddenRowsCount', {
           hiddenRowsCount,
         })
       }}

@@ -10,13 +10,13 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.personal')
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.personal')
   }
 
   getFeatureName() {
-    const { i18n } = this.app
-    return i18n.t('premiumFeatures.personalViews')
+    const { $i18n } = this.app
+    return $i18n.t('premiumFeatures.personalViews')
   }
 
   getIconClass() {
