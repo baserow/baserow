@@ -136,7 +136,11 @@ export default {
     },
     defaultRole() {
       const activeRoles = this.roles.filter((role) => !role.isDeactivated)
-      return activeRoles.length > 0 ? activeRoles[activeRoles.length - 1] : null
+      if (activeRoles.length === 0) return null
+      // Prefer VIEWER role as safe default to prevent accidentally assigning
+      // NO_ACCESS which could lock users out
+      const viewerRole = activeRoles.find((role) => role.uid === 'VIEWER')
+      return viewerRole || activeRoles[activeRoles.length - 1]
     },
     atLeastOneBillableRole() {
       return this.roles.some((role) => role.isBillable)

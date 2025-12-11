@@ -18,7 +18,7 @@
       <Button
         type="primary"
         :disabled="!inviteEnabled"
-        @click="inviteEnabled ? $emit('invite', roleSelected) : null"
+        @click="handleInviteClick"
         >{{
           $t('selectSubjectsListFooter.invite', {
             count,
@@ -27,17 +27,22 @@
         }}
       </Button>
     </div>
+    <NoAccessConfirmModal
+      ref="noAccessConfirmModal"
+      @confirm="emitInvite"
+    ></NoAccessConfirmModal>
   </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
 import RoleSelector from '@baserow_enterprise/components/member-roles/RoleSelector'
+import NoAccessConfirmModal from '@baserow_enterprise/components/rbac/NoAccessConfirmModal'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 export default {
   name: 'SelectSubjectsListFooter',
-  components: { RoleSelector },
+  components: { RoleSelector, NoAccessConfirmModal },
   props: {
     showRoleSelector: {
       type: Boolean,
@@ -86,10 +91,29 @@ export default {
     },
   },
   mounted() {
-    // Set a default selected role, the last role is usually the one with the least
-    // access
-    this.roleSelected =
-      this.roles.length > 0 ? this.roles[this.roles.length - 1] : {}
+    // Set a default selected role, preferring VIEWER as a safe default that still
+    // allows access instead of NO_ACCESS which could accidentally lock users out
+    this.roleSelected = this.getDefaultRole()
+  },
+  methods: {
+    getDefaultRole() {
+      if (this.roles.length === 0) return {}
+      // Prefer VIEWER role as safe default, fall back to last role
+      const viewerRole = this.roles.find((role) => role.uid === 'VIEWER')
+      return viewerRole || this.roles[this.roles.length - 1]
+    },
+    handleInviteClick() {
+      if (!this.inviteEnabled) return
+      // Show confirmation modal when NO_ACCESS role is selected
+      if (this.roleSelected?.uid === 'NO_ACCESS') {
+        this.$refs.noAccessConfirmModal.show()
+      } else {
+        this.emitInvite()
+      }
+    },
+    emitInvite() {
+      this.$emit('invite', this.roleSelected)
+    },
   },
 }
 </script>
