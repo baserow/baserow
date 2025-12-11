@@ -148,7 +148,6 @@ export default {
       tabs: [], // all the tabs
     }
   },
-
   watch: {
     selectedIndex: {
       handler(i) {
@@ -158,6 +157,11 @@ export default {
       },
       immediate: true,
     },
+  },
+  created() {
+    if (this.tabItems) {
+      this.tabs = this.tabItems
+    }
   },
   mounted() {
     // We'll call selectTab once all tabs are registered and mounted

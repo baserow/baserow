@@ -1,4 +1,4 @@
-import styles from '@baserow/modules/core/assets/scss/colors.scss?inline'
+import styles from '@baserow/modules/core/assets/scss/colors.module.scss'
 
 export const colors = Object.keys(styles || {})
 
