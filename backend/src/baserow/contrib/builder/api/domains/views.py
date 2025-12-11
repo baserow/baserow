@@ -80,6 +80,7 @@ class DomainsView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_DOMAIN_NAME_NOT_UNIQUE",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -89,6 +90,7 @@ class DomainsView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            DomainNameNotUniqueError: ERROR_DOMAIN_NAME_NOT_UNIQUE,
             SubDomainHasInvalidDomainName: ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME,
         }
     )

@@ -130,7 +130,7 @@ def test_create_domain_domain_already_exists(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["error"] == "ERROR_DOMAIN_NAME_NOT_UNIQUE"
 
 
 @pytest.mark.django_db
