@@ -1,6 +1,6 @@
 <template>
-  <component
-    :is="tag === 'a' || href ? 'a' : 'button'"
+  <a
+    v-if="tag === 'a' || href"
     class="button-text"
     :class="classes"
     v-bind="customBind"
@@ -8,14 +8,26 @@
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />
-
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
-  </component>
+  </a>
+  <button
+    v-else
+    class="button-text"
+    :class="classes"
+    v-bind="customBind"
+    v-on="$attrs"
+  >
+    <i v-if="icon && !loading" class="button-text__icon" :class="icon" />
+    <img v-else-if="image" alt="" :src="image" class="button-text__image" />
+    <i v-if="loading" class="button-text__spinner"></i>
+    <span v-if="$slots.default" class="button-text__label"><slot /></span>
+  </button>
 </template>
 
 <script>
 export default {
+  name: 'ButtonText',
   props: {
     /**
      * The tag to use for the root element.
