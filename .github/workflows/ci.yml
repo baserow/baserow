@@ -251,17 +251,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'yarn'
-          cache-dependency-path: web-frontend/yarn.lock
 
-      - name: Cache lint results
+      - name: Cache node_modules
+        id: cache-node-modules
         uses: actions/cache@v4
         with:
-          path: web-frontend/.cache
-          key: lint-${{ runner.os }}-${{ hashFiles('web-frontend/.eslintrc.js', 'web-frontend/.stylelintrc.js', 'web-frontend/package.json') }}
-          restore-keys: lint-${{ runner.os }}-
+          path: web-frontend/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('web-frontend/package.json', 'web-frontend/yarn.lock') }}
 
       - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: web-frontend
         run: yarn install --frozen-lockfile
 
