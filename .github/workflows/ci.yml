@@ -97,8 +97,10 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
-          cache-to: type=gha,scope=backend-ci,mode=max
+          cache-from: |
+            ${{ inputs.clear_cache != true && format('type=gha,scope=backend-ci-{0}', github.ref_name) || '' }}
+            ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci-develop' || '' }}
+          cache-to: type=gha,scope=backend-ci-${{ github.ref_name }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -142,8 +144,10 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
-          cache-to: type=gha,scope=frontend-ci,mode=max
+          cache-from: |
+            ${{ inputs.clear_cache != true && format('type=gha,scope=frontend-ci-{0}', github.ref_name) || '' }}
+            ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci-develop' || '' }}
+          cache-to: type=gha,scope=frontend-ci-${{ github.ref_name }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -920,7 +924,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-from: |
-            type=gha,scope=backend-ci
+            type=gha,scope=backend-ci-${{ github.ref_name }}
             type=gha,scope=backend-prod
           cache-to: type=gha,scope=backend-prod,mode=max
           labels: |
@@ -962,7 +966,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-from: |
-            type=gha,scope=frontend-ci
+            type=gha,scope=frontend-ci-${{ github.ref_name }}
             type=gha,scope=frontend-prod
           cache-to: type=gha,scope=frontend-prod,mode=max
           labels: |

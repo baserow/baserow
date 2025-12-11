@@ -57,6 +57,7 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache \
+    NUXT_CACHE_DIR=/tmp/.nuxt-cache \
     NUXT_TELEMETRY_DISABLED=1 \
     NODE_OPTIONS="--max-old-space-size=4096" \
     NODE_ENV=production
@@ -82,6 +83,7 @@ WORKDIR /baserow/web-frontend
 
 # Build, then clean reinstall production only
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
+    --mount=type=cache,target=$NUXT_CACHE_DIR,uid=$UID,gid=$GID,sharing=locked \
     yarn run build-local \
     && find .nuxt -type f -name "*.map" -delete
 
