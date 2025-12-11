@@ -43,7 +43,54 @@
   </div>
 </template>
 
-<script>
+<script setup>
+
+import {computed, onMounted, onBeforeUnmount} from 'vue'
+
+import {useHead} from '#imports'
+
+
+import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
+import APIDocsSelectDatabase
+  from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import {useRoute, useRouter} from "vue-router";
+
+definePageMeta({
+  layout: 'login',
+  middleware: ['workspacesAndApplications'],
+})
+
+const router = useRouter()
+const config = useAppConfig()
+const nuxtApp = useNuxtApp()
+
+
+const {
+  $store,
+  $i18n: {t: $t},
+} = nuxtApp
+
+useHead(
+  {
+    title: 'REST API documentation',
+    link: [
+      {
+        rel: 'canonical',
+        href:
+          config.PUBLIC_WEB_FRONTEND_URL +
+          router.resolve({name: 'database-api-docs'}).href,
+      },
+    ],
+  })
+
+const isAuthenticated = computed(() => {
+  return $store.getters['auth/isAuthenticated']
+})
+
+</script>
+
+
+<sscript>
 import { mapGetters } from 'vuex'
 
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
@@ -73,4 +120,4 @@ export default {
     }),
   },
 }
-</script>
+</sscript>
