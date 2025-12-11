@@ -26,6 +26,8 @@
       :roles="roles"
       :workspace="workspace"
       role-value-column="role_uid"
+      confirm-no-access
+      :no-access-confirm-message="$t('noAccessConfirmModal.message')"
       @update-role="roleUpdate($event)"
     ></EditRoleContext>
     <HelpIcon

@@ -124,6 +124,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    confirmNoAccess: {
+      type: Boolean,
+      default: false,
+    },
+    noAccessConfirmMessage: {
+      type: String,
+      default: '',
+    },
   },
   computed: {
     visibleRoles() {
@@ -137,6 +145,16 @@ export default {
     roleUpdate(roleNew, subject) {
       if (subject[this.roleValueColumn] === roleNew) {
         return
+      }
+
+      // Show confirmation when assigning NO_ACCESS role if confirmNoAccess is enabled
+      if (this.confirmNoAccess && roleNew === 'NO_ACCESS') {
+        const message =
+          this.noAccessConfirmMessage ||
+          "Are you sure you want to assign the 'No access' role? This will completely revoke access to this resource."
+        if (!window.confirm(message)) {
+          return
+        }
       }
 
       this.$emit('update-role', { uid: roleNew, subject })

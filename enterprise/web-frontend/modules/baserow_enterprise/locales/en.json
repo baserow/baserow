@@ -270,6 +270,12 @@
     },
     "helpTooltip": "Member role assignments override team role assignments."
   },
+  "noAccessConfirmModal": {
+    "title": "Confirm No Access",
+    "message": "Are you sure you want to assign the 'No access' role? This will completely revoke access to this resource and the affected user(s) will no longer be able to view or interact with it.",
+    "confirm": "Yes, assign No Access",
+    "cancel": "Cancel"
+  },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",
     "adminHelpText": "Admins can restrict other admins roles."
