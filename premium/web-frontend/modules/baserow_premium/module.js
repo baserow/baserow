@@ -1,9 +1,7 @@
-import path from 'path'
 import {
   defineNuxtModule,
   addPlugin,
   createResolver,
-  addRouteMiddleware,
   extendPages,
 } from 'nuxt/kit'
 import { routes } from './routes'
@@ -35,6 +33,9 @@ export default defineNuxtModule({
   setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
+    // Register new alias to the web-frontend directory.
+    nuxt.options.alias['@baserow_premium'] = resolve('./')
+
     /*let alreadyExtended = false
     this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
       if (alreadyExtended) return
@@ -48,9 +49,6 @@ export default defineNuxtModule({
         locales,
       })
     })
-
-    // Register new alias to the web-frontend directory.
-    nuxt.options.alias['@baserow_premium'] = resolve('./')
 
     extendPages((pages) => {
       pages.push(...routes)
