@@ -76,7 +76,7 @@ export default {
       type: Array,
       required: true,
     },
-    value: {
+    modelValue: {
       type: String,
       required: true,
     },
@@ -111,10 +111,10 @@ export default {
     },
     formula: {
       get() {
-        return this.value
+        return this.modelValue
       },
       set(value) {
-        this.$emit('input', value)
+        this.$emit('update:modelValue', value)
       },
     },
     fieldItems() {

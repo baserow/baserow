@@ -4,7 +4,8 @@
       <Tabs
         large
         :tab-items="[{ title: 'Basic' }, { title: 'Advanced' }]"
-        :selected-index.sync="selectedTabIndex"
+        :selected-index="selectedTabIndex"
+        @update:selectedIndex="selectedTabIndex = $event"
       ></Tabs>
     </div>
     <div v-auto-overflow-scroll class="context__form context__form--scrollable">
