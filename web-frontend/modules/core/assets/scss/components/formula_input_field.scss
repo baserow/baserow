@@ -39,6 +39,7 @@
   width: 100%;
 }
 
+/* stylelint-disable-next-line selector-class-pattern */
 .formula-input-field--formula-empty .ProseMirror div:first-child::before {
   content: var(--formula-placeholder);
   float: left;
