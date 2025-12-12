@@ -214,14 +214,6 @@ class WebhookEventType(Instance):
             except SkipWebhookCall:
                 pass
 
-    def after_create(self, webhook_event: TableWebhookEvent):
-        """
-        This method is called after a webhook event has been created. By default it
-        does nothing, but can be overwritten to add additional functionality.
-
-        :param webhook_event: The created webhook event.
-        """
-
     def after_update(self, webhook_event: TableWebhookEvent):
         """
         This method is called after a webhook event has been updated. By default it

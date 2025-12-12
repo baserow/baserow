@@ -977,34 +977,6 @@ class ViewRows(CreatedAndUpdatedOnMixin, models.Model):
         "to determine which rows have been changed since the last check.",
     )
 
-    @classmethod
-    def create_missing_for_views(cls, views: list[View], model=None):
-        """
-        Creates ViewRows objects for the given views if they don't already exist.
-
-        :param views: The views for which to create ViewRows objects.
-        """
-
-        from baserow.contrib.database.views.handler import ViewHandler
-
-        existing_view_ids = ViewRows.objects.filter(view__in=views).values_list(
-            "view_id", flat=True
-        )
-        view_map = {view.id: view for view in views}
-        missing_view_ids = list(set(view_map.keys()) - set(existing_view_ids))
-
-        view_rows = []
-        for view_id in missing_view_ids:
-            view = view_map[view_id]
-            row_ids = (
-                ViewHandler()
-                .get_queryset(None, view, model=model, apply_sorts=False)
-                .values_list("id", flat=True)
-            )
-            view_rows.append(ViewRows(view=view, row_ids=list(row_ids)))
-
-        return ViewRows.objects.bulk_create(view_rows, ignore_conflicts=True)
-
     def get_diff(self, model=None):
         """
         Executes the view query and returns the current row IDs in the view,
