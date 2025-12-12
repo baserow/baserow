@@ -3,7 +3,7 @@
     <h2 class="box__title">{{ $t('apiDocsFiltersBuilderModal.title') }}</h2>
     <div class="control margin-bottom-2">
       <div class="control__elements">
-        <Checkbox v-model="mutableUserFieldNames">{{
+        <Checkbox v-model:model-value="mutableUserFieldNames">{{
           $t('apiDocsFiltersBuilderModal.userFieldNames')
         }}</Checkbox>
       </div>

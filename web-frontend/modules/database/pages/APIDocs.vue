@@ -81,38 +81,4 @@ useHead(
 const isAuthenticated = computed(() => {
   return $store.getters['auth/isAuthenticated']
 })
-
 </script>
-
-
-<sscript>
-import { mapGetters } from 'vuex'
-
-import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
-import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
-
-export default {
-  name: 'APIDocs',
-  components: { SettingsModal, APIDocsSelectDatabase },
-  layout: 'login',
-  middleware: ['workspacesAndApplications'],
-  head() {
-    return {
-      title: 'REST API documentation',
-      link: [
-        {
-          rel: 'canonical',
-          href:
-            this.$config.PUBLIC_WEB_FRONTEND_URL +
-            this.$router.resolve({ name: 'database-api-docs' }).href,
-        },
-      ],
-    }
-  },
-  computed: {
-    ...mapGetters({
-      isAuthenticated: 'auth/isAuthenticated',
-    }),
-  },
-}
-</sscript>
