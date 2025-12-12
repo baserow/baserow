@@ -44,31 +44,26 @@
 </template>
 
 <script setup>
-
-import {computed, onMounted, onBeforeUnmount} from 'vue'
-
+import {computed} from 'vue'
 import {useHead} from '#imports'
-
-
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import APIDocsSelectDatabase
   from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
-import {useRoute, useRouter} from "vue-router";
-
-definePageMeta({
-  layout: 'login',
-  middleware: ['workspacesAndApplications'],
-})
+import {useRouter} from "vue-router";
 
 const router = useRouter()
-const nuxtApp = useNuxtApp()
-
 
 const {
   $store,
   $config,
   $i18n: {t: $t},
-} = nuxtApp
+} = useNuxtApp()
+
+
+definePageMeta({
+  layout: 'login',
+  middleware: ['workspacesAndApplications'],
+})
 
 useHead(
   {
