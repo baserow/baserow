@@ -440,8 +440,8 @@ class LocalBaserowWorkflowActionType(BuilderWorkflowServiceActionType):
     pass
 
 
-class UpsertRowWorkflowActionType(LocalBaserowWorkflowActionType):
-    type = "upsert_row"
+class LocalBaserowUpsertRowWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
@@ -449,18 +449,18 @@ class UpsertRowWorkflowActionType(LocalBaserowWorkflowActionType):
         return {"service": service}
 
 
-class CreateRowWorkflowActionType(UpsertRowWorkflowActionType):
-    type = "create_row"
+class LocalBaserowCreateRowWorkflowActionType(LocalBaserowUpsertRowWorkflowActionType):
+    type = "local_baserow_create_row"
     model_class = LocalBaserowCreateRowWorkflowAction
 
 
-class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
-    type = "update_row"
+class LocalBaserowUpdateRowWorkflowActionType(LocalBaserowUpsertRowWorkflowActionType):
+    type = "local_baserow_update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
 
 
-class DeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):
-    type = "delete_row"
+class LocalBaserowDeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRowWorkflowAction
     service_type = LocalBaserowDeleteRowServiceType.type
 

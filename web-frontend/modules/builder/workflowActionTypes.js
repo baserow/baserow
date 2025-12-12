@@ -351,9 +351,9 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowCreateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
-    return 'create_row'
+    return 'local_baserow_create_row'
   }
 
   get serviceType() {
@@ -364,9 +364,9 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowUpdateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
-    return 'update_row'
+    return 'local_baserow_update_row'
   }
 
   get serviceType() {
@@ -377,15 +377,28 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowDeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
-    return 'delete_row'
+    return 'local_baserow_delete_row'
   }
 
   get serviceType() {
     return this.app.$registry.get(
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowUpsertRowWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'local_baserow_upsert_row'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpsertRowWorkflowServiceType.getType()
     )
   }
 }
