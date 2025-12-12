@@ -394,6 +394,10 @@ class AskPublicBuilderDomainExistsView(APIView):
             settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
         ]
 
+        # Add extra public URLs' hostnames
+        allowed_domain.extend(settings.EXTRA_PUBLIC_BACKEND_HOSTNAMES)
+        allowed_domain.extend(settings.EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES)
+
         if domain_name in allowed_domain:
             return Response(None, status=200)
 

@@ -12,7 +12,12 @@
     }
 
     @is_baserow_tool {
-        expression "{$BASEROW_PUBLIC_URL}".contains({http.request.host})
+        expression `
+            "{$BASEROW_PUBLIC_URL}".contains({http.request.host}) ||
+            "{$BASEROW_EXTRA_PUBLIC_URLS}".split(",")
+                .filter(u, u != "" && u.contains({http.request.host}))
+                .size() > 0
+        `
     }
 
     handle @is_baserow_tool {

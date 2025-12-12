@@ -15,6 +15,29 @@ import ko from './locales/ko.json'
 import { setDefaultResultOrder } from 'dns'
 const { readFileSync } = require('fs')
 
+/**
+ * Parses a comma-separated list of URLs and extracts their hostnames.
+ * @param {string} urlsString - Comma-separated list of URLs
+ * @returns {string[]} Array of hostnames extracted from valid URLs
+ */
+function parseHostnamesFromUrls(urlsString) {
+  if (!urlsString) return []
+
+  return urlsString
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url !== '')
+    .map((url) => {
+      try {
+        return new URL(url).hostname
+      } catch (e) {
+        console.warn(`Invalid URL in BASEROW_EXTRA_PUBLIC_URLS: ${url}`)
+        return null
+      }
+    })
+    .filter((hostname) => hostname !== null)
+}
+
 export default function CoreModule(options) {
   /**
    * This function adds a plugin, but rather then prepending it to the list it will
@@ -76,6 +99,9 @@ export default function CoreModule(options) {
       process.env.PUBLIC_BACKEND_URL ?? 'http://localhost:8000',
     PUBLIC_WEB_FRONTEND_URL:
       process.env.PUBLIC_WEB_FRONTEND_URL ?? 'http://localhost:3000',
+    EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES: parseHostnamesFromUrls(
+      process.env.BASEROW_EXTRA_PUBLIC_URLS ?? ''
+    ),
     MEDIA_URL: process.env.MEDIA_URL ?? 'http://localhost:4000/media/',
     INITIAL_TABLE_DATA_LIMIT: process.env.INITIAL_TABLE_DATA_LIMIT ?? null,
     DOWNLOAD_FILE_VIA_XHR: process.env.DOWNLOAD_FILE_VIA_XHR ?? '0',

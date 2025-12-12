@@ -31,9 +31,14 @@ export function createRouter(ssrContext, config) {
       runtimeConfig.public.PUBLIC_WEB_FRONTEND_URL
     ).hostname
     const requestHostname = new URL(`http://${req.headers.host}`).hostname
+    const extraPublicHostnames =
+      runtimeConfig.public.EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES || []
 
-    // We allow published routes only if the builder feature flag is on
-    isWebFrontendHostname = frontendHostname === requestHostname
+    // Check if request hostname matches main hostname or any extra hostname so we know
+    // whether the tool or a published application must be served.
+    isWebFrontendHostname =
+      frontendHostname === requestHostname ||
+      extraPublicHostnames.includes(requestHostname)
 
     // Send the variable to the frontend using the `__NUXT__` property
     ssrContext.nuxt.isWebFrontendHostname = isWebFrontendHostname
