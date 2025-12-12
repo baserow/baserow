@@ -128,11 +128,11 @@ class RowsEnterViewEventType(EnterpriseWebhookEventType):
         if subscriptions_to_add:
             # Automatically initialize the current rows in the views subscriptions
             ViewSubscriptionHandler.subscribe_to_views(
-                webhook_event, subscriptions_to_add
+                webhook_event, list(subscriptions_to_add)
             )
 
         subscriptions_to_delete = set(subscribed_views) - set(requested_views)
         if subscriptions_to_delete:
             ViewSubscriptionHandler.unsubscribe_from_views(
-                webhook_event, subscriptions_to_delete
+                webhook_event, list(subscriptions_to_delete)
             )
