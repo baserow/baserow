@@ -30,7 +30,7 @@ export default {
         if (field.id === this.defaultValues.id) {
           return {
             ...field,
-            styles: { [styleKey]: newStyleValues },
+            styles: { ...field.styles, [styleKey]: newStyleValues },
           }
         }
         return field

@@ -67,7 +67,12 @@ export default {
       const { styleKey, onStylesChanged } = this.customStylesContext
 
       // The default behaviour is to just update the styles on the root element.
-      let updatedElement = { styles: { [styleKey]: newStyleValues } }
+      let updatedElement = {
+        styles: {
+          ...this.element.styles,
+          [styleKey]: newStyleValues,
+        },
+      }
       if (onStylesChanged) {
         // If we have an onStylesChanged callback, use that to build the final update
         // object. This is probably going to be for a table element's field styles.

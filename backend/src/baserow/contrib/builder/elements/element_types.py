@@ -322,6 +322,7 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
+            TypographyThemeConfigBlockType,
         )
 
         return {
@@ -336,7 +337,10 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
                 property_name=["button", "table", "header_button"],
                 theme_config_block_type_name=[
                     ButtonThemeConfigBlockType.type,
-                    TableThemeConfigBlockType.type,
+                    [
+                        TableThemeConfigBlockType.type,
+                        TypographyThemeConfigBlockType.type,
+                    ],
                     ButtonThemeConfigBlockType.type,
                 ],
                 serializer_kwargs={"required": False},
