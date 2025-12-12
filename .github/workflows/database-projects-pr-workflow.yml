@@ -1,580 +1,224 @@
 name: Database Team PR Automation
 
+env:
+  PROJECT_NUMBER: '3'
+  STATUS_FIELD_NAME: 'Status'
+  REVIEW_STATUS_FIELD_NAME: 'Review Status'
+  STATUS_IN_PROGRESS: 'In Progress'
+  STATUS_IN_REVIEW: 'In Review'
+  REVIEW_AWAITING: 'Awaiting'
+  REVIEW_FEEDBACK: 'Feedback'
+  REVIEW_MERGE: 'Merge'
+
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested, synchronize, closed]
+    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested, review_request_removed, synchronize]
   pull_request_review:
-    types: [submitted]
+    types: [submitted, dismissed]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'PR number to test'
+        description: 'PR number to process'
         required: true
         type: number
-      action:
-        description: 'Action to simulate'
-        required: true
-        type: choice
-        options:
-          - opened-draft
-          - opened-ready
-          - ready
-          - draft
-          - team-assigned
-          - person-assigned
-          - feedback
-          - all-approved
-          - closed
 
 jobs:
   update-status:
     runs-on: ubuntu-latest
     steps:
-      - name: Get Project and Field IDs
-        id: get-project-info
+      - name: Update PR Project Status
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
           script: |
-            const projectNumber = 3;
-            const owner = context.repo.owner;
+            const prNumber = context.eventName === 'workflow_dispatch'
+              ? ${{ github.event.inputs.pr_number || 0 }}
+              : context.payload.pull_request.number;
 
-            // Get project ID and fields
-            const projectQuery = `
-              query($owner: String!, $number: Int!) {
+            console.log(`Processing PR #${prNumber} (event: ${context.eventName}/${context.payload.action || 'manual'})`);
+
+            // ============================================================
+            // FETCH ALL DATA WITH SINGLE GRAPHQL QUERY
+            // ============================================================
+
+            const data = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!, $projectNumber: Int!) {
                 organization(login: $owner) {
-                  projectV2(number: $number) {
+                  projectV2(number: $projectNumber) {
                     id
                     fields(first: 20) {
                       nodes {
                         ... on ProjectV2SingleSelectField {
                           id
                           name
-                          options {
-                            id
-                            name
+                          options { id, name }
+                        }
+                      }
+                    }
+                  }
+                }
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    id
+                    isDraft
+                    mergeable
+                    reviewDecision
+                    commits(last: 1) {
+                      nodes {
+                        commit {
+                          statusCheckRollup {
+                            state
                           }
                         }
                       }
                     }
+                    closingIssuesReferences(first: 10) {
+                      nodes { id, number }
+                    }
                   }
                 }
               }
-            `;
-
-            const projectData = await github.graphql(projectQuery, {
-              owner,
-              number: projectNumber
+            `, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pr: prNumber,
+              projectNumber: parseInt('${{ env.PROJECT_NUMBER }}')
             });
 
-            const project = projectData.organization.projectV2;
+            const project = data.organization.projectV2;
+            const pr = data.repository.pullRequest;
+            const statusField = project.fields.nodes.find(f => f.name === '${{ env.STATUS_FIELD_NAME }}');
+            const reviewStatusField = project.fields.nodes.find(f => f.name === '${{ env.REVIEW_STATUS_FIELD_NAME }}');
 
-            // Find Status and Review Status fields
-            const statusField = project.fields.nodes.find(f => f.name === 'Status');
-            const reviewStatusField = project.fields.nodes.find(f => f.name === 'Review Status');
-
-            return {
-              projectId: project.id,
-              statusField: {
+            const fieldOptions = {
+              status: {
                 id: statusField.id,
-                options: {
-                  'In Progress': statusField.options.find(o => o.name === 'In Progress')?.id,
-                  'In Review': statusField.options.find(o => o.name === 'In Review')?.id,
-                  'Done': statusField.options.find(o => o.name === 'Done')?.id
-                }
+                'In Progress': statusField.options.find(o => o.name === '${{ env.STATUS_IN_PROGRESS }}')?.id,
+                'In Review': statusField.options.find(o => o.name === '${{ env.STATUS_IN_REVIEW }}')?.id
               },
-              reviewStatusField: {
+              reviewStatus: {
                 id: reviewStatusField.id,
-                options: {
-                  'Awaiting': reviewStatusField.options.find(o => o.name === 'Awaiting')?.id,
-                  'Reviewing': reviewStatusField.options.find(o => o.name === 'Reviewing')?.id,
-                  'Feedback': reviewStatusField.options.find(o => o.name === 'Feedback')?.id,
-                  'Merge': reviewStatusField.options.find(o => o.name === 'Merge')?.id
-                }
+                'Awaiting': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_AWAITING }}')?.id,
+                'Feedback': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_FEEDBACK }}')?.id,
+                'Merge': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_MERGE }}')?.id
               }
             };
 
-      - name: Update PR and Issue Status
-        if: github.event_name != 'pull_request_review'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
-          script: |
-            const projectInfo = ${{ steps.get-project-info.outputs.result }};
+            const checksState = pr.commits.nodes[0]?.commit?.statusCheckRollup?.state;
+            console.log(`PR state: isDraft=${pr.isDraft}, reviewDecision=${pr.reviewDecision}, mergeable=${pr.mergeable}, checksState=${checksState}`);
 
-            // Configuration
-            const DEVELOPER_TEAMS = ['developers', 'database'];
+            // ============================================================
+            // HELPER FUNCTIONS
+            // ============================================================
 
-            // Handle workflow_dispatch differently
-            let pr, eventType, isDraft;
-            if (context.eventName === 'workflow_dispatch') {
-              const prNumber = ${{ github.event.inputs.pr_number || 0 }};
-              eventType = '${{ github.event.inputs.action || '' }}';
-
-              // Fetch PR data
-              const prQuery = `
-                query($owner: String!, $repo: String!, $number: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    pullRequest(number: $number) {
-                      id
-                      number
-                      title
-                      state
-                      isDraft
-                    }
-                  }
-                }
-              `;
-
-              const prData = await github.graphql(prQuery, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                number: prNumber
-              });
-
-              pr = {
-                node_id: prData.repository.pullRequest.id,
-                number: prData.repository.pullRequest.number,
-                title: prData.repository.pullRequest.title,
-                draft: prData.repository.pullRequest.isDraft
-              };
-              isDraft = prData.repository.pullRequest.isDraft;
-
-              console.log(`Manual test: Processing "${eventType}" for PR #${pr.number}`);
-            } else {
-              pr = context.payload.pull_request;
-              eventType = context.payload.action;
-              isDraft = pr.draft;
-              console.log(`Processing ${eventType} event for PR #${pr.number} (draft: ${isDraft})`);
-            }
-
-            // Helper function to get project item ID for an issue or PR
             async function getProjectItem(contentId) {
-              const query = `
+              const result = await github.graphql(`
                 query($contentId: ID!) {
                   node(id: $contentId) {
-                    ... on Issue {
-                      projectItems(first: 10) {
-                        nodes {
-                          id
-                          project { id }
-                        }
-                      }
-                    }
-                    ... on PullRequest {
-                      projectItems(first: 10) {
-                        nodes {
-                          id
-                          project { id }
-                        }
-                      }
-                    }
+                    ... on Issue { projectItems(first: 10) { nodes { id, project { id } } } }
+                    ... on PullRequest { projectItems(first: 10) { nodes { id, project { id } } } }
                   }
                 }
-              `;
-
-              const result = await github.graphql(query, { contentId });
-              const item = result.node.projectItems.nodes.find(
-                i => i.project.id === projectInfo.projectId
-              );
+              `, { contentId });
+              const item = result.node.projectItems.nodes.find(i => i.project.id === project.id);
               return item ? item.id : null;
             }
 
-            // Helper function to add item to project if not already there
+            async function addToProject(contentId) {
+              const result = await github.graphql(`
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }
+              `, { projectId: project.id, contentId });
+              return result.addProjectV2ItemById.item.id;
+            }
+
             async function ensureInProject(contentId) {
               let itemId = await getProjectItem(contentId);
-
               if (!itemId) {
-                console.log(`Adding item to project...`);
-                const addMutation = `
-                  mutation($projectId: ID!, $contentId: ID!) {
-                    addProjectV2ItemById(input: {
-                      projectId: $projectId
-                      contentId: $contentId
-                    }) {
-                      item { id }
-                    }
-                  }
-                `;
-
-                const result = await github.graphql(addMutation, {
-                  projectId: projectInfo.projectId,
-                  contentId: contentId
-                });
-                itemId = result.addProjectV2ItemById.item.id;
+                console.log('Adding item to project...');
+                itemId = await addToProject(contentId);
               }
               return itemId;
             }
 
-            // Helper function to update field value
-            async function updateFieldValue(itemId, fieldId, optionId) {
-              if (!optionId) {
-                console.log(`Warning: Option ID is undefined, skipping update`);
-                return;
-              }
-              const mutation = `
+            async function updateField(itemId, fieldId, optionId) {
+              if (!optionId) return console.log('Warning: Option ID undefined, skipping');
+              await github.graphql(`
                 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
                   updateProjectV2ItemFieldValue(input: {
-                    projectId: $projectId
-                    itemId: $itemId
-                    fieldId: $fieldId
-                    value: $value
-                  }) {
-                    projectV2Item { id }
-                  }
+                    projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value
+                  }) { projectV2Item { id } }
                 }
-              `;
-
-              await github.graphql(mutation, {
-                projectId: projectInfo.projectId,
-                itemId: itemId,
-                fieldId: fieldId,
-                value: { singleSelectOptionId: optionId }
-              });
+              `, { projectId: project.id, itemId, fieldId, value: { singleSelectOptionId: optionId } });
             }
 
-            // Helper function to clear field value
-            async function clearFieldValue(itemId, fieldId) {
-              const mutation = `
+            async function clearField(itemId, fieldId) {
+              await github.graphql(`
                 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
-                  clearProjectV2ItemFieldValue(input: {
-                    projectId: $projectId
-                    itemId: $itemId
-                    fieldId: $fieldId
-                  }) {
-                    projectV2Item { id }
-                  }
+                  clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId })
+                  { projectV2Item { id } }
                 }
-              `;
-
-              await github.graphql(mutation, {
-                projectId: projectInfo.projectId,
-                itemId: itemId,
-                fieldId: fieldId
-              });
+              `, { projectId: project.id, itemId, fieldId });
             }
 
-            // Helper function to get linked issues
-            async function getLinkedIssues(prNumber) {
-              const query = `
-                query($owner: String!, $repo: String!, $prNumber: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    pullRequest(number: $prNumber) {
-                      closingIssuesReferences(first: 10) {
-                        nodes {
-                          id
-                          number
-                          title
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
+            // ============================================================
+            // CALCULATE STATE
+            // ============================================================
 
-              const result = await github.graphql(query, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                prNumber: prNumber
-              });
-              return result.repository.pullRequest.closingIssuesReferences.nodes;
-            }
+            let status, reviewStatus;
 
-            // Helper function to update all linked issues
-            async function updateAllLinkedIssues(linkedIssues, fieldId, optionId) {
-              for (const linkedIssue of linkedIssues) {
-                const issueItemId = await ensureInProject(linkedIssue.id);
-                await updateFieldValue(issueItemId, fieldId, optionId);
-                console.log(`Updated issue #${linkedIssue.number}`);
-              }
-            }
+            if (pr.isDraft) {
+              status = 'In Progress';
+              reviewStatus = null;
+              console.log('Draft PR → In Progress, clear Review Status');
+            } else {
+              status = 'In Review';
 
-            // Ensure PR is in the project
-            const prItemId = await ensureInProject(pr.node_id);
-            console.log(`PR item ID: ${prItemId}`);
-
-            // Get linked issues
-            const linkedIssues = await getLinkedIssues(pr.number);
-            console.log(`Found ${linkedIssues.length} linked issues`);
-
-            // Handle different event types
-            // ==== OPENED / REOPENED ====
-            if (eventType === 'opened' || eventType === 'reopened' || eventType === 'opened-draft' || eventType === 'opened-ready') {
-              // For manual test, override isDraft based on action
-              if (eventType === 'opened-draft') isDraft = true;
-              if (eventType === 'opened-ready') isDraft = false;
-
-              if (isDraft) {
-                // Draft PR → In Progress, clear Review Status
-                console.log('Draft PR - Setting Status to In Progress, clearing Review Status');
-                await updateFieldValue(prItemId, projectInfo.statusField.id, projectInfo.statusField.options['In Progress']);
-                await clearFieldValue(prItemId, projectInfo.reviewStatusField.id);
-
-                // Update linked issues
-                await updateAllLinkedIssues(linkedIssues, projectInfo.statusField.id, projectInfo.statusField.options['In Progress']);
+              if (pr.reviewDecision === 'CHANGES_REQUESTED') {
+                reviewStatus = 'Feedback';
+                console.log('Changes requested → Feedback');
+              } else if (pr.reviewDecision === 'APPROVED' && checksState === 'SUCCESS' && pr.mergeable === 'MERGEABLE') {
+                reviewStatus = 'Merge';
+                console.log('Approved + checks pass + mergeable → Merge');
               } else {
-                // Non-draft PR → In Review
-                console.log('Non-draft PR - Setting Status to In Review');
-                await updateFieldValue(prItemId, projectInfo.statusField.id, projectInfo.statusField.options['In Review']);
-                // Review Status will be set when reviewer is assigned
-
-                // Update linked issues
-                await updateAllLinkedIssues(linkedIssues, projectInfo.statusField.id, projectInfo.statusField.options['In Review']);
+                reviewStatus = 'Awaiting';
+                console.log(`Awaiting (reviewDecision=${pr.reviewDecision}, checksState=${checksState}, mergeable=${pr.mergeable})`);
               }
             }
 
-            // ==== READY FOR REVIEW ====
-            if (eventType === 'ready_for_review' || eventType === 'ready') {
-              console.log('PR marked ready for review - Setting Status to In Review');
-              await updateFieldValue(prItemId, projectInfo.statusField.id, projectInfo.statusField.options['In Review']);
-              // Review Status will be set when reviewer is assigned
+            // ============================================================
+            // UPDATE PROJECT FIELDS
+            // ============================================================
 
-              // Update linked issues
-              await updateAllLinkedIssues(linkedIssues, projectInfo.statusField.id, projectInfo.statusField.options['In Review']);
+            const prItemId = await ensureInProject(pr.id);
+            console.log(`PR project item: ${prItemId}`);
+
+            await updateField(prItemId, fieldOptions.status.id, fieldOptions.status[status]);
+            console.log(`Status → ${status}`);
+
+            if (reviewStatus) {
+              await updateField(prItemId, fieldOptions.reviewStatus.id, fieldOptions.reviewStatus[reviewStatus]);
+              console.log(`Review Status → ${reviewStatus}`);
+            } else {
+              await clearField(prItemId, fieldOptions.reviewStatus.id);
+              console.log('Review Status → cleared');
             }
 
-            // ==== CONVERTED TO DRAFT ====
-            if (eventType === 'converted_to_draft' || eventType === 'draft') {
-              console.log('PR converted to draft - Setting Status to In Progress, clearing Review Status');
-              await updateFieldValue(prItemId, projectInfo.statusField.id, projectInfo.statusField.options['In Progress']);
-              await clearFieldValue(prItemId, projectInfo.reviewStatusField.id);
+            // ============================================================
+            // UPDATE LINKED ISSUES
+            // ============================================================
 
-              // Update linked issues
-              await updateAllLinkedIssues(linkedIssues, projectInfo.statusField.id, projectInfo.statusField.options['In Progress']);
-            }
-
-            // ==== CLOSED (merged or closed) ====
-            if (eventType === 'closed') {
-              console.log('PR closed - Setting Status to Done, clearing Review Status');
-              await updateFieldValue(prItemId, projectInfo.statusField.id, projectInfo.statusField.options['Done']);
-              await clearFieldValue(prItemId, projectInfo.reviewStatusField.id);
-
-              // Update ALL linked issues to Done
-              await updateAllLinkedIssues(linkedIssues, projectInfo.statusField.id, projectInfo.statusField.options['Done']);
-            }
-
-            // ==== REVIEW REQUESTED ====
-            if (eventType === 'review_requested' || eventType === 'team-assigned' || eventType === 'person-assigned') {
-              // Get PR details including requested_teams
-              const prDetails = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number
-              });
-
-              const requestedTeams = prDetails.data.requested_teams.map(t => t.slug);
-              const requestedReviewers = prDetails.data.requested_reviewers;
-
-              console.log(`Requested teams: ${requestedTeams.join(', ') || 'none'}`);
-              console.log(`Requested reviewers: ${requestedReviewers.map(r => r.login).join(', ') || 'none'}`);
-
-              // Check if specific person was just assigned (from payload)
-              const newReviewer = context.payload.requested_reviewer;
-              const newTeam = context.payload.requested_team;
-
-              // For manual testing
-              if (eventType === 'person-assigned') {
-                console.log('[TEST] Simulating person assigned - Setting Review Status to Reviewing');
-                await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Reviewing']);
-              } else if (eventType === 'team-assigned') {
-                console.log('[TEST] Simulating team assigned - Setting Review Status to Awaiting');
-                await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Awaiting']);
-              } else if (newReviewer) {
-                // Specific person assigned → Review Status: Reviewing
-                console.log(`Person ${newReviewer.login} assigned - Setting Review Status to Reviewing`);
-                await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Reviewing']);
-
-                // Auto-remove developer teams
-                for (const teamSlug of DEVELOPER_TEAMS) {
-                  if (requestedTeams.includes(teamSlug)) {
-                    try {
-                      await github.rest.pulls.removeRequestedReviewers({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        pull_number: pr.number,
-                        team_reviewers: [teamSlug]
-                      });
-                      console.log(`Auto-removed @${teamSlug} team from reviewers`);
-                    } catch (e) {
-                      console.log(`Could not remove @${teamSlug} team: ${e.message}`);
-                    }
-                  }
-                }
-              } else if (newTeam) {
-                // Team assigned
-                const teamSlug = newTeam.slug;
-                if (DEVELOPER_TEAMS.includes(teamSlug)) {
-                  // Developer team assigned → Review Status: Awaiting
-                  console.log(`Developer team @${teamSlug} assigned - Setting Review Status to Awaiting`);
-                  await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Awaiting']);
-                }
+            const linkedIssues = pr.closingIssuesReferences.nodes;
+            if (linkedIssues.length > 0) {
+              console.log(`Updating ${linkedIssues.length} linked issue(s)...`);
+              for (const issue of linkedIssues) {
+                const itemId = await ensureInProject(issue.id);
+                await updateField(itemId, fieldOptions.status.id, fieldOptions.status[status]);
+                console.log(`  Issue #${issue.number} → ${status}`);
               }
             }
 
-            // ==== MANUAL TEST: FEEDBACK ====
-            if (eventType === 'feedback') {
-              console.log('[TEST] Simulating feedback - Setting Review Status to Feedback');
-              await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Feedback']);
-            }
-
-            // ==== MANUAL TEST: ALL APPROVED ====
-            if (eventType === 'all-approved') {
-              console.log('[TEST] Simulating all approved - Setting Review Status to Merge');
-              await updateFieldValue(prItemId, projectInfo.reviewStatusField.id, projectInfo.reviewStatusField.options['Merge']);
-            }
-
-      - name: Handle Review Submission
-        if: github.event_name == 'pull_request_review'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
-          script: |
-            const projectInfo = ${{ steps.get-project-info.outputs.result }};
-            const pr = context.payload.pull_request;
-            const review = context.payload.review;
-
-            console.log(`Processing review ${review.state.toUpperCase()} from ${review.user.login} for PR #${pr.number}`);
-
-            // Helper functions
-            async function getProjectItem(contentId) {
-              const query = `
-                query($contentId: ID!) {
-                  node(id: $contentId) {
-                    ... on PullRequest {
-                      projectItems(first: 10) {
-                        nodes {
-                          id
-                          project { id }
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-
-              const result = await github.graphql(query, { contentId });
-              const item = result.node.projectItems.nodes.find(
-                i => i.project.id === projectInfo.projectId
-              );
-              return item ? item.id : null;
-            }
-
-            async function ensureInProject(contentId) {
-              let itemId = await getProjectItem(contentId);
-
-              if (!itemId) {
-                const addMutation = `
-                  mutation($projectId: ID!, $contentId: ID!) {
-                    addProjectV2ItemById(input: {
-                      projectId: $projectId
-                      contentId: $contentId
-                    }) {
-                      item { id }
-                    }
-                  }
-                `;
-
-                const result = await github.graphql(addMutation, {
-                  projectId: projectInfo.projectId,
-                  contentId: contentId
-                });
-                itemId = result.addProjectV2ItemById.item.id;
-              }
-              return itemId;
-            }
-
-            async function updateFieldValue(itemId, fieldId, optionId) {
-              if (!optionId) {
-                console.log(`Warning: Option ID is undefined, skipping update`);
-                return;
-              }
-              const mutation = `
-                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-                  updateProjectV2ItemFieldValue(input: {
-                    projectId: $projectId
-                    itemId: $itemId
-                    fieldId: $fieldId
-                    value: $value
-                  }) {
-                    projectV2Item { id }
-                  }
-                }
-              `;
-
-              await github.graphql(mutation, {
-                projectId: projectInfo.projectId,
-                itemId: itemId,
-                fieldId: fieldId,
-                value: { singleSelectOptionId: optionId }
-              });
-            }
-
-            // Get all reviews for the PR
-            const reviews = await github.rest.pulls.listReviews({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number
-            });
-
-            // Get latest review from each reviewer
-            const latestReviews = {};
-            for (const r of reviews.data) {
-              if (!latestReviews[r.user.login] || new Date(r.submitted_at) > new Date(latestReviews[r.user.login].submitted_at)) {
-                latestReviews[r.user.login] = r;
-              }
-            }
-
-            const reviewStates = Object.values(latestReviews).map(r => r.state);
-            const approvedCount = reviewStates.filter(s => s === 'APPROVED').length;
-            const changesRequestedCount = reviewStates.filter(s => s === 'CHANGES_REQUESTED').length;
-            const commentedCount = reviewStates.filter(s => s === 'COMMENTED').length;
-
-            console.log(`Reviews: ${approvedCount} approved, ${changesRequestedCount} changes requested, ${commentedCount} commented`);
-
-            // Get total number of reviewers (including those who haven't reviewed yet)
-            const prDetails = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number
-            });
-
-            const pendingReviewers = prDetails.data.requested_reviewers.length;
-            const pendingTeams = prDetails.data.requested_teams.length;
-            const totalReviewers = Object.keys(latestReviews).length + pendingReviewers;
-
-            console.log(`Total reviewers: ${totalReviewers}, Pending: ${pendingReviewers}, Pending teams: ${pendingTeams}`);
-
-            const prItemId = await ensureInProject(pr.node_id);
-
-            // Normalize review state to uppercase
-            const reviewState = review.state.toUpperCase();
-
-            // Determine Review Status based on reviews
-            if (reviewState === 'CHANGES_REQUESTED' || reviewState === 'COMMENTED') {
-              // Any feedback → Review Status: Feedback
-              // Note: Status stays "In Review" - author converts to draft to change Status
-              console.log('Feedback received - Setting Review Status to Feedback');
-              await updateFieldValue(
-                prItemId,
-                projectInfo.reviewStatusField.id,
-                projectInfo.reviewStatusField.options['Feedback']
-              );
-            } else if (reviewState === 'APPROVED') {
-              // Check if ALL reviewers have approved
-              const allApproved = (totalReviewers > 0) &&
-                                  (approvedCount === totalReviewers) &&
-                                  (pendingReviewers === 0) &&
-                                  (changesRequestedCount === 0);
-
-              if (allApproved) {
-                console.log('All reviewers approved - Setting Review Status to Merge');
-                await updateFieldValue(
-                  prItemId,
-                  projectInfo.reviewStatusField.id,
-                  projectInfo.reviewStatusField.options['Merge']
-                );
-              } else {
-                console.log(`Not all reviewers approved yet (${approvedCount}/${totalReviewers}) - keeping current Review Status`);
-                // Stay in current state (Reviewing)
-              }
-            }
+            console.log('Done!');
