@@ -205,7 +205,7 @@
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
-        "alignmentBottom": "Fondo",
+        "alignmentBottom": "Inferior",
         "alignmentCenter": "Medio",
         "alignment": "Alineación vertical"
     },
@@ -235,7 +235,10 @@
         "boxLeft": "Izquierda",
         "boxRight": "Derecha",
         "backgroundImage": "Imagen",
-        "backgroundImageMode": "Modo de relleno"
+        "backgroundImageMode": "Modo de relleno",
+        "cssClasses": "Clases de CSS",
+        "cssClassesHelp": "Establece una lista de clases separadas por espacios para este elemento que aparecerá en el HTML generado.",
+        "cssClassesPlaceholder": "Introduce las clases CSS…"
     },
     "updateUserSourceForm": {
         "nameFieldLabel": "Nombre",
@@ -1067,5 +1070,10 @@
     "queryParamTypes": {
         "textName": "Texto",
         "numericName": "Numérico"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Radio de esquina",
+        "backgroundRadiusLabel": "Fondo",
+        "borderRadiusLabel": "Borde"
     }
 }
