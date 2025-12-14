@@ -778,7 +778,7 @@ if PRIVATE_BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(PRIVATE_BACKEND_HOSTNAME)
 
 # Parse BASEROW_EXTRA_PUBLIC_URLS - comma-separated list of additional public URLs
-# where Baserow will be accessible on. It's the same as the `BASEROW_PUBLIC_URL`, the
+# where Baserow will be accessible. It's the same as the `BASEROW_PUBLIC_URL`, the
 # only difference is that the `BASEROW_PUBLIC_URL` is used in emails.
 BASEROW_EXTRA_PUBLIC_URLS = os.getenv("BASEROW_EXTRA_PUBLIC_URLS", "")
 EXTRA_PUBLIC_BACKEND_HOSTNAMES = []
@@ -798,20 +798,19 @@ if BASEROW_EXTRA_PUBLIC_URLS:
             )
             continue
 
-        try:
-            parsed_url = urlparse(url)
-            hostname = parsed_url.hostname
+        parsed_url = urlparse(url)
+        hostname = parsed_url.hostname
 
-            if hostname:
-                if hostname not in ALLOWED_HOSTS:
-                    ALLOWED_HOSTS.append(hostname)
-                EXTRA_PUBLIC_BACKEND_HOSTNAMES.append(hostname)
-                EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
-        except Exception as e:
-            print(
-                f"WARNING: Failed to parse URL '{url}' from BASEROW_EXTRA_PUBLIC_URLS: "
-                f"{e}"
-            )
+        if not hostname:
+            print(f"WARNING: URL '{url}' has no hostname. Skipping.")
+            continue
+
+        if hostname not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(hostname)
+        if hostname not in EXTRA_PUBLIC_BACKEND_HOSTNAMES:
+            EXTRA_PUBLIC_BACKEND_HOSTNAMES.append(hostname)
+        if hostname not in EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES:
+            EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
 
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
 RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 48  # 48 hours

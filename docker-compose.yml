@@ -32,6 +32,7 @@ x-backend-variables:
   # If you manually change this line make sure you also change the duplicate line in
   # the web-frontend service.
   BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+  BASEROW_EXTRA_PUBLIC_URLS:
 
   # Set these if you want to use an external postgres instead of the db service below.
   DATABASE_USER: ${DATABASE_USER:-baserow}
@@ -283,6 +284,7 @@ services:
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+      BASEROW_EXTRA_PUBLIC_URLS:
       PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
       PUBLIC_BACKEND_URL:
       PUBLIC_WEB_FRONTEND_URL:
