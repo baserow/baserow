@@ -39,8 +39,8 @@ export default defineNuxtModule({
     addPlugin(resolve('./plugins/global.js'))
 
     addRouteMiddleware({
-      name: 'selectBuilder',
-      path: resolve('./middleware/selectWorkspaceBuilderPage'),
+      name: 'selectWorkspaceBuilderPage',
+      path: resolve('./middleware/selectWorkspaceBuilderPage.js'),
     })
 
     // Add routes
