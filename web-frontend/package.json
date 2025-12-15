@@ -8,6 +8,7 @@
     "dev": "APP_ENV=dev nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "postinstall": "nuxt prepare"
@@ -107,6 +108,7 @@
     "@nuxtjs/storybook": "latest",
     "@storybook/addon-designs": "^11.1.0",
     "@storybook/addon-docs": "9.1.16",
+    "@storybook/addon-links": "9.1.16",
     "@vue/test-utils": "^2.4.6",
     "axios-mock-adapter": "1.21.4",
     "happy-dom": "^20.0.11",

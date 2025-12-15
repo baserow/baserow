@@ -79,10 +79,7 @@ export default defineNuxtConfig({
     trailingSlash: true,
     vueI18n: './i18n.config.ts',
   },
-  storybook: {
-    host: 'http://localhost',
-    port: 6006,
-  },
+
   vite: {
     plugins: [
       nodePolyfills({

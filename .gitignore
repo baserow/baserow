@@ -148,3 +148,5 @@ field-diagrams/
 # Storybook
 web-frontend/.nuxt-storybook/
 web-frontend/storybook-static
+
+.agent

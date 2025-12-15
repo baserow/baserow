@@ -60,38 +60,9 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
+    command: "nuxt-dev-with-storybook"
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
-    volumes:
-      - ./web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
-      - ./premium/web-frontend/:/baserow/premium/web-frontend
-      - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
-      - ./tests/:/baserow/tests
-    # Open stdin and tty so when attaching key input works as expected.
-    stdin_open: true
-    tty: true
-
-  web-frontend-storybook:
-    image: baserow_web-frontend_dev:latest
-    restart: unless-stopped
-    environment:
-      FEATURE_FLAGS:
-    networks:
-      local:
-    build:
-      dockerfile: ./web-frontend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "storybook-dev"
-    ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend
