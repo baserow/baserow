@@ -4,20 +4,13 @@
     class="button-text"
     :class="classes"
     v-bind="customBind"
-    v-on="$attrs"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
   </a>
-  <button
-    v-else
-    class="button-text"
-    :class="classes"
-    v-bind="customBind"
-    v-on="$attrs"
-  >
+  <button v-else class="button-text" :class="classes" v-bind="customBind">
     <i v-if="icon && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />
     <i v-if="loading" class="button-text__spinner"></i>
@@ -127,6 +120,19 @@ export default {
         return ['_blank', '_self', '_parent', '_top'].includes(value)
       },
     },
+  },
+  setup(props, { attrs }) {
+    const listeners = computed(() =>
+      Object.fromEntries(
+        Object.entries(attrs).filter(
+          ([key, value]) =>
+            // keep only real listeners: onClick, onUpdate:modelValue, etc.
+            key.startsWith('on') && typeof value === 'function'
+        )
+      )
+    )
+
+    return { listeners, attrs }
   },
   computed: {
     classes() {
