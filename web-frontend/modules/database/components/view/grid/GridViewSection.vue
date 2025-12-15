@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="section"
     v-auto-scroll="{
       enabled: () => isMultiSelectHolding,
       orientation: 'horizontal',
@@ -101,7 +102,25 @@
               )
             "
             :store-prefix="storePrefix"
-            v-on="$attrs"
+            @update="$emit('update', $event)"
+            @paste="$emit('paste', $event)"
+            @edit="$emit('edit', $event)"
+            @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+            @cell-mouseover="$emit('cell-mouseover', $event)"
+            @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+            @cell-shift-click="$emit('cell-shift-click', $event)"
+            @cell-selected="$emit('cell-selected', $event)"
+            @selected="$emit('selected', $event)"
+            @unselected="$emit('unselected', $event)"
+            @select="$emit('select', $event)"
+            @unselect="$emit('unselect', $event)"
+            @select-next="$emit('select-next', $event)"
+            @add-row-after="$emit('add-row-after', $event)"
+            @edit-modal="$emit('edit-modal', $event)"
+            @refresh-row="$emit('refresh-row', $event)"
+            @row-dragging="$emit('row-dragging', $event)"
+            @row-hover="$emit('row-hover', $event)"
+            @row-context="$emit('row-context', $event)"
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
@@ -122,7 +141,8 @@
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
             :store-prefix="storePrefix"
-            v-on="$attrs"
+            @add-row="$emit('add-row', $event)"
+            @add-rows="$emit('add-rows', $event)"
           ></GridViewRowAdd>
           <div v-else class="grid-view__row-placeholder"></div>
         </div>
@@ -180,10 +200,12 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
+import GridViewRow from '~/modules/database/components/view/grid/GridViewRow.vue'
 
 export default {
   name: 'GridViewSection',
   components: {
+    GridViewRow,
     HorizontalResize,
     GridViewHead,
     GridViewPlaceholder,
@@ -259,6 +281,30 @@ export default {
       required: true,
     },
   },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'cell-selected',
+    'selected',
+    'unselected',
+    'select',
+    'unselect',
+    'select-next',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+    'row-dragging',
+    'row-hover',
+    'row-context',
+    'scroll',
+    'field-created',
+    'refresh',
+  ],
   data() {
     return {
       // Render the first 20 fields by default so that there's at least some data when
@@ -266,6 +312,8 @@ export default {
       fieldsToRender: this.visibleFields.slice(0, 20),
       // Indicates the offset
       fieldsLeftOffset: 0,
+      resizeObserver: null,
+      horizontalScrollEvent: null,
     }
   },
   computed: {
@@ -504,12 +552,14 @@ export default {
       this.updateVisibleFieldsInRow()
     }, 50)
 
+    const sectionElement = this.$refs.section
+
     // When the viewport resizes, we need to check if there are fields that must be
     // rendered.
-    this.$el.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       updateDebounced()
     })
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver.observe(sectionElement)
 
     // When the user scrolls horizontally, we need to check if there fields/cells that
     // have moved into the viewport and must be rendered.
@@ -517,7 +567,7 @@ export default {
       last: Date.now(),
       distance: 0,
     }
-    this.$el.horizontalScrollEvent = (event) => {
+    this.horizontalScrollEvent = (event) => {
       // Call the update order debounce function to simulate a stop scrolling event.
       updateDebounced()
 
@@ -539,11 +589,16 @@ export default {
         }
       }
     }
-    this.$el.addEventListener('scroll', this.$el.horizontalScrollEvent)
+    sectionElement.addEventListener('scroll', this.horizontalScrollEvent)
   },
   beforeUnmount() {
-    this.$el.resizeObserver.unobserve(this.$el)
-    this.$el.removeEventListener('scroll', this.$el.horizontalScrollEvent)
+    const sectionElement = this.$refs.section
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(sectionElement)
+    }
+    if (this.horizontalScrollEvent !== null) {
+      sectionElement.removeEventListener('scroll', this.horizontalScrollEvent)
+    }
   },
   methods: {
     /**

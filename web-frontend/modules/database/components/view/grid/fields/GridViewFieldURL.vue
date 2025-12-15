@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="cell"
     class="grid-view__cell active"
     :class="{
       editing: editing,

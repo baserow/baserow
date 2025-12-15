@@ -362,7 +362,7 @@ export default {
     },
     moveFieldWidth(field, width) {
       // Temporarily set the field width override for the visual resize animation.
-      this.$set(this.fieldWidthOverride, field.id, width)
+      this.fieldWidthOverride[field.id] = width
     },
     updateFieldWidth(field, { width, oldWidth }) {
       this.fieldWidthOverride = {}

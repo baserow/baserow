@@ -142,13 +142,6 @@ export default {
         'grid-view__column--group-end': this.groupEnd,
       }
     },
-    /*isSelected() {
-      console.log('here', this.parent, this.parent.isCellSelected)
-      return this.parent && this.parent.isCellSelected(this.field.id)
-    },*/
-    /*isAlive() {
-      return this.parent && this.parent.alive.includes(this.field.id)
-    },*/
     fieldValue() {
       return this.row[`field_${this.field.id}`]
     },
@@ -190,9 +183,6 @@ export default {
     select(event, fieldId) {
       event.preventFieldCellUnselect = true
       this.$emit('select-cell', fieldId)
-      /*if (this.parent) {
-        this.parent.selectCell(fieldId)
-      }*/
     },
     cellMouseDownLeft(event) {
       if (!event.shiftKey) {
@@ -211,7 +201,6 @@ export default {
     unselect() {
       if (this.isSelected) {
         this.$emit('select-cell', -1, -1)
-        //this.parent.selectCell(-1, -1)
       }
     },
     selected(event) {

@@ -89,17 +89,5 @@ export default {
       ]
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        placeholderHeight:
-          this.$options.propsData.storePrefix +
-          'view/grid/getPlaceholderHeight',
-        activeGroupBys:
-          this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
-      }),
-    }
-  },*/
 }
 </script>

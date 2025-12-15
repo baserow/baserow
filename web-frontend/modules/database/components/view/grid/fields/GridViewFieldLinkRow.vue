@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="cell"
     v-prevent-parent-scroll
     class="grid-view__cell grid-field-many-to-many__cell active"
     :class="{ invalid: removingRelationships }"
