@@ -4,6 +4,7 @@ import {
   createResolver,
   extendPages,
   addTemplate,
+  addRouteMiddleware,
 } from 'nuxt/kit'
 import { routes } from './routes'
 import { readFileSync } from 'node:fs'
@@ -36,6 +37,11 @@ export default defineNuxtModule({
 
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
+
+    addRouteMiddleware({
+      name: 'selectBuilder',
+      path: resolve('./middleware/selectWorkspaceBuilderPage'),
+    })
 
     // Add routes
     extendPages((pages) => {

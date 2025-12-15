@@ -322,8 +322,15 @@ export const getters = {
   get: (state) => (id) => {
     return state.items.find((item) => item.id === id)
   },
-  getSelected: (state) => {
-    return state.selected
+  selectedId(state) {
+    if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
+      throw new Error('There is no selected application.')
+    }
+
+    return state.selected.id
+  },
+  getSelected(state, getters) {
+    return getters.get(getters.selectedId)
   },
   getAll(state) {
     return state.items
