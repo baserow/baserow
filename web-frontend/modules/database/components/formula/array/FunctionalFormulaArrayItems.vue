@@ -3,19 +3,14 @@ This component is used to render the formula array items, independently of the p
 It's used in the grid view cell, row edit modal, gallery card, etc.
 -->
 <template>
-  <div v-bind="containerAttrs">
+  <div :class="$attrs.class" :style="$attrs.style">
     <component
-      :is="getComponent(field, $registry)"
+      :is="itemComponent"
       v-for="(item, index) in value || []"
       :key="index"
-      :row="row"
-      :field="field"
-      :value="getValue(field, $registry, item)"
-      :selected="selected"
-      :index="index"
-      v-bind="listenerAttrs"
-    ></component>
-    <slot></slot>
+      v-bind="getAttrs(item, index)"
+    />
+    <slot />
   </div>
 </template>
 
@@ -24,60 +19,39 @@ export default {
   name: 'FunctionalFormulaArrayItems',
   inheritAttrs: false,
   props: {
-    field: {
-      type: Object,
-      required: true,
-    },
-    value: {
-      type: Array,
-      default: () => [],
-    },
-    row: {
-      type: Object,
-      default: null,
-    },
-    selected: {
-      type: Boolean,
-      default: false,
-    },
+    field: {type: Object, required: true},
+    value: {type: Array, default: () => []},
   },
-  inject: ['$registry'],
   computed: {
-    containerAttrs() {
-      const attrs = {}
-      Object.keys(this.$attrs).forEach((key) => {
-        if (!key.startsWith('on')) {
-          attrs[key] = this.$attrs[key]
-        }
-      })
-      return attrs
+    formulaType() {
+      return this.$registry.get(
+        'formula_type',
+        this.field.array_formula_type
+      )
     },
-    listenerAttrs() {
-      const attrs = {}
-      Object.keys(this.$attrs).forEach((key) => {
-        if (key.startsWith('on')) {
-          attrs[key] = this.$attrs[key]
-        }
-      })
-      return attrs
+    itemComponent() {
+      return this.formulaType.getFunctionalFieldArrayComponent()
+    },
+    componentAttrs() {
+      // Forward everything except class/style to each item component because those
+      // must be applied to the root element.
+      const {class: _c, style: _s, ...rest} = this.$attrs
+      return rest
     },
   },
   methods: {
-    getComponent(field, $registry) {
-      const formulaType = $registry.get(
-        'formula_type',
-        field.array_formula_type
-      )
-      return formulaType.getFunctionalFieldArrayComponent()
-    },
-    getValue(field, $registry, item) {
-      const formulaType = $registry.get(
-        'formula_type',
-        field.array_formula_type
-      )
-      return formulaType.getItemIsInNestedValueObjectWhenInArray()
+    getValue(item) {
+      return this.formulaType.getItemIsInNestedValueObjectWhenInArray()
         ? item && item.value
         : item
+    },
+    getAttrs(item, index) {
+      return {
+        ...this.componentAttrs,
+        field: this.field,
+        value: this.getValue(item),
+        index,
+      }
     },
   },
 }

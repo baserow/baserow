@@ -38,7 +38,7 @@
           :inline="true"
           :monday-first="true"
           class="ab-datetime-picker__calendar"
-          @input="updateDate"
+          @update:model-value="updateDate"
         />
       </client-only>
     </Context>
