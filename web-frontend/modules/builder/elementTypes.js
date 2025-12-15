@@ -1530,7 +1530,6 @@ export class TextElementType extends ElementType {
   }
 
   get image() {
-    console.log('eee', elementImageText)
     return elementImageText
   }
 
