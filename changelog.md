@@ -1,5 +1,34 @@
 # Changelog
 
+## Released 2.0.4
+
+### New features
+* [Core] Allow setting multiple BASEROW_PUBLIC_URL #2593 [#2593](https://github.com/baserow/baserow/-/issues/2593)
+* [Database] Allow to add missing fields to date dependency configuration [#4228](https://gitlab.com/baserow/baserow/-/issues/4228)
+* [Builder] Added a 'Create new data source' link at the bottom of iterate/table element dropdowns for quicker data source creation.
+* [Integration] Improved the Local Baserow action fields so that they inform users about what data type they expect to receive.
+
+### Bug fixes
+* [Database] handle date overflow in postgresql -> python conversion [#3324](https://gitlab.com/baserow/baserow/-/issues/3324)
+* [Database] Timeline view - fetch all rows again if a filter is disabled. [#4136](https://github.com/baserow/baserow/-/issues/4136)
+* [Builder] Show a specific error when a page is being renamed to an existing page's name. [#4183](https://github.com/baserow/baserow/-/issues/4183)
+* [Automation] Show a specific error when a workflow is being renamed to an existing workflow's name. [#4183](https://github.com/baserow/baserow/-/issues/4183)
+* [Automation] Fixed a potential crash while deleting a workflow. [#4293](https://github.com/baserow/baserow/-/issues/4293)
+* [Database] Handle exceptions like GenerativeAIPromptError in UI [#4350](https://github.com/baserow/baserow/-/issues/4350)
+* [Core] Resolved a bug which prevented formula fields from working correctly with HTML content. [#4377](https://github.com/baserow/baserow/-/issues/4377)
+* [Builder] Gracefully handle fetching data source services when the specific instance is missing. [#4389](https://github.com/baserow/baserow/-/issues/4389)
+* [Builder] Fixed a bug where domain names were not correctly validated during domain creation. [#4399](https://github.com/baserow/baserow/-/issues/4399)
+* [Core] Improved error handling when FormulaField value is not JSON serializable. [#4402](https://github.com/baserow/baserow/-/issues/4402)
+* [Database] Do not fail hard when ArrayValueSerializer throws ConversionSyntax exception [#4424](https://github.com/baserow/baserow/-/issues/4424)
+* [Database] Fix an issue where "Rows enter view" webhook shows stale rows when webhook is deleted and recreated [#4437](https://github.com/baserow/baserow/-/issues/4437)
+* [Builder] Resolved a bug in element visibility which prevented form data from being used.
+* [Builder] Resolved a bug which prevented the table element fields from being styled.
+
+### Refactors
+* [Database] Optimize test suite by deferring heavy signals by default [#4373](https://github.com/baserow/baserow/-/issues/4373)
+* [Integration] Improved one-way and two-way data sync support in Local Baserow actions.
+
+
 ## Released 2.0.3
 
 ### New features
