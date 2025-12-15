@@ -23,7 +23,12 @@ const props = defineProps({
   value: {
     type: Object,
     required: false,
-    default: () => ({}),
+    default: undefined,
+  },
+  modelValue: {
+    type: Object,
+    required: false,
+    default: undefined,
   },
   dataProvidersAllowed: {
     type: Array,
@@ -43,14 +48,18 @@ const applicationContext = useApplicationContext(
 
 const elementPage = inject('elementPage')
 
-const emit = defineEmits(['input'])
+const emit = defineEmits(['input', 'update:modelValue'])
+
+const currentValue = computed(() => {
+  return props.modelValue !== undefined ? props.modelValue : props.value || {}
+})
 
 // Local mode state
-const localMode = ref(props.value.mode || 'simple')
+const localMode = ref(currentValue.value.mode || 'simple')
 
 // Watch for external changes to the mode
 watch(
-  () => props.value.mode,
+  () => currentValue.value.mode,
   (newMode) => {
     if (newMode !== undefined && newMode !== localMode.value) {
       localMode.value = newMode
@@ -60,7 +69,6 @@ watch(
 
 const app = useNuxtApp()
 const { $store } = app
-//const { app, store } = useContext()
 
 const isInSidePanel = computed(() => {
   return applicationContext.value?.element !== undefined
@@ -102,7 +110,7 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The formula string.
  */
 const formulaStr = computed(() => {
-  return props.value.formula
+  return currentValue.value.formula
 })
 
 const dataSourceLoading = computed(() => {
@@ -139,7 +147,12 @@ const dataExplorerLoading = computed(() => {
  */
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
-    ...props.value,
+    ...currentValue.value,
+    formula: newFormulaStr,
+    mode: localMode.value,
+  })
+  emit('update:modelValue', {
+    ...currentValue.value,
     formula: newFormulaStr,
     mode: localMode.value,
   })

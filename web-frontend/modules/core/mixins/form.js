@@ -36,7 +36,7 @@ export default {
       registeredChildForms: [],
     }
   },
-  mounted() {
+  created() {
     for (const [key, value] of Object.entries(this.getDefaultValues())) {
       this.values[key] = value
     }

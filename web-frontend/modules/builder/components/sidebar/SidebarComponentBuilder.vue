@@ -64,7 +64,7 @@ import SidebarItemBuilder from '@baserow/modules/builder/components/sidebar/Side
 import CreatePageModal from '@baserow/modules/builder/components/page/CreatePageModal'
 
 export default {
-  name: 'TemplateSidebar',
+  name: 'SidebarComponentBuilder',
   components: {
     CreatePageModal,
     SidebarItemBuilder,

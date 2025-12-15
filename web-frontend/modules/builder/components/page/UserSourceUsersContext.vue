@@ -25,7 +25,9 @@
               :title="$t('userSourceUsersContext.anonymous')"
               size="medium"
               :initials="
-                $t('userSourceUsersContext.anonymous') | nameAbbreviation
+                $filters.nameAbbreviation(
+                  $t('userSourceUsersContext.anonymous')
+                )
               "
               @click="selectUser()"
             />
@@ -56,7 +58,9 @@
                   size="medium"
                   :initials="
                     user.username ||
-                    $t('userSourceUsersContext.unnamed') | nameAbbreviation
+                    $filters.nameAbbreviation(
+                      $t('userSourceUsersContext.unnamed')
+                    )
                   "
                   @click="selectUser(user)"
                 />

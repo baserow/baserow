@@ -125,6 +125,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   data() {
     return { count: 3, tooltipTimer: null }
   },

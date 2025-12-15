@@ -627,8 +627,6 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
   const allViews = store.getters['view/getAllOrdered']
   const views = defaultView ? [defaultView, ...allViews] : allViews
 
-  console.log('viuew', views)
-
   return views.find((view) => {
     const viewType = app.$registry.get('view', view.type)
     if (viewType.isDeactivated(workspaceId)) {
@@ -748,8 +746,6 @@ export function saveDefaultViewIdInCookie(
   config,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
-  console.log('before usecookie', config.public.baserowFrontendSameSiteCookie)
-
   const secure = isSecureURL(config.public.publicWebFrontendUrl)
   const cookieValue = useCookie(cookieName, {
     path: '/',
@@ -760,7 +756,6 @@ export function saveDefaultViewIdInCookie(
       return ''
     },
   })
-  console.log('ça masse')
 
   //const cookieValue = cookies.get(cookieName) || ''
   let defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
