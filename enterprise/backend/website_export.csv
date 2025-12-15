@@ -395,7 +395,9 @@ This comprehensive glossary explains essential Baserow terminology across all mo
 
 Learning Baserow terminology accelerates your ability to use the platform effectively, troubleshoot issues, and collaborate with your team. This glossary covers terms from all Baserow modules, organized by category to show how concepts connect. Whether you're building databases, creating applications, designing dashboards, or automating workflows, these definitions will help you navigate Baserow with confidence.
 
-![Baserow core concepts visualization][1]
+You can ask our [AI Assistant, Kuma][1], for help directly in the interface.
+
+![Baserow core concepts visualization][2]
 
 ## Core platform concepts
 
@@ -403,12 +405,12 @@ These foundational terms apply across all Baserow modules:
 
 | Term | Definition |
 |------|------------|
-| **[Workspace][2]** | The top-level organizational container where teams collaborate. Workspaces hold databases, applications, dashboards, and automations. |
-| **[Workspace admin][3]** | A user role with full control over workspace management, including adding members, assigning permissions, creating databases and applications, and managing workspace settings. Different from an instance admin. |
-| **[Workspace member][3]** | A collaborator who has access to a workspace with specific permissions assigned by workspace admins. |
-| **[Billable user][4]** | Any user with access to a workspace who counts toward your subscription's user limit. |
-| **[Role-based permissions][5]** | A system for controlling access by assigning roles that determine what users can view and modify. |
-| **[Snapshot][6]** | A complete point-in-time backup of your database that can be restored later. |
+| **[Workspace][3]** | The top-level organizational container where teams collaborate. Workspaces hold databases, applications, dashboards, and automations. |
+| **[Workspace admin][4]** | A user role with full control over workspace management, including adding members, assigning permissions, creating databases and applications, and managing workspace settings. Different from an instance admin. |
+| **[Workspace member][4]** | A collaborator who has access to a workspace with specific permissions assigned by workspace admins. |
+| **[Billable user][5]** | Any user with access to a workspace who counts toward your subscription's user limit. |
+| **[Role-based permissions][6]** | A system for controlling access by assigning roles that determine what users can view and modify. |
+| **[Snapshot][7]** | A complete point-in-time backup of your database that can be restored later. |
 
 ## Database Builder terms
 
@@ -416,23 +418,23 @@ Terms related to organizing and structuring data:
 
 | Term | Definition |
 |------|------------|
-| **[Database][7]** | A container for related tables that organize data for specific projects or purposes. A workspace can contain multiple databases. |
-| **[Table][8]** | A structured collection of data organized into rows and columns within a database. Each table represents a specific type of information. |
-| **[Table ID][9]** | A unique numerical identifier assigned to each table, used for API access and linking tables together. |
-| **[Field][10]** | A column in a table that defines a specific type of data to be stored. Each field has a data type (text, number, date, file, etc.) that determines what information it can hold. |
-| **[Row][11]** | A single record in a table containing related information across multiple fields. Each row represents one item, person, task, or data point. |
-| **[Row ID][11]** | A unique numerical identifier automatically assigned to each row when created. Access using the `row_id()` formula. |
-| **[Cell][11]** | The intersection of a row and column where individual data values are stored. Each cell contains one piece of information for one record. |
-| **[Link to table field][12]** | A field type that creates relationships between tables, allowing you to connect related data. For example, linking ""Customers"" to ""Orders"" to see which customer placed each order. |
+| **[Database][8]** | A container for related tables that organize data for specific projects or purposes. A workspace can contain multiple databases. |
+| **[Table][9]** | A structured collection of data organized into rows and columns within a database. Each table represents a specific type of information. |
+| **[Table ID][10]** | A unique numerical identifier assigned to each table, used for API access and linking tables together. |
+| **[Field][11]** | A column in a table that defines a specific type of data to be stored. Each field has a data type (text, number, date, file, etc.) that determines what information it can hold. |
+| **[Row][12]** | A single record in a table containing related information across multiple fields. Each row represents one item, person, task, or data point. |
+| **[Row ID][12]** | A unique numerical identifier automatically assigned to each row when created. Access using the `row_id()` formula. |
+| **[Cell][12]** | The intersection of a row and column where individual data values are stored. Each cell contains one piece of information for one record. |
+| **[Link to table field][13]** | A field type that creates relationships between tables, allowing you to connect related data. For example, linking ""Customers"" to ""Orders"" to see which customer placed each order. |
 | **Filter** | Criteria applied to show only relevant information, such as date ranges, categories, or specific conditions. |
-| **[View][13]** | A customized way of displaying and interacting with table data. The same table can have multiple views (Grid, Gallery, Form, Kanban, Calendar, Timeline) that show data differently without changing the underlying information. |
-| **[Grid view][14]** | The default spreadsheet-like view for tables, best for detailed data entry and manipulation. |
-| **[Gallery view][15]** | A visual view displaying records as cards with images, ideal for products, portfolios, or any visual content. |
-| **[Kanban view][16]** | A board view organizing records as cards in columns based on a single-select field, perfect for workflow management and project tracking. |
-| **[Calendar view][17]** | A calendar-based view displaying records with date fields as events, useful for scheduling and deadline tracking. |
-| **[Form view][18]** | An interactive form for collecting data from external users who don't need database access. |
-| **[Timeline view][19]** | A Gantt-chart-style view showing records with start and end dates along a timeline, ideal for project planning. |
-| **[Primary field][20]** | The first field in every table that serves as the main identifier for each row. |
+| **[View][14]** | A customized way of displaying and interacting with table data. The same table can have multiple views (Grid, Gallery, Form, Kanban, Calendar, Timeline) that show data differently without changing the underlying information. |
+| **[Grid view][15]** | The default spreadsheet-like view for tables, best for detailed data entry and manipulation. |
+| **[Gallery view][16]** | A visual view displaying records as cards with images, ideal for products, portfolios, or any visual content. |
+| **[Kanban view][17]** | A board view organizing records as cards in columns based on a single-select field, perfect for workflow management and project tracking. |
+| **[Calendar view][18]** | A calendar-based view displaying records with date fields as events, useful for scheduling and deadline tracking. |
+| **[Form view][19]** | An interactive form for collecting data from external users who don't need database access. |
+| **[Timeline view][20]** | A Gantt-chart-style view showing records with start and end dates along a timeline, ideal for project planning. |
+| **[Primary field][21]** | The first field in every table that serves as the main identifier for each row. |
 
 ## Application Builder terms
 
@@ -440,7 +442,7 @@ Terms for creating custom applications:
 
 | Term | Definition |
 |------|------------|
-| **[Application][21]** | A custom web interface built using the Application Builder, consisting of pages, elements, and data sources. Applications can be internal tools, customer portals, or public websites. |
+| **[Application][22]** | A custom web interface built using the Application Builder, consisting of pages, elements, and data sources. Applications can be internal tools, customer portals, or public websites. |
 | **Page** | An individual screen or route within an application. Applications can have multiple pages with navigation between them. |
 | **Element** | A building block component added to pages (buttons, tables, forms, text, images, inputs, etc.). Elements are configured to display data and respond to user interactions. |
 | **Data source** | A connection between application elements and database tables that provides data to display or modify. Data sources can include filters, sorting, and search parameters. |
@@ -457,7 +459,7 @@ Terms for visualizing data and metrics:
 
 | Term | Definition |
 |------|------------|
-| **[Dashboard][22]** | A visual analytics interface displaying data from databases through charts, tables, and metrics. Dashboards provide at-a-glance insights into key performance indicators. |
+| **[Dashboard][23]** | A visual analytics interface displaying data from databases through charts, tables, and metrics. Dashboards provide at-a-glance insights into key performance indicators. |
 | **Widget** | An individual visualization component on a dashboard (chart, table, metric, gauge, etc.). Each widget displays specific data from connected database sources. |
 | **Chart** | A visual representation of data using bars, lines, pies, or other graphical formats. Charts help identify trends, patterns, and comparisons. |
 | **Data summary** | Calculations performed on database data to create summaries (sum, average, count, min, max, etc) displayed in dashboard widgets. |
@@ -468,7 +470,7 @@ Terms for creating automated workflows:
 
 | Term | Definition |
 |------|------------|
-| **[Automation][23]** | A container holding one or more workflows that run automatically based on triggers. Automations connect Baserow with other tools and automate repetitive tasks. |
+| **[Automation][24]** | A container holding one or more workflows that run automatically based on triggers. Automations connect Baserow with other tools and automate repetitive tasks. |
 | **Workflow** | A sequence of nodes (trigger + actions) that execute in order when the workflow runs. Each workflow has exactly one trigger followed by one or more actions. |
 | **Node** | A single step in a workflow, either a trigger (the starting event) or an action (what happens next). Nodes execute sequentially from top to bottom. |
 | **Trigger** | The first node in every workflow that determines when the workflow runs. |
@@ -486,16 +488,16 @@ Terms related to hosting and managing Baserow:
 
 | Term | Definition |
 |------|------------|
-| **[Baserow Cloud][24]** | The hosted SaaS version of Baserow at baserow.io where infrastructure, updates, and maintenance are managed by Baserow. Also called ""hosted"" or ""cloud"" version. |
-| **[Self-hosted][24]** | Baserow installed on your own servers (on-premise or private cloud) where you manage infrastructure, updates, and maintenance. Also called ""on-premises"" hosting. |
-| **[Instance][25]** | A complete Baserow installation, whether Cloud or Self-hosted. Each instance has a unique identifier used for licensing. |
-| **[Instance ID][26]** | A unique identifier for your Baserow installation, required for premium license activation on Self-hosted deployments. |
-| **[Instance admin][27]** | A server-wide administrator role (Self-hosted only) with access to all workspaces, user management, license activation, and system settings. The first user account is automatically an instance admin. Different from workspace admin. |
-| **[Admin panel][28]** | The interface where instance admins manage users, workspaces, licenses, audit logs, and system settings. |
-| **[License][25]** | A purchased subscription that activates paid features on Self-hosted installations. |
-| **[License key][25]** | A unique string of characters used to register and activate a premium license on a Self-hosted instance. |
-| **[Single Sign-On (SSO)][29]** | An authentication system allowing users to log in to Baserow using credentials from another service (Google, Microsoft, Okta, etc.) without creating separate passwords. |
-| **Seat** | A single user [license][30] that grants access to paid features. The way seats are assigned depends on your specific plan. |
+| **[Baserow Cloud][25]** | The hosted SaaS version of Baserow at baserow.io where infrastructure, updates, and maintenance are managed by Baserow. Also called ""hosted"" or ""cloud"" version. |
+| **[Self-hosted][25]** | Baserow installed on your own servers (on-premise or private cloud) where you manage infrastructure, updates, and maintenance. Also called ""on-premises"" hosting. |
+| **[Instance][26]** | A complete Baserow installation, whether Cloud or Self-hosted. Each instance has a unique identifier used for licensing. |
+| **[Instance ID][27]** | A unique identifier for your Baserow installation, required for premium license activation on Self-hosted deployments. |
+| **[Instance admin][28]** | A server-wide administrator role (Self-hosted only) with access to all workspaces, user management, license activation, and system settings. The first user account is automatically an instance admin. Different from workspace admin. |
+| **[Admin panel][29]** | The interface where instance admins manage users, workspaces, licenses, audit logs, and system settings. |
+| **[License][26]** | A purchased subscription that activates paid features on Self-hosted installations. |
+| **[License key][26]** | A unique string of characters used to register and activate a premium license on a Self-hosted instance. |
+| **[Single Sign-On (SSO)][30]** | An authentication system allowing users to log in to Baserow using credentials from another service (Google, Microsoft, Okta, etc.) without creating separate passwords. |
+| **Seat** | A single user [license][31] that grants access to paid features. The way seats are assigned depends on your specific plan. |
 | **Open source** | The freely available version of Baserow with core features, released under the MIT license. Can be used, modified, and distributed without licensing fees. |
 | **Paid features** | Advanced functionality (advanced permissions, increased limits, premium field types) available through paid subscriptions on both Cloud and Self-hosted. |
 | **Enterprise features** | High-end functionality (audit logs, SSO, admin panel, priority support) available on Enterprise plans. |
@@ -543,7 +545,7 @@ A **trigger** is the starting event that causes a workflow to run (e.g., ""when 
 
 ### What does ""billable user"" mean for my subscription?
 
-Each billable user counts toward your plan's user limit. Guest access through public view sharing doesn't count toward your limit. Learn more about [billable users][4].  
+Each billable user counts toward your plan's user limit. Guest access through public view sharing doesn't count toward your limit. Learn more about [billable users][5].  
 
 ### Can I use automation without the Application Builder?
 
@@ -555,13 +557,13 @@ Yes. Automations work independently and can interact with database tables direct
 
 ## Related content
 
-- [Quick start guide: Get started with Baserow][31]
-- [Introduction to Baserow][32]
-- [Deploy Baserow: Choose your hosting option][24]
-- [Introduction to databases][7]
-- [Introduction to Application Builder][33]
-- [Introduction to workspaces][2]
-- [Keyboard shortcuts][34]
+- [Quick start guide: Get started with Baserow][32]
+- [Introduction to Baserow][33]
+- [Deploy Baserow: Choose your hosting option][25]
+- [Introduction to databases][8]
+- [Introduction to Application Builder][34]
+- [Introduction to workspaces][3]
+- [Keyboard shortcuts][35]
 
 ---
 
@@ -571,40 +573,41 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](https://baserow.io/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f9c3368a-bcb1-405e-90cd-bfd1397573e8/Baserow%20basic%20concepts%20(1).jpg
-  [2]: /user-docs/intro-to-workspaces
-  [3]: /user-docs/managing-workspace-collaborators
-  [4]: /user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes
-  [5]: /user-docs/permissions-overview
-  [6]: /user-docs/snapshots
-  [7]: /user-docs/intro-to-databases
-  [8]: /user-docs/intro-to-tables
-  [9]: /user-docs/database-and-table-id
-  [10]: /user-docs/baserow-field-overview
-  [11]: /user-docs/overview-of-rows
-  [12]: /user-docs/link-to-table-field
-  [13]: /user-docs/overview-of-baserow-views
-  [14]: https://baserow.io/user-docs/guide-to-grid-view
-  [15]: https://baserow.io/user-docs/guide-to-gallery-view
-  [16]: https://baserow.io/user-docs/guide-to-kanban-view
-  [17]: https://baserow.io/user-docs/guide-to-calendar-view
-  [18]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
-  [19]: https://baserow.io/user-docs/guide-to-timeline-view
-  [20]: https://baserow.io/user-docs/primary-field
-  [21]: https://baserow.io/user-docs/application-builder-overview
-  [22]: https://baserow.io/user-docs/dashboards-overview
-  [23]: https://baserow.io/user-docs/workflow-automation
-  [24]: /user-docs/set-up-baserow
-  [25]: /user-docs/get-a-licence-key
-  [26]: https://baserow.io/user-docs/getting-and-changing-the-instance-id
-  [27]: /user-docs/admin-panel-users
-  [28]: /user-docs/enterprise-admin-panel
-  [29]: /user-docs/single-sign-on-sso-overview
-  [30]: https://baserow.io/user-docs/self-hosted-licenses
-  [31]: /user-docs/how-to-get-started-with-baserow
-  [32]: /user-docs/baserow-basics
-  [33]: /user-docs/application-builder-overview
-  [34]: /user-docs/baserow-keyboard-shortcuts",getting started,baserow_user_docs,https://baserow.io/user-docs/learn-baserow-basic-concepts
+  [1]: https://baserow.io/user-docs/ai-assistant
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f9c3368a-bcb1-405e-90cd-bfd1397573e8/Baserow%20basic%20concepts%20(1).jpg
+  [3]: /user-docs/intro-to-workspaces
+  [4]: /user-docs/managing-workspace-collaborators
+  [5]: /user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes
+  [6]: /user-docs/permissions-overview
+  [7]: /user-docs/snapshots
+  [8]: /user-docs/intro-to-databases
+  [9]: /user-docs/intro-to-tables
+  [10]: /user-docs/database-and-table-id
+  [11]: /user-docs/baserow-field-overview
+  [12]: /user-docs/overview-of-rows
+  [13]: /user-docs/link-to-table-field
+  [14]: /user-docs/overview-of-baserow-views
+  [15]: https://baserow.io/user-docs/guide-to-grid-view
+  [16]: https://baserow.io/user-docs/guide-to-gallery-view
+  [17]: https://baserow.io/user-docs/guide-to-kanban-view
+  [18]: https://baserow.io/user-docs/guide-to-calendar-view
+  [19]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
+  [20]: https://baserow.io/user-docs/guide-to-timeline-view
+  [21]: https://baserow.io/user-docs/primary-field
+  [22]: https://baserow.io/user-docs/application-builder-overview
+  [23]: https://baserow.io/user-docs/dashboards-overview
+  [24]: https://baserow.io/user-docs/workflow-automation
+  [25]: /user-docs/set-up-baserow
+  [26]: /user-docs/get-a-licence-key
+  [27]: https://baserow.io/user-docs/getting-and-changing-the-instance-id
+  [28]: /user-docs/admin-panel-users
+  [29]: /user-docs/enterprise-admin-panel
+  [30]: /user-docs/single-sign-on-sso-overview
+  [31]: https://baserow.io/user-docs/self-hosted-licenses
+  [32]: /user-docs/how-to-get-started-with-baserow
+  [33]: /user-docs/baserow-basics
+  [34]: /user-docs/application-builder-overview
+  [35]: /user-docs/baserow-keyboard-shortcuts",getting started,baserow_user_docs,https://baserow.io/user-docs/learn-baserow-basic-concepts
 5,Set up a workspace,setting-up-a-workspace,Baserow workspace setup guide for users,"# Set up a workspace in Baserow
 
 Create workspaces to organize your databases, applications, and team collaboration. Learn how to create, name, configure, and manage workspaces effectively.
@@ -893,6 +896,10 @@ Learn more: [Permissions overview](/user-docs/permissions-overview)
 
 No. Only workspace admins can invite new users. If you need to add someone, ask a workspace admin to send the invitation or request an admin role upgrade if you'll be inviting users regularly.
 
+### How many users can collaborate in a workspace?
+
+There’s no hard limit on workspace members. Free plans have row and storage limits (check your plan), while paid plans support unlimited workspaces with unlimited members. Performance remains good even with dozens of simultaneous workspace members.
+
 ### What happens if someone accepts an invitation to a workspace they're already in?
 
 They can't. Baserow prevents sending invitations to existing workspace members. If someone needs a different role, workspace admins can change their permissions directly in workspace member settings.
@@ -950,7 +957,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [2]: https://baserow.io/user-docs/subscriptions-overview
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/86a76bff-c8e3-4c72-95a2-ed5609fecf5d/Inviting%20a%20member%20to%20workspace.jpg
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/42d96a76-1688-4b75-81dd-5defcc454e8d/Dashboard%20invitation%20notification.jpg
-  [5]: https://baserow.io/user-docs/permissions-overview",,baserow_user_docs,https://baserow.io/user-docs/working-with-collaborators
+  [5]: https://baserow.io/user-docs/permissions-overview",workspace,baserow_user_docs,https://baserow.io/user-docs/working-with-collaborators
 7,Leave a workspace,leave-a-workspace,Leave a workspace in Baserow,"# Leave a Baserow workspace
 
 Learn how to leave a workspace you no longer need access to, understand what happens to your data, and explore your options if you're the last admin.
@@ -1055,7 +1062,7 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4b695b1f-f545-4927-be45-f3d32af39776/export_and_import_of_workspaces.webp",,baserow_user_docs,https://baserow.io/user-docs/leave-a-workspace
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4b695b1f-f545-4927-be45-f3d32af39776/export_and_import_of_workspaces.webp",workspace,baserow_user_docs,https://baserow.io/user-docs/leave-a-workspace
 8,Delete a workspace,delete-a-workspace,Delete a Baserow workspace,"# Delete a workspace in Baserow
 
 Baserow makes workspace deletion straightforward but includes safety measures to prevent accidental data loss.
@@ -2465,7 +2472,7 @@ Learn more: [Form submission notifications](/user-docs/notifications#notificatio
 
 Pre-fill forms with data using URL parameters, making it easier for respondents to complete forms with information you already know. 
 
-**Common use case:** Pre-fill and hide fields that shouldn't be changed, like referral sources or campaign tracking codes.
+Pre-fill and hide fields that shouldn't be changed, like referral sources or campaign tracking codes.
 
 ### Basic pre-fill syntax
 
@@ -2559,9 +2566,17 @@ Yes. File fields in your table become file upload fields in forms. Respondents c
 
 Use [preview mode](#preview-before-sharing) to see the form, but any submission creates real data. Create a test table for form testing, or manually delete test submissions from your production table. Consider adding a ""Test submission"" checkbox field to identify and filter out test data.
 
+### How to prefill form fields via URL?
+
+Add parameters to your form URL in this format: `?prefill_<field_name>=value`. You can prefill a name by sending the user a custom link like `.../form?prefill_Name=Sprint....`
+
 ### Can I use forms in survey mode?
 
 Yes. [Survey mode](/user-docs/form-survey-mode) displays one question at a time instead of all fields on one page. Click **Change mode** in the toolbar to switch between standard and survey modes. Survey mode is better for longer forms with many questions.
+
+### Can you add more than one button to a form view? 
+
+Baserow’s form view can only have one submit button and does not support adding extra custom buttons directly. If you need to add custom buttons, logic, or multiple actions on a single screen, try the Baserow Application Builder, create another form, or duplicate the existing form view.
 
 ## Related resources
 
@@ -2599,7 +2614,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow.io/user-docs/form-survey-mode
-  [2]: https://baserow.io/user-docs/adding-a-field",,baserow_user_docs,https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
+  [2]: https://baserow.io/user-docs/adding-a-field",view,baserow_user_docs,https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
 16,Kanban view,guide-to-kanban-view,Kanban view in Baserow,"# Kanban view
 
 Kanban view displays records as cards organized into columns, making it perfect for tracking work through stages like sales pipelines, project workflows, or content production.
@@ -2612,7 +2627,7 @@ Learn more about views in general: [Views overview](/user-docs/overview-of-baser
 
 ## What is Kanban view?
 
-Kanban view organizes records into vertical columns based on a Single select field. Each column represents a status, stage, or category, and each record displays as a card that you can drag between columns to update its status. This visual workflow makes it easy to see work in progress and identify bottlenecks.
+Kanban view organizes records into vertical columns based on a Single select field. Each column represents a status, stage, or category, and each record displays as a card that you can drag between columns to update its status. This visual workflow makes it easy to see work in progress and identify bottlenecks. Perfect for sales pipelines, production tracking, etc.
 
 **Kanban view excels at:** Sales pipelines (Lead → Qualified → Proposal → Closed), bug tracking (New → In Progress → Testing → Resolved), content calendars (Idea → Draft → Review → Published), recruitment workflows (Applied → Screening → Interview → Hired), and any process with clear stages.
 
@@ -2909,7 +2924,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: https://baserow.io/user-docs/collaborative-views
   [4]: https://baserow.io/user-docs/webhooks
   [5]: https://baserow.io/user-docs/view-customization
-  [6]: https://baserow.io/user-docs/navigating-row-configurations",,baserow_user_docs,https://baserow.io/user-docs/guide-to-kanban-view
+  [6]: https://baserow.io/user-docs/navigating-row-configurations",view,baserow_user_docs,https://baserow.io/user-docs/guide-to-kanban-view
 17,Row configuration,navigating-row-configurations,Exploring row configurations in Baserow,"# Row configuration options
 
 Row configuration in Baserow gives you flexible control over how your data appears and behaves, from adjusting visual density to managing bulk operations on hundreds of records.
@@ -3270,7 +3285,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow.io/user-docs/notifications
-  [2]: https://baserow.io/pricing",,baserow_user_docs,https://baserow.io/user-docs/managing-workspace-collaborators
+  [2]: https://baserow.io/pricing",collaboration,baserow_user_docs,https://baserow.io/user-docs/managing-workspace-collaborators
 19,Manage workspace members,manage-workspace-permissions,Manage Baserow workspace members,"# Manage workspace members
 
 Workspace admins control who has access to their workspaces and can modify member permissions as team needs change.
@@ -3390,6 +3405,10 @@ Check the **Members** page. Active members appear in the main **Members** list w
 ### Do role changes affect members in other workspaces?
 
 No. Workspace permissions are independent. A user who's an admin in Workspace A might be a viewer in Workspace B. Role changes only affect the current workspace.
+
+### What's the difference between a workspace admin and instance admin?
+
+A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes.
 
 ### What is the difference between ""Revoking Workspace Access"" and ""Deleting a User""?
 
@@ -3583,7 +3602,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [6]: https://baserow.io/user-docs/guide-to-calendar-view
   [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4cfea85c-f237-47db-9aff-5dc99e66e1ae/Share%20view%20interface.jpg
   [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8eb9e3eb-82d4-4b1f-8a03-83819ddd9fb5/Share%20view%20options.jpg
-  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/5ccfdd06-7ff9-411c-86f3-08395064c101/Export%20publicly%20shared%20view.jpg",,baserow_user_docs,https://baserow.io/user-docs/public-sharing
+  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/5ccfdd06-7ff9-411c-86f3-08395064c101/Export%20publicly%20shared%20view.jpg",collaboration,baserow_user_docs,https://baserow.io/user-docs/public-sharing
 21,Account settings,account-settings-overview,Baserow account settings overview guide,"# Account settings overview
 
 Account settings contain personal preferences and security options specific to your user account, separate from workspace or database settings.
@@ -3595,23 +3614,24 @@ This guide covers how to access and manage your Baserow account settings, includ
 Account settings control your personal Baserow profile, security, and preferences. These settings apply only to your individual account across all workspaces you belong to. Changes to account settings don't affect other users or workspace configurations.
 
 **Account settings include:**
- - **Account** - Update your name and interface language
- - **Two-factor authentication** - Add an extra layer of security to your account
- - **[Password][1]** - Change your account password
- - **[Email notifications][2]** - Configure notification preferences
- - **[MCP server][3]** - Configure Model Context Protocol server access
- - **[Database tokens][4]** - Generate API tokens for integrations
- - **[Delete account][5]** - Permanently remove your Baserow account
+ - **Account** - Update your name and interface language.
+ - **Change email address** - Update the email address associated with your Baserow account.
+ - **[Password][1]** - Change your account password.
+ - **[Email notifications][2]** - Configure notification preferences.
+ - **[MCP server][3]** - Configure Model Context Protocol server access.
+ - **[Two-factor authentication][4]** - Add an extra layer of security to your account.
+ - **[Database tokens][5]** - Generate API tokens for integrations.
+ - **[Delete account][6]** - Permanently remove your Baserow account.
 
-![Baserow Account settings image][6]
+![Baserow Account settings image][7]
 
 ## Access account settings
 
 Your account settings are accessible from any page in Baserow.
 
-1. Click your **workspace icon** or **workspace name** in the top-right corner
-2. Select **My settings** from the dropdown menu
-3. The account settings page opens with tabs for each setting category
+1. Click your **workspace icon** or **workspace name** in the top-right corner.
+2. Select **My settings** from the dropdown menu.
+3. The account settings page opens with tabs for each setting category.
 
 You can also **log out** directly from the account dropdown without opening settings.
 
@@ -3619,7 +3639,7 @@ You can also **log out** directly from the account dropdown without opening sett
 
 ### Account
 
-Update your display name and interface language preferences.
+In this section, you can update your display name and interface language preferences.
 
 **Display name:** The name shown to other workspace members in [comments](/user-docs/row-commenting), [row activity logs](/user-docs/row-change-history), and workspace member lists.
 
@@ -3632,30 +3652,28 @@ Update your display name and interface language preferences.
 
 ### Password
 
-Change your account password for security or if you suspect unauthorized access.
+Change your account password for security or if you suspect unauthorized access. Strong passwords help protect your data across all workspaces.
 
 Learn more: [Password management](/user-docs/password-management)
 
+### Change email address
+
+You can update the email address associated with your Baserow account. This address is used for logging in and receiving notifications.
+
+To change your email:
+
+ 1.  Navigate to the **Change email** tab in your settings.
+ 2.  Enter your new email address in the **Email** field.
+ 3. Enter your current password 
+ 4.  Click **Send confirmation email** to confirm the change.
+
+> **Note:** If you are using a [Single Sign-On (SSO) provider][8] (like Google or GitLab) to log in, you may not be able to change your email address directly in Baserow. You must update it with your identity provider.
+
 ### Two-factor authentication (2FA)
 
-Two-factor authentication (2FA) protects your account by adding an extra layer of security. When enabled, you'll be required to enter a six-digit code from an authenticator app in addition to your password when logging in.
+Two-factor authentication (2FA) protects your account by adding an extra layer of security. When enabled, you’ll be required to enter a six-digit code from an authenticator app in addition to your password when logging in.
 
-**How to enable 2FA:**
-
-1.  Navigate to your **Account settings** page.
-2.  Click the **Two-factor authentication** tab (or find the 2FA section).
-3.  Click the **Enable 2FA** button.
-4.  Select **Authenticator app (Recommended)**. We suggest using a trusted app such as:
-    * Google Authenticator
-    * Authy
-    * Microsoft Authenticator
-5.  Click **Continue**.
-6.  On the next screen:
-    1.  **Scan the QR code** using your authenticator app.
-    2.  **Enter the 6-digit code** shown in the app to confirm you have set it up correctly.
-7.  Your account is now protected with 2FA. You will also be provided with recovery codes; save these in a secure location.
-
-![2FA in Baserow][7]
+Learn more: [How to enable and manage 2FA][4]
 
 ### Email notifications
 
@@ -3737,14 +3755,6 @@ Yes. Your display name, interface language, and notification preferences apply a
 
 Your account settings remain unchanged when you leave workspaces. Your name, password, and preferences persist. You only lose access to that specific workspace's data.
 
-### Can I use the same database token across multiple workspaces?
-
-Yes. [Database tokens](/user-docs/personal-api-tokens) authenticate you across all workspaces you have access to. One token can interact with databases in any workspace where you're a member, subject to your permissions in each workspace.
-
-### How do I change my email address?
-
-Email changes aren't currently available through account settings. Contact [Baserow support](/contact) for assistance changing your account email address, or contact your self-hosted instance admin.
-
 ### Will changing my display name affect existing comments or activity logs?
 
 Yes. Your display name updates in the interface and all historical comments and activity logs.
@@ -3783,10 +3793,12 @@ Still need help? If you're looking for something else, please feel free to make 
   [1]: https://baserow.io/user-docs/password-management
   [2]: https://baserow.io/user-docs/notifications
   [3]: https://baserow.io/user-docs/mcp-server
-  [4]: https://baserow.io/user-docs/personal-api-tokens
-  [5]: https://baserow.io/user-docs/delete-your-baserow-account
-  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/52bd0673-997c-4040-ac22-d224f85d2611/Account%20settings.jpg
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/156ab688-8e3d-4fde-aa9c-a91dd2c92ef5/2FA.jpg",,baserow_user_docs,https://baserow.io/user-docs/account-settings-overview
+  [4]: https://baserow.io/user-docs/two-factor-auth
+  [5]: https://baserow.io/user-docs/personal-api-tokens
+  [6]: https://baserow.io/user-docs/delete-your-baserow-account
+  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/52bd0673-997c-4040-ac22-d224f85d2611/Account%20settings.jpg
+  [8]: https://baserow.io/user-docs/single-sign-on-sso-overview
+  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/156ab688-8e3d-4fde-aa9c-a91dd2c92ef5/2FA.jpg",account management,baserow_user_docs,https://baserow.io/user-docs/account-settings-overview
 22,Manage password,password-management,Baserow password management guide for users,"# Password management
 
 Your password secures your Baserow account and should be strong, unique, and changed periodically for security.
@@ -4329,6 +4341,10 @@ A table stores your actual data (rows and fields). A view is a way to display th
 
 Yes, [import CSV or Excel files](/user-docs/create-a-table-via-import) directly into Baserow. The import process automatically detects column types and converts them to appropriate field types. After import, you can refine field configurations and add Baserow-specific features like formulas and relationships.
 
+## Can I move or duplicate a table to another database?
+
+No, you can export the table as CSV and import it into a new database. Baserow allows you to duplicate within the same database.
+
 ---
 
 ## Related content
@@ -4353,7 +4369,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e9bc258a-093b-4993-b351-9f81fa2ebd18/views%20in%20baserow.png
-  [2]: https://baserow.io/user-docs/guide-to-timeline-view",,baserow_user_docs,https://baserow.io/user-docs/intro-to-tables
+  [2]: https://baserow.io/user-docs/guide-to-timeline-view",table,baserow_user_docs,https://baserow.io/user-docs/intro-to-tables
 25,Export a table,export-tables,Export a table from Baserow,"# Export tables from Baserow
 
 Exports preserve your data structure and content but exclude certain elements like row comments and revision history.
@@ -5262,6 +5278,8 @@ The primary field is what you see when you need to identify a record quickly. Un
 
 Choosing the right primary field is crucial for database usability. A well-designed primary field makes records instantly recognizable in dropdowns, relationship pickers, and throughout your workspace. Poor primary field choices (like IDs or dates) force users to open full records to understand what they're looking at.
 
+> If you want records to be named automatically (e.g., Invoice-001, Sprint-Dec), convert your Primary Field into a Formula Field.
+
 ![Primary field image][2]
 
 ## Why the primary field matters
@@ -5453,7 +5471,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [5]: /user-docs/field-customization#create-a-filter
   [6]: /user-docs/adding-a-field#duplicate-an-existing-field
   [7]: /user-docs/field-customization
-  [8]: https://medium.com/@baserow/how-to-change-the-primary-field-in-baserow-in-3-clicks-1ecbaa95b522",,baserow_user_docs,https://baserow.io/user-docs/primary-field
+  [8]: https://medium.com/@baserow/how-to-change-the-primary-field-in-baserow-in-3-clicks-1ecbaa95b522",field,baserow_user_docs,https://baserow.io/user-docs/primary-field
 31,Single-line text field,single-line-text-field,Baserow single line text field guide,"# Single-line text field in Baserow
 
 Single-line text fields are Baserow's most versatile field type; perfect for storing names, codes, IDs, and any short text that needs to display in a single row without wrapping.
@@ -6261,7 +6279,7 @@ You have three ways to upload files from your computer:
 
 * **Cell Uploader:** Click the `+` icon in a cell to open the file uploader. You can then click to select files or drag-and-drop files into this dialog.
 * **Direct Drag-and-Drop:** Drag a file from your computer and drop it directly onto a cell in the File field.
-* **Enlarged Row:** Open the [enlarged row view][3] (by clicking the expand icon) and click **Add a file** or drag files into the upload box.
+* **Enlarged Row:** Open the [enlarged row view][2] (by clicking the expand icon) and click **Add a file** or drag files into the upload box.
 
 ![drag and drop files](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3fb52c3d-49b1-4aca-8f06-1fc7eb63f989/7e792b489e8ae8391d10036fe72dc0a944605d74.webp)
 
@@ -6285,8 +6303,8 @@ Learn more: [Configure field types](https://baserow.io/user-docs/field-customiza
 
 You can also click on a file to open a full-screen preview. In the preview mode, you can find the rename, download, and delete options.
 
-![Managing files in the enlarged row view][5]
-![Previewing a single file in Baserow][6]
+![Managing files in the enlarged row view][3]
+![Previewing a single file in Baserow][4]
 
 
 
@@ -6294,7 +6312,7 @@ You can also click on a file to open a full-screen preview. In the preview mode,
 
 When you upload a file, Baserow generates a small thumbnail in the cell for supported file types.
 
-![File previews shown as thumbnails in a cell][7]
+![File previews shown as thumbnails in a cell][5]
 
 ### Supported file types
 While you can upload any file type, Baserow can only generate previews for the following formats:
@@ -6305,7 +6323,10 @@ While you can upload any file type, Baserow can only generate previews for the f
 * **Audio/Video:** .mp3, .mp4, .webM, .ogg, .ogv
 * **Other:** .xml
 
+## Fetch images from a website URL
 
+ - [Method 1 (Formula)][6]: Use a service like Clearbit or Google in a formula to generate a link. You can create a Formula field with: `concat('https://logo.clearbit.com/', field('Website'))` to generate the link.
+ - Method 2 (Automation): Use Baserow Automation to fetch the image and upload it to the File field. You can use a webhook to fetch that image and save it to a File field.
 
 ## Frequently asked questions
 
@@ -6313,20 +6334,20 @@ While you can upload any file type, Baserow can only generate previews for the f
 This depends on your Baserow plan:
 
 * **Cloud:** The maximum file upload size is **100MB per file**. Files larger than this will fail to upload. All uploaded files count toward the total storage limit for your workspace, which is set by your subscription plan.
-* **Self-hosted:** By default, the maximum file upload size is **1TB**. This can be configured by your system administrator by changing the `BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB` environment variable. [Self-hosted deployments][8] do not have data or table limits imposed by Baserow.
+* **Self-hosted:** By default, the maximum file upload size is **1TB**. This can be configured by your system administrator by changing the `BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB` environment variable. [Self-hosted deployments][7] do not have data or table limits imposed by Baserow.
 
 ### How is the File field different from the AI field?
-The **File field** is for *storage*. You upload files, and Baserow stores them. The **[AI field][9]** is for *generation*. It can *use* a file from a File field (or a URL) as a source to perform a task, like summarizing a document or describing an image.
+The **File field** is for *storage*. You upload files, and Baserow stores them. The **[AI field][8]** is for *generation*. It can *use* a file from a File field (or a URL) as a source to perform a task, like summarizing a document or describing an image.
 
 ### Can I just use a URL field to link to a file?
-Yes, but a **[URL][10]** only stores the *link* to the file. If the file at that link is moved or deleted, your link will be broken. The **File field** uploads and *stores a copy* of the file within Baserow. This is more reliable, generates a preview, and ensures the file is always available from your database.
+Yes, but a **[URL][9]** only stores the *link* to the file. If the file at that link is moved or deleted, your link will be broken. The **File field** uploads and *stores a copy* of the file within Baserow. This is more reliable, generates a preview, and ensures the file is always available from your database.
 
 ## Related content
-* [Guide to Gallery view][70]
-* [AI field][59]
-* [URL field][41]
-* [Enlarging rows][80]
-* [Introduction to fields in Baserow][25]
+* [Guide to Gallery view][10]
+* [AI field][8]
+* [URL field][9]
+* [Enlarging rows][11]
+* [Introduction to fields in Baserow][12]
 
 
 
@@ -6339,20 +6360,17 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/51c712e3-d296-4eb2-ab14-42a521b32a42/Adding%20a%20new%20File%20field%20in%20Baserow.jpg
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/aca34759-37e5-492a-af2b-40fed15a5423/Screenshot_2022-07-13_at_19.37.54.png
-  [3]: https://baserow.io/user-docs/enlarging-rows
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8c1c00a8-2256-4b46-bf42-5d45e60ae48a/Screenshot_2022-07-13_at_19.31.55.png
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f4f979c3-5e49-4e7d-9af2-e16b2958f6ac/Screenshot_2022-07-13_at_21.01.53.png
-  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2115158d-be30-4bf0-9c10-2de8f162de2a/Screenshot_2022-07-13_at_21.07.11.png
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/29b424b1-27ad-41db-ad85-028c21d4ea1d/Screenshot_2022-07-13_at_21.43.36.png
-  [8]: https://baserow.io/docs/installation%2Fconfiguration#backend-configuration
-  [9]: /user-docs/ai-field
-  [10]: /user-docs/url-field
- [25]: /user-docs/baserow-field-overview
- [41]: /user-docs/url-field
- [59]: /user-docs/ai-field
- [70]: /user-docs/guide-to-gallery-view
- [80]: /user-docs/enlarging-rows",,baserow_user_docs,https://baserow.io/user-docs/file-field
+  [2]: https://baserow.io/user-docs/enlarging-rows
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f4f979c3-5e49-4e7d-9af2-e16b2958f6ac/Screenshot_2022-07-13_at_21.01.53.png
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2115158d-be30-4bf0-9c10-2de8f162de2a/Screenshot_2022-07-13_at_21.07.11.png
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/29b424b1-27ad-41db-ad85-028c21d4ea1d/Screenshot_2022-07-13_at_21.43.36.png
+  [6]: https://baserow.io/user-docs/formula-field-overview
+  [7]: https://baserow.io/docs/installation%2Fconfiguration#backend-configuration
+  [8]: /user-docs/ai-field
+  [9]: /user-docs/url-field
+  [10]: /user-docs/guide-to-gallery-view
+  [11]: /user-docs/enlarging-rows
+  [12]: /user-docs/baserow-field-overview",field,baserow_user_docs,https://baserow.io/user-docs/file-field
 40,Single select field,single-select-field,Single select field in Baserow,"# Single select field
 
 The **Baserow Single select field** makes it easy to categorize rows by letting you choose one option from a customizable, color-coded dropdown list.
@@ -6668,9 +6686,9 @@ This guide covers what a Link-to-table field is and why you'd use it, how to cre
 
 Learn more: [Configure field types](https://baserow.io/user-docs/field-customization)
 
-> **Note:** A Link-to-table field cannot be set as the [primary field][33] of a table.
+> **Note:** A Link-to-table field cannot be set as the [primary field][1] of a table.
 
-![Creating a new Link-to-table field and selecting the target table][3]
+![Creating a new Link-to-table field and selecting the target table][2]
 
 ## What is a Link-to-table field?
 
@@ -6680,7 +6698,7 @@ For example, you could have a **Customers** table and an **Orders** table. Inste
 
 This allows you to:
 * Easily see all orders for a specific customer.
-* Use [Lookup][48] and [Rollup][51] fields to pull customer information (like email) into the **Orders** table automatically.
+* Use [Lookup][3] and [Rollup][4] fields to pull customer information (like email) into the **Orders** table automatically.
 * Change a customer's name in the **Customers** table once, and it will be updated everywhere it's linked.
 
 <iframe width=""560"" height=""315"" src=""https://www.youtube-nocookie.com/embed/y-wAL-HNZuk?si=nIV5ZX3sdB1UTwJM&amp;controls=0"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
@@ -6708,13 +6726,13 @@ Once the field is created, you can start linking records:
 
 **To unlink a row**, simply click the `x` on the token of the row you wish to remove.
 
-![Unlinking a row by clicking the 'x' on its token][11]
+![Unlinking a row by clicking the 'x' on its token][5]
 
 
 
 ## Field customization options
 
-You can configure your Link-to-table field to control how many relationships are allowed and what options are available to select. Learn more: [Field configuration options][27]
+You can configure your Link-to-table field to control how many relationships are allowed and what options are available to select. Learn more: [Field configuration options][6]
 
 ### Control related field creation (one-way linking)
 
@@ -6723,14 +6741,14 @@ When you create a Link-to-table field, Baserow's default behavior is to create a
 You can now control this behavior. In the field creation or edit menu, you will see a checkbox: `[x]` **Create related field in linked table**
 
 #### Checked (Default)
-This creates the standard **two-way link**. Linking `Tasks` to `Projects` will create a ""Tasks"" link field in the `Projects` table. This is the recommended setting for most use cases, as it allows you to see the relationship from both tables and use [Lookups][48] or [Rollups][51] in either direction.
+This creates the standard **two-way link**. Linking `Tasks` to `Projects` will create a ""Tasks"" link field in the `Projects` table. This is the recommended setting for most use cases, as it allows you to see the relationship from both tables and use [Lookups][3] or [Rollups][4] in either direction.
 
 #### Unchecked (One-Way Link)
 If you uncheck this box, Baserow will *only* create the link field in the current table (e.g., the ""Projects"" field in `Tasks`). The linked `Projects` table will **not** get a new ""Tasks"" field.
 
 This is useful for preventing clutter in central ""lookup"" tables. For example, if you have 10 different tables (Tasks, Issues, Documents, etc.) that all link to a single `Categories` table, you can uncheck this box to avoid cluttering the `Categories` table with 10 different reciprocal link fields.
 
-> Creating a one-way link means you cannot easily see the relationship from the linked table. You also cannot add a [Lookup][48] or [Rollup][51] field in the `Projects` table to pull data from `Tasks`, because the necessary link field does not exist there.
+> Creating a one-way link means you cannot easily see the relationship from the linked table. You also cannot add a [Lookup][3] or [Rollup][4] field in the `Projects` table to pull data from `Tasks`, because the necessary link field does not exist there.
 
 ![Configuring a one-to-one relationship by unchecking 'Allow multiple selection'][7]
 
@@ -6743,13 +6761,13 @@ This is useful when your data model requires a single link, such as linking one 
 
 ### Limit selection to a view
 
-You can control which rows are available to be linked by restricting the selection to a [specific view][63]. This is perfect for ensuring users only choose relevant, pre-filtered data.
+You can control which rows are available to be linked by restricting the selection to a [specific view][8]. This is perfect for ensuring users only choose relevant, pre-filtered data.
 
 1.  Click the dropdown arrow next to the field name and select **Edit field**.
 2.  Locate the **Limit selection to view** option.
 3.  Click the dropdown and choose the specific view you want to use for selecting rows.
 
-![Limiting the selectable rows in a Link-to-table field to a specific view][17]
+![Limiting the selectable rows in a Link-to-table field to a specific view][9]
 
 ### Self-referencing links
 
@@ -6767,19 +6785,19 @@ The row select modal is a powerful tool for finding and managing your linked rec
 
 If the record you want to link doesn't exist yet, you can create it directly from the modal. Click the **+** button at the bottom of the modal to create a new row in the linked table, which will then be automatically linked.
 
-![Creating a new row directly from the row select modal][9]
+![Creating a new row directly from the row select modal][10]
 
 ### Customize modal fields
 
 You can customize the modal to show the most relevant information. Click the **""...""** icon (or ""Hide fields"" button) in the modal to adjust field widths, hide non-essential fields, and reorder fields.
 
-![Customizing visible fields and their order within the row select modal][10]
+![Customizing visible fields and their order within the row select modal][11]
 
 ### Search and navigate
 
 If the linked table has many rows, you can use the search bar at the top of the modal to instantly find the record you're looking for. If there are more than 10 rows, navigation arrows will appear.
 
-![Searching for a specific row within the row select modal][6]
+![Searching for a specific row within the row select modal][12]
 
 
 
@@ -6787,7 +6805,7 @@ If the linked table has many rows, you can use the search bar at the top of the 
 
 ### Enlarge linked rows
 
-If you click on a linked row's token, an [enlarged view][80] (or ""row detail modal"") of that row will open. This allows you to see all the details of the linked record without leaving your current table. You can even click on links within *that* modal to stack multiple enlarged views.
+If you click on a linked row's token, an [enlarged view][13] (or ""row detail modal"") of that row will open. This allows you to see all the details of the linked record without leaving your current table. You can even click on links within *that* modal to stack multiple enlarged views.
 
 ### Convert an existing field
 
@@ -6797,18 +6815,33 @@ You can change an existing field (like a text field) into a Link-to-table field.
 
 To convert a field, click the dropdown, select **Edit field**, and change the field type to **Link to table**. You will then be prompted to select the table to link to.
 
+### How to link rows in bulk
 
+You can bulk link records by copying a list of names (that match the primary field of the related table) from Excel/Google Sheets and pasting them directly into the Link field in Baserow. Baserow will automatically search and link the matching records.
+
+### Automating links
+
+You can automate linking using [Baserow Automations][14]. For example, set up a workflow that triggers when a row is updated, and uses the Update Row action to set the Link field value.
+
+To do this in Baserow, you usually need an Automation:
+
+ - Trigger: Row Updated (Text field change).
+ - Action: Update Row (Set Link Field to the Text value).
 
 ## Frequently asked questions
 
 ### What's the difference between a Link-to-table and a Multiple select field?
-A [Multiple select field][45] stores a static list of *text options* that you define. A Link-to-table field connects to *other records* in another table. Use a multiple select for simple, unchanging tags (e.g., 'Priority: High'). Use a Link-to-table when your ""options"" are actually data records themselves (e.g., 'Customer: John Smith').
+A [Multiple select field][15] stores a static list of *text options* that you define. A Link-to-table field connects to *other records* in another table. Use a multiple select for simple, unchanging tags (e.g., 'Priority: High'). Use a Link-to-table when your ""options"" are actually data records themselves (e.g., 'Customer: John Smith').
 
 ### What's the difference between a Link-to-table, Lookup, and Rollup field?
-You must create a **Link-to-table field first**. A [Lookup field][48] and a [Rollup field][51] *use* that link to pull data from the linked records.
-* **Link-to-table:** Creates the relationship (e.g., links an ""Order"" to a ""Customer"").
-* **Lookup:** ""Looks up"" and displays a specific field from the linked record (e.g., show the ""Customer's Email"" in the ""Orders"" table).
-* **Rollup:** Performs a calculation on the linked records (e.g., show the ""Total Spent"" for that ""Customer"").
+You must create a **Link-to-table field first**. A [Lookup field][3] and a [Rollup field][4] *use* that link to pull data from the linked records.
+ * **Link-to-table:** Creates the relationship (e.g., links an ""Order"" to a ""Customer"").
+ * **Lookup:** ""Looks up"" and displays a specific field from the linked record (e.g., show the ""Customer's Email"" in the ""Orders"" table).
+ * **Rollup:** Performs a calculation on the linked records (e.g., show the ""Total Spent"" for that ""Customer"").
+
+### Is there an automated way to link multiple rows?
+
+If you have a list of names (or primary keys) in a spreadsheet/CSV, you can copy that column and paste it directly into a ""Link to Table"" field in Baserow. Baserow will intelligently try to match the text to existing records and link them. Pasting into a Link Field performs a lookup-and-link operation.
 
 ### When I link Table A to Table B, what happens in Table B?
 When you create a Link-to-table field in Table A that points to Table B, Baserow automatically creates a corresponding link field in Table B if you select ""**Create related field in linked table**"". This new field shows which rows in Table A are ""linking back"" to each record in Table B, ensuring the relationship is visible and accessible from both tables.
@@ -6820,11 +6853,11 @@ If you delete a row (e.g., you delete a ""Customer"" record), all links to that 
 Yes. You are not limited to a single link. For example, your ""Tasks"" table could have one Link-to-table field connecting to ""Users"" (for the assignee) and a second Link-to-table field connecting to ""Projects"" (for the project). You can add as many Link-to-table fields as you need.
 
 ## Related content
-* [Lookup field][48]
-* [Rollup field][51]
-* [Count field][50]
-* [Enlarging rows][80]
-* [Field configuration options][27]
+* [Lookup field][3]
+* [Rollup field][4]
+* [Count field][16]
+* [Enlarging rows][13]
+* [Field configuration options][6]
 
 ---
 
@@ -6835,23 +6868,22 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
- [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/19ca35b2-aa33-4e32-ace1-0e5a5fc87d67/Screenshot_2022-07-15_at_18.58.43.png
- [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b496d592-43c6-4210-a73e-2c96c1215429/Screenshot_2022-07-15_at_19.23.52.png
- [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/04d8d01a-9622-41b1-bb79-c69471eee2d5/Screenshot_2022-07-15_at_19.30.26.png
- [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/31f8ac3c-3992-4b1e-8f61-3ef6c5d4c773/one-to-one%20relationship.jpg
- [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3a18a71a-9b51-4c2f-8167-de6017bac007/Untitled(26).png
- [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b5680ce5-2dc0-4dab-8d95-421c4e843c06/row_select_modal_improvements.webp
- [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c631f5ea-4700-4fc2-ab23-26130dd6bf7c/Screenshot_2022-07-15_at_19.33.34.png
- [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/11a315d8-f936-4496-9b3e-b680e4b9c7a/Screenshot_2022-07-15_at_19.42.31.png
- [17]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e7cedf1f-d0e6-4291-96e7-8eaa05e05a1f/Link%20to%20table%20field%20limit%20selection.png
- [27]: /user-docs/field-customization
- [33]: /user-docs/primary-field
- [45]: /user-docs/multiple-select-field
- [48]: /user-docs/lookup-field
- [50]: /user-docs/count-field
- [51]: /user-docs/rollup-field
- [63]: /user-docs/overview-of-baserow-views
- [80]: /user-docs/enlarging-rows",,baserow_user_docs,https://baserow.io/user-docs/link-to-table-field
+  [1]: /user-docs/primary-field
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/19ca35b2-aa33-4e32-ace1-0e5a5fc87d67/Screenshot_2022-07-15_at_18.58.43.png
+  [3]: /user-docs/lookup-field
+  [4]: /user-docs/rollup-field
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c631f5ea-4700-4fc2-ab23-26130dd6bf7c/Screenshot_2022-07-15_at_19.33.34.png
+  [6]: /user-docs/field-customization
+  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/31f8ac3c-3992-4b1e-8f61-3ef6c5d4c773/one-to-one%20relationship.jpg
+  [8]: /user-docs/overview-of-baserow-views
+  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e7cedf1f-d0e6-4291-96e7-8eaa05e05a1f/Link%20to%20table%20field%20limit%20selection.png
+  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3a18a71a-9b51-4c2f-8167-de6017bac007/Untitled(26).png
+  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b5680ce5-2dc0-4dab-8d95-421c4e843c06/row_select_modal_improvements.webp
+  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/04d8d01a-9622-41b1-bb79-c69471eee2d5/Screenshot_2022-07-15_at_19.30.26.png
+  [13]: /user-docs/enlarging-rows
+  [14]: https://baserow.io/user-docs/workflow-automation
+  [15]: /user-docs/multiple-select-field
+  [16]: /user-docs/count-field",field,baserow_user_docs,https://baserow.io/user-docs/link-to-table-field
 44,Lookup field,lookup-field,Lookup field in Baserow,"# Working with the Lookup field
 
 The **Lookup field** automatically pulls and displays specific information from a linked record, allowing you to see data from another table in one place.
@@ -6951,6 +6983,8 @@ This reference guide helps you build powerful formulas in Baserow. For a general
 ## Using the formula reference
 
 Baserow formulas support multiple field types, including [Duration fields](/user-docs/duration-field) and [Multiple select fields](/user-docs/multiple-select-field). You can perform mathematical operations, text manipulation, date calculations, and logical comparisons across your data.
+
+> If you want records to be named automatically (e.g., Invoice-001, Sprint-Dec), convert your Primary Field into a Formula Field.
 
 ### Finding functions
 
@@ -7271,6 +7305,19 @@ Test endpoints with tools like curl or Postman.
 | **Move row** | `PATCH` | `/api/database/rows/table/{table_id}/{row_id}/move/` | Change row position |
 | **Delete row** | `DELETE` | `/api/database/rows/table/{table_id}/{row_id}/` | Remove row from table |
 
+### Anatomy of a Baserow API Endpoint
+
+```
+https://api.baserow.io/api/database/rows/table/TABLE_ID/?user_field_names=true
+```
+
+| Component | Description | Example |
+| --- | --- | --- |
+| **Base URL** | Baserow API server | `https://api.baserow.io` (Cloud)`https://your-domain.com` (Self-Hosted) |
+| **API Path** | Endpoint structure | `/api/database/rows/table/` |
+| **TABLE_ID** | Unique identifier for your table | `12345` |
+| **Parameters** | Query string options | `?user_field_names=true` |
+
 ## Authentication
 
 Baserow uses [token authentication][1] for API access. Tokens are scoped to specific databases and tables. Permissions can be set to create, read, update, delete per table. Use specific table permissions rather than full database access.
@@ -7469,7 +7516,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow.io/user-docs/personal-api-tokens
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ca8aec4c-101d-436c-8878-571f37e02cc4/API%20doc.jpg",,baserow_user_docs,https://baserow.io/user-docs/database-api
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ca8aec4c-101d-436c-8878-571f37e02cc4/API%20doc.jpg",integrations,baserow_user_docs,https://baserow.io/user-docs/database-api
 47,Views overview,overview-of-baserow-views,Baserow views overview,"# Views overview – Manage and customize your data
 
 Views are different ways to display and work with your table data. Each view shows the same underlying data but optimized for different tasks and workflows.
@@ -7642,7 +7689,7 @@ Tables are where your data lives in Baserow. Creating a new table takes seconds,
 | **Duplicate existing** | Replicating proven structures | Copy of table structure and data |
 | **Import from file** | Migrating spreadsheet data | Your existing CSV/Excel/JSON/XML |
 
-
+> Moving or duplicating a table preserves all Views (including Forms), Formulas, and Field configurations. 
 
 ### Method 1: Create a blank table
 
@@ -7728,15 +7775,19 @@ There's no hard limit, but most databases work best with 5-15 tables. If you nee
 
 ### What's the difference between duplicating a table and creating a new one?
 
-Duplicating copies an existing table's complete structure and data; saving setup time when you need the same format. Creating a new table starts blank, giving you full control but requiring more initial configuration. Choose duplication for consistency, new tables for unique requirements.
+Duplicating copies an existing table's complete structure and data, saving setup time when you need the same format. Creating a new table starts blank, giving you full control but requiring more initial configuration. Choose duplication for consistency, new tables for unique requirements.
 
 ### Can I rename a table after creating it?
 
 Yes, click the table name in the sidebar to edit it at any time. Renaming doesn't affect data, views, or relationships; just the display name. Use descriptive names that clearly indicate what the table stores.
 
+## Can I move or duplicate a table to another database?
+
+No, you can export the table as CSV and import it into a new database. Baserow allows you to duplicate within the same database.
+
 ### What happens if I duplicate a table with linked records?
 
-Link to table fields are duplicated, but the links point to the original table's records, not the duplicate. If you want completely independent tables, you'll need to manually update or remove link fields after duplication.
+Link to table fields are duplicated, but the links point to the original table's records, not the duplicates. If you want completely independent tables, you'll need to manually update or remove link fields after duplication.
 
 ### Can I undo table creation if I make a mistake?
 
@@ -7772,7 +7823,7 @@ Now that you've created your table, explore these features:
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account.",,baserow_user_docs,https://baserow.io/user-docs/create-a-table
+ - [Contact support](/contact) for questions about Baserow or help with your account.",table,baserow_user_docs,https://baserow.io/user-docs/create-a-table
 49,Databases overview,intro-to-databases,Working with data in Baserow databases,"# Introduction to databases in Baserow
 
 Baserow databases make it easy to organize complex information without needing technical expertise or coding skills.
@@ -8069,6 +8120,10 @@ No. Workspaces are isolated environments. To share data between workspaces, you 
 
 Workspaces must have at least one admin. If you're the only admin, promote another member to admin before leaving. If the last admin leaves without promoting a replacement, contact Baserow support to regain access.
 
+### What's the difference between a workspace admin and instance admin?
+
+A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes. 
+
 ### Do workspace members count toward my subscription?
 
 Yes, workspace members do count toward your subscription. [Billable users][8] are anyone with a paid role in the workspace (e.g., admin, editor, builder). Non‑billable users such as pure viewers or commenters do not increase the seat count.
@@ -8139,7 +8194,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [21]: /user-docs/setting-up-a-workspace
   [22]: /user-docs/managing-workspace-collaborators
   [23]: /user-docs/leave-a-workspace
-  [24]: /user-docs/delete-a-workspace",,baserow_user_docs,https://baserow.io/user-docs/intro-to-workspaces
+  [24]: /user-docs/delete-a-workspace",workspace,baserow_user_docs,https://baserow.io/user-docs/intro-to-workspaces
 51,Subscriptions overview,subscriptions-overview,Baserow Subscriptions overview,"# Understanding Baserow subscriptions
 
 Baserow offers free and paid plans for both cloud and self-hosted deployments. Cloud subscriptions charge per workspace collaborator automatically, while self-hosted subscriptions use manual seat allocation. 
@@ -8489,6 +8544,10 @@ On the Advanced plan, first purchase the number of paid seats you need. After yo
 
 On the Premium plan, there are no free roles. Every user you add is automatically a billable user, since role-based permissions don’t exist.
 
+### Where can I find documentation on upgrading my self-hosted Baserow instance?
+
+To upgrade your self-hosted instance to the latest version, please review the [developer documentation](/docs/installation%2Finstall-with-docker#upgrading-from-a-previous-version) for migration steps. You must follow the guide specific to your original installation method.
+
 ### Can I mix free and billable users in the same workspace?
 
 Yes, billable and free users can collaborate in the same workspaces as the license is instance-based. Billable users access paid features while free users work within standard limitations. Choose exactly which team members receive access to advanced views, exports, and collaboration tools. 
@@ -8540,7 +8599,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [10]: https://baserow.io/user-docs/subscriptions-overview#user-billing-classifications
   [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7fc3aedc-e73d-494d-9da1-2aa456ec752c/Register%20License.jpg
   [12]: https://baserow.io/user-docs/getting-and-changing-the-instance-id
-  [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0faf781e-e048-4af8-b9c5-4209f86cabd4/view%20your%20license%20ID.jpg",hosting,baserow_user_docs,https://baserow.io/user-docs/get-a-licence-key
+  [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0faf781e-e048-4af8-b9c5-4209f86cabd4/view%20your%20license%20ID.jpg",billing,baserow_user_docs,https://baserow.io/user-docs/get-a-licence-key
 54,Manage licenses,getting-and-changing-the-instance-id,Manage licenses in Baserow self-hosted instance,"# Manage licenses in self-hosted Baserow
 
 This guide covers how to view, register, assign, and manage licenses for your self-hosted Baserow instance through the admin panel.
@@ -8733,6 +8792,10 @@ Both result in users losing premium features, but disconnecting is immediate and
 
 ## Troubleshooting
 
+### Where can I find documentation on upgrading my self-hosted Baserow instance?
+
+To upgrade your self-hosted instance to the latest version, please review the [developer documentation](/docs/installation%2Finstall-with-docker#upgrading-from-a-previous-version) for migration steps. You must follow the guide specific to your original installation method.
+
 ### Cannot access Manage Licenses page
 
 This is because you don't have Instance Admin privileges. Contact your system administrator. The first user who signs up for your self-hosted instance is automatically an Instance Admin.
@@ -8791,7 +8854,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: https://baserow.io/user-docs/subscriptions-overview
   [4]: https://baserow.io/user-docs/enterprise-license-overview
   [5]: https://baserow.io/user-docs/cancel-subscriptions
-  [6]: https://baserow.io/user-docs/change-a-paid-subscription",hosting,baserow_user_docs,https://baserow.io/user-docs/getting-and-changing-the-instance-id
+  [6]: https://baserow.io/user-docs/change-a-paid-subscription",billing,baserow_user_docs,https://baserow.io/user-docs/getting-and-changing-the-instance-id
 55,Manage subscription,change-a-paid-subscription,Manage subscription in Baserow,"# Manage an existing Baserow subscription
 
  Manage existing Baserow subscriptions by adding or removing users, changing plans, [updating payment methods][1], or [canceling subscriptions][2].  Modifying existing subscriptions allows you to adjust your Baserow investment as your team grows or your needs change.
@@ -8997,7 +9060,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [7]: /user-docs/working-with-collaborators
   [8]: /user-docs/managing-workspace-collaborators
   [9]: /user-docs/last-modified-by-field
-  [90]: /user-docs/notifications",,baserow_user_docs,https://baserow.io/user-docs/collaborator-field
+  [90]: /user-docs/notifications",field,baserow_user_docs,https://baserow.io/user-docs/collaborator-field
 57,Database tokens,personal-api-tokens,Baserow database tokens for secure access,"# Baserow database tokens: Secure API authentication
 
 Baserow database tokens provide secure, permission-controlled API access without exposing your account credentials to external applications.
@@ -9042,6 +9105,8 @@ Baserow offers two authentication methods for API access:
    - Store it securely
 
 ![Create a Baserow database token][3]
+
+To connect Power BI to Baserow, you need to construct the correct API endpoint URL. This section explains how to find and format these URLs.
 
 ## Managing database tokens
 
@@ -9121,8 +9186,8 @@ Test your token with a simple API call to verify permissions work as expected. T
 ### What's the difference between database tokens and personal API tokens?
 These are the same thing - ""database tokens"" and ""personal API tokens"" refer to the same permanent authentication method in Baserow.
 
-### Can I use one token for multiple workspaces?
-No, each database token is scoped to a single workspace. Create separate tokens for accessing different workspaces.
+### Can I use the same token for multiple workspaces?
+No, each database token is scoped to a single workspace. [Database tokens](/user-docs/personal-api-tokens) authenticate you across all databases in the selected workspace you have access to. One token can interact with databases in the specified workspace where you're a member, subject to your permissions in each workspace. Create separate tokens for accessing different workspaces.
 
 ## Troubleshooting common issues
 
@@ -9163,18 +9228,20 @@ Still need help? If you're looking for something else, please feel free to make 
   [2]: https://baserow.io/user-docs/enterprise-license-overview
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f2b1b56c-6471-4c5a-912f-d88b6fd9f352/Create%20a%20Baserow%20database%20token.jpg
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b7816e55-e09f-48e7-945d-d7aac7da3a25/Regenerate%20database%20token.jpg
-  [5]: https://baserow.io/blog/connect-baserow-to-external-tools-with-api",,baserow_user_docs,https://baserow.io/user-docs/personal-api-tokens
+  [5]: https://baserow.io/blog/connect-baserow-to-external-tools-with-api",integrations,baserow_user_docs,https://baserow.io/user-docs/personal-api-tokens
 90,Zapier,zapier,Integrate Baserow with Zapier,"# Zapier integration
 
 Zapier connects Baserow to thousands of apps and services, enabling you to automate repetitive tasks without writing code. Build custom workflows that execute actions in response to triggers across your entire tech stack.
 
-![Baserow in Zapier][1]
+Baserow doesn't post directly to social media, but you can set up the [native automation][1] or use Zapier or Make to publish your posts automatically when you change their status in Baserow.
+
+![Baserow in Zapier][2]
 
 ## What you'll need
 
 - A Baserow account
 - A free [Zapier](https://zapier.com/) account
-- A Baserow [database token][2] for authentication
+- A Baserow [database token][3] for authentication
 
 ## Supported operations
 
@@ -9220,7 +9287,7 @@ A Zap is an automated workflow connecting your apps. Each Zap has a trigger (wha
 
 ### Authentication
 
-Before connecting Baserow to Zapier, you need a [database token][2] for authentication.
+Before connecting Baserow to Zapier, you need a [database token][3] for authentication.
 
 > **Security note:** Database tokens function like passwords. Keep them secure and never share them publicly. Store your token in a secure location immediately after creation.
 
@@ -9257,7 +9324,7 @@ Learn more about [row identifiers](/user-docs/overview-of-rows#what-is-a-row-ide
 
 ### How do I find my Baserow API URL?
 
-Your API URL depends on your Baserow installation. For cloud users at baserow.io, use `https://api.baserow.io`. Self-hosted users should use their custom installation URL. Find your complete [API documentation][3] in your Baserow account under Settings → API documentation.
+Your API URL depends on your Baserow installation. For cloud users at baserow.io, use `https://api.baserow.io`. Self-hosted users should use their custom installation URL. Find your complete [API documentation][4] in your Baserow account under Settings → API documentation.
 
 ### Can I trigger a Zap when any field in a row changes?
 
@@ -9288,7 +9355,7 @@ Yes, you can use Zapier's Webhook trigger to receive data from Baserow webhooks 
  - [Streamline collaboration and review process with database automation](/blog/automate-collaboration-and-review-process)
  - [Automate Custom Notifications from Baserow Form Submissions with Zapier](/blog/how-to-automate-custom-notifications-from-baserow)
  - [Manage User Access to Softr in Baserow Database](/blog/manage-user-access-to-softr-baserow)
- - [How to sync Baserow database and Excel spreadsheet with Zapier][4]
+ - [How to sync Baserow database and Excel spreadsheet with Zapier][5]
 
 ---
 
@@ -9298,10 +9365,11 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](https://baserow.io/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6ea03f11-ee33-43f8-ae6a-9400956b6746/Baserow%20in%20Zapier.jpg
-  [2]: https://baserow.io/user-docs/personal-api-tokens
-  [3]: https://baserow.io/user-docs/database-api
-  [4]: https://baserow.io/blog/sync-baserow-excel-zapier",,baserow_user_docs,https://baserow.io/user-docs/zapier
+  [1]: https://baserow.io/user-docs/workflow-automation
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6ea03f11-ee33-43f8-ae6a-9400956b6746/Baserow%20in%20Zapier.jpg
+  [3]: https://baserow.io/user-docs/personal-api-tokens
+  [4]: https://baserow.io/user-docs/database-api
+  [5]: https://baserow.io/blog/sync-baserow-excel-zapier",integrations,baserow_user_docs,https://baserow.io/user-docs/zapier
 91,Pipedream,pipedream,Integrate Baserow with Pipedream,"# Pipedream integration
 
 Connect Baserow to Pipedream to build automated workflows using webhooks and the Baserow API. Use Node.js or Python to create, update, and sync data between Baserow and thousands of other apps.
@@ -11006,7 +11074,7 @@ Still need help? If you're looking for something else, please don't hesitate to 
   [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2b8ba4c6-9ba1-45af-88bd-81e597468c73/Untitled%204.png
   [7]: https://baserow.io/user-docs/n8n
   [8]: https://baserow.io/user-docs/zapier
-  [9]: https://baserow.io/user-docs/database-and-table-id",,baserow_user_docs,https://baserow.io/user-docs/tooljet
+  [9]: https://baserow.io/user-docs/database-and-table-id",integrations,baserow_user_docs,https://baserow.io/user-docs/tooljet
 103,Database and table ID,database-and-table-id,Finding your Baserow database and table IDs,"# Find Baserow database and table IDs
 
 Baserow database and table IDs make it easy to connect your data with external apps and automate workflows faster than manual processes.
@@ -11054,11 +11122,36 @@ You have various methods to find your Baserow table ID:
 
 Similar to finding your database ID, the API documentation displays all table IDs within your database.
 
+ 1. Go to your database settings
+ 2. Look for the “View API docs” link
+ 3. Baserow auto-generates documentation showing all table IDs and field structures
+
+```
+GET https://api.baserow.io/api/database/tables/database/DATABASE_ID/
+Authorization: Token YOUR_API_TOKEN
+```
+
+Response includes all tables with their IDs.
+
 ### Method 3: Table options menu
 
-1. Click the three dots next to any table name
-2. The table ID appears in brackets next to the table name
-3. Example: ""Customer Data (12345)"" where 12345 is your table ID
+ 1. Click the three dots next to any table name
+ 2. The table ID appears in brackets next to the table name
+ 3. Example: ""Customer Data (12345)"" where 12345 is your table ID
+
+### Method 4: Browser URL
+
+ 1. Open the table you want to connect in Baserow
+ 2. Look at the browser address bar
+ 3. The URL structure is: `https://baserow.io/database/DATABASE_ID/table/TABLE_ID/...`
+ 4. Extract the number after `/table/`
+
+**Example:**
+
+```
+URL: https://baserow.io/database/456/table/12345/grid
+TABLE_ID: 12345
+```
 
 ![Table ID in table options][3]
 
@@ -11121,7 +11214,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/Screenshot_2022-07-04_at_15.28.41.png
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2d977400-17d6-4391-a69c-96881eb6a1aa/Table%20ID%20in%20table%20options.jpg
   [4]: https://baserow.io/user-docs/webhooks
-  [5]: https://baserow.io/user-docs/personal-api-tokens",,baserow_user_docs,https://baserow.io/user-docs/database-and-table-id
+  [5]: https://baserow.io/user-docs/personal-api-tokens",integrations,baserow_user_docs,https://baserow.io/user-docs/database-and-table-id
 104,n8n,n8n,Integrate Baserow with n8n,"# Configure Baserow in n8n
 
 Connect Baserow to 400+ apps using n8n's automation platform. Create, read, update, and delete rows programmatically without writing code. Authenticate once with your Baserow credentials to build sophisticated workflows.
@@ -11242,9 +11335,9 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: https://baserow.io/api-docs
   [4]: https://baserow.io/user-docs/set-up-baserow
   [5]: https://baserow.io/user-docs/database-api",,baserow_user_docs,https://baserow.io/user-docs/n8n
-105,Set up Baserow version,set-up-baserow,Set up your own Baserow version,"# Deploy Baserow: Choose your hosting option
+105,Set up Baserow environment,set-up-baserow,Set up your own Baserow environment,"# Deploy Baserow: Choose your hosting option
 
-Baserow offers two deployment options: Baserow Cloud for instant setup with managed hosting, or Self-hosted for complete control over your infrastructure. Both versions offer the same core features with free and paid plans available.
+Baserow offers two deployment options: Baserow Cloud for instant setup with managed hosting, or Self-hosted for complete control over your infrastructure. Both environments offer the same core features with free and paid plans available.
 
 ## Choosing how to deploy Baserow
 
@@ -11342,7 +11435,7 @@ Baserow's codebase is primarily MIT-licensed, one of the most permissive open so
 
 If you have already set up your self-hosted instance, migration is easy.
 
-1. In the Cloud version of Baserow, [export your workspace][7].
+1. In the Cloud environment of Baserow, [export your workspace][7].
 2. Log in to your self-hosted instance, open your workspace from the top left corner, then go to **Admin tools → Settings**, and switch **Verify import signature** off.
 3. [Import your workspace][8] into your new instance.
 
@@ -11381,7 +11474,7 @@ Understanding which users count toward your subscription helps you manage costs 
 
 ### Does Self-hosted require a license for advanced features?
 
-The open source version is free with core features and unlimited usage. To access advanced features on Self-hosted, purchase a paid license. [View advanced features →][11]
+Self-hosted is free with core features and unlimited usage. To access advanced features on Self-hosted, purchase a paid license. [View advanced features →][11]
 
 ### Can I run Baserow completely offline?
 
@@ -11546,6 +11639,10 @@ Baserow charges per active user (non-viewer). [Learn more about user types](/use
 
 Yes, in Premium and Advanced self-hosted instances, you can mix Free users with paid licenses as license is instance-based. Cloud subscription is per workspace and requires all active contributors to be on the same plan tier, so they cannot be mixed with Free users.
 
+### How many users can collaborate in a workspace?
+
+There’s no hard limit on workspace members. Free plans have row and storage limits (check your plan), while paid plans support unlimited workspaces with unlimited members. Performance remains good even with dozens of simultaneous workspace members.
+
 ### What happens when I exceed row limits?
 
 Cloud users exceeding row limits for 7+ days cannot create new rows until upgrading or reducing usage. You'll receive clear error messages explaining your options.
@@ -11610,7 +11707,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [18]: https://baserow.io/user-docs/elements-overview
   [19]: https://baserow.io/user-docs/data-sync-in-baserow
   [20]: https://baserow.io/user-docs/single-sign-on-sso-overview
-  [21]: https://baserow.io/user-docs/enterprise-admin-panel",,baserow_user_docs,https://baserow.io/user-docs/pricing-plans
+  [21]: https://baserow.io/user-docs/enterprise-admin-panel",billing,baserow_user_docs,https://baserow.io/user-docs/pricing-plans
 107,Delete account,delete-your-baserow-account,Delete your user account in Baserow,"# Delete your Baserow account
 
 Deleting your account is permanent and removes all personal data from Baserow. Consider exporting important data before deletion.
@@ -12214,7 +12311,7 @@ Now that you've imported from Airtable, explore these resources:
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)  
- - [Contact support](/contact) for questions about Baserow or help with your account.",,baserow_user_docs,https://baserow.io/user-docs/import-airtable-to-baserow
+ - [Contact support](/contact) for questions about Baserow or help with your account.",database,baserow_user_docs,https://baserow.io/user-docs/import-airtable-to-baserow
 111,Import data into a table,import-data-into-an-existing-table,Import data into an existing Baserow table,"# Import data into an existing table
 
 Import into existing tables when you need to add or update data while preserving your carefully configured field structure and types.
@@ -13355,7 +13452,7 @@ Use [audit logs](/user-docs/admin-panel-audit-logs) for tracking permission chan
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
 - [Ask the Baserow community](https://community.baserow.io)
-- [Contact support](/contact) for questions about Baserow or help with your account",,baserow_user_docs,https://baserow.io/user-docs/assign-roles-at-table-level
+- [Contact support](/contact) for questions about Baserow or help with your account",roles and permissions,baserow_user_docs,https://baserow.io/user-docs/assign-roles-at-table-level
 117,Enterprise license,enterprise-license-overview,Baserow Enterprise license details,"# Enterprise license overview
 
 Enterprise is exclusively available for self-hosted Baserow installations (version 1.14.0+), not for cloud workspaces on Baserow.io. 
@@ -13370,6 +13467,8 @@ Enterprise is ideal for organizations that need complete control over their Base
 
 Unlike cloud plans with per-user pricing tiers, Enterprise offers custom pricing based on your organization's specific requirements, deployment size, and support needs.
 
+Learn more about [Branding and white labeling][2].
+
 ## How Enterprise licensing works
 
 Enterprise includes all Advanced plan features. Scope depends on your organization's needs. Request a proposal for an accurate comparison.
@@ -13381,7 +13480,7 @@ Enterprise includes all Advanced plan features. Scope depends on your organizati
 | **Pricing** | Per-user licensing | Custom negotiated pricing |
 | **Payment** | Credit card | Payment by invoice |
 | **Customization** | Standard features | Custom feature development |
-| **Branding** | Logo removal available | Full tool co-branding |
+| **[Branding][2]** | Logo removal available | Full tool co-branding |
 | **SLA** | Standard | Custom SLA agreements |
 
 Learn more about [Advanced plan features](/user-docs/pricing-plans).
@@ -13451,8 +13550,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow.io/user-docs/pricing-plans
-  [2]: https://baserow.io/contact
-  [3]: https://baserow.io/user-docs/getting-and-changing-the-instance-id",enterprise,baserow_user_docs,https://baserow.io/user-docs/enterprise-license-overview
+  [2]: https://baserow.io/user-docs/admin-panel-settings#branding",enterprise,baserow_user_docs,https://baserow.io/user-docs/enterprise-license-overview
 118,Instance-wide users,admin-panel-users,Baserow admin panel: Manage users,"# Manage users instance-wide
 
 The **Users** page in the Admin Panel allows Instance Admins to view, manage, and control access for all user accounts registered on the self-hosted instance.
@@ -13529,6 +13627,10 @@ You can also sort the list by clicking on the column headers:
 
 ## Frequently Asked Questions (FAQ)
 
+### What's the difference between a workspace admin and instance admin?
+
+A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes.
+
 ### What happens to a workspace if I delete the user?
 
 When a user is deleted, the workspaces they belonged to are **not** deleted. The workspace continues to exist for other members. However, if the deleted user was the *only* member of that workspace, the workspace will become inaccessible (orphaned) because no one else has permission to open it.
@@ -13564,7 +13666,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/be64f14a-826a-418f-a634-1a1bc462c5d3/Manage%20Users%20(Admin%20Panel).jpg
   [2]: https://baserow.io/user-docs/enterprise-admin-panel
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f61ec39f-696f-43a8-98fb-ba5b8938ebc6/Granting%20Instance%20Admin%20(Staff)%20privileges.jpg
-  [4]: https://baserow.io/user-docs/remove-a-user-from-a-workspace",hosting,baserow_user_docs,https://baserow.io/user-docs/admin-panel-users
+  [4]: https://baserow.io/user-docs/remove-a-user-from-a-workspace",advanced,baserow_user_docs,https://baserow.io/user-docs/admin-panel-users
 119,Instance-wide workspaces,admin-panel-workspaces,Manage workspaces in the admin panel,"# Manage workspaces at instance-level
 
 The **Workspaces** page in the Admin Panel allows Instance Admins to oversee all workspaces created across the entire self-hosted instance, regardless of privacy settings.
@@ -13612,6 +13714,11 @@ Instance Admins have the authority to permanently delete any workspace on the se
 
 ## Frequently Asked Questions (FAQ)
 
+### What's the difference between a workspace admin and instance admin?
+
+A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes.
+
+
 ### Can I enter a workspace from this page?
 
 No. This page is for high-level governance (viewing metadata and deleting). To view or edit the *data* inside a workspace, you must be [added as a member of that workspace][3]. If you are an Instance Admin, you can navigate to the main dashboard and ask the workspace owner to invite you, or [create a new workspace][4] yourself.
@@ -13636,7 +13743,7 @@ No. Deleting a workspace only removes the container and the data (databases/apps
   [2]: https://baserow.io/user-docs/enterprise-admin-panel
   [3]: https://baserow.io/user-docs/manage-workspace-permissions
   [4]: https://baserow.io/user-docs/setting-up-a-workspace
-  [5]: https://baserow.io/user-docs/working-with-collaborators",workspace,baserow_user_docs,https://baserow.io/user-docs/admin-panel-workspaces
+  [5]: https://baserow.io/user-docs/working-with-collaborators",advanced,baserow_user_docs,https://baserow.io/user-docs/admin-panel-workspaces
 120,Audit logs,admin-panel-audit-logs,Baserow: View audit logs,"# Audit log
 
 Audit logs track every action performed in your Baserow workspaces, providing complete visibility into who did what, when, and from where.
@@ -13893,20 +14000,20 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/52a27909-ccd0-42ac-8590-dfd403664a84/Admin%20settings%20-%20audit%20log.jpg
-  [2]: https://baserow.io/docs/installation%2Fconfiguration#backend-misc-configuration",,baserow_user_docs,https://baserow.io/user-docs/admin-panel-audit-logs
+  [2]: https://baserow.io/docs/installation%2Fconfiguration#backend-misc-configuration",workspace,baserow_user_docs,https://baserow.io/user-docs/admin-panel-audit-logs
 121,Global instance settings,admin-panel-settings,Baserow admin panel settings for instance control,"# Configure global instance settings
 
 The **Settings** page in the Admin Panel allows Instance Admins to configure global behavior, security restrictions, and branding for their self-hosted Baserow instance.
 
-> This feature is available to **Instance Admins** (Staff) on self-hosted plans. Some specific settings (like Co-branding) may require an Enterprise license.
+> This feature is available to **Instance Admins** (Staff) on [self-hosted plans][1]. Some specific settings (like Co-branding) require an [Enterprise license][2].
 
 ## Overview
 
 The Settings page is the control center for defining how users interact with your server, from how they sign up to how they verify emails, to what logo they see.
 
-To access this page, open the [Admin Panel][1] and navigate to **General -> Settings** in the sidebar.
+To access this page, open the [Admin Panel][3] and navigate to **General -> Settings** in the sidebar.
 
-The settings are organized into five logical sections:
+The settings are organized into five sections:
 
 1.  **Admin Settings:** General instance identification.
 2.  **Account Restrictions:** Sign-up and password policies.
@@ -13914,7 +14021,7 @@ The settings are organized into five logical sections:
 4.  **Maintenance:** Background jobs.
 5.  **Branding:** Custom logos and help links.
 
-![Admin settings Baserow][2]
+![Admin settings Baserow][4]
 
 ## Admin settings (General)
 
@@ -13932,8 +14039,8 @@ The “Account restrictions” section allows Instance admins to control who can
 
 ### Allow creating new accounts
 
-  * **Enabled:** Any visitor to your Baserow domain URL can sign up for a new account.
-  * **Disabled:** The sign-up page is hidden. New users can only be added if an existing admin sends them a direct email invitation. This is useful for private internal tools where you do not want public registration.
+  * **Enabled:** Any visitor to your Baserow domain URL can sign up for a new account. A user invited to a workspace via email can create an account to accept the invite, even if public sign-ups are closed.
+  * **Disabled:** The sign-up page is hidden. New users can only be added if an existing admin sends them a direct email invitation. Even invited users cannot create accounts. You must manually create accounts for them. This is useful for private internal tools where you do not want public registration.
 
 ### Allow signups via workspace invitations
 
@@ -13951,7 +14058,7 @@ Only visible if ""Allow Creating New Accounts"" is disabled. If you toggle off t
 ### Allow everyone to create new workspaces
 
   * **Enabled:** Any user can create a new workspace. Note that creating a workspace automatically makes that user a ""Workspace Admin.""
-  * **Disabled:** Only **Staff (Instance Admins)** can create new workspaces. This is useful for tighter control over data sprawl and billing (since Workspace Admins are often counted differently in some license models).
+  * **Disabled:** Only **[Staff (Instance Admins)][5]** can create new workspaces. This is useful for tighter control over data sprawl and billing.
 
 ## User settings
 
@@ -13969,11 +14076,11 @@ Controls whether a user must prove they own their email address before logging i
 
 ### Delete grace delay
 
-When a user deletes their own account, Baserow keeps the data in a ""soft delete"" state for a set period before permanent removal.
+When a user deletes their account, Baserow keeps the data in a ""soft delete"" state for a set period before permanently removing it.
 
-The default grace delay period is 30 days. Instance Admins can adjust this period in the [User Deletion section][3].
+The default grace delay period is 30 days. Instance Admins can adjust this period in the [User Deletion section][5].
 
-> This only applies to users deleting *themselves*. If an Admin deletes a user from the **Users** page, deletion is immediate.
+> This only applies to users who delete *themselves*. If an Admin deletes a user from the **Users** page, deletion is immediate.
 
 ## Maintenance
 
@@ -13981,26 +14088,40 @@ The default grace delay period is 30 days. Instance Admins can adjust this perio
 
 This enables a nightly job that automatically tracks workspace usage. The job calculates the total number of rows and files used within each workspace. This data is then displayed on the premium workspace admin page, providing insights into workspace activity.
 
-This data populates the ""Usage"" columns in the **Workspaces** list, helping admins spot heavy users.
+This data populates the ""Usage"" columns in the **Workspaces** list, helping admins spot heavy users. 
 
-If enabled, it runs a nightly background job that counts the total rows and file storage used by each workspace.
+## Branding and white labeling
 
-## Branding
+> Enterprise only: Co-branding and white labeling are [Enterprise plan][6] features. You must have an active Enterprise license uploaded to unlock these settings.
 
-Customize the look and feel of the platform to match your organization's identity. Baserow provides a co-branding option for [Enterprise plan users][4]. This feature allows you to upload your logo and tailor Baserow's appearance to align with your company's brand. 
+Customize the look and feel of the platform to match your organization's identity. These settings allow you to remove Baserow branding elements and replace them with your own.
+
+### What is white labeling in Baserow?
+
+White labeling allows you to present Baserow as your own proprietary tool to your team or clients. By configuring these settings, you ensure that the interface and system communications reflect your brand identity rather than Baserow's.
+
+**What disappears**:
+
+ - The Baserow logo from the login page, sidebar, and navigation bar.
+ - The ""Powered by Baserow"" text from the footer of all system emails.
+ - The ""Need Help?"" button (if disabled), which links to Baserow's public support documentation.
+
+**What stays**:
+
+ - The core functionality and layout of the application remain the same.
+ - If you have not configured your own SMTP server with a custom ""From"" address, emails may still technically originate from the default server address, though visually they will look like yours.
 
 ### Show help message
 
   * **Enabled:** Displays the ""Need Help?"" button on the dashboard, linking to Baserow support.
-  * **Disabled:** Hides the help button.
+  * **Disabled:** Hides the help button. This is recommended for white-labeling if you want to route support questions to your own internal IT team instead of Baserow's public documentation.
 
 ### Custom logo
 
 Upload a custom image file (recommended size: 176x29 pixels) to replace the Baserow logo.
 
-This appears on the login screen, top navigation bar, and the footer of system emails.
-
-> Setting a logo also removes the ""Powered by Baserow"" text from email footers.
+ - **Interface**: Your logo will replace the Baserow logo on the login screen, the dashboard top navigation bar, and the sidebar.
+ - **Notifications**: Your logo will appear at the top or footer of all system emails (invitations, password resets, etc.), and the ""Powered by Baserow"" text will be removed.
 
 ![Co-branding in Baserow](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9cebfa8b-046f-4ea0-b784-9b2f433e3bf9/Co-branding%20for%20enterprises.png)
 
@@ -14010,12 +14131,20 @@ This appears on the login screen, top navigation bar, and the footer of system e
 
 You have two options:
 
-1.  Enable **""Allow signups via workspace invitations""** and simply invite them to a workspace. They will be prompted to create an account to accept.
-2.  Or, keep invitations disabled and manually create their user accounts via the command line, though method \#1 is significantly easier.
+ 1.  Enable **""Allow signups via workspace invitations""** and simply invite them to a workspace. They will be prompted to create an account to accept.
+ 2.  Or, keep invitations disabled and manually create their user accounts via the command line.
+
+### What's the difference between a workspace admin and instance admin?
+
+A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes.
+
+### Are email notifications white-labeled?
+
+Yes. When you upload a custom logo in the Branding settings, that logo is automatically applied to system emails (such as workspace invites and password resets). Also, the ""Powered by Baserow"" branding is removed from the email footer.
 
 ### Why is the ""Branding"" section grayed out?
 
-Co-branding is an **Enterprise** feature. You must have an [active Enterprise license key][4] uploaded in the **Licenses** tab to unlock these settings.
+Co-branding is an **Enterprise** feature. You must have an [active Enterprise license key][6] uploaded in the **Licenses** tab to unlock these settings.
 
 ### What happens if I lock myself out by disabling password resets?
 
@@ -14036,10 +14165,12 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
-  [1]: https://baserow.io/user-docs/enterprise-admin-panel
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/22c5f054-1421-425a-830e-1e8afc83d553/Admin%20settings.jpg
-  [3]: https://baserow.io/user-docs/admin-panel-users
-  [4]: https://baserow.io/user-docs/activate-enterprise-license",hosting,baserow_user_docs,https://baserow.io/user-docs/admin-panel-settings
+  [1]: https://baserow.io/user-docs/self-hosted-licenses
+  [2]: https://baserow.io/user-docs/enterprise-license-overview
+  [3]: https://baserow.io/user-docs/enterprise-admin-panel
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/22c5f054-1421-425a-830e-1e8afc83d553/Admin%20settings.jpg
+  [5]: https://baserow.io/user-docs/admin-panel-users
+  [6]: https://baserow.io/user-docs/activate-enterprise-license",advanced,baserow_user_docs,https://baserow.io/user-docs/admin-panel-settings
 122,Admin panel,enterprise-admin-panel,Baserow admin panel overview,"# Admin Tools overview
 
 The Admin Panel is the central control hub for self-hosted Baserow instances. It allows instance administrators to monitor server health, manage users and workspaces, and configure global settings from a single interface.
@@ -14222,7 +14353,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [7]: /user-docs/admin-panel-workspaces
   [8]: https://baserow.io/user-docs/getting-and-changing-the-instance-id
   [9]: /user-docs/get-a-licence-key
-  [10]: https://baserow.io/user-docs/get-a-licence-key",hosting,baserow_user_docs,https://baserow.io/user-docs/enterprise-admin-panel
+  [10]: https://baserow.io/user-docs/get-a-licence-key",account management,baserow_user_docs,https://baserow.io/user-docs/enterprise-admin-panel
 123,Install Enterprise license,activate-enterprise-license,Activate Enterprise license in Baserow self-hosted,"# Activate Enterprise license in self-hosted Baserow
 
 Activating your license is the key to unlocking enterprise capabilities. Activating your Baserow Enterprise license connects your self-hosted instance to your premium, secure, and scalable features.
@@ -14295,6 +14426,8 @@ Once you receive your Enterprise license key from sales:
 ![License registration](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7fc3aedc-e73d-494d-9da1-2aa456ec752c/Register%20License.jpg)
 
 Enterprise features activate immediately for all users on your server. No need to assign individual seats; the license is instance-wide.
+
+Learn more about [Branding and white labeling][4].
 
 ## Update an existing license
 
@@ -14379,7 +14512,8 @@ Still need help? If you're looking for something else, please feel free to make 
 
   [1]: https://baserow.io/user-docs/buying-a-subscription
   [2]: https://baserow.io/user-docs/get-a-licence-key
-  [3]: https://baserow.io/user-docs/getting-and-changing-the-instance-id",,baserow_user_docs,https://baserow.io/user-docs/activate-enterprise-license
+  [3]: https://baserow.io/user-docs/getting-and-changing-the-instance-id
+  [4]: https://baserow.io/user-docs/admin-panel-settings#branding",enterprise,baserow_user_docs,https://baserow.io/user-docs/activate-enterprise-license
 124,Configure SSO with Microsoft Entra ID,configure-sso-with-azure-ad,Baserow: Configure SSO with Microsoft Entra ID (Azure AD),"# Configure SAML SSO with Microsoft Entra ID (Azure AD)
 
 This guide explains how to configure Single Sign-On (SSO) using Microsoft Entra ID (formerly Azure AD) as your Identity Provider for Baserow.
@@ -15624,7 +15758,7 @@ A Formula field is a column type that contains formulas. A function is a specifi
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
 - [Ask the Baserow community](https://community.baserow.io)
-- [Contact support](/contact) for questions about Baserow or help with your account",field,baserow_user_docs,https://baserow.io/user-docs/formula-field-overview
+- [Contact support](/contact) for questions about Baserow or help with your account",database formula,baserow_user_docs,https://baserow.io/user-docs/formula-field-overview
 132,Field overview,baserow-field-overview,Baserow field overview,"# Fields in Baserow tables
 
 Fields in Baserow are the building blocks of structured data; transforming simple spreadsheet columns into intelligent data types that validate input, create relationships, calculate values, and power your entire database architecture.
@@ -15701,11 +15835,11 @@ Calculate or track data automatically:
 | [Formula][19] | Perform calculations using values from the same row | Total = `{Unit Price} * {Quantity}` automatically calculates line totals, full name combinations |
 | [Autonumber][20] | Sequential numbers | Invoice numbers, ticket IDs, order numbers |
 | [UUID][21] | Unique identifiers | API integration IDs, universal record identifiers |
-| [Created on][22] | Row creation timestamp | When record was created |
-| [Last modified][23] | Last update timestamp | When record was last changed |
-| [Created by][24] | Creator's name | Who created the record |
-| [Last modified by][25] | Last editor's name | Who made the most recent change |
-| [Duration][26] | Time periods | Project duration, session length, time tracking |
+| [Created on][5] | Row creation timestamp | When record was created |
+| [Last modified][5] | Last update timestamp | When record was last changed |
+| [Created by][22] | Creator's name | Who created the record |
+| [Last modified by][23] | Last editor's name | Who made the most recent change |
+| [Duration][24] | Time periods | Project duration, session length, time tracking |
 
 ### Special purpose fields
 
@@ -15713,8 +15847,8 @@ Unique functionality for specific needs:
 
 | Field type | Special capability | Example use |
 |------------|-------------------|-------------|
-| [File][27] | Upload documents/images | Product photos, contracts, attachments |
-| [AI prompt][28] | AI-generated content | Summaries, translations, content generation |
+| [File][25] | Upload documents/images | Product photos, contracts, attachments |
+| [AI prompt][26] | AI-generated content | Summaries, translations, content generation |
 
 
 
@@ -15722,7 +15856,7 @@ Unique functionality for specific needs:
 
 Computed fields automatically calculate, update, or reference values based on other data in your table or linked tables. Unlike manual entry fields, where you type values, computed fields generate their content automatically using rules you define.
 
-Common computed field types include [Formula fields][19], [Lookup fields][16], [Count fields][17], [Rollup fields][18], [Created on][22] / [Last modified][23], [Created by][24] / [Last modified by][25].
+Common computed field types include [Formula fields][19], [Lookup fields][16], [Count fields][17], [Rollup fields][18], [Created on][5] / [Last modified][5], [Created by][22] / [Last modified by][23].
 
 ### Why computed fields matter
 
@@ -15739,24 +15873,24 @@ Common computed field types include [Formula fields][19], [Lookup fields][16], [
 
 ## Field operations and customization
 
-Each [field can be configured][30] to match your specific needs:
+Each [field can be configured][27] to match your specific needs:
 
-- **[Sorting][31]:** Arrange rows by field values (A-Z, newest first, highest to lowest)
-- **[Filtering][32]:** Show only rows matching specific field criteria
-- **[Grouping][33]:** Organize rows into collapsible sections by field values
-- **[Hiding][34]:** Control field visibility per view without deleting data
-- **[Descriptions][35]:** Add explanatory text to help users understand field purpose
+- **[Sorting][27]:** Arrange rows by field values (A-Z, newest first, highest to lowest)
+- **[Filtering][28]:** Show only rows matching specific field criteria
+- **[Grouping][29]:** Organize rows into collapsible sections by field values
+- **[Hiding][27]:** Control field visibility per view without deleting data
+- **[Descriptions][30]:** Add explanatory text to help users understand field purpose
 
 These operations are view-specific; customize each view differently without affecting others or your underlying data.
 
-![Fields option in Baserow][29]
+![Fields option in Baserow][31]
 
 
 ## Frequently asked questions
 
 ### Can I change a field type after creating it?
 
-Yes, you can convert most field types through the [field configuration][30] menu. Baserow attempts to preserve data during conversion (e.g., numbers to text works seamlessly), but some conversions may result in data loss (e.g., text to number drops non-numeric values). Always review after conversion.
+Yes, you can convert most field types through the [field configuration][27] menu. Baserow attempts to preserve data during conversion (e.g., numbers to text works seamlessly), but some conversions may result in data loss (e.g., text to number drops non-numeric values). Always review after conversion.
 
 ### What's the difference between single-line text and long text?
 
@@ -15776,16 +15910,20 @@ Field configuration changes (name, description, hide/show) don't affect data. Ho
 
 ### What's the maximum number of fields per table?
 
-Baserow doesn't impose a strict field limit, but practical performance considerations suggest keeping tables under 200 fields. For better organization, consider splitting very wide tables into related tables connected by link-to-table fields.
+Baserow doesn't impose a strict field limit, but practical performance considerations suggest keeping tables to fewer than 200 fields. For better organization, consider splitting very wide tables into related tables connected by link-to-table fields.
+
+### Can I make a field required/mandatory? 
+
+You cannot currently mark a field as required at the database table level. However, you can make fields required in the [Form View][32] to ensure users submit mandatory data.
 
 ## Related content
 
-- [Create a field][36] - Step-by-step field creation guide
-- [Field configuration options][30] - Customize field behavior and appearance
+- [Create a field][30] - Step-by-step field creation guide
+- [Field configuration options][27] - Customize field behavior and appearance
 - [Link-to-table field][15] - Create relationships between tables
 - [Formula field reference][19] - Learn formula syntax and functions
-- [Working with timezones][37] - Understand date/time field behavior
-- [Field summaries][38] - Add calculations to field footers
+- [Working with timezones][33] - Understand date/time field behavior
+- [Field summaries][34] - Add calculations to field footers
 
 ---
 
@@ -15816,23 +15954,19 @@ Still need help? If you're looking for something else, please feel free to make 
   [19]: /user-docs/understanding-formulas
   [20]: /user-docs/autonumber-field
   [21]: /user-docs/uuid-field
-  [22]: /user-docs/date-and-time-fields
-  [23]: /user-docs/date-and-time-fields
-  [24]: /user-docs/created-by-field
-  [25]: /user-docs/last-modified-by-field
-  [26]: /user-docs/duration-field
-  [27]: /user-docs/file-field
-  [28]: /user-docs/ai-field
-  [29]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d0aeed55-5b39-4a09-9701-7b24b6c826c4/Fields%20option%20in%20Baserow.jpg
-  [30]: /user-docs/field-customization
-  [31]: /user-docs/field-customization
-  [32]: /user-docs/filters-in-baserow
-  [33]: https://baserow.io/user-docs/group-rows-in-baserow
-  [34]: /user-docs/field-customization
-  [35]: /user-docs/adding-a-field
-  [36]: /user-docs/adding-a-field
-  [37]: /user-docs/working-with-timezones
-  [38]: /user-docs/footer-aggregation",field,baserow_user_docs,https://baserow.io/user-docs/baserow-field-overview
+  [22]: /user-docs/created-by-field
+  [23]: /user-docs/last-modified-by-field
+  [24]: /user-docs/duration-field
+  [25]: /user-docs/file-field
+  [26]: /user-docs/ai-field
+  [27]: /user-docs/field-customization
+  [28]: /user-docs/filters-in-baserow
+  [29]: https://baserow.io/user-docs/group-rows-in-baserow
+  [30]: /user-docs/adding-a-field
+  [31]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d0aeed55-5b39-4a09-9701-7b24b6c826c4/Fields%20option%20in%20Baserow.jpg
+  [32]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
+  [33]: /user-docs/working-with-timezones
+  [34]: /user-docs/footer-aggregation",field,baserow_user_docs,https://baserow.io/user-docs/baserow-field-overview
 133,Create fields,adding-a-field,Create a Baserow field for your table,"# How to create fields in Baserow
 
 Creating fields in Baserow is the foundation of database design; defining your data structure determines what information you can capture, how you organize records, and what insights you can extract from your tables.
@@ -16428,7 +16562,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [2]: https://baserow.io
   [3]: https://baserow.io/user-docs/personal-api-tokens
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4f8e4969-4839-4c0a-9a7b-7def2a5c108c/Watch%20Baserow%20created%20rows%20in%20Make.jpg
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/86736a12-1fe7-43ae-ba42-2a84e0b1279b/API%20doc.jpg",,baserow_user_docs,https://baserow.io/user-docs/make
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/86736a12-1fe7-43ae-ba42-2a84e0b1279b/API%20doc.jpg",integrations,baserow_user_docs,https://baserow.io/user-docs/make
 136,Working with timezones,working-with-timezones,Working with timezones in Baserow,"# Working with timezones in Baserow
 
 Timezone support in Baserow enables seamless global collaboration; ensuring teams across continents see dates in their local time or share a unified time reference, preventing scheduling conflicts and data confusion.
@@ -16679,7 +16813,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: /user-docs/date-and-time-fields#setting-a-date-format
-  [2]: https://baserow.io/user-docs/filters-in-baserow",,baserow_user_docs,https://baserow.io/user-docs/working-with-timezones
+  [2]: https://baserow.io/user-docs/filters-in-baserow",field,baserow_user_docs,https://baserow.io/user-docs/working-with-timezones
 137,Calendar view,guide-to-calendar-view,Using a calendar view in a Baserow table,"# Calendar view
 
 Calendar view displays records on a monthly calendar based on date fields, making it perfect for event planning, content calendars, deadline tracking, and any time-based workflow.
@@ -18090,7 +18224,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [5]: https://baserow.io/user-docs/assign-roles-to-members-at-workspace-level
   [6]: https://baserow.io/user-docs/assign-roles-to-teams-at-workspace-level
   [7]: https://baserow.io/user-docs/assign-roles-at-database-level
-  [8]: https://baserow.io/user-docs/assign-roles-at-table-level",,baserow_user_docs,https://baserow.io/user-docs/create-and-manage-teams
+  [8]: https://baserow.io/user-docs/assign-roles-at-table-level",roles and permissions,baserow_user_docs,https://baserow.io/user-docs/create-and-manage-teams
 145,Introduction to Baserow,baserow-basics,Getting started with Baserow,"# Getting started with Baserow
 
 Baserow is an open-source no-code database platform that lets you build custom databases, applications, and automations without coding. Whether you're managing data, building workflows, or creating business apps, Baserow gives you developer-level power through an intuitive browser interface.
@@ -18100,6 +18234,8 @@ Baserow is an open-source no-code database platform that lets you build custom d
 Baserow makes it easy to build custom databases and applications in minutes, not months.
 
 Baserow is an open-source no-code platform that empowers teams to create databases, build applications, and automate workflows without writing code. It combines the familiarity of spreadsheets with the power of relational databases, making it accessible to everyone while remaining flexible enough for complex business needs.
+
+You can ask our [AI Assistant, Kuma][1], for help directly in the interface.
 
 <iframe width=""560"" height=""315"" src=""https://www.youtube.com/embed/5yFMfP96_4M?si=bhdNfBK7z9Kl8FZJ"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
 
@@ -18118,11 +18254,11 @@ Baserow consists of five integrated modules that work together to transform how 
 
 | Module | What it does | Best for |
 |--------|-------------|----------|
-| **[Database builder][1]** | Create custom tables, define relationships, and visualize data with multiple views | Organizing structured data, managing projects, tracking inventory |
-| **[Application builder][2]** | Build custom web applications without code using drag-and-drop elements | Creating portals, internal tools, customer-facing apps |
-| **[Dashboard builder][3]** | Visualize data with charts and metrics in customizable dashboards | Monitoring KPIs, tracking performance, executive reporting |
-| **[Automation builder][4]** | Automate workflows and connect to external services | Streamlining repetitive tasks, triggering actions, syncing data |
-| **[Baserow AI][5]** | Generate formulas, transform data, and automate content creation | Writing formulas, data enrichment, content generation |
+| **[Database builder][2]** | Create custom tables, define relationships, and visualize data with multiple views | Organizing structured data, managing projects, tracking inventory |
+| **[Application builder][3]** | Build custom web applications without code using drag-and-drop elements | Creating portals, internal tools, customer-facing apps |
+| **[Dashboard builder][4]** | Visualize data with charts and metrics in customizable dashboards | Monitoring KPIs, tracking performance, executive reporting |
+| **[Automation builder][5]** | Automate workflows and connect to external services | Streamlining repetitive tasks, triggering actions, syncing data |
+| **[Baserow AI][6]** | Generate formulas, transform data, and automate content creation | Writing formulas, data enrichment, content generation |
 
 ## Deployment options
 
@@ -18134,11 +18270,11 @@ Fully managed hosting where Baserow handles infrastructure, updates, backups, an
 
 Deploy Baserow on your own servers (on-premise or cloud) for complete control over your data and infrastructure. Ideal for organizations with specific security or compliance requirements.
 
-Learn more about deploying Baserow and [choose your hosting option][6].
+Learn more about deploying Baserow and [choose your hosting option][7].
 
 ## Enterprise features
 
-For organizations requiring advanced security and governance, [Baserow Enterprise][7] provides:
+For organizations requiring advanced security and governance, [Baserow Enterprise][8] provides:
 
 - Advanced role-based permissions and team management
 - Audit logs for compliance and security tracking
@@ -18148,14 +18284,14 @@ For organizations requiring advanced security and governance, [Baserow Enterpris
 
 ## Integrations and API
 
-Baserow features an [API-first design][8] that enables seamless integration with your existing tools:
+Baserow features an [API-first design][9] that enables seamless integration with your existing tools:
 
 - **Native integrations**: Zapier, Make, n8n, Pipedream, and more
 - **REST API**: Comprehensive API documentation for custom integrations
 - **Webhooks**: Real-time notifications for data changes
 - **Database tokens**: Secure API access for external applications
 
-Learn more about [Baserow integrations][9] and how to connect with other platforms.
+Learn more about [Baserow integrations][10] and how to connect with other platforms.
 
 ## Who uses Baserow?
 
@@ -18175,7 +18311,7 @@ Learn more about [Baserow integrations][9] and how to connect with other platfor
 - **Real Estate**: Property tracking, construction projects, budget oversight
 - **Technology**: Development projects, release management, user feedback
 
-![Introduction to Baserow platform][10]
+![Introduction to Baserow platform][11]
 
 ## Frequently asked questions
 
@@ -18199,18 +18335,18 @@ Yes. Baserow supports importing data from various sources, including CSV files, 
 
 Now that you understand Baserow's core capabilities, you're ready to start building:
 
-1. **[Quick start guide][11]**: Create your first database in 5 minutes
-2. **[Set up your account][12]**: Configure your workspace and settings
-3. **[Learn key concepts][13]**: Understand workspaces, databases, tables, and fields
-4. **[Keyboard shortcuts][14]**: Work faster with productivity shortcuts
+1. **[Quick start guide][12]**: Create your first database in 5 minutes
+2. **[Set up your account][13]**: Configure your workspace and settings
+3. **[Learn key concepts][14]**: Understand workspaces, databases, tables, and fields
+4. **[Keyboard shortcuts][15]**: Work faster with productivity shortcuts
 
 ## Related content
 
-- [Introduction to databases in Baserow][1]
-- [Introduction to Application Builder][2]
-- [Integrations and automation overview][9]
-- [Enterprise license overview][7]
-- [Baserow roadmap][15]
+- [Introduction to databases in Baserow][2]
+- [Introduction to Application Builder][3]
+- [Integrations and automation overview][10]
+- [Enterprise license overview][8]
+- [Baserow roadmap][16]
 
 ---
 
@@ -18220,21 +18356,22 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: /user-docs/intro-to-databases
-  [2]: /user-docs/application-builder-overview
-  [3]: https://baserow.io/user-docs/dashboards-overview
-  [4]: https://baserow.io/user-docs/workflow-automation
-  [5]: https://baserow.io/user-docs/configure-generative-ai
-  [6]: https://baserow.io/user-docs/set-up-baserow
-  [7]: /user-docs/enterprise-license-overview
-  [8]: https://api.baserow.io/api/redoc/
-  [9]: /user-docs/database-api
-  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3bf0d6eb-944a-4fab-8e83-ae0b9212929b/powerful_relations_as_easy_as_a_spreadsheet.webp
-  [11]: /user-docs/how-to-get-started-with-baserow
-  [12]: /user-docs/set-up-baserow
-  [13]: /user-docs/learn-baserow-basic-concepts
-  [14]: /user-docs/baserow-keyboard-shortcuts
-  [15]: /product/roadmap",,baserow_user_docs,https://baserow.io/user-docs/baserow-basics
+  [1]: https://baserow.io/user-docs/ai-assistant
+  [2]: /user-docs/intro-to-databases
+  [3]: /user-docs/application-builder-overview
+  [4]: https://baserow.io/user-docs/dashboards-overview
+  [5]: https://baserow.io/user-docs/workflow-automation
+  [6]: https://baserow.io/user-docs/configure-generative-ai
+  [7]: https://baserow.io/user-docs/set-up-baserow
+  [8]: /user-docs/enterprise-license-overview
+  [9]: https://api.baserow.io/api/redoc/
+  [10]: /user-docs/database-api
+  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3bf0d6eb-944a-4fab-8e83-ae0b9212929b/powerful_relations_as_easy_as_a_spreadsheet.webp
+  [12]: /user-docs/how-to-get-started-with-baserow
+  [13]: /user-docs/set-up-baserow
+  [14]: /user-docs/learn-baserow-basic-concepts
+  [15]: /user-docs/baserow-keyboard-shortcuts
+  [16]: /product/roadmap",getting started,baserow_user_docs,https://baserow.io/user-docs/baserow-basics
 146,Database snapshots,snapshots,Baserow database snapshots for easy recovery,"# Snapshots
 
 Snapshots are complete database copies that capture your entire database at a specific moment, enabling you to restore data to that exact state if needed.
@@ -19689,7 +19826,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [4]: /user-docs/filters-in-baserow
   [5]: /user-docs/view-customization
   [6]: /user-docs/create-custom-views-of-your-data
-  [7]: /user-docs/overview-of-rows",,baserow_user_docs,https://baserow.io/user-docs/group-rows-in-baserow
+  [7]: /user-docs/overview-of-rows",view,baserow_user_docs,https://baserow.io/user-docs/group-rows-in-baserow
 154,Created by field,created-by-field,Created by field in Baserow,"# Working with the 'Created by' field
 
 The **'Created by' field** automatically stamps a row with the user who created it, providing a permanent, unchangeable record of origin.
@@ -19961,6 +20098,8 @@ An Autonumber field automatically assigns a unique, incrementing number (1, 2, 3
 
 A key feature of this field is that it is **non-editable**. You cannot manually change the numbers, which ensures data integrity. It's often used as a simple [primary key][3] or an easy way to reference records (e.g., ""Ticket #"").
 
+Use this field to generate unique identifiers for your records, such as Order IDs, Ticket Numbers, or Member IDs. To create a custom ID (e.g., 'MEM-1001'), combine a Text field with an Autonumber field using a Formula.
+
 ## How to add an Autonumber field
 
 1.  In your table, click the plus sign `+`  to [add a new field](/user-docs/adding-a-field).
@@ -19994,6 +20133,10 @@ No. The Autonumber field always starts at 1.
 ### Why are there gaps in my numbers?
 This is by design. Gaps are created when you delete rows. The field does not reuse numbers from deleted rows to ensure that a row's ID, once assigned, never changes or gets re-assigned to a new record.
 
+### Can I reset the Autonumber?
+
+No, not directly, but here is a workaround. [Delete the Autonumber field][4] entirely. When you add a new Autonumber field, it will generate a fresh, clean sequence for all rows based on their current creation time.
+
 ## Related content
 * [UUID field][6]
 * [Primary field][3]
@@ -20016,7 +20159,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [5]: /user-docs/single-line-text-field
   [6]: /user-docs/uuid-field
   [7]: /user-docs/date-and-time-fields
-  [8]: /user-docs/baserow-field-overview",,baserow_user_docs,https://baserow.io/user-docs/autonumber-field
+  [8]: /user-docs/baserow-field-overview",field,baserow_user_docs,https://baserow.io/user-docs/autonumber-field
 158,UUID field,uuid-field,UUID field in Baserow table,"# Working with the UUID field
 
 The **UUID field** automatically generates a globally unique 36-character ID for every row, perfect for use with external systems and APIs.
@@ -20214,6 +20357,10 @@ Yes. [Form conditions](/user-docs/guide-to-creating-forms-in-baserow#form-condit
 
 Yes. The ""Back"" arrow lets respondents review and change previous answers before final submission. Configure post-submission behavior separately; that determines what happens after clicking ""Submit.""
 
+### Can you add more than one button to a form view? 
+
+Baserow’s form view can only have one submit button and does not support adding extra custom buttons directly. If you need to add custom buttons, logic, or multiple actions on a single screen, try the [Baserow Application Builder][2], create another form, or duplicate the existing form view.
+
 ### Does survey mode affect form completion rates?
 
 Generally, yes, positively. Research shows one-question-at-a-time formats often have higher completion rates than long scrolling forms, especially for 10+ question forms. However, test with your specific audience and form length.
@@ -20245,7 +20392,8 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow",,baserow_user_docs,https://baserow.io/user-docs/form-survey-mode
+  [1]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
+  [2]: https://baserow.io/user-docs/application-builder-overview",view,baserow_user_docs,https://baserow.io/user-docs/form-survey-mode
 160,Last modified field,last-modified-field,Last modified field in Baserow,"# Working with the 'Last modified' field
 
 The **'Last modified' field** automatically stamps a row with the exact date and time of its most recent user-made change, helping you track updates.
@@ -20438,7 +20586,7 @@ To build an application effectively, it is helpful to understand the five main c
 | **[Elements][4]** | These are the visual building blocks (e.g., headings, input fields, tables, buttons). You stack elements on a page to design the layout. |
 | **[Data Sources][5]** | Data sources act as the bridge between your application and your database. They allow you to fetch, filter, and display records from specific Baserow tables. |
 | **[Events][2]** | Events define the logic of your app. For example, you can configure a ""Submit"" button to create a new row in your database or redirect a user to a different page. |
-| **[Domains][8]** | To make your application accessible, you publish it to a domain. You can use a generic subdomain or connect your own custom domain name. |
+| **[Domains][6]** | To make your application accessible, you publish it to a domain. You can use a generic subdomain or connect your own custom domain name. |
 
 ## Navigate the Application Builder
 
@@ -20459,36 +20607,40 @@ The top navigation bar contains your primary design tools:
 
 ### 4. Preview and Publish
 Located at the top right:
- * **[Preview][6]:** See your application exactly as a user would, allowing you to test functionality without going live.
- * **[Publish][6]:** Push your latest changes to the live production environment.
+ * **[Preview][7]:** See your application exactly as a user would, allowing you to test functionality without going live.
+ * **[Publish][7]:** Push your latest changes to the live production environment.
 
 ![Application Builder interface](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/dc58410f-3ff7-41ac-89f7-1551d27c7943/Untitled%201.png)
 
 ## Frequently asked questions (FAQ)
 
 ### Is the Application Builder separate from the Database?
-Yes and no. They are separate modules, but they are deeply integrated. The Application Builder sits on top of your [database][1], using your existing [tables][7] as the source of truth for data.
+Yes and no. They are separate modules, but they are deeply integrated. The Application Builder sits on top of your [database][1], using your existing [tables][8] as the source of truth for data.
 
 ### Can I use my own domain name?
-Yes. You can publish your application to a custom [domain][8] (e.g., `portal.yourcompany.com`) or use a default Baserow subdomain.
+Yes. You can publish your application to a custom [domain][6] (e.g., `portal.yourcompany.com`) or use a default Baserow subdomain.
 
 ### Do I need to know how to code?
 No. The Application Builder is a visual, drag-and-drop tool. However, it offers advanced configuration options for formulas and filters if you need complex logic.
 
+### How do I import an Application?
+
+To [import][9] or [export][10] an Application, Database or Application Builder, you must import or export the Workspace file that contains it. Baserow exports are handled at the Workspace level.
+
 ## Related content
 
- * [Create your first application][9]
- * [Overview of available Elements][10]
- * [Connecting Data Sources][11]
- * [Publishing an application][12]
+ * [Create your first application][11]
+ * [Overview of available Elements][4]
+ * [Connecting Data Sources][5]
+ * [Publishing an application][7]
 
 
 ----------
 
 Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
- - [Ask the Baserow community][13]
- - [Contact support][14] for questions about Baserow or help with your account
+ - [Ask the Baserow community][12]
+ - [Contact support][13] for questions about Baserow or help with your account
 
 
   [1]: /user-docs/intro-to-databases
@@ -20496,15 +20648,14 @@ Still need help? If you’re looking for something else, please feel free to mak
   [3]: /user-docs/pages-in-the-application-builder
   [4]: /user-docs/elements-overview
   [5]: /user-docs/data-sources
-  [6]: /user-docs/preview-and-publish-application
-  [7]: /user-docs/intro-to-tables
-  [8]: /user-docs/add-a-domain-to-an-application
-  [9]: /user-docs/create-an-application
-  [10]: /user-docs/elements-overview
-  [11]: /user-docs/data-sources
-  [12]: /user-docs/preview-and-publish-application
-  [13]: https://community.baserow.io/
-  [14]: https://baserow.io/contact",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-overview
+  [6]: /user-docs/add-a-domain-to-an-application
+  [7]: /user-docs/preview-and-publish-application
+  [8]: /user-docs/intro-to-tables
+  [9]: https://baserow.io/user-docs/import-workspaces
+  [10]: https://baserow.io/user-docs/export-workspaces
+  [11]: /user-docs/create-an-application
+  [12]: https://community.baserow.io/
+  [13]: https://baserow.io/contact",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-overview
 163,Create an application,create-an-application,Create a new application in Baserow,"# Create an application in Baserow
 
 Creating a new application in Baserow allows you to build a visual frontend for your databases. You can start from a blank canvas, duplicate an existing workflow, or install a pre-configured template to get started immediately.
@@ -20760,9 +20911,13 @@ Publishing takes the current snapshot of your Editor and pushes it to your confi
 Baserow applications do **not** update automatically when you change elements in the editor. This protects your users from seeing half-finished work.
 
 **To update your live app:**
-1.  Make your changes in the Editor.
-2.  Preview the changes to verify they work.
-3.  Click **Publish** again to overwrite the previous version with your new changes.
+ 1.  Make your changes in the Editor.
+ 2.  Preview the changes to verify they work.
+ 3.  Click **Publish** again to overwrite the previous version with your new changes.
+
+## Embed an application
+
+To embed your dashboard or application in another website (like Softr, WordPress, or a custom site), publish your app to get a public URL, then use an HTML <iframe> tag.
 
 ## Frequently asked questions (FAQ)
 
@@ -23507,7 +23662,9 @@ Watch your table during paste operations; new rows appear immediately at the bot
 
 Yes, but paste operations work differently in filtered views. New rows created through paste appear in your filtered view if they meet filter criteria, but rows that don't match filters are hidden after creation. They still exist in the table; remove filters to see all pasted data.
 
+### Is there an automated way to link multiple rows?
 
+If you have a list of names (or primary keys) in a spreadsheet/CSV, you can copy that column and paste it directly into a ""Link to Table"" field in Baserow. Baserow will intelligently try to match the text to existing records and link them. Pasting into a Link Field performs a lookup-and-link operation.
 
 ## Related content
 
@@ -23531,7 +23688,7 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e83fb1b4-6547-437d-8652-d723fd83b35b/Paste%20a%20single%20value%20into%20all%20selected%20cells.jpg",,baserow_user_docs,https://baserow.io/user-docs/paste-data-into-baserow-table
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e83fb1b4-6547-437d-8652-d723fd83b35b/Paste%20a%20single%20value%20into%20all%20selected%20cells.jpg",row,baserow_user_docs,https://baserow.io/user-docs/paste-data-into-baserow-table
 191,AI prompt field,ai-field,AI prompt field in Baserow table,"# AI prompt field in Baserow
 
 The AI prompt field lets you generate text, summaries, classifications, and insights directly in your Baserow tables using dynamic prompts that reference other fields. It supports [multiple AI providers][1] and can process documents (PDF, DOCX, TXT, MD) for automated analysis. 
@@ -23659,6 +23816,12 @@ Temperature controls response randomness:
 > **Pro tip:** Start at 0.5 and adjust based on results. Lower if responses are too random, raise if they're too repetitive.
 
 ![Regenerate when referenced fields change][9]
+
+## Supported inputs
+
+The AI field supports most [field types][2], Single Line Text, Long Text, etc.
+
+Currently, the AI field cannot process images (OCR) or file attachments directly. For image analysis, use an external OCR service (such as Google Cloud Vision, AWS Textract, Azure Computer Vision, etc.) to process the receipt image, then import the extracted data back into Baserow. Once the data is in Baserow, you can use its built‑in views, filters, formulas, or further automations to analyze the receipt information.
 
 ## Troubleshooting
 
@@ -24022,7 +24185,7 @@ AI can generate complex formulas, but Baserow has a formula length limit. Extrem
   [1]: https://baserow.io/user-docs/ai-prompt-guide
   [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d4d75565-b60f-48ca-81d2-197ea7c91fde/generate%20formulas%20with%20AI.png
   [3]: https://baserow.io/blog/use-ai-generate-formulas-baserow
-  [4]: https://baserow.io/blog/apply-discounts-dynamically-with-baserow-formulas",,baserow_user_docs,https://baserow.io/user-docs/generate-formulas-with-baserow-ai
+  [4]: https://baserow.io/blog/apply-discounts-dynamically-with-baserow-formulas",database formula,baserow_user_docs,https://baserow.io/user-docs/generate-formulas-with-baserow-ai
 194,OttoKit,suretriggers-integration,Integrate Baserow with OttoKit (formerly SureTriggers),"# Configure Baserow in OttoKit (formerly SureTriggers) 
 
 OttoKit offers the ability to create custom workflows that perform actions in response to specific triggers. You can seamlessly sync data from Baserow to over 600 apps using various triggers.
@@ -24902,6 +25065,10 @@ This may be due to version incompatibility, a corrupted file, or insufficient pe
 
 Ensure the target instance is the same or newer version, re-download and re-upload the export file, verify you have admin permissions on the target workspace, and check the server logs for detailed error information.
 
+### How do I export an Application?
+
+To export an Application, Database or Application Builder, you must export the Workspace file that contains it. Baserow exports are handled at the Workspace level.
+
 ## Related content
 
 ### Workspace management
@@ -24940,7 +25107,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [4]: /user-docs/setting-up-a-workspace
   [5]: /user-docs/delete-a-workspace
   [6]: /user-docs/create-a-table-via-import
-  [7]: /user-docs/import-data-into-an-existing-table",,baserow_user_docs,https://baserow.io/user-docs/export-workspaces
+  [7]: /user-docs/import-data-into-an-existing-table",workspace,baserow_user_docs,https://baserow.io/user-docs/export-workspaces
 262,Import a workspace,import-workspaces,Import a workspace in Baserow account,"# Import a workspace into Baserow
 
 Import complete workspaces from ZIP files to migrate between Baserow instances, restore backups, or duplicate workspace configurations. 
@@ -25055,6 +25222,10 @@ Security restrictions prevent importing files from unknown sources. Malicious im
 
 Yes. Imported workspaces, databases, and rows count toward your subscription plan limits. Ensure your plan has sufficient capacity before importing large workspaces.
 
+### How do I import an Application?
+
+To import an Application, Database or Application Builder, you must import the Workspace file that contains it. Baserow exports are handled at the Workspace level.
+
 ## Related content
 
 ### Workspace management
@@ -25093,7 +25264,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [6]: /user-docs/setting-up-a-workspace
   [7]: /user-docs/delete-a-workspace
   [8]: /user-docs/create-a-table-via-import
-  [9]: /user-docs/import-data-into-an-existing-table",,baserow_user_docs,https://baserow.io/user-docs/import-workspaces
+  [9]: /user-docs/import-data-into-an-existing-table",workspace,baserow_user_docs,https://baserow.io/user-docs/import-workspaces
 293,Date-time picker element,application-builder-date-time-picker-element,Date-time picker element in Baserow Application Builder,"# Application Builder - Date-time picker element
 
 The date-time picker element offers a user-friendly way to input dates and times in your application. Rather than typing dates manually as text strings, users can select dates from a calendar interface. You can configure the element to show or hide the time field and set the date and time format.
@@ -25234,6 +25405,8 @@ This guide covers how to use Dashboards in Baserow to create insightful visualiz
 
 ## What are dashboards?
 
+Dashboards allow you to create a high-level overview of your data using various widgets.
+
 Dashboards are collections of visual widgets that display data from your Baserow tables. You can combine multiple widgets on a single dashboard to create comprehensive views of your data. Each widget connects to a data source and updates automatically when your underlying data changes.
 
 Dashboards work well for:
@@ -25351,7 +25524,7 @@ If you delete a table or database that a widget uses as its data source, the wid
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d2af5b7b-94a3-4714-9f31-52a3fc13c2af/Dashboads(2).png
   [2]: https://baserow.io/user-docs/create-a-dashboard
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9af9799c-80c3-44fa-8c86-338f87689e42/Baserow%20Dashboards(2).png",,baserow_user_docs,https://baserow.io/user-docs/dashboards-overview
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9af9799c-80c3-44fa-8c86-338f87689e42/Baserow%20Dashboards(2).png",dashboard,baserow_user_docs,https://baserow.io/user-docs/dashboards-overview
 327,Create a dashboard,create-a-dashboard,Create a new dashboard in Baserow,"# Getting started with dashboards
 
 Baserow Dashboards allow you to transform data from your tables into dynamic, easy-to-read visualizations like bar charts and summary cards. They automatically update in real-time as your underlying data changes, making them perfect for monitoring key metrics and sharing insights.
@@ -25441,7 +25614,7 @@ Still need help? If you’re looking for something else, please feel free to mak
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9e324277-d6f8-4632-888c-50f791936620/Settings.png
   [2]: https://baserow.io/user-docs/dashboards-overview
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e73b6055-ba76-459b-a51c-ec25bbccf302/create.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/02403839-efc7-4bcb-935b-01b2e426d442/Add%20a%20Widget.png",,baserow_user_docs,https://baserow.io/user-docs/create-a-dashboard
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/02403839-efc7-4bcb-935b-01b2e426d442/Add%20a%20Widget.png",dashboard,baserow_user_docs,https://baserow.io/user-docs/create-a-dashboard
 328,Menu element,menu-element,Menu element in Baserow Application Builder,"## Overview of the Menu element
 
 The Menu element is a powerful navigation component in the Application Builder that helps users move through different parts of your application smoothly. It creates an organized structure that makes navigation intuitive and efficient.
@@ -26545,6 +26718,12 @@ If you disconnect a license while it's active, the related users won’t have ac
  Learn more: [Manage self-hosted licenses][3]
 
 ## Frequently asked questions
+
+### Where can I find documentation on upgrading my self-hosted Baserow instance?
+
+To upgrade your self-hosted instance to the latest version, please review the [developer documentation](/docs/installation%2Finstall-with-docker#upgrading-from-a-previous-version) for migration steps. You must follow the guide specific to your original installation method.
+
+These instructions apply to all standard version upgrades (e.g., 1.x to 2.x, or 2.0.1 to 2.0.2). For specific breaking changes, check the release notes.
 
 ### Can I mix different license types on the same instance?
 
@@ -27745,6 +27924,8 @@ To use this integration, you must create a Slack App and issue a token.
 
 This action allows your workflow to connect to any external API or web service, enabling broad integration possibilities. It sends data via HTTP requests, letting you trigger actions in other platforms or retrieve information from external systems.
 
+Use the generic HTTP Request action to connect to thousands of tools, including Dropbox, CloseCRM, Salesforce, HubSpot, Gmail, Shopify, etc.
+
 **Configuration:**
 
 | Setting | Description | Example |
@@ -28404,7 +28585,11 @@ If you self-host, Kuma gives you full control over your data privacy by allowing
 
 Baserow integrates with multiple AI providers (OpenAI, Anthropic, Ollama, OpenRouter, Mistral) to power the AI field and generative features.
 
-> Learn more about [Baserow AI-Assistant: Quick DevOps Setup][9]. This guide shows how to enable the AI-assistant in Baserow, configure the required environment variables, and turn on knowledge-base lookups via an embeddings server.
+## Install and configure Kuma in self‑hosted
+
+Kuma is configured to work on versions from Baserow v2.0.
+
+Learn more about [Baserow AI-Assistant: Quick DevOps Setup][9]. This guide shows how to enable the AI-assistant in Baserow, configure the required environment variables, and turn on knowledge-base lookups via an embeddings server.
 
 ## Frequently Asked Questions (FAQs)
 
@@ -28446,6 +28631,84 @@ Still need help? If you're looking for something else, please feel free to make 
   [7]: /user-docs/view-customization
   [8]: /user-docs/create-custom-views-of-your-data
   [9]: /docs/installation/ai-assistant",workspace,baserow_user_docs,https://baserow.io/user-docs/ai-assistant
+623,Two-factor auth,two-factor-auth,Two-factor authentication in Baserow,"# Two-factor authentication (2FA)
+
+Two-factor authentication (2FA) adds an extra layer of security to your Baserow account. In addition to your password, you will need to provide a unique verification code generated by an authenticator app on your phone to log in.
+
+This ensures that even if someone guesses or steals your password, they cannot access your account without your physical device.
+
+![Two-factor authentication](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/156ab688-8e3d-4fde-aa9c-a91dd2c92ef5/2FA.jpg)
+
+## Enable 2FA
+
+To set up two-factor authentication:
+
+1.  Click on your account avatar in the top right corner and select **Settings**.
+2.  Click the **Two-factor auth** tab.
+3.  Click the **Enable 2FA** button.
+4.  You will be prompted to select an authentication method. Select **Authenticator app** (Recommended).
+5.  Click **Continue**.
+
+## Configure your authenticator app
+
+We recommend using a trusted authenticator app such as:
+* Google Authenticator
+* Authy
+* Microsoft Authenticator
+* 1Password
+
+**Steps to pair your device:**
+
+1.  Open your authenticator app on your mobile device.
+2.  Select the option to add a new account or scan a QR code.
+3.  Scan the QR code displayed on your Baserow screen.
+4.  If you cannot scan the code, you can manually enter the secret key provided below the QR code.
+5.  Once scanned, your app will generate a 6-digit code.
+6.  Enter this 6-digit code into the Baserow ""Verification code"" field.
+7.  Click **Verify**.
+
+## Recovery codes
+
+After successfully enabling 2FA, Baserow will display a list of **recovery codes**.
+
+Copy and save these codes in a secure place (like a password manager).
+
+If you lose your phone or access to your authenticator app, these codes are the *only* way to regain access to your account.
+
+## Logging in with 2FA
+
+Once enabled, the login process will change slightly:
+
+1.  Enter your email and password as usual.
+2.  You will be prompted to enter a **6-digit authentication code**.
+3.  Open your authenticator app to view the current code for Baserow.
+4.  Enter the code to access your dashboard.
+
+## Disable 2FA
+
+If you wish to turn off 2-factor authentication:
+
+1.  Navigate to **Settings -> Two-factor authentication**.
+2.  Click the **Disable 2FA** button.
+3.  You will be asked to enter your password to confirm this action.
+
+> **Security Warning:** Disabling 2FA makes your account less secure. We strongly recommend keeping it enabled to protect your data.
+
+## Related resources
+
+### Account management
+- [Password management](/user-docs/password-management) - Change and secure your password
+- [Delete your Baserow account](/user-docs/delete-your-baserow-account) - Permanent account removal
+- [Database tokens](/user-docs/personal-api-tokens) - API authentication
+- [Notifications](/user-docs/notifications) - Configure email alerts
+
+---
+
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
+
+- [Ask the Baserow community](https://community.baserow.io)
+- [Contact support](/contact) for questions about Baserow or help with your account",account management,baserow_user_docs,https://baserow.io/user-docs/two-factor-auth
 1,What is Baserow?,faq,What is Baserow?,"What is Baserow?
 
 Baserow is an open-source no-code database. Our database platform enables both non-technical and technical teams to capture, organize and build logical relationships between data to trigger decisions and automate processes. We focus on openness, scalability, performance, and data security.",faq,faq,https://baserow.io/faq
