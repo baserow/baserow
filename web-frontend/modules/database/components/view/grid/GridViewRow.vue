@@ -234,6 +234,27 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'cell-selected',
+    'selected',
+    'unselected',
+    'select',
+    'unselect',
+    'select-next',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+    'row-dragging',
+    'row-hover',
+    'row-context',
+  ],
   data() {
     return {
       // The state can be used by functional components to make changes to the dom.

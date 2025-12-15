@@ -181,10 +181,10 @@ export default {
     },
     forceUpdateFile(id, values) {
       const fileIndex = this.getFileInProgressIndex(id)
-      this.$set(this.filesInProgress, fileIndex, {
+      this.filesInProgress[fileIndex] = {
         ...this.files[fileIndex],
         ...values,
-      })
+      }
     },
     forceRemoveFile(index) {
       if (this.getFileInProgressIndex(this.currentFileUploading.id) === index) {

@@ -41,6 +41,14 @@ export default {
       }
     },
   },
+  data() {
+    return {
+      clickOutsideEventCancel: null,
+      keyDownEventListener: null,
+      copyEventListener: null,
+      pasteEventListener: null,
+    }
+  },
   mounted() {
     if (this.selected) {
       this._select()
@@ -54,35 +62,27 @@ export default {
     }
   },
   methods: {
-    /**
-     * This method adds an event listener to the given element. It also
-     * automatically removes the event listeners when the cell is unselected
-     * (emitted from `_beforeUnSelect`) so there's no need to do that manually.
-     */
-    addEventListenerWithAutoRemove(el, event, eventHandler) {
-      el.addEventListener(event, eventHandler)
-      this.$once('unselected', () => {
-        el.removeEventListener(event, eventHandler)
-      })
+    getRootCell() {
+      if (this.$refs.cell) {
+        return this.$refs.cell
+      }
+
+      throw new Error('Missing cell ref in this component')
     },
     /**
      * This method is called when the cell is selected to add all the event
-     * listeners needed to handle the user interaction.
-     * It uses the `addEventListenerWithAutoRemove` method to automatically
-     * remove the event listeners when the cell is unselected.
+     * listeners needed to handle the user interaction. The registered events are
+     * removed in `removeAllEventListenersOnCellSelected`.
      */
     setupAllEventListenersOnCellSelected() {
-      this.addEventListenerWithAutoRemove(
-        this.$el,
-        'dblclick',
-        this.doubleClick
-      )
+      const cellElement = this.getRootCell()
+      cellElement.addEventListener("dblclick", this.doubleClick)
 
       // Register a body click event listener so that we can detect if a user has
       // clicked outside the field. If that happens we want to unselect the field and
       // possibly save the value.
-      const clickOutsideEventCancel = onClickOutside(
-        this.$el,
+      this.clickOutsideEventCancel = onClickOutside(
+        cellElement,
         (target, event) => {
           if (
             // Check if the event has the 'preventFieldCellUnselect' attribute which
@@ -98,10 +98,9 @@ export default {
           }
         }
       )
-      this.$once('unselected', clickOutsideEventCancel)
 
       // Event that is called when a key is pressed while the field is selected.
-      const keyDownEventListener = (event) => {
+      this.keyDownEventListener = (event) => {
         // When for example a related modal is open all the key combinations must be
         // ignored because the focus is not in the cell.
         if (!this.canKeyDown(event)) {
@@ -159,13 +158,12 @@ export default {
           this.$emit('edit-modal')
         }
       }
-      this.addEventListenerWithAutoRemove(
-        document.body,
+      document.body.addEventListener(
         'keydown',
-        keyDownEventListener
+        this.keyDownEventListener,
       )
 
-      const copyEventListener = (event) => {
+      this.copyEventListener = (event) => {
         if (!this.canKeyDown(event) || !this.canKeyboardShortcut(event)) return
 
         const { textData, jsonData } = this.prepareValuesForCopy(
@@ -186,10 +184,10 @@ export default {
         // prevent Safari from beeping since the window.getSelection() is empty
         event.preventDefault()
       }
-      this.addEventListenerWithAutoRemove(window, 'copy', copyEventListener)
+      window.addEventListener('copy', this.copyEventListener)
 
       // Updates the value of the field when a user pastes something in the field.
-      const pasteEventListener = async (event) => {
+      this.pasteEventListener = async (event) => {
         if (!this.canKeyboardShortcut(event)) {
           return
         }
@@ -232,7 +230,17 @@ export default {
           }
         } catch (e) {}
       }
-      this.addEventListenerWithAutoRemove(document, 'paste', pasteEventListener)
+      document.addEventListener('paste', this.pasteEventListener)
+    },
+    removeAllEventListenersOnCellSelected() {
+      const cellElement = this.getRootCell()
+      cellElement.removeEventListener("dblclick", this.doubleClick)
+      if (this.clickOutsideEventCancel !== null) {
+        this.clickOutsideEventCancel()
+      }
+      document.body.removeEventListener('keydown', this.keyDownEventListener)
+      window.removeEventListener('copy', this.copyEventListener)
+      document.removeEventListener('paste', this.pasteEventListener)
     },
     /** Returns true if the field is read only. */
     canWriteFieldValues(field) {
@@ -257,6 +265,7 @@ export default {
      * Removes all the listeners related to all field types.
      */
     _beforeUnSelect() {
+      this.removeAllEventListenersOnCellSelected()
       this.beforeUnSelect()
       this.$emit('unselected', { component: this })
     },

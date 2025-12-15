@@ -28,7 +28,25 @@
       :store-prefix="storePrefix"
       :row-identifier-type="view.row_identifier_type"
       :count="index + rowsStartIndex + bufferStartIndex + 1"
-      v-on="$attrs"
+      @update="$emit('update', $event)"
+      @paste="$emit('paste', $event)"
+      @edit="$emit('edit', $event)"
+      @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+      @cell-mouseover="$emit('cell-mouseover', $event)"
+      @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+      @cell-shift-click="$emit('cell-shift-click', $event)"
+      @cell-selected="$emit('cell-selected', $event)"
+      @selected="$emit('selected', $event)"
+      @unselected="$emit('unselected', $event)"
+      @select="$emit('select', $event)"
+      @unselect="$emit('unselect', $event)"
+      @select-next="$emit('select-next', $event)"
+      @add-row-after="$emit('add-row-after', $event)"
+      @edit-modal="$emit('edit-modal', $event)"
+      @refresh-row="$emit('refresh-row', $event)"
+      @row-dragging="$emit('row-dragging', $event)"
+      @row-hover="$emit('row-hover', $event)"
+      @row-context="$emit('row-context', $event)"
     />
   </div>
 </template>
@@ -112,6 +130,27 @@ export default {
       default: false,
     },
   },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'cell-selected',
+    'selected',
+    'unselected',
+    'select',
+    'unselect',
+    'select-next',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+    'row-dragging',
+    'row-hover',
+    'row-context',
+  ],
   computed: {
     fieldWidths() {
       const fieldWidths = {}
@@ -123,7 +162,7 @@ export default {
     rows() {
       return this.$store.getters[this.storePrefix + 'view/grid/getRows']
     },
-    rowTop() {
+    rowsTop() {
       return this.$store.getters[this.storePrefix + 'view/grid/getRowsTop']
     },
     rowsStartIndex() {
@@ -145,22 +184,5 @@ export default {
       ]
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        rows: this.$options.propsData.storePrefix + 'view/grid/getRows',
-        rowsTop: this.$options.propsData.storePrefix + 'view/grid/getRowsTop',
-        rowsStartIndex:
-          this.$options.propsData.storePrefix + 'view/grid/getRowsStartIndex',
-        rowsEndIndex:
-          this.$options.propsData.storePrefix + 'view/grid/getRowsEndIndex',
-        bufferStartIndex:
-          this.$options.propsData.storePrefix + 'view/grid/getBufferStartIndex',
-        activeGroupBys:
-          this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
-      }),
-    }
-  },*/
 }
 </script>

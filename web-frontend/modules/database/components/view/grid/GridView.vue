@@ -490,6 +490,7 @@ export default {
       // Set to true when the row is being refreshed to avoid multiple fields
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
+      resizeObserver: null,
     }
   },
   computed: {
@@ -646,8 +647,8 @@ export default {
     this.$bus.$on('field-deleted', this.fieldDeleted)
   },
   mounted() {
-    this.$el.resizeObserver = new ResizeObserver(this.onWindowResize)
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver = new ResizeObserver(this.onWindowResize)
+    this.resizeObserver.observe(this.$el)
     window.addEventListener('keydown', this.keyDownEvent)
     window.addEventListener('copy', this.copySelection)
     window.addEventListener('paste', this.pasteFromMultipleCellSelection)
@@ -668,7 +669,9 @@ export default {
     }
   },
   beforeUnmount() {
-    this.$el.resizeObserver.unobserve(this.$el)
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(this.$el)
+    }
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)
     window.removeEventListener('paste', this.pasteFromMultipleCellSelection)

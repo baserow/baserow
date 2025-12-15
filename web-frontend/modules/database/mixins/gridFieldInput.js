@@ -19,6 +19,8 @@ export default {
        * A temporary copy of the value when editing.
        */
       copy: null,
+      leftMouseDownListener: null,
+      keydownListener: null,
     }
   },
   watch: {
@@ -29,7 +31,7 @@ export default {
     },
   },
   mounted() {
-    const leftMouseDownListener = (event) => {
+    this.leftMouseDownListener = (event) => {
       // The `GridViewCell` component initiates the multiple selection when left
       // clicking on the element. This is something we want to prevent while editing
       // by stopping the propagation.
@@ -37,12 +39,14 @@ export default {
         event.stopPropagation()
       }
     }
-    this.$el.addEventListener('mousedown', leftMouseDownListener)
-    this.$el.addEventListener('click', leftMouseDownListener)
-    this.$once('hook:beforeDestroy', () => {
-      this.$el.removeEventListener('mousedown', leftMouseDownListener)
-      this.$el.removeEventListener('click', leftMouseDownListener)
-    })
+    const cellElement = this.getRootCell()
+    cellElement.addEventListener('mousedown', this.leftMouseDownListener)
+    cellElement.addEventListener('click', this.leftMouseDownListener)
+  },
+  beforeUnmount() {
+    const cellElement = this.getRootCell()
+    cellElement.removeEventListener('mousedown', this.leftMouseDownListener)
+    cellElement.removeEventListener('click', this.leftMouseDownListener)
   },
   methods: {
     /**
@@ -52,7 +56,7 @@ export default {
      * characters are pressed because that should replace the value.
      */
     select() {
-      const keydownListener = (event) => {
+      this.keydownListener = (event) => {
         // If the tab or arrow keys are pressed we don't want to do anything because
         // the GridViewField component will select the next field.
         const ignoredKeys = [
@@ -108,10 +112,7 @@ export default {
           this.edit('', event)
         }
       }
-      document.body.addEventListener('keydown', keydownListener)
-      this.$once('unselected', () =>
-        document.body.removeEventListener('keydown', keydownListener)
-      )
+      document.body.addEventListener('keydown', this.keydownListener)
     },
     /**
      * Event that is called wen the column is unselected, for example when clicked
@@ -119,6 +120,7 @@ export default {
      * need it. We will also save the changes if the user was editing.
      */
     beforeUnSelect() {
+      document.body.removeEventListener('keydown', this.keydownListener)
       this.opened = false
       if (this.editing && this.isValid()) {
         this.save()
