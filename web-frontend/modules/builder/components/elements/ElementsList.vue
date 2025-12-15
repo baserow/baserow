@@ -6,7 +6,17 @@
       :element="element"
       :filtered-search-elements="filteredSearchElements"
       @select="$emit('select', $event)"
-    />
+    >
+      <template #children="{ children }">
+        <ElementsList
+          v-if="children.length"
+          name="nested-elements-list"
+          :elements="children"
+          :filtered-search-elements="filteredSearchElements"
+          @select="$emit('select', $event)"
+        />
+      </template>
+    </ElementsListItem>
   </ul>
 </template>
 
