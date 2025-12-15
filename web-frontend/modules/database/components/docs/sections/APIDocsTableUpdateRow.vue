@@ -14,7 +14,7 @@
           </span>
         </h3>
         <div class="api-docs__endpoint-type">
-          <Checkbox v-model:model-value="batchMode">batch mode</Checkbox>
+          <Checkbox v-model="batchMode">batch mode</Checkbox>
         </div>
       </div>
 

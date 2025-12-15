@@ -25,7 +25,7 @@
               type.toLowerCase() === 'delete',
           }"
         >
-          {{ type.toUpperCase() }}
+          {{ $filters.uppercase(type) }}
         </div>
         <div class="api-docs__example-request-url">
           {{ url }}
@@ -51,7 +51,7 @@
       <div class="api-docs__example-type">
         <Dropdown
           class="dropdown--floating"
-          v-model:model-value="value.type"
+          v-model="value.type"
           @input="
             $emit('input', {
               userFieldNames: value.userFieldNames,
@@ -69,7 +69,7 @@
         </Dropdown>
         <Checkbox
           v-if="includeUserFieldsCheckbox"
-          v-model:model-value="value.userFieldNames"
+          v-model="value.userFieldNames"
           class="api-docs__example-type-item"
           @input="$emit('input', { userFieldNames: $event, type: value.type })"
         >{{ $t('apiDocsExample.userFieldNames') }}
@@ -198,7 +198,6 @@ export default {
     formattedRequest() {
       return this.getFormattedRequest()
     },
-
   },
   methods: {
     format(value) {
