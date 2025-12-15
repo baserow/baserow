@@ -64,35 +64,9 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
+    command: "nuxt-dev-with-storybook"
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
-    volumes:
-      - ./web-frontend:/baserow/web-frontend
-      - ./premium/web-frontend/:/baserow/premium/web-frontend
-      - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
-      - ./tests/:/baserow/tests
-      - ./deploy/plugins:/baserow/plugins
-      # dev volumes to avoid polluting your local filesystem with build files or
-      # overwriting existing node_modules.
-      - node_modules:/baserow/web-frontend/node_modules
-      - nuxt:/baserow/web-frontend/.nuxt/
-      - cache:/baserow/web-frontend/.cache/
-    # Open stdin and tty so when attaching key input works as expected.
-    stdin_open: true
-    tty: true
-
-  web-frontend-storybook:
-    image: baserow_web-frontend:dev
-    profiles: ["optional"]
-    restart: unless-stopped
-    environment:
-      FEATURE_FLAGS:
-    networks:
-      local:
-    command: "storybook-dev"
-    healthcheck:
-      disable: true
-    ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend

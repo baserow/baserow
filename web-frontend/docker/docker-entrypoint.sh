@@ -10,12 +10,13 @@ show_help() {
 The available Baserow web-frontend related commands and services are shown below:
 
 COMMANDS:
-nuxt-dev     : Start a normal nuxt development server
-nuxt         : Start a non-dev prod ready nuxt server
-nuxt-local   : Start a non-dev prod ready nuxt server using the preset local config
-storybook-dev: Start a storybook dev server
-bash         : Start a bash shell
-build-local  : Triggers a nuxt re-build of Baserow's web-frontend.
+nuxt-dev                : Start a normal nuxt development server
+nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
+nuxt                    : Start a non-dev prod ready nuxt server
+nuxt-local              : Start a non-dev prod ready nuxt server using the preset local config
+storybook-dev           : Start a storybook dev server
+bash                    : Start a bash shell
+build-local             : Triggers a nuxt re-build of Baserow's web-frontend.
 
 DEV COMMANDS:
 lint            : Run all the linting
@@ -95,10 +96,12 @@ case "$1" in
       setup_additional_modules
       exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.js "${@:2}"
     ;;
-    storybook-dev)
+    nuxt-dev-with-storybook)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn dev
+      # Start Storybook in background and Nuxt in foreground
+      yarn storybook &
+      attachable_exec_retry yarn dev
     ;;
     lint)
       exec yarn lint
