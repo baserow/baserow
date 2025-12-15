@@ -137,18 +137,21 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })
 
-    const elementType = this.$registry.get('element', element.type)
+    const elementType = $registry.get('element', element.type)
     elementType.afterCreate(element, page)
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     commit('UPDATE_ITEM', { builder, page, element, values })
-    const elementType = this.$registry.get('element', element.type)
+    const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
   forceDelete({ commit, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const elementToDelete = getters.getElementById(page, elementId)
 
     if (getters.getSelected(builder)?.id === elementId) {
@@ -156,7 +159,7 @@ const actions = {
     }
     commit('DELETE_ITEM', { page, elementId })
 
-    const elementType = this.$registry.get('element', elementToDelete.type)
+    const elementType = $registry.get('element', elementToDelete.type)
     elementType.afterDelete(elementToDelete, page)
   },
   forceMove(
@@ -397,6 +400,7 @@ const actions = {
       placeInContainer = null,
     }
   ) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const element = getters.getElementById(page, elementId)
     const { order: previousOrder, place_in_container: previousPlace } = element
 
@@ -411,9 +415,12 @@ const actions = {
 
     const fire = async () => {
       try {
-        const { data: elementUpdated } = await ElementService(
-          this.$client
-        ).move(elementId, beforeElementId, parentElementId, placeInContainer)
+        const { data: elementUpdated } = await ElementService($client).move(
+          elementId,
+          beforeElementId,
+          parentElementId,
+          placeInContainer
+        )
 
         dispatch('forceUpdate', {
           builder,
@@ -441,9 +448,10 @@ const actions = {
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = useNuxtApp()
     const {
       data: { elements, workflow_actions: workflowActions },
-    } = await ElementService(this.$client).duplicate(elementId)
+    } = await ElementService($client).duplicate(elementId)
 
     const elementPromises = elements.map((element) =>
       dispatch('forceCreate', { page, element })

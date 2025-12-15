@@ -360,8 +360,6 @@ export default {
       // element becomes smaller than the target, it will be scaled down so that the
       // actual width remains the same, and it will preview the correct device.
 
-      console.log(toRaw(this.$refs))
-
       const { clientWidth: currentWidth, clientHeight: currentHeight } =
         this.$refs.preview
 
