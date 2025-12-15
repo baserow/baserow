@@ -13,7 +13,6 @@
 export default {
   height: 22,
   name: 'RowCardFieldFormula',
-  inject: ['$registry'],
   props: {
     row: {
       type: Object,

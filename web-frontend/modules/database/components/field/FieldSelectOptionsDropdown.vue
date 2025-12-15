@@ -136,6 +136,7 @@ export default {
   data() {
     return {
       createOptionLoading: false,
+      selectedColorRefreshKey: 0,
     }
   },
   computed: {
@@ -143,12 +144,13 @@ export default {
       return this.allowCreateOption && this.query !== '' && !this.hasItems
     },
     selectedColor() {
+      this.selectedColorRefreshKey
       return this.getSelectedProperty(this.value, 'color')
     },
   },
   methods: {
     forceRefreshSelectedValue() {
-      this._computedWatchers.selectedColor.run()
+      this.selectedColorRefreshKey++
       dropdown.methods.forceRefreshSelectedValue.call(this)
     },
     createOption(value) {

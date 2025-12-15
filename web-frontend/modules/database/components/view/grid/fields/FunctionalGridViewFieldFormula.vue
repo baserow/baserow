@@ -24,7 +24,6 @@ export default {
     FunctionalGridViewFieldNumber,
     FunctionalGridViewSingleFile,
   },
-  inject: ['$registry'],
   props: {
     row: {
       type: Object,
