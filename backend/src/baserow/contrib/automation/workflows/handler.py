@@ -52,6 +52,7 @@ from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
+from baserow.contrib.automation.workflows.tasks import dispatch_node_celery_task
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
@@ -897,7 +898,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         event_payload: Optional[Union[Dict, List[Dict]]],
         simulate_until_node: Optional[int] = None,
     ) -> None:
-        """Runs the workflow."""
+        """Runs the workflow using async node execution."""
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
@@ -929,8 +930,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             self.before_run(original_workflow)
-            AutomationNodeHandler().dispatch_node(
-                workflow.get_trigger(), dispatch_context
+            dispatch_node_celery_task.delay(
+                workflow.id,
+                workflow.get_trigger().id,
+                dispatch_context.to_dict(),
+                allowed_node_ids=None,
             )
         except AutomationWorkflowTooManyErrors as e:
             history_message = str(e)

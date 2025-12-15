@@ -412,3 +412,32 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             raise AutomationNodeMisconfiguredService(
                 f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
             ) from e
+
+    def dispatch_node_async(
+    self,
+    node: "AutomationNode",
+    dispatch_context: AutomationDispatchContext,
+    allowed_nodes=None,
+):
+     """
+     Schedule one node asynchronously using Celery. Node execution happens inside
+    `dispatch_node_celery_task`.
+     """
+     from baserow.contrib.automation.workflows.tasks import dispatch_node_celery_task
+
+     if dispatch_context.simulate_until_node and allowed_nodes is None:
+        allowed_nodes = {
+            *dispatch_context.simulate_until_node.get_previous_nodes(),
+            dispatch_context.simulate_until_node,
+        }
+
+     if allowed_nodes is not None and node not in allowed_nodes:
+        return
+
+     allowed_node_ids = [n.id for n in allowed_nodes] if allowed_nodes else None
+     dispatch_node_celery_task.delay(
+        node.workflow.id,
+        node.id,
+        dispatch_context.to_dict(),
+        allowed_node_ids,
+    )

@@ -125,3 +125,36 @@ class AutomationDispatchContext(DispatchContext):
         self, fields: List[str], refinement: ServiceAdhocRefinements
     ):
         ...
+
+    def to_dict(self) -> Dict:
+        """Serialize the dispatch context for passing to Celery tasks."""
+        return {
+            "event_payload": self.event_payload,
+            "simulate_until_node_id": self.simulate_until_node.id if self.simulate_until_node else None,
+            "iteration_context": self.iteration_context,
+            "dispatched_nodes": [(node.id, output_uid) for node, output_uid in self.dispatched_nodes],
+        }
+
+    @classmethod
+    def from_dict(cls, workflow: "AutomationWorkflow", data: Dict) -> "AutomationDispatchContext":
+        """Reconstruct dispatch context from serialized data."""
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        simulate_until_node = None
+        if data.get("simulate_until_node_id"):
+            simulate_until_node = AutomationNodeHandler().get_node(
+                data["simulate_until_node_id"]
+            )
+
+        context = cls(
+            workflow,
+            data.get("event_payload"),
+            simulate_until_node=simulate_until_node,
+        )
+        context.iteration_context = data.get("iteration_context", {})
+
+        for node_id, output_uid in data.get("dispatched_nodes", []):
+            node = AutomationNodeHandler().get_node(node_id)
+            context.dispatched_nodes.append((node, output_uid))
+
+        return context

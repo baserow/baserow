@@ -182,6 +182,12 @@ CELERY_TASK_ROUTES = {
     "baserow.core.usage.tasks": {"queue": BASEROW_GROUP_STORAGE_USAGE_QUEUE},
     "baserow.contrib.database.table.tasks.run_row_count_job": {"queue": "export"},
     "baserow.core.jobs.tasks.clean_up_jobs": {"queue": "export"},
+    "baserow.contrib.automation.workflows.tasks.start_workflow_celery_task": {
+        "queue": "automation_workflow"
+    },
+    "baserow.contrib.automation.workflows.tasks.dispatch_node_celery_task": {
+        "queue": "automation_workflow"
+    },
 }
 CELERY_SOFT_TIME_LIMIT = 60 * 5  # 5 minutes
 CELERY_TIME_LIMIT = CELERY_SOFT_TIME_LIMIT + 60  # 60 seconds
