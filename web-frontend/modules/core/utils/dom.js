@@ -226,3 +226,17 @@ export const hasRealNodes = (nodes) => {
     return true
   })
 }
+
+/**
+ * A ref does not always return the dom element object. This helper method makes sure
+ * that it's returned.
+ */
+export const getElementFromRef = (ref) => {
+  const target = Array.isArray(ref) ? ref[0] : ref
+
+  // element ref
+  if (target instanceof Element) return target
+
+  // component ref -> root DOM element
+  if (target?.$el instanceof Element) return target.$el
+}

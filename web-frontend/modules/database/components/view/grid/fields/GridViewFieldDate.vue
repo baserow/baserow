@@ -38,10 +38,10 @@
               :inline="true"
               :monday-first="true"
               :use-utc="true"
-              :value="pickerDate"
-              :language="datePickerLang[$i18n.locale]"
+              :model-value="pickerDate"
+              :language="$i18n.locale"
               class="datepicker"
-              @input="chooseDate(field, $event)"
+              @update:model-value="chooseDate(field, $event)"
               @selected="preventNextUnselect = true"
             />
           </client-only>
@@ -88,10 +88,6 @@ export default {
   data() {
     return {
       preventNextUnselect: false,
-      datePickerLang: {
-        en: {},
-        fr: {},
-      },
     }
   },
   methods: {

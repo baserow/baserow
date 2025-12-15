@@ -1,4 +1,4 @@
-import { onClickOutside } from '@baserow/modules/core/utils/dom'
+import {getElementFromRef, onClickOutside} from '@baserow/modules/core/utils/dom'
 import baseField from '@baserow/modules/database/mixins/baseField'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 
@@ -63,11 +63,9 @@ export default {
   },
   methods: {
     getRootCell() {
-      if (this.$refs.cell) {
-        return this.$refs.cell
-      }
-
-      throw new Error('Missing cell ref in this component')
+      const ref = this.$refs.cell
+      if (!ref) throw new Error('Missing cell ref in this component')
+      return getElementFromRef(ref)
     },
     /**
      * This method is called when the cell is selected to add all the event
@@ -76,6 +74,7 @@ export default {
      */
     setupAllEventListenersOnCellSelected() {
       const cellElement = this.getRootCell()
+      console.log(cellElement)
       cellElement.addEventListener("dblclick", this.doubleClick)
 
       // Register a body click event listener so that we can detect if a user has

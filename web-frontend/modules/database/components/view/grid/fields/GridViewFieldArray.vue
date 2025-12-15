@@ -5,8 +5,7 @@
     :value="value"
     :row="row"
     :selected="selected"
-    v-on="$attrs"
-    @show="showModal"
+    v-bind="forwarded"
   >
     <!--
     This modal has to be added as slot because the component must have the
@@ -25,24 +24,14 @@
 <script>
 import FunctionalGridViewFieldArray from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldArray'
 import gridField from '@baserow/modules/database/mixins/gridField'
-import FileFieldModal from '@baserow/modules/database/components/field/FileFieldModal.vue'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
 
 export default {
   name: 'GridViewFieldArray',
-  components: { FileFieldModal, FunctionalGridViewFieldArray },
+  inheritAttrs: false,
+  components: { FunctionalGridViewFieldArray },
   mixins: [gridField, arrayLoading],
-  props: {
-    selected: {
-      type: Boolean,
-      required: true,
-    },
-    readOnly: {
-      type: Boolean,
-      required: true,
-    },
-  },
   computed: {
     subType() {
       return this.$registry.get('formula_type', this.field.array_formula_type)
@@ -52,6 +41,15 @@ export default {
     },
     needsModal() {
       return this.modalComponent !== null
+    },
+    forwarded() {
+      const { onShow, ...rest } = this.$attrs
+      return {
+        ...rest,
+        onShow: (...args) => {
+          this.showModal(...args)
+        },
+      }
     },
   },
   methods: {
