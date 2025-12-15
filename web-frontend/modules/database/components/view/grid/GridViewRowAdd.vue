@@ -22,8 +22,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
@@ -54,15 +52,6 @@ export default {
       return this.$store.getters[this.storePrefix + 'view/grid/getAddRowHover']
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        addHover:
-          this.$options.propsData.storePrefix + 'view/grid/getAddRowHover',
-      }),
-    }
-  },*/
   methods: {
     setHover(value) {
       this.$store.dispatch(this.storePrefix + 'view/grid/setAddRowHover', value)

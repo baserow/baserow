@@ -1,5 +1,6 @@
 <template>
   <FunctionalGridViewFieldArray
+    ref="cell"
     :field="field"
     :value="value"
     :row="row"

@@ -1,5 +1,5 @@
 <template>
-  <div class="grid-view__cell active">
+  <div ref="cell" class="grid-view__cell active">
     <div class="grid-field-rating">
       <Rating
         :read-only="readOnly"
