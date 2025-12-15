@@ -3728,12 +3728,15 @@ class ViewSubscriptionHandler:
         )
 
     @classmethod
-    def sync_view_rows(cls, views: list[View], model=None):
+    def sync_view_rows(cls, views: list[View], model=None) -> list[ViewRows]:
         """
         Updates or creates the ViewRows objects for the given views by executing
         the view queries and storing the resulting row IDs.
 
         :param views: The views for which to create ViewRows objects.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically.
+        :return: A list of created or updated ViewRows objects.
         """
 
         view_rows = []
