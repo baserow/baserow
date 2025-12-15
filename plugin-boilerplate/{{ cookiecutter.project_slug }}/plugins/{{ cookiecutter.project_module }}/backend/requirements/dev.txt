@@ -785,7 +785,7 @@ snoop==0.4.3
     # via -r dev.in
 sortedcontainers==2.4.0
     # via fakeredis
-sqlalchemy==2.0.31
+sqlalchemy==2.0.41
     # via langchain
 sqlparse==0.4.4
     # via
