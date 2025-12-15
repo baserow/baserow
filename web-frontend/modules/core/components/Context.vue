@@ -176,7 +176,6 @@ export default {
       // If we store the element who opened the context menu we can exclude the element
       // when clicked outside of this element.
       this.opener = isElementOrigin ? target : null
-
       this.open = true
       this.openedOnce = true
 

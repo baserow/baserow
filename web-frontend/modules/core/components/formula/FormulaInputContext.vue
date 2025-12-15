@@ -251,11 +251,11 @@ export default {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
+      this.$refs.advancedModeModal.hide()
       this.$emit(
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
-      this.$refs.advancedModeModal.hide()
     },
     cancelModeChange() {
       this.$refs.advancedModeModal.hide()

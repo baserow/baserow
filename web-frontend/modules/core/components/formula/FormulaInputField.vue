@@ -467,7 +467,8 @@ export default {
     onUpdate() {
       this.emitChange()
     },
-    handleNodeSelected({ path, node }) {
+    handleNodeSelected(data) {
+      const { path, node } = data
       switch (node.type) {
         case 'data':
           this.editor.commands.insertDataComponent(path)

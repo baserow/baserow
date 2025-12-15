@@ -26,12 +26,14 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { defineAsyncComponent } from 'vue'
 
 export default {
   name: 'ElementsListItem',
   components: {
-    ElementsList: () =>
-      import('@baserow/modules/builder/components/elements/ElementsList'),
+    ElementsList: defineAsyncComponent(() =>
+      import('@baserow/modules/builder/components/elements/ElementsList')
+    ),
   },
   inject: ['builder', 'mode'],
   props: {
