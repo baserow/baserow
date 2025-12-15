@@ -19,13 +19,13 @@
     <div class="api-docs__right">
       <APIDocsExample
         :value="value"
-        :url="$config.PUBLIC_BACKEND_URL"
+        :url="$config.public.publicBackendUrl"
         :include-user-fields-checkbox="false"
         type=""
         @input="$emit('input', $event)"
       ></APIDocsExample>
     </div>
-    <SettingsModal ref="settingsModal"></SettingsModal>
+    <SettingsModal ref="settingsModal"/>
   </div>
 </template>
 

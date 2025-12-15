@@ -9,7 +9,6 @@
         </h3>
         <div class="api-docs__endpoint-type"></div>
       </div>
-
       <MarkdownIt
         class="api-docs__content"
         :content="$t('apiDocsListTables.listTablesDescription')"
@@ -56,7 +55,7 @@ export default {
     },
     getListTablesUrl() {
       return (
-        this.$config.PUBLIC_BACKEND_URL + '/api/database/tables/all-tables/'
+        this.$config.public.publicBackendUrl + '/api/database/tables/all-tables/'
       )
     },
   },
