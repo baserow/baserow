@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
-from django.utils import timezone
 
 from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
 from celery_singleton import DuplicateTaskError, Singleton
@@ -90,7 +89,7 @@ def generate_scheduled_ai_field_generation(field_id: int, retry: int = 3):
     :param retry: The number of retries left for the task.
     """
 
-    now = timezone.now()
+    now = datetime.now(tz=timezone.utc)
 
     # this is a task that has been repeated too many times.
     if retry < 1:
@@ -157,7 +156,7 @@ def periodic_reschedule_old_ai_field_generation():
     task, if there are rows remaining to process.
     """
 
-    cutoff = timezone.now() - timedelta(
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(
         hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
     )
 
