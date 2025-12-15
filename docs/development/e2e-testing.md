@@ -5,14 +5,16 @@ Baserow includes an end-to-end test suite in the `e2e-tests` folder using [Playw
 ## Prerequisites
 
 - **Docker** - For running the E2E environment
-- **Node.js 24** - For running Playwright tests
+- **Node.js** - For running Playwright tests
 - **Yarn** - Package manager
 - **just** - Command runner
+
+See [supported.md](../installation/supported.md) for minimum version requirements.
 
 ```bash
 # Verify installation
 docker --version
-node -v      # Should be v24.x
+node -v
 yarn -v
 just --version
 ```

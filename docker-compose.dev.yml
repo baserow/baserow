@@ -74,7 +74,7 @@ services:
       - ./deploy/plugins:/baserow/plugins
       # Override the above mounts for node_modules so we use the node_modules built
       # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
+      - node_modules:/baserow/web-frontend/node_modules
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -83,8 +83,6 @@ services:
     image: baserow_web-frontend:dev
     profiles: ["optional"]
     restart: unless-stopped
-    depends_on:
-      - web-frontend
     environment:
       FEATURE_FLAGS:
     networks:
@@ -102,7 +100,7 @@ services:
       - ./deploy/plugins:/baserow/plugins
       # Override the above mounts for node_modules so we use the node_modules built
       # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
+      - node_modules:/baserow/web-frontend/node_modules
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -123,7 +121,6 @@ services:
     stdin_open: true
     tty: true
     depends_on:
-      - backend
       - otel-collector
 
   celery-export-worker:
@@ -142,7 +139,6 @@ services:
     stdin_open: true
     tty: true
     depends_on:
-      - backend
       - otel-collector
 
   celery-beat-worker:
@@ -159,8 +155,6 @@ services:
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
-    depends_on:
-      - backend
 
   celery-flower:
     image: baserow_backend:dev
@@ -181,8 +175,6 @@ services:
       REDIS_URL:
       REDIS_USER:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
-    depends_on:
-      - backend
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -250,3 +242,4 @@ services:
 
 volumes:
   pgdatadev:
+  node_modules:

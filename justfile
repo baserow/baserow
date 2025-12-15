@@ -70,6 +70,12 @@ dev *ARGS:
     CMD="${ALLARGS[0]:-}"
     REST=("${ALLARGS[@]:1}")
 
+    # Docker needs node_modules folder to exists to mount the volume inside a bind mount.
+    # Let's ensure it exists before starting anything.
+    if [ ! -d web-frontend/node_modules ]; then
+        mkdir -p web-frontend/node_modules
+    fi
+
     case "$CMD" in
         wipe)
             just _dev-stop 2>/dev/null || true

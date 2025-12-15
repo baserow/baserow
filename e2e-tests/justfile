@@ -7,8 +7,9 @@
 
 # Docker settings
 network := "baserow-e2e"
-backend_image := "baserow-backend-ci"
-frontend_image := "baserow-frontend-e2e"
+# Use same image names as `just build backend ci` and `just build web-frontend ci`
+backend_image := "baserow/backend:ci"
+frontend_image := "baserow/web-frontend:ci"
 db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
 redis_image := "redis:6"
 
@@ -25,21 +26,21 @@ default:
 # Build
 # =============================================================================
 
-# Build CI images for E2E testing
-[doc("Build backend and frontend images for E2E tests")]
+# Build CI images for E2E testing (delegates to root justfile)
+[doc("Build backend and frontend CI images for E2E tests")]
 build *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "$(git rev-parse --show-toplevel)"
 
-    echo "Building backend and frontend images in parallel..."
+    echo "Building backend and frontend CI images..."
     echo ""
 
-    # Build both images in parallel
-    docker build {{ ARGS }} -f backend/Dockerfile --target ci -t {{ backend_image }} . &
+    # Use root justfile build commands
+    just build backend ci {{ ARGS }} &
     BACKEND_PID=$!
 
-    docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t {{ frontend_image }} . &
+    just build web-frontend ci {{ ARGS }} &
     FRONTEND_PID=$!
 
     # Wait for both to complete
@@ -63,6 +64,30 @@ build *ARGS:
     echo "  {{ backend_image }}"
     echo "  {{ frontend_image }}"
 
+# Check if CI images exist, build them if not
+[private]
+_ensure-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    NEED_BUILD=false
+
+    if ! docker image inspect {{ backend_image }} > /dev/null 2>&1; then
+        echo "Backend CI image not found: {{ backend_image }}"
+        NEED_BUILD=true
+    fi
+
+    if ! docker image inspect {{ frontend_image }} > /dev/null 2>&1; then
+        echo "Frontend CI image not found: {{ frontend_image }}"
+        NEED_BUILD=true
+    fi
+
+    if [ "$NEED_BUILD" = true ]; then
+        echo ""
+        echo "Building missing CI images..."
+        just build
+    fi
+
 # =============================================================================
 # Run Environment
 # =============================================================================
@@ -70,7 +95,7 @@ build *ARGS:
 # Start E2E environment (DB, Redis, backend, frontend)
 # Uses pre-generated database dump for fast startup
 [doc("Start E2E environment containers")]
-up:
+up: _ensure-images
     #!/usr/bin/env bash
     set -euo pipefail
     cd "$(git rev-parse --show-toplevel)"
@@ -299,7 +324,7 @@ db-dump:
     # Build backend image if needed
     if ! docker image inspect {{ backend_image }} > /dev/null 2>&1; then
         echo "Building backend CI image..."
-        docker build -f backend/Dockerfile --target ci -t {{ backend_image }} .
+        just build backend ci
     fi
 
     # Start Redis (needed for Django)

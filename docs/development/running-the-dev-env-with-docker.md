@@ -268,8 +268,8 @@ The dev containers run as your host user to avoid permission issues with mounted
 
 ```bash
 # These are set automatically by just dc-dev
-UID=1000
-GID=1000
+UID=$(id -u)
+GID=$(id -g)
 ```
 
 ## Troubleshooting
@@ -288,30 +288,6 @@ just dc-dev down -v
 just prune
 just dc-dev build --no-cache --parallel
 just dc-dev up -d
-```
-
-### Permission Errors on Mounted Files
-
-The dev containers are configured to match your host UID/GID. If you still have issues:
-
-```bash
-# Check your UID/GID
-id -u  # UID
-id -g  # GID
-
-# Ensure .env.docker-dev has correct values
-echo "UID=$(id -u)" >> .env.docker-dev
-echo "GID=$(id -g)" >> .env.docker-dev
-```
-
-### Port Already in Use
-
-```bash
-# Find what's using the port
-lsof -i :3000
-lsof -i :8000
-
-# Stop the conflicting process or change the port in docker-compose.dev.yml
 ```
 
 ### Slow Performance on macOS

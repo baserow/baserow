@@ -5,12 +5,10 @@
 import? 'local.just'
 
 # Environment file configuration:
-# - .env.dev : Local development (recommended, gitignored)
+# - .env.local : Local development (recommended, gitignored)
 # - .env       : Docker/production (used by docker-compose)
 # - .env.test  : Test environment
 #
-# To use a specific env file: ENVFILE=.env.test just <recipe>
-# Default: loads .env.dev if exists, otherwise .env
 
 # Note: just doesn't support dynamic dotenv-filename, so we handle env loading in recipes
 
@@ -59,6 +57,7 @@ alias b := backend
 
 # Common shortcuts
 alias l := lint
+alias f := fix
 alias t := test
 alias dev := run-dev-server
 alias serve := run-dev-server
@@ -75,9 +74,12 @@ export UV_PROJECT_ENVIRONMENT := venv_dir
 # Use --active to respect VIRTUAL_ENV, since venv may be in parent dir
 uv_run := "uv run --active"
 
-# Helper to load .env.local if present 
+# Repo root (parent of backend/) - clean() normalizes path (removes ..)
+repo_root := clean(justfile_directory() / "..")
+
+# Helper to load .env.local if present and set PYTHONPATH with absolute paths
 # Include this at the start of bash recipes that need env vars
-_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi'
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi; export PYTHONPATH="' + repo_root / 'backend/src:' + repo_root / 'premium/backend/src:' + repo_root / 'enterprise/backend/src:' + repo_root / 'backend/flake8_plugins:' + repo_root / 'backend/tests:' + repo_root / 'premium/backend/tests:' + repo_root / 'enterprise/backend/tests${PYTHONPATH:+:$PYTHONPATH}"'
 
 # Source directories
 backend_source_dirs := "src/ ../premium/backend/src/ ../enterprise/backend/src/"
@@ -534,7 +536,7 @@ run-dev-celery: _check-dev
 
     wait
 
-# Run any command in the venv (with .env.local loaded)
+# Run any command in the venv with `uv run *args`
 [group('2 - development')]
 run *args: _check-dev
     #!/usr/bin/env bash
@@ -542,7 +544,9 @@ run *args: _check-dev
     {{ _load_env }}
     {{ uv_run }} {{ args }}
 
-# Run Django manage.py commands (e.g., just b manage makemigrations)
+alias r := run
+
+# Run Django manage.py commands (e.g., just b m createsuperuser)
 [group('2 - development')]
 manage *args: _check-dev
     #!/usr/bin/env bash
@@ -561,13 +565,26 @@ migrate *args: _check-dev
     {{ _load_env }}
     {{ uv_run }} baserow migrate {{ args }}
 
+alias mg := migrate
+
+[group('2 - development')]
+makemigrations *args: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow makemigrations {{ args }}
+
+alias mk := makemigrations
+
 # Open Django shell with shell_plus and SQL logging. Pass --print-sql to enable SQL query logging.
 [group('2 - development')]
-shell: _check-dev
+shell_plus: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
     {{ uv_run }} baserow shell_plus
+
+alias sp := shell_plus
 
 # Show current environment info
 [group('2 - development')]

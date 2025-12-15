@@ -22,17 +22,19 @@ services:
     volumes:
       - baserow_all_in_one_data_dev:/baserow/data
       - $PWD/deploy/all-in-one/baserow.sh:/baserow.sh
+      # backend
       - $PWD/backend:/baserow/backend
       - $PWD/premium/backend/:/baserow/premium/backend
       - $PWD/enterprise/backend/:/baserow/enterprise/backend
+      # web-frontend
       - $PWD/web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
       - $PWD/premium/web-frontend/:/baserow/premium/web-frontend
       - $PWD/enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - $PWD/deploy/plugins/:/baserow/plugins/
       - $PWD/tests:/baserow/tests
+      # Override the above mounts for node_modules so we use the node_modules built
+      # directly into the image instead of whatever is on your local filesystem.
+      - /baserow/web-frontend/node_modules
     stdin_open: true
     tty: true
   mailhog:

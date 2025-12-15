@@ -55,8 +55,11 @@ DATABASE_HOST=localhost DATABASE_PORT=5432 just b test
 Inside the container, the default settings work out of the box:
 
 ```bash
-just dc-dev exec backend bash
-just test
+just dcd up -d db backend
+just dcd exec backend bash
+j test
+# Or directly
+just dcd up -d db backend && just dcd exec backend "just test -n auto"
 ```
 
 #### Using an Environment File
@@ -82,17 +85,23 @@ Use a PostgreSQL container with tmpfs (in-memory storage) for 2-5x faster tests:
 
 ```bash
 # Start ramdisk database on port 5433
-just test-db start
+just test-db up
 
 # Run tests against it
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=auto
 
 # Stop when done
-just test-db stop
+just test-db down
+
+# Check status
+just test-db ps
 ```
 
-The ramdisk database runs with optimized settings:
+**Configuration**: Set `TEST_DB_PORT` environment variable to use a different port (default: 5433).
+
+The ramdisk database (`baserow-test-db` container using `pgvector/pgvector:pg13`) runs with optimized settings:
 - **tmpfs storage**: All data in RAM (8GB allocated)
+- **Large shared_buffers**: 512MB for better caching
 - **Disabled fsync/WAL**: No durability overhead
 - **Disabled autovacuum**: No background maintenance
 

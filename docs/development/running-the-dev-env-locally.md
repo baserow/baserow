@@ -405,14 +405,6 @@ kill -9 $(lsof -i :8000 | awk 'NR==2 {print $2}')
 kill -9 $(lsof -i :3000 | awk 'NR==2 {print $2}')
 ```
 
-### Permission Errors
-
-```bash
-# Reset the virtual environment
-just b venv-clean
-just b init
-```
-
 ### Celery Crashes on macOS
 
 The justfile defaults to `solo` pool on macOS to avoid fork() issues:
