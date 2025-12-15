@@ -16,8 +16,8 @@ import { BuilderFileInputElementPaidFeature } from '@baserow_enterprise/paidFeat
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
-import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg'
-import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg'
+import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg?url'
+import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg?url'
 
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 

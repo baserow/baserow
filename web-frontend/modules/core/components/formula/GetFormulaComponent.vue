@@ -75,9 +75,6 @@ export default {
     path() {
       return this.node.attrs.path
     },
-    nodesHierarchy() {
-      return this.node.attrs.nodesHierarchy || []
-    },
     isSelected() {
       return this.node.attrs.isSelected
     },

@@ -78,27 +78,27 @@ import RatingInputElement from '@baserow/modules/builder/components/elements/com
 import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
 // Images for element modal
-import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg'
-import elementImageChoice from '@baserow/modules/builder/assets/icons/element-choice.svg'
-import elementImageCheckbox from '@baserow/modules/builder/assets/icons/element-checkbox.svg'
-import elementImageColumn from '@baserow/modules/builder/assets/icons/element-column.svg'
-import elementImageDatetimePicker from '@baserow/modules/builder/assets/icons/element-datetime_picker.svg'
-import elementImageFooter from '@baserow/modules/builder/assets/icons/element-footer.svg'
-import elementImageFormContainer from '@baserow/modules/builder/assets/icons/element-form_container.svg'
-import elementImageHeader from '@baserow/modules/builder/assets/icons/element-header.svg'
-import elementImageHeading from '@baserow/modules/builder/assets/icons/element-heading.svg'
-import elementImageIFrame from '@baserow/modules/builder/assets/icons/element-iframe.svg'
-import elementImageImage from '@baserow/modules/builder/assets/icons/element-image.svg'
-import elementImageInputText from '@baserow/modules/builder/assets/icons/element-input_text.svg'
-import elementImageLink from '@baserow/modules/builder/assets/icons/element-link.svg'
-import elementImageMenu from '@baserow/modules/builder/assets/icons/element-menu.svg'
-import elementImageRatingInput from '@baserow/modules/builder/assets/icons/element-rating_input.svg'
-import elementImageRating from '@baserow/modules/builder/assets/icons/element-rating.svg'
-import elementImageRecordSelector from '@baserow/modules/builder/assets/icons/element-record_selector.svg'
-import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-repeat.svg'
-import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg'
-import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
-import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
+import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg?url'
+import elementImageChoice from '@baserow/modules/builder/assets/icons/element-choice.svg?url'
+import elementImageCheckbox from '@baserow/modules/builder/assets/icons/element-checkbox.svg?url'
+import elementImageColumn from '@baserow/modules/builder/assets/icons/element-column.svg?url'
+import elementImageDatetimePicker from '@baserow/modules/builder/assets/icons/element-datetime_picker.svg?url'
+import elementImageFooter from '@baserow/modules/builder/assets/icons/element-footer.svg?url'
+import elementImageFormContainer from '@baserow/modules/builder/assets/icons/element-form_container.svg?url'
+import elementImageHeader from '@baserow/modules/builder/assets/icons/element-header.svg?url'
+import elementImageHeading from '@baserow/modules/builder/assets/icons/element-heading.svg?url'
+import elementImageIFrame from '@baserow/modules/builder/assets/icons/element-iframe.svg?url'
+import elementImageImage from '@baserow/modules/builder/assets/icons/element-image.svg?url'
+import elementImageInputText from '@baserow/modules/builder/assets/icons/element-input_text.svg?url'
+import elementImageLink from '@baserow/modules/builder/assets/icons/element-link.svg?url'
+import elementImageMenu from '@baserow/modules/builder/assets/icons/element-menu.svg?url'
+import elementImageRatingInput from '@baserow/modules/builder/assets/icons/element-rating_input.svg?url'
+import elementImageRating from '@baserow/modules/builder/assets/icons/element-rating.svg?url'
+import elementImageRecordSelector from '@baserow/modules/builder/assets/icons/element-record_selector.svg?url'
+import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-repeat.svg?url'
+import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg?url'
+import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg?url'
+import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg?url'
 import moment from '@baserow/modules/core/moment'
 
 import _ from 'lodash'
@@ -1529,6 +1529,7 @@ export class TextElementType extends ElementType {
   }
 
   get image() {
+    console.log('eee', elementImageText)
     return elementImageText
   }
 

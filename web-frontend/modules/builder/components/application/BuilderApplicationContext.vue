@@ -55,8 +55,8 @@ export default {
   },
   methods: {
     openSettingsModal() {
-      this.$refs.builderSettingsModal.show()
       this.$refs.context.hide()
+      this.$refs.builderSettingsModal.show()
     },
   },
 }

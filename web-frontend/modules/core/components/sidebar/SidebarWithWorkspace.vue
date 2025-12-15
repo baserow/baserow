@@ -15,7 +15,7 @@
           </component>
         </ul>
         <ul v-if="applicationsCount" class="tree">
-          <div
+          <li
             v-for="applicationGroup in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
           >
@@ -30,6 +30,12 @@
                 }"
                 data-highlight="applications"
               >
+                <!--li
+                  v-for="application in applicationGroup.applications"
+                  :key="application.id"
+                >
+                  {{ application.name }}
+                </!--li-->
                 <component
                   :is="getApplicationComponent(application)"
                   v-for="application in applicationGroup.applications"
@@ -60,7 +66,7 @@
                 </component>
               </ul>
             </template>
-          </div>
+          </li>
         </ul>
       </div>
     </div>
