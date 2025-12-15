@@ -1364,3 +1364,17 @@ ci cmd="" target="":
             [[ -n "{{ cmd }}" ]] && exit 1 || exit 0
             ;;
     esac
+
+[doc("Installs pre-commit hook that will run linters before committing changes")]
+install-pre-commit-hook:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    HOOK_PATH=.git/hooks/pre-commit
+
+    test -f ${HOOK_PATH} || echo '#!/usr/bin/env bash
+    echo "Running backend lint checks..."
+    cd backend/ && just lint
+    ' > ${HOOK_PATH}
+
+    chmod 755 ${HOOK_PATH}
