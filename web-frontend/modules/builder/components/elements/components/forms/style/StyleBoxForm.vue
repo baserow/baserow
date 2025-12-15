@@ -65,6 +65,7 @@ export default {
   components: { PixelValueSelector },
   mixins: [form],
   inject: ['builder'],
+  emits: ['input', 'update:modelValue'],
   props: {
     title: {
       type: String,
@@ -72,7 +73,11 @@ export default {
     },
     value: {
       type: Object,
-      required: true,
+      default: undefined,
+    },
+    modelValue: {
+      type: Object,
+      default: undefined,
     },
     paddingIsAllowed: {
       type: Boolean,
@@ -104,6 +109,9 @@ export default {
     }
   },
   computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')
     },
@@ -116,9 +124,10 @@ export default {
   },
   methods: {
     getDefaultValues() {
-      return this.value
+      return this.currentValue
     },
     emitChange(newValues) {
+      this.$emit('update:modelValue', newValues)
       this.$emit('input', newValues)
     },
   },
