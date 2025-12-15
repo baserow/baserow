@@ -35,6 +35,7 @@ definePageMeta({
     'authenticated',
     'workspacesAndApplications',
     'pendingJobs',
+    'selectWorkspaceBuilderPage',
   ],
 })
 
@@ -71,30 +72,19 @@ const {
     const builderId = parseInt(route.params.builderId)
     const pageId = parseInt(route.params.pageId)
 
-    try {
-      const loadedBuilder = await $store.dispatch(
-        'application/selectById',
-        builderId
-      )
+    const loadedBuilder = await $store.getters['application/getSelected']
+    const loadedWorkspace = await $store.getters['workspace/getSelected']
+    const page = await $store.getters['page/getSelected']
 
+    try {
       $store.dispatch('userSourceUser/setCurrentApplication', {
         application: loadedBuilder,
       })
-
-      const loadedWorkspace = await $store.dispatch(
-        'workspace/selectById',
-        loadedBuilder.workspace.id
-      )
 
       const builderApplicationType = $registry.get(
         'application',
         BuilderApplicationType.getType()
       )
-
-      const page = await $store.dispatch('page/selectById', {
-        builder: loadedBuilder,
-        pageId,
-      })
 
       if (page.shared) {
         throw createError({
