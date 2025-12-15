@@ -25,7 +25,7 @@
               type.toLowerCase() === 'delete',
           }"
         >
-          {{ type | uppercase }}
+          {{ $filters.uppercase(type) }}
         </div>
         <div class="api-docs__example-request-url">
           {{ url }}
@@ -51,7 +51,7 @@
       <div class="api-docs__example-type">
         <Dropdown
           class="dropdown--floating"
-          :value="value.type"
+          v-model="value.type"
           @input="
             $emit('input', {
               userFieldNames: value.userFieldNames,
@@ -69,11 +69,11 @@
         </Dropdown>
         <Checkbox
           v-if="includeUserFieldsCheckbox"
-          :checked="value.userFieldNames"
+          v-model="value.userFieldNames"
           class="api-docs__example-type-item"
           @input="$emit('input', { userFieldNames: $event, type: value.type })"
-          >{{ $t('apiDocsExample.userFieldNames') }}</Checkbox
-        >
+        >{{ $t('apiDocsExample.userFieldNames') }}
+        </Checkbox>
       </div>
       <div class="api-docs__example-content-container">
         <div
@@ -145,8 +145,8 @@
 </template>
 
 <script>
-import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-import { mappingToStringifiedJSONLines } from '@baserow/modules/core/utils/object'
+import {copyToClipboard} from '@baserow/modules/database/utils/clipboard'
+import {mappingToStringifiedJSONLines} from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'APIDocsExample',
