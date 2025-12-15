@@ -70,7 +70,6 @@ export default {
      * Hide the modal.
      */
     hide(emit = true) {
-      console.log('should hide')
       if (!this.open) {
         return
       }

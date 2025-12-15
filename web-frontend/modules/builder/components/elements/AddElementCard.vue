@@ -28,6 +28,7 @@
 <script>
 export default {
   name: 'AddElementCard',
+  emits: ['click'],
   props: {
     elementType: {
       type: Object,
