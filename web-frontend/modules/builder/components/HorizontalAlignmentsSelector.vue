@@ -1,9 +1,9 @@
 <template>
   <RadioGroup
-    :model-value="value"
+    :model-value="currentValue"
     :options="alignmentValues"
     type="button"
-    @input="$emit('input', $event)"
+    @input="input"
   />
 </template>
 
@@ -12,7 +12,19 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'HorizontalAlignmentsSelector',
+  emits: ['input', 'update:modelValue'],
   props: {
+    /**
+     * The model value of the component in Vue 3 style.
+     */
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
+
+    /**
+     * The model value of the component in Vue 2 style.
+     */
     value: {
       type: String,
       required: false,
@@ -20,6 +32,11 @@ export default {
     },
   },
   computed: {
+    // Prefer Vue 3 modelValue if provided, else fall back to Vue 2 value
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+
     alignmentValues() {
       return [
         {
@@ -38,6 +55,14 @@ export default {
           icon: 'iconoir-align-right',
         },
       ]
+    },
+  },
+  methods: {
+    input(value) {
+      // Vue 3 emit
+      this.$emit('update:modelValue', value)
+      // Vue 2 emit
+      this.$emit('input', value)
     },
   },
 }
