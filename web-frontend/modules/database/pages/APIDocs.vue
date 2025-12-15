@@ -43,34 +43,42 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
-
+<script setup>
+import {computed} from 'vue'
+import {useHead} from '#imports'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
-import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import APIDocsSelectDatabase
+  from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import {useRouter} from "vue-router";
 
-export default {
-  name: 'APIDocs',
-  components: { SettingsModal, APIDocsSelectDatabase },
+const router = useRouter()
+
+const {
+  $store,
+  $config,
+  $i18n: {t: $t},
+} = useNuxtApp()
+
+
+definePageMeta({
   layout: 'login',
   middleware: ['workspacesAndApplications'],
-  head() {
-    return {
-      title: 'REST API documentation',
-      link: [
-        {
-          rel: 'canonical',
-          href:
-            this.$config.PUBLIC_WEB_FRONTEND_URL +
-            this.$router.resolve({ name: 'database-api-docs' }).href,
-        },
-      ],
-    }
-  },
-  computed: {
-    ...mapGetters({
-      isAuthenticated: 'auth/isAuthenticated',
-    }),
-  },
-}
+})
+
+useHead(
+  {
+    title: 'REST API documentation',
+    link: [
+      {
+        rel: 'canonical',
+        href:
+          $config.public.publicWebFrontendUrl +
+          router.resolve({name: 'database-api-docs'}).href,
+      },
+    ],
+  })
+
+const isAuthenticated = computed(() => {
+  return $store.getters['auth/isAuthenticated']
+})
 </script>
