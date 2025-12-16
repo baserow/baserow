@@ -165,6 +165,7 @@ export default {
       default: false,
     },
   },
+  emits: ['show', 'hide', 'input', 'update:modelValue', 'change'],
   data() {
     return {
       loaded: false,
