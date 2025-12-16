@@ -753,7 +753,10 @@
         "warningColor": "Aviso",
         "errorColor": "Error",
         "primaryColor": "Principal",
-        "transparent": "Transparente"
+        "transparent": "Transparente",
+        "customColors": "Colores personalizados",
+        "addCustomColor": "Agregar color personalizado",
+        "customColorPrefix": "Personalizado"
     },
     "pageThemeConfigBlock": {
         "backgroundColor": "Color de fondo",
