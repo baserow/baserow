@@ -74,7 +74,6 @@ export default {
      */
     setupAllEventListenersOnCellSelected() {
       const cellElement = this.getRootCell()
-      console.log(cellElement)
       cellElement.addEventListener("dblclick", this.doubleClick)
 
       // Register a body click event listener so that we can detect if a user has
