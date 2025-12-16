@@ -147,6 +147,9 @@ export default defineNuxtModule({
           nuxt.options.runtimeConfig.public.publicWebFrontendUrl,
         baserowUsePgFulltextSearch:
           process.env.BASEROW_USE_PG_FULLTEXT_SEARCH ?? 'true',
+        integrationLocalBaserowPageSizeLimit: parseInt(
+          process.env.BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT ?? 200
+        ),
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',

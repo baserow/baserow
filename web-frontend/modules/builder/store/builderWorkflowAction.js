@@ -118,7 +118,7 @@ const actions = {
   ) {
     const { $registry, $i18n, $client, $config } = useNuxtApp()
     const { data: workflowAction } = await WorkflowActionService(
-      this.$client
+      $client
     ).create(page.id, workflowActionType, eventType, configuration)
 
     await dispatch('forceCreate', { page, workflowAction })
