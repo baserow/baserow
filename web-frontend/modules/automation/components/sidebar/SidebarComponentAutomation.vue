@@ -6,45 +6,49 @@
       :application="application"
       @selected="selected"
     >
-      <template v-if="isAppSelected(application)" #body>
-        <ul class="tree__subs">
-          <SidebarItemAutomation
-            v-for="workflow in orderedWorkflows"
-            :key="workflow.id"
-            v-sortable="{
-              id: workflow.id,
-              update: orderWorkflows,
-              marginTop: -1.5,
-              enabled: $hasPermission(
-                'automation.order_workflows',
-                application,
-                application.workspace.id
-              ),
-            }"
-            :automation="application"
-            :workflow="workflow"
-          ></SidebarItemAutomation>
-        </ul>
+      <template #body>
+        <client-only>
+          <template v-if="isAppSelected(application)">
+            <ul class="tree__subs">
+              <SidebarItemAutomation
+                v-for="workflow in orderedWorkflows"
+                :key="workflow.id"
+                v-sortable="{
+                  id: workflow.id,
+                  update: orderWorkflows,
+                  marginTop: -1.5,
+                  enabled: $hasPermission(
+                    'automation.order_workflows',
+                    application,
+                    application.workspace.id
+                  ),
+                }"
+                :automation="application"
+                :workflow="workflow"
+              ></SidebarItemAutomation>
+            </ul>
 
-        <a
-          v-if="
-            $hasPermission(
-              'automation.create_workflow',
-              application,
-              application.workspace.id
-            )
-          "
-          class="tree__sub-add"
-          @click="$refs.createAutomationWorkflowModal.show()"
-        >
-          <i class="tree__sub-add-icon iconoir-plus"></i>
-          {{ $t('sidebarComponentAutomation.createAutomationWorkflow') }}
-        </a>
-        <CreateAutomationWorkflowModal
-          ref="createAutomationWorkflowModal"
-          :automation="application"
-          :workspace="application.workspace"
-        ></CreateAutomationWorkflowModal>
+            <a
+              v-if="
+                $hasPermission(
+                  'automation.create_workflow',
+                  application,
+                  application.workspace.id
+                )
+              "
+              class="tree__sub-add"
+              @click="$refs.createAutomationWorkflowModal.show()"
+            >
+              <i class="tree__sub-add-icon iconoir-plus"></i>
+              {{ $t('sidebarComponentAutomation.createAutomationWorkflow') }}
+            </a>
+            <CreateAutomationWorkflowModal
+              ref="createAutomationWorkflowModal"
+              :automation="application"
+              :workspace="application.workspace"
+            ></CreateAutomationWorkflowModal>
+          </template>
+        </client-only>
       </template>
     </SidebarApplication>
   </div>
