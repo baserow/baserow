@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Checkbox',
   component: Checkbox,
   tags: ['autodocs'],
@@ -39,12 +38,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=54%3A919&mode=dev',
     },
   },
-} satisfies Meta<typeof Checkbox>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const CheckboxStory: Story = {
+export const CheckboxStory = {
   args: {
     checked: true,
   },
@@ -56,3 +52,5 @@ export const CheckboxStory: Story = {
     template: '<Checkbox v-bind="args">Label</Checkbox>',
   }),
 }
+
+

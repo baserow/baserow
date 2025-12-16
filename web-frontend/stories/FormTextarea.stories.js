@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Textarea',
   component: FormTextarea,
   tags: ['autodocs'],
@@ -60,12 +59,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1%3A87&mode=dev',
     },
   },
-} satisfies Meta<typeof FormTextarea>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Textarea: Story = {
+export const Textarea = {
   render: (args) => ({
     components: { FormTextarea },
     setup() {
@@ -74,3 +70,5 @@ export const Textarea: Story = {
     template: '<FormTextarea v-bind="args" />',
   }),
 }
+
+

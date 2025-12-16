@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Radio from '@baserow/modules/core/components/Radio'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Radio/Radio',
   component: Radio,
   tags: ['autodocs'],
@@ -39,12 +38,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=53%3A1852&mode=dev',
     },
   },
-} satisfies Meta<typeof Radio>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const RadioStory: Story = {
+export const RadioStory = {
   render: (args) => ({
     components: { Radio },
     setup() {
@@ -53,3 +49,5 @@ export const RadioStory: Story = {
     template: '<Radio v-bind="args">Label</Radio>',
   }),
 }
+
+

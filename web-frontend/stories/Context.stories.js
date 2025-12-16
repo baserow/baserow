@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Context from '@baserow/modules/core/components/Context'
 
-const meta = {
+export default {
   title: 'Baserow/Context',
   component: Context,
   tags: ['autodocs'],
-} satisfies Meta<typeof Context>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Context },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<Context v-bind="args" />',
   }),
 }
+
+

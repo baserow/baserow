@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import SwitchInput from '@baserow/modules/core/components/SwitchInput'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Switch',
   component: SwitchInput,
   tags: ['autodocs'],
@@ -41,12 +40,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1%3A89&mode=dev',
     },
   },
-} satisfies Meta<typeof SwitchInput>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Switch: Story = {
+export const Switch = {
   render: (args) => ({
     components: { SwitchInput },
     setup() {
@@ -55,3 +51,5 @@ export const Switch: Story = {
     template: '<SwitchInput v-bind="args">Label</SwitchInput>',
   }),
 }
+
+

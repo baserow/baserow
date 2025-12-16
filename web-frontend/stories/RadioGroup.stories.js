@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import RadioGroup from '@baserow/modules/core/components/RadioGroup'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Radio/RadioGroup',
   component: RadioGroup,
   tags: ['autodocs'],
-} satisfies Meta<typeof RadioGroup>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { RadioGroup },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<RadioGroup v-bind="args" />',
   }),
 }
+
+

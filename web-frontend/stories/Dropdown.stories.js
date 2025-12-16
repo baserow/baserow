@@ -1,8 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Dropdown from '@baserow/modules/core/components/Dropdown'
 import DropdownItem from '@baserow/modules/core/components/DropdownItem'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Dropdown',
   component: Dropdown,
   tags: ['autodocs'],
@@ -65,12 +64,9 @@ const meta = {
       ],
     },
   },
-} satisfies Meta<typeof Dropdown>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Dropdown, DropdownItem },
     setup() {
@@ -87,7 +83,7 @@ export const Default: Story = {
   }),
 }
 
-export const MultipleSelection: Story = {
+export const MultipleSelection = {
   args: {
     multiple: true,
     value: [],
@@ -107,3 +103,5 @@ export const MultipleSelection: Story = {
     `,
   }),
 }
+
+

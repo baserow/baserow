@@ -1,4 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 
 // Simplified mock data for demonstration
@@ -86,7 +85,7 @@ const mockNodesHierarchy = [
   },
 ]
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/FormulaInputField',
   component: FormulaInputField,
   tags: ['autodocs'],
@@ -142,12 +141,9 @@ const meta = {
       url: 'https://www.figma.com/design/pARSkP8ldSqMVxV1t2gYYT/Application-builder?node-id=1314-35740&m=dev',
     },
   },
-} satisfies Meta<typeof FormulaInputField>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { FormulaInputField },
     setup() {
@@ -163,3 +159,5 @@ export const Default: Story = {
     `,
   }),
 }
+
+

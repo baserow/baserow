@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Alert from '@baserow/modules/core/components/Alert'
 
-const meta = {
+export default {
   title: 'Baserow/Alert',
   component: Alert,
   tags: ['autodocs'],
-} satisfies Meta<typeof Alert>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Alert },
     setup() {
