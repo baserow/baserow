@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="root"
     class="rich-text-editor"
     :class="{ 'rich-text-editor--scrollbar-thin': thinScrollbar }"
     @drop.prevent="dropImage($event)"
@@ -176,6 +177,8 @@ export default {
       bubbleMenuVisible: false,
       floatingMenuVisible: false,
       loadings: [],
+      mousedownEvent: null,
+      scrollEvent: null,
     }
   },
   computed: {
@@ -186,7 +189,7 @@ export default {
       if (this.scrollableAreaElement !== null) {
         return this.scrollableAreaElement.getBoundingClientRect()
       }
-      return () => this.$el.getBoundingClientRect()
+      return () => this.$refs.root.getBoundingClientRect()
     },
     canUploadImages() {
       const enableImages = false
@@ -209,6 +212,15 @@ export default {
   mounted() {
     this.createEditor()
   },
+  beforeUnmount() {
+    if (this.mousedownEvent !== null) {
+      this.$refs.root.removeEventListener('mousedown', this.mousedownEvent)
+    }
+    if (this.scrollEvent !== null) {
+      const elem = this.getScrollElement()
+      elem.removeEventListener('scroll', this.scrollEvent)
+    }
+  },
   unmount() {
     if (this.editor) {
       this.editor.destroy()
@@ -221,7 +233,7 @@ export default {
         this.$refs.floatingMenu?.updateReferenceClientRect()
         this.bubbleMenuVisible = false
       })
-      resizeObserver.observe(this.$el)
+      resizeObserver.observe(this.$refs.root)
       this.resizeObserver = resizeObserver
     },
     unregisterResizeObserver() {
@@ -353,30 +365,21 @@ export default {
       }
     },
     registerAutoCollapseFloatingMenuHandler() {
-      const $refs = this.$refs
-
-      const handler = () => {
-        $refs.floatingMenu?.collapse()
+      this.mousedownEvent = () => {
+        this.$refs.floatingMenu?.collapse()
       }
-
-      this.$el.addEventListener('mousedown', handler)
-      this.$once('hook:unmounted', () => {
-        this.$el.removeEventListener('mousedown', handler)
-      })
+      this.$refs.root.addEventListener('mousedown', this.mousedownEvent)
+    },
+    getScrollElement() {
+      return this.scrollableAreaElement ?? this.$refs.root
     },
     registerAutoHideBubbleMenuHandler() {
-      const _this = this
-
-      const handler = (event) => {
-        _this.bubbleMenuVisible = false
+      this.scrollEvent = () => {
+        this.bubbleMenuVisible = false
       }
 
-      const elem = this.scrollableAreaElement ?? this.$el
-
-      elem.addEventListener('scroll', handler)
-      this.$once('hook:unmounted', () => {
-        elem.removeEventListener('scroll', handler)
-      })
+      const elem = this.getScrollElement()
+      elem.addEventListener('scroll', this.scrollEvent)
     },
     renderHTMLMention() {
       const loggedUserId = this.loggedUserId
@@ -411,7 +414,7 @@ export default {
       )
     },
     isEventTargetInside(event) {
-      return isElement(this.$el, event.target) || this.isEventFromMenu(event)
+      return isElement(this.$refs.root, event.target) || this.isEventFromMenu(event)
     },
     addImages(imageFiles) {
       for (const image of imageFiles) {
