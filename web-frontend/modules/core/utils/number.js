@@ -15,3 +15,13 @@ export const ceil = (n, digits = 0) => {
 export const clamp = (value, min, max) => {
   return Math.max(min, Math.min(value, max))
 }
+
+/**
+ * Limits a number to a maximum value, useful for limiting runs
+ * @param {number} value - The value to limit
+ * @param {number} limit - The maximum allowed value
+ * @returns {number} The limited value
+ */
+export const limitRuns = (value, limit) => {
+  return Math.min(value, limit)
+}

@@ -842,6 +842,18 @@ AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
 )
 
+BASEROW_MAX_CONCURRENT_BATCH_RUNS = int(
+    os.getenv("BASEROW_MAX_CONCURRENT_BATCH_RUNS", 10)
+)
+
+BASEROW_MAX_RUNS_PER_USER_PER_HOUR = int(
+    os.getenv("BASEROW_MAX_RUNS_PER_USER_PER_HOUR", 100)
+)
+
+BASEROW_MAX_PARALLEL_JOB_RUNS = int(
+    os.getenv("BASEROW_MAX_PARALLEL_JOB_RUNS", 5)
+)
+
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
 # How many unique row values can be requested at once.

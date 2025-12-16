@@ -209,3 +209,91 @@ def rate_limit(rate: RateLimit, key: str, raise_exception: bool = True):
         return wrapper
 
     return decorator
+
+
+class RunLimiter:
+    """
+    A general purpose run limiter that tracks the number of concurrent runs
+    and enforces limits.
+    """
+
+    def __init__(self, max_concurrent_runs: int, cache_key_prefix: str):
+        """
+        Initialize the run limiter.
+
+        :param max_concurrent_runs: Maximum number of concurrent runs allowed
+        :param cache_key_prefix: Prefix for cache keys to track runs
+        """
+        self.max_concurrent_runs = max_concurrent_runs
+        self.cache_key_prefix = cache_key_prefix
+
+    def get_cache_key(self, identifier: str) -> str:
+        """Get the cache key for a specific identifier."""
+        return f"{self.cache_key_prefix}:{identifier}"
+
+    def can_run(self, identifier: str) -> bool:
+        """
+        Check if a new run can be started for the given identifier.
+
+        :param identifier: Unique identifier for the run (e.g., user_id, workflow_id)
+        :return: True if a new run can be started, False otherwise
+        """
+        cache_key = self.get_cache_key(identifier)
+        current_count = cache.get(cache_key, 0)
+        return current_count < self.max_concurrent_runs
+
+    def start_run(self, identifier: str, timeout: int = 300) -> bool:
+        """
+        Attempt to start a new run.
+
+        :param identifier: Unique identifier for the run
+        :param timeout: Cache timeout in seconds (default 5 minutes)
+        :return: True if the run was started, False if limit exceeded
+        """
+        if not self.can_run(identifier):
+            return False
+
+        cache_key = self.get_cache_key(identifier)
+        current_count = cache.get(cache_key, 0)
+        cache.set(cache_key, current_count + 1, timeout=timeout)
+        return True
+
+    def end_run(self, identifier: str) -> None:
+        """
+        Mark a run as completed.
+
+        :param identifier: Unique identifier for the run
+        """
+        cache_key = self.get_cache_key(identifier)
+        current_count = cache.get(cache_key, 0)
+        if current_count > 0:
+            cache.set(cache_key, current_count - 1, timeout=300)
+
+
+def limit_concurrent_runs(max_runs: int, cache_key_prefix: str):
+    """
+    Decorator to limit the number of concurrent runs of a function.
+
+    :param max_runs: Maximum number of concurrent runs allowed
+    :param cache_key_prefix: Prefix for cache keys
+    :raises RateLimitExceededException: When the run limit is exceeded
+    """
+    def decorator(func):
+        limiter = RunLimiter(max_runs, cache_key_prefix)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            identifier = str(args[0]) if args else "default"
+
+            if not limiter.start_run(identifier):
+                raise RateLimitExceededException(
+                    f"Maximum concurrent runs ({max_runs}) exceeded for {func.__name__}"
+                )
+
+            try:
+                return func(*args, **kwargs)
+            finally:
+                limiter.end_run(identifier)
+
+        return wrapper
+    return decorator
