@@ -111,6 +111,13 @@ export default {
     ViewFilterFormOperator,
     ViewFieldConditionItem,
   },
+  emits: [
+    'update-filter-type',
+    'update-filter',
+    'delete-filter',
+    'add-filter',
+    'add-filter-group'
+  ],
   props: {
     view: {
       type: Object,

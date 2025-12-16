@@ -20,6 +20,7 @@ import numberField from '@baserow/modules/database/mixins/numberField'
 export default {
   name: 'ViewFilterTypeNumber',
   mixins: [filterTypeInput, numberField],
+  setup: filterTypeInput.setup,
   data() {
     return {
       // Avoid rounding decimals to ensure filter values match backend behavior.

@@ -18,6 +18,7 @@ export default {
   name: 'ViewFilterTypeRating',
   components: { Rating },
   mixins: [filterTypeInput],
+  setup: filterTypeInput.setup,
   created() {
     // Value from server is always a string, we need to parse it.
     this.copy = parseInt(this.filter.value, 10)

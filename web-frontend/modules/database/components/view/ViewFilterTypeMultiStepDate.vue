@@ -86,6 +86,7 @@ import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filte
 export default {
   name: 'ViewFilterTypeMultiStepDate',
   mixins: [filterTypeMultiStepDateInput],
+  setup: filterTypeMultiStepDateInput.setup,
   data() {
     return {
       value: '',
