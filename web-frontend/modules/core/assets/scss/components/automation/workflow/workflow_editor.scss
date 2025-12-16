@@ -16,6 +16,8 @@ $connectorHeight: 32px;
 .workflow-editor__trigger-selector {
   background: $white;
   border: 1.5px solid $palette-neutral-200;
+  cursor: default;
+  pointer-events: auto;
 
   @include elevation($elevation-low);
   @include rounded($rounded-xl);

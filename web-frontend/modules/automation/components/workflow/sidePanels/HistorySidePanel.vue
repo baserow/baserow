@@ -26,6 +26,7 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import HistorySection from '@baserow/modules/automation/components/workflow/sidePanels/HistorySection'
 const store = useStore()
 
