@@ -318,7 +318,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       context,
       { viewId, fields, adhocFiltering, adhocSorting, initialRowArguments = {} }
     ) {
-      const { $client } = useNuxtApp()
+      const { $client, $config } = useNuxtApp()
       const { commit, getters, rootGetters } = context
       commit('SET_VIEW_ID', viewId)
       commit('SET_SEARCH', {
@@ -332,7 +332,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         offset: 0,
         limit: getters.getRequestSize,
         search: getters.getServerSearchTerm,
-        searchMode: getDefaultSearchModeFromEnv(this.$config),
+        searchMode: getDefaultSearchModeFromEnv($config),
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
         orderBy: getOrderBy(view, adhocSorting),
@@ -363,7 +363,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, getters, commit, rootGetters },
       parameters
     ) {
-      const { $client } = useNuxtApp()
+      const { $client, $config } = useNuxtApp()
       const viewId = getters.getViewId
       const { startIndex, endIndex } = parameters
 
@@ -417,7 +417,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           limit: rangeToFetch.limit,
           signal: lastRequestController.signal,
           search: getters.getServerSearchTerm,
-          searchMode: getDefaultSearchModeFromEnv(this.$config),
+          searchMode: getDefaultSearchModeFromEnv($config),
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           orderBy: getOrderBy(view, getters.getAdhocSorting),
@@ -461,7 +461,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, commit, getters, rootGetters },
       { fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
     ) {
-      const { $client } = useNuxtApp()
+      const { $client, $config } = useNuxtApp()
       const viewId = getters.getViewId
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
@@ -485,7 +485,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           viewId,
           signal: lastRequestController.signal,
           search: getters.getServerSearchTerm,
-          searchMode: getDefaultSearchModeFromEnv(this.$config),
+          searchMode: getDefaultSearchModeFromEnv($config),
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           filters: getFilters(view, adhocFiltering),
@@ -527,7 +527,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
             includeFieldOptions,
             signal: lastRequestController.signal,
             search: getters.getServerSearchTerm,
-            searchMode: getDefaultSearchModeFromEnv(this.$config),
+            searchMode: getDefaultSearchModeFromEnv($config),
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             orderBy: getOrderBy(view, adhocSorting),
@@ -1220,7 +1220,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { commit, getters, rootGetters },
       { row, fields, overrides, forced = false }
     ) {
-      const { $registry } = useNuxtApp()
+      const { $registry, $config } = useNuxtApp()
       // Avoid computing search on table loading
       if (getters.getActiveSearchTerm || forced) {
         const rowSearchMatches = calculateSingleRowSearchMatches(
@@ -1229,7 +1229,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           getters.isHidingRowsNotMatchingSearch,
           fields,
           $registry,
-          getDefaultSearchModeFromEnv(this.$config),
+          getDefaultSearchModeFromEnv($config),
           overrides
         )
 
