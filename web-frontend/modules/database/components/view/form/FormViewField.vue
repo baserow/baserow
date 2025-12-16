@@ -154,13 +154,13 @@
               :variant="'dark'"
               :sorted="true"
               :can-add-filter-groups="false"
-              @addFilter="addCondition(fieldOptions, $event)"
-              @addFilterGroup="addConditionGroup(fieldOptions, $event)"
-              @deleteFilter="deleteCondition(fieldOptions, $event)"
-              @updateFilter="updateCondition(fieldOptions, $event)"
-              @updateFilterType="updateFilterType(fieldOptions, $event)"
-              @deleteFilterGroup="deleteConditionGroup(fieldOptions, $event)"
-              @filterFocused="
+              @add-filter="addCondition(fieldOptions, $event)"
+              @add-filter-group="addConditionGroup(fieldOptions, $event)"
+              @delete-filter="deleteCondition(fieldOptions, $event)"
+              @update-filter="updateCondition(fieldOptions, $event)"
+              @update-filter-type="updateFilterType(fieldOptions, $event)"
+              @delete-filter-group="deleteConditionGroup(fieldOptions, $event)"
+              @filter-focussed="
                 $store.dispatch('view/setFocusFilter', { view, filterId: null })
               "
             />
@@ -233,6 +233,7 @@ export default {
       default: true,
     },
   },
+  emits: ['updated-field-options', 'hide'],
   data() {
     return {
       selected: false,

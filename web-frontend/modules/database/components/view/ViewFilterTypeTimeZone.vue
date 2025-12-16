@@ -8,5 +8,6 @@ import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDate
 export default {
   name: 'ViewFilterTypeTimeZone',
   mixins: [filterTypeDateInput],
+  setup: filterTypeDateInput.setup,
 }
 </script>
