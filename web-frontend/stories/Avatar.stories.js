@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Avatar from '@baserow/modules/core/components/Avatar'
 
-const meta = {
+export default {
   title: 'Baserow/Avatar',
   component: Avatar,
   tags: ['autodocs'],
-} satisfies Meta<typeof Avatar>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Avatar },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<Avatar v-bind="args" />',
   }),
 }
+
+

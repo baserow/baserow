@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Badge from '@baserow/modules/core/components/Badge'
 
-const meta = {
+export default {
   title: 'Baserow/Badges',
   component: Badge,
   tags: ['autodocs'],
@@ -53,12 +52,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=53%3A21&mode=dev',
     },
   },
-} satisfies Meta<typeof Badge>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   args: {
     color: 'neutral',
   },
@@ -70,3 +66,5 @@ export const Default: Story = {
     template: '<Badge v-bind="args">Label</Badge>',
   }),
 }
+
+

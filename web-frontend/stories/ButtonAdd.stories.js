@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import ButtonAdd from '@baserow/modules/core/components/ButtonAdd'
 
-const meta = {
+export default {
   title: 'Baserow/Buttons/ButtonAdd',
   component: ButtonAdd,
   tags: ['autodocs'],
-} satisfies Meta<typeof ButtonAdd>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { ButtonAdd },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<ButtonAdd v-bind="args" />',
   }),
 }
+
+

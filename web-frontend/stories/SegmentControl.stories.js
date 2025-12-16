@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/SegmentControl',
   component: SegmentControl,
   tags: ['autodocs'],
-} satisfies Meta<typeof SegmentControl>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { SegmentControl },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<SegmentControl v-bind="args" />',
   }),
 }
+
+

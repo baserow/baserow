@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import RadioCard from '@baserow/modules/core/components/RadioCard'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Radio/RadioCard',
   component: RadioCard,
   tags: ['autodocs'],
-} satisfies Meta<typeof RadioCard>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { RadioCard },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<RadioCard v-bind="args" />',
   }),
 }
+
+
