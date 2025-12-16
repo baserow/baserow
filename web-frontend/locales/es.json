@@ -445,7 +445,15 @@
         "fieldIsAlreadyPrimaryDescription": "El nuevo campo primario elegido ya es el campo primario.",
         "incompatiblePrimaryFieldTypeDescription": "El campo elegido no puede ser el campo primario porque es incompatible.",
         "cannotCreateRowsInTableTitle": "No se pueden crear filas",
-        "cannotCreateRowsInTableDescription": "No es posible crear filas en esta tabla."
+        "cannotCreateRowsInTableDescription": "No es posible crear filas en esta tabla.",
+        "databaseDeadlockTitle": "Acción falló",
+        "databaseDeadlockDescription": "No se pudo completar la acción debido a múltiples operaciones conflictivas sobre los datos al mismo tiempo. Por favor, inténtalo de nuevo.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "No se encontró una propiedad primaria única",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Esto suele ocurrir si la fuente de sincronización de datos no contiene ninguna propiedad de la que obtener un valor de fila único. En el caso de una tabla, podría ser que no exista una clave primaria.",
+        "fieldConstraintTitle": "Violación de restricción de campo",
+        "fieldConstraintDescription": "No se puede aplicar la restricción.",
+        "fieldDataConstraintTitle": "Violación de restricción de datos del campo",
+        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes."
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
@@ -481,7 +489,8 @@
         "uploadFileViaUrl": "Subir el archivo a través de la URL",
         "uploadFileViaUrlDescription": "Sube un archivo a Baserow descargándolo de la URL proporcionada.",
         "fileUploads": "Carga de archivos",
-        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`"
+        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`",
+        "listTables": "Listar tablas"
     },
     "exporterType": {
         "csv": "Exportar a CSV"
