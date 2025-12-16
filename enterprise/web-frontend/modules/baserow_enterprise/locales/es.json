@@ -623,5 +623,38 @@
         "maxFileSizePlaceholder": "Introduce un número…",
         "addFileType": "Añadir tipo de archivo",
         "fileTypesHelper": "Elige qué extensiones de archivo se permiten (una por línea) en la entrada de archivo (ej. jpg, png, svg, pdf). puedes especificar «image/*», «video/*» o «audio/*» para permitir todos los archivos de estos tipos. Déjalo vacío para permitir todos los tipos de archivo."
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Arrastrar y soltar archivos aquí o hacer clic para seleccionar",
+        "fileSizeExceeded": "Archivo demasiado grande. Máximo {max}MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Editar permisos de campo",
+        "description": "Elige quién puede editar valores en {fieldName}.",
+        "question": "¿Quién puede editar este campo?",
+        "editorTitle": "Editores y niveles superiores (predeterminado)",
+        "editorDescription": "Usuarios con roles de Editor, Creador y Administrador",
+        "builderTitle": "Creadores y niveles superiores",
+        "builderDescription": "Usuarios con roles Creador y Administrador",
+        "adminTitle": "Solo administradores",
+        "adminDescription": "Usuarios con roles Administrador",
+        "nobodyTitle": "Nadie",
+        "nobodyDescription": "Ningún usuario",
+        "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
+        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada."
+    },
+    "builderSettingTypes": {
+        "customCode": "CSS/JS personalizados"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "CSS personalizado",
+        "customJS": "JavaScript personalizado",
+        "customCSSPlaceholder": "Introduce algún código CSS personalizado…",
+        "customJSPlaceholder": "Introduce algún código JS personalizado…",
+        "externalScripts": "Scripts / hojas de estilo externos",
+        "customCodeTitle": "Código personalizado",
+        "noScript": "Mejora tu aplicación con scripts u hojas de estilo externas",
+        "customCodeHelp": "El código personalizado solo es visible en vistas previas o aplicaciones publicadas, los resultados no son visibles en el editor.",
+        "addExternalScript": "Agregar un script externo"
     }
 }
