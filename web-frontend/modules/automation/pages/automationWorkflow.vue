@@ -97,6 +97,11 @@ const workflowReadOnly = ref(false)
 const workflowDebug = ref(false)
 
 // Load page data
+const automationApplicationType = $registry.get(
+  'application',
+  AutomationApplicationType.getType()
+)
+
 const {
   data: pageData,
 } = await useAsyncData(
@@ -112,6 +117,8 @@ const {
         'workspace/selectById',
         automation.workspace.id
       )
+
+      await automationApplicationType.loadExtraData(automation)
 
       const workflow = await $store.dispatch(
         'automationWorkflow/selectById',
