@@ -28,12 +28,12 @@
       required
     >
       <Dropdown
-        :value="value"
+        :model-value="modelValue"
         :show-search="false"
         :disabled="databaseSelectedId === null"
         fixed-items
         :size="dropdownSize"
-        @input="$emit('input', $event)"
+        @update:model-value="onTableSelect"
       >
         <DropdownItem
           v-for="table in supportedServiceTables"
@@ -53,12 +53,12 @@
       required
     >
       <Dropdown
-        :value="viewId"
+        :model-value="viewId"
         :show-search="false"
-        :disabled="value === null"
+        :disabled="modelValue === null"
         fixed-items
         :size="dropdownSize"
-        @input="$emit('update:view-id', $event)"
+        @update:model-value="$emit('update:view-id', $event)"
       >
         <DropdownItem
           :name="$t('localBaserowTableSelector.chooseNoView')"
@@ -82,7 +82,7 @@
 export default {
   name: 'LocalBaserowTableSelector',
   props: {
-    value: {
+    modelValue: {
       type: Number,
       required: false,
       default: null,
@@ -113,6 +113,7 @@ export default {
       default: 'regular',
     },
   },
+  emits: ['update:modelValue', 'update:view-id'],
   data() {
     return {
       databaseSelectedId: null,
@@ -133,13 +134,13 @@ export default {
     views() {
       return (
         this.databaseSelected?.views.filter(
-          (view) => view.table_id === this.value
+          (view) => view.table_id === this.modelValue
         ) || []
       )
     },
   },
   watch: {
-    value: {
+    modelValue: {
       handler(tableId) {
         if (tableId !== null) {
           const databaseOfTableId = this.databases.find((database) =>
@@ -165,6 +166,9 @@ export default {
         )
       }
       return null
+    },
+    onTableSelect(tableId) {
+      this.$emit('update:modelValue', tableId)
     },
   },
 }

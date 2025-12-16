@@ -3,7 +3,7 @@
     class="button-floating"
     :class="classes"
     :disabled="disabled || loading"
-    v-on="$attrs"
+    v-bind="$attrs"
   >
     <i v-if="!loading" class="button-floating__icon" :class="icon" />
   </button>
@@ -51,6 +51,11 @@ export default {
       default: false,
     },
     disabled: {
+      required: false,
+      type: Boolean,
+      default: false,
+    },
+    active: {
       required: false,
       type: Boolean,
       default: false,
