@@ -42,6 +42,7 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
@@ -83,7 +84,7 @@ watch(
 const rules = {
   label: {
     maxLength: helpers.withMessage(
-      app.i18n.t('error.maxLength', { max: 75 }),
+      app.$i18n.t('error.maxLength', { max: 75 }),
       maxLength(75)
     ),
   },
