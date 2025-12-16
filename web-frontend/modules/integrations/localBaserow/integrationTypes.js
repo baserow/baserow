@@ -1,6 +1,6 @@
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
 import LocalBaserowForm from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowForm'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 
 export class LocalBaserowIntegrationType extends IntegrationType {
   static getType() {
