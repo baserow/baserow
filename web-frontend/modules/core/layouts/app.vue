@@ -93,8 +93,8 @@ const app = ref()
 
 const workspaceSearchModal = ref(null)
 
-const workspaces = computed(() => store.state.workspace.items)
-const selectedWorkspace = computed(() => store.state.workspace.selected)
+const workspaces = computed(() => store.getters['workspace/getAll'])
+const selectedWorkspace = computed(() => store.getters['workspace/getSelected'])
 const applications = computed(() => store.getters['application/getAll'])
 
 const isCollapsed = computed(() => col1Width.value < 170)
