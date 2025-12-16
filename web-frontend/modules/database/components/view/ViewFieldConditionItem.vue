@@ -145,6 +145,7 @@ export default {
       default: '',
     },
   },
+  emits: ['updateFilter', 'deleteFilter'],
   computed: {
     hasAfterValueInputContent() {
       return !!this.$slots.afterValueInput
