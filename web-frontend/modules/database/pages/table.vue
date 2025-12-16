@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="database && table">
     <DefaultErrorPage v-if="dataError && !view" :error="dataError" />
 
     <Table

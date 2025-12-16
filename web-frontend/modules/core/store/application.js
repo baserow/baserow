@@ -331,7 +331,11 @@ export const getters = {
     return state.selected.id
   },
   getSelected(state, getters) {
-    return getters.get(getters.selectedId)
+    if (state.selected?.id) {
+      return getters.get(getters.selectedId)
+    } else {
+      return null
+    }
   },
   getAll(state) {
     return state.items
