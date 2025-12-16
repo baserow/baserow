@@ -100,7 +100,7 @@ export default {
      */
     isInForeignRowEditModal() {
       let parent = this.$parent
-      while (parent !== undefined) {
+      while (parent) {
         if (parent.$options.name === ForeignRowEditModal.name) {
           return true
         }

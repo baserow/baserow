@@ -26,7 +26,8 @@ export function getFilesFromEvent(event) {
  * Converts an integer representing the amount of bytes to a human readable format.
  * Where for example 1024 will end up in 1KB.
  */
-export function formatFileSize($i18n, bytes) {
+export function formatFileSize(bytes) {
+  const { $i18n } = useNuxtApp()
   if (bytes === 0) return '0 ' + $i18n.t(`rowEditFieldFile.sizes.0`)
   const k = 1024
   const i = Math.floor(Math.log(bytes) / Math.log(k))
