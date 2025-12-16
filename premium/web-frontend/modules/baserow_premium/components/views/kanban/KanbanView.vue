@@ -263,10 +263,18 @@ export default {
     },
     existingSelectOption() {
       return this.singleSelectField.select_options.filter((option) => {
-        return this.$store.getters[
-          this.$options.propsData.storePrefix + 'view/kanban/stackExists'
-        ](option.id)
+        return this.$store.getters[`${this.storePrefix}view/kanban/stackExists`](option.id)
       })
+    },
+    singleSelectFieldId() {
+      return this.$store.getters[`${this.storePrefix}view/kanban/getSingleSelectFieldId`]
+    },
+    allRows(){return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]},
+    draggingRow() {return this.$store.getters[`${this.storePrefix}view/kanban/getDraggingRow`]},
+      fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getAllFieldOptions`
+      ]
     },
   },
   watch: {
@@ -288,19 +296,6 @@ export default {
         }
       },
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        singleSelectFieldId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getSingleSelectFieldId',
-        allRows: this.$options.propsData.storePrefix + 'view/kanban/getAllRows',
-        draggingRow:
-          this.$options.propsData.storePrefix + 'view/kanban/getDraggingRow',
-      }),
-    }
   },
   mounted() {
     if (this.row !== null) {

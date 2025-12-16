@@ -303,6 +303,7 @@ export default {
       showHiddenFieldsInRowModal: false,
       enableAutoScroll: false,
       refreshingRow: false,
+      onUnmountCallback: null,
     }
   },
   computed: {
@@ -443,9 +444,6 @@ export default {
 
     const el = this.scrollAreaElement
     el.addEventListener('scroll', onScroll)
-    this.$once('hook:beforeDestroy', () => {
-      el.removeEventListener('scroll', onScroll)
-    })
 
     // Setup the resize observer to update the grid when the size of the container changes.
     const setupGridDebounced = debounce(() => {
@@ -455,13 +453,24 @@ export default {
       setupGridDebounced()
     })
     resizeObserver.observe(this.$el)
-    this.$once('hook:beforeDestroy', () => {
-      resizeObserver.disconnect()
-    })
+
 
     // Open the row edit modal if the row is set.
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
+    }
+
+    this.onUnmountCallback = ()=> {
+
+      el.removeEventListener('scroll', onScroll)
+      resizeObserver.disconnect()
+    }
+  },
+  beforeUnmount() {
+    if (this.onUnmountCallback) {
+
+      this.onUnmountCallback()
+      this.onUnmountCallback = null
     }
   },
   methods: {
