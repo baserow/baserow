@@ -77,6 +77,7 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import { computed, ref } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
@@ -145,7 +146,7 @@ const isErrorSample = computed(() => {
  */
 const cantBeTestedReason = computed(() => {
   if (nodeType.value.isInError({ service: props.node.service })) {
-    return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
+    return app.$i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
   const previousNodes = store.getters[
@@ -159,13 +160,13 @@ const cantBeTestedReason = computed(() => {
       node: previousNode,
     })
     if (previousNodeType.isInError(previousNode)) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
+      return app.$i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
         node: nodeLabel,
       })
     }
 
     if (!previousNodeType.getSampleData(previousNode)?.data) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
+      return app.$i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
         node: nodeLabel,
       })
     }
@@ -183,7 +184,7 @@ const isDisabled = computed(() => {
 
 const sampleDataModalTitle = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
-  return app.i18n.t('simulateDispatch.sampleDataModalTitle', {
+  return app.$i18n.t('simulateDispatch.sampleDataModalTitle', {
     nodeLabel: nodeType.getLabel({
       automation: props.automation,
       node: props.node,
@@ -193,8 +194,8 @@ const sampleDataModalTitle = computed(() => {
 
 const buttonLabel = computed(() => {
   return hasSampleData.value
-    ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
-    : app.i18n.t('simulateDispatch.buttonLabelTest')
+    ? app.$i18n.t('simulateDispatch.buttonLabelTestAgain')
+    : app.$i18n.t('simulateDispatch.buttonLabelTest')
 })
 
 const simulateDispatchNode = async () => {
