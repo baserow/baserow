@@ -268,9 +268,6 @@ export default {
       const fieldId = this.view.card_cover_image_field
       return this.fields.find((field) => field.id === fieldId) || null
     },
-    singleSelectField() {
-      return this.fields.find((field) => field.id === this.singleSelectFieldId)
-    },
   },
   watch: {
     cardHeight() {
@@ -300,21 +297,6 @@ export default {
   beforeDestroy() {
     window.removeEventListener('resize', this.$el.resizeEvent)
     this.$refs.scroll.$el.removeEventListener('scroll', this.$el.scrollEvent)
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        draggingRow:
-          this.$options.propsData.storePrefix + 'view/kanban/getDraggingRow',
-        draggingOriginalStackId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getDraggingOriginalStackId',
-        singleSelectFieldId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getSingleSelectFieldId',
-      }),
-    }
   },
   methods: {
     /**
