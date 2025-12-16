@@ -71,6 +71,11 @@ export default defineNuxtModule({
       path: resolve('./middleware/tableLoading'),
     })
 
+    addRouteMiddleware({
+      name: 'selectWorkspaceDatabaseTable',
+      path: resolve('./middleware/selectWorkspaceDatabaseTable'),
+    })
+
     extendPages((pages) => {
       pages.push(...routes)
     })

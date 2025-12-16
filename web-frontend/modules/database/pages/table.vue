@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DefaultErrorPage v-if="error && !view" :error="error" />
+    <DefaultErrorPage v-if="dataError && !view" :error="dataError" />
 
     <Table
       v-else
@@ -9,7 +9,7 @@
       :fields="fields"
       :views="views"
       :view="view"
-      :view-error="error"
+      :view-error="dataError"
       :table-loading="tableLoading"
       store-prefix="page/"
       @selected-view="selectedView"
@@ -17,7 +17,6 @@
       @navigate-previous="(row, term) => setAdjacentRow(true, row, term)"
       @navigate-next="(row, term) => setAdjacentRow(false, row, term)"
     />
-
     <NuxtPage :database="database" :table="table" :fields="fields" />
   </div>
 </template>
@@ -46,6 +45,7 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
+    'selectWorkspaceDatabaseTable',
     'pendingJobs',
   ],
 })
@@ -67,111 +67,104 @@ function parseIntOrNull(x) {
   return x != null ? parseInt(x) : null
 }
 
-const { data } = await useAsyncData('database-table-page', async () => {
-  const { params, query } = route
+// Database and table is selected by the middleware
+const database = computed(() => $store.getters['application/getSelected'])
+const table = computed(() => $store.getters['table/getSelected'])
 
-  const databaseId = parseInt(params.databaseId)
-  const tableId = parseInt(params.tableId)
-  const viewId = params.viewId ? parseInt(params.viewId) : null
+const { data, error, pending, status } = await useAsyncData(
+  'database-table-page',
+  async () => {
+    const { params, query } = route
 
-  const result = {
-    database: null,
-    table: null,
-    view: undefined,
-    fields: null,
-    error: null,
-  }
+    const viewId = params.viewId ? parseInt(params.viewId) : null
 
-  // Select table
-  try {
-    const { database, table, error } = await $store.dispatch(
-      'table/selectById',
-      { databaseId, tableId }
-    )
-    await $store.dispatch('workspace/selectById', database.workspace.id)
-
-    result.database = database
-    result.table = table
-
-    if (error) {
-      result.error = normalizeError(error)
-      return result
+    const result = {
+      view: undefined,
+      fields: null,
     }
-  } catch (e) {
-    if (e.response === undefined && !(e instanceof StoreItemLookupError))
-      throw e
-    result.error = normalizeError(e)
-    return result
-  }
 
-  // Fields
-  result.fields = $store.getters['field/getAll']
+    // Let's fetch  the views
+    await $store.dispatch('view/fetchAll', table.value)
 
-  // No viewId → redirect to default view
-  if (viewId === null) {
-    const rowId = params.rowId ? parseInt(params.rowId) : null
-    const workspaceId = result.database.workspace.id
-    const viewToUse = getDefaultView(
-      nuxtApp,
-      $store,
-      workspaceId,
-      rowId !== null
-    )
+    // No viewId → redirect to default view
+    if (viewId === null) {
+      const rowId = params.rowId ? parseInt(params.rowId) : null
+      const workspaceId = database.value.workspace.id
+      const viewToUse = getDefaultView(
+        nuxtApp,
+        $store,
+        workspaceId,
+        rowId !== null
+      )
 
-    if (viewToUse) {
-      params.viewId = viewToUse.id
-      router.replace({ name: route.name, params, query })
-      return result
+      if (viewToUse) {
+        params.viewId = viewToUse.id
+        // Let's redirect to the route WITH the viewId
+        return { redirect: router.resolve({ name: route.name, params, query }) }
+      }
     }
-  }
 
-  // Select view
-  if (viewId !== null && viewId !== 0) {
-    try {
-      const { view } = await $store.dispatch('view/selectById', viewId)
+    // Fetch the Fields
+    await $store.dispatch('field/fetchAll', table.value)
+    result.fields = $store.getters['field/getAll']
 
-      result.view = view
-      const type = $registry.get('view', view.type)
+    // Select view
+    if (viewId !== null && viewId !== 0) {
+      try {
+        const { view } = await $store.dispatch('view/selectById', viewId)
 
-      if (type.isDeactivated(result.database.workspace.id)) {
-        result.error = { statusCode: 400, message: type.getDeactivatedText() }
+        result.view = view
+        const type = $registry.get('view', view.type)
+
+        if (type.isDeactivated(database.value.workspace.id)) {
+          result.error = { statusCode: 400, message: type.getDeactivatedText() }
+          return result
+        }
+
+        await type.fetch(
+          { store: $store, app: nuxtApp },
+          database.value,
+          view,
+          result.fields,
+          'page/'
+        )
+      } catch (e) {
+        if (e.response === undefined && !(e instanceof StoreItemLookupError))
+          throw e
+        result.error = normalizeError(e)
         return result
       }
-
-      await type.fetch(
-        { store: $store, app: nuxtApp },
-        result.database,
-        view,
-        result.fields,
-        'page/'
-      )
-    } catch (e) {
-      if (e.response === undefined && !(e instanceof StoreItemLookupError))
-        throw e
-      result.error = normalizeError(e)
-      return result
     }
-  }
 
-  // Possibly fetch selected row
-  if (params.rowId) {
-    await $store.dispatch('rowModalNavigation/fetchRow', {
-      tableId,
-      rowId: params.rowId,
-    })
-  }
+    // Possibly fetch selected row
+    if (params.rowId) {
+      await $store.dispatch('rowModalNavigation/fetchRow', {
+        tableId: table.value.id,
+        rowId: params.rowId,
+      })
+    }
 
-  return result
-})
+    return result
+  }
+)
+
+if (error.value) {
+  // If we have an error we want to display it.
+  throw error.value
+}
+
+if (data.value?.redirect) {
+  // We have a redirect, we can apply it now
+  await navigateTo(data.value.redirect.href)
+}
 
 /**
  * Expose the actual values via computed shortcuts
  */
-const database = computed(() => data.value?.database)
-const table = computed(() => data.value?.table)
-const view = computed(() => data.value?.view)
-const fields = computed(() => data.value?.fields)
-const error = computed(() => data.value?.error)
+
+const view = computed(() => data.value?.view || {})
+const fields = computed(() => data.value?.fields || [])
+const dataError = computed(() => data.value?.error)
 
 /**
  * Set page <head> title

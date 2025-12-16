@@ -69,12 +69,10 @@ const {
 } = await useAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
-    const builderId = parseInt(route.params.builderId)
-    const pageId = parseInt(route.params.pageId)
-
-    const loadedBuilder = await $store.getters['application/getSelected']
-    const loadedWorkspace = await $store.getters['workspace/getSelected']
-    const page = await $store.getters['page/getSelected']
+    // The objects are selected by the middleware
+    const loadedBuilder = $store.getters['application/getSelected']
+    const loadedWorkspace = $store.getters['workspace/getSelected']
+    const page = $store.getters['page/getSelected']
 
     try {
       $store.dispatch('userSourceUser/setCurrentApplication', {
