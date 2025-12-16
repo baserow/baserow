@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="root"
     v-show="dragging"
     class="grid-view__row-dragging-container"
     :style="{ left: offset + 'px' }"
@@ -83,33 +84,20 @@ export default {
       )
     },
     rowHeight() {
-      return this.$store.getter[this.storePrefix + 'view/grid/getRowHeight']
+      return this.$store.getters[this.storePrefix + 'view/grid/getRowHeight']
     },
     bufferStartIndex() {
-      return this.$store.getter[
+      return this.$store.getters[
         this.storePrefix + 'view/grid/getBufferStartIndex'
       ]
     },
     rowsCount() {
-      return this.$store.getter[this.storePrefix + 'view/grid/getCount']
+      return this.$store.getters[this.storePrefix + 'view/grid/getCount']
     },
     allRows() {
-      return this.$store.getter[this.storePrefix + 'view/grid/getAllRows']
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        rowHeight:
-          this.$options.propsData.storePrefix + 'view/grid/getRowHeight',
-        bufferStartIndex:
-          this.$options.propsData.storePrefix + 'view/grid/getBufferStartIndex',
-        rowsCount: this.$options.propsData.storePrefix + 'view/grid/getCount',
-        allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-      }),
-    }
-  },*/
   beforeUnmount() {
     this.cancel()
   },
@@ -138,19 +126,19 @@ export default {
       this.draggingTop = 0
       this.targetTop = 0
 
-      this.$el.moveEvent = (event) => this.move(event)
-      window.addEventListener('mousemove', this.$el.moveEvent)
+      this.$refs.root.moveEvent = (event) => this.move(event)
+      window.addEventListener('mousemove', this.$refs.root.moveEvent)
 
-      this.$el.upEvent = (event) => this.up(event)
-      window.addEventListener('mouseup', this.$el.upEvent)
+      this.$refs.root.upEvent = (event) => this.up(event)
+      window.addEventListener('mouseup', this.$refs.root.upEvent)
 
-      this.$el.keydownEvent = (event) => {
+      this.$refs.root.keydownEvent = (event) => {
         if (event.key === 'Escape') {
           // When the user presses the escape key we want to cancel the action
           this.cancel(event)
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.$refs.root.keydownEvent)
       this.move(event, false)
     },
     /**
@@ -213,7 +201,7 @@ export default {
         if (speed !== 0) {
           this.autoScrolling = true
           this.$emit('scroll', { pixelY: speed, pixelX: 0 })
-          this.$el.scrollTimeout = setTimeout(() => {
+          this.$refs.root.scrollTimeout = setTimeout(() => {
             this.move(null, false)
           }, 1)
         } else {
@@ -227,10 +215,10 @@ export default {
      */
     cancel() {
       this.dragging = false
-      window.removeEventListener('mousemove', this.$el.moveEvent)
-      window.removeEventListener('mouseup', this.$el.upEvent)
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
-      clearTimeout(this.$el.scrollTimeout)
+      window.removeEventListener('mousemove', this.$refs.root.moveEvent)
+      window.removeEventListener('mouseup', this.$refs.root.upEvent)
+      document.body.addEventListener('keydown', this.$refs.root.keydownEvent)
+      clearTimeout(this.$refs.root.scrollTimeout)
     },
     /**
      * Called when the user releases the mouse on a the desired position. It will
