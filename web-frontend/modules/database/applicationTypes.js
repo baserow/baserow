@@ -131,13 +131,14 @@ export class DatabaseApplicationType extends ApplicationType {
    * When another database is selected in the sidebar we have the change the
    * selected state of all the table children.
    */
-  clearChildrenSelected(application) {
+  // TODO MIG see comment in application store to understand why it was removed
+  /*clearChildrenSelected(application) {
     Object.values(application.tables).forEach((table) => {
       if (table._.selected) {
         table._.selected = false
       }
     })
-  }
+  }*/
 
   /**
    * It is not possible to update the tables by updating the application. In fact,

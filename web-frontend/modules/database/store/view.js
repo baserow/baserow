@@ -588,15 +588,11 @@ export const actions = {
    */
   select({ commit, dispatch }, view) {
     const { $config } = useNuxtApp()
-    console.log('select?')
     commit('SET_SELECTED', view)
     commit('SET_DEFAULT_VIEW_ID', view.id)
-    console.log('juste before')
 
     // Set the default view for the table.
     saveDefaultViewIdInCookie(view, $config)
-
-    console.log('after')
 
     dispatch(
       'undoRedo/updateCurrentScopeSet',

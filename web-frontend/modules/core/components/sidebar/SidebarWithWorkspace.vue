@@ -30,12 +30,6 @@
                 }"
                 data-highlight="applications"
               >
-                <!--li
-                  v-for="application in applicationGroup.applications"
-                  :key="application.id"
-                >
-                  {{ application.name }}
-                </!--li-->
                 <component
                   :is="getApplicationComponent(application)"
                   v-for="application in applicationGroup.applications"
