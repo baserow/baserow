@@ -215,6 +215,13 @@ export default {
         this.forceRefreshSelectedValue()
       })
     },
+    modelValue() {
+      this.$nextTick(() => {
+        // When the value changes we want to forcefully reload the selectName and
+        // selectedIcon a little bit later because the children might have changed.
+        this.forceRefreshSelectedValue()
+      })
+    },
     multiple(newValue) {
       this.reactiveMultiple.value = newValue
     },

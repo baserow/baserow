@@ -122,6 +122,7 @@ export default {
       await this.fetchContent([0, this.element.items_per_page])
     }
   },
+
   methods: {
     ...mapActions({
       fetchElementContent: 'elementContent/fetchElementContent',
