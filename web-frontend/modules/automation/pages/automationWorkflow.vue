@@ -66,6 +66,29 @@ definePageMeta({
 const route = useRoute()
 const { $store, $registry } = useNuxtApp()
 
+// Parse route params once at setup time
+const automationId = computed(() => {
+  const param = route.params.automationId
+  if (typeof param === 'string') {
+    return parseInt(param, 10)
+  }
+  if (typeof param === 'number') {
+    return param
+  }
+  return null
+})
+
+const workflowId = computed(() => {
+  const param = route.params.workflowId
+  if (typeof param === 'string') {
+    return parseInt(param, 10)
+  }
+  if (typeof param === 'number') {
+    return param
+  }
+  return null
+})
+
 // Local state
 const isAddingNode = ref(false)
 const workflowLoading = ref(false)
@@ -74,50 +97,42 @@ const workflowReadOnly = ref(false)
 const workflowDebug = ref(false)
 
 // Load page data
-const { data: pageData } = await useAsyncData(
-  () =>
-    `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
+const {
+  data: pageData,
+} = await useAsyncData(
+  () => `automation-workflow-${automationId.value}-${workflowId.value}`,
   async () => {
-    const automationId = parseInt(route.params.automationId)
-    const workflowId = parseInt(route.params.workflowId)
-
     try {
-      const loadedAutomation = await $store.dispatch(
+      const automation = await $store.dispatch(
         'application/selectById',
-        automationId
+        automationId.value
       )
 
-      const loadedWorkspace = await $store.dispatch(
+      const workspace = await $store.dispatch(
         'workspace/selectById',
-        loadedAutomation.workspace.id
+        automation.workspace.id
       )
 
-      const loadedWorkflow = await $store.dispatch(
+      const workflow = await $store.dispatch(
         'automationWorkflow/selectById',
         {
-          automation: loadedAutomation,
-          workflowId,
+          automation,
+          workflowId: workflowId.value,
         }
       )
 
       await $store.dispatch('automationHistory/fetchWorkflowHistory', {
-        workflowId,
+        workflowId: workflowId.value,
       })
 
       await $store.dispatch('automationWorkflowNode/fetch', {
-        workflow: loadedWorkflow,
+        workflow,
       })
 
-      const applicationType = $registry.get(
-        'application',
-        AutomationApplicationType.getType()
-      )
-      await applicationType.loadExtraData(loadedAutomation)
-
       return {
-        automation: loadedAutomation,
-        workspace: loadedWorkspace,
-        workflow: loadedWorkflow,
+        automation,
+        workspace,
+        workflow,
       }
     } catch (e) {
       throw createError({
@@ -158,6 +173,9 @@ const selectedNodeId = computed({
     return workflow.value ? workflow.value.selectedNodeId : null
   },
   set(nodeId) {
+    if (!workflow.value) {
+      return
+    }
     let nodeToSelect = null
     if (nodeId) {
       nodeToSelect = $store.getters['automationWorkflowNode/findById'](
@@ -190,6 +208,9 @@ function handleDebugToggle(newDebugState) {
 }
 
 async function handleAddNode({ type, referenceNode, position, output }) {
+  if (!workflow.value) {
+    return
+  }
   try {
     isAddingNode.value = true
     await $store.dispatch('automationWorkflowNode/create', {
@@ -200,7 +221,6 @@ async function handleAddNode({ type, referenceNode, position, output }) {
       output,
     })
   } catch (err) {
-    console.error('Failed to add node:', `${err}`)
     notifyIf(err, 'automation')
   } finally {
     isAddingNode.value = false
@@ -217,7 +237,6 @@ async function handleRemoveNode(nodeId) {
       nodeId: parseInt(nodeId),
     })
   } catch (err) {
-    console.error('Failed to delete node:', err)
     notifyIf(err, 'automation')
   }
 }
@@ -230,7 +249,6 @@ async function handleReplaceNode({ node, type }) {
       newType: type,
     })
   } catch (err) {
-    console.error('Failed to replace node:', err)
     notifyIf(err, 'automation')
   }
 }
@@ -252,7 +270,6 @@ async function handleMoveNode(moveData) {
       },
     })
   } catch (err) {
-    console.error('Failed to move node:', err)
     notifyIf(err, 'automation')
   }
 }

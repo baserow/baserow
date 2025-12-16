@@ -46,11 +46,11 @@ const props = defineProps({
 const statusTitle = computed(() => {
   switch (props.item.status) {
     case 'success':
-      return app.i18n.t('historySidePanel.statusSuccess')
+      return app.$i18n.t('historySidePanel.statusSuccess')
     case 'error':
-      return app.i18n.t('historySidePanel.statusError')
+      return app.$i18n.t('historySidePanel.statusError')
     default:
-      return app.i18n.t('historySidePanel.statusDisabled')
+      return app.$i18n.t('historySidePanel.statusDisabled')
   }
 })
 
@@ -67,7 +67,7 @@ const humanCompletedDate = computed(() => {
 
 const historyTitlePrefix = computed(() => {
   return props.item.is_test_run === true
-    ? `[${app.i18n.t('historySidePanel.testRun')}] `
+    ? `[${app.$i18n.t('historySidePanel.testRun')}] `
     : ''
 })
 
@@ -78,10 +78,10 @@ const historyMessage = computed(() => {
 
     const deltaMs = end - start
     if (deltaMs < 1000) {
-      return app.i18n.t('historySidePanel.completedInLessThanSecond')
+      return app.$i18n.t('historySidePanel.completedInLessThanSecond')
     } else {
       const deltaSeconds = deltaMs / 1000
-      return app.i18n.t('historySidePanel.completedInSeconds', {
+      return app.$i18n.t('historySidePanel.completedInSeconds', {
         s: deltaSeconds.toFixed(2),
       })
     }

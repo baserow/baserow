@@ -55,12 +55,12 @@ const nodesHierarchy = computed(() => {
   )
 
   hierarchy.push({
-    name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
+    name: app.$i18n.t('runtimeFormulaTypes.formulaTypeData'),
     type: 'data',
     icon: 'iconoir-database',
     nodes: filteredDataNodes,
     empty: filteredDataNodes.length === 0,
-    emptyText: app.i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
+    emptyText: app.$i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
   })
 
   // Add functions and operators from the registry

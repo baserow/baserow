@@ -114,6 +114,7 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import { ref } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
@@ -297,7 +298,7 @@ const getDataBeforeLabel = computed(() => {
   ).getNodePosition(props.node)
 
   if (referenceNode === null) {
-    return app.i18n.t('workflowNode.beforeLabelTrigger')
+    return app.$i18n.t('workflowNode.beforeLabelTrigger')
   }
   const referenceNodeType = app.$registry.get('node', referenceNode.type)
   return referenceNodeType.getBeforeLabel({

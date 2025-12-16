@@ -125,6 +125,7 @@
 </template>
 
 <script>
+import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { defineComponent, ref, computed } from 'vue'
