@@ -3,7 +3,7 @@ import {
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
 export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType

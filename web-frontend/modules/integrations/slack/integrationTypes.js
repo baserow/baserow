@@ -1,5 +1,5 @@
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import SlackBotForm from '@baserow/modules/integrations/slack/components/integrations/SlackBotForm'
 
 export class SlackBotIntegrationType extends IntegrationType {

@@ -16,8 +16,8 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
