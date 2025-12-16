@@ -217,18 +217,13 @@ export const actions = {
     if (getters.getSelectedId === table.id) {
       return { database, table }
     }
-    let error = null
-    await axios
-      .all([
-        dispatch('view/fetchAll', table, { root: true }),
-        dispatch('field/fetchAll', table, { root: true }),
-      ])
-      .catch((err) => {
-        error = err
-      })
-    await dispatch('application/clearChildrenSelected', null, { root: true })
+    // TODO MIG This feature was used only by the database application
+    // Was removed because it was accessing the nuxtApp from the
+    // selectWorkspaceDatabaseTable middleware when the context is not yet
+    // initialized.
+    //await dispatch('application/clearChildrenSelected', null, { root: true })
     await dispatch('forceSelect', { database, table })
-    return { database, table, error }
+    return { database, table }
   },
   forceSelect({ commit, dispatch }, { database, table }) {
     dispatch(
@@ -261,13 +256,13 @@ export const actions = {
     }
 
     // Check if the provided table id is found in the just selected database.
-    const index = database.tables.findIndex((item) => item.id === tableId)
-    if (index === -1) {
+    const table = database.tables.find((item) => item.id === tableId)
+
+    if (!table) {
       throw new StoreItemLookupError(
         'The table is not found in the selected application.'
       )
     }
-    const table = database.tables[index]
 
     return await dispatch('select', { database, table })
   },

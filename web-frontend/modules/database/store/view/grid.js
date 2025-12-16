@@ -3146,6 +3146,7 @@ export const actions = {
     { commit, dispatch, getters },
     { table, view, row, fields, getScrollTop }
   ) {
+    const { $registry, $client, $i18n, $config } = useNuxtApp()
     commit('SET_ROW_LOADING', { row, value: true })
 
     try {
