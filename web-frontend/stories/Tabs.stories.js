@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Tabs from '@baserow/modules/core/components/Tabs'
 
-const meta = {
+export default {
   title: 'Baserow/Tabs',
   component: Tabs,
   tags: ['autodocs'],
-} satisfies Meta<typeof Tabs>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Tabs },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<Tabs v-bind="args" />',
   }),
 }
+
+

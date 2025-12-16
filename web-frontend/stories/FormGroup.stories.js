@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/FormGroup',
   component: FormGroup,
   tags: ['autodocs'],
-} satisfies Meta<typeof FormGroup>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { FormGroup },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<FormGroup v-bind="args" />',
   }),
 }
+
+

@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import BadgeCollaborator from '@baserow/modules/core/components/BadgeCollaborator'
 
-const meta = {
+export default {
   title: 'Baserow/BadgeCollaborator',
   component: BadgeCollaborator,
   tags: ['autodocs'],
-} satisfies Meta<typeof BadgeCollaborator>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { BadgeCollaborator },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<BadgeCollaborator v-bind="args" />',
   }),
 }
+
+

@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Button from '@baserow/modules/core/components/Button'
 
-const meta = {
+export default {
   title: 'Baserow/Buttons/Standard',
   component: Button,
   tags: ['autodocs'],
@@ -59,12 +58,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?type=design&node-id=1-85&mode=design&t=ZFKwI59cTYQROI8S-0',
     },
   },
-} satisfies Meta<typeof Button>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Button },
     setup() {
@@ -73,3 +69,5 @@ export const Default: Story = {
     template: '<Button v-bind="args">Label</Button>',
   }),
 }
+
+

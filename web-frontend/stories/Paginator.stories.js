@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import Paginator from '@baserow/modules/core/components/Paginator'
 
-const meta = {
+export default {
   title: 'Baserow/Paginator',
   component: Paginator,
   tags: ['autodocs'],
@@ -31,12 +30,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1204%3A4132&mode=dev',
     },
   },
-} satisfies Meta<typeof Paginator>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { Paginator },
     setup() {
@@ -45,3 +41,5 @@ export const Default: Story = {
     template: '<Paginator v-bind="args" />',
   }),
 }
+
+

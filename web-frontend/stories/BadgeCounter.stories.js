@@ -1,16 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 
-const meta = {
+export default {
   title: 'Baserow/BadgeCounter',
   component: BadgeCounter,
   tags: ['autodocs'],
-} satisfies Meta<typeof BadgeCounter>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {
+export const Default = {
   render: (args) => ({
     components: { BadgeCounter },
     setup() {
@@ -19,3 +15,5 @@ export const Default: Story = {
     template: '<BadgeCounter v-bind="args" />',
   }),
 }
+
+

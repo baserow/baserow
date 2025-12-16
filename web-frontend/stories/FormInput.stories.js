@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
 import FormInput from '@baserow/modules/core/components/FormInput'
 
-const meta = {
+export default {
   title: 'Baserow/Form Elements/Input',
   component: FormInput,
   tags: ['autodocs'],
@@ -77,12 +76,9 @@ const meta = {
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1%3A87&mode=dev',
     },
   },
-} satisfies Meta<typeof FormInput>
+}
 
-export default meta
-type Story = StoryObj<typeof meta>
-
-export const Input: Story = {
+export const Input = {
   render: (args) => ({
     components: { FormInput },
     setup() {
@@ -92,7 +88,7 @@ export const Input: Story = {
   }),
 }
 
-export const WithSuffix: Story = {
+export const WithSuffix = {
   args: {
     iconRight: '',
     suffix: '.com',
@@ -109,3 +105,5 @@ export const WithSuffix: Story = {
     `,
   }),
 }
+
+
