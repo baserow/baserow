@@ -28,7 +28,10 @@
       >
     </div>
 
-    <Modal ref="advancedModeModal">
+    <Modal
+      class="formula-input-context__advanced-mode-modal"
+      ref="advancedModeModal"
+    >
       <h2 class="box__title">
         {{
           isAdvancedMode
