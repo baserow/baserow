@@ -72,7 +72,7 @@ const updateCachedValues = (page) => {
 
 const mutations = {
   SET_ITEMS(state, { builder, page, elements }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     builder.selectedElement = null
     page.elements = elements.map((element) =>
       populateElement(element, $registry)
@@ -80,7 +80,7 @@ const mutations = {
     updateCachedValues(page)
   },
   ADD_ITEM(state, { page, element, beforeId = null }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     page.elements.push(populateElement(element, $registry))
     updateCachedValues(page)
   },
@@ -137,7 +137,7 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })
 
@@ -145,13 +145,13 @@ const actions = {
     elementType.afterCreate(element, page)
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('UPDATE_ITEM', { builder, page, element, values })
     const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
   forceDelete({ commit, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const elementToDelete = getters.getElementById(page, elementId)
 
     if (getters.getSelected(builder)?.id === elementId) {
@@ -223,7 +223,7 @@ const actions = {
       forceCreate = true,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
     const { data: element } = await ElementService($client).create(
@@ -242,7 +242,7 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -271,7 +271,7 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -328,7 +328,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
@@ -358,7 +358,7 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: elements } = await ElementService($client).fetchAll(page.id)
 
     commit('SET_ITEMS', { builder, page, elements })
@@ -373,7 +373,7 @@ const actions = {
     return elements
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: elements } = await PublicBuilderService(
       $client
     ).fetchElements(page)
@@ -400,7 +400,7 @@ const actions = {
       placeInContainer = null,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const element = getters.getElementById(page, elementId)
     const { order: previousOrder, place_in_container: previousPlace } = element
 
@@ -448,7 +448,7 @@ const actions = {
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { elements, workflow_actions: workflowActions },
     } = await ElementService($client).duplicate(elementId)
@@ -477,14 +477,14 @@ const actions = {
     return elements
   },
   emitElementEvent({ getters }, { event, elements, ...rest }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     elements.forEach((element) => {
       const elementType = $registry.get('element', element.type)
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const elementType = $registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
       element,

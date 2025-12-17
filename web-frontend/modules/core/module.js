@@ -227,25 +227,15 @@ export default defineNuxtModule({
       'login'
     )
 
-    // Load vuex store FIRST - other plugins depend on it
     addPlugin(resolve('plugins/store.js'))
-
-    // vue2 compat
     addPlugin(resolve('plugins/filters.js'))
-
-    // Load Vuex state serialization plugin for SSR hydration
     addPlugin(resolve('plugins/vuexState.js'))
-
-    // Load plugin.js to provide $registry
     addPlugin(resolve('plugin.js'))
-
-    // Load other core plugins
     addPlugin(resolve('plugins/global.js'))
     addPlugin(resolve('plugins/i18n.js'))
-
-    // Load clientHandler AFTER store since it depends on store.getters
     addPlugin(resolve('plugins/clientHandler.js'))
-
+    addPlugin(resolve('plugins/priorityBus.js'))
+    addPlugin(resolve('plugins/registry.js'))
     addPlugin(resolve('plugins/permissions.js'))
     addPlugin(resolve('plugins/bus.js'))
     addPlugin(resolve('plugins/realTimeHandler.js'))
@@ -258,6 +248,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/vueDatepicker.js'))
     //addPlugin(resolve('plugins/router.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
+    addPlugin(resolve('plugins/storeRegister.js'))
 
     addRouteMiddleware({
       name: 'authentication',

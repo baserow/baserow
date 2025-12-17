@@ -92,7 +92,7 @@ import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTy
 
 export default defineNuxtPlugin({
   name: 'enterprise',
-  dependsOn: ['premium'],
+  dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
     const { $registry, $store, $featureFlagIsEnabled } = nuxtApp
 

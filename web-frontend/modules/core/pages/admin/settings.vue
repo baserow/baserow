@@ -324,7 +324,6 @@ function handleCopy() {
 }
 
 async function updateSettings(payload) {
-  console.log('v$', v$.value)
   v$.value.$touch()
   if (v$.value.$invalid) return
   try {

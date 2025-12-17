@@ -101,7 +101,7 @@ const actions = {
     commit('MOVE_ITEM_PAGE', { pageSource, pageDest, dataSourceId })
   },
   async create({ commit, dispatch }, { page, values, beforeId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
     const { data: dataSource } = await DataSourceService($client).create(
       page.id,
@@ -115,7 +115,7 @@ const actions = {
     return dataSource
   },
   async update({ commit, dispatch, getters }, { page, dataSourceId, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSource = dataSourcesOfPage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -155,7 +155,7 @@ const actions = {
     { dispatch, getters, commit },
     { page, dataSourceId, values }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSource = dataSourcesOfPage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -233,7 +233,7 @@ const actions = {
     { commit, dispatch, getters },
     { pageSource, pageDest, dataSourceId }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const dataSourcesOfSourcePage = getters.getPageDataSources(pageSource)
     const dataSource = dataSourcesOfSourcePage.find(
       (dataSource) => dataSource.id === dataSourceId
@@ -273,7 +273,7 @@ const actions = {
     commit('SET_LOADING', { page: pageSource, value: false })
   },
   async delete({ commit, dispatch, getters }, { page, dataSourceId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const dataSourcesOfPage = getters.getPageDataSources(page)
     const dataSourceIndex = dataSourcesOfPage.findIndex(
       (dataSource) => dataSource.id === dataSourceId
@@ -314,7 +314,7 @@ const actions = {
     commit('SET_LOADING', { page, value: false })
   },
   async fetch({ dispatch, commit }, { page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
     dispatch(
       'dataSourceContent/clearDataSourceContents',
@@ -336,7 +336,7 @@ const actions = {
     return dataSources
   },
   async fetchPublished({ dispatch, commit }, { page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
     dispatch(
       'dataSourceContent/clearDataSourceContents',
@@ -359,7 +359,7 @@ const actions = {
     return dataSources
   },
   async move({ dispatch }, { page, dataSourceId, beforeDataSourceId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     await dispatch('forceMove', { page, dataSourceId, beforeDataSourceId })
 
     try {

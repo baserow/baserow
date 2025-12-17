@@ -1,5 +1,4 @@
-// composables/useElementContent.js
-import { ref, computed, watch, onMounted, unref, getCurrentInstance } from 'vue'
+import { ref, computed, watch, unref } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
@@ -7,22 +6,9 @@ import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 import _ from 'lodash'
 import { useElement } from './useElement'
 
-/**
- * Composable version of the element content mixin.
- *
- * @param {Object} params
- * @param {Ref|Object} params.element
- * @param {Ref|Object} params.builder
- * @param {Ref|Object} params.workspace
- * @param {Ref|Object} params.elementPage
- * @param {Ref|Object} params.currentPage
- * @param {Ref|Object} params.applicationContext
- * @param {Ref|Object} params.elementType
- */
 export function useCollectionElement(props) {
   const store = useStore()
   const nuxtApp = useNuxtApp()
-  const { proxy } = getCurrentInstance() || {}
 
   const allElement = useElement(props)
 
@@ -47,9 +33,6 @@ export function useCollectionElement(props) {
   const resetTimeout = ref(null)
   const contentFetchEnabled = ref(true)
 
-  // =========
-  // computed
-  // =========
   const reset = computed(() =>
     store.getters['elementContent/getReset'](unref(element))
   )
@@ -130,18 +113,12 @@ export function useCollectionElement(props) {
     store.getters['element/getAncestors'](unref(element))
   )
 
-  // =========
-  // vuex actions (equivalent to mapActions)
-  // =========
   const fetchElementContent = (payload) =>
     store.dispatch('elementContent/fetchElementContent', payload)
 
   const clearElementContent = (payload) =>
     store.dispatch('elementContent/clearElementContent', payload)
 
-  // =========
-  // methods
-  // =========
   const canFetch = () => {
     return !dataSourceInError.value && contentFetchEnabled.value
   }
@@ -189,16 +166,14 @@ export function useCollectionElement(props) {
       if (!errorNotified.value) {
         errorNotified.value = true
         const dsName = dataSource.value?.name
-        const t = nuxtApp.$t || proxy?.$t
+        const t = nuxtApp.$i18n.t
 
         handleDispatchError(
           error,
-          proxy || nuxtApp,
-          t
-            ? t('builderToast.errorDataSourceDispatch', {
-                name: dsName,
-              })
-            : `Error while dispatching data source "${dsName}"`
+          nuxtApp,
+          nuxtApp.$i18n.t('builderToast.errorDataSourceDispatch', {
+            name: dsName,
+          })
         )
       }
     }
@@ -244,9 +219,6 @@ export function useCollectionElement(props) {
     return newApplicationContext
   }
 
-  // =========
-  // watchers
-  // =========
   watch(reset, () => {
     debouncedReset()
   })
@@ -292,15 +264,6 @@ export function useCollectionElement(props) {
     }
   })
 
-  // =========
-  // lifecycle
-  // =========
-  /*onMounted(async () => {
-    if (unref(elementType).fetchAtLoad) {
-      await fetchContent([0, unref(element).items_per_page], false)
-    }
-  })*/
-
   useAsyncData(
     () => `element-content-${unref(element).id}`,
     async () => {
@@ -308,7 +271,6 @@ export function useCollectionElement(props) {
       const el = unref(element)
 
       if (elType.fetchAtLoad) {
-        console.log('fetch content should be called')
         await fetchContent([0, el.items_per_page], false)
       }
 

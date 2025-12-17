@@ -16,7 +16,7 @@
 */
 const listeners = {}
 
-export default {
+const priorityBus = {
   $on(event, priority, callback) {
     if (!listeners[event]) {
       listeners[event] = []
@@ -48,3 +48,10 @@ export default {
     HIGHEST: 5,
   },
 }
+
+export default defineNuxtPlugin({
+  name: 'priorityBus',
+  setup(nuxtApp) {
+    nuxtApp.provide('priorityBus', priorityBus)
+  },
+})

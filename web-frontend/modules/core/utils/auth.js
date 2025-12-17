@@ -90,6 +90,7 @@ export const getTokenIfEnoughTimeLeft = (
   appOrContext,
   key = cookieTokenName
 ) => {
+  const nuxtApp = useNuxtApp()
   const token = getToken(appOrContext, key)
   const now = Math.ceil(new Date().getTime() / 1000)
 
