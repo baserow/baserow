@@ -20,7 +20,7 @@ const actions = {
    * making the request to the backend to update it.
    */
   setProperty({ commit }, { builder, key, value }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     return new Promise((resolve, reject) => {
       // Call the old resolve function because otherwise it can result in a memory leak.
       if (patchRequestResolve) {

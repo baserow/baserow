@@ -58,7 +58,7 @@ export default {
       return this.domain.domain_name.split('.').length === 2
     },
     webFrontendHostname() {
-      const url = new URL(this.$config.PUBLIC_WEB_FRONTEND_URL)
+      const url = new URL(this.$config.public.publicWebFrontendUrl)
       return url.hostname
     },
   },

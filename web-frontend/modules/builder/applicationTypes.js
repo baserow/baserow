@@ -95,7 +95,7 @@ export class BuilderApplicationType extends ApplicationType {
 
     return [
       ...domains.map((domain) => {
-        const url = new URL(this.app.$config.PUBLIC_WEB_FRONTEND_URL)
+        const url = new URL(this.app.$config.public.publicWebFrontendUrl)
         return `${url.protocol}//${domain.domain_name}${
           url.port ? `:${url.port}` : ''
         }`

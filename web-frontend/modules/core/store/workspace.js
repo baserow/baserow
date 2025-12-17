@@ -208,7 +208,7 @@ export const actions = {
    * Fetches all the workspaces of an authenticated user.
    */
   async fetchAll({ commit, dispatch, state }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     commit('SET_LOADING', true)
 
     try {
@@ -234,7 +234,7 @@ export const actions = {
    * Creates a new workspace with the given values.
    */
   async create({ commit, dispatch }, values) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { data } = await WorkspaceService($client).create(values)
     dispatch('forceCreate', data)
     return data
@@ -249,7 +249,7 @@ export const actions = {
    * Updates the values of the workspace with the provided id.
    */
   async update({ commit, dispatch }, { workspace, values }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { data } = await WorkspaceService($client).update(
       workspace.id,
       values
@@ -277,7 +277,7 @@ export const actions = {
    * Updates the order of the workspaces for the current user.
    */
   async order({ commit, getters }, { order, oldOrder }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     commit('ORDER_ITEMS', order)
 
     try {
@@ -291,7 +291,7 @@ export const actions = {
    * Makes the current authenticated user leave the workspace.
    */
   async leave({ commit, dispatch }, workspace) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     await WorkspaceService($client).leave(workspace.id)
     await dispatch('forceDelete', workspace)
@@ -300,7 +300,7 @@ export const actions = {
    * Deletes an existing workspace with the provided id.
    */
   async delete({ commit, dispatch }, workspace) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     try {
       await WorkspaceService($client).delete(workspace.id)
@@ -339,7 +339,7 @@ export const actions = {
     commit('DELETE_ITEM', workspace.id)
   },
   async forceFetchPermissions({ commit }, workspace) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     const { data } = await PermissionsService($client).get(workspace)
     commit('SET_PERMISSIONS', {
@@ -366,7 +366,7 @@ export const actions = {
     }
   },
   async forceRefreshRoles({ commit, getters }, workspace) {
-    const { $registry, $hasFeature, $client } = useNuxtApp()
+    const { $registry, $hasFeature, $client } = this
 
     commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: true })
 
@@ -384,7 +384,7 @@ export const actions = {
    * Select a workspace and fetch all the applications related to that workspace.
    */
   async select({ commit, dispatch }, workspace) {
-    const nuxtApp = useNuxtApp()
+    const nuxtApp = this
 
     await dispatch('fetchPermissions', workspace)
     await dispatch('fetchRoles', workspace)
@@ -414,7 +414,7 @@ export const actions = {
    * Unselect a workspace if selected and clears all the fetched applications.
    */
   unselect({ commit, dispatch, getters }, workspace) {
-    const nuxtApp = useNuxtApp()
+    const nuxtApp = this
 
     commit('UNSELECT', {})
     unsetWorkspaceCookie(nuxtApp)

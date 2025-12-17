@@ -46,7 +46,7 @@ const actions = {
     commit('UPDATE_ITEM', { domainId, values })
   },
   async fetch({ commit }, { builderId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('CLEAR_ITEMS')
 
     const { data: domains } = await DomainService($client).fetchAll(builderId)
@@ -54,7 +54,7 @@ const actions = {
     commit('SET_ITEMS', { domains })
   },
   async create({ commit }, { builderId, type, ...data }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: domain } = await DomainService($client).create(builderId, {
       type,
       ...data,
@@ -63,7 +63,7 @@ const actions = {
     commit('ADD_ITEM', { domain })
   },
   async delete({ commit }, { domainId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_ITEM_LOADING', { domainId, value: true })
 
     try {

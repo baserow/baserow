@@ -11,6 +11,7 @@ import {
   unsetUserSessionCookie,
 } from '@baserow/modules/core/utils/auth'
 import { unsetWorkspaceCookie } from '@baserow/modules/core/utils/workspace'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 export const state = () => ({
   refreshing: false,
@@ -28,7 +29,7 @@ export const state = () => ({
   // Indicates whether a token should be set persistently as a cookie using the
   // `setToken` function.
   preventSetToken: false,
-  untrustedClientSessionId: crypto.randomUUID(),
+  untrustedClientSessionId: uuid(),
   userSessionExpired: false,
   workspaceInvitations: [],
   umreadUserNotificationCount: 0,

@@ -106,7 +106,7 @@ export const actions = {
    */
   async fetchAll({ commit, dispatch }) {
     commit('SET_LOADING', true)
-    const { $client } = useNuxtApp()
+    const { $client } = this
 
     try {
       const { data } = await ApplicationService($client).fetchAll()
@@ -119,7 +119,7 @@ export const actions = {
     }
   },
   forceSetAll({ commit }, { applications }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const apps = applications.map((application) =>
       populateApplication(application, $registry)
     )
@@ -143,7 +143,7 @@ export const actions = {
    */
   // TODO MIG see other comment where this action is used
   /*clearChildrenSelected({ commit, getters }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     Object.values(getters.getAll).forEach((application) => {
       const type = $registry.get('application', application.type)
       commit('CLEAR_CHILDREN_SELECTED', { type, application })
@@ -154,7 +154,7 @@ export const actions = {
    * selected workspace.
    */
   async create({ dispatch }, { type, workspace, values, initWithData = true }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
       throw new Error(
@@ -183,7 +183,7 @@ export const actions = {
    * Forcefully create an item in the store without making a call to the server.
    */
   forceCreate({ commit, state, getters }, data) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     const app = populateApplication(data, $registry)
     const index = state.items.findIndex((item) => item.id === app.id)
@@ -198,7 +198,7 @@ export const actions = {
    * Updates the values of an existing application.
    */
   async update({ dispatch }, { application, values }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     const { data } = await ApplicationService($client).update(
       application.id,
@@ -217,7 +217,7 @@ export const actions = {
    * Forcefully update an item in the store without making a call to the server.
    */
   forceUpdate({ commit }, { application, data }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     const type = $registry.get('application', application.type)
     data = type.prepareForStoreUpdate(application, data)
@@ -231,7 +231,7 @@ export const actions = {
     { commit, getters },
     { workspace, order, oldOrder, isHashed = false }
   ) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     commit('ORDER_ITEMS', { workspace, order, isHashed })
 
@@ -247,7 +247,7 @@ export const actions = {
    * Deletes an existing application.
    */
   async delete({ commit, dispatch, getters }, application) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     try {
       await ApplicationService($client).delete(application.id)
@@ -264,7 +264,7 @@ export const actions = {
    * Forcefully delete an item in the store without making a call to the server.
    */
   forceDelete({ commit, dispatch }, application) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     const type = $registry.get('application', application.type)
     dispatch('job/deleteForApplication', application, { root: true })
