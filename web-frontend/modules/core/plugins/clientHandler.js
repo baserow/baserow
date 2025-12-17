@@ -646,7 +646,7 @@ const createAxiosInstance = (runtimeConfig) => {
 
 export default defineNuxtPlugin({
   name: 'client-handler',
-  dependsOn: ['i18n', 'store'],
+  dependsOn: ['i18n', 'create-store'],
   async setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
     const store = nuxtApp.$store

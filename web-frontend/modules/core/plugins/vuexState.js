@@ -4,7 +4,7 @@
  */
 export default defineNuxtPlugin({
   name: 'vuex-state',
-  dependsOn: ['store'],
+  dependsOn: ['create-store'],
   setup(nuxtApp) {
     const store = nuxtApp.$store
 

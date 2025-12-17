@@ -155,9 +155,10 @@ import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default defineNuxtPlugin({
+  name: 'builder',
   dependsOn: ['core', 'store', 'realtime'],
   async setup(nuxtApp) {
-    const { $store, $registry, $i18n, $realtime, $clientErrorMap } = nuxtApp
+    const { $store, $registry, $realtime, $clientErrorMap } = nuxtApp
     const context = { app: nuxtApp }
 
     // Merge builder translations into i18n
@@ -204,6 +205,10 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('themeConfigBlock')
     $registry.registerNamespace('fontFamily')
     $registry.registerNamespace('builderPageDecorator')
+    $registry.registerNamespace('pageSidePanel')
+    $registry.registerNamespace('queryParamType')
+    $registry.registerNamespace('pageAction')
+    $registry.registerNamespace('collectionField')
 
     $registry.register('application', new BuilderApplicationType(context))
     $registry.register('job', new DuplicatePageJobType(context))

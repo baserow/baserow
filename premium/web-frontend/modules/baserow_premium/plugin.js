@@ -108,7 +108,7 @@ import {
 
 export default defineNuxtPlugin({
   name: 'premium',
-  dependsOn: ['core', 'database', 'client-handler'],
+  dependsOn: ['core', 'builder', 'database', 'client-handler'],
   setup(nuxtApp) {
     const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
 
@@ -155,6 +155,10 @@ export default defineNuxtPlugin({
 
     $registry.registerNamespace('aiFieldOutputType')
     $registry.registerNamespace('paidFeature')
+    $registry.registerNamespace('license')
+    $registry.registerNamespace('groupedAggregation')
+    $registry.registerNamespace('groupedAggregationGroupedBy')
+    $registry.registerNamespace('chartFieldFormatting')
 
     $registry.register('plugin', new PremiumPlugin(context))
     $registry.register('admin', new LicensesAdminType(context))

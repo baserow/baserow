@@ -45,7 +45,7 @@ const actions = {
     { commit },
     { page, data: queryData, mode }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService
@@ -81,7 +81,7 @@ const actions = {
     { commit },
     { page, dataSourceId, dispatchContext, mode, replace = false }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService

@@ -57,6 +57,11 @@ export class Registry {
    * Registers an empty namespace.
    */
   registerNamespace(namespace) {
+    if (Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
+      throw new Error(
+        `The namespace ${namespace} already exists in the registry.`
+      )
+    }
     this.registry[namespace] = {}
   }
 
@@ -74,7 +79,10 @@ export class Registry {
     const type = object.getType()
 
     if (!Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
-      this.registry[namespace] = {}
+      throw new TypeError(
+        `The namespace ${namespace} doesn't exists. Can't register ${type}.`
+      )
+      //this.registry[namespace] = {}
     }
     this.registry[namespace][type] = object
   }
@@ -105,7 +113,9 @@ export class Registry {
     }
     if (!Object.prototype.hasOwnProperty.call(this.registry[namespace], type)) {
       throw new Error(
-        `The type "${type}" is not found under namespace "${namespace}" in the registry.`
+        `The type "${type}" is not found under namespace "${namespace}" in the registry. Available types are: ${Object.keys(
+          this.registry[namespace]
+        ).join(', ')}.`
       )
     }
     return this.registry[namespace][type]

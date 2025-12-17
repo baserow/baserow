@@ -288,13 +288,10 @@ export default {
       this.$refs.input.blur()
     },
     onInput(event) {
-      console.log(' input', event)
       const value = this.$refs.input.value
       if (!value && this.defaultValueWhenEmpty !== null) {
-        console.log('quiiiit')
         return
       }
-      console.log('eemit', this.toValue(event.target.value))
       this.$emit('input', this.toValue(event.target.value))
     },
     onBlur(event) {
