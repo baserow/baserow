@@ -197,19 +197,6 @@ class AiErrorMessage(BaseModel):
     content: str = Field(description="Error message content")
 
 
-AIMessageUnion = (
-    ChatTitleMessage
-    | AiMessage
-    | AiErrorMessage
-    | AiThinkingMessage
-    | AiMessageChunk
-    | AiReasoningChunk
-    | AiStartedMessage
-    | AiCancelledMessage
-)
-AssistantMessageUnion = HumanMessage | AIMessageUnion
-
-
 class TableNavigationType(BaseModel):
     type: Literal["database-table"]
     database_id: int
@@ -261,3 +248,17 @@ AnyNavigationType = Annotated[
 class AiNavigationMessage(BaseModel, udspy.StreamEvent):
     type: Literal["ai/navigation"] = "ai/navigation"
     location: AnyNavigationType
+
+
+AIMessageUnion = (
+    ChatTitleMessage
+    | AiMessage
+    | AiErrorMessage
+    | AiThinkingMessage
+    | AiMessageChunk
+    | AiReasoningChunk
+    | AiStartedMessage
+    | AiCancelledMessage
+    | AiNavigationMessage
+)
+AssistantMessageUnion = HumanMessage | AIMessageUnion
