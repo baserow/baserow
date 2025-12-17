@@ -5,72 +5,72 @@ export default {
   component: FormInput,
   tags: ['autodocs'],
   argTypes: {
-    suffix: {
+    modelValue: {
       control: 'text',
+      description: 'Input value (v-model)',
     },
     label: {
       control: 'text',
-    },
-    size: {
-      control: 'select',
-      options: ['small', 'regular', 'large', 'xlarge'],
+      description: 'Floating label text',
     },
     placeholder: {
       control: 'text',
-    },
-    required: {
-      control: 'boolean',
-    },
-    error: {
-      control: 'boolean',
-    },
-    monospace: {
-      control: 'boolean',
-    },
-    disabled: {
-      control: 'boolean',
-    },
-    loading: {
-      control: 'boolean',
-    },
-    iconLeft: {
-      control: 'text',
-    },
-    iconRight: {
-      control: 'text',
+      description: 'Placeholder text',
     },
     type: {
       control: 'select',
       options: ['text', 'number', 'password', 'email', 'url'],
+      description: 'Input type',
     },
-    textInvisible: {
+    size: {
+      control: 'select',
+      options: ['small', 'regular', 'large', 'xlarge'],
+      description: 'Size of the input',
+    },
+    iconLeft: {
+      control: 'text',
+      description: 'Icon class for left side',
+    },
+    iconRight: {
+      control: 'text',
+      description: 'Icon class for right side',
+    },
+    error: {
       control: 'boolean',
+      description: 'Show error state',
+    },
+    disabled: {
+      control: 'boolean',
+      description: 'Disable the input',
+    },
+    loading: {
+      control: 'boolean',
+      description: 'Show loading spinner',
+    },
+    required: {
+      control: 'boolean',
+      description: 'Mark as required',
+    },
+    monospace: {
+      control: 'boolean',
+      description: 'Use monospace font',
     },
   },
   args: {
-    suffix: '',
-    label: 'Label',
+    modelValue: '',
+    label: '',
+    placeholder: 'Type here...',
+    type: 'text',
     size: 'regular',
-    placeholder: 'Placeholder text...',
-    required: false,
+    iconLeft: '',
+    iconRight: '',
     error: false,
-    monospace: false,
     disabled: false,
     loading: false,
-    iconLeft: 'iconoir-db',
-    iconRight: 'iconoir-db',
-    type: 'text',
-    textInvisible: false,
+    required: false,
+    monospace: false,
   },
   parameters: {
-    backgrounds: {
-      default: 'light',
-      values: [
-        { name: 'white', value: '#ffffff' },
-        { name: 'light', value: '#eeeeee' },
-        { name: 'dark', value: '#222222' },
-      ],
-    },
     design: {
       type: 'figma',
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1%3A87&mode=dev',
@@ -78,7 +78,7 @@ export default {
   },
 }
 
-export const Input = {
+export const Default = {
   render: (args) => ({
     components: { FormInput },
     setup() {
@@ -88,22 +88,59 @@ export const Input = {
   }),
 }
 
-export const WithSuffix = {
+export const WithIcons = {
   args: {
-    iconRight: '',
-    suffix: '.com',
+    iconLeft: 'iconoir-user',
+    iconRight: 'iconoir-check',
+    placeholder: 'Username',
   },
   render: (args) => ({
     components: { FormInput },
     setup() {
       return { args }
     },
+    template: '<FormInput v-bind="args" />',
+  }),
+}
+
+export const Password = {
+  args: {
+    type: 'password',
+    placeholder: 'Password',
+  },
+  render: (args) => ({
+    components: { FormInput },
+    setup() {
+      return { args }
+    },
+    template: '<FormInput v-bind="args" />',
+  }),
+}
+
+export const States = {
+  render: () => ({
+    components: { FormInput },
     template: `
-      <FormInput v-bind="args">
-        <template v-if="args.suffix" #suffix>{{ args.suffix }}</template>
-      </FormInput>
+      <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px;">
+        <FormInput placeholder="Normal" />
+        <FormInput placeholder="Error" error />
+        <FormInput placeholder="Disabled" disabled />
+        <FormInput placeholder="Loading" loading />
+      </div>
     `,
   }),
 }
 
-
+export const Sizes = {
+  render: () => ({
+    components: { FormInput },
+    template: `
+      <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px;">
+        <FormInput size="small" placeholder="Small" />
+        <FormInput size="regular" placeholder="Regular" />
+        <FormInput size="large" placeholder="Large" />
+        <FormInput size="xlarge" placeholder="Extra Large" />
+      </div>
+    `,
+  }),
+}

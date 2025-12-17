@@ -1,4 +1,5 @@
 import SwitchInput from '@baserow/modules/core/components/SwitchInput'
+import { ref } from 'vue'
 
 export default {
   title: 'Baserow/Form Elements/Switch',
@@ -8,16 +9,18 @@ export default {
     value: {
       control: 'radio',
       options: ['intermediate state', true, false],
+      description: 'Switch state (v-model)',
     },
     disabled: {
       control: 'boolean',
     },
     small: {
       control: 'boolean',
+      description: 'Small size',
     },
     color: {
       control: 'select',
-      options: ['green', 'neutral'],
+      options: ['green', 'neutral', 'red'],
     },
   },
   args: {
@@ -27,14 +30,6 @@ export default {
     color: 'green',
   },
   parameters: {
-    backgrounds: {
-      default: 'white',
-      values: [
-        { name: 'white', value: '#ffffff' },
-        { name: 'light', value: '#eeeeee' },
-        { name: 'dark', value: '#222222' },
-      ],
-    },
     design: {
       type: 'figma',
       url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=1%3A89&mode=dev',
@@ -42,14 +37,35 @@ export default {
   },
 }
 
-export const Switch = {
+export const Interactive = {
   render: (args) => ({
     components: { SwitchInput },
     setup() {
-      return { args }
+      const checked = ref(false)
+      // Exclude value from args to avoid conflict with v-model
+      const { value, ...otherArgs } = args
+      return { otherArgs, checked }
     },
-    template: '<SwitchInput v-bind="args">Label</SwitchInput>',
+    template: `
+      <div>
+        <SwitchInput v-model="checked" v-bind="otherArgs">
+         Label
+        </SwitchInput>
+      </div>
+    `,
   }),
 }
 
-
+export const States = {
+  render: () => ({
+    components: { SwitchInput },
+    template: `
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <SwitchInput :value="false">Off</SwitchInput>
+        <SwitchInput :value="true">On</SwitchInput>
+        <SwitchInput disabled :value="true">Disabled On</SwitchInput>
+        <SwitchInput disabled :value="false">Disabled Off</SwitchInput>
+      </div>
+    `,
+  }),
+}
