@@ -1,5 +1,5 @@
 {
-    "type": "feature",
+    "type": "refactor",
     "message": "Debounce AI field value generation, that has been triggered from auto update.",
     "issue_origin": "github",
     "issue_number": 4317,

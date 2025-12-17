@@ -14,6 +14,7 @@ from baserow.core.jobs.mixins import (
     JobWithWebsocketId,
 )
 from baserow.core.jobs.models import Job
+from baserow.core.mixins import BigAutoFieldMixin
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
@@ -114,19 +115,12 @@ class GenerateAIValuesJob(
             return self.MODES.TABLE
 
 
-class AIFieldScheduledUpdate(models.Model):
+class AIFieldScheduledUpdate(BigAutoFieldMixin, models.Model):
     """
     Stores information about scheduled AI field updates.
 
     Part of debouncing infrastructure.
     """
-
-    id = models.BigAutoField(
-        auto_created=True,
-        primary_key=True,
-        serialize=False,
-        verbose_name="ID",
-    )
 
     field_id = models.IntegerField(
         null=False, help_text="The ID of the field to update."

@@ -1,7 +1,8 @@
 from collections.abc import Callable, Iterator
 from concurrent.futures import Executor, ThreadPoolExecutor
+from datetime import datetime, timezone
 from queue import Empty, Queue
-from typing import Any, Type
+from typing import Any, NamedTuple, Type
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -44,6 +45,13 @@ from baserow.core.utils import ChildProgressBuilder
 
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .registries import ai_field_output_registry
+
+
+class AIValueResult(NamedTuple):
+    row: GeneratedTableModel
+    result: Any | Exception
+    start_at: datetime
+    end_at: datetime
 
 
 class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
@@ -256,7 +264,7 @@ class GenerateAIValuesJobType(JobType):
         table = ai_field.table
         workspace = table.database.workspace
         model = table.get_model()
-
+        row_handler = RowHandler()
         CoreHandler().check_permissions(
             job.user,
             ListFieldsOperationType.type,
@@ -273,7 +281,7 @@ class GenerateAIValuesJobType(JobType):
             GenerateAIValuesJob.MODES.AUTO_UPDATE,
         }:
             req_row_ids = job.row_ids
-            rows = RowHandler().get_rows(model, req_row_ids)
+            rows = row_handler.get_rows(model, req_row_ids)
         else:
             raise ValueError(f"Unknown mode {job.mode} for GenerateAIValuesJob")
 
@@ -286,27 +294,61 @@ class GenerateAIValuesJobType(JobType):
 
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
 
-        def on_progress(row: GeneratedTableModel, value: Any):
+        # Keep track if we should notify about errors
+        error_notified = False
+
+        def on_progress(result: AIValueResult):
             """
-            Called when a row has been processed, to do any non-direct handling of a
-            result.
+            Called when a row has been processed, and a result from AI model has been
+            retrieved.
 
             This is called from AIValueGenerator, to inform that a row has been
             processed, and there's a specific result of that processing. If the value
             is an exception, that means the processing ended with an error.
 
-            :param row: The row being processed.
-            :param value: A result of a correct processing or an exception with an
-                error that happened during processing.
-            :return:
+            :param result: AIValueResult object with the row, result and timing
+            information.
             """
 
             rows_progress.increment()
+            row = result.row
+            start_at = result.start_at
 
-            if job.is_auto_update and not isinstance(value, Exception):
-                AIFieldScheduledUpdate.objects.filter(
-                    field_id=ai_field.id, row_id=row.id
+            if isinstance(result.result, Exception):
+                if not error_notified:
+                    rows_ai_values_generation_error.send(
+                        self,
+                        user=user,
+                        rows=[row],
+                        field=ai_field,
+                        table=table,
+                        error_message=str(result.result),
+                    )
+                return
+
+            if job.is_auto_update:
+                deleted = AIFieldScheduledUpdate.objects.filter(
+                    field_id=ai_field.id, row_id=row.id, updated_on__lte=start_at
                 ).delete()
+
+                # If no row has been deleted, we won't update the row, because the row
+                # was either canceled, or rescheduled.
+                if not deleted[0]:
+                    return
+
+            try:
+                row_handler.update_row_by_id(
+                    user,
+                    table,
+                    row.id,
+                    {ai_field.db_column: result.result},
+                    model=model,
+                    values_already_prepared=True,
+                )
+            except Exception as e:
+                logger.opt(exception=e).error(
+                    f"Cannot update AI value field {ai_field} for {row.id} row: {e}"
+                )
 
         generator = AIValueGenerator(user, ai_field, self, on_progress)
         generator.process(rows.order_by("id"))
@@ -333,7 +375,7 @@ class AIValueGenerator:
         user: AbstractUser,
         ai_field: AIField,
         signal_sender: GenerateAIValuesJob | Any | None = None,
-        on_progress: Callable | None = None,
+        on_progress: Callable[[AIValueResult], None] | None = None,
     ):
         self.user = user
 
@@ -417,22 +459,28 @@ class AIValueGenerator:
         :param row: A row to generate value for.
         """
 
+        start = datetime.now(tz=timezone.utc)
         try:
             result = self._generate_value_for(row)
+            end = datetime.now(tz=timezone.utc)
             self.results_queue.put(
-                (
+                AIValueResult(
                     row,
                     result,
+                    start,
+                    end,
                 ),
                 block=True,
             )
         except Exception as e:
             logger.opt(exception=e).error(f"Value generation for row {row} failed: {e}")
-
+            end = datetime.now(tz=timezone.utc)
             self.results_queue.put(
-                (
+                AIValueResult(
                     row,
                     e,
+                    start,
+                    end,
                 ),
                 block=True,
             )
@@ -492,46 +540,17 @@ class AIValueGenerator:
         value = ai_output_type.parse_output(value, ai_field)
         return value
 
-    def handle_error(self, row: GeneratedTableModel, exc: Exception):
+    def handle_error(self):
         """
         Error handling routine, if an error occurred during getting AI model response
         for a row.
 
         If an error occurs, this will stop processing any pending rows and will notify
         the frontend on a first occurrence of an error.
-
-        :param row: A row on which the error occurred.
-        :param exc: The exception that occurred.
-        :return:
         """
 
         self.stop_scheduling_rows()
-
-        if not self.has_errors:
-            rows_ai_values_generation_error.send(
-                self,
-                user=self.user,
-                rows=[row],
-                field=self.ai_field,
-                table=self.table,
-                error_message=str(exc),
-            )
-
         self.has_errors = True
-
-    def update_value(self, row: GeneratedTableModel, value: Any):
-        """
-        Updates AI field value for the row with the value returned from the AI model.
-        """
-
-        self.row_handler.update_row_by_id(
-            self.user,
-            self.table,
-            row.id,
-            {self.ai_field.db_column: value},
-            model=self.model,
-            values_already_prepared=True,
-        )
 
     def raise_if_error(self):
         """
@@ -583,9 +602,8 @@ class AIValueGenerator:
                     self.stop_scheduling_rows()
 
                 try:
-                    processed = self.results_queue.get(block=True, timeout=0.1)
-                    row, result = processed
-                    self.handle_result(row, result)
+                    processed = self.results_queue.get(block=True, timeout=0.01)
+                    self.handle_result(processed)
 
                 # Queue is empty, no processed results available yet; continue polling.
                 except Empty:
@@ -620,41 +638,25 @@ class AIValueGenerator:
 
         return not len(self.in_process) and not self.generate_more_rows
 
-    def handle_result(self, row: GeneratedTableModel, result: Exception | Any):
+    def handle_result(self, result: AIValueResult):
         """
         An entry point to handle the result value for a row. The result may be an
         error or a correct result, so, depending on its type, it will be handled
         differently.
 
-        A correct value will be stored for the row.
+        This will update a local state and pass the result to a callback, so the caller
+        can decide how to handle the result.
 
-        The error will be stored and a signal may be emitted, so the frontend will
-        know about the error. This will also stop processing new rows.
-
-        In any case, we want to update internal progress state.
-
-        :param row: The row for which result arrived.
-        :param result: The result from the AI model.
-        :return:
+        :param result: An AIValueResult object with the result.
         """
 
-        try:
-            if isinstance(result, Exception):
-                self.handle_error(row, result)
-            else:
-                self.update_value(row, result)
-        finally:
-            self.update_progress(row, result)
-
-    def update_progress(self, row: GeneratedTableModel, result: Exception | Any):
-        """
-        Update internal progress state.
-        """
+        if isinstance(result.result, Exception):
+            self.handle_error()
 
         self.finished += 1
-        self.in_process.remove(row.id)
+        self.in_process.remove(result.row.id)
         if self.on_progress:
-            self.on_progress(row, result)
+            self.on_progress(result)
 
     def schedule_next_row(self, rows_iter: Iterator, executor: Executor):
         """
