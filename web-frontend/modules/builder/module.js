@@ -37,6 +37,7 @@ export default defineNuxtModule({
 
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
+    addPlugin(resolve('./plugins/router.js'))
 
     addRouteMiddleware({
       name: 'selectWorkspaceBuilderPage',
@@ -48,20 +49,17 @@ export default defineNuxtModule({
       pages.push(...routes)
     })
 
-    // Create an alternative router
-    const template = addTemplate({
-      filename: 'custom-router.js',
-      getContents: () => readFileSync(resolve('./router.js'), 'utf-8'),
-    })
-
-    nuxt.options.alias['#app/router'] = template.dst
-
     // Register i18n translations
     nuxt.hook('i18n:registerModule', (register) => {
       register({
         langDir: resolve('./locales'),
         locales,
       })
+    })
+
+    nuxt.hook('vite:extendConfig', (config) => {
+      config.server ||= {}
+      config.server.allowedHosts = true
     })
   },
 })

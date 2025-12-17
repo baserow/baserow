@@ -81,7 +81,7 @@ const actions = {
     { dispatch },
     { application, userSourceType, values, beforeId = null }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: userSource } = await UserSourceService($client).create(
       application.id,
       userSourceType,
@@ -94,7 +94,7 @@ const actions = {
     return userSource
   },
   async update({ dispatch, getters }, { application, userSourceId, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const userSourcesOfPage = getters.getUserSources(application)
     const userSource = userSourcesOfPage.find(({ id }) => id === userSourceId)
 
@@ -138,7 +138,7 @@ const actions = {
     { dispatch, getters },
     { application, userSourceId, values }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const userSource = getters
       .getUserSources(application)
       .find(({ id }) => id === userSourceId)
@@ -190,7 +190,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { application, userSourceId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const userSourcesOfPage = getters.getUserSources(application)
     const userSourceIndex = userSourcesOfPage.findIndex(
       (userSource) => userSource.id === userSourceId
@@ -215,7 +215,7 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { application }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: userSources } = await UserSourceService($client).fetchAll(
       application.id
     )
@@ -231,7 +231,7 @@ const actions = {
   },
 
   async move({ dispatch }, { application, userSourceId, beforeUserSourceId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     await dispatch('forceMove', {
       application,
       userSourceId,

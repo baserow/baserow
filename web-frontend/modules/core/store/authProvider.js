@@ -19,7 +19,7 @@ export const mutations = {
 
 export const actions = {
   async fetchLoginOptions({ commit }) {
-    const { $client, $registry } = useNuxtApp()
+    const { $client, $registry } = this
 
     const { data } = await authProviderService($client).fetchLoginOptions()
 

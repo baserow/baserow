@@ -4,10 +4,10 @@
       <slot name="chooseValueState"></slot>
     </p>
     <Dropdown
-      :value="value"
+      :value="modelValue"
       show-footer
       class="data-source-dropdown"
-      @input="$emit('input', $event)"
+      @input="$emit('update:modelValue', $event)"
     >
       <DropdownItem
         v-for="dataSource in sharedDataSources"
@@ -60,7 +60,7 @@ export default {
   name: 'DataSourceDropdown',
   components: { DataSourceCreateEditModal },
   props: {
-    value: {
+    modelValue: {
       type: Number,
       required: false,
       default: null,

@@ -16,7 +16,7 @@ const actions = {
   },
 
   async fetchByDomain({ dispatch }, { domain }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data } = await PublishedBuilderService($client).fetchByDomain(
       domain
     )
