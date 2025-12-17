@@ -6,63 +6,54 @@ export default {
   component: Dropdown,
   tags: ['autodocs'],
   argTypes: {
-    searchText: {
+    value: {
       control: 'text',
+      description: 'Selected value (v-model)',
     },
     placeholder: {
       control: 'text',
-    },
-    showSearch: {
-      control: 'boolean',
-    },
-    showInput: {
-      control: 'boolean',
-    },
-    showFooter: {
-      control: 'boolean',
+      description: 'Placeholder text when empty',
     },
     disabled: {
       control: 'boolean',
+      description: 'Disable the dropdown',
+    },
+    showSearch: {
+      control: 'boolean',
+      description: 'Show search input inside dropdown',
+    },
+    searchText: {
+      control: 'text',
+      description: 'Search input value',
+    },
+    showFooter: {
+      control: 'boolean',
+      description: 'Show footer slot',
     },
     size: {
       control: 'select',
-      options: ['regular', 'large'],
-    },
-    tabindex: {
-      control: 'number',
+      options: ['regular', 'large', 'small'],
+      description: 'Size of the dropdown',
     },
     fixedItems: {
       control: 'boolean',
-    },
-    maxWidth: {
-      control: 'boolean',
+      description: 'Use fixed positioning for items',
     },
     error: {
       control: 'boolean',
+      description: 'Show error state',
     },
   },
   args: {
-    searchText: '',
-    placeholder: '',
-    showSearch: false,
-    showInput: true,
-    showFooter: false,
+    value: '',
+    placeholder: 'Select an option',
     disabled: false,
+    showSearch: false,
+    searchText: '',
+    showFooter: false,
     size: 'regular',
-    tabindex: 0,
     fixedItems: false,
-    maxWidth: false,
     error: false,
-  },
-  parameters: {
-    backgrounds: {
-      default: 'white',
-      values: [
-        { name: 'white', value: '#ffffff' },
-        { name: 'light', value: '#eeeeee' },
-        { name: 'dark', value: '#222222' },
-      ],
-    },
   },
 }
 
@@ -73,20 +64,45 @@ export const Default = {
       return { args }
     },
     template: `
-      <Dropdown v-bind="args">
-        <DropdownItem name="France" value="france"></DropdownItem>
-        <DropdownItem name="Italy" value="italy"></DropdownItem>
-        <DropdownItem name="Netherlands" value="netherlands"></DropdownItem>
-        <DropdownItem name="Belgium" value="belgium"></DropdownItem>
-      </Dropdown>
+      <div style="height: 250px;">
+        <Dropdown v-bind="args">
+          <DropdownItem name="Option 1" value="1" />
+          <DropdownItem name="Option 2" value="2" />
+          <DropdownItem name="Option 3" value="3" />
+        </Dropdown>
+      </div>
     `,
   }),
 }
 
-export const MultipleSelection = {
+export const WithSearch = {
   args: {
-    multiple: true,
-    value: [],
+    showSearch: true,
+    placeholder: 'Search country...',
+  },
+  render: (args) => ({
+    components: { Dropdown, DropdownItem },
+    setup() {
+      return { args }
+    },
+    template: `
+      <div style="height: 300px;">
+        <Dropdown v-bind="args">
+          <DropdownItem name="France" value="fr" />
+          <DropdownItem name="Germany" value="de" />
+          <DropdownItem name="Italy" value="it" />
+          <DropdownItem name="Spain" value="es" />
+          <DropdownItem name="United Kingdom" value="uk" />
+        </Dropdown>
+      </div>
+    `,
+  }),
+}
+
+export const Disabled = {
+  args: {
+    disabled: true,
+    value: '1',
   },
   render: (args) => ({
     components: { Dropdown, DropdownItem },
@@ -95,13 +111,31 @@ export const MultipleSelection = {
     },
     template: `
       <Dropdown v-bind="args">
-        <DropdownItem name="France" value="france"></DropdownItem>
-        <DropdownItem name="Italy" value="italy"></DropdownItem>
-        <DropdownItem name="Netherlands" value="netherlands"></DropdownItem>
-        <DropdownItem name="Belgium" value="belgium"></DropdownItem>
+        <DropdownItem name="Option 1" value="1" />
       </Dropdown>
     `,
   }),
 }
 
-
+export const WithFooter = {
+  args: {
+    showFooter: true,
+  },
+  render: (args) => ({
+    components: { Dropdown, DropdownItem },
+    setup() {
+      return { args }
+    },
+    template: `
+      <div style="height: 250px;">
+        <Dropdown v-bind="args">
+          <DropdownItem name="Option A" value="a" />
+          <DropdownItem name="Option B" value="b" />
+          <template #footer>
+              Custom Footer Content
+          </template>
+        </Dropdown>
+      </div>
+    `,
+  }),
+}

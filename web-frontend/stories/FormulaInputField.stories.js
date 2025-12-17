@@ -1,85 +1,39 @@
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 
-// Simplified mock data for demonstration
 const mockNodesHierarchy = [
   {
-    name: 'Data',
-    type: 'data',
-    identifier: null,
-    icon: null,
-    order: null,
-    description: null,
-    example: null,
-    highlightingColor: null,
+    name: 'Fields',
+    type: 'field',
     nodes: [
       {
-        name: 'User',
-        type: 'data',
-        identifier: 'user',
-        icon: 'iconoir-question-mark',
-        order: null,
-        description: null,
-        example: null,
-        highlightingColor: null,
-        signature: null,
-        nodes: [
-          {
-            name: 'Email',
-            type: 'data',
-            identifier: 'email',
-            description: null,
-            icon: 'iconoir-text',
-            highlightingColor: null,
-            order: null,
-            signature: null,
-          },
-        ],
+        name: 'Name',
+        identifier: 'field_1',
+        type: 'field',
+        icon: 'iconoir-text',
+      },
+      {
+        name: 'Age',
+        identifier: 'field_2',
+        type: 'field',
+        icon: 'iconoir-hashtag',
       },
     ],
   },
   {
     name: 'Functions',
     type: 'function',
-    identifier: null,
-    order: null,
-    signature: null,
-    description: null,
-    example: null,
-    highlightingColor: null,
-    icon: null,
     nodes: [
       {
-        name: 'Text',
-        identifier: null,
-        order: null,
-        signature: null,
-        description: null,
-        example: null,
-        highlightingColor: null,
-        icon: null,
-        nodes: [
-          {
-            name: 'concat',
-            type: 'function',
-            description: 'Concatenates multiple text values together',
-            example: "concat('Hello', ' ', 'World')",
-            highlightingColor: 'blue',
-            icon: 'iconoir-text',
-            identifier: null,
-            order: null,
-            signature: {
-              parameters: [
-                {
-                  type: 'string',
-                  required: true,
-                },
-              ],
-              variadic: true,
-              minArgs: 1,
-              maxArgs: null,
-            },
-          },
-        ],
+        name: 'concat',
+        description: 'Concatenate strings',
+        type: 'function',
+        icon: 'iconoir-text',
+      },
+      {
+        name: 'upper',
+        description: 'Convert to uppercase',
+        type: 'function',
+        icon: 'iconoir-text',
       },
     ],
   },
@@ -92,6 +46,7 @@ export default {
   argTypes: {
     value: {
       control: 'text',
+      description: 'Formula value',
     },
     placeholder: {
       control: 'text',
@@ -99,43 +54,17 @@ export default {
     disabled: {
       control: 'boolean',
     },
-    small: {
-      control: 'boolean',
-    },
-    mode: {
-      control: 'select',
-      options: ['advanced', 'simple', 'raw'],
-    },
     loading: {
-      control: 'boolean',
-    },
-    contextPosition: {
-      control: 'select',
-      options: ['bottom', 'left', 'right'],
-    },
-    readOnly: {
       control: 'boolean',
     },
   },
   args: {
-    value: '',
-    placeholder: 'Enter a formula...',
+    value: "concat('Hello', ' ', field('Name'))",
+    placeholder: 'Enter formula...',
     disabled: false,
-    small: false,
-    mode: 'advanced',
     loading: false,
-    contextPosition: 'bottom',
-    readOnly: false,
   },
   parameters: {
-    backgrounds: {
-      default: 'light',
-      values: [
-        { name: 'white', value: '#ffffff' },
-        { name: 'light', value: '#eeeeee' },
-        { name: 'dark', value: '#222222' },
-      ],
-    },
     design: {
       type: 'figma',
       url: 'https://www.figma.com/design/pARSkP8ldSqMVxV1t2gYYT/Application-builder?node-id=1314-35740&m=dev',
@@ -150,7 +79,7 @@ export const Default = {
       return { args, mockNodesHierarchy }
     },
     template: `
-      <div style="padding: 20px; max-width: 600px;">
+      <div style="padding: 20px; max-width: 600px; height: 300px;">
         <FormulaInputField
           v-bind="args"
           :nodes-hierarchy="mockNodesHierarchy"
@@ -159,5 +88,3 @@ export const Default = {
     `,
   }),
 }
-
-
