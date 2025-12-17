@@ -89,7 +89,7 @@ export const actions = {
     commit('SET_CURRENT_APPLICATION', { application })
   },
   async forceAuthenticate({ dispatch }, { application, userSource, user }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { access_token: access, refresh_token: refresh },
     } = await UserSourceService($client).forceAuthenticate(
@@ -108,7 +108,7 @@ export const actions = {
     { dispatch },
     { application, userSource, credentials, setCookie }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { access_token: access, refresh_token: refresh },
     } = await UserSourceService($client).authenticate(
@@ -127,7 +127,7 @@ export const actions = {
     { commit, getters },
     { application, access, refresh, tokenUpdatedAt, setCookie = true }
   ) {
-    const nuxtApp = useNuxtApp()
+    const nuxtApp = this
     commit('SET_TOKENS', { application, access, refresh, tokenUpdatedAt })
     const tokenPayload = jwtDecode(access)
     commit('SET_USER_DATA', {

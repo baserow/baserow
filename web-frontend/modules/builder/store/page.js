@@ -118,7 +118,7 @@ const actions = {
     { commit, dispatch },
     { builder, name, path, pathParams, queryParams }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: page } = await PageService($client).create(
       builder.id,
       name,
@@ -134,7 +134,7 @@ const actions = {
     return page
   },
   async update({ dispatch }, { builder, page, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data } = await PageService($client).update(page.id, values)
 
     const update = Object.keys(values).reduce((result, key) => {
@@ -145,7 +145,7 @@ const actions = {
     await dispatch('forceUpdate', { builder, page, values: update })
   },
   async delete({ dispatch }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     await PageService($client).delete(page.id)
 
     await dispatch('forceDelete', { builder, page })
@@ -154,7 +154,7 @@ const actions = {
     { commit, getters },
     { builder, order, oldOrder, isHashed = false }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('ORDER_PAGES', { builder, order, isHashed })
 
     try {
@@ -168,7 +168,7 @@ const actions = {
     commit('SET_DEVICE_TYPE_SELECTED', deviceType)
   },
   async duplicate({ commit, dispatch }, { page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: job } = await PageService($client).duplicate(page.id)
 
     await dispatch('job/create', job, { root: true })

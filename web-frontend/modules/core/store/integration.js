@@ -83,7 +83,7 @@ const actions = {
     { dispatch },
     { application, integrationType, values, beforeId = null }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: integration } = await IntegrationService($client).create(
       application.id,
       integrationType,
@@ -96,7 +96,7 @@ const actions = {
     return integration
   },
   async update({ dispatch, getters }, { application, integrationId, values }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const integrationsOfApplication = getters.getIntegrations(application)
     const integration = integrationsOfApplication.find(
       ({ id }) => id === integrationId
@@ -132,7 +132,7 @@ const actions = {
     { dispatch, getters },
     { application, integrationId, values }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const integration = getters
       .getIntegrations(application)
       .find(({ id }) => id === integrationId)
@@ -184,7 +184,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { application, integrationId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const integrationsOfApplication = getters.getIntegrations(application)
     const integrationIndex = integrationsOfApplication.findIndex(
       (integration) => integration.id === integrationId
@@ -212,7 +212,7 @@ const actions = {
     { dispatch },
     { application, integrationId, beforeIntegrationId }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     await dispatch('forceMove', {
       application,
       integrationId,
@@ -231,7 +231,7 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { application }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: integrations } = await IntegrationService($client).fetchAll(
       application.id
     )

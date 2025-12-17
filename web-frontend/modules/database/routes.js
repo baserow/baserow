@@ -45,10 +45,12 @@ export const routes = [
   // These redirect exist because the original api docs path was `/api/docs`, but
   // they have been renamed.
   {
+    name: 'database-api-docs-redirect',
     path: '/api/docs',
     redirect: '/api-docs',
   },
   {
+    name: 'database-api-docs-details-redirect',
     path: '/api/docs/database/:databaseId',
     redirect: '/api-docs/database/:databaseId',
   },

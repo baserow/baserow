@@ -86,7 +86,7 @@ const actions = {
       replace = false,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
 
     /**
      * If `dataSource` is `null`, this means that we are trying to fetch the content
