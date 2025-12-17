@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 2.0.5
+
+### Bug fixes
+* [Builder] Resolved a bug which prevented user sources from being created or updated with a user source table.
+
+
 ## Released 2.0.4
 
 ### New features
