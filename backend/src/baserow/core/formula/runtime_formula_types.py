@@ -23,6 +23,18 @@ from baserow.core.formula.validator import ensure_string
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
 
+    @staticmethod
+    def getCategoryType():
+        from baserow.core.enums import FORMULA_CATEGORY
+
+        return FORMULA_CATEGORY["TEXT"]
+
+    @staticmethod
+    def getFormulaType():
+        from baserow.core.enums import FORMULA_TYPE
+
+        return FORMULA_TYPE["FUNCTION"]
+
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
         arg_type = TextBaserowRuntimeFormulaArgumentType()
         return next(
@@ -40,6 +52,18 @@ class RuntimeConcat(RuntimeFormulaFunction):
 class RuntimeGet(RuntimeFormulaFunction):
     type = "get"
     args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    @staticmethod
+    def getCategoryType():
+        from baserow.core.enums import FORMULA_CATEGORY
+
+        return FORMULA_CATEGORY["MISC"]
+
+    @staticmethod
+    def getFormulaType():
+        from baserow.core.enums import FORMULA_TYPE
+
+        return FORMULA_TYPE["FUNCTION"]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return context[args[0]]
@@ -316,6 +340,18 @@ class RuntimeNow(RuntimeFormulaFunction):
 
     args = []
 
+    @staticmethod
+    def getCategoryType():
+        from baserow.core.enums import FORMULA_CATEGORY
+
+        return FORMULA_CATEGORY["DATE"]
+
+    @staticmethod
+    def getFormulaType():
+        from baserow.core.enums import FORMULA_TYPE
+
+        return FORMULA_TYPE["FUNCTION"]
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return timezone.now()
 
@@ -385,6 +421,18 @@ class RuntimeGenerateUUID(RuntimeFormulaFunction):
 
 class RuntimeIf(RuntimeFormulaFunction):
     type = "if"
+
+    @staticmethod
+    def getCategoryType():
+        from baserow.core.enums import FORMULA_CATEGORY
+
+        return FORMULA_CATEGORY["CONDITION"]
+
+    @staticmethod
+    def getFormulaType():
+        from baserow.core.enums import FORMULA_TYPE
+
+        return FORMULA_TYPE["FUNCTION"]
 
     args = [
         BooleanBaserowRuntimeFormulaArgumentType(),

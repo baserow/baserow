@@ -80,4 +80,8 @@ export const FORMULA_CATEGORY = {
     category: 'categoryCondition',
     iconClass: 'iconoir-code-brackets-square',
   },
+  MISC: {
+    category: 'categoryMisc',
+    iconClass: 'iconoir-box-iso',
+  },
 }

@@ -181,7 +181,7 @@ These functions work with arrays and lookup values to perform calculations acros
 | every           | Returns true if every one of the provided looked up values is true, false otherwise.                                                                                                                                           | every(boolean values from a lookup() or field())                                | every(field("my lookup") = "test")                                                                                                                                                                                                    |
 | any             | Returns true if any one of the provided looked up values is true, false if they are all false.                                                                                                                                 | any(boolean values from a lookup() or field())                                  | any(field("my lookup") = "test")                                                                                                                                                                                                      |
 
-### Special Functions
+### Misc Functions
 
 | Functions  | Details                                                                                                                                                                                                                          | Syntax                                                                               | Examples                                                                                                                    |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
@@ -191,23 +191,8 @@ These functions work with arrays and lookup values to perform calculations acros
 | when_empty | If the first input is calculated to be empty the second input will be returned instead, otherwise if the first input is not empty the first will be returned.                                                                    | when_empty(any, same type as the first)                                              | when_empty(field("a"), "default")                                                                                           |
 | has_option | Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options.                                                                                | has_option(multiple select, text); has_option(lookup(link row, single select), text) | has_option(field('multiple select'), 'option_a'); has_option(lookup(field('link row'), field('single select')), 'option_a') |
 
-### URL Functions
+### Array Manipulation Functions
 
-| Functions      | Details                                                                      | Syntax                 | Examples                                                                |
-| -------------- | ---------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------- |
-| link           | Creates a hyperlink using the URI provided in the first argument.            | link(text)             | link('http://your-text-here.com')                                       |
-| button         | Creates a button using the URI (first argument) and label (second argument). | button(text, text)     | button('http://your-text-here.com', 'your-label')                       |
-| get_link_url   | Gets the url from a formula using the link or button functions.              | get_link_url(link)     | get_link_url(field('formula link field')) = 'http://your-text-here.com' |
-| get_link_label | Gets the label from a formula using the link or button functions.            | get_link_label(button) | get_link_label(field('formula button field')) = 'your-label'            |
-
-### File Functions
-
-| Functions             | Details                                                                            | Syntax                        | Examples                                             |
-| --------------------- | ---------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------- |
-| get_file_count        | Returns the number of files in a file field.                                       | get_file_count(a file field)  | get_file_count(field("File field"))                  |
-| get_file_size         | Returns the file size from a single file returned from the index function.         | get_file_size(a file)         | get_file_size(index(field("File field"), 0))         |
-| get_file_visible_name | Returns the visible file name from a single file returned from the index function. | get_file_visible_name(a file) | get_file_visible_name(index(field("File field"), 0)) |
-| get_file_mime_type    | Returns the file mime type from a single file returned from the index function.    | get_file_mime_type(a file)    | get_file_mime_type(index(field("File field"), 0))    |
-| get_image_width       | Returns the image width from a single file returned from the index function.       | get_image_width(a file)       | get_image_width(index(field("File field"), 0))       |
-| get_image_height      | Returns the image height from a single file returned from the index function.      | get_image_height(a file)      | get_image_height(index(field("File field"), 0))      |
-| is_image              | Returns if the single file returned from the index function is an image or not.    | is_image(a file)              | is_image(index(field("File field"), 0))              |
+| Functions | Details                                                | Syntax  | Examples                          |
+| --------- | ------------------------------------------------------ | ------- | --------------------------------- |
+| index     | Returns the element at the specified index in an array | index(array, number) | index(field('file field'), 0) |

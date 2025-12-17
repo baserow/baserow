@@ -684,7 +684,8 @@
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",
     "categoryDate": "Date",
-    "categoryCondition": "Condition"
+    "categoryCondition": "Condition",
+    "categoryMisc": "Miscellaneous"
   },
   "nodeExplorer": {
     "noResults": "No results found",
