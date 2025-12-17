@@ -116,7 +116,7 @@ const actions = {
     { dispatch },
     { page, workflowActionType, eventType, configuration = null }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowAction } = await WorkflowActionService(
       $client
     ).create(page.id, workflowActionType, eventType, configuration)
@@ -126,7 +126,7 @@ const actions = {
     return workflowAction
   },
   async fetch({ commit }, { page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowActions } = await WorkflowActionService(
       $client
     ).fetchAll(page.id)
@@ -134,7 +134,7 @@ const actions = {
     commit('SET_ITEMS', { page, workflowActions })
   },
   async fetchPublished({ commit }, { page }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowActions } = await PublishedBuilderService(
       $client
     ).fetchWorkflowActions(page.id)
@@ -142,7 +142,7 @@ const actions = {
     commit('SET_ITEMS', { page, workflowActions })
   },
   async delete({ dispatch }, { page, workflowAction }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     dispatch('forceDelete', { page, workflowActionId: workflowAction.id })
 
     try {
@@ -156,7 +156,7 @@ const actions = {
     { dispatch, commit },
     { page, workflowAction, values }
   ) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     // These values should not be updated via a regular update request
     const excludeValues = ['order']
 
@@ -233,7 +233,7 @@ const actions = {
     })
   },
   async dispatchAction({ dispatch }, { workflowActionId, data, files }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const { data: result } = await WorkflowActionService($client).dispatch(
       workflowActionId,
       data,
@@ -242,7 +242,7 @@ const actions = {
     return result
   },
   async order({ commit, getters }, { page, order, element = null }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const workflowActions =
       element !== null
         ? getters.getElementWorkflowActions(page, element.id)

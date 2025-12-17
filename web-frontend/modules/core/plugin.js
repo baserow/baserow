@@ -1,6 +1,5 @@
 // plugins/baserow.js
-import { defineNuxtPlugin, useRuntimeConfig } from '#app'
-import priorityBus from '@baserow/modules/core/plugins/priorityBus'
+import { defineNuxtPlugin } from '#app'
 
 import { Registry } from '@baserow/modules/core/registry'
 import { PasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -116,8 +115,9 @@ import {
 
 export default defineNuxtPlugin({
   name: 'core',
+  dependsOn: ['priorityBus', 'registry', 'i18n'],
   setup(nuxtApp) {
-    const registry = new Registry()
+    const registry = nuxtApp.$registry
 
     registry.registerNamespace('plugin')
     registry.registerNamespace('permissionManager')
@@ -141,6 +141,10 @@ export default defineNuxtPlugin({
     registry.registerNamespace('generativeAIModel')
     registry.registerNamespace('onboarding')
     registry.registerNamespace('guidedTour')
+    registry.registerNamespace('admin')
+    registry.registerNamespace('workspaceSettingsPage')
+    registry.registerNamespace('errorPage')
+    registry.registerNamespace('twoFactorAuth')
 
     const context = { app: nuxtApp }
 
@@ -292,8 +296,5 @@ export default defineNuxtPlugin({
     registry.register('onboarding', new InviteOnboardingType(context))
 
     registry.register('guidedTour', new SidebarGuidedTourType(context))
-
-    nuxtApp.provide('registry', registry)
-    nuxtApp.provide('priorityBus', priorityBus)
   },
 })

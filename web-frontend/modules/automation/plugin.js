@@ -67,6 +67,11 @@ export default defineNuxtPlugin({
       automationApplicationStore
     )
 
+    $registry.registerNamespace('automationDataProvider')
+    $registry.registerNamespace('node')
+    $registry.registerNamespace('editorSidePanel')
+    $registry.registerNamespace('dashboardWidget')
+
     // Automation data providers
     $registry.register('application', new AutomationApplicationType(context))
     $registry.register(

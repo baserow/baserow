@@ -16,11 +16,12 @@ export default {
   render() {
     const rec = ([first, ...rest], firstComponentClass = null) => {
       if (first) {
-        return h(
-          first.component,
-          { ...first.props, class: firstComponentClass },
-          { default: () => rec(rest) }
-        )
+        const props = { ...(first.props || {}) }
+        if (firstComponentClass) props.class = firstComponentClass
+
+        return h(first.component, props, {
+          default: () => rec(rest),
+        })
       }
 
       return this.$slots.default ? this.$slots.default() : []

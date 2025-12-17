@@ -533,7 +533,6 @@ export default {
    * loading animation.
    */
   beforeCreate() {
-    console.log('test')
     this.$store.dispatch('table/setLoading', false)
   },
   mounted() {

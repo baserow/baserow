@@ -40,14 +40,17 @@ export default function resolveElementUrl(
       )
 
       const toPath = compile(page.path, { encode: encodeURIComponent })
+
       const pageParams = Object.fromEntries(
         element.page_parameters
           .filter(({ name }) => name in paramTypeMap)
           .map(({ name, value }) => [
             name,
-            PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[paramTypeMap[name]](
-              resolveFormula(value)
-            ),
+            ensureString(
+              PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS[paramTypeMap[name]](
+                resolveFormula(value)
+              )
+            ), // We ensure string here because toPath expect strings.
           ])
       )
       resolvedUrl = toPath(pageParams)

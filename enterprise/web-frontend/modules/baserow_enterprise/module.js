@@ -48,6 +48,7 @@ export default defineNuxtModule({
         (route) => route.name === 'settings'
       )
 
+      // TODO MIG do we still need that?
       // Prevent for adding the route multiple times
       if (!settingsRoute.children.find(({ path }) => path === 'teams')) {
         settingsRoute.children.push({

@@ -91,7 +91,7 @@ import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySy
 
 export default defineNuxtPlugin({
   name: 'enterprise',
-  dependsOn: ['premium'],
+  dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
     const { $registry, $store } = nuxtApp
 

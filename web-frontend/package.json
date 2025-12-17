@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "APP_ENV=production nuxt build",
-    "dev": "APP_ENV=dev nuxt dev",
+    "dev": "NODE_OPTIONS=--enable-source-maps APP_ENV=dev nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",

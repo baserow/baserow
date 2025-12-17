@@ -219,7 +219,6 @@ export default {
         this.$i18n.setLocale(data.language)
         this.$emit('success')
       } catch (error) {
-        console.log('error', error)
         if (error.handler) {
           const response = error.handler.response
           if (response && response.status === 401) {
