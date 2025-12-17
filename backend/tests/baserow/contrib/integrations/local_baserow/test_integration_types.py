@@ -215,6 +215,7 @@ def test_get_integrations_serializer(
                         "name": table.name,
                         "database_id": table.database_id,
                         "is_data_sync": table.is_data_synced_table,
+                        "is_two_way_data_sync": table.is_two_way_data_synced_table,
                     }
                 ],
                 "views": [

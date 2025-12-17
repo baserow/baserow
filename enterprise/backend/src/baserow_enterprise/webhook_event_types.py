@@ -121,7 +121,18 @@ class RowsEnterViewEventType(EnterpriseWebhookEventType):
     def after_update(self, webhook_event):
         # This is called also during webhook creation, when setting the
         # webhook_event_config
-        ViewSubscriptionHandler.unsubscribe_from_views(webhook_event)
-        views = webhook_event.views.all()
-        if views:
-            ViewSubscriptionHandler.subscribe_to_views(webhook_event, views)
+        subscribed_views = ViewSubscriptionHandler.get_subscribed_views(webhook_event)
+        requested_views = webhook_event.views.all()
+
+        subscriptions_to_add = set(requested_views) - set(subscribed_views)
+        if subscriptions_to_add:
+            # Automatically initialize the current rows in the views subscriptions
+            ViewSubscriptionHandler.subscribe_to_views(
+                webhook_event, list(subscriptions_to_add)
+            )
+
+        subscriptions_to_delete = set(subscribed_views) - set(requested_views)
+        if subscriptions_to_delete:
+            ViewSubscriptionHandler.unsubscribe_from_views(
+                webhook_event, list(subscriptions_to_delete)
+            )

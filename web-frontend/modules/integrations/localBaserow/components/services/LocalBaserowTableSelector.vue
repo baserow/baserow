@@ -36,15 +36,11 @@
         @input="$emit('input', $event)"
       >
         <DropdownItem
-          v-for="table in tables"
+          v-for="table in supportedServiceTables"
           :key="table.id"
           :name="table.name"
           :value="table.id"
-          :description="
-            table.is_data_sync
-              ? $t('localBaserowTableSelector.dataSyncedTableDescription')
-              : null
-          "
+          :description="getTableDescription(table)"
         >
           {{ table.name }}
         </DropdownItem>
@@ -100,6 +96,10 @@ export default {
       type: Array,
       required: true,
     },
+    serviceType: {
+      type: Object,
+      required: true,
+    },
     displayViewDropdown: {
       type: Boolean,
       default: true,
@@ -111,11 +111,6 @@ export default {
         return ['regular', 'large'].includes(value)
       },
       default: 'regular',
-    },
-    disallowDataSyncedTables: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
   data() {
@@ -130,11 +125,10 @@ export default {
       )
     },
     tables() {
-      return (
-        this.databaseSelected?.tables.filter(
-          (table) => !(this.disallowDataSyncedTables && table.is_data_sync)
-        ) || []
-      )
+      return this.databaseSelected?.tables || []
+    },
+    supportedServiceTables() {
+      return this.serviceType.supportedTables(this.tables)
     },
     views() {
       return (
@@ -157,6 +151,20 @@ export default {
         }
       },
       immediate: true,
+    },
+  },
+  methods: {
+    getTableDescription(table) {
+      if (table.is_two_way_data_sync) {
+        return this.$t(
+          'localBaserowTableSelector.twoWayDataSyncedTableDescription'
+        )
+      } else if (table.is_data_sync) {
+        return this.$t(
+          'localBaserowTableSelector.oneWayDataSyncedTableDescription'
+        )
+      }
+      return null
     },
   },
 }

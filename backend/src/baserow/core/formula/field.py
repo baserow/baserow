@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.db import connection, models
 
@@ -41,8 +41,29 @@ class FormulaField(models.TextField):
         self.null = True
         self.blank = True
 
-    def _value_is_serialized_object(self, value: FormulaFieldDatabaseValue) -> bool:
-        return isinstance(value, str) and value[:1] == "{" and value[-1:] == "}"
+    def _deserialize_baserow_object(
+        self, value: FormulaFieldDatabaseValue
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Given a value from the database, attempts to deserialize it into a dictionary
+        representing a Baserow formula object. If the value is not a valid JSON string
+        representing a Baserow formula object, returns None.
+
+        :param value: The value from the database to deserialize.
+        :return: A dictionary representing the Baserow formula object, or None if
+            deserialization fails.
+        """
+
+        if not isinstance(value, str):
+            return None
+
+        if not (value.startswith("{") and value.endswith("}")):
+            return None
+
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return None
 
     def _transform_db_value_to_dict(
         self, value: FormulaFieldDatabaseValue
@@ -65,9 +86,8 @@ class FormulaField(models.TextField):
                 # receive an integer, we convert it to a string.
                 value = str(value)
             # We could encounter a serialized object...
-            if self._value_is_serialized_object(value):
+            if context := self._deserialize_baserow_object(value):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
-                context = json.loads(value)
                 return BaserowFormulaObject(
                     mode=context["m"], version=context["v"], formula=context["f"]
                 )

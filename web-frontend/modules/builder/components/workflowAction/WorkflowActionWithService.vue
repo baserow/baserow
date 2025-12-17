@@ -3,6 +3,7 @@
     :is="serviceType.formComponent"
     :application="builder"
     :service="defaultValues.service"
+    :service-type="serviceType"
     :loading="workflowActionLoading"
     :default-values="defaultValues.service"
     @values-changed="values.service = { ...workflowAction.service, ...$event }"

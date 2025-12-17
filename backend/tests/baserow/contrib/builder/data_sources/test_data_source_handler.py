@@ -1,6 +1,8 @@
 from decimal import Decimal
+from unittest import mock
 from unittest.mock import patch
 
+from django.db import connection
 from django.http import HttpRequest
 from django.shortcuts import reverse
 
@@ -654,3 +656,52 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
         DataSource.objects.filter(page=page), specific=True
     )
     assert len(data_sources) == 1
+
+
+@pytest.mark.django_db
+def test_query_data_sources_with_missing_specific_service(data_fixture):
+    """
+    Test that a missing specific instance of a local baserow service
+    doesn't cause an exception.
+    """
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page()
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=page.builder
+    )
+
+    service_1 = data_fixture.create_local_baserow_get_row_service(
+        integration=integration
+    )
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, service=service_1
+    )
+    service_2 = data_fixture.create_local_baserow_get_row_service(
+        integration=integration
+    )
+    data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, service=service_2
+    )
+
+    missing_service_id = service_2.id
+
+    # Simulate a data integrity issue
+    specific_table_name = LocalBaserowGetRow._meta.db_table
+    with connection.cursor() as cursor:
+        # Delete from the specific table (LocalBaserowGetRow) instead of using ORM
+        # to better simulate the data integrity issue.
+        cursor.execute(
+            f"DELETE FROM {specific_table_name} WHERE service_ptr_id = %s",
+            [missing_service_id],
+        )
+
+    with mock.patch("baserow.core.db.logger") as mock_logger:
+        data_sources = DataSourceHandler()._query_data_sources(
+            DataSource.objects.filter(page=page), specific=True
+        )
+
+    mock_logger.error.assert_called_once_with(
+        f"The specific object with id {missing_service_id} does not exist."
+    )
+    assert data_sources == [data_source]

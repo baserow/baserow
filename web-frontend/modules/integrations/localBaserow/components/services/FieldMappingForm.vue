@@ -1,14 +1,18 @@
 <template>
   <div v-if="mapping?.enabled">
-    <FormGroup small-label :label="field.name" required class="margin-bottom-2">
+    <FormGroup
+      small-label
+      :label="field.name"
+      :help-icon-tooltip="field.description"
+      required
+      class="margin-bottom-2"
+    >
       <InViewport>
         <InjectedFormulaInput
           :key="`${field.id} ${mapping.enabled}`"
           v-model="fieldValue"
           :disabled="!mapping.enabled"
-          :placeholder="
-            $t('localBaserowUpsertRowServiceForm.fieldMappingPlaceholder')
-          "
+          :placeholder="placeholderForType"
         />
         <template #placeholder>
           <div class="field-mapping-form__placeholder" />
@@ -66,6 +70,9 @@ export default {
     }
   },
   computed: {
+    fieldType() {
+      return this.$registry.get('field', this.field.type)
+    },
     fieldValue: {
       get() {
         return this.localValue
@@ -80,6 +87,14 @@ export default {
           this.$emit('update', { value })
         }, 500)
       },
+    },
+    placeholderForType() {
+      const expectedType = this.fieldType.getDocsDataType(this.field)
+      const capitalizedType =
+        expectedType.charAt(0).toUpperCase() + expectedType.slice(1)
+      return this.$t(
+        `localBaserowUpsertRowServiceForm.fieldMappingPlaceholder${capitalizedType}`
+      )
     },
   },
   watch: {

@@ -3712,6 +3712,50 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
 class ViewSubscriptionHandler:
     @classmethod
+    def get_subscribed_views(cls, subscriber: django_models.Model) -> QuerySet[View]:
+        """
+        Returns all views a subscriber is subscribed to.
+
+        :param subscriber: The subscriber to get the views for.
+        :return: A list of views the subscriber is subscribed to.
+        """
+
+        return View.objects.filter(
+            id__in=ViewSubscription.objects.filter(
+                subscriber_content_type=ContentType.objects.get_for_model(subscriber),
+                subscriber_id=subscriber.pk,
+            ).values("view_id")
+        )
+
+    @classmethod
+    def sync_view_rows(cls, views: list[View], model=None) -> list[ViewRows]:
+        """
+        Updates or creates the ViewRows objects for the given views by executing
+        the view queries and storing the resulting row IDs.
+
+        :param views: The views for which to create ViewRows objects.
+        :param model: The table model to use for the views. If not provided, the model
+            will be generated automatically.
+        :return: A list of created or updated ViewRows objects.
+        """
+
+        view_rows = []
+        for view in views:
+            row_ids = (
+                ViewHandler()
+                .get_queryset(None, view, model=model, apply_sorts=False)
+                .values_list("id", flat=True)
+            )
+            view_rows.append(ViewRows(view=view, row_ids=list(row_ids)))
+
+        return ViewRows.objects.bulk_create(
+            view_rows,
+            update_conflicts=True,
+            update_fields=["row_ids"],
+            unique_fields=["view_id"],
+        )
+
+    @classmethod
     def subscribe_to_views(cls, subscriber: django_models.Model, views: list[View]):
         """
         Subscribes a subscriber to the provided views. If the ViewRows already exist, it
@@ -3723,7 +3767,7 @@ class ViewSubscriptionHandler:
         """
 
         cls.notify_table_views_updates(views)
-        ViewRows.create_missing_for_views(views)
+        cls.sync_view_rows(views)
 
         new_subscriptions = []
         for view in views:

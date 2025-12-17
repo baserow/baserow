@@ -629,6 +629,40 @@ def test_ask_public_builder_domain_exists_with_public_backend_and_web_frontend_d
 
 
 @pytest.mark.django_db
+@override_settings(
+    PUBLIC_BACKEND_HOSTNAME="backend.localhost",
+    PUBLIC_WEB_FRONTEND_HOSTNAME="web-frontend.localhost",
+    EXTRA_PUBLIC_BACKEND_HOSTNAMES=["extra1.localhost", "extra2.localhost"],
+    EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES=["extra1.localhost", "extra2.localhost"],
+)
+def test_ask_public_builder_domain_exists_with_extra_public_urls(api_client):
+    # Should reject unknown domain
+    url = reverse("api:builder:domains:ask_exists") + "?domain=unknown.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 404
+
+    # Should accept main backend hostname
+    url = reverse("api:builder:domains:ask_exists") + "?domain=backend.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+    # Should accept main web-frontend hostname
+    url = reverse("api:builder:domains:ask_exists") + "?domain=web-frontend.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+    # Should accept first extra hostname
+    url = reverse("api:builder:domains:ask_exists") + "?domain=extra1.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+    # Should accept second extra hostname
+    url = reverse("api:builder:domains:ask_exists") + "?domain=extra2.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 @patch("baserow.contrib.builder.api.domains.public_views.BuilderDispatchContext")
 @patch(
     "baserow.contrib.builder.api.domains.public_views.DataSourceService.dispatch_data_source"

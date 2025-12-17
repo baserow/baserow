@@ -5,6 +5,7 @@
     </p>
     <Dropdown
       :value="value"
+      show-footer
       class="data-source-dropdown"
       @input="$emit('input', $event)"
     >
@@ -37,13 +38,27 @@
           }}
         </slot>
       </template>
+      <template #footer>
+        <a class="select__footer-button" @click="openDataSourceModal">
+          <i class="iconoir-plus"></i>
+          {{ $t('dataSourceDropdown.addNew') }}
+        </a>
+      </template>
     </Dropdown>
+    <DataSourceCreateEditModal
+      :key="modalKey"
+      ref="dataSourceCreateEditModal"
+      @updated="onDataSourceUpdated"
+    />
   </div>
 </template>
 
 <script>
+import DataSourceCreateEditModal from '@baserow/modules/builder/components/dataSource/DataSourceCreateEditModal'
+
 export default {
   name: 'DataSourceDropdown',
+  components: { DataSourceCreateEditModal },
   props: {
     value: {
       type: Number,
@@ -64,6 +79,11 @@ export default {
       required: false,
       default: false,
     },
+  },
+  data() {
+    return {
+      modalKey: 0,
+    }
   },
   computed: {
     isOnSharedPage() {
@@ -90,6 +110,24 @@ export default {
         ? this.$t('integrationsCommon.multipleRows')
         : this.$t('integrationsCommon.singleRow')
       return `${dataSource.name} (${suffix})`
+    },
+    openDataSourceModal() {
+      this.$refs.dataSourceCreateEditModal.show()
+    },
+    /**
+     * When a data source is updated (i.e. the user has created the record,
+     * *and* updated it), we want to check if it has a valid schema. If it does,
+     * we emit the input event so that the dropdown updates to select the newly
+     * created data source.
+     * @param dataSource - The updated data source.
+     */
+    onDataSourceUpdated(dataSource) {
+      const serviceType =
+        dataSource.type && this.$registry.get('service', dataSource.type)
+      if (serviceType?.getDataSchema(dataSource)) {
+        this.modalKey++
+        this.$emit('input', dataSource.id)
+      }
     },
   },
 }

@@ -32,6 +32,7 @@ x-backend-variables:
   # If you manually change this line make sure you also change the duplicate line in
   # the web-frontend service.
   BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+  BASEROW_EXTRA_PUBLIC_URLS:
 
   # Set these if you want to use an external postgres instead of the db service below.
   DATABASE_USER: ${DATABASE_USER:-baserow}
@@ -265,7 +266,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:2.0.3
+    image: baserow/backend:2.0.4
     restart: unless-stopped
 
     environment:
@@ -279,10 +280,11 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.0.3
+    image: baserow/web-frontend:2.0.4
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+      BASEROW_EXTRA_PUBLIC_URLS:
       PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
       PUBLIC_BACKEND_URL:
       PUBLIC_WEB_FRONTEND_URL:
@@ -324,7 +326,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:2.0.3
+    image: baserow/backend:2.0.4
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -345,7 +347,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.0.3
+    image: baserow/backend:2.0.4
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -366,7 +368,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.0.3
+    image: baserow/backend:2.0.4
     restart: unless-stopped
     command: celery-beat
     environment:

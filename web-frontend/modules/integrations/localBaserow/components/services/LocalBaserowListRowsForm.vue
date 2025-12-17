@@ -4,6 +4,7 @@
       <div class="col col-12">
         <LocalBaserowServiceForm
           :application="application"
+          :service-type="serviceType"
           :default-values="defaultValues"
           :enable-integration-picker="enableIntegrationPicker"
           @values-changed="values = { ...values, ...$event }"

@@ -14,7 +14,7 @@
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
     />
-    <div class="formula-input-context__footer">
+    <div v-if="advancedModeEnabled" class="formula-input-context__footer">
       <ButtonText
         type="primary"
         icon="iconoir-input-field"
@@ -59,6 +59,7 @@
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputContext',
@@ -87,7 +88,7 @@ export default {
       required: false,
       default: 'advanced',
       validator: (value) => {
-        return ['advanced', 'simple'].includes(value)
+        return BASEROW_FORMULA_MODES.includes(value)
       },
     },
     /**
@@ -105,6 +106,15 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * An array of Baserow formula modes which the parent formula input
+     * component allows to be used. By default, in `FormulaInputField`,
+     * we will allow all modes.
+     */
+    enabledModes: {
+      type: Array,
+      required: true,
+    },
   },
   data() {
     return {
@@ -118,6 +128,9 @@ export default {
     }
   },
   computed: {
+    advancedModeEnabled() {
+      return this.enabledModes.includes('advanced')
+    },
     isAdvancedMode() {
       return this.mode === 'advanced'
     },

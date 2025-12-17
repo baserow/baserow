@@ -1,11 +1,11 @@
 <template>
   <form @submit.prevent>
     <LocalBaserowServiceForm
+      :service-type="serviceType"
       :enable-row-id="enableRowId"
       :application="application"
       :enable-view-picker="false"
       :default-values="defaultValues"
-      :disallow-data-synced-tables="disallowDataSyncedTables"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
@@ -57,23 +57,17 @@ export default {
     service: {
       type: Object,
       required: false,
-      default: null,
+      default: () => ({}),
+    },
+    serviceType: {
+      type: Object,
+      required: false,
+      default: () => ({}),
     },
     enableRowId: {
       type: Boolean,
       required: false,
       default: false,
-    },
-    /**
-     * Whether to disallow selecting data synced tables. It defaults to
-     * true as this is the default behaviour for the create row action
-     * form. The update row action form allows data synced tables, assuming
-     * they have writable fields.
-     */
-    disallowDataSyncedTables: {
-      type: Boolean,
-      required: false,
-      default: true,
     },
   },
   data() {

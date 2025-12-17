@@ -2,7 +2,7 @@
   <div class="general-side-panel">
     <component
       :is="elementType.generalFormComponent"
-      v-show="elementFormVisible"
+      v-if="elementFormVisible"
       :key="`element-form-${element.id}`"
       ref="panelForm"
       class="element-form"
@@ -10,7 +10,7 @@
       @values-changed="onChange($event)"
     />
     <CustomStyleForm
-      v-if="!elementFormVisible"
+      v-else
       :key="`style-form-${element.id}`"
       :custom-styles-context="customStylesContext"
       @hide="elementFormVisible = true"
@@ -39,12 +39,14 @@ export default {
         theme: {},
         styleKey: '',
         extraArgs: null,
-        defaultValues: {},
+        defaultStyleValues: {},
         configBlockTypes: [],
+        // Optional callback to allow the form component to
+        // modify the final object before sending it to onChange.
+        onStylesChanged: null,
       },
     }
   },
-
   methods: {
     /**
      * The handler that is injected into the element's general form
@@ -57,17 +59,32 @@ export default {
       this.elementFormVisible = !this.elementFormVisible
     },
     /**
-     * Called when the values in the `CustomStyleForm` change. It merges
-     * the new values with the default values and emits the `onChange`
-     * event to update the element's styles.
+     * Called when the values in the `CustomStyleForm` change. If the form
+     * component provided an onStylesChanged callback, use that to build the
+     * update object. Otherwise, apply to root element styles (default behavior).
      */
-    onThemeValuesChanged(newValues) {
-      const { styleKey, defaultValues } = this.customStylesContext
-      this.onChange({
+    onThemeValuesChanged(newStyleValues) {
+      const { styleKey, onStylesChanged } = this.customStylesContext
+
+      // The default behaviour is to just update the styles on the root element.
+      let updatedElement = {
         styles: {
-          [styleKey]: { ...defaultValues, ...newValues },
+          ...this.element.styles,
+          [styleKey]: newStyleValues,
         },
-      })
+      }
+      if (onStylesChanged) {
+        // If we have an onStylesChanged callback, use that to build the final update
+        // object. This is probably going to be for a table element's field styles.
+        updatedElement = onStylesChanged(
+          newStyleValues,
+          this.customStylesContext
+        )
+      }
+      this.onChange(updatedElement)
+      // Update the context so that other theme blocks
+      // are aware of the new default style values.
+      this.customStylesContext.defaultStyleValues = newStyleValues
     },
   },
 }

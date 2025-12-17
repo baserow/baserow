@@ -33,6 +33,17 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 
   /**
+   * Given an array of tables, returns the supported tables for this service type.
+   * By default, we return all tables, but specific service types can override this
+   * method to restrict the tables that can be selected.
+   * @param {Array} tables - The array of tables to filter.
+   * @returns {Array} - The supported tables.
+   */
+  supportedTables(tables) {
+    return tables
+  }
+
+  /**
    * Responsible for determining if this service is in error. It will be if the
    * `table_id` is missing.
    * @param service - The service object.
@@ -414,6 +425,18 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
     return 'local_baserow_create_row'
   }
 
+  /**
+   * The Local Baserow create row service will only work on tables which are
+   * not data-synced, or are data-synced but are two-way synced.
+   * @param {Array} tables - The array of tables to filter.
+   * @returns {Array} - The supported tables.
+   */
+  supportedTables(tables) {
+    return tables.filter(
+      (table) => !table.is_data_sync || table.is_two_way_data_sync
+    )
+  }
+
   get icon() {
     return 'iconoir-plus'
   }
@@ -476,6 +499,18 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 
   get formComponent() {
     return LocalBaserowDeleteRowServiceForm
+  }
+
+  /**
+   * The Local Baserow delete row service will only work on tables which are
+   * not data-synced, or are data-synced but are two-way synced.
+   * @param {Array} tables - The array of tables to filter.
+   * @returns {Array} - The supported tables.
+   */
+  supportedTables(tables) {
+    return tables.filter(
+      (table) => !table.is_data_sync || table.is_two_way_data_sync
+    )
   }
 }
 

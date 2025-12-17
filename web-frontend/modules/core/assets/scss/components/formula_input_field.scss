@@ -40,8 +40,8 @@
 }
 
 /* stylelint-disable-next-line selector-class-pattern */
-.ProseMirror div.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
+.formula-input-field--formula-empty .ProseMirror div:first-child::before {
+  content: var(--formula-placeholder);
   float: left;
   color: $palette-neutral-500;
   pointer-events: none;

@@ -738,6 +738,14 @@ export const mutations = {
       Vue.delete(state.pendingFieldOps, key)
     })
   },
+  CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD(state, { fieldId }) {
+    const keysToDelete = Object.keys(state.pendingFieldOps).filter(
+      (key) => state.pendingFieldOps[key][0] === fieldId
+    )
+    keysToDelete.forEach((key) => {
+      Vue.delete(state.pendingFieldOps, key)
+    })
+  },
   UPDATE_ROW_HEIGHT(state, value) {
     state.rowHeight = value
   },
@@ -3471,7 +3479,12 @@ export const actions = {
     commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value })
   },
   AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds }) {
-    commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value: false })
+    // If rowIds is empty, clear ALL pending operations for this field.
+    if (rowIds.length === 0) {
+      commit('CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD', { fieldId })
+    } else {
+      commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value: false })
+    }
     dispatch(
       'toast/error',
       {

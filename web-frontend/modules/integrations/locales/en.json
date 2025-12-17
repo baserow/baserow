@@ -119,7 +119,7 @@
   "localBaserowGetRowForm": {
     "rowFieldLabel": "Row ID",
     "invalidFormula": "The formula is invalid",
-    "rowFieldPlaceHolder": "Select a row ID",
+    "rowFieldPlaceHolder": "Choose a single row ID",
     "rowFieldHelpText": "Leave this value empty to return the first row.",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
@@ -229,7 +229,8 @@
     "tableFieldLabel": "Table",
     "chooseNoView": "Not selected",
     "databaseFieldLabel": "Database",
-    "dataSyncedTableDescription": "Data synced table"
+    "oneWayDataSyncedTableDescription": "One-way synced",
+    "twoWayDataSyncedTableDescription": "Two-way synced"
   },
   "smtpIntegrationType": {
     "smtpSummary": "SMTP - {host}:{port}"
@@ -277,7 +278,7 @@
     "branchesDescription": "Branches allow you to only execute nodes when a condition is met. Branches are executed left to right until a condition is met, otherwise the default branch will be executed. ",
     "branchLabel": "Label",
     "branchConditionLabel": "Condition",
-    "branchConditionPlaceholder": "Enter condition...",
+    "branchConditionPlaceholder": "If true, we follow this branch.",
     "addEdge": "Add branch",
     "edgeDefaultName": "Branch",
     "noLabel": "No label",
@@ -313,10 +314,16 @@
   "localBaserowServiceForm": {
     "integrationDropdownLabel": "Integration",
     "rowIdLabel": "Row ID",
-    "rowIdPlaceholder": "Select a row ID"
+    "rowIdPlaceholder": "Choose a single row ID"
   },
   "localBaserowUpsertRowServiceForm": {
-    "fieldMappingPlaceholder": "Choose a field value",
+    "fieldMappingPlaceholderArray": "Choose an array value, e.g [42]",
+    "fieldMappingPlaceholderString": "Choose a string value, e.g. \\'baserow\\'",
+    "fieldMappingPlaceholderNumber": "Choose a number value, e.g. 42",
+    "fieldMappingPlaceholderBoolean": "Choose a boolean value, e.g. true",
+    "fieldMappingPlaceholderDate": "Choose a date value, e.g. 2025-07-25",
+    "fieldMappingPlaceholderDecimal": "Choose a decimal value, e.g. 3.14",
+    "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
     "noWritableFields": "This table does not contain any writable fields."
   }

@@ -16,10 +16,14 @@ class LocalBaserowTableSerializer(serializers.ModelSerializer):
         source="is_data_synced_table",
         help_text="Whether this table is a data synced table or not.",
     )
+    is_two_way_data_sync = serializers.BooleanField(
+        source="is_two_way_data_synced_table",
+        help_text="Whether this table is a two-way data synced table or not.",
+    )
 
     class Meta:
         model = Table
-        fields = ("id", "database_id", "name", "is_data_sync")
+        fields = ("id", "database_id", "name", "is_data_sync", "is_two_way_data_sync")
 
 
 class LocalBaserowDatabaseSerializer(ApplicationSerializer):

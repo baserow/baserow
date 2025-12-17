@@ -8,6 +8,7 @@ from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.serializers import SkipField, empty
 
@@ -227,7 +228,14 @@ class ArrayValueSerializer(serializers.Serializer):
         self.fields["value"] = child
 
     def to_representation(self, instance):
-        return super().to_representation(instance)
+        # Note this is workaround for https://github.com/baserow/baserow/issues/4424
+        # Once we have a proper way to handle this, we can remove this
+        # and return the super().to_representation(instance) directly.
+        try:
+            return super().to_representation(instance)
+        except Exception:
+            logger.exception("Mismatch between field type and value type")
+        return []
 
 
 class LinkRowValueSerializer(serializers.Serializer):

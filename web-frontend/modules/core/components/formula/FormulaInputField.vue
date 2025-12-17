@@ -9,6 +9,7 @@
         role="textbox"
         :class="classes"
         :editor="editor"
+        :style="{ '--formula-placeholder': `'${placeholder}'` }"
         @data-node-clicked="dataNodeClicked"
       />
     </div>
@@ -22,6 +23,7 @@
       :has-value="value.length > 0"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
+      :enabled-modes="enabledModes"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
@@ -38,7 +40,6 @@
 
 <script>
 import { Editor, EditorContent, Node } from '@tiptap/vue-2'
-import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
@@ -75,6 +76,7 @@ import FormulaInputContext from '@baserow/modules/core/components/formula/Formul
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputField',
@@ -139,7 +141,7 @@ export default {
       required: false,
       default: 'simple',
       validator: (value) => {
-        return ['advanced', 'simple', 'raw'].includes(value)
+        return BASEROW_FORMULA_MODES.includes(value)
       },
     },
     contextPosition: {
@@ -149,6 +151,15 @@ export default {
       validator: (value) => {
         return ['bottom', 'left', 'right'].includes(value)
       },
+    },
+    /**
+     * An array of Baserow formula modes which the parent formula input
+     * component allows to be used. By default, we will allow all modes.
+     */
+    enabledModes: {
+      type: Array,
+      required: false,
+      default: () => BASEROW_FORMULA_MODES,
     },
   },
   data() {
@@ -164,6 +175,11 @@ export default {
     }
   },
   computed: {
+    isFormulaEmpty() {
+      if (!this.editor) return true
+      const formula = this.toFormula(this.wrapperContent)
+      return !formula || formula.length === 0
+    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
@@ -172,12 +188,8 @@ export default {
           !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
         'formula-input-field--error': this.isFormulaInvalid,
+        'formula-input-field--formula-empty': this.isFormulaEmpty,
       }
-    },
-    placeHolderExt() {
-      return Placeholder.configure({
-        placeholder: this.placeholder,
-      })
     },
     formulaComponents() {
       return Object.values(this.$registry.getAll('runtimeFormulaFunction'))
@@ -272,7 +284,6 @@ export default {
         ArrowKeyNavigationExtension,
         SmartDeletionExtension,
         ZWSManagementExtension,
-        this.placeHolderExt,
         History.configure({
           depth: 100,
         }),

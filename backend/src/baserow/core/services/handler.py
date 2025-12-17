@@ -112,6 +112,7 @@ class ServiceHandler:
                 specific_iterator(
                     queryset,
                     per_content_type_queryset_hook=per_content_type_queryset_hook,
+                    skip_missing_specific_objects=True,
                 )
             )
 

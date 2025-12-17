@@ -48,6 +48,11 @@ export default {
       required: false,
       default: () => null,
     },
+    onStylesChanged: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
   methods: {
     /**
@@ -59,8 +64,9 @@ export default {
         theme: this.theme,
         styleKey: this.styleKey,
         extraArgs: this.extraArgs,
+        onStylesChanged: this.onStylesChanged,
         configBlockTypes: this.configBlockTypes,
-        defaultValues: this.value?.[this.styleKey],
+        defaultStyleValues: this.value?.[this.styleKey],
       })
     },
   },

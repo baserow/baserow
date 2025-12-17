@@ -91,6 +91,7 @@ def specific_iterator(
     | None = None,
     base_model: T | None = None,
     select_related: List[str] = None,
+    skip_missing_specific_objects: bool = False,
 ) -> List[T]:
     """
     Iterates over the given queryset or list of model instances, and finds the specific
@@ -116,6 +117,8 @@ def specific_iterator(
         is provided in the `queryset_or_list` argument. This should be used if the
         instances provided in the list have select related objects.
     :return: A list of specific objects in the right order.
+    :param skip_missing_specific_objects: When True, missing specific instances
+        are logged without raising an error.
     """
 
     if isinstance(queryset_or_list, QuerySet):
@@ -183,9 +186,13 @@ def specific_iterator(
         try:
             specific_object = specific_objects[item.id]
         except KeyError:
-            raise base_model.DoesNotExist(
-                f"The specific object with id {item.id} does not exist."
-            )
+            error = f"The specific object with id {item.id} does not exist."
+
+            if skip_missing_specific_objects:
+                logger.error(error)
+                continue
+
+            raise base_model.DoesNotExist(error)
 
         # If there are annotation keys, we must extract them from the original item
         # because they should exist there and set them on the specific object so they

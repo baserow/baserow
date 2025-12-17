@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Allow setting multiple BASEROW_PUBLIC_URL #2593",
+  "domain": "core",
+  "issue_number": 2593,
+  "issue_origin": "github",
+  "bullet_points": [],
+  "created_at": "2025-12-12"
+}

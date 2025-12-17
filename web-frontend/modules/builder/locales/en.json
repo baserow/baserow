@@ -996,7 +996,8 @@
     "noDataSources": "No data sources available",
     "noSharedDataSources": "No shared data sources available",
     "shared": "shared",
-    "pageOnly": "this page"
+    "pageOnly": "this page",
+    "addNew": "Add new data source"
   },
   "multiPageContainerElementForm": {
     "pagePosition": "Position",

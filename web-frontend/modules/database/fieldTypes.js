@@ -3659,7 +3659,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getDocsDataType() {
-    return 'integer or string'
+    return 'number'
   }
 
   getDocsDescription(field) {
@@ -4956,7 +4956,7 @@ export class PasswordFieldType extends FieldType {
   }
 
   getDocsDataType(field) {
-    return 'bool'
+    return 'boolean'
   }
 
   getDocsDescription(field) {

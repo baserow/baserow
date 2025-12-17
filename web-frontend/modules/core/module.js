@@ -13,6 +13,7 @@ import it from './locales/it.json'
 import pl from './locales/pl.json'
 import ko from './locales/ko.json'
 import { setDefaultResultOrder } from 'dns'
+import { parseHostnamesFromUrls } from './utils/url'
 const { readFileSync } = require('fs')
 
 export default function CoreModule(options) {
@@ -76,6 +77,9 @@ export default function CoreModule(options) {
       process.env.PUBLIC_BACKEND_URL ?? 'http://localhost:8000',
     PUBLIC_WEB_FRONTEND_URL:
       process.env.PUBLIC_WEB_FRONTEND_URL ?? 'http://localhost:3000',
+    EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES: parseHostnamesFromUrls(
+      process.env.BASEROW_EXTRA_PUBLIC_URLS ?? ''
+    ),
     MEDIA_URL: process.env.MEDIA_URL ?? 'http://localhost:4000/media/',
     INITIAL_TABLE_DATA_LIMIT: process.env.INITIAL_TABLE_DATA_LIMIT ?? null,
     DOWNLOAD_FILE_VIA_XHR: process.env.DOWNLOAD_FILE_VIA_XHR ?? '0',

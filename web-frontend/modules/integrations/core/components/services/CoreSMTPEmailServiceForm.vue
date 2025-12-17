@@ -101,6 +101,11 @@
     >
       <InjectedFormulaInput
         v-model="values.body"
+        :enabled-modes="
+          values.body_type === 'plain'
+            ? BASEROW_FORMULA_MODES
+            : ['raw', 'simple']
+        "
         :placeholder="$t('smtpEmailForm.bodyPlaceholder')"
         textarea
       />
@@ -113,6 +118,7 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'CoreSMTPEmailServiceForm',
@@ -160,6 +166,9 @@ export default {
     }
   },
   computed: {
+    BASEROW_FORMULA_MODES() {
+      return BASEROW_FORMULA_MODES
+    },
     integrations() {
       if (!this.application) {
         return []
