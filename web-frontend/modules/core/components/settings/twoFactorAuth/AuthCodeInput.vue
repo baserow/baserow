@@ -13,6 +13,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(1, $event)"
     />
     <input
       v-model="number2"
@@ -23,6 +24,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(2, $event)"
     />
     <input
       v-model="number3"
@@ -33,6 +35,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(3, $event)"
     />
     <input
       v-model="number4"
@@ -43,6 +46,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(4, $event)"
     />
     <input
       v-model="number5"
@@ -53,6 +57,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(5, $event)"
     />
     <input
       v-model="number6"
@@ -63,6 +68,7 @@
       :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
+      @paste="pasteAt(6, $event)"
     />
   </div>
 </template>
@@ -196,6 +202,36 @@ export default {
         if (this.allFilled) {
           this.$emit('all-filled', this.code)
         }
+      }
+    },
+    pasteAt(startIndex, event) {
+      event.preventDefault()
+
+      const raw =
+        (event.clipboardData && event.clipboardData.getData('text')) ||
+        (window.clipboardData && window.clipboardData.getData('Text')) ||
+        ''
+
+      const digits = raw.replace(/\D/g, '')
+      const maxLen = 7 - startIndex
+      const chunk = digits.slice(0, maxLen)
+
+      for (let i = startIndex; i <= 6; i++) {
+        this.values[`number${i}`] = ''
+      }
+
+      for (let offset = 0; offset < chunk.length; offset++) {
+        const i = startIndex + offset
+        this.values[`number${i}`] = chunk[offset]
+      }
+
+      const inputs = this.$el.querySelectorAll('input')
+      const nextIndex = Math.min(startIndex + chunk.length, 6)
+      const nextEl = inputs[nextIndex - 1]
+      if (nextEl) nextEl.focus()
+
+      if (this.allFilled) {
+        this.$emit('all-filled', this.code)
       }
     },
   },
