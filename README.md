@@ -28,7 +28,7 @@ existing tools and performs at any scale.
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/baserow/baserow/tree/master)
 
 ```bash
-docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.0.4
+docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.0.5
 ```
 
 ![Baserow database screenshot](docs/assets/screenshot.png "Baserow database screenshot")
@@ -116,7 +116,7 @@ Created by Baserow B.V. - bram@baserow.io.
 
 Distributes under the MIT license. See `LICENSE` for more information.
 
-Version: 2.0.4
+Version: 2.0.5
 
 The official repository can be found at https://github.com/baserow/baserow.
 

@@ -10,9 +10,9 @@
 
 Baserow consists of a number of services, two of which are built and provided as 
 separate standalone images by us:
-* `baserow/backend:2.0.4` which by default starts the Gunicorn Django backend server 
+* `baserow/backend:2.0.5` which by default starts the Gunicorn Django backend server 
   for Baserow but is also used to start the celery workers and celery beat services.
-* `baserow/web-frontend:2.0.4` which is a Nuxt server providing Server Side rendering 
+* `baserow/web-frontend:2.0.5` which is a Nuxt server providing Server Side rendering 
   for the website.
 
 If you want to use your own container orchestration software like Kubernetes then these
@@ -27,10 +27,10 @@ in the root of our repository.
 These are all the services you need to set up to run a Baserow using the standalone 
 images:
 
-* `baserow/backend:2.0.4` (default command is `gunicorn`)
-* `baserow/backend:2.0.4` with command `celery-worker`
-* `baserow/backend:2.0.4` with command `celery-export-worker`
-* `baserow/web-frontend:2.0.4` (default command is `nuxt-local`)
+* `baserow/backend:2.0.5` (default command is `gunicorn`)
+* `baserow/backend:2.0.5` with command `celery-worker`
+* `baserow/backend:2.0.5` with command `celery-export-worker`
+* `baserow/web-frontend:2.0.5` (default command is `nuxt-local`)
 * A postgres database 
 * A redis server
 

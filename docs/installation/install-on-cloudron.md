@@ -46,7 +46,7 @@ $ cd baserow/deploy/cloudron
 After that you can install the Baserow Cloudron app by executing the following commands.
 
 ```
-$ cloudron install -l baserow.{YOUR_DOMAIN} --image baserow/cloudron:2.0.4
+$ cloudron install -l baserow.{YOUR_DOMAIN} --image baserow/cloudron:2.0.5
 App is being installed.
 ...
 App is installed.
@@ -89,7 +89,7 @@ the `baserow/deploy/cloudron` folder, you can upgrade your cloudron baserow serv
 the latest version by running the following command:
 
 ```
-cloudron update --app {YOUR_APP_ID} --image baserow/cloudron:2.0.4
+cloudron update --app {YOUR_APP_ID} --image baserow/cloudron:2.0.5
 ```
 
 > Note that you must replace the image with the most recent image of Baserow. The

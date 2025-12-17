@@ -3,7 +3,7 @@
 If you have an [Nginx server](https://www.nginx.com/) this guide will explain how to
 configure it to pass requests through to Baserow.
 
-We strongly recommend you use our `baserow/baserow:2.0.4` image or the example
+We strongly recommend you use our `baserow/baserow:2.0.5` image or the example
 `docker-compose.yml` files (excluding the `.no-caddy.yml` variant) provided in
 our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 
@@ -18,8 +18,8 @@ simplifies your life by:
 > If you do not want to use our embedded Caddy service behind your Nginx then
 > make sure you are using one of the two following deployment methods: 
 >
-> * Your own container setup with our single service `baserow/backend:2.0.4`
-    and `baserow/web-frontend:2.0.4` images.
+> * Your own container setup with our single service `baserow/backend:2.0.5`
+    and `baserow/web-frontend:2.0.5` images.
 > * Or our `docker-compose.no-caddy.yml` example file in our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 > 
 > Then you should use **Option 2: Without our embedded Caddy** section instead.
@@ -32,7 +32,7 @@ simplifies your life by:
 
 Follow this option if you are using:
 
-* The all-in-one Baserow image `baserow/baserow:2.0.4`
+* The all-in-one Baserow image `baserow/baserow:2.0.5`
 * Any of the example compose files found in the root of our git
   repository `docker-compose.yml`/`docker-compose.local-build.yml`
   /`docker-compose.all-in-one.yml`
@@ -108,7 +108,7 @@ You should now be able to access Baserow on you configured subdomain.
 
 Follow this option if you are using:
 
-* Our standalone `baserow/backend:2.0.4` and `baserow/web-frontend:2.0.4` images with
+* Our standalone `baserow/backend:2.0.5` and `baserow/web-frontend:2.0.5` images with
   your own container orchestrator.
 * Or the `docker-compose.no-caddy.yml` example docker compose file in the root of our
   git repository.
@@ -127,7 +127,7 @@ but you might have to run different commands.
 You need to ensure user uploaded files are accessible in a folder for Nginx to serve. In
 the rest of the guide we will use the example `/var/web` folder for this purpose.
 
-If you are using the `baserow/backend:2.0.4` image then you can do this by adding
+If you are using the `baserow/backend:2.0.5` image then you can do this by adding
 `-v /var/web:/baserow/data/media` to your normal `docker run` command used to launch the
 Baserow backend.
 
