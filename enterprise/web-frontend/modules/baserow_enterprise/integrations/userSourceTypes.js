@@ -67,6 +67,15 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   /**
+   * The Local Baserow user source will only work on tables which are not data-synced.
+   * @param {Array} tables - The array of tables to filter.
+   * @returns {Array} - The supported tables.
+   */
+  supportedTables(tables) {
+    return tables.filter((table) => !table.is_data_sync)
+  }
+
+  /**
    * Returns the allowed field type list for the role field.
    * It's defined here so that it can be changed by a plugin.
    *
