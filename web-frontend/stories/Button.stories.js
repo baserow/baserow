@@ -65,6 +65,12 @@ export default {
     fullWidth: false,
     active: false,
   },
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?type=design&node-id=1-85&mode=design&t=ZFKwI59cTYQROI8S-0',
+    },
+  },
 }
 
 export const Default = {
