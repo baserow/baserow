@@ -91,7 +91,7 @@ just dev up -d   # Start in background
 just dev logs    # View logs
 just dev ps      # Check what's running
 just dev stop    # Stop all services
-just dev tmux    # Alternative: start tmux session with all services
+just dev tmux    # Alternative: start tmux session with all services (you need to install tmux first)
 ```
 
 ## How It Works
@@ -153,7 +153,7 @@ All backend commands can be run from the project root with `just backend` (or `j
 just b test              # Run tests
 just b lint              # Run linters
 just b fix               # Auto-fix code style
-just b shell             # Django shell with SQL logging
+just b shell_plus        # Django shell_plus with SQL logging
 just b m makemigrations  # Create migrations
 just b m migrate         # Apply migrations
 
@@ -161,7 +161,7 @@ just b m migrate         # Apply migrations
 cd backend
 just test
 just lint
-just shell
+just shell_plus
 ```
 
 ### Frontend Commands
@@ -375,9 +375,8 @@ CELERY_LOG_LEVEL=DEBUG just b run-dev-celery
 ### "Module not found" Errors
 
 ```bash
-# Re-sync dependencies
-just b sync
-just f install
+just b uv sync
+just f yarn
 ```
 
 ### Database Connection Errors

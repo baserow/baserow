@@ -244,7 +244,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="backend" \
     UV_PYTHON_DOWNLOADS=0 \
-    UV_COMPILE_BYTECODE=1 \
+    UV_COMPILE_BYTECODE=0 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/baserow/venv \
     UV_CACHE_DIR=/tmp/baserow_uv_cache_dev \
@@ -285,16 +285,6 @@ RUN echo 'set -g default-command "${SHELL}"' > /baserow/.tmux.conf
 
 # Create .bashrc with environment variables for interactive shells
 RUN printf '%s\n' \
-    '# Baserow Backend Development Environment' \
-    'export PATH="/baserow/venv/bin:$PATH"' \
-    'export PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src:/baserow/backend/tests:/baserow/premium/backend/tests:/baserow/enterprise/backend/tests"' \
-    'export PYTHONUNBUFFERED=1' \
-    'export UV_PROJECT_ENVIRONMENT=/baserow/venv' \
-    'export UV_PYTHON_PREFERENCE=only-system' \
-    'export UV_COMPILE_BYTECODE=0' \
-    'export UV_CACHE_DIR=/tmp/baserow_uv_cache' \
-    'export DJANGO_SETTINGS_MODULE=baserow.config.settings.dev' \
-    '' \
     '# Aliases' \
     'alias j="just"' \
     'alias m="python /baserow/backend/src/baserow/manage.py"' \
@@ -321,7 +311,7 @@ CMD ["django-dev"]
 # =============================================================================
 # Production target
 # =============================================================================
-FROM python:3.11-slim-bookworm AS prod
+FROM python:3.11-slim-bookworm AS local 
 ARG UID
 ARG GID
 
@@ -341,6 +331,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     postgresql-client-${POSTGRES_VERSION} \
     xmlsec1 \
     gettext
@@ -370,4 +361,9 @@ WORKDIR /baserow/backend
 
 HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
+CMD ["gunicorn"]
+
+
+FROM local AS prod
+
 CMD ["gunicorn"]

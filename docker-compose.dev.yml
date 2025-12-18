@@ -219,7 +219,7 @@ services:
   # environment here.
   volume-permissions-fixer:
     image: bash:4.4
-    command: chown UID:$GID -R /baserow/media
+    command: chown ${UID:-9999}:${GID:-9999}  -R /baserow/media
     volumes:
       - media:/baserow/media
       - caddy_config:/config

@@ -138,7 +138,7 @@ By default, `dc-prod` builds images locally. To use pre-built images from a regi
 
 ```bash
 # Pull and run a specific version
-BASEROW_VERSION=1.29.0 just dc-prod up -d
+BASEROW_VERSION=2.0.5 just dc-prod up -d
 
 # This pulls from the registry instead of building
 ```

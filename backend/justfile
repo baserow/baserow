@@ -1,4 +1,7 @@
 # Baserow Backend Justfile
+# NOTE: All recipes here must work the same inside Docker and on local dev setups
+#       without requiring any changes. Please make sure to not add docker-specific
+#       commands or assumptions here.
 # Uses uv for Python package management
 
 # Import personal recipes if they exist (not tracked in git)
@@ -23,29 +26,29 @@ help:
     @echo "======================================"
     @echo ""
     @echo "Setup & Development:"
-    @echo "  docs/development/running-the-dev-env-locally.md    - Local development setup"
+    @echo "  docs/development/running-the-dev-env-locally.md     - Local development setup"
     @echo "  docs/development/running-the-dev-env-with-docker.md - Docker development setup"
-    @echo "  docs/development/directory-structure.md            - Project structure"
+    @echo "  docs/development/directory-structure.md             - Project structure"
     @echo ""
     @echo "Testing:"
-    @echo "  docs/development/running-tests.md                  - Running backend tests"
-    @echo "  docs/development/e2e-testing.md                    - End-to-end testing"
+    @echo "  docs/development/running-tests.md                   - Running backend tests"
+    @echo "  docs/development/e2e-testing.md                     - End-to-end testing"
     @echo ""
     @echo "Code Quality:"
-    @echo "  docs/development/code-quality.md                   - Linting and formatting"
+    @echo "  docs/development/code-quality.md                    - Linting and formatting"
     @echo ""
     @echo "CI/CD & Production:"
-    @echo "  docs/development/ci-cd.md                          - CI/CD pipelines"
+    @echo "  docs/development/ci-cd.md                           - CI/CD pipelines"
     @echo "  docs/development/building-and-running-production-images.md - Production images"
     @echo ""
     @echo "IDE Setup:"
-    @echo "  docs/development/vscode-setup.md                   - VS Code configuration"
-    @echo "  docs/development/intellij-setup.md                 - IntelliJ/PyCharm setup"
+    @echo "  docs/development/vscode-setup.md                    - VS Code configuration"
+    @echo "  docs/development/intellij-setup.md                  - IntelliJ/PyCharm setup"
     @echo ""
     @echo "Other:"
-    @echo "  docs/development/justfile.md                       - Just command reference"
-    @echo "  docs/development/debugging.md                      - Debugging tips"
-    @echo "  docs/development/feature-flags.md                  - Feature flags"
+    @echo "  docs/development/justfile.md                        - Just command reference"
+    @echo "  docs/development/debugging.md                       - Debugging tips"
+    @echo "  docs/development/feature-flags.md                   - Feature flags"
     @echo ""
     @echo "Quick shortcuts: l=lint, t=test, dev=run-dev-server, m=manage"
 

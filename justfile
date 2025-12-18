@@ -68,13 +68,7 @@ dev *ARGS:
     # Parse args from just
     ALLARGS=({{ ARGS }})
     CMD="${ALLARGS[0]:-}"
-    REST=("${ALLARGS[@]:1}")
-
-    # Docker needs node_modules folder to exists to mount the volume inside a bind mount.
-    # Let's ensure it exists before starting anything.
-    if [ ! -d web-frontend/node_modules ]; then
-        mkdir -p web-frontend/node_modules
-    fi
+    REST=("${ALLARGS[@]:1}")    
 
     case "$CMD" in
         wipe)
@@ -279,11 +273,6 @@ _dev-start:
     echo ""
     echo "==> Running database migrations..."
     (cd backend && just migrate)
-
-    # Clear log files
-    > "{{ backend_log_file }}"
-    > "{{ celery_log_file }}"
-    > "{{ frontend_log_file }}"
 
     echo ""
     echo "==> Starting backend dev server..."
@@ -519,6 +508,12 @@ dc-dev *ARGS:
             GID=$(id -g)
         fi
         export GID
+
+        # Docker needs node_modules folder to exists to mount the volume inside a bind mount.
+        # Let's ensure it exists before starting anything.
+        if [ ! -d web-frontend/node_modules ]; then
+            mkdir -p web-frontend/node_modules
+        fi
 
         DC="docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml"
         ALLARGS=({{ ARGS }})
@@ -809,7 +804,7 @@ dc-fix-network:
 
 # Production compose (builds locally if BASEROW_VERSION is unset/latest, otherwise pulls images)
 [group('3 - production')]
-[doc("Docker compose (prod): just dc-prod <build|up|down|logs>")]
+[doc("Docker compose (production images): just dc-prod <build|up|down|logs>")]
 dc-prod *ARGS:
     #!/usr/bin/env bash
     if [ -z "{{ ARGS }}" ]; then
@@ -870,17 +865,28 @@ build target="" tag="latest" *ARGS:
     case "{{ target }}" in
         "backend")
             TARGET_ARG=""
-            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" ]]; then
+            UID_GID_ARGS=""
+            NAME_ARG=""
+            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" || "{{ tag }}" == "prod" || "{{ tag }}" == "local" ]]; then
                 TARGET_ARG="--target={{ tag }}"
             fi
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile $TARGET_ARG -t baserow/backend:{{ tag }} .
+            if [[ "{{ tag }}" == "dev" ]]; then
+                UID_GID_ARGS="--build-arg UID=$(id -u) --build-arg GID=$(id -g)"
+            fi
+            NAME_ARG="baserow/backend:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" $UID_GID_ARGS -f backend/Dockerfile $TARGET_ARG -t $NAME_ARG .
             ;;
         "web-frontend")
             TARGET_ARG=""
-            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" ]]; then
+            UID_GID_ARGS=""
+            if [[ "{{ tag }}" == "ci" || "{{ tag }}" == "dev" || "{{ tag }}" == "prod" || "{{ tag }}" == "local" || "{{ tag }}" == "local-base" ]]; then
                 TARGET_ARG="--target={{ tag }}"
             fi
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile $TARGET_ARG -t baserow/web-frontend:{{ tag }} .
+            if [[ "{{ tag }}" == "dev" ]]; then
+                UID_GID_ARGS="--build-arg UID=$(id -u) --build-arg GID=$(id -g)"
+            fi
+            NAME_ARG="baserow/web-frontend:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" $UID_GID_ARGS -f web-frontend/Dockerfile $TARGET_ARG -t $NAME_ARG .
             ;;
         "all-in-one")
             echo "Building backend (prod)..."
@@ -888,7 +894,8 @@ build target="" tag="latest" *ARGS:
             echo "Building web-frontend (prod)..."
             $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
+            NAME_ARG="baserow/baserow:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod -t $NAME_ARG .
             ;;
         "all-in-one-lite")
             echo "Building backend (prod)..."
@@ -896,7 +903,8 @@ build target="" tag="latest" *ARGS:
             echo "Building web-frontend (prod)..."
             $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one-lite (no postgres/redis)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
+            NAME_ARG="baserow/baserow:lite-{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod-lite -t $NAME_ARG .
             ;;
         "all-in-one-dev")
             echo "Building backend (dev)..."
@@ -904,22 +912,28 @@ build target="" tag="latest" *ARGS:
             echo "Building web-frontend (dev)..."
             $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
             echo "Building all-in-one-dev..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
+            NAME_ARG="baserow/baserow:dev-{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target dev -t $NAME_ARG .
             ;;
         "heroku")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
+            NAME_ARG="baserow/heroku:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f heroku.Dockerfile -t $NAME_ARG .
             ;;
         "cloudron")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
+            NAME_ARG="baserow/cloudron:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/cloudron/Dockerfile -t $NAME_ARG .
             ;;
         "render")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
+            NAME_ARG="baserow/render:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/render/Dockerfile -t $NAME_ARG .
             ;;
         "apache")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
+            NAME_ARG="baserow/apache:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/recommended/Dockerfile -t  $NAME_ARG deploy/apache/recommended/
             ;;
         "apache-no-caddy")
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
+            NAME_ARG="baserow/apache-no-caddy:{{ tag }}"
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/no-caddy/Dockerfile -t $NAME_ARG deploy/apache/no-caddy/
             ;;
         *)
             echo "Build deployment images"
@@ -951,14 +965,14 @@ build target="" tag="latest" *ARGS:
     esac
     echo ""
     if [[ "$MULTI" != "true" ]]; then
-        echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 '{{ target }}')"
+        echo "Built: $NAME_ARG"
     else
         echo "Multi-platform build complete."
     fi
 
 # Run docker compose for specific deployment configurations
 [group('3 - production')]
-[doc("Docker compose for deployments: just dc-deploy <name> <cmd>")]
+[doc("Docker compose for different deployments methods (all-in-one, heroku, etc.): just dc-deploy <name> <cmd>")]
 dc-deploy name="" *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1026,12 +1040,12 @@ dc-deploy name="" *ARGS:
 
 # Test DB settings
 test_db_name := "baserow-test-db"
-test_db_port := env("TEST_DB_PORT", "5433")
+test_db_port := env("TEST_DB_PORT", "5431")
 test_db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
 
 # Ramdisk PostgreSQL for fast tests (2-5x faster)
 [group('4 - testing')]
-[doc("Test database: just test-db <up|down|ps>")]
+[doc("Manage a ramdisk database container for faster backend tests: just test-db <up|down|ps>")]
 test-db cmd="":
     #!/usr/bin/env bash
     case "{{ cmd }}" in

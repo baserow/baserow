@@ -47,6 +47,7 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
     --mount=type=bind,source=web-frontend/yarn.lock,target=/baserow/web-frontend/yarn.lock \
     yarn install --pure-lockfile --cache-folder $YARN_CACHE_FOLDER
 
+
 # =============================================================================
 # Production builder stage
 # =============================================================================
@@ -101,8 +102,9 @@ ENV DOCKER_USER=baserow_docker_user \
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
-    COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=busybox:musl /bin/wget /usr/local/bin/wget
 
 RUN mkdir -p /baserow/web-frontend/.cache /baserow/reports /baserow/.cache /baserow/.yarn /baserow/web-frontend/reports/coverage && \
     chown -R $UID:$GID /baserow
@@ -122,7 +124,7 @@ USER $UID:$GID
 WORKDIR /baserow/web-frontend
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
-HEALTHCHECK --interval=60s CMD ["curl", "-f", "http://localhost:3000/_health/"]
+HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 CMD ["nuxt-local"]
 
 
@@ -146,12 +148,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python3-pip \
     build-essential \
     curl \
+    wget \
     tmux \
     vim \
     sudo
 
 ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend" \
+    PATH="/baserow/web-frontend/node_modules/.bin:$PATH" \
     YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache
 
 # Install rust-just for running justfiles
@@ -159,7 +163,6 @@ RUN pip3 install --break-system-packages rust-just
 
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
 COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
@@ -173,21 +176,11 @@ RUN mkdir -p /baserow/web-frontend /baserow/premium/web-frontend /baserow/enterp
 USER $UID:$GID
 WORKDIR /baserow/web-frontend
 
-# Install dependencies (including dev)
-RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
-    --mount=type=bind,source=web-frontend/package.json,target=/baserow/web-frontend/package.json \
-    --mount=type=bind,source=web-frontend/yarn.lock,target=/baserow/web-frontend/yarn.lock \
-    yarn install --pure-lockfile --cache-folder $YARN_CACHE_FOLDER
-
 # Configure tmux to preserve environment variables (don't start login shell)
 RUN echo 'set -g default-command "${SHELL}"' > /baserow/.tmux.conf
 
 # Create .bashrc with environment variables for interactive shells
 RUN printf '%s\n' \
-    '# Baserow Frontend Development Environment' \
-    'export PATH="/baserow/web-frontend/node_modules/.bin:$PATH"' \
-    'export YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache' \
-    '' \
     '# Aliases' \
     'alias j="just"' \
     'alias y="yarn"' \
@@ -198,20 +191,27 @@ RUN printf '%s\n' \
     'echo "  j        - See available commands"' \
     > /baserow/.bashrc
 
-COPY --chown=$UID:$GID backend/docker/docker-entrypoint.sh /baserow/backend/docker/docker-entrypoint.sh
+COPY --chown=$UID:$GID web-frontend/docker/docker-entrypoint.sh /baserow/web-frontend/docker/docker-entrypoint.sh
 
-RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh \
-    && chmod a+x /baserow/backend/docker/docker-entrypoint.sh
+RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
+    && chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh
+
+COPY --chown=$UID:$GID web-frontend/package.json /baserow/web-frontend/package.json
+COPY --chown=$UID:$GID web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
+
+# Install dependencies (including dev)
+RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
+    yarn install --pure-lockfile --cache-folder $YARN_CACHE_FOLDER
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
-HEALTHCHECK --interval=60s CMD ["curl", "-f", "http://localhost:3000/_health/"]
+HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 CMD ["nuxt-dev"]
 
 
 # =============================================================================
 # Production target - minimal image with only runtime requirements
 # =============================================================================
-FROM node:24-bookworm-slim AS prod
+FROM node:24-bookworm-slim AS local-base
 ARG UID
 ARG GID
 
@@ -222,9 +222,10 @@ ENV DOCKER_USER=baserow_docker_user \
     NODE_ENV=production \
     YARN_CACHE_FOLDER=/tmp/.yarn-cache
 
+COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
+COPY --from=busybox:musl /bin/wget /usr/local/bin/wget
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
@@ -254,15 +255,21 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
         -o -name ".github" \
     \) -prune -exec rm -rf {} +
 
-# Copy built files from builder stage
-COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
+    COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
 COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
+
+HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
+
+FROM local-base AS local
 
 COPY --link --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 
-COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
+CMD ["nuxt-local"]
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
-HEALTHCHECK --interval=60s CMD ["curl", "-f", "http://localhost:3000/_health/"]
+
+FROM local AS prod
+
 CMD ["nuxt-local"]
