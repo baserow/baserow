@@ -536,10 +536,7 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
                 value = value.strip()
             return len(value) == 0
 
-        if isinstance(value, (int, float)):
-            return value == 0
-
-        return None
+        raise TypeError(f"is_empty cannot be checked for {value} {(type(value))}")
 
 
 class RuntimeStrip(RuntimeFormulaFunction):
