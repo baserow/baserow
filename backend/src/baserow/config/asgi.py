@@ -4,7 +4,7 @@ from django.urls import re_path
 
 from channels.routing import ProtocolTypeRouter, URLRouter
 
-from baserow.config.helpers import ConcurrencyLimiterASGI
+from baserow.config.helpers import ConcurrencyLimiterASGI, check_lazy_loaded_libraries
 from baserow.core.mcp import get_baserow_mcp_server
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
@@ -18,6 +18,9 @@ django_asgi_app = get_asgi_application()
 # logging setup. Otherwise Django will try to destroy and log handlers we added prior.
 setup_logging()
 
+# Check that libraries meant to be lazy-loaded haven't been imported at startup.
+# This runs after Django is fully loaded, so it catches imports from all apps.
+check_lazy_loaded_libraries()
 
 application = ProtocolTypeRouter(
     {

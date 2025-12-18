@@ -20,6 +20,11 @@ BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
+# daphne imports numpy via autobahn -> flatbuffers, so we exclude it from the
+# lazy-load check in dev mode. In production, numpy should still be lazy-loaded.
+if "numpy" in BASEROW_LAZY_LOADED_LIBRARIES:  # noqa: F405
+    BASEROW_LAZY_LOADED_LIBRARIES.remove("numpy")  # noqa: F405
+
 BASEROW_ENABLE_SILK = str_to_bool(os.getenv("BASEROW_ENABLE_SILK", "on"))
 if BASEROW_ENABLE_SILK:
     INSTALLED_APPS += ["silk"]  # noqa: F405

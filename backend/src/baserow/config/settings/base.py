@@ -1480,3 +1480,20 @@ BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
     try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )
+
+# Libraries that should be lazy-loaded (imported inside functions/methods) to reduce
+# memory footprint at startup. If any of these are found in sys.modules during startup,
+# a warning will be shown suggesting to either lazy-load them or remove them from this
+# list if they're legitimately needed at startup.
+BASEROW_LAZY_LOADED_LIBRARIES = [
+    "openai",
+    "anthropic",
+    "mistralai",
+    "ollama",
+    "langchain_core",
+    "sentry_sdk",
+    "jira2markdown",
+    "saml2",
+    "openpyxl",
+    "numpy",
+]

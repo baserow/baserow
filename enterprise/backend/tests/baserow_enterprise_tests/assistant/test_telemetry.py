@@ -30,7 +30,9 @@ def mock_posthog_openai():
 @pytest.mark.django_db
 class TestPosthogTracingCallback:
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_trace_context_manager_success(self, mock_get_client, assistant_chat_fixture):
+    def test_trace_context_manager_success(
+        self, mock_get_client, assistant_chat_fixture
+    ):
         """Test the trace context manager in a successful execution flow."""
 
         mock_posthog = MagicMock()
@@ -212,7 +214,9 @@ class TestPosthogTracingCallback:
         assert props["$ai_output_state"] == "result"
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_on_module_end_with_exception(self, mock_get_client, assistant_chat_fixture):
+    def test_on_module_end_with_exception(
+        self, mock_get_client, assistant_chat_fixture
+    ):
         """Test that exception string is captured in $ai_output_state."""
 
         mock_posthog = MagicMock()
