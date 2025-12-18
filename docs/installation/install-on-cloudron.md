@@ -28,7 +28,7 @@ Cloudron automatically handles updates for all installed apps, including Baserow
 a new version of Baserow is released, Cloudron will automatically update the app to the latest
 version without any manual intervention required.
 
-## Noteworthy extra settings
+## Extra settings
 
 ### Application builder domains
 
