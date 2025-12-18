@@ -74,9 +74,10 @@ export default {
    * Make sure the context menu is not open and all the events on the body are
    * removed and that the element is removed from the body.
    */
-  destroyed() {
+  beforeUnmount() {
     this.hide(false)
-
+  },
+  unmounted() {
     if (this.$el.parentNode) {
       this.$el.parentNode.removeChild(this.$el)
     }
