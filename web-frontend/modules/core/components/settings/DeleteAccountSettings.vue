@@ -132,8 +132,8 @@ export default {
     },
   },
   methods: {
-    logoff() {
-      logoutAndRedirectToLogin(
+    async logoff() {
+      await logoutAndRedirectToLogin(
         this.$nuxt.$router,
         this.$store,
         false,

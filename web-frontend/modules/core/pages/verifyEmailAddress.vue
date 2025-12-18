@@ -37,7 +37,7 @@ export default {
       )
       if (shouldLoginUser) {
         store.dispatch('auth/setUserData', data)
-        setToken(app, data.refresh_token)
+        await setToken(app, data.refresh_token)
       } else {
         const loggedInUserEmail = store.getters['auth/getUserObject'].username
         if (data.email !== loggedInUserEmail) {

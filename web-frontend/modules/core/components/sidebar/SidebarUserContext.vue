@@ -198,10 +198,10 @@ export default {
         this.$refs.search.focus()
       })
     },
-    logoff() {
+    async logoff() {
       this.hide()
       this.logoffLoading = true
-      logoutAndRedirectToLogin(
+      await logoutAndRedirectToLogin(
         this.$nuxt.$router,
         this.$store,
         false,

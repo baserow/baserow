@@ -16,15 +16,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const userSession = to.query.user_session
   if (userSession) {
-    setUserSessionCookie(nuxtApp, userSession)
+    await setUserSessionCookie(nuxtApp, userSession)
   }
 
   // token can be in the query string (SSO) or in the cookies (previous session)
   let refreshToken = to.query.token
   if (refreshToken) {
-    setToken(nuxtApp, refreshToken)
+    await setToken(nuxtApp, refreshToken)
   } else {
-    refreshToken = getTokenIfEnoughTimeLeft(nuxtApp)
+    refreshToken = await getTokenIfEnoughTimeLeft(nuxtApp)
   }
 
   if (refreshToken) {

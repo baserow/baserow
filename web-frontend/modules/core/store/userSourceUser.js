@@ -123,7 +123,7 @@ export const actions = {
       setCookie,
     })
   },
-  login(
+  async login(
     { commit, getters },
     { application, access, refresh, tokenUpdatedAt, setCookie = true }
   ) {
@@ -144,7 +144,7 @@ export const actions = {
 
     if (setCookie) {
       // Set the token for next page load
-      setToken(
+      await setToken(
         nuxtApp,
         getters.refreshToken(application),
         userSourceCookieTokenName,
@@ -160,7 +160,7 @@ export const actions = {
    * data.
    */
   async logoff({ commit, getters }, { application, invalidateToken = true }) {
-    unsetToken(this.app, userSourceCookieTokenName)
+    await unsetToken(this.app, userSourceCookieTokenName)
     if (!getters.isAuthenticated(application)) {
       return
     }
