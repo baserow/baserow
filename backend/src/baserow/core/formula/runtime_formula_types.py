@@ -125,16 +125,7 @@ class RuntimeGreaterThan(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        a = args[0]
-        b = args[1]
-
-        if isinstance(a, str) and isinstance(b, str):
-            return args[0] > args[1]
-
-        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-            return args[0] > args[1]
-
-        return None
+        return args[0] > args[1]
 
 
 class RuntimeLessThan(RuntimeFormulaFunction):
