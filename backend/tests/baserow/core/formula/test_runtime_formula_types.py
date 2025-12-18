@@ -535,12 +535,46 @@ def test_runtime_greater_than_validate_number_of_args(args, expected):
         (["ball", "apple"], False),
         ([1, "a"], None),
         (["a", 1], None),
+        (
+            [
+                date(2025, 12, 18),
+                date(2025, 12, 18),
+            ],
+            False,
+        ),
+        (
+            [
+                date(2025, 12, 18),
+                date(2025, 12, 19),
+            ],
+            True,
+        ),
+        (
+            [
+                datetime(year=2025, month=11, day=6, hour=12, minute=30),
+                datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            ],
+            False,
+        ),
+        (
+            [
+                datetime(year=2025, month=11, day=6, hour=12, minute=30),
+                datetime(year=2025, month=11, day=6, hour=12, minute=31),
+            ],
+            True,
+        ),
     ],
 )
 def test_runtime_less_than_execute(args, expected):
     parsed_args = RuntimeLessThan().parse_args(args)
-    result = RuntimeLessThan().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises(TypeError) as e:
+            RuntimeLessThan().execute({}, parsed_args)
+        assert f"'<' not supported between instances of" in str(e)
+    else:
+        result = RuntimeLessThan().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(
