@@ -543,15 +543,11 @@ class RuntimeStrip(RuntimeFormulaFunction):
     type = "strip"
 
     args = [
-        AnyBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        arg = args[0]
-        if isinstance(arg, str):
-            return arg.strip()
-
-        return None
+        return args[0].strip()
 
 
 class RuntimeSum(RuntimeFormulaFunction):
