@@ -606,7 +606,7 @@
     "absDescription": "Returns the absolute value for the argument number provided.",
     "ceilDescription": "Returns the smallest integer that is greater than or equal the argument number provided.",
     "floorDescription": "Returns the largest integer that is less than or equal the argument number provided.",
-    "toArrayDescription": "Converts a JSON array or a comma-delimited string into an array.",
+    "toArrayDescription": "Converts a comma-delimited string into an array.",
     "encodeUriDescription": "Returns a encoded URI string from the argument provided.",
     "encodeUriComponentDescription": "Returns a encoded URI string component from the argument provided.",
     "getFileVisibleNameDescription": "Returns the visible file name from a single file returned from the index function.",
