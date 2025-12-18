@@ -515,10 +515,7 @@ class RuntimeSplit(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         separator = args[1] if len(args) == 2 else None
-        if separator:
-            return args[0].split(separator)
-
-        return list(args[0])
+        return args[0].split(separator)
 
 
 class RuntimeIsEmpty(RuntimeFormulaFunction):

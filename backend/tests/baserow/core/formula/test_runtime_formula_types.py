@@ -2040,7 +2040,7 @@ def test_runtime_join_validate_number_of_args(args, expected):
     "args,expected",
     [
         (["foobar", "b"], ["foo", "ar"]),
-        (["foobar"], ["f", "o", "o", "b", "a", "r"]),
+        (["foobar"], ["foobar"]),
     ],
 )
 def test_runtime_split_execute(args, expected):
