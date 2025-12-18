@@ -69,12 +69,15 @@ const { $registry, $i18n } = nuxtApp
 const builderId = route.params.builderId
   ? parseInt(route.params.builderId, 10)
   : null
+
 const currentRoute = Array.isArray(route.params.pathMatch)
   ? route.params.pathMatch.join('/')
   : route.params.pathMatch
 
+const requestHostname = useRequestURL().hostname
+
 const { data: asyncDataResult, error } = await useAsyncData(
-  `publicPage_${builderId}_${currentRoute}`,
+  `publicPage_${requestHostname}_${route.fullPath}`,
   async () => {
     let mode = 'public'
     //const params = route.params
@@ -104,14 +107,10 @@ const { data: asyncDataResult, error } = await useAsyncData(
         } else {
           // We don't have the builderId so it's a public page.
           // Must fetch the builder instance by domain name.
-          const headers = useRequestHeaders(['host'])
-          const host = process.server ? headers.host : window.location.host
-          const domain = new URL(`http://${host}`).hostname
-
           const { id: receivedBuilderId } = await store.dispatch(
             'publicBuilder/fetchByDomain',
             {
-              domain,
+              domain: requestHostname,
             }
           )
           builder = await store.dispatch(
@@ -140,9 +139,11 @@ const { data: asyncDataResult, error } = await useAsyncData(
       (!process.server || process.server) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
     ) {
-      const refreshToken = await nuxtApp.runWithContext(() =>
-        getTokenIfEnoughTimeLeft(nuxtApp, userSourceCookieTokenName)
+      const refreshToken = await getTokenIfEnoughTimeLeft(
+        nuxtApp,
+        userSourceCookieTokenName
       )
+
       if (refreshToken) {
         try {
           await store.dispatch('userSourceUser/refreshAuth', {
@@ -214,6 +215,7 @@ const { data: asyncDataResult, error } = await useAsyncData(
 
     // Handle 404
     if (!found) {
+      // TODO MIG this doesn't work
       throw createError({
         statusCode: 404,
         statusMessage: $i18n.t('publicPage.pageNotFound'),
@@ -224,6 +226,7 @@ const { data: asyncDataResult, error } = await useAsyncData(
     // Handle 404
     if (pageFound.shared) {
       throw createError({
+        // TODO MIG this doesn't work
         statusCode: 404,
         statusMessage: $i18n.t('publicPage.pageNotFound'),
       })

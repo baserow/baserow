@@ -151,12 +151,12 @@ export const actions = {
    * If successful, commit the token to the state and start the refresh
    * timeout to stay authenticated.
    */
-  loginWithData({ getters, dispatch }, { data }) {
+  async loginWithData({ getters, dispatch }, { data }) {
     if (data.user) {
       dispatch('setUserData', data)
       if (!getters.getPreventSetToken) {
-        setToken(this.app, getters.refreshToken)
-        setUserSessionCookie(this.app, getters.signedUserSession)
+        await setToken(this.app, getters.refreshToken)
+        await setUserSessionCookie(this.app, getters.signedUserSession)
       }
       return data.user
     } else if (data.two_factor_auth) {
@@ -192,8 +192,8 @@ export const actions = {
     )
 
     if (data.refresh_token) {
-      setToken(this.app, data.refresh_token)
-      setUserSessionCookie(this.app, data.user_session)
+      await setToken(this.app, data.refresh_token)
+      await setUserSessionCookie(this.app, data.user_session)
       dispatch('setUserData', data)
     }
   },
@@ -213,10 +213,10 @@ export const actions = {
       })
     }
   },
-  forceLogoff({ commit }) {
-    unsetToken(this.app)
-    unsetUserSessionCookie(this.app)
-    unsetWorkspaceCookie(this.app)
+  async forceLogoff({ commit }) {
+    await unsetToken(this.app)
+    await unsetUserSessionCookie(this.app)
+    await unsetWorkspaceCookie(this.app)
     commit('LOGOFF')
   },
   /**
@@ -253,13 +253,13 @@ export const actions = {
         ...data,
       })
       if (!getters.getPreventSetToken && data.refresh_token) {
-        setToken(this.app, getters.refreshToken)
+        await setToken(this.app, getters.refreshToken)
       }
     } catch (error) {
       if (error.response?.status === 401) {
-        unsetToken(this.app)
-        unsetUserSessionCookie(this.app)
-        unsetWorkspaceCookie(this.app)
+        await unsetToken(this.app)
+        await unsetUserSessionCookie(this.app)
+        await unsetWorkspaceCookie(this.app)
         if (getters.isAuthenticated) {
           dispatch('setUserSessionExpired', true)
         }
@@ -316,10 +316,10 @@ export const actions = {
   preventSetToken({ commit }) {
     commit('SET_PREVENT_SET_TOKEN', true)
   },
-  setUserSessionExpired({ commit }, value) {
-    unsetToken(this.app)
-    unsetUserSessionCookie(this.app)
-    unsetWorkspaceCookie(this.app)
+  async setUserSessionExpired({ commit }, value) {
+    await unsetToken(this.app)
+    await unsetUserSessionCookie(this.app)
+    await unsetWorkspaceCookie(this.app)
     commit('SET_USER_SESSION_EXPIRED', value)
   },
   async fetchWorkspaceInvitations({ commit }) {
