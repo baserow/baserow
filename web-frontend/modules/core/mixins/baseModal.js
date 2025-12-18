@@ -23,10 +23,8 @@ export default {
   mounted() {
     this.$bus.$on('close-modals', this.hide)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('close-modals', this.hide)
-  },
-  destroyed() {
     window.removeEventListener('keyup', this.keyup)
   },
   methods: {
