@@ -1073,11 +1073,11 @@
         "functions": "기능",
         "operators": "연산자",
         "search": "검색",
-        "useRegularInputModalTitle": "이 필드에 일반 입력을 사용하시겠습니까?",
+        "useRegularInputModalTitle": "이 필드에 일반 입력값을 사용하시겠습니까?",
         "useRegularInput": "일반적인 입력을 사용",
         "useAdvancedInput": "고급 입력 사용",
-        "useAdvancedInputModalTitle": "이 필드에 고급 입력을 사용하시겠습니까?",
-        "modalMessage": "해당 필드의 내용이 삭제되며 복구할 수 없습니다."
+        "useAdvancedInputModalTitle": "이 필드에 고급 입력 기능을 사용하시겠습니까?",
+        "modalMessage": "해당 필드의 내용이 모두 삭제되며 복구할 수 없습니다."
     },
     "twoFactorAuthField": {
         "enabled": "활성화됨",
