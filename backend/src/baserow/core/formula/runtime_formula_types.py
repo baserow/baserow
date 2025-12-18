@@ -528,12 +528,15 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
 
+        if value is None:
+            return True
+
         if isinstance(value, (list, str, dict)):
             if isinstance(value, str):
                 value = value.strip()
             return len(value) == 0
 
-        raise TypeError(f"is_empty cannot be checked for {value} {(type(value))}")
+        return False
 
 
 class RuntimeStrip(RuntimeFormulaFunction):

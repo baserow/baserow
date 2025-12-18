@@ -2127,22 +2127,15 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
       return arg.length === 0
     }
 
+    if (typeof arg === 'object') {
+      return Object.keys(arg).length === 0
+    }
+
     if (typeof arg === 'string') {
-      const trimmed = arg.trim()
-      const intValue = Number.parseInt(trimmed, 10)
-
-      if (!Number.isNaN(intValue) && String(intValue) === trimmed) {
-        return !intValue
-      }
-
-      return !trimmed
+      return arg.trim().length === 0
     }
 
-    if (typeof arg === 'number') {
-      return !arg
-    }
-
-    return null
+    return false
   }
 
   getDescription() {

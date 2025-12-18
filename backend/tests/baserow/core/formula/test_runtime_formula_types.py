@@ -2078,13 +2078,14 @@ def test_runtime_split_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([0], None),
-        ([0.0], None),
-        ([0.1], None),
-        ([1], None),
+        ([0], False),
+        ([0.0], False),
+        ([0.1], False),
+        ([1], False),
         (["0"], False),
         ([""], True),
-        ([None], None),
+        ([None], True),
+        ([date.today()], False),
         ([[]], True),
         ([{}], True),
         (["[]"], False),
@@ -2097,14 +2098,8 @@ def test_runtime_split_validate_number_of_args(args, expected):
 )
 def test_runtime_is_empty_execute(args, expected):
     parsed_args = RuntimeIsEmpty().parse_args(args)
-
-    if expected is None:
-        with pytest.raises(TypeError) as e:
-            RuntimeIsEmpty().execute({}, parsed_args)
-        assert f"is_empty cannot be checked for {args[0]}" in str(e)
-    else:
-        result = RuntimeIsEmpty().execute({}, parsed_args)
-        assert result == expected
+    result = RuntimeIsEmpty().execute({}, parsed_args)
+    assert result == expected
 
 
 @pytest.mark.parametrize(
