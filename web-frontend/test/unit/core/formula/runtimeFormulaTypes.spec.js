@@ -1753,7 +1753,7 @@ describe('RuntimeStrip', () => {
 
 describe('RuntimeSum', () => {
   test.each([
-    { args: [[2.5, 3, 'foo', 4]], expected: 9.5 },
+    { args: [[2.5, 3, 'foo', 4]], expected: null },
     { args: [['2', '3', '4']], expected: 9 },
     { args: [[2.5, 3, 4]], expected: 9.5 },
   ])('execute returns expected value', ({ args, expected }) => {
@@ -1785,15 +1785,15 @@ describe('RuntimeSum', () => {
 })
 
 describe('RuntimeAvg', () => {
-  test.each([{ args: [[1, 2, 'foo', 3, 4]], expected: 2.5 }])(
-    'execute returns expected value',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeAvg()
-      const parsedArgs = formulaType.parseArgs(args)
-      const result = formulaType.execute({}, parsedArgs)
-      expect(result).toEqual(expected)
-    }
-  )
+  test.each([
+    { args: [[1, 2, 'foo', 3, 4]], expected: null },
+    { args: [[1, 2, 3, 4]], expected: 2.5 },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeAvg()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
 
   test.each([
     { args: [''], expected: undefined },

@@ -2239,7 +2239,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      return sum(arg)
+      return sum(arg, { strict: true })
     } catch {
       return null
     }
@@ -2283,7 +2283,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      return avg(arg)
+      return avg(arg, { strict: true })
     } catch {
       return null
     }

@@ -16,23 +16,29 @@ export const clamp = (value, min, max) => {
   return Math.max(min, Math.min(value, max))
 }
 
-export const sum = (arr) => {
+export const sum = (arr, { strict = false } = {}) => {
   return arr.reduce((total, val) => {
     const num = Number(val)
-    return Number.isFinite(num) ? total + num : total
+    if (Number.isFinite(num)) {
+      return total + num
+    } else if (strict) {
+      throw new Error(`Invalid number: ${val}`)
+    }
+    return total
   }, 0)
 }
 
-export const avg = (arr) => {
+export const avg = (arr, { strict = false } = {}) => {
   let validNumbers = 0
   const _sum = arr.reduce((total, val) => {
     const num = Number(val)
     if (Number.isFinite(num)) {
       validNumbers++
       return total + num
-    } else {
-      return total
+    } else if (strict) {
+      throw new Error(`Invalid number: ${val}`)
     }
+    return total
   }, 0)
   if (validNumbers > 0) {
     return _sum / validNumbers
