@@ -11,7 +11,7 @@ from baserow.core.telemetry.utils import setup_user_in_baggage_and_spans
 
 @app.task(
     bind=True,
-    queue="export",
+    queue="slow",
     soft_time_limit=settings.BASEROW_JOB_SOFT_TIME_LIMIT,
 )
 def run_async_job(self, job_id: int):
@@ -79,6 +79,7 @@ def run_async_job(self, job_id: int):
 # noinspection PyUnusedLocal
 @app.task(
     bind=True,
+    queue="slow",
 )
 def clean_up_jobs(self):
     """

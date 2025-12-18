@@ -23,14 +23,14 @@ DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT = (
 )
 
 
-@app.task(bind=True, queue="export")
+@app.task(bind=True, queue="slow")
 def mark_import_export_resources_for_deletion(
     self,
     older_than_days: int = settings.BASEROW_IMPORT_EXPORT_RESOURCE_REMOVAL_AFTER_DAYS,
 ):
     """
-    Marks all ImportExportResources that are invalid or are older than 5 days for
-    deletion.
+    Marks all ImportExportResources that are invalid or older than the configured
+    retention period for deletion.
 
     :param older_than_days: The number of days that the ImportExportResources should
         be older than to be marked for deletion.
@@ -46,7 +46,7 @@ def mark_import_export_resources_for_deletion(
 @app.task(
     base=Singleton,
     bind=True,
-    queue="export",
+    queue="slow",
     soft_time_limit=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,
     time_limit=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,
     lock_expiry=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,

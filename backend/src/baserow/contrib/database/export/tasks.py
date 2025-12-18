@@ -34,7 +34,7 @@ def run_export_job(self, job_id):
 def clean_up_old_jobs(self):
     """
     Looks for any old jobs and cleans them up at the configured interval set below.
-    Runs on the export celery queue.
+    Runs on the slow celery queue.
     """
 
     from baserow.contrib.database.export.handler import ExportHandler
