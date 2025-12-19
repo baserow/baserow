@@ -497,11 +497,7 @@ class RuntimeJoin(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
         separator = args[1] if len(args) == 2 else ","
-
-        if isinstance(value, (list, str)):
-            return separator.join(value)
-
-        return None
+        return separator.join(value)
 
 
 class RuntimeSplit(RuntimeFormulaFunction):

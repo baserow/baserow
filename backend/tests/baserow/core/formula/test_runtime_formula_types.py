@@ -2002,12 +2002,19 @@ def test_runtime_reverse_validate_number_of_args(args, expected):
         ([["foo", "bar"]], "foo,bar"),
         ([["foo", "bar"], "*"], "foo*bar"),
         (["foo", "*"], "f*o*o"),
+        ([1], None),
     ],
 )
 def test_runtime_join_execute(args, expected):
     parsed_args = RuntimeJoin().parse_args(args)
-    result = RuntimeJoin().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises(TypeError) as e:
+            RuntimeJoin().execute({}, parsed_args)
+        assert "can only join an iterable" in str(e)
+    else:
+        result = RuntimeJoin().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(
