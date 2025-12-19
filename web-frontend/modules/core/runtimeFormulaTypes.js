@@ -584,6 +584,10 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
         formula: '"foo" = "foo"',
         result: 'true',
       },
+      {
+        formula: 'now() = now()',
+        result: 'false',
+      },
     ]
   }
 }
@@ -633,6 +637,10 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
       },
       {
         formula: '"foo" != "bar"',
+        result: 'true',
+      },
+      {
+        formula: 'now() != now()',
         result: 'true',
       },
     ]
@@ -697,6 +705,10 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
         formula: '"Ambarella" > "fig"',
         result: 'false',
       },
+      {
+        formula: 'now() > now()',
+        result: 'false',
+      },
     ]
   }
 }
@@ -757,6 +769,10 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
       },
       {
         formula: '"Ambarella" < "fig"',
+        result: 'true',
+      },
+      {
+        formula: 'now() < now()',
         result: 'true',
       },
     ]
@@ -821,6 +837,10 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
         formula: '"Ambarella" >= "fig"',
         result: 'false',
       },
+      {
+        formula: 'now() >= now()',
+        result: 'false',
+      },
     ]
   }
 }
@@ -882,6 +902,10 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
       {
         formula: '"fig" <= "Ambarella"',
         result: 'false',
+      },
+      {
+        formula: 'now() <= now()',
+        result: 'true',
       },
     ]
   }
