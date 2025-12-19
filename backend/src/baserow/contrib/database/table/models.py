@@ -889,6 +889,20 @@ class Table(
         null=True,
         help_text="Indicates whether the table has had the field_rules_are_valid column added.",
     )
+    # The m2m indexes of the foreign keys were not added before because the
+    # `schema_editor.add_field` does not add them. The `schema_editor.create_model`
+    # does add those. This problem has been addressed, but there are tables out there
+    # without those indexes.
+    missing_m2m_indexes_added = models.BooleanField(
+        # The `db_default` must be false because this is used when an entry is created
+        # no default value is set. This is what happens when the field index changes
+        # are not yet deployed, so index does not exist.
+        db_default=False,
+        # However, if the field index changes are deployed, this default value is used,
+        # and in that case, the index has been applied.
+        default=True,
+        help_text="Indicates whether potentially missing m2m foreign key indexes have been added.",
+    )
 
     class Meta:
         ordering = ("order",)
