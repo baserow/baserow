@@ -161,6 +161,7 @@
       :container-width="width"
       :read-only="readOnly"
       :store-prefix="storePrefix"
+      :get-scroll-element="getScrollElement"
       @scroll="$emit('scroll', $event)"
     ></GridViewFieldDragging>
   </div>
@@ -621,6 +622,9 @@ export default {
       if (leftOffset !== this.fieldsLeftOffset) {
         this.fieldsLeftOffset = leftOffset
       }
+    },
+    getScrollElement() {
+      return this.$refs.section
     },
   },
 }

@@ -79,7 +79,7 @@ export default {
       this.dropdownProvider.registerDropdownItem(this)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     // Unregister from parent dropdown
     if (this.dropdownProvider && this.dropdownProvider.unregisterDropdownItem) {
       this.dropdownProvider.unregisterDropdownItem(this)

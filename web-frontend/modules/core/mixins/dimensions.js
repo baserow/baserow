@@ -17,7 +17,7 @@ export const dimensionMixin = {
       this.resizeObserver.observe(this.dimensions.targetElement)
     })
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect()
     }

@@ -139,10 +139,10 @@ export default {
         // make sure it does not accidentally try to use an empty object.
         Object.keys(newVal).forEach((providerType) => {
           if (!newVal[providerType]) {
-            this.$delete(this.values.ai_settings, providerType)
+            delete this.values.ai_settings[providerType]
           } else if (!this.values.ai_settings[providerType]) {
             const initialValues = this.parseProviderSettings(providerType)
-            this.$set(this.values.ai_settings, providerType, initialValues)
+            this.values.ai_settings[providerType] = initialValues
           }
         })
       },
@@ -154,14 +154,14 @@ export default {
       const isOverridden =
         this.values.ai_settings &&
         Object.prototype.hasOwnProperty.call(this.values.ai_settings, type)
-      this.$set(this.providerOverrides, type, isOverridden)
+      this.providerOverrides[type] = isOverridden
 
       if (isOverridden) {
         const parsedValues = this.parseProviderSettings(
           type,
           this.values.ai_settings[type]
         )
-        this.$set(this.values.ai_settings, type, parsedValues)
+        this.values.ai_settings[type] = parsedValues
       }
     })
   },

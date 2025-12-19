@@ -45,7 +45,7 @@ export default {
       immediate: true,
     },
   },
-  destroyed() {
+  unmounted() {
     // Restore the current application to the selected application if any
     this.$store.dispatch('userSourceUser/setCurrentApplication', {
       application: this.$store.getters['application/getSelected'],

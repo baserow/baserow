@@ -6,7 +6,7 @@
     </p>
     <div class="margin-bottom-2">
       <SegmentControl
-        :active-index.sync="selectedTypeIndex"
+        v-model:active-index="selectedTypeIndex"
         :segments="types"
         :initial-active-index="0"
         @update:activeIndex="updateValue"

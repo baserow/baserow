@@ -507,7 +507,7 @@ export default {
         })
         return this.setEventView(event, view)
       }
-      this.$set(eventConfig, 'views', [view])
+      eventConfig.views = [view]
     },
     toggleEventType(webhookEvent, event) {
       if (event) {

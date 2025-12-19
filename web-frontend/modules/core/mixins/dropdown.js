@@ -252,9 +252,6 @@ export default {
       })
     }
   },
-  beforeDestroy() {
-    this.observer.disconnect()
-  },
   beforeUnmount() {
     // Clean up any remaining event listeners
     this.hideCleanupFunctions.forEach((cleanup) => cleanup())

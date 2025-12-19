@@ -105,6 +105,12 @@ export default {
     }
     return head
   },
+  data() {
+    return {
+      // Event handler reference for cleanup
+      keydownEvent: null,
+    }
+  },
   computed: {
     ...mapGetters({
       fields: 'field/getAll',
@@ -112,8 +118,8 @@ export default {
     }),
   },
   mounted() {
-    this.$el.keydownEvent = (event) => this.keyDown(event)
-    document.body.addEventListener('keydown', this.$el.keydownEvent)
+    this.keydownEvent = (event) => this.keyDown(event)
+    document.body.addEventListener('keydown', this.keydownEvent)
 
     if (!this.$config.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS) {
       this.$realtime.connect(true, true)
@@ -123,7 +129,7 @@ export default {
     }
   },
   beforeUnmount() {
-    document.body.removeEventListener('keydown', this.$el.keydownEvent)
+    document.body.removeEventListener('keydown', this.keydownEvent)
 
     if (!this.$config.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS) {
       this.$realtime.subscribe(null)

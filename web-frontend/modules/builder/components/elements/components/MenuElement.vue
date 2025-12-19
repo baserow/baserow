@@ -221,7 +221,7 @@ export default {
       }
     },
     toggleExpanded(itemId) {
-      this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
+      this.expandedItems[itemId] = !this.expandedItems[itemId]
     },
     /**
      * Transforms a Menu Item into a valid object that can be passed as a prop

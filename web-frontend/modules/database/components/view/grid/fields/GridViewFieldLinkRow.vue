@@ -107,6 +107,8 @@ export default {
     return {
       modalOpen: false,
       itemLoadingId: -1,
+      // Event handler reference for cleanup
+      keydownEvent: null,
     }
   },
   computed: {
@@ -143,14 +145,9 @@ export default {
         []
       )
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        publicGrid: 'page/view/public/getIsPublic',
-      }),
-    }
+    publicGrid() {
+      return this.$store.getters['page/view/public/getIsPublic']
+    },
   },
   methods: {
     getPersistentFieldOptionsKey(fieldId) {
@@ -159,7 +156,7 @@ export default {
     select() {
       // While the field is selected we want to open the select row toast by pressing
       // the enter key.
-      this.$el.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         // If the tab or arrow keys are pressed we don't want to do anything because
         // the GridViewField component will select the next field.
         const ignoredKeys = [
@@ -188,10 +185,10 @@ export default {
           this.showModal()
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
     },
     beforeUnSelect() {
-      document.body.removeEventListener('keydown', this.$el.keydownEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
     },
     /**
      * If the user clicks inside the select row or file modal we do not want to

@@ -1,5 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg'
+import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
 import SummaryWidget from '@baserow/modules/dashboard/components/widget/SummaryWidget'
 import SummaryWidgetSettings from '@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'
 

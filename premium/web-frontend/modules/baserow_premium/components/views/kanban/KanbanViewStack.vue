@@ -283,7 +283,7 @@ export default {
     window.addEventListener('resize', this.$el.resizeEvent)
     this.$refs.scroll.$el.addEventListener('scroll', this.$el.scrollEvent)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.$el.resizeEvent)
     this.$refs.scroll.$el.removeEventListener('scroll', this.$el.scrollEvent)
   },

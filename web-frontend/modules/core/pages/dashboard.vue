@@ -44,9 +44,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useNuxtApp, useAsyncData } from '#imports'
+import { useNuxtApp, navigateTo } from '#imports'
 
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -63,7 +63,6 @@ definePageMeta({
 })
 
 const store = useStore()
-const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const { $hasPermission } = useNuxtApp()
@@ -74,28 +73,23 @@ const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']
 )
 
-await useAsyncData('dashboard-init', async () => {
-  const selectedWorkspace = store.getters['workspace/getSelected']
-  const allWorkspaces = store.getters['workspace/getAll']
+const selectedWorkspace = computed(() => store.getters['workspace/getSelected'])
+const allWorkspaces = computed(() => store.getters['workspace/getAll'])
 
-  if (Object.keys(selectedWorkspace).length > 0) {
-    router.replace({
-      name: 'workspace',
-      params: { workspaceId: selectedWorkspace.id },
-      query: route.query,
-    })
-    return {}
-  }
-
-  if (allWorkspaces.length > 0) {
-    router.replace({
-      name: 'workspace',
-      params: { workspaceId: allWorkspaces[0].id },
-      query: route.query,
-    })
-    return {}
-  }
-
+// Handle redirect logic
+if (Object.keys(selectedWorkspace.value).length > 0) {
+  await navigateTo({
+    name: 'workspace',
+    params: { workspaceId: selectedWorkspace.value.id },
+    query: route.query,
+  }, { replace: true })
+} else if (allWorkspaces.value?.length > 0) {
+  await navigateTo({
+    name: 'workspace',
+    params: { workspaceId: allWorkspaces.value[0].id },
+    query: route.query,
+  }, { replace: true })
+} else {
   await store.dispatch('auth/fetchWorkspaceInvitations')
-})
+}
 </script>

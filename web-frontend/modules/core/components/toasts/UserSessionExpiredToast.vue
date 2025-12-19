@@ -17,7 +17,7 @@ export default {
       this.acknowledge()
     }, 7000)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.acknowledge()
   },
   methods: {

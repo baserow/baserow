@@ -86,7 +86,7 @@ export default {
       this.searchStarted
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {
