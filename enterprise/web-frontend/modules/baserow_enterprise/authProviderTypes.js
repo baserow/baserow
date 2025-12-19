@@ -8,14 +8,14 @@ import GitLabSettingsForm from '@baserow_enterprise/components/admin/forms/GitLa
 import OpenIdConnectSettingsForm from '@baserow_enterprise/components/admin/forms/OpenIdConnectSettingsForm.vue'
 import LoginButton from '@baserow_enterprise/components/admin/login/LoginButton.vue'
 
-import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg'
-import SAMLIcon from '@baserow_enterprise/assets/images/providers/LockKey.svg'
-import GoogleIcon from '@baserow_enterprise/assets/images/providers/Google.svg'
-import FacebookIcon from '@baserow_enterprise/assets/images/providers/Facebook.svg'
-import GitHubIcon from '@baserow_enterprise/assets/images/providers/GitHub.svg'
-import GitLabIcon from '@baserow_enterprise/assets/images/providers/GitLab.svg'
-import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
-import VerifiedProviderIcon from '@baserow_enterprise/assets/images/providers/VerifiedProviderIcon.svg'
+import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg?url'
+import SAMLIcon from '@baserow_enterprise/assets/images/providers/LockKey.svg?url'
+import GoogleIcon from '@baserow_enterprise/assets/images/providers/Google.svg?url'
+import FacebookIcon from '@baserow_enterprise/assets/images/providers/Facebook.svg?url'
+import GitHubIcon from '@baserow_enterprise/assets/images/providers/GitHub.svg?url'
+import GitLabIcon from '@baserow_enterprise/assets/images/providers/GitLab.svg?url'
+import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
+import VerifiedProviderIcon from '@baserow_enterprise/assets/images/providers/VerifiedProviderIcon.svg?url'
 
 export class PasswordAuthProviderType extends AuthProviderType {
   static getType() {
@@ -162,12 +162,15 @@ export const OAuth2AuthProviderTypeMixin = (Base) =>
     }
 
     getCallbackUrl(authProvider) {
+      const runtimeConfig = useRuntimeConfig()
+
+      runtimeConfig.public.publicWebFrontendUrl
       if (!authProvider.id) {
         const nextProviderId =
           this.app.$store.getters['authProviderAdmin/getNextProviderId']
-        return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
+        return `${runtimeConfig.public.publicWebFrontendUrl}/api/sso/oauth2/callback/${nextProviderId}/`
       }
-      return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${authProvider.id}/`
+      return `${runtimeConfig.public.publicWebFrontendUrl}/api/sso/oauth2/callback/${authProvider.id}/`
     }
 
     populateLoginOptions(authProviderOption) {
