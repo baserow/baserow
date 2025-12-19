@@ -526,7 +526,13 @@ export const getters = {
     return state.items.map((g) => g).sort((a, b) => a.order - b.order)
   },
   getSelected(state, getters) {
-    return getters['get'](getters.selectedId)
+    // Return empty object if no workspace is selected to avoid throwing
+    // Components should check hasOwnProperty('id') before using
+    if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
+      return {}
+    }
+    return getters['get'](state.selected.id)
+    
   },
   selectedId(state) {
     if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
