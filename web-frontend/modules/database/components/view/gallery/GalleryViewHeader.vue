@@ -84,16 +84,11 @@ export default {
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        fieldOptions:
-          this.$options.propsData.storePrefix +
-          'view/gallery/getAllFieldOptions',
-      }),
-    }
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/gallery/getAllFieldOptions'
+      ]
+    },
   },
   methods: {
     async updateAllFieldOptions({ newFieldOptions, oldFieldOptions }) {

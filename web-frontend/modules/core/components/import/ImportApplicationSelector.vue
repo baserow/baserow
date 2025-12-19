@@ -115,7 +115,7 @@ export default {
   },
   mounted() {
     this.applicationGroups.forEach((group) => {
-      this.$set(this.groupExpanded, group.type, true)
+      this.groupExpanded[group.type] = true
     })
   },
   methods: {
@@ -147,7 +147,7 @@ export default {
     },
     toggleGroupExpanded(groupType) {
       if (this.disabled) return
-      this.$set(this.groupExpanded, groupType, !this.groupExpanded[groupType])
+      this.groupExpanded[groupType] = !this.groupExpanded[groupType]
     },
     handleApplicationToggle(application, isChecked) {
       if (this.disabled) return

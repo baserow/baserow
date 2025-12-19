@@ -85,7 +85,7 @@ export default {
     this.$el.mouseMoveEventListener = (event) => this.mouseMove(event)
     window.addEventListener('mousemove', this.$el.mouseMoveEventListener)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.$el.resizeEventListener)
     window.removeEventListener('mouseup', this.$el.mouseUpEventListener)
     window.removeEventListener('mousemove', this.$el.mouseMoveEventListener)

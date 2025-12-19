@@ -208,14 +208,14 @@ export const actions = {
    * Fetches all the workspaces of an authenticated user.
    */
   async fetchAll({ commit, dispatch, state }) {
-    const { $registry, $client } = this
+    const { $client } = this
     commit('SET_LOADING', true)
 
     try {
       const { data } = await WorkspaceService($client).fetchAll()
       commit('SET_LOADED', true)
       commit('SET_ITEMS', data)
-    } catch {
+    } catch (error) {
       commit('SET_ITEMS', [])
     }
     commit('SET_LOADING', false)

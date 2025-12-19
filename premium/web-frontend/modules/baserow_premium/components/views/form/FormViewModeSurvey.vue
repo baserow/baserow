@@ -117,6 +117,7 @@ export default {
   data() {
     return {
       questionIndex: 0,
+      navigateOnTab: null,
     }
   },
   computed: {
@@ -139,7 +140,7 @@ export default {
   mounted() {
     // Intercept Tab key to navigate through questions instead of default browser
     // behavior
-    const navigateOnTab = (e) => {
+    this.navigateOnTab = (e) => {
       if (e.key === 'Tab') {
         e.preventDefault()
         if (e.shiftKey) {
@@ -149,10 +150,12 @@ export default {
         }
       }
     }
-    document.addEventListener('keydown', navigateOnTab)
-    this.$once('hook:beforeDestroy', () => {
-      document.removeEventListener('keydown', navigateOnTab)
-    })
+    document.addEventListener('keydown', this.navigateOnTab)
+  },
+  beforeUnmount() {
+    if (this.navigateOnTab) {
+      document.removeEventListener('keydown', this.navigateOnTab)
+    }
   },
   methods: {
     previous() {

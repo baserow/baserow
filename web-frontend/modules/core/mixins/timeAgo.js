@@ -17,7 +17,7 @@ export default {
   mounted() {
     this.updateTimeAgo()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     clearTimeout(this.timeoutHandler)
   },
   methods: {

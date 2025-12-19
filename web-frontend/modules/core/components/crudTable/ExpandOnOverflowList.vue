@@ -87,7 +87,7 @@ export default {
     this.$el.resizeObserver = new ResizeObserver(this.recalculateHiddenRecords)
     this.$el.resizeObserver.observe(this.$el)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$el.resizeObserver.unobserve(this.$el)
   },
   created() {

@@ -28,11 +28,11 @@
           :inline="true"
           :monday-first="true"
           :use-utc="true"
-          :value="dateObject"
-          :language="datePickerLang[$i18n.locale]"
+          :model-value="dateObject"
+          :language="$i18n.locale"
           :disabled-dates="disableDates"
           class="datepicker"
-          @input="
+          @update:model-value="
             ;[
               setCopy($event, 'dateObject'),
               $emit('input', copy),

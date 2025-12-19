@@ -7,8 +7,8 @@ import {
 
 import { CalendarViewType, KanbanViewType, TimelineViewType } from './viewTypes'
 
-import leftBorderDecoratorImage from '@baserow_premium/assets/images/leftBorderDecorator.svg'
-import backgroundDecoratorImage from '@baserow_premium/assets/images/backgroundDecorator.svg'
+import leftBorderDecoratorImage from '@baserow_premium/assets/images/leftBorderDecorator.svg?url'
+import backgroundDecoratorImage from '@baserow_premium/assets/images/backgroundDecorator.svg?url'
 
 import LeftBorderColorViewDecorator from '@baserow_premium/components/views/LeftBorderColorViewDecorator'
 import BackgroundColorViewDecorator from '@baserow_premium/components/views/BackgroundColorViewDecorator'
