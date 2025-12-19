@@ -3,7 +3,6 @@ import uuid
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
@@ -583,11 +582,7 @@ class RuntimeAt(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
         index = args[1]
-
-        if isinstance(value, (list, str)) and len(value) > index:
-            return value[index]
-
-        return None
+        return value[index]
 
 
 class RuntimeToArray(RuntimeFormulaFunction):
@@ -596,7 +591,4 @@ class RuntimeToArray(RuntimeFormulaFunction):
     args = [TextBaserowRuntimeFormulaArgumentType()]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        try:
-            return ensure_array(args[0])
-        except ValidationError:
-            return None
+        return ensure_array(args[0])

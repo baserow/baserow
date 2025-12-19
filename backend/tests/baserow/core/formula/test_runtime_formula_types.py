@@ -2251,12 +2251,18 @@ def test_runtime_avg_validate_number_of_args(args, expected):
         ([["foo", "bar"], 1], "bar"),
         ([["foo", "bar"], 2], None),
         (["foobar", 3], "b"),
+        ([3, 1], None),
     ],
 )
 def test_runtime_at_execute(args, expected):
     parsed_args = RuntimeAt().parse_args(args)
-    result = RuntimeAt().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises((IndexError, TypeError)) as e:
+            RuntimeAt().execute({}, parsed_args)
+    else:
+        result = RuntimeAt().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -2291,6 +2297,7 @@ def test_runtime_at_validate_number_of_args(args, expected):
         (["foo,bar"], ["foo", "bar"]),
         ([["foo", "bar"]], ["foo", "bar"]),
         (['["foo", "bar"]'], ['["foo"', '"bar"]']),
+        ([123], ["123"]),
     ],
 )
 def test_runtime_to_array_execute(args, expected):
