@@ -1,9 +1,8 @@
 import FieldService from '@baserow/modules/database/services/field'
 import { clone } from '@baserow/modules/core/utils/object'
 
-export function populateField(field) {
-  const { $registry } = useNuxtApp()
-  const type = $registry.get('field', field.type)
+export function populateField(field, registry) {
+  const type = registry.get('field', field.type)
 
   field._ = {
     type: type.serialize(),
@@ -90,8 +89,9 @@ export const actions = {
     return getters.getAll
   },
   forceSetFields({ commit, rootGetters }, { fields }) {
+    const { $registry } = useNuxtApp()
     fields.forEach((part, index) => {
-      populateField(fields[index])
+      populateField(fields[index], $registry)
     })
 
     commit('SET_ITEMS', fields)
@@ -159,7 +159,7 @@ export const actions = {
     const { $registry } = useNuxtApp()
     const { commit } = context
     const fieldType = $registry.get('field', values.type)
-    const populatedField = populateField(values)
+    const populatedField = populateField(values, $registry)
     commit('ADD_ITEM', populatedField)
 
     if (selectedView) {
@@ -181,7 +181,7 @@ export const actions = {
     const { $registry } = useNuxtApp()
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', values.type)
-    const data = populateField(values)
+    const data = populateField(values, $registry)
     commit('ADD_ITEM', data)
 
     // Call the field created event on all the registered views because they might
@@ -262,7 +262,7 @@ export const actions = {
     const { $registry } = useNuxtApp()
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', data.type)
-    data = populateField(data)
+    data = populateField(data, $registry)
 
     commit('UPDATE_ITEM', { id: field.id, values: data })
     commit('UPDATE_ITEM', { id: field.id, values: data })

@@ -288,8 +288,9 @@ export default {
     async fetchFields(tableId) {
       try {
         const { data } = await FieldService(this.$client).fetchAll(tableId)
+        const { $registry } = useNuxtApp()
         data.forEach((part, index, d) => {
-          populateField(data[index])
+          populateField(data[index], $registry)
         })
         const primaryIndex = data.findIndex((item) => item.primary === true)
         this.primary =
