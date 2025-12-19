@@ -483,7 +483,7 @@ class RuntimeReverse(RuntimeFormulaFunction):
         if isinstance(value, str):
             return "".join(list(reversed(value)))
 
-        return None
+        raise TypeError(f"Cannot reverse {value}")
 
 
 class RuntimeJoin(RuntimeFormulaFunction):

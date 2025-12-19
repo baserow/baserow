@@ -1966,8 +1966,14 @@ def test_runtime_contains_validate_number_of_args(args, expected):
 )
 def test_runtime_reverse_execute(args, expected):
     parsed_args = RuntimeReverse().parse_args(args)
-    result = RuntimeReverse().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises(TypeError) as e:
+            RuntimeReverse().execute({}, parsed_args)
+        assert f"Cannot reverse {parsed_args[0]}" in str(e)
+    else:
+        result = RuntimeReverse().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(
