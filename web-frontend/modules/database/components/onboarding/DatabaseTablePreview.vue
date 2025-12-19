@@ -52,6 +52,7 @@ export default {
       return this.database.tables[0]
     },
     fields() {
+      const { $registry } = useNuxtApp()
       const primaryTextField = populateField(
         {
           id: 0,
@@ -62,7 +63,8 @@ export default {
           primary: true,
           read_only: false,
           text_default: '',
-        }
+        },
+        $registry
       )
 
       const instances = [primaryTextField]
@@ -77,7 +79,8 @@ export default {
               primary: false,
               hidden: false,
               ...field,
-            }
+            },
+            $registry
           )
         )
       })

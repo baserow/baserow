@@ -261,9 +261,10 @@ const userFieldNamesParam = computed(() => {
   return exampleData.value.userFieldNames ? '?user_field_names=true' : ''
 })
 const fields = computed(() => {
+  const { $registry } = useNuxtApp()
   return Object.fromEntries(
     Object.entries(fieldData).map(([key, fields]) => {
-      return [key, fields.map((field) => populateField(field))]
+      return [key, fields.map((field) => populateField(field, $registry))]
     })
   )
 })
