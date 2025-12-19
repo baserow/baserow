@@ -41,7 +41,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp } from '#app'
+import { useNuxtApp, definePageMeta, useI18n } from '#imports'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
@@ -54,6 +54,7 @@ definePageMeta({
 // Composables
 const store = useStore()
 const { $registry } = useNuxtApp()
+const { t: $t } = useI18n()
 
 // Template refs
 const createContextLink = ref(null)
