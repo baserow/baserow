@@ -459,12 +459,7 @@ class RuntimeContains(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        value = args[0]
-
-        if isinstance(value, (dict, list, str)):
-            return args[1] in value
-
-        return None
+        return args[1] in args[0]
 
 
 class RuntimeReverse(RuntimeFormulaFunction):

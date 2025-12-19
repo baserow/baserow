@@ -1918,13 +1918,19 @@ def test_runtime_length_validate_number_of_args(args, expected):
         (['"foo bar"', "foo"], True),
         ([["foo", "bar"], "foo"], True),
         ([{"foo": "bar"}, "foo"], True),
-        ([1], None),
+        ([1, 2], None),
     ],
 )
 def test_runtime_contains_execute(args, expected):
     parsed_args = RuntimeContains().parse_args(args)
-    result = RuntimeContains().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises(TypeError) as e:
+            RuntimeContains().execute({}, parsed_args)
+        assert "is not iterable" in str(e)
+    else:
+        result = RuntimeContains().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(
