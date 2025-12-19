@@ -96,7 +96,7 @@ export default {
     }
     window.addEventListener('resize', this.$el.updatePositionViaResizeEvent)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener(
       'scroll',
       this.$el.updatePositionViaScrollEvent,

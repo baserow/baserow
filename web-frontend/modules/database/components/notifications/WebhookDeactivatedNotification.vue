@@ -2,7 +2,7 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
       <i18n-t keypath="webhookDeactivatedNotification.body" tag="span">

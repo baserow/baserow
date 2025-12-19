@@ -392,7 +392,7 @@ export default {
     this.createEditor()
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },

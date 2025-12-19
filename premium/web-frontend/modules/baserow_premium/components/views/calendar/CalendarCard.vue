@@ -37,6 +37,7 @@ import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 export default {
   name: 'CalendarCard',
   components: { RecursiveWrapper },
+  emits: ['edit-row', 'row-context'],
   props: {
     row: {
       type: Object,

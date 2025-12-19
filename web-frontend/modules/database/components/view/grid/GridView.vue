@@ -165,7 +165,7 @@
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
       :offset="activeGroupByWidth"
-      vertical="getVerticalScrollbarElement"
+      :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
     <Context ref="rowContext" overflow-scroll max-height-if-outside-viewport>

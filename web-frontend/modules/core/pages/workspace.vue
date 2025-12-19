@@ -405,7 +405,8 @@ function getApplicationType(application) {
 
 function selectApplication(application) {
   const type = getApplicationType(application)
-  type.select(application, { router })
+  const { $store, $i18n } = nuxtApp
+  type.select(application, { $router: router, $store, $i18n })
 }
 
 async function workspaceUpdated(workspace) {

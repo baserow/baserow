@@ -256,7 +256,7 @@ export default {
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.removeScrollListener()
   },
 

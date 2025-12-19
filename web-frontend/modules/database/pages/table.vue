@@ -534,11 +534,11 @@ export default {
     }),
   },
   /**
-   * The beforeCreate hook is called right after the asyncData finishes and when the
-   * page has been rendered for the first time. The perfect moment to stop the table
-   * loading animation.
+   * The created hook is called after the component instance has been created.
+   * This is the appropriate place to stop the table loading animation after
+   * asyncData has finished.
    */
-  beforeCreate() {
+  created() {
     this.$store.dispatch('table/setLoading', false)
   },
   mounted() {

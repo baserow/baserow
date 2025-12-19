@@ -93,6 +93,8 @@ export default {
       dragging: false,
       loadings: [],
       dragTarget: null,
+      // Event handler reference for cleanup
+      keydownEvent: null,
     }
   },
   methods: {
@@ -160,15 +162,15 @@ export default {
     select() {
       // While the field is selected we want to open the select row toast by pressing
       // the enter key.
-      this.$el.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         if (event.key === 'Enter' && !this.modalOpen) {
           this.showUploadModal()
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
     },
     beforeUnSelect() {
-      document.body.removeEventListener('keydown', this.$el.keydownEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
     },
     /**
      * If the user clicks inside the select row modal we do not want to unselect the

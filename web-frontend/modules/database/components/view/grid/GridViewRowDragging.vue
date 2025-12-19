@@ -42,8 +42,8 @@ export default {
       type: Array,
       required: true,
     },
-    vertical: {
-      type: String,
+    getScrollElement: {
+      type: Function,
       required: true,
     },
     offset: {
@@ -72,6 +72,11 @@ export default {
       lastMoveEvent: null,
       // Indicates if the user is auto scrolling at the moment.
       autoScrolling: false,
+      // Event handler references for cleanup
+      moveEvent: null,
+      upEvent: null,
+      keydownEvent: null,
+      scrollTimeout: null,
     }
   },
   computed: {
@@ -116,7 +121,7 @@ export default {
      * the correct position.
      */
     start(row, event) {
-      const element = this.$parent[this.vertical]()
+      const element = this.getScrollElement()
 
       this.row = row
       this.startRowTop = this.getRowTop(row.id) - element.scrollTop
@@ -126,19 +131,19 @@ export default {
       this.draggingTop = 0
       this.targetTop = 0
 
-      this.$refs.root.moveEvent = (event) => this.move(event)
-      window.addEventListener('mousemove', this.$refs.root.moveEvent)
+      this.moveEvent = (event) => this.move(event)
+      window.addEventListener('mousemove', this.moveEvent)
 
-      this.$refs.root.upEvent = (event) => this.up(event)
-      window.addEventListener('mouseup', this.$refs.root.upEvent)
+      this.upEvent = (event) => this.up(event)
+      window.addEventListener('mouseup', this.upEvent)
 
-      this.$refs.root.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         if (event.key === 'Escape') {
           // When the user presses the escape key we want to cancel the action
           this.cancel(event)
         }
       }
-      document.body.addEventListener('keydown', this.$refs.root.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
       this.move(event, false)
     },
     /**
@@ -154,7 +159,7 @@ export default {
       }
 
       // This is the vertically scrollable element.
-      const element = this.$parent[this.vertical]()
+      const element = this.getScrollElement()
       const elementRect = element.getBoundingClientRect()
       const elementHeight = elementRect.bottom - elementRect.top
 
@@ -201,7 +206,7 @@ export default {
         if (speed !== 0) {
           this.autoScrolling = true
           this.$emit('scroll', { pixelY: speed, pixelX: 0 })
-          this.$refs.root.scrollTimeout = setTimeout(() => {
+          this.scrollTimeout = setTimeout(() => {
             this.move(null, false)
           }, 1)
         } else {
@@ -215,10 +220,10 @@ export default {
      */
     cancel() {
       this.dragging = false
-      window.removeEventListener('mousemove', this.$refs.root.moveEvent)
-      window.removeEventListener('mouseup', this.$refs.root.upEvent)
-      document.body.addEventListener('keydown', this.$refs.root.keydownEvent)
-      clearTimeout(this.$refs.root.scrollTimeout)
+      window.removeEventListener('mousemove', this.moveEvent)
+      window.removeEventListener('mouseup', this.upEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
+      clearTimeout(this.scrollTimeout)
     },
     /**
      * Called when the user releases the mouse on a the desired position. It will
@@ -247,7 +252,7 @@ export default {
         }
       }
 
-      const element = this.$parent[this.vertical]()
+      const element = this.getScrollElement()
       const getScrollTop = () => element.scrollTop
 
       try {

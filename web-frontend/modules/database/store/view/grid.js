@@ -353,8 +353,8 @@ export const mutations = {
           }
         })
       } else {
-        state.fieldOptions[key] = fieldOptions[key]
         // Vue.set(state.fieldOptions, key, fieldOptions[key])
+        state.fieldOptions[key] = fieldOptions[key]
       }
     })
 
@@ -661,8 +661,8 @@ export const mutations = {
         )
 
         if (existingIndex !== -1) {
-          existingMetadata[newGroupField][existingIndex] = newGroupEntry
           // Vue.set(existingMetadata[newGroupField], existingIndex, newGroupEntry)
+          existingMetadata[newGroupField][existingIndex] = newGroupEntry
         } else {
           existingMetadata[newGroupField].push(newGroupEntry)
         }

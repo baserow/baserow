@@ -246,7 +246,7 @@ export default {
       }
     },
     updatedAccount({ key, value }) {
-      this.$set(this.account, key, value)
+      this.account[key] = value
     },
   },
 }

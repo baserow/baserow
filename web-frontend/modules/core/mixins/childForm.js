@@ -14,7 +14,7 @@ export default {
       this.parentForm.registerChildForm(this)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.parentForm && this.parentForm.unregisterChildForm) {
       this.parentForm.unregisterChildForm(this)
     }

@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex'
+import { mapState } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SelectDateFieldModal from '@baserow_premium/components/views/calendar/SelectDateFieldModal'
@@ -107,6 +107,24 @@ export default {
     },
   },
   computed: {
+    timezone() {
+      return this.$store.getters[`${this.storePrefix}view/calendar/getTimeZone`]
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getAllFieldOptions`
+      ]
+    },
+    dateFieldId() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getDateFieldIdIfNotTrashed`
+      ]
+    },
+    getDateField() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getDateField`
+      ]
+    },
     selectDateFieldLinkText() {
       const df = this.getDateField(this.fields)
       if (
@@ -155,23 +173,6 @@ export default {
         this.showChooseDateFieldModal()
       }
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        timezone:
-          this.$options.propsData.storePrefix + 'view/calendar/getTimeZone',
-        fieldOptions:
-          this.$options.propsData.storePrefix +
-          'view/calendar/getAllFieldOptions',
-        dateFieldId:
-          this.$options.propsData.storePrefix +
-          'view/calendar/getDateFieldIdIfNotTrashed',
-        getDateField:
-          this.$options.propsData.storePrefix + 'view/calendar/getDateField',
-      }),
-    }
   },
   mounted() {
     if (this.dateFieldId(this.fields) == null) {

@@ -48,8 +48,10 @@ export default {
       const handler = () => {
         // Some times we have to wait for elements to render like with v-if.
         this.$nextTick(() => {
-          first.$el.parentNode.insertBefore(this.$el, first.$el.nextSibling)
-          this.fireMovedToBodyHandlers()
+          if (first.$el && first.$el.parentNode && this.$el) {
+            first.$el.parentNode.insertBefore(this.$el, first.$el.nextSibling)
+            this.fireMovedToBodyHandlers()
+          }
         })
       }
 
@@ -60,7 +62,7 @@ export default {
       } else {
         first.addMovedToBodyHandler(handler)
       }
-    } else {
+    } else if (this.$el) {
       // Because there is no parent we can directly move the component to the
       // top of the body so it will be positioned over any other element.
       const body = document.body

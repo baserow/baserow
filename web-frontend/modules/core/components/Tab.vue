@@ -62,7 +62,7 @@ export default {
       this.tabsProvider.registerTab(this)
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.tabsProvider) {
       this.tabsProvider.unregisterTab(this)
     }

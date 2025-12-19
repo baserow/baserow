@@ -135,7 +135,7 @@ export default {
         // Initialize the settings object with the backend values.
         for (const [type, modelType] of this.modelTypes) {
           if (this.settings[type] === undefined) {
-            this.$set(this.settings, type, {})
+            this.settings[type] = {}
           }
           if (data[type] === undefined) {
             continue
@@ -143,7 +143,7 @@ export default {
           for (const setting of modelType.getSettings()) {
             const value = data[type][setting.key]
             const parse = setting.parse || ((value) => value)
-            this.$set(this.settings[type], setting.key, parse(value))
+            this.settings[type][setting.key] = parse(value)
           }
         }
       } catch (error) {
