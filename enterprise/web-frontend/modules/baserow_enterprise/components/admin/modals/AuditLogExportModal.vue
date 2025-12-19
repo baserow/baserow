@@ -128,7 +128,7 @@ export default {
       selectedTableViews: (state) => state.view.items,
     }),
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -149,7 +149,7 @@ export default {
     },
     humanExportedAt(timestamp) {
       const { period, count } = getHumanPeriodAgoCount(timestamp)
-      return this.$c(`datetime.${period}Ago`, { count })
+      return this.$t(`datetime.${period}Ago`, { count }, count)
     },
     hidden() {
       this.stopPollIfRunning()
