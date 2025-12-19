@@ -1880,8 +1880,14 @@ def test_runtime_replace_validate_number_of_args(args, expected):
 )
 def test_runtime_length_execute(args, expected):
     parsed_args = RuntimeLength().parse_args(args)
-    result = RuntimeLength().execute({}, parsed_args)
-    assert result == expected
+
+    if expected is None:
+        with pytest.raises(TypeError) as e:
+            RuntimeLength().execute({}, parsed_args)
+        assert "has no len" in str(e)
+    else:
+        result = RuntimeLength().execute({}, parsed_args)
+        assert result == expected
 
 
 @pytest.mark.parametrize(

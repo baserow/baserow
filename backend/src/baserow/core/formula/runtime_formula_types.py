@@ -442,12 +442,7 @@ class RuntimeLength(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        value = args[0]
-
-        if isinstance(value, (dict, list, str)):
-            return len(value)
-
-        return None
+        return len(args[0])
 
 
 class RuntimeContains(RuntimeFormulaFunction):
