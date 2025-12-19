@@ -255,7 +255,7 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
         -o -name ".github" \
     \) -prune -exec rm -rf {} +
 
-    COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
+COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
 COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/

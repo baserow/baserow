@@ -32,7 +32,7 @@ ALLOWED_ENV_PREFIXES = ("DATABASE_",)
 def getenv_for_tests(key: str, default: str = "") -> str:
     """
     Get env var for tests:
-    - DATABASE_*, REDIS_*, and MEDIA_ROOT vars: check real env first, then TEST_ENV_FILE, then default
+    - DATABASE_* vars: check real env first, then TEST_ENV_FILE, then default
     - Other vars: only use TEST_ENV_FILE or default (never real env)
     """
 
