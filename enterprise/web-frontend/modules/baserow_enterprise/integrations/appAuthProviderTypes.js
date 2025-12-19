@@ -10,7 +10,7 @@ import CommonSamlSettingForm from '@baserow_enterprise/integrations/common/compo
 import CommonOIDCSettingForm from '@baserow_enterprise/integrations/common/components/CommonOIDCSettingForm'
 import SamlAuthLink from '@baserow_enterprise/integrations/common/components/SamlAuthLink'
 import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
-import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
+import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 
