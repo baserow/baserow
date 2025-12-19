@@ -420,10 +420,11 @@ export class RealTimeHandler {
         // TODO: some job types have no frontend handlers (JobType subclasses)
         //  registered. This will cause an error during creation. The proper fix
         //  would be to add missing JobTypes.
-        if (
-          err.message !==
-          `The type ${data.job.type} is not found under namespace job in the registry.`
-        ) {
+        // Check if the error is about a missing job type in the registry
+        const missingTypePattern = new RegExp(
+          `^The type "${data.job.type}" is not found under namespace "job" in the registry\\.`
+        )
+        if (!missingTypePattern.test(err.message)) {
           throw err
         }
       }
