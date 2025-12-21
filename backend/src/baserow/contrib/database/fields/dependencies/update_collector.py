@@ -2,6 +2,7 @@ import dataclasses
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, cast
 
+from django.db import connection
 from django.db.models import Expression, Q, Value
 
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -367,6 +368,7 @@ class FieldUpdateCollector:
         self._pending_field_updates = FieldUpdatesTracker()
         # Track all fields which have been updated in this collector
         self._all_field_updates = FieldUpdatesTracker()
+        self._local_jitt_off = False
 
         self._starting_row_ids = starting_row_ids
         self._starting_table = starting_table
@@ -393,6 +395,12 @@ class FieldUpdateCollector:
             connection_is_broken=False,
             update_changes_only=self.update_changes_only,
         )
+
+    def set_local_jit_off(self):
+        if self._local_jitt_off is False:
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL jit = off;")
+            self._local_jitt_off = True
 
     def add_field_with_pending_update_statement(
         self,

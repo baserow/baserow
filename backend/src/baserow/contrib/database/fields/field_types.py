@@ -5753,6 +5753,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                 field_cache.get_model(field.table),
             )
         )
+        # Only set local jit off when updating a relatively low number of rows
+        # because otherwise it would actually be slower. This should not be set when
+        # recomputing all cell values, for example.
+        update_collector.set_local_jit_off()
         update_collector.add_field_with_pending_update_statement(
             field,
             update_statement,
@@ -5822,6 +5826,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # so that eventually the view filters, sorts, etc are removed if needed.
         if not self.has_compatible_model_fields(field, old_field):
             update_collector.add_to_fields_type_changed(field)
+        # Only set local jit off when updating a relatively low number of rows
+        # because otherwise it would actually be slower. This should not be set when
+        # recomputing all cell values, for example.
+        update_collector.set_local_jit_off()
         update_collector.add_to_rebuild_field_dependencies(field)
         update_collector.add_field_with_pending_update_statement(
             field, expr, via_path_to_starting_table=via_path_to_starting_table
