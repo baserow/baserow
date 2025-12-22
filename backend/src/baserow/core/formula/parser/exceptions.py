@@ -57,3 +57,7 @@ class UnknownOperator(BaserowFormulaException):
 
 class BaserowFormulaSyntaxError(BaserowFormulaException):
     pass
+
+
+class BaserowFormulaExecuteError(BaserowFormulaException):
+    pass

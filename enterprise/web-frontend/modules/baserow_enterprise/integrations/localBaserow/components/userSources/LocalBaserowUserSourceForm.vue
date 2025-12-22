@@ -2,8 +2,8 @@
   <form>
     <LocalBaserowTableSelector
       v-model="computedTableId"
-      disallow-data-synced-tables
       class="local-baserow-user-source-form__table-selector"
+      :service-type="userSourceType"
       :databases="integration.context_data.databases"
       :display-view-dropdown="false"
       dropdown-size="large"

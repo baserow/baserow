@@ -1,7 +1,7 @@
 {
   "name": "{{ cookiecutter.project_name }}",
   "version": "0.0.1",
-  "supported_baserow_versions": "2.0.4",
+  "supported_baserow_versions": "2.0.5",
   "plugin_api_version": "0.0.1-alpha",
   "description": "TODO",
   "author": "TODO",

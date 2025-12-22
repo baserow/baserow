@@ -38,8 +38,11 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
             RuntimeAnd,
+            RuntimeAt,
+            RuntimeAvg,
             RuntimeCapitalize,
             RuntimeConcat,
+            RuntimeContains,
             RuntimeDateTimeFormat,
             RuntimeDay,
             RuntimeDivide,
@@ -51,8 +54,11 @@ class CoreConfig(AppConfig):
             RuntimeGreaterThanOrEqual,
             RuntimeHour,
             RuntimeIf,
+            RuntimeIsEmpty,
             RuntimeIsEven,
             RuntimeIsOdd,
+            RuntimeJoin,
+            RuntimeLength,
             RuntimeLessThan,
             RuntimeLessThanOrEqual,
             RuntimeLower,
@@ -66,8 +72,14 @@ class CoreConfig(AppConfig):
             RuntimeRandomBool,
             RuntimeRandomFloat,
             RuntimeRandomInt,
+            RuntimeReplace,
+            RuntimeReverse,
             RuntimeRound,
             RuntimeSecond,
+            RuntimeSplit,
+            RuntimeStrip,
+            RuntimeSum,
+            RuntimeToArray,
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
@@ -108,6 +120,18 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeIf())
         formula_runtime_function_registry.register(RuntimeAnd())
         formula_runtime_function_registry.register(RuntimeOr())
+        formula_runtime_function_registry.register(RuntimeReplace())
+        formula_runtime_function_registry.register(RuntimeLength())
+        formula_runtime_function_registry.register(RuntimeContains())
+        formula_runtime_function_registry.register(RuntimeReverse())
+        formula_runtime_function_registry.register(RuntimeJoin())
+        formula_runtime_function_registry.register(RuntimeSplit())
+        formula_runtime_function_registry.register(RuntimeIsEmpty())
+        formula_runtime_function_registry.register(RuntimeStrip())
+        formula_runtime_function_registry.register(RuntimeSum())
+        formula_runtime_function_registry.register(RuntimeAvg())
+        formula_runtime_function_registry.register(RuntimeAt())
+        formula_runtime_function_registry.register(RuntimeToArray())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

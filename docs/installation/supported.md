@@ -8,7 +8,7 @@ Software versions are divided into the following groups:
   before the release.
 * `Recommended`: Recommended software for the best experience.  
 
-## Baserow 2.0.4
+## Baserow 2.0.5
 
 
 | Dependency     | Supported versions | Tested versions | Recommended versions | 

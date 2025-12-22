@@ -38,7 +38,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 2.0.4
+      tag: 2.0.5
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -83,7 +83,7 @@ global:
 ##
 image:
   repository: baserow/baserow # Docker image repository
-  tag: 2.0.4 # Docker image tag
+  tag: 2.0.5 # Docker image tag
   pullPolicy: IfNotPresent # Image pull policy
 
 ## @param workingDir Application container working directory

@@ -21,7 +21,7 @@
         <i class="iconoir-check-circle" />
       </span>
       <span
-        v-else-if="allowNodeSelection && node.type === 'array'"
+        v-else-if="allowArraySelection(node)"
         class="data-explorer-node__select-node"
         @click.stop="handleClick(node, true)"
       >
@@ -86,6 +86,7 @@ export default {
   components: {
     NodeHelpTooltip,
   },
+  inject: ['getFormulaMode'],
   props: {
     node: {
       type: Object,
@@ -185,6 +186,12 @@ export default {
     },
   },
   methods: {
+    allowArraySelection(node) {
+      return (
+        node.type === 'array' &&
+        (this.allowNodeSelection || this.getFormulaMode() === 'advanced')
+      )
+    },
     handleClick(node, isNode) {
       if (this.depth < 1) {
         // We don't want to click on first level

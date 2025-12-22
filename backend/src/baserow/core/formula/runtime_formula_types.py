@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
     AnyBaserowRuntimeFormulaArgumentType,
+    ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
@@ -17,7 +18,7 @@ from baserow.core.formula.argument_types import (
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
-from baserow.core.formula.validator import ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_string
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
@@ -418,3 +419,162 @@ class RuntimeOr(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] or args[1]
+
+
+class RuntimeReplace(RuntimeFormulaFunction):
+    type = "replace"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].replace(args[1], args[2])
+
+
+class RuntimeLength(RuntimeFormulaFunction):
+    type = "length"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return len(args[0])
+
+
+class RuntimeContains(RuntimeFormulaFunction):
+    type = "contains"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[1] in args[0]
+
+
+class RuntimeReverse(RuntimeFormulaFunction):
+    type = "reverse"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+
+        if isinstance(value, list):
+            return list(reversed(value))
+
+        if isinstance(value, str):
+            return "".join(list(reversed(value)))
+
+        raise TypeError(f"Cannot reverse {value}")
+
+
+class RuntimeJoin(RuntimeFormulaFunction):
+    type = "join"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        separator = args[1] if len(args) == 2 else ","
+        return separator.join(value)
+
+
+class RuntimeSplit(RuntimeFormulaFunction):
+    type = "split"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        separator = args[1] if len(args) == 2 else None
+        return args[0].split(separator)
+
+
+class RuntimeIsEmpty(RuntimeFormulaFunction):
+    type = "is_empty"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+
+        if value is None:
+            return True
+
+        if isinstance(value, (list, str, dict)):
+            if isinstance(value, str):
+                value = value.strip()
+            return len(value) == 0
+
+        return False
+
+
+class RuntimeStrip(RuntimeFormulaFunction):
+    type = "strip"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].strip()
+
+
+class RuntimeSum(RuntimeFormulaFunction):
+    type = "sum"
+
+    args = [
+        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return sum(args[0])
+
+
+class RuntimeAvg(RuntimeFormulaFunction):
+    type = "avg"
+
+    args = [
+        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return sum(args[0]) / len(args[0])
+
+
+class RuntimeAt(RuntimeFormulaFunction):
+    type = "at"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_int=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        index = args[1]
+        return value[index]
+
+
+class RuntimeToArray(RuntimeFormulaFunction):
+    type = "to_array"
+
+    args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return ensure_array(args[0])

@@ -988,7 +988,7 @@ class CoreRouterServiceType(CoreServiceType):
             FormulaToResolve(
                 f"edge_{edge.uid}",
                 edge.condition,
-                lambda x: ensure_boolean(x, True),
+                lambda x: ensure_boolean(x, False),
                 f'edge "{edge.label}" condition',
             )
             for edge in service.edges.all()

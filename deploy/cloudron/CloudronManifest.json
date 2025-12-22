@@ -8,7 +8,7 @@
   "contactEmail": "bram@baserow.io",
   "icon": "file://logo.png",
   "tags": ["no-code", "nocode", "database", "data", "collaborate", "airtable"],
-  "version": "2.0.4",
+  "version": "2.0.5",
   "healthCheckPath": "/api/_health/",
   "httpPort": 80,
   "addons": {

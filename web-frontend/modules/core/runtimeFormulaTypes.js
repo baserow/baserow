@@ -7,13 +7,19 @@ import {
   BooleanBaserowRuntimeFormulaArgumentType,
   TimezoneBaserowRuntimeFormulaArgumentType,
   AnyBaserowRuntimeFormulaArgumentType,
+  ArrayBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
-import { ensureString } from '@baserow/modules/core/utils/validator'
+import { reverseString } from '@baserow/modules/core/utils/string'
+import { avg, sum } from '@baserow/modules/core/utils/number'
+import {
+  ensureString,
+  ensureArray,
+} from '@baserow/modules/core/utils/validator'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
@@ -578,6 +584,10 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
         formula: '"foo" = "foo"',
         result: 'true',
       },
+      {
+        formula: 'now() = now()',
+        result: 'false',
+      },
     ]
   }
 }
@@ -629,6 +639,10 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
         formula: '"foo" != "bar"',
         result: 'true',
       },
+      {
+        formula: 'now() != now()',
+        result: 'true',
+      },
     ]
   }
 }
@@ -658,7 +672,18 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a > b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a > b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a > b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -678,6 +703,10 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
       },
       {
         formula: '"Ambarella" > "fig"',
+        result: 'false',
+      },
+      {
+        formula: 'now() > now()',
         result: 'false',
       },
     ]
@@ -709,7 +738,18 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a < b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a < b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a < b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -729,6 +769,10 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
       },
       {
         formula: '"Ambarella" < "fig"',
+        result: 'true',
+      },
+      {
+        formula: 'now() < now()',
         result: 'true',
       },
     ]
@@ -760,7 +804,18 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a >= b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a >= b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a >= b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -780,6 +835,10 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
       },
       {
         formula: '"Ambarella" >= "fig"',
+        result: 'false',
+      },
+      {
+        formula: 'now() >= now()',
         result: 'false',
       },
     ]
@@ -811,7 +870,18 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a <= b
+    const typeA = typeof a
+    const typeB = typeof b
+
+    if (typeA === 'number' && typeB === 'number') {
+      return a <= b
+    }
+
+    if (typeA === 'string' && typeB === 'string') {
+      return a <= b
+    }
+
+    return null
   }
 
   getDescription() {
@@ -832,6 +902,10 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
       {
         formula: '"fig" <= "Ambarella"',
         result: 'false',
+      },
+      {
+        formula: 'now() <= now()',
+        result: 'true',
       },
     ]
   }
@@ -1748,6 +1822,592 @@ export class RuntimeOr extends RuntimeFormulaFunction {
       {
         formula: 'false || false',
         result: 'false',
+      },
+    ]
+  }
+}
+
+export class RuntimeReplace extends RuntimeFormulaFunction {
+  static getType() {
+    return 'replace'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return args[0].replaceAll(args[1], args[2])
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.replaceDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "replace('Hello, world!', 'l', '-')",
+        result: "'He--o, wor-d!'",
+      },
+    ]
+  }
+}
+
+export class RuntimeLength extends RuntimeFormulaFunction {
+  static getType() {
+    return 'length'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [value]) {
+    if (Array.isArray(value)) {
+      return value.length
+    } else if (value !== null && typeof value === 'object') {
+      return Object.keys(value).length
+    } else if (typeof value === 'string') {
+      return value.length
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.lengthDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "length('Hello, world!')",
+        result: '13',
+      },
+      {
+        formula: 'length(to_array("foo, bar"))',
+        result: '2',
+      },
+    ]
+  }
+}
+
+export class RuntimeContains extends RuntimeFormulaFunction {
+  static getType() {
+    return 'contains'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    const value = args[0]
+    const toCheck = args[1]
+
+    if (Array.isArray(value)) {
+      return value.includes(toCheck)
+    } else if (value !== null && typeof value === 'object') {
+      return Object.keys(value).includes(toCheck)
+    } else if (typeof value === 'string') {
+      return value.includes(toCheck)
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.containsDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "contains('Hello, world!', 'll')",
+        result: 'true',
+      },
+      {
+        formula: 'contains(to_array("foo, bar"), "foo")',
+        result: 'true',
+      },
+    ]
+  }
+}
+
+export class RuntimeReverse extends RuntimeFormulaFunction {
+  static getType() {
+    return 'reverse'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    if (Array.isArray(arg)) {
+      return arg.reverse()
+    }
+
+    if (typeof arg === 'string') {
+      return reverseString(arg)
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.reverseDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "reverse('Hello, world!')",
+        result: "'!dlrow ,olleH'",
+      },
+      {
+        formula: "reverse('😀💙🚀')",
+        result: "'🚀💙😀",
+      },
+      {
+        formula: 'reverse(to_array("foo, bar"))',
+        result: "'bar,foo'",
+      },
+    ]
+  }
+}
+
+export class RuntimeJoin extends RuntimeFormulaFunction {
+  static getType() {
+    return 'join'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  execute(context, args) {
+    const val = args[0]
+    let separator = ','
+    if (args.length === 2) {
+      separator = args[1]
+    }
+
+    if (Array.isArray(val)) {
+      return val.join(separator)
+    }
+
+    if (typeof val === 'string') {
+      return val.split('').join(separator)
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.joinDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'join(to_array("foo, bar"))',
+        result: "'foo,bar'",
+      },
+      {
+        formula: 'join(to_array("foo, bar"), " * ")',
+        result: "'foo * bar'",
+      },
+    ]
+  }
+}
+
+export class RuntimeSplit extends RuntimeFormulaFunction {
+  static getType() {
+    return 'split'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  execute(context, args) {
+    let separator = ''
+    if (args.length === 2) {
+      separator = args[1]
+    }
+    return args[0].split(separator)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.splitDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'split("foobar")',
+        result: "'f,o,o,b,a,r'",
+      },
+      {
+        formula: 'split("foobar", "b")',
+        result: "'foo,ar'",
+      },
+    ]
+  }
+}
+
+export class RuntimeIsEmpty extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_empty'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    if (arg === undefined || arg === null) {
+      return true
+    }
+
+    if (Array.isArray(arg)) {
+      return arg.length === 0
+    }
+
+    if (typeof arg === 'object') {
+      return Object.keys(arg).length === 0
+    }
+
+    if (typeof arg === 'string') {
+      return arg.trim().length === 0
+    }
+
+    return false
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.isEmptyDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "is_empty('')",
+        result: 'true',
+      },
+      {
+        formula: 'is_empty(0)',
+        result: 'true',
+      },
+      {
+        formula: 'is_empty(to_array(""))',
+        result: 'true',
+      },
+      {
+        formula: "is_empty('foo')",
+        result: 'false',
+      },
+      {
+        formula: 'is_empty(1)',
+        result: 'false',
+      },
+      {
+        formula: 'is_empty(to_array("foo,bar"))',
+        result: 'false',
+      },
+    ]
+  }
+}
+
+export class RuntimeStrip extends RuntimeFormulaFunction {
+  static getType() {
+    return 'strip'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    if (typeof arg === 'string' && isNaN(Number(arg))) {
+      return arg.trim()
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.stripDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "strip(' foo ')",
+        result: "'foo'",
+      },
+    ]
+  }
+}
+
+export class RuntimeSum extends RuntimeFormulaFunction {
+  static getType() {
+    return 'sum'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return sum(arg, { strict: true })
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.sumDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'sum(to_array("1, 2, 3"))',
+        result: '6',
+      },
+      {
+        formula: 'sum(to_array("1, 2.5, 3"))',
+        result: '6.5',
+      },
+    ]
+  }
+}
+
+export class RuntimeAvg extends RuntimeFormulaFunction {
+  static getType() {
+    return 'avg'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return avg(arg, { strict: true })
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.avgDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "avg(to_array('1, 2, 3, 4'))",
+        result: '2.5',
+      },
+    ]
+  }
+}
+
+export class RuntimeAt extends RuntimeFormulaFunction {
+  static getType() {
+    return 'at'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
+    ]
+  }
+
+  execute(context, args) {
+    const [value, index] = args
+
+    if (
+      (Array.isArray(value) || typeof value === 'string') &&
+      value.length > index
+    ) {
+      return value[index]
+    }
+
+    return null
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.atDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'at(to_array("foo, bar"), 1)',
+        result: '"bar"',
+      },
+      {
+        formula: 'at(to_array("foo, bar"), 3)',
+        result: 'null',
+      },
+    ]
+  }
+}
+
+export class RuntimeToArray extends RuntimeFormulaFunction {
+  static getType() {
+    return 'to_array'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return ensureArray(arg)
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.toArrayDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "to_array('foo,bar')",
+        result: '["foo", "bar"]',
       },
     ]
   }

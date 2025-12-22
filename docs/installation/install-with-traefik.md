@@ -10,7 +10,7 @@ See below for an example docker-compose file that will enable Baserow with Traef
 ```
 services:
   baserow:
-    image: baserow/baserow:2.0.4
+    image: baserow/baserow:2.0.5
     container_name: baserow
     labels:
         # Explicitly tell Traefik to expose this container

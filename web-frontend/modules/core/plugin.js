@@ -129,6 +129,18 @@ import {
   RuntimeIf,
   RuntimeAnd,
   RuntimeOr,
+  RuntimeReplace,
+  RuntimeLength,
+  RuntimeContains,
+  RuntimeReverse,
+  RuntimeJoin,
+  RuntimeSplit,
+  RuntimeIsEmpty,
+  RuntimeStrip,
+  RuntimeSum,
+  RuntimeAvg,
+  RuntimeAt,
+  RuntimeToArray,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -311,6 +323,18 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeIf(context))
   registry.register('runtimeFormulaFunction', new RuntimeAnd(context))
   registry.register('runtimeFormulaFunction', new RuntimeOr(context))
+  registry.register('runtimeFormulaFunction', new RuntimeReplace(context))
+  registry.register('runtimeFormulaFunction', new RuntimeLength(context))
+  registry.register('runtimeFormulaFunction', new RuntimeContains(context))
+  registry.register('runtimeFormulaFunction', new RuntimeReverse(context))
+  registry.register('runtimeFormulaFunction', new RuntimeJoin(context))
+  registry.register('runtimeFormulaFunction', new RuntimeSplit(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIsEmpty(context))
+  registry.register('runtimeFormulaFunction', new RuntimeStrip(context))
+  registry.register('runtimeFormulaFunction', new RuntimeSum(context))
+  registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
+  registry.register('runtimeFormulaFunction', new RuntimeAt(context))
+  registry.register('runtimeFormulaFunction', new RuntimeToArray(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))

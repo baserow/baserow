@@ -4,6 +4,7 @@ import {
   ensureDateTime,
   ensureObject,
   ensureBoolean,
+  ensureArray,
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
 
@@ -110,6 +111,21 @@ export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
 
   parse(value) {
     return ensureObject(value)
+  }
+}
+
+export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    try {
+      ensureArray(value)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    return ensureArray(value)
   }
 }
 

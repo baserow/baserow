@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Prevent creating a new constraint when the enter key of the default value is pressed.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2025-12-22"
+}

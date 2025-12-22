@@ -355,6 +355,41 @@ class SafeBaserowPostgresSchemaEditor:
             ):
                 self.deferred_sql.remove(sql)
 
+    def ensure_single_column_index(self, model, field):
+        """
+        Ensure an index exists on model(field.column). Safe to call repeatedly.
+        """
+
+        # If any index/constraint exists that is backed by an index on exactly this
+        # column, don't create another.
+        if self._constraint_names(model, [field.column], index=True):
+            return
+
+        stmt = self._create_index_sql(model, fields=[field])
+        self.execute(stmt, params=None)
+
+    def ensure_m2m_field_indexes(self, field):
+        if field.many_to_many and field.remote_field.through._meta.auto_created:
+            through = field.remote_field.through
+            # Ensure the two FK indexes exist (especially important for the "reverse"
+            # FK). m2m_field_name() / m2m_reverse_field_name() return the
+            # through-field names.
+            for through_field_name in (
+                field.m2m_field_name(),
+                field.m2m_reverse_field_name(),
+            ):
+                fk_field = through._meta.get_field(through_field_name)
+                self.ensure_single_column_index(through, fk_field)
+
+    def add_field(self, model, field):
+        return_value = super().add_field(model, field)
+        # Using the `create_model` to create a Baserow table, like what we do on
+        # `import_serialize` does actually create the indexes of the through table.
+        # However, when using `add_field` it does not. The code below will make sure
+        # that the needed indexes are created.
+        self.ensure_m2m_field_indexes(field)
+        return return_value
+
 
 @contextlib.contextmanager
 def safe_django_schema_editor(atomic=True, name=None, classes=None, **kwargs):

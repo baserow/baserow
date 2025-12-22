@@ -12,7 +12,7 @@ description = """Baserow is an open source no-code database tool and Airtable \
 # mixed license
 license={file="LICENSE"}
 requires-python=">=3.11"
-version = "2.0.4"
+version = "2.0.5"
 classifiers = []
 
 [project.urls]

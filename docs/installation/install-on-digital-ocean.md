@@ -51,7 +51,7 @@ Navigate to the `Apps` page in the left sidebar of your Digital Ocean dashboard.
 on `Create App`, select `Docker Hub`, and fill out the following:
 
 Repository: `baserow/baserow`
-Image tag or digest: `2.0.4`
+Image tag or digest: `2.0.5`
 
 Click on `Next`, then on the `Edit` button of the `baserow-baserow` web service. Here
 you must change the HTTP Port to 80, and then click on `Back`. Click on the `Next`
@@ -124,7 +124,7 @@ environment.
 In order to update the Baserow version, you simply need to replace the image tag.
 Navigate to the `Settings` tag of your created app, click on the `baserow-baserow`
 component, then click on the `Edit` button next to source, change the `Image tag` into
-the desired version (latest is `2.0.4`), and click on save. The app will redeploy
+the desired version (latest is `2.0.5`), and click on save. The app will redeploy
 with the latest version.
 
 ## External email server

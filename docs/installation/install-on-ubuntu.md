@@ -34,7 +34,7 @@ docker run -e BASEROW_PUBLIC_URL=http://localhost \
 -v baserow_data:/baserow/data \
 -p 80:80 \
 -p 443:443 \
-baserow/baserow:2.0.4
+baserow/baserow:2.0.5
 # Watch the logs for Baserow to come available by running:
 docker logs baserow
 ```
@@ -147,7 +147,7 @@ docker run \
   -v /baserow/media:/baserow/data/media \
   -p 80:80 \
   -p 443:443 \
-  baserow/baserow:2.0.4
+  baserow/baserow:2.0.5
 # Check the logs and wait for Baserow to become available
 docker logs baserow
 ```

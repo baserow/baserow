@@ -55,18 +55,24 @@
 import NodeExplorerTab from '@baserow/modules/core/components/nodeExplorer/NodeExplorerTab'
 
 import _ from 'lodash'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'NodeExplorer',
   components: {
     NodeExplorerTab,
   },
+  provide() {
+    return {
+      getFormulaMode: () => this.mode,
+    }
+  },
   props: {
     mode: {
       type: String,
       required: false,
       default: 'advanced',
-      validator: (value) => ['advanced', 'simple', 'raw'].includes(value),
+      validator: (value) => BASEROW_FORMULA_MODES.includes(value),
     },
     nodeSelected: {
       type: String,
