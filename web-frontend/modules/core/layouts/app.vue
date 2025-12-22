@@ -70,12 +70,12 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 
-import Toasts from '@baserow/modules/core/components/toasts/Toasts'
-import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
-import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar'
+import Toasts from '@baserow/modules/core/components/toasts/Toasts.vue'
+import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
+import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar.vue'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
-import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
-import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour'
+import HorizontalResize from '@baserow/modules/core/components/HorizontalResize.vue'
+import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour.vue'
 import WorkspaceSearchModal from '@baserow/modules/core/components/workspace/WorkspaceSearchModal.vue'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import {

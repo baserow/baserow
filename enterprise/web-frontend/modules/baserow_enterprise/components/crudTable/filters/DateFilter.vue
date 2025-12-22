@@ -24,7 +24,7 @@
       class="datepicker-context"
     >
       <client-only>
-        <appdate-picker
+        <date-picker
           :inline="true"
           :monday-first="true"
           :use-utc="true"
@@ -39,7 +39,7 @@
               $refs.dateContext.hide(),
             ]
           "
-        ></appdate-picker>
+        ></date-picker>
       </client-only>
     </Context>
   </div>
