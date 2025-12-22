@@ -33,7 +33,7 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-asttokens==2.0.6
+asttokens==2.0.5
     # via
     #   snoop
     #   stack-data
