@@ -5,7 +5,7 @@ import {
   createResolver,
   extendPages,
 } from 'nuxt/kit'
-import { routes } from './routes'
+import { routes, rootChildRoutes } from './routes'
 
 import en from './locales/en.json'
 import fr from './locales/fr.json'
@@ -58,6 +58,14 @@ export default defineNuxtModule({
         })
       }
 
+      // Add enterprise routes as children of root (inherit layout and middlewares)
+      rootChildRoutes.forEach((route) => {
+        if (!rootRoute.children.find(({ name }) => name === route.name)) {
+          rootRoute.children.push(route)
+        }
+      })
+
+      // Add top-level routes (login pages, etc.)
       pages.push(...routes)
     })
 
