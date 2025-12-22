@@ -8,11 +8,7 @@ from django.db.models import UniqueConstraint
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.formula.field import FormulaField as ModelFormulaField
-from baserow.core.jobs.mixins import (
-    JobWithUndoRedoIds,
-    JobWithUserIpAddress,
-    JobWithWebsocketId,
-)
+from baserow.core.jobs.mixins import JobWithUndoRedoIds, JobWithUserIpAddress
 from baserow.core.jobs.models import Job
 from baserow.core.mixins import BigAutoFieldMixin
 
@@ -70,9 +66,7 @@ class AIField(Field):
         return settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS
 
 
-class GenerateAIValuesJob(
-    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
-):
+class GenerateAIValuesJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
     class MODES(StrEnum):
         ROWS = "rows"
         VIEW = "view"
@@ -103,6 +97,13 @@ class GenerateAIValuesJob(
         help_text="If set, the job has been scheduled as a result of AI field auto-update.",
     )
 
+    # TODO: no longer needed. Remove in a feature release
+    user_websocket_id = models.CharField(
+        max_length=36,
+        null=True,
+        help_text="The user websocket uuid needed to manage signals sent correctly.",
+    )
+
     @property
     def mode(self) -> MODES:
         if self.is_auto_update:
@@ -122,14 +123,10 @@ class AIFieldScheduledUpdate(BigAutoFieldMixin, models.Model):
     Part of debouncing infrastructure.
     """
 
-    field_id = models.IntegerField(
-        null=False, help_text="The ID of the field to update."
-    )
-    row_id = models.IntegerField(null=False, help_text="Row ID to update")
+    field_id = models.IntegerField(help_text="The ID of the field to update.")
+    row_id = models.IntegerField(help_text="Row ID to update")
     updated_on = models.DateTimeField(
-        auto_now=True,
-        db_default=models.functions.Now(),
-        help_text="The time this update was last modified.",
+        help_text="The time this update was last modified."
     )
 
     class Meta:

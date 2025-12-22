@@ -5,7 +5,7 @@ from queue import Empty, Queue
 from typing import Any, NamedTuple, Type
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet
 
 from baserow_premium.generative_ai.managers import AIFileManager
 from loguru import logger
@@ -47,8 +47,8 @@ from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .registries import ai_field_output_registry
 
 
-class AIValueResult(NamedTuple):
-    row: GeneratedTableModel
+class AIValueUpdate(NamedTuple):
+    row: Type[GeneratedTableModel]
     result: Any | Exception
     start_at: datetime
     end_at: datetime
@@ -144,7 +144,7 @@ class GenerateAIValuesJobType(JobType):
         """
 
         # No limits when specific row IDs are provided
-        if job.row_ids:
+        if job.row_ids or job.is_auto_update:
             return
 
         running_jobs = (
@@ -232,10 +232,17 @@ class GenerateAIValuesJobType(JobType):
 
         # Create the job instance without saving it yet, so we can use its mode property
         unsaved_job = GenerateAIValuesJob(**values)
+        prepared_values = {
+            "field_id": ai_field.id,
+        }
 
         get_valid_generative_ai_model_type_or_raise(ai_field)
 
-        if unsaved_job.mode == GenerateAIValuesJob.MODES.ROWS:
+        if unsaved_job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
+            if not AIFieldScheduledUpdate.objects.filter(field_id=ai_field.id).exists():
+                raise ValueError("No rows scheduled for AI field auto update.")
+            prepared_values["is_auto_update"] = True
+        elif unsaved_job.mode == GenerateAIValuesJob.MODES.ROWS:
             found_rows_ids = (
                 RowHandler().get_rows(model, req_row_ids).values_list("id", flat=True)
             )
@@ -243,11 +250,15 @@ class GenerateAIValuesJobType(JobType):
                 raise RowDoesNotExist(
                     sorted(list(set(req_row_ids) - set(found_rows_ids)))
                 )
+            prepared_values["row_ids"] = req_row_ids
         elif unsaved_job.mode == GenerateAIValuesJob.MODES.VIEW:
             # Ensure the view exists in the table
             ViewHandler().get_view_as_user(user, view_id, table_id=ai_field.table.id)
+            prepared_values["view_id"] = view_id
 
-        return values
+        prepared_values["only_empty"] = values.get("only_empty", False)
+
+        return prepared_values
 
     def get_filters_serializer(self) -> Type[serializers.Serializer] | None:
         """
@@ -260,6 +271,7 @@ class GenerateAIValuesJobType(JobType):
 
     def run(self, job: GenerateAIValuesJob, progress):
         user = job.user
+
         ai_field = self._get_field(job.field_id)
         table = ai_field.table
         workspace = table.database.workspace
@@ -276,10 +288,15 @@ class GenerateAIValuesJobType(JobType):
             rows = self._get_view_queryset(user, job.view_id, table.id)
         elif job.mode == GenerateAIValuesJob.MODES.TABLE:
             rows = model.objects.all()
-        elif job.mode in {
-            GenerateAIValuesJob.MODES.ROWS,
-            GenerateAIValuesJob.MODES.AUTO_UPDATE,
-        }:
+        elif job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
+            rows = model.objects.filter(
+                Exists(
+                    AIFieldScheduledUpdate.objects.filter(
+                        field_id=ai_field.id, row_id=OuterRef("id")
+                    )
+                )
+            )
+        elif job.mode in {GenerateAIValuesJob.MODES.ROWS}:
             req_row_ids = job.row_ids
             rows = row_handler.get_rows(model, req_row_ids)
         else:
@@ -294,10 +311,7 @@ class GenerateAIValuesJobType(JobType):
 
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
 
-        # Keep track if we should notify about errors
-        error_notified = False
-
-        def on_progress(result: AIValueResult):
+        def on_progress(value_update: AIValueUpdate):
             """
             Called when a row has been processed, and a result from AI model has been
             retrieved.
@@ -310,30 +324,34 @@ class GenerateAIValuesJobType(JobType):
             information.
             """
 
-            rows_progress.increment()
-            row = result.row
-            start_at = result.start_at
+            from baserow_premium.fields.tasks import (
+                _schedule_generate_ai_value_generation,
+            )
 
-            if isinstance(result.result, Exception):
-                if not error_notified:
-                    rows_ai_values_generation_error.send(
-                        self,
-                        user=user,
-                        rows=[row],
-                        field=ai_field,
-                        table=table,
-                        error_message=str(result.result),
-                    )
+            rows_progress.increment()
+            row = value_update.row
+            start_at = value_update.start_at
+
+            if isinstance(value_update.result, Exception):
+                rows_ai_values_generation_error.send(
+                    self,
+                    user=user,
+                    rows=[row],
+                    field=ai_field,
+                    table=table,
+                    error_message=str(value_update.result),
+                )
                 return
 
             if job.is_auto_update:
-                deleted = AIFieldScheduledUpdate.objects.filter(
+                deleted_count, _ = AIFieldScheduledUpdate.objects.filter(
                     field_id=ai_field.id, row_id=row.id, updated_on__lte=start_at
                 ).delete()
-
-                # If no row has been deleted, we won't update the row, because the row
-                # was either canceled, or rescheduled.
-                if not deleted[0]:
+                # The scheduled update was removed or updated after the job
+                # started, so we skip updating this row with an already outdated
+                # value, and we renschedule generation for it.
+                if deleted_count == 0:
+                    _schedule_generate_ai_value_generation(field_id=ai_field.id)
                     return
 
             try:
@@ -341,13 +359,13 @@ class GenerateAIValuesJobType(JobType):
                     user,
                     table,
                     row.id,
-                    {ai_field.db_column: result.result},
+                    {ai_field.db_column: value_update.result},
                     model=model,
                     values_already_prepared=True,
                 )
-            except Exception as e:
-                logger.opt(exception=e).error(
-                    f"Cannot update AI value field {ai_field} for {row.id} row: {e}"
+            except Exception:
+                logger.exception(
+                    f"Cannot update AI value field {ai_field} and row {row.id}"
                 )
 
         generator = AIValueGenerator(user, ai_field, self, on_progress)
@@ -375,7 +393,7 @@ class AIValueGenerator:
         user: AbstractUser,
         ai_field: AIField,
         signal_sender: GenerateAIValuesJob | Any | None = None,
-        on_progress: Callable[[AIValueResult], None] | None = None,
+        on_progress: Callable[[AIValueUpdate], None] | None = None,
     ):
         self.user = user
 
@@ -444,10 +462,6 @@ class AIValueGenerator:
             )
         )
 
-        # FIXME: manually set the websocket_id to None for now because the frontend
-        # needs to receive the update to stop the loading state
-        self.user.web_socket_id = None
-
     def generate_value_for(self, row: GeneratedTableModel):
         """
         Runs value generation for a single row using AI model.
@@ -464,24 +478,14 @@ class AIValueGenerator:
             result = self._generate_value_for(row)
             end = datetime.now(tz=timezone.utc)
             self.results_queue.put(
-                AIValueResult(
-                    row,
-                    result,
-                    start,
-                    end,
-                ),
+                AIValueUpdate(row, result, start, end),
                 block=True,
             )
         except Exception as e:
             logger.opt(exception=e).error(f"Value generation for row {row} failed: {e}")
             end = datetime.now(tz=timezone.utc)
             self.results_queue.put(
-                AIValueResult(
-                    row,
-                    e,
-                    start,
-                    end,
-                ),
+                AIValueUpdate(row, e, start, end),
                 block=True,
             )
 
@@ -562,7 +566,7 @@ class AIValueGenerator:
         """
 
         if self.has_errors:
-            raise GenerativeAIPromptError(f"AI model responded with errors.")
+            raise GenerativeAIPromptError("AI model responded with errors.")
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
         """
@@ -638,7 +642,7 @@ class AIValueGenerator:
 
         return not len(self.in_process) and not self.generate_more_rows
 
-    def handle_result(self, result: AIValueResult):
+    def handle_result(self, result: AIValueUpdate):
         """
         An entry point to handle the result value for a row. The result may be an
         error or a correct result, so, depending on its type, it will be handled
@@ -664,6 +668,9 @@ class AIValueGenerator:
         """
 
         row = next(rows_iter)
+        if row.trashed:  # Skip trashed rows
+            self.finished += 1
+            return
 
         executor.submit(self.generate_value_for, row)
         self.in_process.add(row.id)

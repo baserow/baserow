@@ -42,7 +42,7 @@ def setup(settings):
     )
 
     # Debounce time for AI field generation, if changes are triggered from
-    # auto-update feature.
+    # auto-update feature. In seconds.
     settings.BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME = try_int(
-        os.getenv("BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME"), 5
+        os.getenv("BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME"), 3
     )

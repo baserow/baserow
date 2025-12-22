@@ -1,44 +1,21 @@
 from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
+from django.db.models import Exists, OuterRef, Q
 
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 from celery_singleton import DuplicateTaskError, Singleton
-from loguru import logger
 
+from baserow.celery_singleton import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
-from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 
 PERIODIC_CHECK_MINUTES = 5
-PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 5 minutes.
-DELAY_NEXT_RUN = 60  # 1 minute
-
-
-def has_scheduled_ai_field_updates(field_id: int) -> bool:
-    """
-    Checks if there are any scheduled AI fields updates.
-
-    :param field_id: ID of the field to check.
-    :return: True, if there are pending updates.
-    """
-
-    return AIFieldScheduledUpdate.objects.filter(field_id=field_id).exists()
-
-
-def get_scheduled_ai_field_updates(field_id: int) -> list[int]:
-    """
-    Returns a list of rows to process for a field.
-
-    :param field_id: ID of the field to check.
-    :return: a list of row ids
-    """
-
-    return list(
-        AIFieldScheduledUpdate.objects.filter(field_id=field_id)
-        .order_by("-updated_on")[: settings.BATCH_ROWS_SIZE_LIMIT]
-        .values_list("row_id", flat=True)
-    )
+PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES
+SINGLETON_FLAG_KEY = "ai_field_generation_lock_{field_id}"
 
 
 def _schedule_generate_ai_value_generation(field_id: int):
@@ -48,9 +25,12 @@ def _schedule_generate_ai_value_generation(field_id: int):
     :param field_id: AI field id.
     """
 
-    generate_scheduled_ai_field_generation.s(field_id=field_id).apply_async(
-        countdown=settings.BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME
-    )
+    try:
+        generate_scheduled_ai_field_generation.s(field_id=field_id).apply_async(
+            countdown=settings.BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME
+        )
+    except DuplicateTaskError:
+        SingletonAutoRescheduleFlag(SINGLETON_FLAG_KEY.format(field_id=field_id)).set()
 
 
 @app.task(
@@ -69,11 +49,10 @@ def generate_scheduled_ai_field_generation(field_id: int):
 
     This is essentially a wrapper around calling `generate_ai_values` with proper
     parameters. This task is a per-field singleton, but also a job, so it can be
-    ejected from execution, if there's too many jobs scheduled for the field.
+    cancelled.
 
-    The job is executed with specific row ids and `is_auto_update` flag. If a
-    specific scheduled row has been processed successfully, it will be removed from
-    the scheduled rows table.
+    The job is executed with `is_auto_update` flag, meaning that when the job runs, it
+    will only process rows that were scheduled for update.
 
     If the job fails without processing all rows, the remaining scheduled rows will be
     still present in the scheduling table, and processed by another task run.
@@ -83,39 +62,38 @@ def generate_scheduled_ai_field_generation(field_id: int):
 
     jh = JobHandler()
 
+    # Ensure the field still exists and auto-update is still enabled. If not,
+    # disabling the auto-update ensures all updates will be removed the next time
+    # the periodic task runs.
     try:
-        ai_field = AIField.objects.select_related("ai_auto_update_user").get(
-            id=field_id
-        )
+        field = AIField.objects.select_related(
+            "ai_auto_update_user", "table__database__workspace"
+        ).get(id=field_id)
     except AIField.DoesNotExist:
-        AIFieldScheduledUpdate.objects.filter(field_id=field_id).delete()
         return
 
-    user = ai_field.ai_auto_update_user
-    if user is None:
-        AIFieldScheduledUpdate.objects.filter(field_id=field_id).delete()
+    user = field.ai_auto_update_user
+    if not user or not LicenseHandler.user_has_feature(
+        PREMIUM, user, field.table.database.workspace
+    ):
+        field.ai_auto_update = False
+        field.ai_auto_update_user = None
+        field.save()
         return
 
-    next_run_delay = 0
+    flag = SingletonAutoRescheduleFlag(SINGLETON_FLAG_KEY.format(field_id=field_id))
+    flag.clear()
 
-    if row_ids := get_scheduled_ai_field_updates(field_id):
-        try:
-            jh.create_and_start_job(
-                user,
-                "generate_ai_values",
-                field_id=field_id,
-                row_ids=row_ids,
-                is_auto_update=True,
-                sync=True,
-            )
-        except Exception as e:
-            logger.error(f"Job failed: {e}")
-            next_run_delay = DELAY_NEXT_RUN
+    jh.create_and_start_job(
+        user,
+        GenerateAIValuesJobType.type,
+        field_id=field_id,
+        is_auto_update=True,
+        sync=True,
+    )
 
-    if has_scheduled_ai_field_updates(field_id):
-        schedule_ai_field_generation.s(field_id=field_id).apply_async(
-            countdown=next_run_delay
-        )
+    if flag.is_set():
+        _schedule_generate_ai_value_generation(field_id)
 
 
 @app.task()
@@ -130,21 +108,20 @@ def schedule_ai_field_generation(field_id: int, row_ids: list[int] | None = None
     :param row_ids: a list of row ids to be updated.
     """
 
+    now = datetime.now(tz=timezone.utc)
     if row_ids:
         AIFieldScheduledUpdate.objects.bulk_create(
             [
-                AIFieldScheduledUpdate(field_id=field_id, row_id=row_id)
+                AIFieldScheduledUpdate(field_id=field_id, row_id=row_id, updated_on=now)
                 for row_id in row_ids
             ],
             update_conflicts=True,
             unique_fields=["field_id", "row_id"],
             update_fields=["updated_on"],
+            batch_size=1000,
         )
 
-    try:
-        _schedule_generate_ai_value_generation(field_id)
-    except DuplicateTaskError:
-        pass
+    _schedule_generate_ai_value_generation(field_id)
 
 
 @app.task(
@@ -165,11 +142,23 @@ def periodic_reschedule_old_ai_field_generation():
         hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
     )
 
-    AIFieldScheduledUpdate.objects.filter(updated_on__lte=cutoff).delete()
+    # Delete any old scheduled rows where the associated field no longer exists
+    # or the auto_update is disabled
+    AIFieldScheduledUpdate.objects.filter(
+        Q(updated_on__lte=cutoff)
+        | ~Exists(
+            AIField.objects.filter(
+                id=OuterRef("field_id"),
+                ai_auto_update=True,
+                ai_auto_update_user__isnull=False,
+            )
+        )
+    ).delete()
+
     for field_id in AIFieldScheduledUpdate.objects.distinct("field_id").values_list(
         "field_id", flat=True
     ):
-        schedule_ai_field_generation(field_id=field_id, row_ids=[])
+        _schedule_generate_ai_value_generation(field_id)
 
 
 @app.on_after_finalize.connect

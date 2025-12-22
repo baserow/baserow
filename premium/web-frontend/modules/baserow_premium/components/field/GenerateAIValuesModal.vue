@@ -116,7 +116,8 @@ export default {
           return (
             job.type === GenerateAIValuesJobType.getType() &&
             job.field_id === this.field.id &&
-            job.row_ids === null
+            job.row_ids === null &&
+            job.is_auto_update === false
           )
         }
       )

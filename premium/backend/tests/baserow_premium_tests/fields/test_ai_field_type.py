@@ -8,7 +8,6 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NO
 
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -695,11 +694,6 @@ def test_update_ai_field_type_via_api_file_field_doesnt_exist(
     table = premium_data_fixture.create_database_table(user=user)
     premium_data_fixture.register_fake_generate_ai_type()
     field = premium_data_fixture.create_ai_field(table=table, order=1, name="name")
-
-    # sanity check
-    all_fields = list(Field.objects.all())
-    assert len(all_fields) == 1
-    assert all_fields[0].id == field.id
 
     response = api_client.patch(
         reverse("api:database:fields:item", kwargs={"field_id": field.id}),

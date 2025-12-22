@@ -17,7 +17,13 @@ TEST_ENV_FILE = os.getenv("TEST_ENV_FILE", ".env.testing")
 TEST_ENV_VARS = dotenv_values(os.path.join(BASE_DIR, f"../../../{TEST_ENV_FILE}"))
 
 
+original_getenv = os.getenv
+
+
 def getenv_for_tests(key: str, default: str = "") -> str:
+    if key.startswith("DATABASE_") and (value := original_getenv(key, "")):
+        return value
+
     return TEST_ENV_VARS.get(key, default)
 
 

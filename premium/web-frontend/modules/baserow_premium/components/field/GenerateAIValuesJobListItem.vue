@@ -69,9 +69,7 @@ export default {
     jobName() {
       let name = ''
       if (this.jobItem.is_auto_update) {
-        name = this.$t('generateAIValuesModal.autoUpdate', {
-          count: this.jobItem.row_ids.length,
-        })
+        name = this.$t('generateAIValuesModal.autoUpdate')
       } else if (this.jobItem.view_id) {
         const view = this.views.find((v) => v.id === this.jobItem.view_id)
         if (view) {

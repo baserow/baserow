@@ -304,9 +304,7 @@ BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
 )
 
 
-CELERY_SINGLETON_BACKEND_CLASS = (
-    "baserow.celery_singleton_backend.RedisBackendForSingleton"
-)
+CELERY_SINGLETON_BACKEND_CLASS = "baserow.celery_singleton.RedisBackendForSingleton"
 
 # This flag enable automatic index creation for table views based on sortings.
 AUTO_INDEX_VIEW_ENABLED = os.getenv("BASEROW_AUTO_INDEX_VIEW_ENABLED", "true") == "true"

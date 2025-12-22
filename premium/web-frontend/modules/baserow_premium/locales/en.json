@@ -386,7 +386,7 @@
     "table": "Table: All rows",
     "deletedView": "View: ID {viewId} (deleted)",
     "rows": "Rows: {count} rows",
-    "autoUpdate": "Rows: auto-updating {count} rows"
+    "autoUpdate": "Auto update: referenced fields changed"
   },
   "generateAIValuesForm": {
     "scopeLabel": "Scope",
