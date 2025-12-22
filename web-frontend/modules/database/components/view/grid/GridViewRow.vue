@@ -144,6 +144,7 @@
 </template>
 
 <script>
+import { markRaw } from 'vue'
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
@@ -266,9 +267,9 @@ export default {
       // for example used by the file field to finish the uploading task if the user
       // has selected another cell while uploading.
       alive: [],
-      rowExpandButton: this.$registry
-        .get('application', 'database')
-        .getRowExpandButtonComponent(),
+      rowExpandButton: markRaw(
+        this.$registry.get('application', 'database').getRowExpandButtonComponent()
+      ),
     }
   },
   computed: {
