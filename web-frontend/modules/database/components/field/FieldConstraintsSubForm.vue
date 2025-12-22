@@ -12,6 +12,7 @@
             !disabled && hasAvailableConstraints && !hasConflictingConstraints
           "
           :disabled="allConstraintsAdded || hasDisabledFieldConstraints"
+          tag="a"
           icon="iconoir-plus"
           @click.prevent="addConstraint"
         >
