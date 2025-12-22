@@ -1,6 +1,6 @@
 # This a dev image for testing your plugin when installed into the Baserow web-frontend image
-FROM baserow/web-frontend:2.0.5 as base
-FROM baserow/web-frontend:2.0.5
+FROM baserow/web-frontend:2.0.6 as base
+FROM baserow/web-frontend:2.0.6
 
 USER root
 
