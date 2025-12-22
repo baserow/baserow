@@ -4,6 +4,7 @@
 
 ### New features
 * [Core] Added more advanced formulas. [#4318](https://github.com/baserow/baserow/-/issues/4318)
+* [Core] Allow array properties to be selected in the formula context when expert mode is selected. [#4485](https://github.com/baserow/baserow/-/issues/4485)
 
 ### Bug fixes
 * [Builder] Resolve an issue with styling button fields in table elements. [#4494](https://github.com/baserow/baserow/-/issues/4494)
