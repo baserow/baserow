@@ -6,7 +6,7 @@
       !$hasPermission('database.table.list_comments', table, workspaceId)
     "
     :row="row"
-    v-on="$listeners"
+    v-bind="$attrs"
   />
   <a
     v-else

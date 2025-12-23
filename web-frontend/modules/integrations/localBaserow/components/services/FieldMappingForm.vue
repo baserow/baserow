@@ -7,7 +7,7 @@
           v-model="fieldValue"
           :disabled="!mapping.enabled"
           :placeholder="
-            $t('upsertRowWorkflowActionForm.fieldMappingPlaceholder')
+            $t('localBaserowUpsertRowServiceForm.fieldMappingPlaceholder')
           "
         />
         <template #placeholder>
