@@ -1300,6 +1300,23 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
         print(e)
 
 
+# Libraries that should be lazy-loaded (imported inside functions/methods) to reduce
+# memory footprint at startup. If any of these are found in sys.modules during startup,
+# a warning will be shown suggesting to either lazy-load them or remove them from this
+# list if they're legitimately needed at startup.
+BASEROW_LAZY_LOADED_LIBRARIES = [
+    "openai",
+    "anthropic",
+    "mistralai",
+    "ollama",
+    "langchain_core",
+    "jira2markdown",
+    "saml2",
+    "openpyxl",
+    "numpy",
+]
+
+
 SENTRY_BACKEND_DSN = os.getenv("SENTRY_BACKEND_DSN")
 SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
 
@@ -1317,6 +1334,8 @@ if SENTRY_DSN:
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
     )
+else:
+    BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
@@ -1480,20 +1499,3 @@ BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
     try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )
-
-# Libraries that should be lazy-loaded (imported inside functions/methods) to reduce
-# memory footprint at startup. If any of these are found in sys.modules during startup,
-# a warning will be shown suggesting to either lazy-load them or remove them from this
-# list if they're legitimately needed at startup.
-BASEROW_LAZY_LOADED_LIBRARIES = [
-    "openai",
-    "anthropic",
-    "mistralai",
-    "ollama",
-    "langchain_core",
-    "sentry_sdk",
-    "jira2markdown",
-    "saml2",
-    "openpyxl",
-    "numpy",
-]
