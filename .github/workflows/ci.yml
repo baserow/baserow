@@ -794,6 +794,21 @@ jobs:
           cd e2e-tests
           ./wait-for-services.sh
 
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend container logs ==="
+          docker logs backend 2>&1 | tail -500 || true
+          echo ""
+          echo "=== Celery container logs ==="
+          docker logs celery 2>&1 | tail -200 || true
+          echo ""
+          echo "=== Web-frontend container logs ==="
+          docker logs web-frontend 2>&1 | tail -200 || true
+          echo ""
+          echo "=== Container status ==="
+          docker ps -a
+
       - name: Run E2E tests (shard ${{ matrix.shard }})
         env:
           PUBLIC_BACKEND_URL: http://localhost:8000

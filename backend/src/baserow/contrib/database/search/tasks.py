@@ -8,14 +8,17 @@ from celery_singleton import DuplicateTaskError, Singleton
 from django_cte import With
 from loguru import logger
 
-from baserow.celery_singleton import SingletonAutoRescheduleFlag
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 
 PERIODIC_CHECK_MINUTES = 15
 PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 15 minutes.
-SINGLETON_FLAG_KEY = "database_search_data_lock_{table_id}"
+
+
+def _get_singleton_autoreschedule_flag(table_id: int) -> SingletonAutoRescheduleFlag:
+    return SingletonAutoRescheduleFlag(f"database_search_data_lock_{table_id}")
 
 
 @app.task(queue="export")
@@ -66,9 +69,8 @@ def schedule_update_search_data(
         # There are new updates pending to be processed, make sure the flag is set
         # so the task will be re-scheduled at the end of the current run.
         if new_pending_updates:
-            SingletonAutoRescheduleFlag(
-                SINGLETON_FLAG_KEY.format(table_id=table_id)
-            ).set()
+            flag = _get_singleton_autoreschedule_flag(table_id)
+            flag.set()
 
 
 @app.task(
@@ -116,7 +118,7 @@ def update_search_data(table_id: int):
     SearchHandler.initialize_missing_search_data(table)
 
     # Make sure newer updates will re-schedule this task at the end if needed.
-    flag = SingletonAutoRescheduleFlag(SINGLETON_FLAG_KEY.format(table_id=table_id))
+    flag = _get_singleton_autoreschedule_flag(table_id)
     flag.clear()
 
     SearchHandler.process_search_data_updates(table)

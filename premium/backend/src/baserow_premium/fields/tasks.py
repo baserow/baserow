@@ -9,13 +9,16 @@ from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from celery_singleton import DuplicateTaskError, Singleton
 
-from baserow.celery_singleton import SingletonAutoRescheduleFlag
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.core.jobs.handler import JobHandler
 
 PERIODIC_CHECK_MINUTES = 5
 PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES
-SINGLETON_FLAG_KEY = "ai_field_generation_lock_{field_id}"
+
+
+def _get_singleton_autoreschedule_flag(field_id: int) -> SingletonAutoRescheduleFlag:
+    return SingletonAutoRescheduleFlag(f"ai_field_generation_lock_{field_id}")
 
 
 def _schedule_generate_ai_value_generation(field_id: int):
@@ -30,7 +33,8 @@ def _schedule_generate_ai_value_generation(field_id: int):
             countdown=settings.BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME
         )
     except DuplicateTaskError:
-        SingletonAutoRescheduleFlag(SINGLETON_FLAG_KEY.format(field_id=field_id)).set()
+        flag = _get_singleton_autoreschedule_flag(field_id)
+        flag.set()
 
 
 @app.task(
@@ -81,7 +85,7 @@ def generate_scheduled_ai_field_generation(field_id: int):
         field.save()
         return
 
-    flag = SingletonAutoRescheduleFlag(SINGLETON_FLAG_KEY.format(field_id=field_id))
+    flag = _get_singleton_autoreschedule_flag(field_id)
     flag.clear()
 
     jh.create_and_start_job(
