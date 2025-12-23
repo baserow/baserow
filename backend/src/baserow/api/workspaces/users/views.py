@@ -131,7 +131,7 @@ class WorkspaceUsersView(APIView, SearchableViewMixin, SortableViewMixin):
             .select_related("workspace", "user", "user__profile")
             .prefetch_related(
                 Prefetch(
-                    "user__two_factor_auth_providers",
+                    "user__two_factor_auth_provider",
                     queryset=specific_queryset(
                         TwoFactorAuthProviderModel.objects.all()
                     ),

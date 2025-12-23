@@ -10,7 +10,7 @@ https://docs.djangoproject.com/en/2.2/howto/deployment/wsgi/
 from django.conf import settings
 from django.core.wsgi import get_wsgi_application
 
-from baserow.config.helpers import check_lazy_loaded_libraries
+from baserow.config.helpers import check_lazy_loaded_libraries, log_env_warnings
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 
 # The telemetry instrumentation library setup needs to run prior to django's setup.
@@ -28,3 +28,6 @@ settings.BASEROW_LAZY_LOADED_LIBRARIES.append("mcp")
 # Check that libraries meant to be lazy-loaded haven't been imported at startup.
 # This runs after Django is fully loaded, so it catches imports from all apps.
 check_lazy_loaded_libraries()
+
+# Finally log any warnings about the environment variables that can help debug issues.
+log_env_warnings()

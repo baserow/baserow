@@ -21,11 +21,10 @@ class TwoFactorAuthProviderModel(
         related_name="two_factor_auth_providers",
         on_delete=models.CASCADE,
     )
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         "auth.User",
-        unique=True,
         on_delete=models.CASCADE,
-        related_name="two_factor_auth_providers",
+        related_name="two_factor_auth_provider",
         help_text="User that setup 2fa with this provider",
     )
 

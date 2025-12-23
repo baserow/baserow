@@ -4,8 +4,9 @@ from django.urls import re_path
 
 from channels.routing import ProtocolTypeRouter, URLRouter
 
-from baserow.config.helpers import ConcurrencyLimiterASGI, check_lazy_loaded_libraries
+from baserow.config.helpers import ConcurrencyLimiterASGI, check_lazy_loaded_libraries,  log_env_warnings
 from baserow.core.mcp import get_baserow_mcp_server
+
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
 
@@ -21,6 +22,9 @@ setup_logging()
 # Check that libraries meant to be lazy-loaded haven't been imported at startup.
 # This runs after Django is fully loaded, so it catches imports from all apps.
 check_lazy_loaded_libraries()
+
+# Finally log any warnings about the environment variables that can help debug issues.
+log_env_warnings()
 
 application = ProtocolTypeRouter(
     {
