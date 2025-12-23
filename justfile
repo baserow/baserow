@@ -827,7 +827,7 @@ alias dcp := dc-prod
 [doc("Build image: backend, web-frontend, all-in-one, heroku, cloudron, etc.")]
 build target="" tag="latest" *ARGS:
     #!/usr/bin/env bash
-    set -euo pipefail
+    set -eo pipefail
 
     # Parse args - check for --multi flag
     MULTI=false
