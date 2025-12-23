@@ -26,7 +26,7 @@ export class DuplicateTableJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     store.dispatch(
       'toast/error',
@@ -40,7 +40,7 @@ export class DuplicateTableJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedTable = job.duplicated_table
     const database = store.getters['application/get'](
