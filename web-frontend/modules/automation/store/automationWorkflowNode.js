@@ -242,8 +242,8 @@ const actions = {
       ) {
         oldValues[name] = node[name]
         // Accumulate the changed values to send all the ongoing changes with the
-        // final request.
-        updateContext.valuesToUpdate[name] = structuredClone(values[name])
+        // final request. Use clone() to handle Vue 3 reactive objects safely.
+        updateContext.valuesToUpdate[name] = clone(values[name])
       }
     })
 

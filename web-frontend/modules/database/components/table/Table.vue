@@ -484,7 +484,9 @@ export default {
   },
   beforeUnmount() {
     this.$bus.$off('table-refresh', this.refresh)
-    this.$el.resizeObserver.unobserve(this.$el)
+    if (this.$el?.resizeObserver) {
+      this.$el.resizeObserver.unobserve(this.$el)
+    }
     this.$bus.$off('open-table-views-context', this.openTableViewsContext)
     this.$bus.$off('close-table-views-context', this.closeTableViewsContext)
   },
