@@ -153,7 +153,7 @@ const {
 // Computed properties from async data
 const automation = computed(() => pageData.value?.automation ?? null)
 const workspace = computed(() => pageData.value?.workspace ?? null)
-const workflow = computed(() => pageData.value?.workflow ?? null)
+const workflow = computed(() => $store.getters['automationWorkflow/getSelected'])
 
 // Computed properties
 const isDev = computed(() => process.env.NODE_ENV === 'development')
