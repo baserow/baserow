@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0107_twofactorauthprovidermodel_totpauthprovidermodel_and_more"),
+        ("core", "0108_alter_userfile_unique"),
     ]
 
     operations = [
