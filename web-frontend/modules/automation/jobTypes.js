@@ -25,7 +25,7 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     store.dispatch(
       'toast/error',
@@ -39,7 +39,7 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedWorkflow = job.duplicated_automation_workflow
     const automation = store.getters['application/get'](
