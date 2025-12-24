@@ -16,7 +16,7 @@
     </a>
 
     <a
-      v-show="!automation._.loading"
+      v-show="!automation._?.loading"
       v-if="showOptions"
       class="tree__options"
       @click="$refs.context.toggle($event.currentTarget, 'bottom', 'right', 0)"
