@@ -769,7 +769,8 @@
         "importingState": "Creando",
         "reset": "Crear otra",
         "cancel": "Cancelar",
-        "noSnapshots": "Aún no hay instantáneas de esta aplicación."
+        "noSnapshots": "Aún no hay instantáneas de esta aplicación.",
+        "nameAlreadyExists": "Ya existe una instantánea con este nombre."
     },
     "deleteSnapshotModal": {
         "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {nombre}?",
