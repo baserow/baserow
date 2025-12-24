@@ -1,4 +1,4 @@
-import { useNuxtApp } from '#app'
+import { useNuxtApp, useRouter } from '#app'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import AutomationWorkflowService from '@baserow/modules/automation/services/workflow'
@@ -111,7 +111,8 @@ const actions = {
   async forceDelete({ commit }, { automation, workflow }) {
     if (workflow._.selected) {
       // Redirect back to the dashboard because the workflow doesn't exist anymore.
-      await this.$router.push({ name: 'dashboard' })
+      const router = useRouter()
+      await router.push({ name: 'dashboard' })
       commit('UNSELECT')
     }
 
