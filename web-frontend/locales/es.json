@@ -490,7 +490,8 @@
         "uploadFileViaUrlDescription": "Sube un archivo a Baserow descargándolo de la URL proporcionada.",
         "fileUploads": "Carga de archivos",
         "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`",
-        "listTables": "Listar tablas"
+        "listTables": "Listar tablas",
+        "apiDocs": "Listar todas las tablas"
     },
     "exporterType": {
         "csv": "Exportar a CSV"
@@ -646,5 +647,31 @@
     },
     "assistantMessageSources": {
         "sources": "{count} fuente | {count} fuentes"
+    },
+    "runtimeFormulaTypes": {
+        "lowerDescription": "Convierte el argumento a minúsculas.",
+        "capitalizeDescription": "Capitaliza la primera letra del argumento.",
+        "roundDescription": "Redondea el primer argumento al número de decimales especificado por el segundo argumento.",
+        "evenDescription": "Devuelve verdadero si el argumento es par, falso en caso contrario.",
+        "oddDescription": "Devuelve true si el argumento es impar, false en caso contrario.",
+        "dateTimeDescription": "Formatea el argumento de fecha y hora usando los argumentos de formato y zona horaria. Si la zona horaria se deja en blanco, se usará la zona horaria del navegador por defecto.",
+        "dayDescription": "Devuelve el día del argumento de fecha y hora.",
+        "monthDescription": "Devuelve el mes del argumento de fecha y hora.",
+        "yearDescription": "Devuelve el año del argumento de fecha y hora.",
+        "hourDescription": "Devuelve la hora del argumento de fecha y hora.",
+        "minuteDescription": "Devuelve el minuto del argumento de fecha y hora.",
+        "secondDescription": "Devuelve el segundo del argumento de fecha y hora.",
+        "todayDescription": "Devuelve la fecha actual.",
+        "getPropertyDescription": "Devuelve la propiedad del objeto.",
+        "randomIntDescription": "Devuelve un entero aleatorio del rango especificado por los argumentos.",
+        "randomFloatDescription": "Devuelve un número flotante aleatorio del rango especificado por los argumentos.",
+        "randomBoolDescription": "Devuelve un booleano aleatorio de true o false.",
+        "generateUUIDDescription": "Devuelve una cadena UUID4 aleatoria.",
+        "ifDescription": "Si el primer argumento es true, devuelve el segundo argumento; de lo contrario, devuelve el tercer argumento.",
+        "andDescription": "Devuelve true si todos los argumentos son true, de lo contrario devuelve false.",
+        "orDescription": "Devuelve true si algún argumento es true, de lo contrario devuelve false.",
+        "formulaTypeFormula": "Función | Funciones",
+        "formulaTypeOperator": "Operador | Operadores",
+        "formulaTypeData": "Datos"
     }
 }
