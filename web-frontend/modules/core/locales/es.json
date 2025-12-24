@@ -866,7 +866,8 @@
         "viewMore": "Ver más"
     },
     "dataExplorerNode": {
-        "showMore": "Mostrar más repeticiones"
+        "showMore": "Mostrar más repeticiones",
+        "selectNode": "Seleccionar"
     },
     "exportWorkspaceModal": {
         "title": "Exportar",
