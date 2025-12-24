@@ -1,7 +1,6 @@
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from django.conf import settings
 from django.core.management import call_command
 
 import pytest
@@ -57,7 +56,7 @@ def test_delete_files_uploaded_by_user_deletes_files_with_yes_flag(data_fixture)
 
 
 @pytest.mark.django_db
-def test_delete_files_uploaded_by_user_deletes_thumbnails(data_fixture):
+def test_delete_files_uploaded_by_user_deletes_thumbnails(data_fixture, settings):
     user = data_fixture.create_user()
     data_fixture.create_user_file(uploaded_by=user)
 
