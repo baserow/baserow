@@ -323,7 +323,11 @@
         "openPageLabel": "Abrir página",
         "logoutLabel": "Cerrar sesión",
         "refreshDataSourceLabel": "Refrescar fuente de datos",
-        "deleteRowLabel": "Borrar fila"
+        "deleteRowLabel": "Borrar fila",
+        "httpRequest": "Enviar solicitud HTTP",
+        "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
+        "errorPageParameterInError": "Al menos un parámetro de página está mal configurado",
+        "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»"
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -710,7 +714,10 @@
         "orientationVertical": "Vertical",
         "buttonLoadMoreLabel": "Mostrar más etiqueta",
         "toggleEditorRepetitionsLabel": "Desactivar temporalmente las repeticiones",
-        "propertySelectorMissingArrays": "No se encontraron campos de valores múltiples para crear los patrones."
+        "propertySelectorMissingArrays": "No se encontraron campos de valores múltiples para crear los patrones.",
+        "gapLabel": "Espacio entre repeticiones",
+        "gapVerticalLabel": "Vertical",
+        "gapHorizontalLabel": "Horizontal"
     },
     "tagsFieldForm": {
         "fieldValuesLabel": "Valores",
@@ -779,7 +786,9 @@
         "size": "Tamaño",
         "textAlignment": "Alineación",
         "bodyLabel": "Cuerpo",
-        "fontFamily": "Fuente tipográfica"
+        "fontFamily": "Fuente tipográfica",
+        "weight": "Peso",
+        "decoration": "Decoración de texto"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "Color de fondo",
@@ -795,7 +804,9 @@
         "borderRadius": "Radio del borde",
         "borderColor": "Color del borde",
         "borderSize": "Tamaño del borde",
-        "fontFamily": "Fuente tipográfica"
+        "fontFamily": "Fuente tipográfica",
+        "activeState": "Estado activo",
+        "weight": "Peso de fuente"
     },
     "linkThemeConfigBlock": {
         "defaultState": "Estado por defecto",
@@ -803,7 +814,9 @@
         "fontFamily": "Fuente tipográfica",
         "link": "Enlace",
         "color": "Color",
-        "hoverState": "Estado de la imagen flotante"
+        "hoverState": "Estado de la imagen flotante",
+        "activeState": "Estado activo",
+        "size": "Tamaño de fuente"
     },
     "imageThemeConfigBlock": {
         "alignment": "Alineación",
@@ -1078,5 +1091,16 @@
         "cornerRadiusLabel": "Radio de esquina",
         "backgroundRadiusLabel": "Fondo",
         "borderRadiusLabel": "Borde"
+    },
+    "fontWeightType": {
+        "thin": "Delgado",
+        "extraLight": "Extra‑ligero",
+        "light": "Ligero",
+        "medium": "Mediano",
+        "semiBold": "Semi‑negrita",
+        "bold": "Negrita",
+        "extraBold": "Extra‑negrita",
+        "black": "Negro",
+        "extraBlack": "Extra‑negro"
     }
 }
