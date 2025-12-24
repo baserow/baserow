@@ -17,7 +17,7 @@ import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 const props = defineProps({
-  value: { type: [Object, String], required: false, default: () => ({}) },
+  modelValue: { type: [Object, String], required: false, default: () => ({}) },
   dataProvidersAllowed: { type: Array, required: false, default: () => [] },
 })
 
@@ -26,11 +26,11 @@ const applicationContext = inject('applicationContext')
 const emit = defineEmits(['input'])
 
 // Local mode state
-const localMode = ref(props.value.mode || 'simple')
+const localMode = ref(props.modelValue?.mode || 'simple')
 
 // Watch for external changes to the mode
 watch(
-  () => props.value.mode,
+  () => props.modelValue?.mode,
   (newMode) => {
     if (newMode !== undefined && newMode !== localMode.value) {
       localMode.value = newMode
@@ -76,7 +76,7 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The formula string.
  */
 const formulaStr = computed(() => {
-  return props.value.formula
+  return props.modelValue?.formula
 })
 
 /**
@@ -86,7 +86,7 @@ const formulaStr = computed(() => {
  */
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
-    ...props.value,
+    ...props.modelValue,
     formula: newFormulaStr,
     mode: localMode.value,
   })
