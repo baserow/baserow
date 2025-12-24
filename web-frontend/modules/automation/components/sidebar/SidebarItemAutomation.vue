@@ -149,23 +149,19 @@ export default {
         value,
       })
     },
-    selectWorkflow(automation, workflow) {
+    async selectWorkflow(automation, workflow) {
       this.setLoading(automation, true)
-      this.$nuxt.$router.push(
-        {
+      try {
+        await this.$nuxt.$router.push({
           name: 'automation-workflow',
           params: {
             automationId: automation.id,
             workflowId: workflow.id,
           },
-        },
-        () => {
-          this.setLoading(automation, false)
-        },
-        () => {
-          this.setLoading(automation, false)
-        }
-      )
+        })
+      } finally {
+        this.setLoading(automation, false)
+      }
     },
     resolveWorkflowHref(automation, workflow) {
       const props = this.$nuxt.$router.resolve({
