@@ -656,5 +656,59 @@
         "noScript": "Mejora tu aplicación con scripts u hojas de estilo externas",
         "customCodeHelp": "El código personalizado solo es visible en vistas previas o aplicaciones publicadas, los resultados no son visibles en el editor.",
         "addExternalScript": "Agregar un script externo"
+    },
+    "customCodeSettingScriptForm": {
+        "loadType": "Tipo de carga",
+        "type": "Tipo",
+        "url": "URL",
+        "urlPlaceholder": "Introduce la URL del script…",
+        "crossorigin": "Origen cruzado",
+        "includeCredentials": "Incluye credenciales",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Aplazar (Defer)",
+        "crossoriginTypeNone": "Normal",
+        "loadTypeAsync": "Asíncrono",
+        "crossoriginTypeAnonymous": "Anónimo",
+        "crossoriginTypeCredentials": "Usa credenciales"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Editar permisos de campo"
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Dependencia de fecha",
+        "dependencyFieldTooltip": "Configura dependencias de fecha",
+        "dependencyFieldTooltipError": "Una regla de campo contiene un error",
+        "contextMenuItemLabel": "Configura las dependencias de fecha",
+        "title": "Dependencia de fecha para {tableName}",
+        "description": "Especifica qué filas dependen de otras. Cuando una fila se reprograma, sus filas dependientes se ajustan automáticamente.",
+        "enableDateDependency": "Habilita las dependencias de fecha para «Proyectos»",
+        "startDateFieldLabel": "Fecha de inicio",
+        "endDateFieldLabel": "Fecha de fin",
+        "durationFieldLabel": "Duración",
+        "durationFieldHint": "Este campo debe usar el formato «d h».",
+        "dependencyLinkrowFieldLabel": "Predecesores",
+        "dependencyLinkrowFieldHint": "Utiliza un campo «Enlace a la tabla» para conectar una fila con sus predecesores.",
+        "dependencyBufferTypeLabel": "Lógica de reprogramación",
+        "durationBufferLabel": "'Buffer' de tiempo",
+        "dependencyConnectionTypeLabel": "Tipo",
+        "advancedSettingsLabel": "Configuración avanzada",
+        "includeWeekendsLabel": "Incluye los fines de semana al calcular duraciones",
+        "dependencyFieldForReaderTooltip": "Este campo está incluido en la regla de campo de dependencia de fecha",
+        "fieldInvalidTitle": "Error de campo en la dependencia de fecha"
+    },
+    "dateDependency": {
+        "invalidChildRow": "La fila sucesora es inválida",
+        "invalidParentRow": "La fila predecesora es inválida",
+        "invalidParentEndDateAfterChildStartDate": "La fecha de fin de la fila predecesora es posterior a la fecha de inicio de la fila sucesora",
+        "invalidStartDateEmpty": "La fecha de inicio está vacía",
+        "invalidEndDateEmpty": "La fecha de fin está vacía",
+        "invalidEndDateBeforeStartDate": "La fecha de fin es anterior a la fecha de inicio",
+        "invalidDurationValue": "El valor de duración no es válido",
+        "invalidDurationEmpty": "La duración está vacía"
     }
 }
