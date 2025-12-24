@@ -73,7 +73,7 @@ class AIFieldHandler:
         )
         try:
             return output_parser.parse(response)["formula"]
-        except (OutputParserException, TypeError) as e:
+        except (OutputParserException, TypeError, KeyError) as e:
             raise AiFieldOutputParserException(
-                "The model didn't respond with the correct output. " "Please try again."
+                "The model didn't respond with the correct output. Please try again."
             ) from e
