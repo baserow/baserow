@@ -87,6 +87,7 @@ export default defineNuxtPlugin({
       )
     }
 
+    $registry.registerNamespace('dashboardWidget')
     $registry.register('application', new DashboardApplicationType(context))
     $registry.register('dashboardWidget', new SummaryWidgetType(context))
 

@@ -46,7 +46,7 @@ import {
 } from '@baserow/modules/automation/dataProviderTypes'
 
 export default defineNuxtPlugin({
-  dependsOn: ['core', 'store'],
+  dependsOn: ['core', 'store', 'realtime'],
   setup(nuxtApp) {
     const { $registry, $store, $realtime } = nuxtApp
 
@@ -70,7 +70,6 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('automationDataProvider')
     $registry.registerNamespace('node')
     $registry.registerNamespace('editorSidePanel')
-    $registry.registerNamespace('dashboardWidget')
 
     // Automation data providers
     $registry.register('application', new AutomationApplicationType(context))
