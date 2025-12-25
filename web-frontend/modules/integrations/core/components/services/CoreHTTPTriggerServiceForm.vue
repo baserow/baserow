@@ -76,7 +76,7 @@ export default {
   computed: {
     webhookUrl() {
       if (this.defaultValues.uid) {
-        const url = `${this.$config.PUBLIC_BACKEND_URL}/api/webhooks/${this.defaultValues.uid}/`
+        const url = `${this.$config.public.publicBackendUrl}/api/webhooks/${this.defaultValues.uid}/`
         if (!this.isPublishedUrl) {
           return `${url}?test=true`
         } else {

@@ -69,6 +69,7 @@ export default {
       required: true,
     },
     table: { type: Object, required: true },
+    userFieldNames: { type: Boolean, required: true },
     getItemUrl: { type: Function, required: true },
     getResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
