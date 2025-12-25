@@ -141,8 +141,12 @@ const computeEdgeCoords = (wrapper, edgeElt, multiple = false) => {
  */
 const updateEdgeCoords = async () => {
   await nextTick()
+  const wrap = workflowNode.value
+  // Defensive code: skip if the wrapper ref isn't available yet
+  if (!wrap) {
+    return
+  }
   coordsPerEdge.value = nodeEdges.value.map((edge) => {
-    const wrap = workflowNode.value
     const edgeComponent = edgeRefs[edge.uid]
     if (edgeComponent?.$el) {
       return [
