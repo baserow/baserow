@@ -165,6 +165,9 @@ export default defineComponent({
     })
 
     const testRunDisabled = computed(() => {
+      if (!workflow.value?.graph) {
+        return true
+      }
       return !new NodeGraphHandler(workflow.value).hasNodes()
     })
 

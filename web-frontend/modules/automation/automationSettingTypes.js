@@ -1,6 +1,10 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettings from '@baserow/modules/automation/components/settings/GeneralSettings'
-import IntegrationSettings from '@baserow/modules/automation/components/settings/IntegrationSettings'
+import GeneralSettingsComponent from '@baserow/modules/automation/components/settings/GeneralSettings'
+import IntegrationSettingsComponent from '@baserow/modules/automation/components/settings/IntegrationSettings'
+
+const GeneralSettings = markRaw(GeneralSettingsComponent)
+const IntegrationSettings = markRaw(IntegrationSettingsComponent)
 
 class AutomationSettingType extends Registerable {
   static getType() {

@@ -100,7 +100,7 @@ const updateKey = ref(1)
 const selectedNodeId = toRef(props, 'modelValue')
 
 const trigger = computed(() => {
-  if (!workflow.value) {
+  if (!workflow.value?.graph) {
     return null
   }
   return new NodeGraphHandler(workflow.value).getFirstNode()
