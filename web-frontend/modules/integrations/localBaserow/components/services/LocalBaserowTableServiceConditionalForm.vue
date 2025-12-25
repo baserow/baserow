@@ -1,6 +1,6 @@
 <template>
-  <div v-if="value">
-    <div v-if="value.length === 0">
+  <div v-if="modelValue">
+    <div v-if="modelValue.length === 0">
       <div class="filters__none">
         <div class="filters__none-title">
           {{ $t('localBaserowTableServiceConditionalForm.noFilterTitle') }}
@@ -98,8 +98,9 @@ export default {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
   },
+  emits: ['update:modelValue', 'update:filterType'],
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -147,7 +148,7 @@ export default {
       // containing the formula string. The `ViewFieldConditionsForm` however
       // expects the `value` to be the formula string itself, so we have
       // to convert it here.
-      const dataSourceFilters = this.value.map((filterConf) => {
+      const dataSourceFilters = this.modelValue.map((filterConf) => {
         return { ...filterConf, value: filterConf.value.formula }
       })
       return dataSourceFilters.sort((a, b) => a.order - b.order)
@@ -170,7 +171,7 @@ export default {
             ),
           })
         } else {
-          const newFilters = [...this.value]
+          const newFilters = [...this.modelValue]
           // Setting an `id` of `ulid` is necessary for two reasons:
           // 1) So that we can distinguish between filters locally
           // 2) It has to match what is sorted against `sortNumbersAndUuid1Asc`.
@@ -181,7 +182,7 @@ export default {
             value: { formula: '', mode: 'raw' },
             value_is_formula: false,
           })
-          this.$emit('input', newFilters)
+          this.$emit('update:modelValue', newFilters)
         }
       } catch (error) {
         notifyIf(error, 'dataSource')
@@ -191,16 +192,16 @@ export default {
      * Responsible for removing the chosen filter from the data source's filters.
      */
     deleteFilter(filter) {
-      const newFilters = this.value.filter(({ id }) => {
+      const newFilters = this.modelValue.filter(({ id }) => {
         return id !== filter.id
       })
-      this.$emit('input', newFilters)
+      this.$emit('update:modelValue', newFilters)
     },
     /*
      * Responsible for updating the chosen filter in the data source's filters.
      */
     updateFilter({ filter, values }) {
-      const newFilters = this.value.map((filterConf) => {
+      const newFilters = this.modelValue.map((filterConf) => {
         if (filterConf.id === filter.id) {
           // Convert the formula value string into our Baserow formula object.
           const { value_is_formula: valueIsFormula } = { ...filter, ...values }
@@ -215,7 +216,7 @@ export default {
         }
         return filterConf
       })
-      this.$emit('input', newFilters)
+      this.$emit('update:modelValue', newFilters)
     },
     /*
      * When the formula toggle is clicked, this is responsible for flipping
@@ -263,7 +264,7 @@ export default {
      * @returns {Object} The formula object with the formula string.
      */
     getFormulaObject(filter) {
-      const originalFilter = this.value.find((f) => f.id === filter.id)
+      const originalFilter = this.modelValue.find((f) => f.id === filter.id)
       return {
         ...originalFilter.value,
         mode: originalFilter.value_is_formula

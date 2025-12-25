@@ -159,7 +159,7 @@ const workflow = computed(() => $store.getters['automationWorkflow/getSelected']
 const isDev = computed(() => process.env.NODE_ENV === 'development')
 
 const workflowNodes = computed(() => {
-  if (!workflow.value) {
+  if (!workflow.value?.nodes) {
     return []
   }
   return $store.getters['automationWorkflowNode/getNodes'](workflow.value)
