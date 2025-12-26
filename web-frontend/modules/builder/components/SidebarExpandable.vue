@@ -1,6 +1,6 @@
 <template>
   <div class="sidebar-expandable__wrapper">
-    <Expandable class="sidebar-expandable" v-bind="$attrs" v-on="$attrs">
+    <Expandable class="sidebar-expandable" v-bind="$attrs">
       <template #header="{ expanded }">
         <div class="sidebar-expandable__header">
           <div class="sidebar-expandable__handle" data-sortable-handle />

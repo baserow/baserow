@@ -61,12 +61,13 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import { required, integer, minValue, maxValue } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 
 export default {
   name: 'SMTPForm',
-  mixins: [form],
+  mixins: [form, childForm],
   props: {
     application: {
       type: Object,
