@@ -97,11 +97,12 @@
 import { required } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'AIForm',
-  mixins: [form],
+  mixins: [form, childForm],
   props: {
     application: {
       type: Object,

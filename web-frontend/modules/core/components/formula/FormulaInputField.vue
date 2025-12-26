@@ -85,6 +85,7 @@ export default {
     EditorContent,
     NodeHelpTooltip,
   },
+  emits: ['input', 'update:mode', 'data-node-clicked'],
 
   provide() {
     return fixPropertyReactivityForProvide(

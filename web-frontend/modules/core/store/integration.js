@@ -259,10 +259,10 @@ const actions = {
 
 const getters = {
   getIntegrations: (state) => (application) => {
-    return application.integrations
+    return application?.integrations || []
   },
   getIntegrationById: (state) => (application, id) => {
-    return application.integrations.find((integration) => integration.id === id)
+    return application?.integrations?.find((integration) => integration.id === id)
   },
 }
 

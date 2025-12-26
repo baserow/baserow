@@ -22,8 +22,9 @@ export class AIIntegrationType extends IntegrationType {
       return this.app.$i18n.t('aiIntegrationType.inheritingWorkspace')
     }
 
-    return this.app.$i18n.tc(
+    return this.app.$i18n.t(
       'aiIntegrationType.overridingProviders',
+      { count: overrideCount },
       overrideCount
     )
   }

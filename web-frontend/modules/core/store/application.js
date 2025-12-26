@@ -36,7 +36,9 @@ export const mutations = {
     state.loaded = value
   },
   SET_ITEM_LOADING(state, { application, value }) {
-    application._.loading = value
+    if (application?._) {
+      application._.loading = value
+    }
   },
   ADD_ITEM(state, item) {
     state.items.push(item)
