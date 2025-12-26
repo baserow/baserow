@@ -57,6 +57,9 @@ export default {
         this.column.additionalProps.workspaceId
       )
     },
+    scopeType() {
+      return this.column.additionalProps?.scopeType || 'workspace'
+    },
     roles() {
       // filters out role not for Team subject and not for workspace level
       return this.workspace
