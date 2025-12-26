@@ -4,7 +4,7 @@
       <Presentation
         :title="userName"
         :subtitle="$t('localBaserowTableDataSync.authorizing')"
-        :initials="userName | nameAbbreviation"
+        :initials="nameAbbreviation(userName)"
         avatar-color="blue"
       />
     </div>
@@ -112,6 +112,7 @@ import { required, numeric, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ViewService from '@baserow/modules/database/services/view'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'LocalBaserowTableDataSync',
@@ -280,6 +281,7 @@ export default {
         this.viewsLoading = false
       }
     },
+    nameAbbreviation,
   },
 }
 </script>
