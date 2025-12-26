@@ -60,7 +60,7 @@ export default {
       try {
         // The public accept url is the page where the user can publicly navigate too,
         // to accept the workspace invitation.
-        const acceptUrl = `${this.$config.BASEROW_EMBEDDED_SHARE_URL}/workspace-invitation`
+        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
         const { data } = await WorkspaceService(this.$client).sendInvitation(
           this.workspace.id,
           acceptUrl,

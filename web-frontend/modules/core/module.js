@@ -143,7 +143,8 @@ export default defineNuxtModule({
         posthogHost: process.env.POSTHOG_HOST ?? '',
         baserowEmbeddedShareUrl:
           process.env.BASEROW_EMBEDDED_SHARE_URL ??
-          nuxt.options.runtimeConfig.public.publicWebFrontendUrl,
+          process.env.PUBLIC_WEB_FRONTEND_URL ??
+          'http://localhost:3000',
         baserowUsePgFulltextSearch:
           process.env.BASEROW_USE_PG_FULLTEXT_SEARCH ?? 'true',
         integrationLocalBaserowPageSizeLimit: parseInt(
