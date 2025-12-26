@@ -40,12 +40,24 @@
             {{ $t('slackBotForm.supportSetupDescription') }}
           </p>
           <ol class="slack-bot-form__instructions">
-            <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-            <li v-html="$t('slackBotForm.supportSetupStep1')"></li>
+            <li>
+              <i18n-t keypath="slackBotForm.supportSetupStep1">
+                <template #link>
+                  <a href="https://api.slack.com/apps" target="_blank">{{
+                    $t('slackBotForm.supportSetupStep1Link')
+                  }}</a>
+                </template>
+              </i18n-t>
+            </li>
             <li>{{ $t('slackBotForm.supportSetupStep2') }}</li>
             <li>{{ $t('slackBotForm.supportSetupStep3') }}</li>
-            <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-            <li v-html="$t('slackBotForm.supportSetupStep4')"></li>
+            <li>
+              <i18n-t keypath="slackBotForm.supportSetupStep4">
+                <template #scope>
+                  <pre>chat:write</pre>
+                </template>
+              </i18n-t>
+            </li>
           </ol>
         </template>
       </Expandable>
@@ -69,8 +81,13 @@
           <ol class="slack-bot-form__instructions">
             <li>{{ $t('slackBotForm.supportPairingStep1') }}</li>
             <li>{{ $t('slackBotForm.supportPairingStep2') }}</li>
-            <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-            <li v-html="$t('slackBotForm.supportPairingStep3')"></li>
+            <li>
+              <i18n-t keypath="slackBotForm.supportPairingStep3">
+                <template #command>
+                  <pre>/invite @yourAppName yourChannel</pre>
+                </template>
+              </i18n-t>
+            </li>
           </ol>
         </template>
       </Expandable>
