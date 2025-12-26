@@ -112,7 +112,7 @@ export default {
       loggedUser: 'userSourceUser/getUser',
     }),
     pageTop() {
-      return this.pageTopData.value
+      return this.pageTopData?.value ?? 0
     },
     elementSelected() {
       return this.getElementSelected(this.builder)
