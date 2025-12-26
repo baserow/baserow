@@ -89,7 +89,7 @@
             <Avatar
               rounded
               size="medium"
-              :initials="item.name | nameAbbreviation"
+              :initials="nameAbbreviation(item.name)"
             ></Avatar>
             <span class="margin-left-1">
               {{ item.name }}
@@ -132,6 +132,7 @@ import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'ManageTeamForm',
@@ -222,6 +223,9 @@ export default {
   },
   mounted() {
     this.$refs.name.focus()
+  },
+  methods: {
+    nameAbbreviation,
   },
 }
 </script>
