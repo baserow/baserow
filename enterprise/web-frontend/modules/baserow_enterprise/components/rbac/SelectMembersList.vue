@@ -28,7 +28,7 @@
           class="margin-left-1"
           rounded
           size="medium"
-          :initials="item.name | nameAbbreviation"
+          :initials="nameAbbreviation(item.name)"
         ></Avatar>
 
         <span
@@ -52,6 +52,7 @@
 
 <script>
 import SelectSubjectsListFooter from '@baserow_enterprise/components/rbac/SelectSubjectsListFooter'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'SelectMembersList',
@@ -106,6 +107,7 @@ export default {
         this.usersSelected.splice(index, 1)
       }
     },
+    nameAbbreviation,
   },
 }
 </script>
