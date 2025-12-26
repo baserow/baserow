@@ -80,6 +80,7 @@
                   :row="row"
                   :column="col"
                   v-on="$attrs"
+                  @row-context="(payload) => $emit('row-context', payload)"
                   @row-update="updateRow"
                   @row-delete="deleteRow"
                   @refresh="refresh"
@@ -128,6 +129,7 @@ import isObject from 'lodash/isObject'
 export default {
   name: 'CrudTable',
   components: { Paginator, CrudTableSearch },
+  inheritAttrs: false,
   props: {
     /**
      * A service which provides a fetch(pageNumber, searchParam, columnSortsList)
