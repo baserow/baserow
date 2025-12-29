@@ -1,8 +1,12 @@
+import { markRaw } from 'vue'
 import { BuilderSettingType } from '@baserow/modules/builder/builderSettingTypes'
-import CustomCodeSetting from '@baserow_enterprise/components/builder/CustomCodeSetting'
+import CustomCodeSettingComponent from '@baserow_enterprise/components/builder/CustomCodeSetting'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { BuilderCustomCodePaidFeature } from '@baserow_enterprise/paidFeatures'
-import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import PaidFeaturesModalComponent from '@baserow_premium/components/PaidFeaturesModal'
+
+const CustomCodeSetting = markRaw(CustomCodeSettingComponent)
+const PaidFeaturesModal = markRaw(PaidFeaturesModalComponent)
 
 export class CustomCodeBuilderSettingType extends BuilderSettingType {
   static getType() {

@@ -1,8 +1,14 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import ElementsContext from '@baserow/modules/builder/components/page/header/ElementsContext'
-import DataSourceContext from '@baserow/modules/builder/components/page/header/DataSourceContext'
-import VariablesContext from '@baserow/modules/builder/components/page/header/VariablesContext'
-import PageSettingsModal from '@baserow/modules/builder/components/page/settings/PageSettingsModal'
+import ElementsContextComponent from '@baserow/modules/builder/components/page/header/ElementsContext'
+import DataSourceContextComponent from '@baserow/modules/builder/components/page/header/DataSourceContext'
+import VariablesContextComponent from '@baserow/modules/builder/components/page/header/VariablesContext'
+import PageSettingsModalComponent from '@baserow/modules/builder/components/page/settings/PageSettingsModal'
+
+const ElementsContext = markRaw(ElementsContextComponent)
+const DataSourceContext = markRaw(DataSourceContextComponent)
+const VariablesContext = markRaw(VariablesContextComponent)
+const PageSettingsModal = markRaw(PageSettingsModalComponent)
 
 export class PageHeaderItemType extends Registerable {
   get label() {

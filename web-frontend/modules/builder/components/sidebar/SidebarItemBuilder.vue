@@ -143,23 +143,19 @@ export default {
         value,
       })
     },
-    selectPage(builder, page) {
+    async selectPage(builder, page) {
       this.setLoading(builder, true)
-      this.$nuxt.$router.push(
-        {
+      try {
+        await this.$nuxt.$router.push({
           name: 'builder-page',
           params: {
             builderId: builder.id,
             pageId: page.id,
           },
-        },
-        () => {
-          this.setLoading(builder, false)
-        },
-        () => {
-          this.setLoading(builder, false)
-        }
-      )
+        })
+      } finally {
+        this.setLoading(builder, false)
+      }
     },
     resolvePageHref(builder, page) {
       const props = this.$nuxt.$router.resolve({
