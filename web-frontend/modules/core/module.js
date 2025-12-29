@@ -152,6 +152,9 @@ export default defineNuxtModule({
           process.env.BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT ?? 200
         ),
         // extraPublicWebFrontendHostnames TODO MIG
+        baserowBuilderDomains: process.env.BASEROW_BUILDER_DOMAINS
+          ? process.env.BASEROW_BUILDER_DOMAINS.split(',')
+          : [],
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',

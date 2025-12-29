@@ -1,9 +1,16 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettings from '@baserow/modules/builder/components/settings/GeneralSettings'
-import IntegrationSettings from '@baserow/modules/builder/components/settings/IntegrationSettings'
-import ThemeSettings from '@baserow/modules/builder/components/settings/ThemeSettings'
-import DomainsSettings from '@baserow/modules/builder/components/settings/DomainsSettings'
-import UserSourcesSettings from '@baserow/modules/builder/components/settings/UserSourcesSettings'
+import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
+import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
+import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
+import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
+import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
+
+const GeneralSettings = markRaw(GeneralSettingsComponent)
+const IntegrationSettings = markRaw(IntegrationSettingsComponent)
+const ThemeSettings = markRaw(ThemeSettingsComponent)
+const DomainsSettings = markRaw(DomainsSettingsComponent)
+const UserSourcesSettings = markRaw(UserSourcesSettingsComponent)
 
 export class BuilderSettingType extends Registerable {
   static getType() {
