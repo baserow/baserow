@@ -4,8 +4,8 @@ import {
 } from '@baserow/modules/core/search/types/base'
 
 export class DatabaseSearchType extends ApplicationSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'database'
     this.name = 'Database'
     this.icon = 'iconoir-db'
@@ -30,8 +30,8 @@ export class DatabaseSearchType extends ApplicationSearchType {
 }
 
 export class DatabaseTableSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'database_table'
     this.name = 'Tables'
     this.icon = 'iconoir-table'
@@ -66,8 +66,8 @@ export class DatabaseTableSearchType extends BaseSearchType {
 }
 
 export class DatabaseFieldSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'database_field'
     this.name = 'Fields'
     this.icon = 'iconoir-input-field'
@@ -102,8 +102,8 @@ export class DatabaseFieldSearchType extends BaseSearchType {
 }
 
 export class DatabaseRowSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'database_row'
     this.name = 'Rows'
     this.icon = 'iconoir-list'

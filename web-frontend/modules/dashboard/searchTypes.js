@@ -1,8 +1,8 @@
 import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class DashboardSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'dashboard'
     this.name = 'Dashboard'
     this.icon = 'baserow-icon-dashboard'
@@ -20,7 +20,7 @@ export class DashboardSearchType extends BaseSearchType {
       return null
     }
     return {
-      name: 'dashboard',
+      name: 'dashboard-application',
       params: { dashboardId: appId },
     }
   }

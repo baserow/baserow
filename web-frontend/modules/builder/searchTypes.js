@@ -1,8 +1,8 @@
 import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class BuilderSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'builder'
     this.name = 'Builder'
     this.icon = 'baserow-icon-application'

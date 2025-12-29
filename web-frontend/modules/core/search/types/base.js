@@ -1,6 +1,6 @@
 export class BaseSearchType {
-  constructor({ app } = {}) {
-    this.app = app
+  constructor(context = {}) {
+    this.app = context.app
     this.type = null
     this.name = null
     this.icon = 'iconoir-search'
@@ -85,6 +85,16 @@ export class BaseSearchType {
     const application = context.store.getters['application/get'](appId)
     if (application) {
       context.store.dispatch('application/select', application)
+
+      const applicationType = this.app.$registry.get(
+        'application',
+        application.type
+      )
+      applicationType.select(application, {
+        $router: this.app.router,
+        $store: context.store,
+        $i18n: this.app.i18n,
+      })
       return true
     }
     return false
@@ -106,8 +116,8 @@ export class BaseSearchType {
 }
 
 export class ApplicationSearchType extends BaseSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
   }
 
   _getApplicationChildren(application) {
@@ -144,7 +154,7 @@ export class ApplicationSearchType extends BaseSearchType {
       return null
     }
 
-    const children = this._getApplicationChildren(application).sort(
+    const children = [...this._getApplicationChildren(application)].sort(
       (a, b) => a.order - b.order
     )
 

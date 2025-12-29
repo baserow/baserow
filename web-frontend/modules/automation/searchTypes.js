@@ -1,8 +1,8 @@
 import { ApplicationSearchType } from '@baserow/modules/core/search/types/base'
 
 export class AutomationSearchType extends ApplicationSearchType {
-  constructor({ app } = {}) {
-    super({ app })
+  constructor(context = {}) {
+    super(context)
     this.type = 'automation'
     this.name = 'Automation'
     this.icon = 'baserow-icon-automation'
