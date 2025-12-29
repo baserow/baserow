@@ -168,10 +168,11 @@ const actions = {
       ) {
         oldValues[name] = workflowAction[name]
         // Accumulate the changed values to send all the ongoing changes with the
-        // final request. Ensure that the values are cloned by calling `structuredClone`,
+        // final request. Ensure that the values are cloned by calling `_.cloneDeep`,
         // as there is a (currently) unexplained issue with an `OpenPage` workflow action
-        // `page_parameter` not being cloned properly.
-        updateContext.valuesToUpdate[name] = structuredClone(values[name])
+        // `page_parameter` not being cloned properly. Using lodash instead of
+        // structuredClone because Vue reactive proxies can't be structuredClone'd.
+        updateContext.valuesToUpdate[name] = _.cloneDeep(values[name])
       }
     })
 
