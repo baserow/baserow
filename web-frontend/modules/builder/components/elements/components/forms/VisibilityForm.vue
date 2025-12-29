@@ -67,9 +67,16 @@
       {{ $t('visibilityForm.notLoggedInVisitors') }}
     </Radio>
     <Alert class="margin-bottom-2">
-      <slot name="title">{{ $t('visibilityForm.warningTitle') }}</slot>
-      <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
-      <p v-html="$t('visibilityForm.warningMessage')"></p>
+      <template #title>{{ $t('visibilityForm.warningTitle') }}</template>
+      <i18n-t keypath="visibilityForm.warningMessage" tag="p">
+        <template #link>
+          <a
+            href="https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api"
+            target="_blank"
+            >{{ $t('visibilityForm.documentationLink') }}</a
+          >
+        </template>
+      </i18n-t>
     </Alert>
 
     <FormGroup

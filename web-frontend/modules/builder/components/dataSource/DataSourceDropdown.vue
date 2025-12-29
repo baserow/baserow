@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p v-show="value === null" class="margin-bottom-1">
+    <p v-show="modelValue === null" class="margin-bottom-1">
       <slot name="chooseValueState"></slot>
     </p>
     <Dropdown

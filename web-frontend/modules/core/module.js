@@ -150,6 +150,9 @@ export default defineNuxtModule({
         integrationLocalBaserowPageSizeLimit: parseInt(
           process.env.BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT ?? 200
         ),
+        baserowBuilderDomains: process.env.BASEROW_BUILDER_DOMAINS
+          ? process.env.BASEROW_BUILDER_DOMAINS.split(',')
+          : [],
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',

@@ -62,7 +62,8 @@ export class SubDomainType extends DomainType {
   }
 
   get options() {
-    return this.app.$config.public.baserowBuilderDomains.map((domain) => ({
+    const domains = this.app.$config.public.baserowBuilderDomains ?? []
+    return domains.map((domain) => ({
       name: this.app.$i18n.t('domainTypes.subDomain', { domain }),
       value: {
         type: this.getType(),

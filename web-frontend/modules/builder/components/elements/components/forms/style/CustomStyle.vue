@@ -37,7 +37,7 @@
             <ThemeConfigBlock
               ref="configBlocks"
               :theme="theme"
-              :default-values="value?.[styleKey]"
+              :default-values="modelValue?.[styleKey]"
               :preview="false"
               :theme-config-block-type="themeConfigBlock"
               :extra-args="extraArgs"
@@ -58,7 +58,7 @@ export default {
   name: 'CustomStyle',
   components: { ThemeConfigBlock },
   props: {
-    value: {
+    modelValue: {
       type: Object,
       required: false,
       default: () => undefined,
@@ -101,8 +101,8 @@ export default {
       this.$refs.context.show(sidePanel, 'over', 'right', 0, 0)
     },
     onValuesChanged(newValues) {
-      this.$emit('input', {
-        ...this.value,
+      this.$emit('update:modelValue', {
+        ...this.modelValue,
         [this.styleKey]: newValues,
       })
     },
