@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where the Read a row node crashes the workflow instead of returning an empty result.",
+    "issue_origin": "github",
+    "issue_number": 4512,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2025-12-30"
+}
