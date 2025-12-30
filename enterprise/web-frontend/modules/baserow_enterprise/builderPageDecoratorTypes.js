@@ -1,5 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+import MadeWithBaserowBuilderDecorator from '@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator'
 
 /**
  * The BuilderPageDecorator type serves as a wrapper component that can be
@@ -48,8 +49,7 @@ export class MadeWithBaserowBuilderPageDecoratorType extends BuilderPageDecorato
   }
 
   get component() {
-    return require('@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator')
-      .default
+    return MadeWithBaserowBuilderDecorator
   }
 
   isDecorationAllowed(workspace) {

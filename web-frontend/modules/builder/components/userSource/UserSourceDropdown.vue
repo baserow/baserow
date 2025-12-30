@@ -1,11 +1,11 @@
 <template>
   <div>
     <Dropdown
-      :value="value"
+      :value="modelValue"
       fixed-items
       show-footer
       :show-search="false"
-      @input="$emit('input', $event)"
+      @input="$emit('update:modelValue', $event)"
     >
       <DropdownItem
         v-for="userSource in userSources"
@@ -28,7 +28,7 @@
           hide-after-create
           :builder="builder"
           :workspace="workspace"
-          @created="$emit('input', $event)"
+          @created="$emit('update:modelValue', $event)"
         />
       </template>
     </Dropdown>
@@ -42,9 +42,10 @@ import { UserSourcesBuilderSettingsType } from '@baserow/modules/builder/builder
 export default {
   name: 'UserSourceDropdown',
   components: { BuilderSettingsModal },
+  emits: ['update:modelValue'],
   inject: ['workspace'],
   props: {
-    value: {
+    modelValue: {
       type: Number,
       required: false,
       default: null,

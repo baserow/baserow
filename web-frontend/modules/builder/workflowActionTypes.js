@@ -117,7 +117,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       return
     }
 
-    if (url === this.app.router.history.current?.fullPath) {
+    if (url === this.app.$router.currentRoute.value?.fullPath) {
       // Return early because the user is already on the page.
       return
     }
@@ -126,7 +126,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       if (!url.startsWith('/')) {
         window.location.href = url
       } else {
-        this.app.router.push(url)
+        this.app.$router.push(url)
       }
     } else {
       window.open(
