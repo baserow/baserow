@@ -1397,11 +1397,10 @@ export class InputTextElementType extends FormElementType {
     return 'input_text'
   }
 
-  isValid(element, value, applicationContext) {
-    if (!value) {
+  isValid(element, value) {
+    if (value == null) {
       return !element.required
     }
-
     switch (element.validation_type) {
       case 'integer':
         return isNumeric(value)

@@ -545,12 +545,24 @@ describe('elementTypes tests', () => {
     })
     test('InputTextElementType | required | no value.', () => {
       const elementType = new InputTextElementType()
-      expect(elementType.isValid({ required: true }, '')).toBe(false)
+      expect(elementType.isValid({ required: true }, null)).toBe(false)
     })
-    test('InputTextElementType | required | integer | valid value.', () => {
+    test('InputTextElementType | required | integer | valid positive value.', () => {
       const elementType = new InputTextElementType()
       expect(
         elementType.isValid({ required: true, validation_type: 'integer' }, 42)
+      ).toBe(true)
+    })
+    test('InputTextElementType | required | integer | valid negative value.', () => {
+      const elementType = new InputTextElementType()
+      expect(
+        elementType.isValid({ required: true, validation_type: 'integer' }, -42)
+      ).toBe(true)
+    })
+    test('InputTextElementType | required | integer | zero value.', () => {
+      const elementType = new InputTextElementType()
+      expect(
+        elementType.isValid({ required: true, validation_type: 'integer' }, 0)
       ).toBe(true)
     })
     test('InputTextElementType | required | integer | invalid value.', () => {
