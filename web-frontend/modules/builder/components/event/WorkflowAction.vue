@@ -46,6 +46,7 @@ export default {
   name: 'WorkflowAction',
   components: { SidebarExpandable },
   mixins: [applicationContext],
+  emits: ['toggle', 'delete'],
   inject: ['builder', 'elementPage', 'mode'],
   props: {
     availableWorkflowActionTypes: {

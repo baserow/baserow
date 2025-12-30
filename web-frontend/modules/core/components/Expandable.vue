@@ -28,6 +28,7 @@
 <script>
 export default {
   name: 'Expandable',
+  emits: ['toggle'],
   props: {
     defaultExpanded: {
       type: Boolean,

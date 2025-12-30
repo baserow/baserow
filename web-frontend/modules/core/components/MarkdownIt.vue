@@ -27,8 +27,8 @@ export default {
       htmlContent: '',
     }
   },
-  async fetch() {
-    await this.render(this.content)
+  mounted() {
+    this.render(this.content)
   },
   computed: {
     // Makes content watchable
