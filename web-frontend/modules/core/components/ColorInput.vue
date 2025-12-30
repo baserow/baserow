@@ -75,7 +75,7 @@ export default {
     },
     variablesMap() {
       return Object.fromEntries(
-        this.localColorVariables.map((v) => [v.currentValue, v])
+        this.localColorVariables.map((v) => [v.value, v])
       )
     },
     localColorVariables() {
