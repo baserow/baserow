@@ -1650,13 +1650,14 @@ class LocalBaserowGetRowUserServiceType(
     ) -> Dict[str, Any]:
         """
         Returns the row targeted by the `row_id` formula from the table stored in the
-        service instance.
+        service instance. If the row is not found, returns None for the data field,
+        which allows the workflow to continue instead of failing the entire workflow.
 
         :param service: the local baserow get row service.
         :param resolved_values: If the service has any formulas, this dictionary will
             contain their resolved values.
         :param dispatch_context: The context used for the dispatch.
-        :return: The rows.
+        :return: The row data or None if a row wasn't found.
         """
 
         table = service.table
@@ -1670,10 +1671,9 @@ class LocalBaserowGetRowUserServiceType(
         # This is useful when we want to use filters to specifically choose one
         # row by setting the right condition
         if "row_id" not in resolved_values:
-            if not queryset.exists():
-                raise DoesNotExist()
+            row = queryset.first()
             return {
-                "data": queryset.first(),
+                "data": row,
                 "baserow_table_model": table_model,
                 "public_allowed_properties": only_field_names,
             }
@@ -1686,15 +1686,25 @@ class LocalBaserowGetRowUserServiceType(
                 "public_allowed_properties": only_field_names,
             }
         except table_model.DoesNotExist:
-            raise DoesNotExist()
+            # Allow the workflow to continue and let the workflow designer
+            # handle the "not found" case.
+            return {
+                "data": None,
+                "baserow_table_model": table_model,
+                "public_allowed_properties": only_field_names,
+            }
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
 
         :param dispatch_data: The `dispatch_data` result.
-        :return:
+        :return: A DispatchResult with the serialized row, or an empty dict if no
+            row was found.
         """
+
+        if dispatch_data["data"] is None:
+            return DispatchResult(data={})
 
         field_ids = (
             extract_field_ids_from_list(dispatch_data["public_allowed_properties"])

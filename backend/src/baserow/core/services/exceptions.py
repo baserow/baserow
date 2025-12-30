@@ -31,7 +31,7 @@ class InvalidContextContentDispatchException(DispatchException):
     """
 
 
-class DoesNotExist(Exception):
+class DoesNotExist(DispatchException):
     """Raised when calling a service dispatch method and nothing is found."""
 
 

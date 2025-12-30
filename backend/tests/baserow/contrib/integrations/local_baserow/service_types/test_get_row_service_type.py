@@ -16,7 +16,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
-    DoesNotExist,
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -229,6 +228,7 @@ def test_local_baserow_get_row_service_dispatch_transform(data_fixture):
 def test_local_baserow_get_row_service_dispatch_data_with_view_filter(data_fixture):
     # Demonstrates that you can fetch a specific row (1) and filter for a specific
     # value to exclude it from the `dispatch_data` result.
+    # When the row doesn't match the filter, the result should be empty.
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
@@ -257,8 +257,11 @@ def test_local_baserow_get_row_service_dispatch_data_with_view_filter(data_fixtu
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
-        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+    dispatch_data = service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+    assert dispatch_data["data"] is None
+    result = service_type.dispatch_transform(dispatch_data)
+    assert result.data == {}
 
 
 @pytest.mark.django_db
@@ -267,6 +270,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_search(
 ):
     # Demonstrates that you can fetch a specific row (1) and search for a specific
     # value to exclude it from the `dispatch_data` result.
+    # When the row doesn't match the search, the result should be empty.
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
@@ -291,8 +295,10 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_search(
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
-        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+    dispatch_data = service_type.dispatch_data(service, dispatch_values, dispatch_context)
+    assert dispatch_data["data"] is None
+    result = service_type.dispatch_transform(dispatch_data)
+    assert result.data == {}
 
 
 @pytest.mark.django_db
@@ -407,6 +413,8 @@ def test_local_baserow_get_row_service_dispatch_validation_error(data_fixture):
 
 @pytest.mark.django_db
 def test_local_baserow_get_row_service_dispatch_data_row_not_exist(data_fixture):
+    # When a row doesn't exist, the result should be empty (not an error) to allow
+    # the workflow to continue instead of failing the entire workflow.
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table = data_fixture.create_database_table(user=user)
@@ -421,8 +429,10 @@ def test_local_baserow_get_row_service_dispatch_data_row_not_exist(data_fixture)
 
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
-        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+    dispatch_data = service_type.dispatch_data(service, dispatch_values, dispatch_context)
+    assert dispatch_data["data"] is None
+    result = service_type.dispatch_transform(dispatch_data)
+    assert result.data == {}
 
 
 @pytest.mark.django_db
