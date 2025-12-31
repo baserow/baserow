@@ -2,7 +2,7 @@
   <div class="ab-checkbox" @click="toggle">
     <input
       type="checkbox"
-      :checked="value"
+      :checked="modelValue"
       :required="required"
       class="ab-checkbox__input"
       :disabled="disabled"
@@ -21,11 +21,12 @@
 <script>
 export default {
   name: 'ABCheckbox',
+  emits: ['update:modelValue'],
   props: {
     /**
      * The state of the checkbox.
      */
-    value: {
+    modelValue: {
       type: Boolean,
       required: false,
       default: false,
@@ -71,7 +72,7 @@ export default {
   methods: {
     toggle() {
       if (this.disabled || this.readOnly) return
-      this.$emit('input', !this.value)
+      this.$emit('update:modelValue', !this.modelValue)
     },
   },
 }
