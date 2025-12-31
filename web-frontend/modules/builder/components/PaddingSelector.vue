@@ -10,7 +10,7 @@
       :to-value="(value) => (value ? parseInt(value) : null)"
       class="padding-selector__input"
       icon-right="iconoir-horizontal-split"
-      @input="emit({ horizontal: $event, vertical: value.vertical })"
+      @input="emit({ horizontal: $event, vertical: currentValue.vertical })"
       @blur="$emit('blur')"
     />
     <FormInput
@@ -23,7 +23,7 @@
       :to-value="(value) => (value ? parseInt(value) : null)"
       class="padding-selector__input"
       icon-right="iconoir-vertical-split"
-      @input="emit({ horizontal: value.horizontal, vertical: $event })"
+      @input="emit({ horizontal: currentValue.horizontal, vertical: $event })"
       @blur="$emit('blur')"
     />
   </div>
