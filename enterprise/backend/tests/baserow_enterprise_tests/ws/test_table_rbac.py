@@ -13,7 +13,7 @@ from baserow.core.trash.trash_types import (
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
-from tests.baserow.contrib.database.utils import get_message, received_message
+from tests.baserow.contrib.database.utils import get_message
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +53,7 @@ async def test_table_updated_message_not_leaking(data_fixture):
         user=user, table=table, name="Test"
     )
 
-    assert await received_message(communicator, "table_updated") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -82,7 +82,7 @@ async def test_table_deleted_message_not_leaking(data_fixture):
 
     await sync_to_async(TableHandler().delete_table)(user, table)
 
-    assert await received_message(communicator, "table_deleted") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -114,7 +114,7 @@ async def test_table_created_message_not_leaking(data_fixture):
         user, TableTrashableItemType.type, table.id
     )
 
-    assert await received_message(communicator, "table_created") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 

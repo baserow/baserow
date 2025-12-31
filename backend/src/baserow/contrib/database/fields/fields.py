@@ -147,10 +147,7 @@ class MultipleSelectManyToManyField(models.ManyToManyField):
 
     def contribute_to_related_class(self, cls, related):
         super().contribute_to_related_class(cls, related)
-        if (
-            not self.remote_field.is_hidden()
-            and not related.related_model._meta.swapped
-        ):
+        if not self.remote_field.hidden and not related.related_model._meta.swapped:
             setattr(
                 cls,
                 related.get_accessor_name(),
