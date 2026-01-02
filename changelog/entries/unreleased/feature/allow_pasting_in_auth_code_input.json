@@ -1,5 +1,5 @@
 {
-  "type": "bug",
+  "type": "feature",
   "message": "Allow pasting in 6 digit auth code input.",
   "issue_origin": "github",
   "issue_number": null,
