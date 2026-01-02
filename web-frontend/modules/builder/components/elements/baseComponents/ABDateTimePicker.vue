@@ -75,8 +75,9 @@ import { DateOnly } from '@baserow/modules/core/utils/date'
 import moment from '@baserow/modules/core/moment'
 export default {
   name: 'ABDateTimePicker',
+  emits: ['update:modelValue'],
   props: {
-    value: {
+    modelValue: {
       type: [String, DateOnly, Date],
       required: false,
       default: null,
@@ -115,7 +116,7 @@ export default {
     }
   },
   watch: {
-    value: {
+    modelValue: {
       handler(value) {
         this.refreshDate(value)
       },
@@ -123,13 +124,13 @@ export default {
     },
     dateFormat: {
       handler(value) {
-        this.refreshDate(this.value)
+        this.refreshDate(this.modelValue)
       },
       immediate: true,
     },
     timeFormat: {
       handler(value) {
-        this.refreshDate(this.value)
+        this.refreshDate(this.modelValue)
       },
       immediate: true,
     },
@@ -179,7 +180,7 @@ export default {
       }
 
       this.$emit(
-        'input',
+        'update:modelValue',
         updateDateTime(
           value,
           this.timeInputValue,
@@ -203,7 +204,7 @@ export default {
 
       this.timeInputValue = value
       this.$emit(
-        'input',
+        'update:modelValue',
         updateDateTime(
           this.dateInputValue,
           value,

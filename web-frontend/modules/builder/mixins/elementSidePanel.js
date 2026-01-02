@@ -42,6 +42,7 @@ export default {
 
     elementPage() {
       // We use the page from the element itself
+      if (!this.element) return null
       return this.$store.getters['page/getById'](
         this.builder,
         this.element.page_id

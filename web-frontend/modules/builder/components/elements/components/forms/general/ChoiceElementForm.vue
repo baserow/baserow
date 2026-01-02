@@ -78,7 +78,6 @@
     >
       <RadioButton
         v-model="values.option_type"
-        type="chips"
         :value="CHOICE_OPTION_TYPES.MANUAL"
         icon="iconoir-open-select-hand-gesture"
       >
@@ -86,7 +85,6 @@
       </RadioButton>
       <RadioButton
         v-model="values.option_type"
-        type="chips"
         :value="CHOICE_OPTION_TYPES.FORMULAS"
         icon="iconoir-sigma-function"
       >
