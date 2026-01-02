@@ -12,6 +12,8 @@
 import _ from 'lodash'
 
 export default {
+  inheritAttrs: false,
+  emits: ['change'],
   props: {
     defaultValue: {
       type: [String, Number, Array],

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="elementType && element">
     <Event
       v-for="event in elementType.getEvents(element)"
       :key="event.name"
@@ -32,6 +32,7 @@ export default {
       return Object.values(this.$registry.getAll('workflowAction'))
     },
     workflowActions() {
+      if (!this.elementPage || !this.element) return []
       return this.$store.getters[
         'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)

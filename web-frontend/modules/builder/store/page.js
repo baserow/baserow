@@ -105,11 +105,10 @@ const actions = {
     commit('UNSELECT')
   },
   async forceDelete({ commit }, { builder, page }) {
-    const router = userRouter()
     if (page._.selected) {
       commit('UNSELECT')
       // Redirect back to the dashboard because the page doesn't exist anymore.
-      await router.push({ name: 'dashboard' })
+      await this.$router.push({ name: 'dashboard' })
     }
 
     commit('DELETE_ITEM', { builder, id: page.id })

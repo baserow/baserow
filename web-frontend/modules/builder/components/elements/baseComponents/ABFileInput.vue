@@ -58,9 +58,7 @@ export default {
   props: {
     value: {
       type: [Array, Object, null],
-      default() {
-        return this.multiple ? [] : null
-      },
+      default: null,
     },
     multiple: {
       type: Boolean,
