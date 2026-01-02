@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
 function clickDisabled(page) {
   const ref = modalRefs[page.type]
   if (ref) {
-    ref[0].show()
+    ref.show()
   }
 }
 </script>
