@@ -16,6 +16,7 @@
       @paste="pasteAt(1, $event)"
     />
     <input
+      ref="input2"
       v-model="number2"
       type="text"
       maxlength="1"
@@ -27,6 +28,7 @@
       @paste="pasteAt(2, $event)"
     />
     <input
+      ref="input3"
       v-model="number3"
       type="text"
       maxlength="1"
@@ -38,6 +40,7 @@
       @paste="pasteAt(3, $event)"
     />
     <input
+      ref="input4"
       v-model="number4"
       type="text"
       maxlength="1"
@@ -49,6 +52,7 @@
       @paste="pasteAt(4, $event)"
     />
     <input
+      ref="input5"
       v-model="number5"
       type="text"
       maxlength="1"
@@ -60,6 +64,7 @@
       @paste="pasteAt(5, $event)"
     />
     <input
+      ref="input6"
       v-model="number6"
       type="text"
       maxlength="1"
@@ -93,6 +98,7 @@ export default {
         number5: '',
         number6: '',
       },
+      hasEmitted: false,
     }
   },
   computed: {
@@ -158,10 +164,25 @@ export default {
       return this.code.length === 6
     },
   },
+  watch: {
+    allFilled(isFilled) {
+      if (isFilled && !this.hasEmitted) {
+        this.hasEmitted = true
+        this.$emit('all-filled', this.code)
+      }
+      if (!isFilled) {
+        this.hasEmitted = false
+      }
+    },
+  },
   mounted() {
     this.reset()
   },
   methods: {
+    focusIndex(i) {
+      const el = this.$refs[`input${i}`]
+      if (el && typeof el.focus === 'function') el.focus()
+    },
     reset() {
       this.values.number1 = ''
       this.values.number2 = ''
@@ -170,6 +191,7 @@ export default {
       this.values.number5 = ''
       this.values.number6 = ''
       this.$refs.input1.focus()
+      this.hasEmitted = false
     },
     sanitizeInput(value) {
       const sanitized = value.replace(/\D/g, '').slice(0, 1)
@@ -198,10 +220,6 @@ export default {
         if (nextInput && nextInput.tagName === 'INPUT') {
           nextInput.focus()
         }
-
-        if (this.allFilled) {
-          this.$emit('all-filled', this.code)
-        }
       }
     },
     pasteAt(startIndex, event) {
@@ -225,14 +243,8 @@ export default {
         this.values[`number${i}`] = chunk[offset]
       }
 
-      const inputs = this.$el.querySelectorAll('input')
       const nextIndex = Math.min(startIndex + chunk.length, 6)
-      const nextEl = inputs[nextIndex - 1]
-      if (nextEl) nextEl.focus()
-
-      if (this.allFilled) {
-        this.$emit('all-filled', this.code)
-      }
+      this.$nextTick(() => this.focusIndex(nextIndex))
     },
   },
 }
