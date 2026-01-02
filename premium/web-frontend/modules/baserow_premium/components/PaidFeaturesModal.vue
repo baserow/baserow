@@ -98,7 +98,10 @@ export default {
   },
   computed: {
     getPricingURL() {
-      return this.$config.BASEROW_PRICING_URL || getPricingURL(this.instanceId)
+      const runtimeConfig = useRuntimeConfig()
+      return (
+        runtimeConfig.public.baserowPricingUrl || getPricingURL(this.instanceId)
+      )
     },
     paidFeaturePlans() {
       const plans = {}
