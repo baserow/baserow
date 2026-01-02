@@ -194,7 +194,6 @@ export default {
     PaddingSelector,
   },
   mixins: [collectionElementForm],
-  inject: ['applicationContext'],
   setup() {
     return { v$: useVuelidate() }
   },
