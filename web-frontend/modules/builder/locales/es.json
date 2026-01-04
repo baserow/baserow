@@ -63,7 +63,8 @@
         "orientationHorizontal": "Horizontal",
         "orientationVertical": "Vertical",
         "buttonLoadMoreLabel": "Mostrar más etiqueta",
-        "propertySelectorMissingArrays": "No se encontró que se utilizaran campos de múltiples valores como datos."
+        "propertySelectorMissingArrays": "No se encontró que se utilizaran campos de múltiples valores como datos.",
+        "noName": "Nombre no especificado"
     },
     "linkElementForm": {
         "paramPlaceholder": "Introduce un valor...",
@@ -327,7 +328,8 @@
         "httpRequest": "Enviar solicitud HTTP",
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
         "errorPageParameterInError": "Al menos un parámetro de página está mal configurado",
-        "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»"
+        "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»",
+        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos"
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -473,7 +475,9 @@
         "boolean": "Booleano",
         "tags": "Etiquetas",
         "image": "Imagen",
-        "button": "Botón"
+        "button": "Botón",
+        "rating": "Valoración",
+        "errorValueMissing": "Propiedad de valor faltante"
     },
     "elementsContext": {
         "searchPlaceholder": "Buscar elementos",
@@ -669,7 +673,7 @@
         "allVisitors": "Todos los visitantes",
         "loggedInVisitors": "Visitantes registrados",
         "notLoggedInVisitors": "Visitantes no registrados",
-        "warningTitle": "Mejoramos constantemente la seguridad",
+        "warningTitle": "Esto es una característica de seguridad",
         "warningMessage": "Revisa la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentación</a> para aprender más sobre cómo aseguramos los datos.",
         "excludedRolesLabel": "todos los roles excepto",
         "switchAllowLabel": "Permitir",
@@ -684,7 +688,10 @@
         "rolesAllMembersOf": "Todos los miembros de {name}",
         "noRole": "Sin función",
         "errorFetchingRolesTitle": "No se han podido recuperar los roles de usuario",
-        "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario."
+        "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario.",
+        "visibilityCondition": "Condición de visibilidad",
+        "visibilityConditionHelper": "Si el resultado de esta fórmula es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
+        "visibilityConditionPlaceholder": "Condición…"
     },
     "generalSettings": {
         "titleOverview": "General",
@@ -816,7 +823,9 @@
         "color": "Color",
         "hoverState": "Estado de la imagen flotante",
         "activeState": "Estado activo",
-        "size": "Tamaño de fuente"
+        "size": "Tamaño de fuente",
+        "weight": "Peso de fuente",
+        "decoration": "Decoración de texto"
     },
     "imageThemeConfigBlock": {
         "alignment": "Alineación",
@@ -829,7 +838,9 @@
         "imageConstraintCover": "Portada",
         "imageConstraintContain": "Contener",
         "imageConstraintContainDisabled": "No disponible con altura máxima.",
-        "imageConstraintCoverDisabled": "No disponible con altura máxima vacía."
+        "imageConstraintCoverDisabled": "No disponible con altura máxima vacía.",
+        "imageBorderRadiusLabel": "Radio de borde",
+        "imageBorderRadiusPlaceholder": "Introduce el radio de borde de la imagen."
     },
     "choiceElementForm": {
         "multiple": "Permitir varios valores",
@@ -876,7 +887,8 @@
         "size": "Tamaño de letra",
         "label": "Etiqueta",
         "input": "Entrada",
-        "backgroundColor": "Color de fondo"
+        "backgroundColor": "Color de fondo",
+        "weight": "Peso de fuente"
     },
     "tableThemeConfigBlock": {
         "borderColor": "Color del borde",
@@ -897,7 +909,8 @@
         "cells": "Células",
         "verticalSeparatorSize": "Tamaño vertical",
         "horizontalSeparatorColor": "Color horizontal",
-        "horizontalSeparatorSize": "Tamaño horizontal"
+        "horizontalSeparatorSize": "Tamaño horizontal",
+        "fontWeight": "Peso de fuente"
     },
     "abTable": {
         "empty": "No se ha encontrado ningún artículo.",
@@ -964,7 +977,7 @@
     "propertyOptionForm": {
         "sortHeading": "Ordenar",
         "searchHeading": "Búsqueda",
-        "formDescription": "Elige qué propiedades de la fuente de datos de este elemento pueden filtrar, ordenar y buscar los usuarios externos.",
+        "formDescription": "Elige qué propiedades dentro de la página de origen de datos de este elemento pueden filtrar, ordenar y buscar los visitantes.",
         "fieldHeading": "Campo",
         "filterHeading": "Filtro",
         "optionUnavailable": "No disponible",
@@ -1101,6 +1114,55 @@
         "bold": "Negrita",
         "extraBold": "Extra‑negrita",
         "black": "Negro",
-        "extraBlack": "Extra‑negro"
+        "extraBlack": "Extra‑negro",
+        "regular": "Regular"
+    },
+    "userSourceDropdown": {
+        "label": "Fuente del usuario",
+        "addUserSource": "Agregar nueva fuente de usuario",
+        "noUserSources": "No hay fuentes de usuario disponibles"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "Por favor, edita este proveedor para corregir el error.",
+        "title": "Editar proveedor: {name}"
+    },
+    "textDecorationSelector": {
+        "underline": "Subrayar",
+        "stroke": "Trazo",
+        "italic": "Cursiva",
+        "uppercase": "Mayúsculas"
+    },
+    "ratingFieldForm": {
+        "color": "Color",
+        "style": "Estilo",
+        "maxValue": "Valor máximo",
+        "star": "Estrella",
+        "heart": "Corazón",
+        "thumbsUp": "Pulgar arriba",
+        "flag": "Bandera",
+        "value": "Valor"
+    },
+    "ratingElementForm": {
+        "color": "Color",
+        "ratingStyle": "Estilo",
+        "maxValue": "Máximo",
+        "star": "Estrella",
+        "heart": "Corazón",
+        "smile": "Sonrisa",
+        "thumbsUp": "Pulgar arriba",
+        "flag": "Bandera"
+    },
+    "automationSettingsModal": {
+        "title": "Flujo de trabajo"
+    },
+    "abFileInput": {
+        "delete": "Eliminar"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Añade elementos a tu página",
+        "content": "¡Cada aplicación necesita componentes! Añade elementos como tablas, formularios, botones y más para dar vida a tu aplicación."
+    },
+    "dataGuidedTourStep": {
+        "title": "Conecta tus datos"
     }
 }
