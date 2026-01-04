@@ -670,7 +670,10 @@
         "skipFiles": "Omitir la importación de archivos",
         "skipFilesHelper": "Una base de Airtable con muchos archivos puede ralentizar la importación. Al habilitar esta opción se omite la importación de los archivos.",
         "useSession": "Autenticación de sesión",
-        "useSessionHelper": "Utiliza esto si la base compartida públicamente requiere autenticación."
+        "useSessionHelper": "Utiliza esto si la base compartida públicamente requiere autenticación.",
+        "sessionDescription": "Si la importación devuelve «The Airtable base requires authentication.», puede ser que la configuración organizacional de Airtable impida acceder a la base sin autenticarte primero. Para ello, debes extraer manualmente la sesión y la firma. Abre la URL de la base pública compartida en tu navegador y, si es necesario, inicia sesión. Haz clic en el menú de la aplicación en la esquina superior derecha → «Más herramientas» → «Herramientas de desarrollador». En la pestaña «Aplicación» (en Firefox «Almacenamiento») selecciona «https://airtable.com». Busca los valores de cookie «__Host‑airtable‑session» y «__Host‑airtable‑session.sig» y pégalos en los campos que aparecen a continuación.",
+        "sessionLabel": "Cookie de sesión (__Host‑airtable‑session)",
+        "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)"
     },
     "viewDecorator": {
         "decorator": "Color | 1 Color | {recuento} Colores"
@@ -739,7 +742,9 @@
         "showFieldAs": "Mostrar campo como",
         "includeAllSelectOptions": "Incluir todas las opciones seleccionadas",
         "includeAllSelectOptionsHelper": "Elige las opciones de selección que deben incluirse en el formulario utilizando este desplegable",
-        "noSelectOptions": "No hay opciones de selección disponibles."
+        "noSelectOptions": "No hay opciones de selección disponibles.",
+        "noCollaboratorsAvailable": "No hay colaboradores disponibles.",
+        "cannotSumitValues": "Este campo es de solo lectura y no se mostrará en el formulario."
     },
     "duplicateFieldContext": {
         "duplicate": "Duplicar campo",
@@ -796,7 +801,9 @@
         "addLogo": "Añadir un logo",
         "noFields": "Este formulario no tiene ningún campo. Haz clic en un campo de la barra lateral izquierda para añadir uno.",
         "titlePlaceholder": "Título",
-        "descriptionPlaceholder": "Descripción"
+        "descriptionPlaceholder": "Descripción",
+        "noFieldsTitle": "Este formulario no tiene ningún campo",
+        "noFieldsContent": "Haz clic en un campo en la barra lateral izquierda para añadir uno."
     },
     "table": {
         "chooseView": "Elige la vista",
@@ -883,7 +890,15 @@
     "rowHistorySidebar": {
         "you": "Tú",
         "name": "Historia",
-        "empty": "Aún no hay cambios. Podrás seguir cualquier cambio a esta fila aquí."
+        "empty": "Aún no hay cambios. Podrás seguir cualquier cambio a esta fila aquí.",
+        "created": "creó esta fila",
+        "updated": "actualizó esta fila",
+        "submitted": "envió esta fila",
+        "deleted": "eliminó esta fila",
+        "restored": "restauró esta fila",
+        "createdUndo": "deshizo la creación de la fila",
+        "updatedUndo": "deshizo la actualización de la fila",
+        "deletedUndo": "deshizo la eliminación de la fila"
     },
     "viewGroupByContext": {
         "groupBy": "Agrupar por",
@@ -894,7 +909,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
-        "deletedUser": "Un usuario eliminado"
+        "deletedUser": "Un usuario eliminado",
+        "unknownUser": "Un usuario desconocido"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Notificar al usuario cuando se añade"
@@ -911,7 +927,9 @@
         "durationFormatLabel": "Formato de duración"
     },
     "fieldPasswordSubForm": {
-        "description": "Todavía no es posible hacer nada directamente con el campo de contraseña, esto sólo es utilizado por la autenticación de usuario en el constructor de aplicaciones."
+        "description": "El campo de contraseña también puede ser usado por la autenticación de usuario en el constructor de aplicaciones.",
+        "allowEndpointAuthentication": "Permitir la autenticación del punto final (endpoint) API",
+        "allowEndpointAuthenticationHelp": "Esto expone un punto final (endpoint) donde se pueden comprobar el ID de la fila y la contraseña para ver si son correctos. Esto permite usar Baserow como servidor de autenticación en el lado del servidor (backend)."
     },
     "rowEditFieldPassword": {
         "setPassword": "Establecer contraseña"
@@ -966,7 +984,8 @@
         "databaseNameLabel": "Nombre de la base de datos",
         "scratch": "Esbozo",
         "import": "Archivo",
-        "airtable": "Airtable"
+        "airtable": "Airtable",
+        "template": "Plantilla"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrar al filtro de fecha de varios pasos",
@@ -1067,7 +1086,10 @@
         "next": "Siguiente",
         "fields": "Selecciona los campos que deseas sincronizar",
         "create": "Crear y sincronizar tabla",
-        "error": "Algo salió mal durante la sincronización"
+        "error": "Algo salió mal durante la sincronización",
+        "autoAddLabel": "Agregar automáticamente nuevas propiedades",
+        "autoAddHelper": "Automáticamente agrega y sincroniza las propiedades recién disponibles del origen de datos en la tabla de Baserow. Ten en cuenta que, para que esto funcione, todas las propiedades deben estar sincronizadas.",
+        "twoWaySyncLabel": "Sincronización bidireccional"
     },
     "syncTableModal": {
         "title": "Sincronizar {name}",
@@ -1130,5 +1152,8 @@
     },
     "viewFieldConditionItem": {
         "filterMisconfigured": "El campo al que está asociado este filtro ha sido eliminado."
+    },
+    "webhookDeactivatedNotification": {
+        "body": "{name} webhook ha sido desactivado porque falló demasiadas veces consecutivamente."
     }
 }
