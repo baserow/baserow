@@ -674,7 +674,8 @@
         "crossoriginTypeCredentials": "Usa credenciales"
     },
     "elementType": {
-        "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión"
+        "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión",
+        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario"
     },
     "fieldPermissionsMenuItem": {
         "label": "Editar permisos de campo"
@@ -709,6 +710,7 @@
         "invalidEndDateEmpty": "La fecha de fin está vacía",
         "invalidEndDateBeforeStartDate": "La fecha de fin es anterior a la fecha de inicio",
         "invalidDurationValue": "El valor de duración no es válido",
-        "invalidDurationEmpty": "La duración está vacía"
+        "invalidDurationEmpty": "La duración está vacía",
+        "invalidDurationMismatch": "Desajuste de valor de duración"
     }
 }
