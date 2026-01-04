@@ -480,7 +480,8 @@
         "stateFailed": "Fallido",
         "errorJobAlreadyRunningTitle": "Ya está corriendo",
         "errorJobCannotBeCancelledTitle": "No se pudo anular",
-        "errorJobCannotBeCancelledDescription": "No es posible cancelar el trabajo porque ya se ha completado.\nPor favor, borra la primera instantánea de la lista para eliminarla."
+        "errorJobCannotBeCancelledDescription": "No es posible cancelar el trabajo porque ya se ha completado.\nPor favor, borra la primera instantánea de la lista para eliminarla.",
+        "stateCanceled": "Cancelado"
     },
     "datetime": {
         "daysAgo": "Hace 0 días | Hace 1 día | Hace {n} días",
@@ -511,7 +512,9 @@
                 "name": "Nombre",
                 "teams": "Equipos",
                 "highestRole": "Cargo más alto",
-                "highestRoleHelpText": "El rol más alto asignado a este usuario directamente o desde un equipo, sobre cualquier cosa en este espacio de trabajo"
+                "highestRoleHelpText": "El rol más alto asignado a este usuario directamente o desde un equipo, sobre cualquier cosa en este espacio de trabajo",
+                "highestRoleInstanceHelpText": "El rol más alto que este usuario tiene en la instancia",
+                "2fa": "2FA"
             },
             "actions": {
                 "remove": "Quitar del espacio de trabajo",
@@ -707,7 +710,8 @@
         "noProvidersText": "No se han encontrado proveedores de datos. Para empezar puedes, por ejemplo, añadir una fuente de datos o un parámetro de página."
     },
     "formulaInputField": {
-        "errorInvalidFormula": "La fórmula es inválida."
+        "errorInvalidFormula": "La fórmula es inválida.",
+        "advancedFormulaMode": "Modo de fórmula avanzado"
     },
     "integrationDropdown": {
         "noIntegrations": "No se han encontrado integraciones.",
@@ -1050,7 +1054,15 @@
         }
     },
     "formulaInputContext": {
-        "search": "Buscar"
+        "search": "Buscar",
+        "variables": "Variables",
+        "functions": "Funciones",
+        "operators": "Operadores",
+        "useRegularInputModalTitle": "¿Usas entrada regular para este campo?",
+        "useRegularInput": "Usa entrada regular",
+        "useAdvancedInput": "Usa entrada avanzada",
+        "useAdvancedInputModalTitle": "¿Usas una entrada avanzada para este campo?",
+        "modalMessage": "El contenido de tu campo será borrado y no será posible recuperarlo."
     },
     "action": {
         "cancel": "Cancelar",
@@ -1108,12 +1120,84 @@
     },
     "mcpEndpoint": {
         "windsurfInstructions": "Dos pasos sencillos para configurar MCP con Cascase en Windsurf.\n\n1. Accede a Windsurf → Configuración → Configuración avanzada o abre la Paleta de comandos → Abrir página de configuración de Windsurf.\n2. Desplázate hacia abajo hasta la sección Cascade y encontrarás la opción para añadir un nuevo servidor → Ver los servidores existentes y un botón para ver el archivo de configuración JSON sin procesar en `mcp_config.json`. Añade lo siguiente a ese archivo:",
-        "claudeInstructions": "Tres pasos sencillos para comenzar con Claude Desktop y el MCP de Baserow.\n\n1. Abre la configuración de Claude Desktop desde la barra de navegación. (⌘+,)\n2. Ve a la pestaña «Desarrollar» y haz clic en «Editar Config».\n3. Incluye la siguiente configuración JSON en c`laude_desktop_config.json`."
+        "claudeInstructions": "Tres pasos sencillos para comenzar con Claude Desktop y el MCP de Baserow.\n\n1. Abre la configuración de Claude Desktop desde la barra de navegación. (⌘+,)\n2. Ve a la pestaña «Desarrollar» y haz clic en «Editar Config».\n3. Incluye la siguiente configuración JSON en c`laude_desktop_config.json`.",
+        "detailLabel": "Más detalles",
+        "endpointURLIntro": "La URL del servidor MCP (Model Context Protocol) puede añadirse a cualquier cliente que admita servidores MCP. Es un punto final (endpoint) único que le da al LLM acceso directo para realizar acciones en el espacio de trabajo en tu nombre.",
+        "reveal": "Revela la URL completa",
+        "warning": "Trata tu URL MCP como una contraseña, ya que tiene la capacidad de modificar datos en Baserow.",
+        "cursorInstructions": "Tres pasos sencillos para comenzar con Cursor y el MCP de Baserow.\n\n1. Abre la configuración de Cursor (⇧+⌘+J)\n2. Ve a la pestaña «MCP» y pulsa «Añadir Servidor MCP»\n3. Inserta la configuración JSON que sigue."
     },
     "controlCenterGuidedTourStep": {
-        "content": "La barra lateral izquierda te ayuda a gestionar tu espacio de trabajo:\n\n- Inicio – Accede a tu panel principal.\n- Notificaciones – Mantente al día con los cambios y menciones.\n- Invitar a miembros – Colabora añadiendo integrantes al equipo.\n- Papelera – Lista y recupera todos tus elementos eliminados."
+        "content": "La barra lateral izquierda te ayuda a gestionar tu espacio de trabajo:\n\n- Inicio – Accede a tu panel principal.\n- Notificaciones – Mantente al día con los cambios y menciones.\n- Invitar a miembros – Colabora añadiendo integrantes al equipo.\n- Papelera – Lista y recupera todos tus elementos eliminados.",
+        "title": "Tu Centro de Control de Baserow"
     },
     "importWorkspaceForm": {
         "selectApplicationsToImport": "Selecciona las aplicaciones para importar"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "O elige un color predefinido"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Habilitado",
+        "disabled": "Deshabilitado"
+    },
+    "guidedTourStep": {
+        "step": "{step} de {totalSteps}",
+        "gotIt": "Entendido",
+        "next": "Siguiente",
+        "back": "Atrás"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Bienvenido a Baserow",
+        "content": "Hagamos un recorrido rápido para que tú te familiarices con lo básico. En solo unos pocos clics, aprenderás a organizar y visualizar tus datos sin esfuerzo",
+        "buttonText": "Inicia el recorrido"
+    },
+    "createNewGuidedTourStep": {
+        "title": "Crea una nueva base de datos o aplicación",
+        "content": "Haz clic en «Añadir nuevo…» para configurar una nueva base de datos, aplicación o dashboard para tu proyecto, departamento o equipo."
+    },
+    "mcpEndpointSettings": {
+        "title": "Servidor MCP",
+        "createEndpoint": "Crear punto final (endpoint)",
+        "createNewTitle": "Crear punto final (endpoint) del servidor MCP",
+        "backToOverview": "Atrás",
+        "noEndpointsMessage": "No se han añadido puntos finales (endpoints) de servidor MCP (Model Context Protocol). Estos pueden usarse para integrarse directamente con un LLM como Claude y permitir que el LLM realice acciones directamente en Baserow. Crea un endpoint de servidor para comenzar."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "Nombre",
+        "workspaceLabel": "Espacio de trabajo"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "urlVersion": "Versión",
+        "title": "URL del webhook",
+        "urlVersionPublished": "Publicado",
+        "urlVersionTest": "Prueba",
+        "copyUrl": "Copiar URL del webhook",
+        "urlCopied": "URL del webhook copiada al portapapeles",
+        "description": "Este webhook recibirá peticiones HTTP y activará el flujo de trabajo con los datos de la solicitud como carga útil.",
+        "methodsOptionLabel": "Métodos HTTP permitidos",
+        "methodsOptionAll": "Todo",
+        "methodsOptionDescription": "Controla qué métodos HTTP están permitidos para este webhook. Excluir GET reduce la probabilidad de que el webhook se active accidentalmente.",
+        "methodsOptionExcludeGet": "Excluir GET"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Aún no has activado 2FA",
+        "description": "Añade una capa extra de seguridad a tu cuenta.",
+        "enable": "Activar 2FA",
+        "notAllowedTitle": "2FA no activado",
+        "notAllowedDescription": "Añadir 2FA solo es posible en cuentas basadas en contraseña."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Ejemplo",
+        "result": "Resultado: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "Escanear código QR",
+        "scanQRCodeDescription": "Escanea el código con una aplicación como Google Authenticator, Authy o Microsoft Authenticator.",
+        "clickToCopy": "Alternativamente, haz clic aquí para copiar el código.",
+        "secretCopiedTitle": "Secreto copiado",
+        "secretCopiedMessage": "Secreto TOTP copiado al portapapeles.",
+        "enterCode": "Introduce el código mostrado",
+        "enterCodeDescription": "Introduce un código de 6 dígitos que muestra la aplicación para confirmar que lo has configurado correctamente."
     }
 }
