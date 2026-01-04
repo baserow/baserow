@@ -547,7 +547,7 @@
         "leftDescription": "Extrae los caracteres más a la izquierda de la primera entrada, se detiene cuando ha extraído el número de caracteres especificado por la segunda entrada.",
         "rightDescription": "Extrae los caracteres más a la derecha de la primera entrada, se detiene cuando ha extraído el número de caracteres especificado por la segunda entrada.",
         "trimDescription": "Elimina todos los espacios en blanco de los lados izquierdo y derecho de la entrada.",
-        "regexReplaceDescription": "Reemplaza cualquier texto en la primera entrada que coincida con la expresión regular especificada por la segunda entrada con el texto en la tercera entrada.",
+        "regexReplaceDescription": "Reemplaza cualquier texto en la primera entrada que coincida con la expresión regular especificada por la segunda entrada con el texto en la tercera entrada. Devuelve ‘#ERROR!’ si el patrón de expresión regular es inválido.",
         "greatestDescription": "Devuelve el mayor valor de las dos entradas.",
         "leastDescription": "Devuelve la menor de las dos entradas.",
         "monthDescription": "Devuelve el número de meses en la fecha proporcionada.",
@@ -672,6 +672,35 @@
         "orDescription": "Devuelve true si algún argumento es true, de lo contrario devuelve false.",
         "formulaTypeFormula": "Función | Funciones",
         "formulaTypeOperator": "Operador | Operadores",
-        "formulaTypeData": "Datos"
+        "formulaTypeData": "Datos",
+        "concatDescription": "Se concatenan los argumentos en un solo texto.",
+        "getDescription": "Devuelve el valor resuelto de una fórmula de Baserow.",
+        "addDescription": "Añade dos argumentos juntos.",
+        "minusDescription": "Resta el segundo argumento del primero.",
+        "multiplyDescription": "Multiplica los dos argumentos.",
+        "divideDescription": "Divide el primer argumento entre el segundo.",
+        "equalDescription": "Comprueba si ambos argumentos son iguales.",
+        "notEqualDescription": "Comprueba si ambos argumentos no son iguales.",
+        "greaterThanDescription": "Comprueba si el primer argumento es mayor que el segundo.",
+        "lessThanDescription": "Comprueba si el primer argumento es menor que el segundo.",
+        "greaterThanOrEqualDescription": "Comprueba si el primer argumento es mayor o igual que el segundo.",
+        "upperDescription": "Convierte el argumento a mayúsculas.",
+        "formulaTypeDataEmpty": "No hay datos disponibles",
+        "categoryText": "Texto",
+        "categoryNumber": "Número",
+        "categoryBoolean": "Booleano",
+        "categoryDate": "Fecha",
+        "categoryCondition": "Condición"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Usa entrada regular",
+        "useAdvancedInput": "Usa entrada avanzada",
+        "useRegularInputModalTitle": "¿Cambiar a una entrada regular?",
+        "useAdvancedInputModalTitle": "¿Cambiar a una entrada avanzada?",
+        "modalMessage": "Cambiar a un modo de entrada diferente borrará la fórmula actual. ¿Estás seguro de que quieres continuar?"
+    },
+    "nodeExplorer": {
+        "noResults": "No se encontraron resultados",
+        "resetSearch": "Restablecer búsqueda"
     }
 }
