@@ -221,7 +221,7 @@ export default {
   computed: {
     shareUrl() {
       return (
-        this.$config.BASEROW_EMBEDDED_SHARE_URL +
+        this.$config.public.baserowEmbeddedShareUrl +
         this.$router.resolve({
           name: this.viewType.getPublicRoute(),
           params: { slug: this.view.slug },

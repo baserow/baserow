@@ -26,6 +26,7 @@ function invalidUrlEnvVariable(envVariableName) {
 export default defineNuxtRouteMiddleware(() => {
   const event = process.server ? useRequestEvent() : null
   const nuxtApp = useNuxtApp()
+  const config = useRuntimeConfig()
   const i18n = nuxtApp.$i18n
   const translate = (key, params) =>
     i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key
@@ -33,7 +34,7 @@ export default defineNuxtRouteMiddleware(() => {
   // If nuxt generate, pass this middleware
   if (process.server && !event) return
 
-  if (process.server && !process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
+  if (process.server && !config.public.baserowDisablePublicUrlCheck) {
     const urlEnvVarsToCheck = []
     if (process.env.BASEROW_PUBLIC_URL) {
       urlEnvVarsToCheck.push('BASEROW_PUBLIC_URL')

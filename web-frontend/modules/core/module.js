@@ -119,23 +119,22 @@ export default defineNuxtModule({
       pages.push(...routes)
     })
 
+    nuxt.options.runtimeConfig.privateBackendUrl = process.env.PRIVATE_BACKEND_URL ?? 'http://backend:8000'
+
     nuxt.options.runtimeConfig.public = defu(
       nuxt.options.runtimeConfig.public,
       {
-        baserowPublicUrl: 'http://localhost',
-        downloadFileViaXhr: false,
-        baserowDisablePublicUrlCheck: false,
-        publicBackendUrl: 'http://localhost:8000',
-        privateBackendUrl: 'http://backend:8000',
-        publicWebFrontendUrl: 'http://localhost:3000',
-        initialTableDataLimit: null,
-        initalTableDataLimit: null,
-        hoursUntilTrashPermanentlyDeleted: 24 * 3,
-        disableAnonymousPublicViewWsConnections: false,
-        baserowMaxImportFileSizeMb: 512,
-        featureFlags: '',
-        baserowDisableGoogleDocsFilePreview: '',
-        baserowMaxSnapshotsPerGroup: -1,
+        downloadFileViaXhr: process.env.DOWNLOAD_FILE_VIA_XHR ?? '0',
+        baserowDisablePublicUrlCheck: process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK ?? false,
+        publicBackendUrl: process.env.PUBLIC_BACKEND_URL ?? 'http://localhost:8000',
+        publicWebFrontendUrl: process.env.PUBLIC_WEB_FRONTEND_URL ?? 'http://localhost:3000',
+        initialTableDataLimit: process.env.INITIAL_TABLE_DATA_LIMIT ?? null,
+        hoursUntilTrashPermanentlyDeleted: process.env.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED ?? 24 * 3,
+        disableAnonymousPublicViewWsConnections: process.env.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS ?? '',
+        baserowMaxImportFileSizeMb: process.env.BASEROW_MAX_IMPORT_FILE_SIZE_MB ?? 512,
+        featureFlags: process.env.FEATURE_FLAGS ?? '',
+        baserowDisableGoogleDocsFilePreview: process.env.BASEROW_DISABLE_GOOGLE_DOCS_FILE_PREVIEW ?? '',
+        baserowMaxSnapshotsPerGroup: process.env.BASEROW_MAX_SNAPSHOTS_PER_GROUP ?? -1,
         baserowFrontendSameSiteCookie:
           process.env.BASEROW_FRONTEND_SAME_SITE_COOKIE ?? 'lax',
         baserowFrontendJobsPollingTimeoutMs:
@@ -155,6 +154,14 @@ export default defineNuxtModule({
         baserowBuilderDomains: process.env.BASEROW_BUILDER_DOMAINS
           ? process.env.BASEROW_BUILDER_DOMAINS.split(',')
           : [],
+
+        baserowRowPageSizeLimit: parseInt(
+          process.env.BASEROW_ROW_PAGE_SIZE_LIMIT ?? 200
+        ),
+        baserowUniqueRowValuesSizeLimit: process.env.BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT ?? 100,
+        baserowDisableSupport: process.env.BASEROW_DISABLE_SUPPORT ?? '',
+        baserowIntegrationsPeriodicMinuteMin: process.env.BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN ?? '1'
+
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',

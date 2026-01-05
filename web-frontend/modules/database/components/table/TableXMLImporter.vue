@@ -123,12 +123,12 @@ export default {
 
       const file = event.target.files[0]
       const maxSize =
-        parseInt(this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB, 10) * 1024 * 1024
+        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) * 1024 * 1024
 
       if (file.size > maxSize) {
         this.handleImporterError(
           this.$t('tableXMLImporter.limitFileSize', {
-            limit: this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB,
+            limit: this.$config.public.baserowMaxImportFileSizeMb,
           })
         )
         this.values.filename = ''
@@ -181,7 +181,7 @@ export default {
         return
       }
 
-      const limit = this.$config.INITIAL_TABLE_DATA_LIMIT
+      const limit = this.$config.public.initialTableDataLimit
       if (limit !== null && xmlData.length > limit) {
         this.handleImporterError(
           this.$t('tableXMLImporter.limitError', { limit })

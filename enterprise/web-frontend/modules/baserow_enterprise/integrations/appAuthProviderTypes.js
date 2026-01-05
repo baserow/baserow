@@ -141,7 +141,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   }
 
   getAcsUrl(userSource) {
-    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/`
+    return `${this.app.$config.public.publicBackendUrl}/api/user-source/sso/saml/acs/`
   }
 
   getOrder() {
