@@ -104,7 +104,7 @@ export default {
      * wrap down to a new row below which is invisible.
      */
     recalculateHiddenRecords() {
-      if (process.server) {
+      if (import.meta.server) {
         return
       }
 

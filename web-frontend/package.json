@@ -68,6 +68,7 @@
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",
+    "decamelize": "^6.0.1",
     "eslint": "^9.0.0",
     "flush-promises": "^1.0.2",
     "form-data": "4.0.4",

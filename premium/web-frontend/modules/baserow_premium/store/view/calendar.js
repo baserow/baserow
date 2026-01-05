@@ -302,7 +302,7 @@ export const actions = {
     // We can't guess the users timezone when doing the server side render.
     // So we only can know what today is and load rows in the client side when the
     // field does not have a forced timezone.
-    if (!process.server || getters.getFieldTimeZoneIfSet(fields)) {
+    if (!import.meta.server || getters.getFieldTimeZoneIfSet(fields)) {
       const timezone = getters.getTimeZone(fields)
       const todayOrSelectedDay =
         getters.getSelectedDate(fields) == null

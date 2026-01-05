@@ -1,6 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import jwtDecode from 'jwt-decode'
-import { getDomain } from 'tldjs'
+import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig } from '#imports'
 
 const cookieTokenName = 'jwt_token'
@@ -60,7 +60,7 @@ export const setUserSessionCookie = (
     // frontend. The top-level domain is extracted from the backend URL.
     // NOTE: For security reasons, it's not possible to set a cookie for a different
     // domain, so this won't work if the frontend and backend are on different domains.
-    const topLevelDomain = getDomain(config.public.publicBackendUrl)
+    const topLevelDomain = tldjs.getDomain(config.public.publicBackendUrl)
 
     const cookie = useCookie(key, {
       path: '/',

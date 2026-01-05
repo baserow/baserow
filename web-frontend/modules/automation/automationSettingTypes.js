@@ -46,7 +46,7 @@ export class GeneralAutomationSettingsType extends AutomationSettingType {
   }
 
   isDeactivated() {
-    return process.env.NODE_ENV !== 'development'
+    return import.meta.env.MODE !== 'development'
   }
 
   getOrder() {

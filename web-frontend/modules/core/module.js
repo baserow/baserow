@@ -119,22 +119,31 @@ export default defineNuxtModule({
       pages.push(...routes)
     })
 
-    nuxt.options.runtimeConfig.privateBackendUrl = process.env.PRIVATE_BACKEND_URL ?? 'http://backend:8000'
+    nuxt.options.runtimeConfig.privateBackendUrl =
+      process.env.PRIVATE_BACKEND_URL ?? 'http://backend:8000'
 
     nuxt.options.runtimeConfig.public = defu(
       nuxt.options.runtimeConfig.public,
       {
         downloadFileViaXhr: process.env.DOWNLOAD_FILE_VIA_XHR ?? '0',
-        baserowDisablePublicUrlCheck: process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK ?? false,
-        publicBackendUrl: process.env.PUBLIC_BACKEND_URL ?? 'http://localhost:8000',
-        publicWebFrontendUrl: process.env.PUBLIC_WEB_FRONTEND_URL ?? 'http://localhost:3000',
+        baserowDisablePublicUrlCheck:
+          process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK ?? false,
+        publicBackendUrl:
+          process.env.PUBLIC_BACKEND_URL ?? 'http://localhost:8000',
+        publicWebFrontendUrl:
+          process.env.PUBLIC_WEB_FRONTEND_URL ?? 'http://localhost:3000',
         initialTableDataLimit: process.env.INITIAL_TABLE_DATA_LIMIT ?? null,
-        hoursUntilTrashPermanentlyDeleted: process.env.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED ?? 24 * 3,
-        disableAnonymousPublicViewWsConnections: process.env.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS ?? '',
-        baserowMaxImportFileSizeMb: process.env.BASEROW_MAX_IMPORT_FILE_SIZE_MB ?? 512,
+        hoursUntilTrashPermanentlyDeleted:
+          process.env.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED ?? 24 * 3,
+        disableAnonymousPublicViewWsConnections:
+          process.env.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS ?? '',
+        baserowMaxImportFileSizeMb:
+          process.env.BASEROW_MAX_IMPORT_FILE_SIZE_MB ?? 512,
         featureFlags: process.env.FEATURE_FLAGS ?? '',
-        baserowDisableGoogleDocsFilePreview: process.env.BASEROW_DISABLE_GOOGLE_DOCS_FILE_PREVIEW ?? '',
-        baserowMaxSnapshotsPerGroup: process.env.BASEROW_MAX_SNAPSHOTS_PER_GROUP ?? -1,
+        baserowDisableGoogleDocsFilePreview:
+          process.env.BASEROW_DISABLE_GOOGLE_DOCS_FILE_PREVIEW ?? '',
+        baserowMaxSnapshotsPerGroup:
+          process.env.BASEROW_MAX_SNAPSHOTS_PER_GROUP ?? -1,
         baserowFrontendSameSiteCookie:
           process.env.BASEROW_FRONTEND_SAME_SITE_COOKIE ?? 'lax',
         baserowFrontendJobsPollingTimeoutMs:
@@ -158,9 +167,11 @@ export default defineNuxtModule({
         baserowRowPageSizeLimit: parseInt(
           process.env.BASEROW_ROW_PAGE_SIZE_LIMIT ?? 200
         ),
-        baserowUniqueRowValuesSizeLimit: process.env.BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT ?? 100,
+        baserowUniqueRowValuesSizeLimit:
+          process.env.BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT ?? 100,
         baserowDisableSupport: process.env.BASEROW_DISABLE_SUPPORT ?? '',
-        baserowIntegrationsPeriodicMinuteMin: process.env.BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN ?? '1'
+        baserowIntegrationsPeriodicMinuteMin:
+          process.env.BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN ?? '1',
 
         /*sentry: {
           config: {
@@ -306,11 +317,8 @@ export default defineNuxtModule({
     // Changes the stroke-width of the iconoir svg files because this way, we don't
     // have to fork the repository and change it there.
     const iconoirCssPath = require.resolve('iconoir/css/iconoir.css')
-    const patchedIconoirPath = pathe.join(
-      nuxt.options.buildDir,
-      'baserow',
-      'iconoir.scss'
-    )
+    const patchedIconoirPath = resolve('./assets/scss/vendor/iconoir.scss')
+
     mkdirSync(pathe.dirname(patchedIconoirPath), { recursive: true })
     const originalIconoirCss = readFileSync(iconoirCssPath, 'utf-8')
     const patchedIconoirCss = originalIconoirCss.replace(

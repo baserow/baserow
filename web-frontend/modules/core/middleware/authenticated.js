@@ -5,13 +5,13 @@
 export default defineNuxtRouteMiddleware((to) => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
   if (!store.getters['auth/isAuthenticated']) {
     const original =
-      process.server && event?.node?.req
+      import.meta.server && event?.node?.req
         ? event.node.req.originalUrl || event.node.req.url || to.fullPath
         : to.fullPath
     const query = { original: encodeURI(original) }
@@ -24,7 +24,7 @@ export default defineNuxtRouteMiddleware((to) => {
 Previous Nuxt 2 middleware:
 export default function ({ req, store, route, redirect }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
   if (!store.getters['auth/isAuthenticated']) {
     const query = {}

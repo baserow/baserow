@@ -68,7 +68,7 @@ export const getTimeHumanReadableFormat = (type) => {
 export const getFieldTimezone = (field, guess = true) => {
   return field.date_include_time
     ? field.date_force_timezone ||
-        (guess && !process.server && moment.tz.guess())
+        (guess && !import.meta.server && moment.tz.guess())
     : null
 }
 
