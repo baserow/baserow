@@ -45,5 +45,6 @@ export default {
       return this.$registry.get('application', 'automation')
     },
   },
+  emits: ['submitted'],
 }
 </script>

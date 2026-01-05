@@ -78,5 +78,6 @@ export default {
       importType: 'none',
     }
   },
+  emits: ['submitted', 'hidden'],
 }
 </script>
