@@ -177,7 +177,9 @@ export default {
      */
     const found = resolveApplicationRoute(
       this.pages,
-      this.$route.params.pathMatch
+      Array.isArray(this.$route.params.pathMatch)
+        ? this.$route.params.pathMatch.join('/')
+        : this.$route.params.pathMatch
     )
 
     if (!found?.length) return
