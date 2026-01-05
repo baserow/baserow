@@ -28,6 +28,7 @@ export default {
     }
   },
   mounted() {
+    // TODO MIG this was a `fetch` hook to enable server side rendering. Must be restored.
     this.render(this.content)
   },
   computed: {
