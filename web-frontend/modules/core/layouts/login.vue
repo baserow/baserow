@@ -8,16 +8,15 @@
 </template>
 
 <script>
+import { useHead } from '#imports'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 
 export default {
   components: { Toasts },
-  head() {
-    return {
-      bodyAttrs: {
-        class: 'auth__body',
-      },
-    }
+  setup() {
+    useHead({
+      bodyAttrs: { class: 'auth__body' },
+    })
   },
 }
 </script>
