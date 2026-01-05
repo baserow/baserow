@@ -117,13 +117,14 @@ export class GuidedTourStep {
 
 class WelcomeGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app?.i18n?.t?.('welcomeGuidedTourStep.title') || 'Welcome'
+    const { $i18n: i18n } = this.app
+    return i18n.t('welcomeGuidedTourStep.title')
   }
 
   get content() {
+    const { $i18n: i18n } = this.app
     return (
-      this.app?.i18n?.t?.('welcomeGuidedTourStep.content') ||
-      'Welcome to the guided tour'
+      i18n.t('welcomeGuidedTourStep.content')
     )
   }
 
@@ -136,8 +137,9 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
   }
 
   get buttonText() {
+    const { $i18n: i18n } = this.app
     return (
-      this.app?.i18n?.t?.('welcomeGuidedTourStep.buttonText') || 'Get started'
+      i18n.t('welcomeGuidedTourStep.buttonText')
     )
   }
 
@@ -148,16 +150,16 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
 class ControlCenterGuidedTourStep extends GuidedTourStep {
   get title() {
+    const { $i18n: i18n } = this.app
     return (
-      this.app?.i18n?.t?.('controlCenterGuidedTourStep.title') ||
-      'Control Center'
+      i18n.t('controlCenterGuidedTourStep.title')
     )
   }
 
   get content() {
+    const { $i18n: i18n } = this.app
     return (
-      this.app?.i18n?.t?.('controlCenterGuidedTourStep.content') ||
-      'This is the control center'
+      i18n.t('controlCenterGuidedTourStep.content')
     )
   }
 
@@ -172,13 +174,14 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
 
 class CreateNewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app?.i18n?.t?.('createNewGuidedTourStep.title') || 'Create New'
+    const { $i18n: i18n } = this.app
+    return i18n.t('createNewGuidedTourStep.title')
   }
 
   get content() {
+    const { $i18n: i18n } = this.app
     return (
-      this.app?.i18n?.t?.('createNewGuidedTourStep.content') ||
-      'Create new items here'
+      i18n.t('createNewGuidedTourStep.content')
     )
   }
 
