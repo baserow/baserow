@@ -177,13 +177,13 @@ export default {
 
       const file = event.target.files[0]
       const maxSize =
-        parseInt(this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB, 10) * 1024 * 1024
+        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) * 1024 * 1024
 
       if (file.size > maxSize) {
         this.values.filename = ''
         this.handleImporterError(
           this.$t('tableCSVImporter.limitFileSize', {
-            limit: this.$config.BASEROW_MAX_IMPORT_FILE_SIZE_MB,
+            limit: this.$config.public.baserowMaxImportFileSizeMb,
           })
         )
       } else {
@@ -240,7 +240,7 @@ export default {
 
       const decoder = new TextDecoder(this.encoding)
       const decodedData = decoder.decode(this.rawData)
-      const limit = this.$config.INITIAL_TABLE_DATA_LIMIT
+      const limit = this.$config.public.initialTableDataLimit
       const count = decodedData.split(/\r\n|\r|\n/).length
 
       if (limit !== null && count > limit) {

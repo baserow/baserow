@@ -296,7 +296,7 @@ export default {
     canAddSeries() {
       return (
         this.values.aggregation_series.length <
-        this.$config.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+        this.$config.public.baserowPremiumGroupedAggregateServiceMaxSeries
       )
     },
   },

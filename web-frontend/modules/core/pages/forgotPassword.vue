@@ -195,7 +195,7 @@ useHead({
     {
       rel: 'canonical',
       href:
-        config.public.PUBLIC_WEB_FRONTEND_URL +
+        config.public.publicWebFrontendUrl +
         router.resolve({ name: 'forgot-password' }).href,
     },
   ],

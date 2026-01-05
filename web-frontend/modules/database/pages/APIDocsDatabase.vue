@@ -491,7 +491,7 @@ const isReadOnlyField = (field) => {
  * Generates the 'upload file via URL' URI.
  */
 const getUploadFileViaUrlListUrl = () => {
-  return $config.PUBLIC_BACKEND_URL + '/api/user-files/upload-via-url/'
+  return $config.public.publicBackendUrl + '/api/user-files/upload-via-url/'
 }
 const getItemURL = (table, addUserFieldParam) => {
   return (

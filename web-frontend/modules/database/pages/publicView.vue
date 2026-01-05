@@ -121,7 +121,7 @@ export default {
     this.keydownEvent = (event) => this.keyDown(event)
     document.body.addEventListener('keydown', this.keydownEvent)
 
-    if (!this.$config.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS) {
+    if (!this.$config.public.disableAnonymousPublicViewWsConnections) {
       this.$realtime.connect(true, true)
 
       const token = this.$store.getters['page/view/public/getAuthToken']
@@ -131,7 +131,7 @@ export default {
   beforeUnmount() {
     document.body.removeEventListener('keydown', this.keydownEvent)
 
-    if (!this.$config.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS) {
+    if (!this.$config.public.disableAnonymousPublicViewWsConnections) {
       this.$realtime.subscribe(null)
       this.$realtime.disconnect()
     }

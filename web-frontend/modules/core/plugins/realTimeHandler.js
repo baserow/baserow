@@ -52,7 +52,8 @@ export class RealTimeHandler {
 
     // The web socket url is the same as the PUBLIC_BACKEND_URL apart from the
     // protocol.
-    const rawUrl = this.context.app.$config.PUBLIC_BACKEND_URL
+    const config = useRuntimeConfig()
+    const rawUrl = config.public.publicBackendUrl
     const url = new URL(rawUrl)
     url.protocol = isSecureURL(rawUrl) ? 'wss:' : 'ws:'
     url.pathname = '/ws/core/'
@@ -441,14 +442,10 @@ export default defineNuxtPlugin({
   name: 'realtime',
   dependsOn: ['store'],
   setup(nuxtApp) {
-    const runtimeConfig = useRuntimeConfig()
     const router = useRouter()
     const context = {
       store: nuxtApp.$store,
       app: {
-        $config: {
-          PUBLIC_BACKEND_URL: runtimeConfig.public.publicBackendUrl,
-        },
         router,
       },
     }
