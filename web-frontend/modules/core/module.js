@@ -20,7 +20,7 @@ import page from '../builder/services/page'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
-//import head from './head'
+import head from './head'
 // import { routes as customRoutes } from './routes'
 
 /*import en from './locales/en.json'
@@ -101,7 +101,7 @@ export default defineNuxtModule({
     //nuxt.options.ssr = true
 
     // Merge du head
-    // nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)
+    nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)
 
     // Alias
     nuxt.options.alias['@baserow'] = '/baserow/web-frontend'
