@@ -26,7 +26,7 @@
         <FormInput
           v-if="invitation !== null"
           ref="email"
-          v-model="v$.values.email.$model"
+          v-model="values.email"
           type="email"
           size="large"
           disabled
@@ -35,7 +35,7 @@
         <FormInput
           v-else
           ref="email"
-          v-model="v$.values.email.$model"
+          v-model="values.email"
           type="email"
           size="large"
           :error="fieldHasErrors('email')"
@@ -64,7 +64,7 @@
         </template>
         <FormInput
           ref="password"
-          v-model="v$.values.password.$model"
+          v-model="values.password"
           type="password"
           size="large"
           :error="fieldHasErrors('password')"
