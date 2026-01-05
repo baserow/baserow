@@ -14,7 +14,7 @@
           (mode === 'editing' ? $t('textElement.emptyValue') : '&nbsp;')
         "
         :rules="rules"
-        @click.native="onClick"
+        @click="onClick"
       ></MarkdownIt>
       <ABParagraph v-else>{{ $t('textElement.missingValue') }}</ABParagraph>
     </template>
@@ -190,7 +190,7 @@ export default {
         event.preventDefault()
         return
       }
-      if (event.target.classList.contains('link-element__link')) {
+      if (event.target.classList.contains('ab-link')) {
         const url = event.target.getAttribute('href')
 
         if (url.startsWith('/')) {
