@@ -9,6 +9,7 @@ import AppLayoutPreview from '@baserow/modules/core/components/onboarding/AppLay
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import AuthService from '@baserow/modules/core/services/auth'
 import { MemberRoleType } from '@baserow/modules/database/roleTypes'
+import {useRuntimeConfig} from '#imports'
 
 export class OnboardingType extends Registerable {
   /**
@@ -205,8 +206,9 @@ export class InviteOnboardingType extends OnboardingType {
       return
     }
 
+    const config = useRuntimeConfig()
     const emails = data[this.getType()].emails
-    const acceptUrl = `${this.app.$config.BASEROW_EMBEDDED_SHARE_URL}/workspace-invitation`
+    const acceptUrl = `${config.public.baserowEmbeddedShareUrl}/workspace-invitation`
     for (let i = 0; i < emails.length; i++) {
       const values = {
         email: emails[i],

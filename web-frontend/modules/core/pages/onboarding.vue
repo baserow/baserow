@@ -12,6 +12,7 @@
         <Button
           type="secondary"
           size="large"
+          class="margin-right-2"
           :loading="reloading"
           @click="refresh()"
           >{{ $t('onboarding.failedTryAgain') }}</Button

@@ -73,7 +73,8 @@ export class SummaryWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app?.i18n?.t('summaryWidget.name')
+    const { $i18n: i18n } = this.app
+    return i18n.t('summaryWidget.name')
   }
 
   get createWidgetImage() {
