@@ -169,7 +169,7 @@ import {
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
-import _, { clone } from 'lodash'
+import _ from 'lodash'
 import { trueValues } from '@baserow/modules/core/utils/constants'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
@@ -1029,7 +1029,7 @@ export class FieldType extends Registerable {
 
 class SelectOptionBaseFieldType extends FieldType {
   prepareFormViewFieldForFormEditInput(field, fieldOptions) {
-    const updatedField = clone(field)
+    const updatedField = _.clone(field)
     updatedField.select_options = updatedField.select_options.filter(
       (selectOption) => {
         return (

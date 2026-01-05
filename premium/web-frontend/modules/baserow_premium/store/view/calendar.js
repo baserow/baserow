@@ -302,7 +302,7 @@ export const actions = {
     // We can't guess the users timezone when doing the server side render.
     // So we only can know what today is and load rows in the client side when the
     // field does not have a forced timezone.
-    if (!process.server || getters.getFieldTimeZoneIfSet(fields)) {
+    if (!import.meta.server || getters.getFieldTimeZoneIfSet(fields)) {
       const timezone = getters.getTimeZone(fields)
       const todayOrSelectedDay =
         getters.getSelectedDate(fields) == null
@@ -327,10 +327,7 @@ export const actions = {
     commit('SET_SELECTED_DATE', dateTime)
 
     const df = getters.getDateField(fields)
-    if (
-      !df ||
-      $registry.get('field', df.type).canRepresentDate(df) === false
-    ) {
+    if (!df || $registry.get('field', df.type).canRepresentDate(df) === false) {
       commit('RESET')
       return
     }
@@ -394,7 +391,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { date, fields }
   ) {
-    const { $client, $config} = useNuxtApp()
+    const { $client, $config } = useNuxtApp()
     const calendarId = getters.getLastCalendarId
     const stack = getters.getDateStack(date)
     const rows = stack.results
@@ -451,7 +448,7 @@ export const actions = {
     { newFieldOptions, oldFieldOptions, readOnly = false }
   ) {
     dispatch('forceUpdateAllFieldOptions', newFieldOptions)
-    const {$client} = useNuxtApp()
+    const { $client } = useNuxtApp()
     const calendarId = getters.getLastCalendarId
     if (!readOnly) {
       const updateValues = { field_options: newFieldOptions }
@@ -527,7 +524,7 @@ export const actions = {
     })
 
     if (!readOnly) {
-      const {$client, } = useNuxtApp()
+      const { $client } = useNuxtApp()
       const calendarId = getters.getLastCalendarId
       const oldValues = clone(getters.getAllFieldOptions[field.id])
       const updateValues = { field_options: {} }
@@ -555,14 +552,11 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const {$client, $registry} = useNuxtApp()
+    const { $client, $registry } = useNuxtApp()
     const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
-    const { data } = await RowService($client).create(
-      table.id,
-      preparedRow
-    )
+    const { data } = await RowService($client).create(table.id, preparedRow)
     commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
       view,
@@ -585,7 +579,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
-    const { $registry} = useNuxtApp()
+    const { $registry } = useNuxtApp()
     const row = clone(values)
     populateRow(row)
     const matchesFilters = await dispatch('rowMatchesFilters', {
@@ -637,7 +631,7 @@ export const actions = {
    */
   async deleteRow({ commit, dispatch, getters }, { table, view, row, fields }) {
     commit('SET_ROW_LOADING', { row, value: true })
-    const {$client} = useNuxtApp()
+    const { $client } = useNuxtApp()
     try {
       await dispatch('deletedExistingRow', {
         view,
@@ -708,7 +702,7 @@ export const actions = {
     { dispatch, getters, commit },
     { view, row, values, fields }
   ) {
-    const {$registry} = useNuxtApp()
+    const { $registry } = useNuxtApp()
 
     const dateFieldId = getters.getDateFieldIdIfNotTrashed(fields)
     const fieldName = `field_${dateFieldId}`
@@ -826,8 +820,7 @@ export const actions = {
     { commit, dispatch, getters, state },
     { view, table, row, field, fields, value, oldValue }
   ) {
-
-    const {$registry, $client} = useNuxtApp()
+    const { $registry, $client } = useNuxtApp()
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -915,7 +908,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
-    const {$client} = useNuxtApp()
+    const { $client } = useNuxtApp()
     const gridId = getters.getLastCalendarId
     const publicUrl = rootGetters['page/view/public/getIsPublic']
     const publicAuthToken = rootGetters['page/view/public/getAuthToken']
@@ -999,7 +992,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { row, fields = null, overrides, forced = false }
   ) {
-    const { $config, $registry} = useNuxtApp()
+    const { $config, $registry } = useNuxtApp()
     // Avoid computing search on table loading
     if (getters.getActiveSearchTerm || forced) {
       const rowSearchMatches = calculateSingleRowSearchMatches(

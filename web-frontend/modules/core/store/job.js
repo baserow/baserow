@@ -115,7 +115,7 @@ export const actions = {
    * It won't make a request to the backend if there are no pending jobs.
    */
   tryScheduleNextUpdate({ getters, commit, dispatch, state }) {
-    if (!process.browser) return
+    if (!import.meta.client) return
     clearTimeout(this.updateTimeoutId)
 
     commit('SET_REFRESHING', true)

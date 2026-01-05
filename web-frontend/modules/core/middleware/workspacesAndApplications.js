@@ -7,10 +7,10 @@ import { getWorkspaceCookie } from '@baserow/modules/core/utils/workspace'
 export default defineNuxtRouteMiddleware(async () => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
   // If nuxt generate, pass this middleware
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
   // Get the selected workspace id
   let workspaceId = getWorkspaceCookie(nuxtApp)
@@ -67,7 +67,7 @@ export default async function WorkspacesAndApplications({
   redirect,
 }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
   // Get the selected workspace id
   let workspaceId = getWorkspaceCookie(app)

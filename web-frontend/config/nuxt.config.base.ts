@@ -80,13 +80,29 @@ export default defineNuxtConfig({
     trailingSlash: true,
     vueI18n: './i18n.config.ts',
   },
-
+  nitro: {
+    externals: {
+      external: ['vuejs3-datepicker'],
+    },
+  },
   vite: {
     plugins: [
       nodePolyfills({
         include: ['util'],
+        // ✅ prevent "process already declared" in Nitro/Node
+        globals: {
+          process: false,
+          Buffer: false,
+          global: false,
+        },
       }),
       svgLoader(),
     ],
+    ssr: {
+      noExternal: ['vue-chartjs', 'chart.js'],
+    },
+  },
+  build: {
+    transpile: ['vue-chartjs', 'chart.js'],
   },
 })

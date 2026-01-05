@@ -64,7 +64,7 @@
 </template>
 
 <script>
-import { isEqual } from 'lodash'
+import _ from 'lodash'
 
 import { clone } from '@baserow/modules/core/utils/object'
 import { clamp } from '@baserow/modules/core/utils/number'
@@ -228,7 +228,7 @@ export default {
       }
     },
     setColor(format, color, emit = true) {
-      if (!isEqual(this.colors[format], color)) {
+      if (!_.isEqual(this.colors[format], color)) {
         this.applyColorUpdates(format, color)
       }
 

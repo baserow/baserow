@@ -5,7 +5,7 @@ import { useCookie } from '#app'
 const cookieWorkspaceName = 'baserow_group_id'
 
 export const setWorkspaceCookie = (workspaceId, { $config }) => {
-  if (process.SERVER_BUILD) return
+  if (import.meta.server) return
   const secure = isSecureURL($config.public.publicWebFrontendUrl)
   /*$cookies.set(cookieWorkspaceName, workspaceId, {
     path: '/',
@@ -23,7 +23,7 @@ export const setWorkspaceCookie = (workspaceId, { $config }) => {
 }
 
 export const unsetWorkspaceCookie = () => {
-  if (process.SERVER_BUILD) return
+  if (import.meta.server) return
   const cookie = useCookie(cookieWorkspaceName)
   cookie.value = null
   //deleteCookie(cookieWorkspaceName)
@@ -31,7 +31,7 @@ export const unsetWorkspaceCookie = () => {
 }
 
 export const getWorkspaceCookie = () => {
-  if (process.SERVER_BUILD) return
+  if (import.meta.server) return
   return useCookie(cookieWorkspaceName).value
   //return getCookie(cookieWorkspaceName)
   //return $cookies.get(cookieWorkspaceName)

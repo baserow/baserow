@@ -54,7 +54,7 @@ export default {
       clearTimeout(this.redirectTimeout)
     },
     getHostname() {
-      return process.client ? window.location.hostname : ''
+      return import.meta.client ? window.location.hostname : ''
     },
   },
 }

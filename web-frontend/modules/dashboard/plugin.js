@@ -52,14 +52,14 @@ import { DashboardApplicationType } from '@baserow/modules/dashboard/application
 import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 
 // Import translations
-import en from '@baserow/modules/dashboard/locales/en.json'
+/*import en from '@baserow/modules/dashboard/locales/en.json'
 import fr from '@baserow/modules/dashboard/locales/fr.json'
 import nl from '@baserow/modules/dashboard/locales/nl.json'
 import de from '@baserow/modules/dashboard/locales/de.json'
 import es from '@baserow/modules/dashboard/locales/es.json'
 import it from '@baserow/modules/dashboard/locales/it.json'
 import pl from '@baserow/modules/dashboard/locales/pl.json'
-import ko from '@baserow/modules/dashboard/locales/ko.json'
+import ko from '@baserow/modules/dashboard/locales/ko.json'*/
 
 export default defineNuxtPlugin({
   dependsOn: ['core', 'store'],
@@ -68,7 +68,7 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     // Merge dashboard translations into i18n
-    if ($i18n) {
+    /*if ($i18n) {
       $i18n.mergeLocaleMessage('en', en)
       $i18n.mergeLocaleMessage('fr', fr)
       $i18n.mergeLocaleMessage('nl', nl)
@@ -77,7 +77,7 @@ export default defineNuxtPlugin({
       $i18n.mergeLocaleMessage('it', it)
       $i18n.mergeLocaleMessage('pl', pl)
       $i18n.mergeLocaleMessage('ko', ko)
-    }
+    } */
 
     if (!$store.hasModule('dashboardApplication')) {
       $store.registerModule('dashboardApplication', dashboardApplicationStore)

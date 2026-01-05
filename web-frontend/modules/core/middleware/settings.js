@@ -4,10 +4,10 @@
 export default defineNuxtRouteMiddleware(async () => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
   // If nuxt generate, pass this middleware
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
   if (!store.getters['settings/isLoaded']) {
     await store.dispatch('settings/load')
@@ -18,7 +18,7 @@ export default defineNuxtRouteMiddleware(async () => {
 Previous Nuxt 2 middleware:
 export default async function ({ store, req }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
   if (!store.getters['settings/isLoaded']) {
     await store.dispatch('settings/load')

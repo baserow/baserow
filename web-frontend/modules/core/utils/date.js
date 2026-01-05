@@ -158,7 +158,7 @@ export function getMonthlyTimestamps(dateTime) {
 }
 
 export function getUserTimeZone() {
-  if (process.server) {
+  if (import.meta.server) {
     return 'UTC'
   } else {
     return moment.tz.guess()

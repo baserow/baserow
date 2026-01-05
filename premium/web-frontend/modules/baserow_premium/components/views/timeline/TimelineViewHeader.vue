@@ -87,15 +87,16 @@ export default {
   mixins: [timelineViewHelpers],
   computed: {
     isDev() {
-      return process.env.NODE_ENV === 'development'
+      return import.meta.env.MODE === 'development'
     },
-    fieldOptions(){
-      return this.$store.getters[`${this.storePrefix}view/timeline/getAllFieldOptions`]
-      },
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/timeline/getAllFieldOptions`
+      ]
+    },
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
-
   },
   methods: {
     showChooseDatesFieldContext() {

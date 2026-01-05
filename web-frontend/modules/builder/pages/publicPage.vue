@@ -136,7 +136,7 @@ const { data: asyncDataResult, error } = await useAsyncData(
     })
 
     if (
-      (!process.server || process.server) &&
+      (!import.meta.server || import.meta.server) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
     ) {
       const refreshToken = await getTokenIfEnoughTimeLeft(

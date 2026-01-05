@@ -24,7 +24,7 @@ function invalidUrlEnvVariable(envVariableName) {
  * will be shown to the user.
  */
 export default defineNuxtRouteMiddleware(() => {
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
   const nuxtApp = useNuxtApp()
   const config = useRuntimeConfig()
   const i18n = nuxtApp.$i18n
@@ -32,9 +32,9 @@ export default defineNuxtRouteMiddleware(() => {
     i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key
 
   // If nuxt generate, pass this middleware
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
-  if (process.server && !config.public.baserowDisablePublicUrlCheck) {
+  if (import.meta.server && !config.public.baserowDisablePublicUrlCheck) {
     const urlEnvVarsToCheck = []
     if (process.env.BASEROW_PUBLIC_URL) {
       urlEnvVarsToCheck.push('BASEROW_PUBLIC_URL')
@@ -60,9 +60,9 @@ export default defineNuxtRouteMiddleware(() => {
 Previous Nuxt 2 middleware:
 export default function ({ store, req, error, i18n }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
-  if (process.server && !process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
+  if (import.meta.server && !process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
     const urlEnvVarsToCheck = []
     if (process.env.BASEROW_PUBLIC_URL) {
       urlEnvVarsToCheck.push('BASEROW_PUBLIC_URL')

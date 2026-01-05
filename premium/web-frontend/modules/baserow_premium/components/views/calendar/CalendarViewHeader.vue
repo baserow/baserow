@@ -147,7 +147,7 @@ export default {
       return ''
     },
     isDev() {
-      return process.env.NODE_ENV === 'development'
+      return import.meta.env.MODE === 'development'
     },
     ...mapState({
       tableLoading: (state) => state.table.loading,

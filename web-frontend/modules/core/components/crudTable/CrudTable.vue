@@ -107,7 +107,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import Paginator from '@baserow/modules/core/components/Paginator'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import { isArray } from 'lodash'
+import _ from 'lodash'
 import isObject from 'lodash/isObject'
 
 /**
@@ -194,7 +194,7 @@ export default {
       required: false,
       type: Array,
       default: () => [],
-      validator: (prop) => isArray(prop),
+      validator: (prop) => _.isArray(prop),
     },
     filters: {
       required: false,
@@ -295,7 +295,7 @@ export default {
           this.totalPages = Math.max(Math.ceil(data.count / 100), 1)
         }
 
-        this.rows = isArray(data) ? data : data.results
+        this.rows = _.isArray(data) ? data : data.results
       } catch (error) {
         notifyIf(error, 'row')
       }

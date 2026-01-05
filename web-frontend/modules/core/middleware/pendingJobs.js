@@ -5,10 +5,10 @@
 export default defineNuxtRouteMiddleware(async () => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
   // If nuxt generate, pass this middleware
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
   if (
     // If the user is not authenticated we can't fetch unfinished jobs.
@@ -25,7 +25,7 @@ export default defineNuxtRouteMiddleware(async () => {
 Previous Nuxt 2 middleware:
 export default async function ({ req, store }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
   if (
     // If the user is not authenticated we can't fetch unfinished jobs.
