@@ -68,7 +68,8 @@ export default {
       if (!this.v$.$dirty) return true
       return !this.v$.$invalid && this.v$.$dirty
     },
-    updateValue() {
+    async updateValue() {
+      await this.$nextTick()
       const filteredEmails = this.emails.filter((email) => !!email.email)
       const emails = filteredEmails.map((email) => email.email)
       this.$emit('update-data', { emails })
