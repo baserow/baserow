@@ -281,8 +281,8 @@ const { data: asyncDataResult, error } = await useAsyncData(
       mode,
     })
 
-    // TODO: This doesn't appear to be doing anything...
     // And finally select the page to display it
+    // It is useful for realtime events.
     await store.dispatch('page/selectById', {
       builder,
       pageId: pageFound.id,

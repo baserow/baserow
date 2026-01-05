@@ -21,7 +21,7 @@ export default defineNuxtModule({
   meta: {
     name: 'automation-module',
   },
-
+  dependsOn: ['core', 'database'],
   setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 

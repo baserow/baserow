@@ -7,7 +7,6 @@ import {
   addRouteMiddleware,
 } from 'nuxt/kit'
 import { routes } from './routes'
-import { readFileSync } from 'node:fs'
 
 const locales = [
   { code: 'en', name: 'English', file: 'en.json' },

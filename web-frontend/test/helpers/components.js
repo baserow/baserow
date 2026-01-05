@@ -21,7 +21,6 @@ const addBus = (context) => {
 }
 const addI18n = (context) => {
   context.vueTestUtils.config.mocks.$t = (key) => key
-  context.vueTestUtils.config.mocks.$tc = (key, count) => `${key} - ${count}`
 }
 const compositeConfiguration = (...configs) => {
   return (context) => configs.forEach((config) => config(context))
