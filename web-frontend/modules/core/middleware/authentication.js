@@ -7,10 +7,10 @@ import {
 export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
   // If nuxt generate or already authenticated, pass this middleware
-  if ((process.server && !event) || store.getters['auth/isAuthenticated']) {
+  if ((import.meta.server && !event) || store.getters['auth/isAuthenticated']) {
     return
   }
 
@@ -42,7 +42,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 Previous Nuxt 2 middleware:
 export default function ({ store, req, app, route, redirect }) {
   // If nuxt generate or already authenticated, pass this middleware
-  if ((process.server && !req) || store.getters['auth/isAuthenticated']) return
+  if ((import.meta.server && !req) || store.getters['auth/isAuthenticated']) return
 
   const userSession = route.query.user_session
   if (userSession) {

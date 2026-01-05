@@ -6,7 +6,7 @@ export default function ({ app: { router, $config, store } }, inject) {
   const projectApiKey = $config.POSTHOG_PROJECT_API_KEY
   const host = $config.POSTHOG_HOST
 
-  if (!process.client || (!projectApiKey && !host)) {
+  if (!import.meta.client || (!projectApiKey && !host)) {
     return
   }
 
@@ -68,7 +68,7 @@ export default defineNuxtPlugin(() => {
   const projectApiKey = runtimeConfig.public.posthogProjectApiKey
   const host = runtimeConfig.public.posthogHost
 
-  if (!process.client || (!projectApiKey && !host)) {
+  if (!import.meta.client || (!projectApiKey && !host)) {
     return
   }
 

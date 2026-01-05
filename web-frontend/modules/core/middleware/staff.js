@@ -5,10 +5,10 @@
 export default defineNuxtRouteMiddleware(() => {
   const { $store } = useNuxtApp()
 
-  const event = process.server ? useRequestEvent() : null
+  const event = import.meta.server ? useRequestEvent() : null
 
   // If nuxt generate, pass this middleware
-  if (process.server && !event) return
+  if (import.meta.server && !event) return
 
   // If the user is not staff we want to show a forbidden error.
   if (!$store.getters['auth/isStaff']) {
@@ -20,7 +20,7 @@ export default defineNuxtRouteMiddleware(() => {
 Previous Nuxt 2 middleware:
 export default function ({ store, req, error }) {
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !req) return
 
   // If the user is not staff we want to show a forbidden error.
   if (!store.getters['auth/isStaff']) {

@@ -8,15 +8,13 @@ import UserService from '@baserow/modules/core/services/admin/users'
  * happens on first page load before everything is fetched.
  */
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (!process.server) return
+  if (!import.meta.server) return
 
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
 
   // If the query param is not provided, we don't want to do anything.
-  if (
-    !Object.prototype.hasOwnProperty.call(to.query, '__impersonate-user')
-  ) {
+  if (!Object.prototype.hasOwnProperty.call(to.query, '__impersonate-user')) {
     return
   }
 

@@ -1,4 +1,4 @@
-import { firstBy } from 'thenby'
+import thenBy from 'thenby'
 import BigNumber from 'bignumber.js'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchMode } from '@baserow/modules/database/utils/search'
@@ -12,6 +12,7 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
  * Generates a sort function based on the provided sortings.
  */
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
+  const { firstBy } = thenBy
   let sortFunction = firstBy()
   const combined = [...groupBys, ...sortings]
   combined.forEach((sort) => {

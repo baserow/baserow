@@ -102,9 +102,7 @@ const automationApplicationType = $registry.get(
   AutomationApplicationType.getType()
 )
 
-const {
-  data: pageData,
-} = await useAsyncData(
+const { data: pageData } = await useAsyncData(
   () => `automation-workflow-${automationId.value}-${workflowId.value}`,
   async () => {
     try {
@@ -120,13 +118,10 @@ const {
 
       await automationApplicationType.loadExtraData(automation)
 
-      const workflow = await $store.dispatch(
-        'automationWorkflow/selectById',
-        {
-          automation,
-          workflowId: workflowId.value,
-        }
-      )
+      const workflow = await $store.dispatch('automationWorkflow/selectById', {
+        automation,
+        workflowId: workflowId.value,
+      })
 
       await $store.dispatch('automationHistory/fetchWorkflowHistory', {
         workflowId: workflowId.value,
@@ -153,10 +148,12 @@ const {
 // Computed properties from async data
 const automation = computed(() => pageData.value?.automation ?? null)
 const workspace = computed(() => pageData.value?.workspace ?? null)
-const workflow = computed(() => $store.getters['automationWorkflow/getSelected'])
+const workflow = computed(
+  () => $store.getters['automationWorkflow/getSelected']
+)
 
 // Computed properties
-const isDev = computed(() => process.env.NODE_ENV === 'development')
+const isDev = computed(() => import.meta.env.MODE === 'development')
 
 const workflowNodes = computed(() => {
   if (!workflow.value?.nodes) {

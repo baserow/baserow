@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import { truncate } from 'lodash'
+import _ from 'lodash'
 
 export default {
   props: {
@@ -74,7 +74,7 @@ export default {
             } else {
               displayValue = item
             }
-            return truncate(displayValue, {
+            return _.truncate(displayValue, {
               length: 30,
               omission: '…',
             })
@@ -102,7 +102,7 @@ export default {
   },
   methods: {
     generateTable(data) {
-      if (!process.client) {
+      if (!import.meta.client) {
         return null
       }
 

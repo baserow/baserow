@@ -145,7 +145,7 @@ export const routes = [
   },
 ]
 
-// if (process.env.NODE_ENV !== 'production') {
+// if (import.meta.env.MODE  !== 'production') {
 //   routes.push({
 //     name: 'storybook',
 //     path: '/storybook',
