@@ -80,8 +80,8 @@ export default {
 
       const userSourceUid = userSourceType.genUid(this.userSource)
 
-      const url = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
-      const previewUrl = `${this.$config.PUBLIC_BACKEND_URL.substr(
+      const url = `${this.app.$config.public.publicBackendUrl}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
+      const previewUrl = `${this.app.$config.public.publicBackendUrl.substr(
         0,
         10
       )}.../user-source/${userSourceUid}/sso/...`
@@ -96,8 +96,8 @@ export default {
 
       const others = this.domains.map((domain) => ({
         name: domain.domain_name,
-        url: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
-        previewUrl: `${this.$config.PUBLIC_BACKEND_URL.substr(
+        url: `${this.$config.public.publicBackendUrl}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
+        previewUrl: `${this.$config.public.publicBackendUrl.substr(
           0,
           10
         )}.../user-source/domain_${domain.id}__${userSourceUid}/sso/...`,

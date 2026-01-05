@@ -127,7 +127,7 @@ export default {
         .toLowerCase()
     },
     maxSnapshots() {
-      return parseInt(this.$config.BASEROW_MAX_SNAPSHOTS_PER_GROUP)
+      return parseInt(this.$config.public.baserowMaxSnapshotsPerGroup)
     },
     snapshotModalAlertComponents() {
       return Object.values(this.$registry.getAll('plugin'))

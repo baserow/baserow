@@ -1890,7 +1890,7 @@ export const actions = {
       } else {
         fetchParams = {
           startIndex: 0,
-          limit: $config.BASEROW_ROW_PAGE_SIZE_LIMIT,
+          limit: $config.public.baserowRowPageSizeLimit,
           fields,
           rowIds: selectedRowIds,
           limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
@@ -2696,7 +2696,7 @@ export const actions = {
       (position === 'head' && getters.getMultiSelectTailRowIndex !== -1)
     ) {
       // check if the selection would go over limit
-      const limit = $config.BASEROW_ROW_PAGE_SIZE_LIMIT
+      const limit = $config.public.baserowRowPageSizeLimit
       const previousIndex =
         position === 'head'
           ? getters.getMultiSelectTailRowIndex
@@ -3519,7 +3519,7 @@ export const actions = {
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
     const { $registry, $client, $i18n, $config } = useNuxtApp()
     const rowId = row.id
-    const limit = $config.BASEROW_ROW_PAGE_SIZE_LIMIT
+    const limit = $config.public.baserowRowPageSizeLimit
     const checked = state.checkboxSelectedRows.includes(rowId)
 
     if (!checked && state.checkboxSelectedRows.length >= limit) {

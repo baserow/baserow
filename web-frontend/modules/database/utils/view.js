@@ -712,17 +712,9 @@ export function readDefaultViewIdFromCookie(
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookieValue = useCookie(cookieName, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
-      secure,
-      default() {
-        return ''
-      },
-    })
-    //const cookieValue = cookies.get(cookieName) || ''
-    const defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
+    const cookie = useCookie(cookieName)
+    const cookieValue = cookie.value || ''
+    const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
     return defaultView ? defaultView.viewId : null
   } catch (error) {

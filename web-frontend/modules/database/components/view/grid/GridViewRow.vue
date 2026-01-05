@@ -334,7 +334,7 @@ export default {
         this.$store.state[this.storePrefix + 'view/grid'].checkboxSelectedRows
       return (
         checkboxSelectedRows.length >=
-          this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT &&
+          this.$config.public.baserowRowPageSizeLimit &&
         !checkboxSelectedRows.includes(rowId)
       )
     },

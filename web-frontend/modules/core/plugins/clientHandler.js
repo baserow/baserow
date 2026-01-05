@@ -560,7 +560,7 @@ const createAxiosInstance = (runtimeConfig) => {
   const publicBackendUrl = runtimeConfig.public.publicBackendUrl
 
   const privateBackendUrl =
-    runtimeConfig.public.privateBackendUrl ?? publicBackendUrl
+    runtimeConfig.privateBackendUrl ?? publicBackendUrl
   const baseBackendUrl =
     (import.meta.client ? publicBackendUrl : privateBackendUrl) || ''
   const url = `${baseBackendUrl}/api`

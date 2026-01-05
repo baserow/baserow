@@ -736,7 +736,7 @@ export default {
     },
     copyLinkToSelectedRow(event, selectedRow) {
       const url =
-        this.$config.BASEROW_EMBEDDED_SHARE_URL +
+        this.$config.public.baserowEmbeddedShareUrl +
         this.$router.resolve({
           name: 'database-table-row',
           params: { ...this.$route.params, rowId: selectedRow.id },
@@ -1540,7 +1540,7 @@ export default {
 
       // The backend will fail hard if it tries to update more rows than the limit, so
       // we're slicing the data here.
-      const pageSizeLimit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+      const pageSizeLimit = this.$config.public.baserowRowPageSizeLimit
       if (textData.length > pageSizeLimit) {
         this.$store.dispatch('toast/info', {
           title: this.$t('gridView.tooManyItemsTitle'),
