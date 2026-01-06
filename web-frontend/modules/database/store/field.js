@@ -72,7 +72,7 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch }, table) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
     commit('UNSELECT', {})
@@ -89,7 +89,7 @@ export const actions = {
     return getters.getAll
   },
   forceSetFields({ commit, rootGetters }, { fields }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     fields.forEach((part, index) => {
       populateField(fields[index], $registry)
     })
@@ -107,7 +107,7 @@ export const actions = {
     context,
     { type, table, values, forceCreate = true, undoRedoActionGroupId = null }
   ) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { dispatch } = context
 
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
@@ -156,7 +156,7 @@ export const actions = {
    * any field specific state.
    */
   async fieldRestored(context, { table, selectedView, values }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const { commit } = context
     const fieldType = $registry.get('field', values.type)
     const populatedField = populateField(values, $registry)
@@ -178,7 +178,7 @@ export const actions = {
    * Forcefully create a new field without making a call to the backend.
    */
   async forceCreate(context, { table, values, relatedFields = [] }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', values.type)
     const data = populateField(values, $registry)
@@ -199,7 +199,7 @@ export const actions = {
    * Updates the values of the provided field.
    */
   async update(context, { field, type, values, forceUpdate = true }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { dispatch } = context
 
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
@@ -233,7 +233,7 @@ export const actions = {
    * Promote the provided field to primary field.
    */
   async changePrimary(context, { field, forceUpdate = true }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { dispatch } = context
 
     const newField = clone(field)
@@ -259,7 +259,7 @@ export const actions = {
    * Forcefully update an existing field without making a request to the backend.
    */
   async forceUpdate(context, { field, oldField, data, relatedFields = [] }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const { commit, dispatch } = context
     const fieldType = $registry.get('field', data.type)
     data = populateField(data, $registry)
@@ -331,7 +331,7 @@ export const actions = {
    * Only makes the delete call to the server.
    */
   async deleteCall({ commit, dispatch }, field) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     return await FieldService($client).delete(field.id)
   },
   /**

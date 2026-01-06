@@ -342,7 +342,7 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
 
@@ -379,7 +379,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { type, table, values }
   ) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
 
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
       throw new Error(
@@ -419,7 +419,7 @@ export const actions = {
       optimisticUpdate = true,
     }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
     const newValues = {}
@@ -484,7 +484,7 @@ export const actions = {
    * Updates the order of all the views in a table.
    */
   async order({ commit, getters }, { table, ownershipType, order, oldOrder }) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     commit('ORDER_ITEMS', { ownershipType, order })
 
     try {
@@ -513,7 +513,7 @@ export const actions = {
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const { data } = await ViewService($client).duplicate(view.id)
     await dispatch('forceCreate', { data })
     return data
@@ -523,7 +523,7 @@ export const actions = {
    * made and after that it will be deleted from the store.
    */
   async delete({ commit, dispatch }, view) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     try {
       await ViewService($client).delete(view.id)
       dispatch('forceDelete', view)
@@ -541,7 +541,7 @@ export const actions = {
    * Removes the view from the this store without making a delete request to the server.
    */
   forceDelete({ commit, dispatch, getters, rootGetters }, view) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const router = useRouter()
     const route = useRoute()
     // If the currently selected view is selected.
@@ -587,7 +587,7 @@ export const actions = {
    * possible you need to select the table first.
    */
   select({ commit, dispatch }, view) {
-    const { $config } = useNuxtApp()
+    const { $config } = this
     commit('SET_SELECTED', view)
     commit('SET_DEFAULT_VIEW_ID', view.id)
 
@@ -658,7 +658,7 @@ export const actions = {
       parentGroupId = null,
     }
   ) {
-    const { $client, $registry } = useNuxtApp()
+    const { $client, $registry } = this
 
     // If the type is not provided we are going to choose the first available type.
     if (!Object.prototype.hasOwnProperty.call(values, 'type')) {
@@ -769,7 +769,7 @@ export const actions = {
    * removed from the store.
    */
   async createFilterGroup({ commit }, { view, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
 
     const filterGroup = {}
     populateFilterGroup(filterGroup)
@@ -817,7 +817,7 @@ export const actions = {
     { dispatch, commit },
     { filter, values, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     const oldValues = {}
@@ -853,7 +853,7 @@ export const actions = {
     { dispatch },
     { filterGroup, values, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -897,7 +897,7 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteFilter({ dispatch, commit }, { view, filter, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     try {
@@ -924,7 +924,7 @@ export const actions = {
     { dispatch, commit },
     { view, filterGroup, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const filters = view.filters.filter((f) => f.group === filterGroup.id)
     for (const filter of filters) {
       commit('SET_FILTER_LOADING', { filter, value: true })
@@ -987,7 +987,7 @@ export const actions = {
    * the decorator ID will be updatede, but if it fails it will be removed from the store.
    */
   async createDecoration({ commit }, { view, values, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const decoration = { ...values }
     populateDecoration(decoration)
     decoration.id = ulid()
@@ -1030,7 +1030,7 @@ export const actions = {
     { dispatch, commit },
     { decoration, values, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_DECORATION_LOADING', { decoration, value: true })
 
     const oldValues = {}
@@ -1070,7 +1070,7 @@ export const actions = {
     { dispatch, commit },
     { view, decoration, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_DECORATION_LOADING', { decoration, value: true })
     dispatch('forceDeleteDecoration', { view, decoration })
 
@@ -1105,7 +1105,7 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createSort({ getters, commit }, { view, values, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
 
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
@@ -1144,7 +1144,7 @@ export const actions = {
    * changes will be undone.
    */
   async updateSort({ dispatch, commit }, { sort, values, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_SORT_LOADING', { sort, value: true })
 
     const oldValues = {}
@@ -1180,7 +1180,7 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteSort({ dispatch, commit }, { view, sort, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_SORT_LOADING', { sort, value: true })
 
     try {
@@ -1219,7 +1219,7 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createGroupBy({ getters, commit }, { view, values, readOnly = false }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
 
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
@@ -1265,7 +1265,7 @@ export const actions = {
     { dispatch, commit },
     { groupBy, values, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     const oldValues = {}
@@ -1304,7 +1304,7 @@ export const actions = {
     { dispatch, commit },
     { view, groupBy, readOnly = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     try {
@@ -1378,7 +1378,7 @@ export const actions = {
    * to the delete field.
    */
   fieldUpdated({ dispatch, commit, getters }, { field, fieldType }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     getters.getAll.forEach((view) => {
       // Remove all filters are not compatible anymore.
       view.filters

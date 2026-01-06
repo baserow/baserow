@@ -148,7 +148,7 @@ export const actions = {
    * existing comments entirely.
    */
   async fetchRowComments({ commit }, { tableId, rowId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
     try {
@@ -170,7 +170,7 @@ export const actions = {
    * Fetches the next 10 comments from the server and adds them to the comments list.
    */
   async fetchNextSetOfComments({ commit, state }, { tableId, rowId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
       // We have to use offset based paging here as new comments can be added by the
@@ -195,7 +195,7 @@ export const actions = {
 
     { tableId, rowId, message }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const temporaryId = state.nextTemporaryCommentId
     commit('SET_NEXT_TEMPORARY_COMMENT_ID', temporaryId - 1)
     try {
@@ -243,7 +243,7 @@ export const actions = {
    * Update a comment content.
    */
   async updateComment({ commit, getters }, { tableId, commentId, message }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const comment = getters.getCommentById(commentId)
     const originalMessage = comment.message
     const originalUpdatedOn = comment.updated_on
@@ -285,7 +285,7 @@ export const actions = {
    * Delete a row comment.
    */
   async deleteComment({ commit }, { tableId, commentId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_ROW_COMMENT_DELETED', {
       commentId,
       deleted: true,
@@ -307,7 +307,7 @@ export const actions = {
    * Update the notification mode for comments on a row.
    */
   async updateNotificationMode({ dispatch }, { table, row, mode }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const originalMode = row._.metadata.row_comments_notification_mode
 
     try {

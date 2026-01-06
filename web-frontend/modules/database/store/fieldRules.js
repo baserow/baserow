@@ -5,7 +5,7 @@ export const state = () => ({ tables: {} })
 
 export const actions = {
   async fetchInitial({ commit, dispatch, getters }, { tableId }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     if (getters.getLoading({ tableId }) === true) {
       return
     }
@@ -25,7 +25,7 @@ export const actions = {
     }
   },
   async addRule({ commit, dispatch, getters }, { tableId, rule }) {
-    const { $registry, $client, $i18n, $config, $bus } = useNuxtApp()
+    const { $registry, $client, $i18n, $config, $bus } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
       const { data } = await FieldRulesService($client).createRule(
@@ -42,13 +42,13 @@ export const actions = {
   /** this changes the rule locally. It is used in propagating changes from
    *  broadcast events */
   ruleChanged({ commit, dispatch, getters }, { tableId, ruleId, rule }) {
-    const { $registry, $client, $i18n, $config, $bus } = useNuxtApp()
+    const { $registry, $client, $i18n, $config, $bus } = this
     commit('UPDATE_RULE', { tableId, ruleId, rule })
     $bus.$emit('fieldRules/updated', rule)
   },
 
   async updateRule({ commit, dispatch, getters }, { tableId, ruleId, rule }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
       const { data } = await FieldRulesService($client).updateRule(
@@ -64,7 +64,7 @@ export const actions = {
     }
   },
   async deleteRule({ commit, dispatch }, { tableId, ruleId }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
       await FieldRulesService($client).deleteRule(tableId, ruleId)

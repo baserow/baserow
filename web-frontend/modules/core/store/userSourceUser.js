@@ -127,7 +127,7 @@ export const actions = {
     { commit, getters },
     { application, access, refresh, tokenUpdatedAt, setCookie = true }
   ) {
-    const nuxtApp = this
+    const nuxtApp = this.app
     commit('SET_TOKENS', { application, access, refresh, tokenUpdatedAt })
     const tokenPayload = jwtDecode(access)
     commit('SET_USER_DATA', {

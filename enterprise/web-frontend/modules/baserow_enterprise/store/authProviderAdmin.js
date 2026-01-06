@@ -47,7 +47,7 @@ export const mutations = {
 
 export const actions = {
   async fetchAll({ commit }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     const { data } = await authProviderAdmin($client).fetchAll()
     const items = {}
     for (const authProviderType of data.auth_provider_types) {
@@ -60,7 +60,7 @@ export const actions = {
     return items
   },
   async create({ commit, dispatch }, { type, values }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     const { data: item } = await authProviderAdmin($client).create({
       type,
       ...values,
@@ -70,7 +70,7 @@ export const actions = {
     return item
   },
   async update({ commit }, { authProvider, values }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     const { data: item } = await authProviderAdmin($client).update(
       authProvider.id,
       values
@@ -79,7 +79,7 @@ export const actions = {
     return item
   },
   async delete({ commit }, item) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     try {
       await authProviderAdmin($client).delete(item.id)
       commit('DELETE_ITEM', item)
@@ -88,14 +88,14 @@ export const actions = {
     }
   },
   async fetchNextProviderId({ commit }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     const { data } = await authProviderAdmin($client).fetchNextProviderId()
     const providerId = data.next_provider_id
     commit('SET_NEXT_PROVIDER_ID', providerId)
     return providerId
   },
   async setEnabled({ commit, dispatch }, { authProvider, enabled }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     // use optimistic update to enable/disable the auth provider
     const wasEnabled = authProvider.enabled
     commit('UPDATE_ITEM', { ...authProvider, enabled })

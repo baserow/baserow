@@ -1,7 +1,7 @@
-import { registerRealtimeEvents } from '@baserow/modules/database/realtime'
+import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 
 export default defineNuxtPlugin({
-  name: 'database-realtime',
+  name: 'builder-realtime',
   dependsOn: ['realtime'],
   async setup(nuxtApp) {
     registerRealtimeEvents(nuxtApp.$realtime)

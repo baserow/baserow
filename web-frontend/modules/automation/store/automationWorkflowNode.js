@@ -161,7 +161,7 @@ const actions = {
     // what the `beforeId` should be. We will have `beforeId` if we're
     // creating a node after `previousNodeId`, and `previousNodeId` has
     // a node that follows it.
-    const nodeType = useNuxtApp().$registry.get('node', type)
+    const nodeType = this.$registry.get('node', type)
 
     // Apply optimistic create
     const tempNode = nodeType.getDefaultValues({
@@ -399,11 +399,14 @@ const actions = {
 
     try {
       // Perform the backend update.
-      await AutomationWorkflowNodeService(useNuxtApp().$client).move(movedNodeId, {
-        reference_node_id: referenceNodeId,
-        position,
-        output,
-      })
+      await AutomationWorkflowNodeService(useNuxtApp().$client).move(
+        movedNodeId,
+        {
+          reference_node_id: referenceNodeId,
+          position,
+          output,
+        }
+      )
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -424,7 +427,7 @@ const actions = {
     }
 
     // Get the node type to properly initialize the node
-    const nodeType = useNuxtApp().$registry.get('node', nodeToDuplicate.type)
+    const nodeType = this.$registry.get('node', nodeToDuplicate.type)
 
     // Use getDefaultValues like in create, but override with duplicated node's data
     const tempNode = nodeType.getDefaultValues({
@@ -497,7 +500,9 @@ const actions = {
     commit('SET_DRAGGING_NODE_ID', nodeId)
   },
   async simulateDispatch({ commit, dispatch }, { nodeId }) {
-    await AutomationWorkflowNodeService(useNuxtApp().$client).simulateDispatch(nodeId)
+    await AutomationWorkflowNodeService(useNuxtApp().$client).simulateDispatch(
+      nodeId
+    )
   },
   /**
    * Updates all the next nodes of a given node with the provided values.
