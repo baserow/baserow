@@ -80,7 +80,7 @@ export const actions = {
       onUploadProgress = null,
     }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const type = DatabaseApplicationType.getType()
 
     // Check if the provided database (application) has the correct type.
@@ -107,7 +107,7 @@ export const actions = {
    * Fetches one table for the authenticated user.
    */
   async fetch({ commit, dispatch }, { database, tableId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
 
     try {
@@ -137,7 +137,7 @@ export const actions = {
    * Update an existing table of the provided database with the provided tables.
    */
   async update({ commit, dispatch }, { database, table, values }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const { data } = await TableService($client).update(table.id, values)
     // Create a dict with only the values we want to update.
     const update = Object.keys(values).reduce((result, key) => {
@@ -160,7 +160,7 @@ export const actions = {
     { commit, getters },
     { database, order, oldOrder, isHashed = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('ORDER_TABLES', { database, order, isHashed })
 
     try {
@@ -174,7 +174,7 @@ export const actions = {
    * Deletes an existing application.
    */
   async delete({ commit, dispatch }, { database, table }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     try {
       await TableService($client).delete(table.id)
       return dispatch('forceDelete', { database, table })
@@ -191,7 +191,7 @@ export const actions = {
    * to the server.
    */
   forceDelete(context, { database, table }) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const { commit, rootGetters } = context
 
     // Call the table deleted event on all fields.

@@ -65,6 +65,9 @@ export default defineNuxtModule({
     addPlugin({
       src: resolve('./plugin/store.js'),
     })
+    addPlugin({
+      src: resolve('./plugin/realtime.js'),
+    })
 
     addRouteMiddleware({
       name: 'tableLoading',

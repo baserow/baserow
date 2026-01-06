@@ -229,7 +229,7 @@ export const actions = {
   ) {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_LAST_KANBAN_ID', kanbanId)
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
@@ -265,7 +265,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
@@ -322,7 +322,7 @@ export const actions = {
     const kanbanId = getters.getLastKanbanId
     if (!readOnly) {
       const updateValues = { field_options: newFieldOptions }
-      const { $client } = useNuxtApp()
+      const { $client } = this
       try {
         await ViewService($client).updateFieldOptions({
           viewId: kanbanId,
@@ -394,7 +394,7 @@ export const actions = {
     })
 
     if (!readOnly) {
-      const { $client } = useNuxtApp()
+      const { $client } = this
       const kanbanId = getters.getLastKanbanId
       const oldValues = clone(getters.getAllFieldOptions[field.id])
       const updateValues = { field_options: {} }
@@ -422,7 +422,7 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const { $registry, $client } = useNuxtApp()
+    const { $registry, $client } = this
     const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
@@ -454,7 +454,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const row = clone(values)
     populateRow(row)
 
@@ -498,7 +498,7 @@ export const actions = {
     { table, view, row, fields }
   ) {
     commit('SET_ROW_LOADING', { row, value: true })
-    const { $client } = useNuxtApp()
+    const { $client } = this
     try {
       await dispatch('deletedExistingRow', {
         view,
@@ -587,7 +587,7 @@ export const actions = {
     { dispatch, getters, commit },
     { view, row, values, fields }
   ) {
-    const { $registry } = useNuxtApp()
+    const { $registry } = this
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const fieldName = `field_${singleSelectFieldId}`
 
@@ -665,7 +665,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const gridId = getters.getLastKanbanId
     const publicUrl = rootGetters['page/view/public/getIsPublic']
     const publicAuthToken = rootGetters['page/view/public/getAuthToken']
@@ -717,7 +717,7 @@ export const actions = {
     if (row === null) {
       return
     }
-    const { $client, $registry } = useNuxtApp()
+    const { $client, $registry } = this
 
     // First we need to figure out what the current position of the row is and how
     // that should be communicated to the backend later. The backend expects another
@@ -823,7 +823,7 @@ export const actions = {
         // Only add the row to the temporary copy if it doesn't live the current stack.
         sortedRows.push(row)
       }
-      const { $registry } = useNuxtApp()
+      const { $registry } = this
       sortedRows.sort(getRowSortFunction($registry, [], [], null))
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
@@ -887,7 +887,7 @@ export const actions = {
     { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
-    const { $client, $registry } = useNuxtApp()
+    const { $client, $registry } = this
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -959,7 +959,7 @@ export const actions = {
     const field = fields.find(
       (field) => field.id === getters.getSingleSelectFieldId
     )
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const updateValues = {
       type: field.type,
       select_options: clone(field.select_options),
@@ -1003,7 +1003,7 @@ export const actions = {
     { getters, commit, dispatch },
     { fields, optionId, values }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const field = fields.find(
       (field) => field.id === getters.getSingleSelectFieldId
     )
@@ -1044,7 +1044,7 @@ export const actions = {
     { getters, commit, dispatch },
     { singleSelectField, optionId, deferredFieldUpdate = false }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const options = clone(singleSelectField.select_options)
     const index = options.findIndex((o) => o.id === optionId)
     options.splice(index, 1)

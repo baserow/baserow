@@ -130,7 +130,7 @@ export const actions = {
   },
 
   async selectChat({ commit }, chat) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_CHAT_LOADING', { chat, value: true })
 
     // Set role and loading state for each message
@@ -155,7 +155,7 @@ export const actions = {
   },
 
   async fetchChats({ commit }, workspaceId) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_CHATS_LOADING', true)
 
     try {
@@ -169,7 +169,7 @@ export const actions = {
   },
 
   handleStreamingResponse({ commit, state }, { chat, id, update }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     switch (update.type) {
       case MESSAGE_TYPE.AI_STARTED:
         commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: update.message_id })
@@ -252,7 +252,7 @@ export const actions = {
     { commit, state, dispatch, getters },
     { message, workspace }
   ) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     if (!state.currentChatId) {
       await dispatch('createChat', workspace.id)
     }
@@ -325,7 +325,7 @@ export const actions = {
   },
 
   async cancelMessage({ commit, state }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     if (!state.currentChatId) {
       return
     }
@@ -351,7 +351,7 @@ export const actions = {
   },
 
   async submitFeedback({ commit, state }, { messageId, sentiment, feedback }) {
-    const { $client, $i18n } = useNuxtApp()
+    const { $client, $i18n } = this
     const message = state.messages.find((m) => m.id === messageId)
     if (!message) {
       return

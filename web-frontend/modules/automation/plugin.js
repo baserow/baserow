@@ -4,7 +4,6 @@ import {
   IntegrationsAutomationSettingsType,
 } from '@baserow/modules/automation/automationSettingTypes'
 
-import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
@@ -46,16 +45,11 @@ import {
 } from '@baserow/modules/automation/dataProviderTypes'
 
 export default defineNuxtPlugin({
-  dependsOn: ['core', 'store', 'realtime'],
+  dependsOn: ['core', 'store'],
   setup(nuxtApp) {
-    const { $registry, $store, $realtime, $clientErrorMap } = nuxtApp
+    const { $registry, $store, $clientErrorMap } = nuxtApp
 
     const context = { app: nuxtApp }
-
-    // Register realtime events
-    if ($realtime) {
-      registerRealtimeEvents($realtime)
-    }
 
     $clientErrorMap.setError(
       'ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE',

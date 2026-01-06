@@ -30,6 +30,10 @@ export default defineNuxtModule({
       src: resolve('./plugin.js'),
     })
 
+    addPlugin({
+      src: resolve('./plugins/realtime.js'),
+    })
+
     extendPages((pages) => {
       pages.push(...routes)
     })

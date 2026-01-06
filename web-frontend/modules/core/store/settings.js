@@ -23,13 +23,13 @@ export const mutations = {
 
 export const actions = {
   async load({ commit }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const { data } = await SettingsService($client).get()
     commit('SET_SETTINGS', data)
     commit('SET_LOADED', true)
   },
   async update({ commit, getters }, values) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const oldValues = clone(getters.get)
     commit('UPDATE_SETTINGS', values)
 

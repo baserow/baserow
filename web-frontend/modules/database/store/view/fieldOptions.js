@@ -53,7 +53,7 @@ export default () => {
         undoRedoActionGroupId = null,
       }
     ) {
-      const { $client } = useNuxtApp()
+      const { $client } = this
       commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
         fieldId: field.id,
         values,
@@ -97,7 +97,7 @@ export default () => {
       { dispatch, getters, rootGetters },
       { newFieldOptions, oldFieldOptions, readOnly = false }
     ) {
-      const { $client } = useNuxtApp()
+      const { $client } = this
       dispatch('forceUpdateAllFieldOptions', newFieldOptions)
 
       const viewId = getters.getViewId

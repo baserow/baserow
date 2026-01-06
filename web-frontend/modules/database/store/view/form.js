@@ -31,7 +31,7 @@ export const mutations = {
 
 export const actions = {
   async fetchInitial({ dispatch, commit, getters }, { formId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const { data } = await ViewService($client).fetchFieldOptions(formId)
     commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
   },
@@ -53,7 +53,7 @@ export const actions = {
     { dispatch, getters },
     { form, newFieldOptions, oldFieldOptions }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     dispatch('forceUpdateAllFieldOptions', newFieldOptions)
     const updateValues = { field_options: newFieldOptions }
 
@@ -121,7 +121,7 @@ export const actions = {
     { commit, getters },
     { form, field, values }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const oldValues = clone(getters.getAllFieldOptions[field.id])
     commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
       fieldId: field.id,

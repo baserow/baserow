@@ -821,7 +821,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { scrollTop, fields }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const windowHeight = getters.getWindowHeight
     const gridId = getters.getLastGridId
     const view = rootGetters['view/get'](getters.getLastGridId)
@@ -977,7 +977,7 @@ export const actions = {
    * what the start and end index for the visible rows in the buffer should be.
    */
   visibleByScrollTop({ getters, commit }, scrollTop = null) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     if (scrollTop !== null) {
       commit('SET_SCROLL_TOP', scrollTop)
     } else {
@@ -1044,7 +1044,7 @@ export const actions = {
    * milliseconds to prevent calling the actions who do a lot of calculating a lot.
    */
   fetchByScrollTopDelayed({ dispatch }, { scrollTop, fields }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const now = Date.now()
 
     const fire = (scrollTop) => {
@@ -1083,7 +1083,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { gridId, fields, adhocFiltering, adhocSorting }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     // Reset scrollTop when switching table
     fireScrollTop.distance = 0
     fireScrollTop.last = Date.now()
@@ -1152,7 +1152,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     const gridId = getters.getLastGridId
@@ -1261,7 +1261,7 @@ export const actions = {
     { commit, getters, dispatch, rootGetters },
     { field, values, oldValues, readOnly = false, undoRedoActionGroupId }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const previousOptions = getters.getAllFieldOptions[field.id]
     let needAggregationValueUpdate = false
 
@@ -1315,7 +1315,7 @@ export const actions = {
    * the backend is made.
    */
   setFieldOptionsOfField({ commit, getters, dispatch }, { field, values }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
       fieldId: field.id,
       values,
@@ -1335,7 +1335,7 @@ export const actions = {
       undoRedoActionGroupId = null,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     dispatch('forceUpdateAllFieldOptions', newFieldOptions)
 
     const gridId = getters.getLastGridId
@@ -1373,7 +1373,7 @@ export const actions = {
     { rootGetters, getters, commit },
     { view }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const isPublic = rootGetters['page/view/public/getIsPublic']
     const search = getters.getActiveSearchTerm
     const fieldOptions = getters.getAllFieldOptions
@@ -1487,7 +1487,7 @@ export const actions = {
     { commit, getters, dispatch },
     { order, readOnly = false, undoRedoActionGroupId = null }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const oldFieldOptions = clone(getters.getAllFieldOptions)
     const newFieldOptions = clone(getters.getAllFieldOptions)
 
@@ -1541,7 +1541,7 @@ export const actions = {
       readOnly = false,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const oldFieldOptions = clone(getters.getAllFieldOptions)
     const newFieldOptions = clone(getters.getAllFieldOptions)
 
@@ -1619,7 +1619,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { direction, fields }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     const rowIndex = getters.getMultiSelectStartRowIndex
     const fieldIndex = getters.getMultiSelectStartFieldIndex
@@ -1709,7 +1709,7 @@ export const actions = {
     dispatch('setMultiSelectHeadOrTail', { rowId, fieldIndex })
   },
   multiSelectShiftChange({ getters, commit, dispatch }, { direction }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     if (
       getters.getMultiSelectStartRowIndex === -1 ||
       getters.getMultiSelectStartFieldIndex === -1
@@ -1809,7 +1809,7 @@ export const actions = {
     { getters, commit, dispatch },
     { rowId, fieldIndex }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SELECTED_CELL', { rowId: -1, fieldId: -1 })
 
     const rowIndex = getters.getRowIndexById(rowId)
@@ -1872,7 +1872,7 @@ export const actions = {
    * If one or more rows are not in the buffer, they are fetched from the backend.
    */
   async getCurrentSelection({ dispatch, getters }, { fields }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     let rows = []
     let fieldsToUse = fields
@@ -1942,7 +1942,7 @@ export const actions = {
     { getters, rootGetters },
     { startIndex, limit, fields, excludeFields, rowIds, limitLinkedItems }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
     }
@@ -2015,7 +2015,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_ROW_FETCHING', { row, value: true })
     try {
       const gridId = getters.getLastGridId
@@ -2052,7 +2052,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     await dispatch('createNewRows', {
       view,
       table,
@@ -2076,7 +2076,7 @@ export const actions = {
       undoRedoActionGroupId = null,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )
@@ -2338,7 +2338,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, values, metadata, populate = true }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const row = clone(values)
 
     if (populate) {
@@ -2409,7 +2409,7 @@ export const actions = {
     { commit, dispatch, getters },
     { table, grid, fields, getScrollTop, row, before = null }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const oldOrder = row.order
 
     // If before is not provided, then the row is added last. Because we don't know
@@ -2507,7 +2507,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     // Add the update actual update function to the queue so that the same row
     // will never be updated concurrency, and so that the value won't be
     // updated if the row hasn't been created yet
@@ -2676,7 +2676,7 @@ export const actions = {
     { commit, dispatch },
     { rowHeadIndex, fieldHeadIndex, rowTailIndex, fieldTailIndex }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('updateMultipleSelectIndexes', {
       position: 'head',
@@ -2702,7 +2702,7 @@ export const actions = {
     { commit, getters },
     { position, rowIndex, fieldIndex }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     if (
       (position === 'tail' && getters.getMultiSelectHeadRowIndex !== -1) ||
       (position === 'head' && getters.getMultiSelectTailRowIndex !== -1)
@@ -2759,7 +2759,7 @@ export const actions = {
       selectUpdatedCells = true,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const copiedRowsCount = textData.length
     const copiedCellsInRowsCount = textData[0].length
     const isSingleCellCopied =
@@ -2969,7 +2969,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row, values, metadata, updatedFieldIds = [] }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
@@ -3146,7 +3146,7 @@ export const actions = {
     { commit, dispatch, getters },
     { table, view, row, fields, getScrollTop }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_ROW_LOADING', { row, value: true })
 
     try {
@@ -3174,7 +3174,7 @@ export const actions = {
     { dispatch, getters },
     { table, view, fields, getScrollTop }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     let rowsToDelete = []
 
@@ -3228,7 +3228,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     row = clone(row)
     populateRow(row)
 
@@ -3330,7 +3330,7 @@ export const actions = {
       refreshMatchesOnClient = true,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SEARCH', { activeSearchTerm, hideRowsNotMatchingSearch })
     if (refreshMatchesOnClient) {
       getters.getAllRows.forEach((row) =>
@@ -3351,7 +3351,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { row, fields = null, overrides, forced = false }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     // Avoid computing search on table loading
     if (getters.getActiveSearchTerm || forced) {
       const rowSearchMatches = calculateSingleRowSearchMatches(
@@ -3376,7 +3376,7 @@ export const actions = {
     { commit, getters },
     { view, row, fields, overrides = {} }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const values = clone(row)
     Object.assign(values, overrides)
 
@@ -3407,7 +3407,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row === undefined) {
       return
@@ -3435,7 +3435,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const rowShouldBeHidden =
       (!row._.matchFilters || !row._.matchSearch) && !row._.loading
     const openedInModal =
@@ -3462,7 +3462,7 @@ export const actions = {
     { commit, getters, dispatch },
     { tableId, rowId, rowMetadataType, updateFunction }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row) {
       commit('UPDATE_ROW_METADATA', { row, rowMetadataType, updateFunction })
@@ -3475,7 +3475,7 @@ export const actions = {
     { getters, dispatch },
     { table, view, allVisibleFields, allFieldsInTable, getScrollTop }
   ) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const [minFieldIndex, maxFieldIndex] =
       getters.getMultiSelectFieldIndexSorted
 
@@ -3519,7 +3519,7 @@ export const actions = {
     commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value })
   },
   AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     // If rowIds is empty, clear ALL pending operations for this field.
     if (rowIds.length === 0) {
       commit('CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD', { fieldId })
@@ -3539,7 +3539,7 @@ export const actions = {
     commit('UPDATE_ROW_HEIGHT', value)
   },
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     const rowId = row.id
     const limit = $config.public.baserowRowPageSizeLimit
     const checked = state.checkboxSelectedRows.includes(rowId)
@@ -3567,7 +3567,7 @@ export const actions = {
     }
   },
   setSelectionType({ commit, dispatch, getters }, { selectionType }) {
-    const { $registry, $client, $i18n, $config } = useNuxtApp()
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SELECTION_TYPE', selectionType)
 
     if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
