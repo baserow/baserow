@@ -19,7 +19,6 @@
       :is="integrationType.formComponent"
       :application="application"
       :default-values="defaultValues"
-      :parent-form="formProvider"
     />
   </form>
 </template>

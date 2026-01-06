@@ -35,7 +35,6 @@
       v-if="integration"
       :default-values="defaultValues"
       :application="builder"
-      :parent-form="formProvider"
       :integration="integration"
       @values-changed="emitChange"
     />

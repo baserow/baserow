@@ -97,12 +97,11 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 export default {
-  mixins: [form, childForm],
+  mixins: [form],
   props: {
     application: {
       type: Object,
