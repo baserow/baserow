@@ -205,6 +205,8 @@ import _ from 'lodash'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'ImportFileModal',
@@ -622,6 +624,8 @@ export default {
           tableId: this.job.table_id,
         },
       })
+      await pageFinished()
+      await nextTick()
       this.hide()
     },
     onJobDone() {

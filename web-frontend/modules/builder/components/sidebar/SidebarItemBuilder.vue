@@ -85,6 +85,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
 import { VISIBILITY_LOGGED_IN } from '@baserow/modules/builder/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItemBuilder',
@@ -153,6 +155,8 @@ export default {
             pageId: page.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } finally {
         this.setLoading(builder, false)
       }

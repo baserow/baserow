@@ -6,6 +6,8 @@ import { populateTable } from '@baserow/modules/database/store/table'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import DatabaseForm from '@baserow/modules/database/components/form/DatabaseForm'
 import ApplicationContext from '@baserow/modules/database/components/application/ApplicationContext'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class DatabaseApplicationType extends ApplicationType {
   static getType() {
@@ -117,6 +119,8 @@ export class DatabaseApplicationType extends ApplicationType {
           tableId: tables[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
       $store.dispatch('toast/error', {

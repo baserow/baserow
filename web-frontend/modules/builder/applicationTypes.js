@@ -7,6 +7,8 @@ import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTe
 import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -165,6 +167,8 @@ export class BuilderApplicationType extends ApplicationType {
           pageId: pages[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
       $store.dispatch('toast/error', {
