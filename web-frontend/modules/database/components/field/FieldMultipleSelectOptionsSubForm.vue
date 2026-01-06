@@ -48,6 +48,7 @@ export default {
     return {
       allowedValues: ['select_options', 'multiple_select_default'],
       values: {
+        select_options: [],
         multiple_select_default: [],
       },
     }

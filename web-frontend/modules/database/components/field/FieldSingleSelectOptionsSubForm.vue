@@ -59,6 +59,7 @@ export default {
     return {
       allowedValues: ['select_options', 'single_select_default'],
       values: {
+        select_options: [],
         single_select_default: null,
       },
     }
