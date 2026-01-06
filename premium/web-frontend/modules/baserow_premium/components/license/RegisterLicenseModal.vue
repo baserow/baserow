@@ -38,6 +38,8 @@ import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseForm from '@baserow_premium/components/license/RegisterLicenseForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import { getPricingURL } from '@baserow_premium/utils/pricing'
+import { pageFinished } from '@baserow/modules/core/utils/routing.js'
+import { nextTick } from '#imports'
 
 export default {
   name: 'RegisterLicenseModal',
@@ -75,6 +77,8 @@ export default {
             id: data.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } catch (error) {
         this.handleError(error, 'license', {
           ERROR_INVALID_LICENSE: new ResponseErrorMessage(
