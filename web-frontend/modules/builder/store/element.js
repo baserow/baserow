@@ -72,7 +72,7 @@ const updateCachedValues = (page) => {
 
 const mutations = {
   SET_ITEMS(state, { builder, page, elements }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     builder.selectedElement = null
     page.elements = elements.map((element) =>
       populateElement(element, $registry)
@@ -80,7 +80,7 @@ const mutations = {
     updateCachedValues(page)
   },
   ADD_ITEM(state, { page, element, beforeId = null }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     page.elements.push(populateElement(element, $registry))
     updateCachedValues(page)
   },

@@ -440,14 +440,12 @@ export class RealTimeHandler {
 
 export default defineNuxtPlugin({
   name: 'realtime',
-  dependsOn: ['store'],
+  dependsOn: ['store', 'registry'],
   setup(nuxtApp) {
     const router = useRouter()
     const context = {
       store: nuxtApp.$store,
-      app: {
-        router,
-      },
+      app: nuxtApp,
     }
 
     nuxtApp.provide('realtime', new RealTimeHandler(context))

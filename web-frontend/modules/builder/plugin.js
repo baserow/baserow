@@ -156,9 +156,9 @@ import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default defineNuxtPlugin({
   name: 'builder',
-  dependsOn: ['core', 'store', 'realtime'],
+  dependsOn: ['core', 'store'],
   async setup(nuxtApp) {
-    const { $store, $registry, $realtime } = nuxtApp
+    const { $store, $registry } = nuxtApp
     const context = { app: nuxtApp }
 
     // Merge builder translations into i18n
@@ -172,8 +172,6 @@ export default defineNuxtPlugin({
       $i18n.mergeLocaleMessage('pl', pl)
       $i18n.mergeLocaleMessage('ko', ko)
     }*/
-
-    registerRealtimeEvents($realtime)
 
     $store.registerModule('page', pageStore)
     $store.registerModule('element', elementStore)

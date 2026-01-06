@@ -139,7 +139,7 @@ export const actions = {
    * Fetches the next 20 notifications from the server and adds them to the comments list.
    */
   async fetchNextSetOfNotifications({ commit, state }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', true)
     try {
       // We have to use offset based paging here as new notifications can be added by the
@@ -157,7 +157,7 @@ export const actions = {
     }
   },
   async fetchAll({ commit, state }, { workspaceId }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADED', false)
     commit('SET_LOADING', true)
     try {
@@ -176,7 +176,7 @@ export const actions = {
     return state.items
   },
   async clearAll({ commit, state }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
 
     const notifications = state.items
     const totalCount = state.totalCount
@@ -211,7 +211,7 @@ export const actions = {
     commit('SET_LOADED', false)
   },
   async markAsRead({ commit, state }, { notification }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
 
     commit('SET_NOTIFICATIONS_READ', {
       notificationIds: [notification.id],
@@ -241,7 +241,7 @@ export const actions = {
     commit('SET_LOADED', false)
   },
   async markAllAsRead({ commit, state }) {
-    const { $registry, $i18n, $client, $config } = useNuxtApp()
+    const { $registry, $i18n, $client, $config } = this
     const notificationIds = state.items
       .filter((notification) => !notification.read)
       .map((notification) => notification.id)

@@ -46,7 +46,7 @@ export const mutations = {
 
 export const actions = {
   async fetchInitial({ commit }, { tableId, rowId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('RESET_ENTRIES')
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
@@ -65,7 +65,7 @@ export const actions = {
     }
   },
   async fetchNextPage({ commit, getters }, { tableId, rowId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
       const { data } = await RowHistoryService($client).fetchAll({

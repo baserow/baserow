@@ -100,7 +100,7 @@ export const actions = {
   },
   updateWidget({ commit }, { widgetId, values, originalValues }) {
     return new Promise((resolve, reject) => {
-      const { $client } = useNuxtApp()
+      const { $client } = this
       commit('UPDATE_WIDGET', { widgetId, values })
 
       let previousOriginalValues = originalValues
@@ -130,7 +130,7 @@ export const actions = {
     { commit, dispatch },
     { dataSourceId, values, widget }
   ) {
-    const { $client, $registry } = useNuxtApp()
+    const { $client, $registry } = this
     commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService($client).update(
       dataSourceId,
@@ -157,7 +157,7 @@ export const actions = {
     }
   },
   async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('RESET')
     commit('SET_DASHBOARD_ID', dashboardId)
     const { data } = await WidgetService($client).getAllWidgets(dashboardId)
@@ -177,7 +177,7 @@ export const actions = {
     }
   },
   async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const { data: dataSourcesData } = await DataSourceService(
       $client
     ).getAllDataSources(dashboardId)
@@ -189,7 +189,7 @@ export const actions = {
     })
   },
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     const tempId = Date.now()
     commit('ADD_WIDGET', { id: tempId, ...widget })
     let widgetData
@@ -214,7 +214,7 @@ export const actions = {
     await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
   },
   async dispatchDataSource({ commit }, dataSourceId) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('UPDATE_DATA', { dataSourceId, values: null })
     try {
       const { data } = await DataSourceService($client).dispatch(dataSourceId)
@@ -224,7 +224,7 @@ export const actions = {
     }
   },
   async deleteWidget({ dispatch }, widgetId) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     await WidgetService($client).delete(widgetId)
     dispatch('handleWidgetDeleted', widgetId)
   },

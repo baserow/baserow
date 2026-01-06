@@ -51,7 +51,7 @@ export const actions = {
     commit('SET_ROW', row)
   },
   async fetchRow({ commit }, { tableId, rowId }) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     try {
       const { data: row } = await RowService($client).get(tableId, rowId)
       commit('SET_ROW', row)
@@ -65,7 +65,7 @@ export const actions = {
     { commit, dispatch, state },
     { tableId, viewId, previous, activeSearchTerm }
   ) {
-    const { $client } = useNuxtApp()
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
       const { data: row, status } = await RowService($client).getAdjacent({
