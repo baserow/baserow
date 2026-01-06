@@ -695,7 +695,7 @@
     },
     "generalSettings": {
         "titleOverview": "General",
-        "labelForm": "Favicon",
+        "labelForm": "Icono de sitio (favicon)",
         "labelDescription": "Escoge un ICO, PNG, GIF o JPEG de 128x128px.",
         "cantUploadFaviconTitle": "No se puede cargar el archivo favicon",
         "cantUpdateApplicationTitle": "No se ha podido actualizar la aplicación",
@@ -1050,7 +1050,8 @@
         "errorDataSourceDispatch": "No se pudo cargar los datos de \"{name}\": "
     },
     "sidePanelGuidedTourStep": {
-        "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el relleno, el margen, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica."
+        "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el relleno, el margen, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica.",
+        "title": "Panel lateral: Personaliza elementos"
     },
     "addElementCategory": {
         "suggestedElement": "Elementos sugeridos",
@@ -1163,6 +1164,19 @@
         "content": "¡Cada aplicación necesita componentes! Añade elementos como tablas, formularios, botones y más para dar vida a tu aplicación."
     },
     "dataGuidedTourStep": {
-        "title": "Conecta tus datos"
+        "title": "Conecta tus datos",
+        "content": "Enlaza tus tablas de Baserow aquí para mostrar, filtrar y actualizar tus datos de forma dinámica en distintos elementos."
+    },
+    "previewGuidedTourStep": {
+        "title": "Tu centro de control",
+        "content": "Aquí es donde configuras las páginas de tu aplicación. Añade elementos, previsualiza el resultado y estructura tu aplicación exactamente como deseas."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Vista previa en diferentes dispositivos",
+        "content": "Cambia entre las vistas previas de escritorio, tablet y móvil para ver cómo se ve tu aplicación en diferentes tamaños de pantalla. ¡Asegúrate de que tu diseño funcione perfectamente en todos los dispositivos!"
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Previsualiza y publica tu aplicación",
+        "content": "Haz clic en **«Vista previa»** para probar tu aplicación de forma privada. Cuando estés listo, haz clic en **«Publicar»** para compartirla con el público a través de un dominio."
     }
 }
