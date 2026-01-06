@@ -207,6 +207,8 @@ import WebhookModal from '@baserow/modules/database/components/webhook/WebhookMo
 import SidebarDuplicateTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarDuplicateTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItem',
@@ -313,6 +315,8 @@ export default {
             tableId: table.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } finally {
         this.setLoading(database, false)
       }
