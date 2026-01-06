@@ -822,7 +822,7 @@
         "otherPersonalTeam": "Otros / personal",
         "title": "¡Construyamos juntos tu primer espacio de trabajo!",
         "description": "¿En qué equipo estás?",
-        "marketingTeam": "Marketing",
+        "marketingTeam": "Mercadotecnia",
         "productAndDesignTeam": "Producto y diseño",
         "engineeringTeam": "Ingeniería",
         "operationsTeam": "Operaciones",
@@ -1198,6 +1198,10 @@
         "secretCopiedTitle": "Secreto copiado",
         "secretCopiedMessage": "Secreto TOTP copiado al portapapeles.",
         "enterCode": "Introduce el código mostrado",
-        "enterCodeDescription": "Introduce un código de 6 dígitos que muestra la aplicación para confirmar que lo has configurado correctamente."
+        "enterCodeDescription": "Introduce un código de 6 dígitos que muestra la aplicación para confirmar que lo has configurado correctamente.",
+        "verificationFailed": "La verificación falló",
+        "verificationFailedDescription": "El código ingresado no es válido.",
+        "provisioningFailed": "El aprovisionamiento falló",
+        "checkSuccess": "Se habilitó correctamente la autenticación de dos factores"
     }
 }
