@@ -4,7 +4,6 @@
       :fields="allFieldsInTable"
       :database="database"
       :default-values="defaultValues"
-      :parent-form="formProvider"
       @input="selectedThroughField = $event"
     ></FieldSelectThroughFieldSubForm>
     <FieldSelectTargetFieldSubForm
@@ -12,7 +11,6 @@
       :table="table"
       :through-field="selectedThroughField"
       :default-values="defaultValues"
-      :parent-form="formProvider"
       :label="$t('fieldLookupSubForm.selectTargetFieldLabel')"
       @input="selectedTargetField = $event"
     ></FieldSelectTargetFieldSubForm>
@@ -25,7 +23,6 @@
         :view="view"
         :all-fields-in-table="allFieldsInTable"
         :database="database"
-        :parent-form="formProvider"
       >
       </FormulaTypeSubForms>
     </template>
@@ -34,7 +31,6 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import lookupFieldSubForm from '@baserow/modules/database/mixins/lookupFieldSubForm'
 import FormulaTypeSubForms from '@baserow/modules/database/components/formula/FormulaTypeSubForms'
@@ -48,6 +44,6 @@ export default {
     FieldSelectTargetFieldSubForm,
     FormulaTypeSubForms,
   },
-  mixins: [form, fieldSubForm, lookupFieldSubForm, childForm],
+  mixins: [form, fieldSubForm, lookupFieldSubForm],
 }
 </script>

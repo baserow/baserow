@@ -1,11 +1,10 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 
 export default {
   name: 'FieldAutonumberSubForm',
-  mixins: [form, fieldSubForm, childForm],
+  mixins: [form, fieldSubForm],
   setup() {
     return () => null
   },

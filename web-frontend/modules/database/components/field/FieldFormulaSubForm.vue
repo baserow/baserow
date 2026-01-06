@@ -12,7 +12,6 @@
       :formula-type-refresh-needed="formulaTypeRefreshNeeded"
       :all-fields-in-table="allFieldsInTable"
       :database="database"
-      :parent-form="formProvider"
       @open-advanced-context="
         $refs.advancedFormulaEditContext.openContext($event)
       "
@@ -27,7 +26,6 @@
       :fields="fieldsUsableInFormula"
       :error="formulaError"
       :database="database"
-      :parent-form="formProvider"
       @blur="v$.values.formula.$touch()"
       @hidden="v$.values.formula.$touch()"
     >
@@ -39,7 +37,6 @@
 import { required } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FieldFormulaInitialSubForm from '@baserow/modules/database/components/formula/FieldFormulaInitialSubForm'
@@ -53,7 +50,7 @@ export default {
     FieldFormulaInitialSubForm,
     FormulaAdvancedEditContext,
   },
-  mixins: [form, fieldSubForm, childForm],
+  mixins: [form, fieldSubForm],
   props: {
     name: {
       required: true,

@@ -40,13 +40,12 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { LinkRowFieldType } from '@baserow/modules/database/fieldTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
   name: 'FieldSelectThroughFieldSubForm',
-  mixins: [form, childForm],
+  mixins: [form],
   props: {
     database: {
       type: Object,

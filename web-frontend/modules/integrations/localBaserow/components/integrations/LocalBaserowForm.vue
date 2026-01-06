@@ -17,10 +17,9 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 
 export default {
-  mixins: [form, childForm],
+  mixins: [form],
   props: {
     application: {
       type: Object,

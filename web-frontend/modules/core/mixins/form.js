@@ -1,5 +1,7 @@
 import { clone } from '@baserow/modules/core/utils/object'
 
+const formParentKey = Symbol('formParentKey')
+
 /**
  * This mixin introduces some helper functions for form components where the
  * whole component existence is based on being a form.
@@ -18,6 +20,22 @@ export default {
       required: false,
       default: false,
     },
+  },
+  provide() {
+    return {
+      [formParentKey]: this,
+    }
+  },
+  inject: {
+    parentForm: {
+      from: formParentKey,
+      default: null,
+    },
+  },
+  beforeUnmount() {
+    if (this.parentForm && typeof this.parentForm.unregisterChildForm === 'function') {
+      this.parentForm.unregisterChildForm(this)
+    }
   },
   data() {
     return {
@@ -40,6 +58,10 @@ export default {
     for (const [key, value] of Object.entries(this.getDefaultValues())) {
       this.values[key] = value
     }
+
+    if (this.parentForm && typeof this.parentForm.registerChildForm === 'function') {
+      this.parentForm.registerChildForm(this)
+    }
   },
   watch: {
     values: {
@@ -53,14 +75,6 @@ export default {
         }
       },
       deep: true,
-    },
-  },
-  computed: {
-    formProvider() {
-      return {
-        registerChildForm: this.registerChildForm,
-        unregisterChildForm: this.unregisterChildForm,
-      }
     },
   },
   methods: {
