@@ -7,7 +7,6 @@ import {
   RatingInputElementType,
   RatingElementType,
 } from '@baserow/modules/builder/elementTypes'
-import { TestApp } from '@baserow/test/helpers/testApp'
 import {
   VISIBILITY_NOT_LOGGED,
   VISIBILITY_LOGGED_IN,
@@ -17,12 +16,14 @@ import {
   ROLE_TYPE_ALLOW_ALL,
 } from '@baserow/modules/builder/constants'
 import {
+  CHOICE_OPTION_TYPES,
   IFRAME_SOURCE_TYPES,
   IMAGE_SOURCE_TYPES,
 } from '@baserow/modules/builder/enums'
 
 describe('elementTypes tests', () => {
-  const testApp = new TestApp()
+  const testApp = useNuxtApp()
+  //let testApp
 
   const contextBlankParam = { page: { parameters: { id: '' } } }
 
@@ -38,6 +39,10 @@ describe('elementTypes tests', () => {
     navigate_to_page_id: misconfiguredOpenPageWorkflowActionPage.id,
   }
 
+  /*beforeEach(() => {
+    testApp = useNuxtApp()
+  })*/
+
   describe('CollectionElementTypeMixin tests', () => {
     test('hasAncestorOfType', () => {
       const page = { id: 123 }
@@ -49,7 +54,7 @@ describe('elementTypes tests', () => {
         parent_element_id: elementParent.id,
       }
       page.elementMap = { 456: elementParent, 789: element }
-      const elementType = testApp.getRegistry().get('element', element.type)
+      const elementType = testApp.$registry.get('element', element.type)
       expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(true)
       expect(elementType.hasAncestorOfType(page, element, 'repeat')).toBe(false)
     })
@@ -64,22 +69,24 @@ describe('elementTypes tests', () => {
         parent_element_id: repeatAncestor.id,
       }
       page.elementMap = { 111: repeatAncestor, 222: tableElement }
-      const repeatElementType = testApp
-        .getRegistry()
-        .get('element', repeatAncestor.type)
+      const repeatElementType = testApp.$registry.get(
+        'element',
+        repeatAncestor.type
+      )
       expect(
         repeatElementType.hasCollectionAncestor(page, repeatAncestor)
       ).toBe(false)
-      const tableElementType = testApp
-        .getRegistry()
-        .get('element', tableElement.type)
+      const tableElementType = testApp.$registry.get(
+        'element',
+        tableElement.type
+      )
       expect(tableElementType.hasCollectionAncestor(page, tableElement)).toBe(
         true
       )
     })
 
     test('hasSourceOfData', () => {
-      const repeatElementType = testApp.getRegistry().get('element', 'repeat')
+      const repeatElementType = testApp.$registry.get('element', 'repeat')
       expect(repeatElementType.hasSourceOfData({ data_source_id: 1 })).toBe(
         true
       )
@@ -101,11 +108,11 @@ describe('elementTypes tests', () => {
       expect(elementType.getDisplayName({}, {})).toBe(null)
     })
     test('ColumnElementType returns the name by default', () => {
-      const elementType = testApp.getRegistry().get('element', 'column')
-      expect(elementType.getDisplayName({}, {})).toBe('elementType.column')
+      const elementType = testApp.$registry.get('element', 'column')
+      expect(elementType.getDisplayName({}, {})).toBe('Columns')
     })
     test('InputTextElementType label and default_value variations', () => {
-      const elementType = testApp.getRegistry().get('element', 'input_text')
+      const elementType = testApp.$registry.get('element', 'input_text')
       expect(
         elementType.getDisplayName({ label: { formula: "'First name'" } }, {})
       ).toBe('First name')
@@ -130,7 +137,7 @@ describe('elementTypes tests', () => {
       ).toBe(elementType.name)
     })
     test('ChoiceElementType label, default_value & placeholder variations', () => {
-      const elementType = testApp.getRegistry().get('element', 'choice')
+      const elementType = testApp.$registry.get('element', 'choice')
       expect(
         elementType.getDisplayName({ label: { formula: "'Animals'" } }, {})
       ).toBe('Animals')
@@ -155,7 +162,7 @@ describe('elementTypes tests', () => {
       ).toBe(elementType.name)
     })
     test('CheckboxElementType with and without a label to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'checkbox')
+      const elementType = testApp.$registry.get('element', 'checkbox')
       expect(
         elementType.getDisplayName({ label: { formula: "'Active'" } }, {})
       ).toBe('Active')
@@ -171,7 +178,7 @@ describe('elementTypes tests', () => {
       )
     })
     test('HeadingElementType with and without a value to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
+      const elementType = testApp.$registry.get('element', 'heading')
       expect(
         elementType.getDisplayName({ value: { formula: "'A heading'" } }, {})
       ).toBe('A heading')
@@ -187,7 +194,7 @@ describe('elementTypes tests', () => {
       )
     })
     test('TextElementType with and without a value to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'text')
+      const elementType = testApp.$registry.get('element', 'text')
       expect(
         elementType.getDisplayName({ value: { formula: "'Some text'" } }, {})
       ).toBe('Some text')
@@ -203,7 +210,7 @@ describe('elementTypes tests', () => {
       )
     })
     test('LinkElementType page and custom URL variations', () => {
-      const elementType = testApp.getRegistry().get('element', 'link')
+      const elementType = testApp.$registry.get('element', 'link')
       const applicationContext = {
         builder: {
           pages: [{ id: 1, name: 'Contact Us', shared: false }],
@@ -218,7 +225,7 @@ describe('elementTypes tests', () => {
           },
           applicationContext
         )
-      ).toBe('elementType.link -> Contact Us')
+      ).toBe('Link -> Contact Us')
 
       // If we were not able to find the page, we fall back to trying for a value.
       expect(
@@ -256,7 +263,7 @@ describe('elementTypes tests', () => {
       ).toBe('Link name -> https://baserow.io')
     })
     test('ImageElementType with and without alt text to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'image')
+      const elementType = testApp.$registry.get('element', 'image')
       expect(
         elementType.getDisplayName(
           { alt_text: { formula: "'Baserow logo'" } },
@@ -275,7 +282,7 @@ describe('elementTypes tests', () => {
       ).toBe(elementType.name)
     })
     test('ButtonElementType with and without value to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'button')
+      const elementType = testApp.$registry.get('element', 'button')
       expect(
         elementType.getDisplayName({ value: { formula: "'Click me'" } }, {})
       ).toBe('Click me')
@@ -291,7 +298,7 @@ describe('elementTypes tests', () => {
       )
     })
     test('TableElementType with and without data_source_id to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'table')
+      const elementType = testApp.$registry.get('element', 'table')
       const page = {
         id: 1,
         name: 'Contact Us',
@@ -313,7 +320,7 @@ describe('elementTypes tests', () => {
       }
       expect(
         elementType.getDisplayName({ data_source_id: 1 }, applicationContext)
-      ).toBe('elementType.table - Customers')
+      ).toBe('Table - Customers')
 
       // In the event we don't find the data source.
       expect(
@@ -325,11 +332,11 @@ describe('elementTypes tests', () => {
       )
     })
     test('FormContainerElementType returns the name by default', () => {
-      const elementType = testApp.getRegistry().get('element', 'form_container')
+      const elementType = testApp.$registry.get('element', 'form_container')
       expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
     })
     test('IFrameElementType with and without a url to use', () => {
-      const elementType = testApp.getRegistry().get('element', 'iframe')
+      const elementType = testApp.$registry.get('element', 'iframe')
       expect(
         elementType.getDisplayName(
           { url: { formula: "'https://www.youtube.com/watch?v=dQw4w9WgXcQ'" } },
@@ -343,7 +350,7 @@ describe('elementTypes tests', () => {
   })
   describe('elementType isVisible', () => {
     test('HeadingElementType isVisible', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
+      const elementType = testApp.$registry.get('element', 'heading')
 
       const element = {
         value: { formula: "'Heading'", mode: 'simple' },
@@ -531,18 +538,6 @@ describe('elementTypes tests', () => {
       expect(elementType.isValid({ max_value: 5 }, 6)).toBe(false)
     })
 
-    test('RatingElementType | valid range', () => {
-      const elementType = new RatingElementType()
-      expect(elementType.isValid({ max_value: 5 }, 0)).toBe(true)
-      expect(elementType.isValid({ max_value: 5 }, 3)).toBe(true)
-      expect(elementType.isValid({ max_value: 5 }, 5)).toBe(true)
-    })
-
-    test('RatingElementType | invalid range', () => {
-      const elementType = new RatingElementType()
-      expect(elementType.isValid({ max_value: 5 }, -1)).toBe(false)
-      expect(elementType.isValid({ max_value: 5 }, 6)).toBe(false)
-    })
     test('InputTextElementType | required | no value.', () => {
       const elementType = new InputTextElementType()
       expect(elementType.isValid({ required: true }, null)).toBe(false)
@@ -642,6 +637,7 @@ describe('elementTypes tests', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
           { id: 1, value: '', name: 'Blank' },
           { id: 2, value: 'uk', name: 'UK' },
@@ -653,6 +649,7 @@ describe('elementTypes tests', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [{ id: 1, value: 'uk', name: 'UK' }],
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
@@ -661,6 +658,7 @@ describe('elementTypes tests', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: false,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [{ id: 1, value: 'uk', name: 'UK' }],
       }
       expect(elementType.isValid(element, '', {})).toBe(true)
@@ -669,6 +667,7 @@ describe('elementTypes tests', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: false,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [{ id: 1, value: 'uk', name: 'UK' }],
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
@@ -724,7 +723,7 @@ describe('elementTypes tests', () => {
 
   describe('elementType isDisallowedReason for base elements', () => {
     test("Heading can't be placed on header nor footer if before/after another element", () => {
-      const headingElementType = testApp.getRegistry().get('element', 'heading')
+      const headingElementType = testApp.$registry.get('element', 'heading')
 
       const page = { id: 123 }
       const sharedPage = { id: 124, shared: true }
@@ -745,7 +744,7 @@ describe('elementTypes tests', () => {
           placeInContainer: null,
           pagePlace: 'header',
         })
-      ).toEqual('elementType.notAllowedLocation')
+      ).toEqual('This element is not allowed at this location')
 
       expect(
         headingElementType.isDisallowedReason({
@@ -756,15 +755,16 @@ describe('elementTypes tests', () => {
           placeInContainer: null,
           pagePlace: 'footer',
         })
-      ).toEqual('elementType.notAllowedLocation')
+      ).toEqual('This element is not allowed at this location')
     })
   })
 
   describe('elementType isDisallowedReason tests', () => {
     test('FormContainerElementType itself as a nested child.', () => {
-      const formContainerElementType = testApp
-        .getRegistry()
-        .get('element', 'form_container')
+      const formContainerElementType = testApp.$registry.get(
+        'element',
+        'form_container'
+      )
 
       const page = { id: 123 }
       const formAncestor = { id: 111, type: 'form_container', page_id: page.id }
@@ -794,7 +794,7 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('elementType.notAllowedInsideSameType')
+      ).toEqual('This element is not allowed in a container of the same type')
       expect(
         formContainerElementType.isDisallowedReason({
           builder: { id: 1 },
@@ -803,7 +803,7 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('elementType.notAllowedInsideSameType')
+      ).toEqual('This element is not allowed in a container of the same type')
       // We check a top level column element
       expect(
         formContainerElementType.isDisallowedReason({
@@ -816,9 +816,10 @@ describe('elementTypes tests', () => {
       ).toEqual(null)
     })
     test('ColumnElementType itself as a nested child.', () => {
-      const columnContainerElementType = testApp
-        .getRegistry()
-        .get('element', 'column')
+      const columnContainerElementType = testApp.$registry.get(
+        'element',
+        'column'
+      )
 
       const page = { id: 123 }
       const columnAncestor = { id: 111, type: 'column', page_id: page.id }
@@ -833,12 +834,13 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('elementType.notAllowedInsideSameType')
+      ).toEqual('This element is not allowed in a container of the same type')
     })
     test('RepeatElementType allow itself as a nested child.', () => {
-      const repeatContainerElementType = testApp
-        .getRegistry()
-        .get('element', 'repeat')
+      const repeatContainerElementType = testApp.$registry.get(
+        'element',
+        'repeat'
+      )
 
       const page = { id: 123 }
       const repeatAncestor = { id: 111, type: 'repeat', page_id: page.id }
@@ -857,11 +859,12 @@ describe('elementTypes tests', () => {
     })
   })
 
-  describe('elementTypes ChoiceElementType choiceOptions tests', () => {
-    test('choiceOptions returns Value if Value is not null.', () => {
+  describe('elementTypes ChoiceElementType getOptionsResolved tests', () => {
+    test('getOptionsResolved returns Value if Value is not null.', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
           { id: 1, value: '', name: 'Foo Name' },
           { id: 2, value: 'bar_name', name: 'Bar Name' },
@@ -869,13 +872,17 @@ describe('elementTypes tests', () => {
       }
 
       // When the Value is non-null, we expect them to be returned verbatim.
-      expect(elementType.choiceOptions(element)).toEqual(['', 'bar_name'])
+      expect(elementType.getOptionsResolved(element)).toEqual([
+        { name: 'Foo Name', value: '' },
+        { name: 'Bar Name', value: 'bar_name' },
+      ])
     })
 
-    test('choiceOptions returns Name if Value is null.', () => {
+    test('getOptionsResolved returns Name if Value is null.', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
           { id: 1, value: null, name: 'Foo Name' },
           { id: 2, value: 'bar_name', name: 'Bar Name' },
@@ -884,16 +891,17 @@ describe('elementTypes tests', () => {
 
       // When Value is null, we assume the user wants it to be the same as
       // the Name. Thus, we return 'Foo Name' instead of null.
-      expect(elementType.choiceOptions(element)).toEqual([
-        'Foo Name',
-        'bar_name',
+      expect(elementType.getOptionsResolved(element)).toEqual([
+        { name: 'Foo Name', value: 'Foo Name' },
+        { name: 'Bar Name', value: 'bar_name' },
       ])
     })
 
-    test('choiceOptions returns Value if it is an empty string.', () => {
+    test('getOptionsResolved returns Value if it is an empty string.', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
           { id: 1, value: '', name: 'Foo Name' },
           { id: 2, value: 'bar_name', name: 'Bar Name' },
@@ -902,13 +910,16 @@ describe('elementTypes tests', () => {
 
       // Since an empty string is a valid Value, if the user has explicitly
       // declared it, we should return an empty string.
-      expect(elementType.choiceOptions(element)).toEqual(['', 'bar_name'])
+      expect(elementType.getOptionsResolved(element)).toEqual([
+        { name: 'Foo Name', value: '' },
+        { name: 'Bar Name', value: 'bar_name' },
+      ])
     })
   })
 
   describe('HeadingElementType isInError tests', () => {
     test('Returns true if Heading Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
+      const elementType = testApp.$registry.get('element', 'heading')
 
       // Heading with missing value is invalid
       expect(
@@ -933,7 +944,7 @@ describe('elementTypes tests', () => {
 
   describe('TextElementType isInError tests', () => {
     test('Returns true if Text Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'text')
+      const elementType = testApp.$registry.get('element', 'text')
 
       // Text with missing value is invalid
       expect(
@@ -958,7 +969,7 @@ describe('elementTypes tests', () => {
 
   describe('LinkElementType isInError tests', () => {
     test('Returns true if Link Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'link')
+      const elementType = testApp.$registry.get('element', 'link')
 
       // Link with missing text is invalid
       expect(
@@ -1001,7 +1012,7 @@ describe('elementTypes tests', () => {
 
   describe('ImageElementType isInError tests', () => {
     test('Returns true if Image Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'image')
+      const elementType = testApp.$registry.get('element', 'image')
 
       // Image with image_source_type of 'upload' must have an image_file url
       const element = { image_source_type: IMAGE_SOURCE_TYPES.UPLOAD }
@@ -1041,7 +1052,7 @@ describe('elementTypes tests', () => {
         id: 1,
         pages: [page, misconfiguredOpenPageWorkflowActionPage],
       }
-      const elementType = testApp.getRegistry().get('element', 'button')
+      const elementType = testApp.$registry.get('element', 'button')
 
       // Button with value and invalid workflowAction is invalid
       expect(elementType.isInError(element, { page, element, builder })).toBe(
@@ -1057,7 +1068,7 @@ describe('elementTypes tests', () => {
       }
       const builder = { id: 1, pages: [page] }
       const element = { id: 50, value: { formula: '' }, page_id: page.id }
-      const elementType = testApp.getRegistry().get('element', 'button')
+      const elementType = testApp.$registry.get('element', 'button')
 
       // Button with missing value is invalid
       expect(elementType.isInError(element, { page, element, builder })).toBe(
@@ -1080,7 +1091,7 @@ describe('elementTypes tests', () => {
 
   describe('IFrameElementType isInError tests', () => {
     test('Returns true if IFrame Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'iframe')
+      const elementType = testApp.$registry.get('element', 'iframe')
 
       // IFrame with source_type of 'url' and missing url is invalid
       const element = {
@@ -1135,14 +1146,14 @@ describe('elementTypes tests', () => {
         id: 1,
         pages: [page, misconfiguredOpenPageWorkflowActionPage],
       }
-      const elementType = testApp.getRegistry().get('element', 'form_container')
+      const elementType = testApp.$registry.get('element', 'form_container')
 
       // Form container with value and workflowAction is valid
       expect(elementType.isInError(element, { page, element, builder })).toBe(
         true
       )
     })
-    test.only('Returns true if Form Container Element has errors, false otherwise', () => {
+    test('Returns true if Form Container Element has errors, false otherwise', () => {
       const page = {
         id: 1,
         shared: false,
@@ -1161,7 +1172,7 @@ describe('elementTypes tests', () => {
         pages: [page, misconfiguredOpenPageWorkflowActionPage],
       }
 
-      const elementType = testApp.getRegistry().get('element', 'form_container')
+      const elementType = testApp.$registry.get('element', 'form_container')
 
       // Invalid if we have no workflow actions
       expect(elementType.isInError(element, { page, element, builder })).toBe(
@@ -1191,7 +1202,7 @@ describe('elementTypes tests', () => {
 
   describe('MenuElementType isInError tests', () => {
     test('Returns true if Menu Element has errors, false otherwise', () => {
-      const elementType = testApp.getRegistry().get('element', 'menu')
+      const elementType = testApp.$registry.get('element', 'menu')
 
       const page = {
         id: 1,
@@ -1318,7 +1329,7 @@ describe('elementTypes tests', () => {
 
       await Promise.all(
         elements.map(async (element, index) => {
-          await testApp.getStore().dispatch('element/forceCreate', {
+          await testApp.$store.dispatch('element/forceCreate', {
             page,
             element: {
               place_in_container: null,
@@ -1352,7 +1363,7 @@ describe('elementTypes tests', () => {
 
       await Promise.all(
         sharedPageElements.map(async (element, index) => {
-          await testApp.getStore().dispatch('element/forceCreate', {
+          await testApp.$store.dispatch('element/forceCreate', {
             page: sharedPage,
             element: {
               place_in_container: null,
@@ -1366,10 +1377,10 @@ describe('elementTypes tests', () => {
       )
     })
     test('for first header.', () => {
-      const elementType = testApp.getRegistry().get('element', 'header')
-      const firstHeader = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 111)
+      const elementType = testApp.$registry.get('element', 'header')
+      const firstHeader = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 111)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1382,10 +1393,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for second header.', () => {
-      const elementType = testApp.getRegistry().get('element', 'header')
-      const secondHeader = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 112)
+      const elementType = testApp.$registry.get('element', 'header')
+      const secondHeader = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 112)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1398,10 +1409,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for second header with sharedPage.', () => {
-      const elementType = testApp.getRegistry().get('element', 'header')
-      const secondHeader = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 112)
+      const elementType = testApp.$registry.get('element', 'header')
+      const secondHeader = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 112)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1414,10 +1425,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for first footer.', () => {
-      const elementType = testApp.getRegistry().get('element', 'footer')
-      const firstFooter = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 113)
+      const elementType = testApp.$registry.get('element', 'footer')
+      const firstFooter = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 113)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1430,10 +1441,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for first footer with shared page.', () => {
-      const elementType = testApp.getRegistry().get('element', 'footer')
-      const firstFooter = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 113)
+      const elementType = testApp.$registry.get('element', 'footer')
+      const firstFooter = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 113)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1446,10 +1457,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for second footer.', () => {
-      const elementType = testApp.getRegistry().get('element', 'footer')
-      const secondFooter = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 114)
+      const elementType = testApp.$registry.get('element', 'footer')
+      const secondFooter = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 114)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1462,10 +1473,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for first heading.', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
-      const firstHeading = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 42)
+      const elementType = testApp.$registry.get('element', 'heading')
+      const firstHeading = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 42)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1478,10 +1489,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for second heading.', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
-      const secondHeading = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 43)
+      const elementType = testApp.$registry.get('element', 'heading')
+      const secondHeading = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 43)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1494,10 +1505,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for first heading with shared page.', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
-      const firstHeading = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 42)
+      const elementType = testApp.$registry.get('element', 'heading')
+      const firstHeading = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 42)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
@@ -1510,10 +1521,10 @@ describe('elementTypes tests', () => {
       expect(elementsAround.right).toBeNull()
     })
     test('for second heading  with shared page.', () => {
-      const elementType = testApp.getRegistry().get('element', 'heading')
-      const secondHeading = testApp
-        .getStore()
-        .getters['element/getElementByIdInPages']([page, sharedPage], 43)
+      const elementType = testApp.$registry.get('element', 'heading')
+      const secondHeading = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], 43)
       const elementsAround = elementType.getElementsAround({
         builder,
         page,
