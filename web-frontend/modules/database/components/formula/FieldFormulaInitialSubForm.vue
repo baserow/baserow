@@ -58,7 +58,6 @@
 </template>
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaTypeSubForms from '@baserow/modules/database/components/formula/FormulaTypeSubForms'
@@ -69,7 +68,7 @@ export default {
   components: {
     FormulaTypeSubForms,
   },
-  mixins: [form, fieldSubForm, childForm],
+  mixins: [form, fieldSubForm],
   props: {
     loading: {
       type: Boolean,

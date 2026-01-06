@@ -3,11 +3,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import form from '@baserow/modules/core/mixins/form'
 import FieldSelectOptions from '@baserow/modules/database/components/field/FieldSelectOptions'
 import FieldService from '@baserow/modules/database/services/field'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { randomColor } from '@baserow/modules/core/utils/colors'
 
 export default {
-  mixins: [form, fieldSubForm, childForm],
+  mixins: [form, fieldSubForm],
   components: { FieldSelectOptions },
   watch: {
     fieldType() {

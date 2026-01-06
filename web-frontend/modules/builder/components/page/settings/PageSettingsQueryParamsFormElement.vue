@@ -64,12 +64,11 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'PageSettingsQueryParamsFormElement',
-  mixins: [form, childForm],
+  mixins: [form],
   props: {
     queryParams: {
       type: Array,

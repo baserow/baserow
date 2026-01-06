@@ -75,7 +75,6 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
-import childForm from '@baserow/modules/core/mixins/childForm'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import ViewService from '@baserow/modules/database/services/view'
@@ -83,7 +82,7 @@ import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOw
 
 export default {
   name: 'FieldLinkRowSubForm',
-  mixins: [form, fieldSubForm, childForm],
+  mixins: [form, fieldSubForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
