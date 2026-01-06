@@ -5,6 +5,8 @@ import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sid
 import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
 import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class DashboardApplicationType extends ApplicationType {
   static getType() {
@@ -77,6 +79,8 @@ export class DashboardApplicationType extends ApplicationType {
           dashboardId: application.id,
         },
       })
+      await pageFinished()
+      await nextTick()
     } catch (error) {
       if (error.name !== 'NavigationDuplicated') {
         throw error

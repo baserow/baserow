@@ -4,6 +4,8 @@ import AutomationForm from '@baserow/modules/automation/components/form/Automati
 import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
 import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -103,6 +105,8 @@ export class AutomationApplicationType extends ApplicationType {
           workflowId: workflows[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
       $store.dispatch('toast/error', {

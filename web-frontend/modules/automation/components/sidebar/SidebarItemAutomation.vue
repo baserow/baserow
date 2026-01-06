@@ -94,6 +94,8 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItemAutomation',
@@ -159,6 +161,8 @@ export default {
             workflowId: workflow.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } finally {
         this.setLoading(automation, false)
       }
