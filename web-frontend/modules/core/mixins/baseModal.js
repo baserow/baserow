@@ -82,7 +82,15 @@ export default {
         return
       }
 
-      this.$nextTick(() => (this.open = false))
+      // This is a temporary fix. What happens is the modal is opened by a context menu
+      // item and the user closes the modal, the element is first deleted and then the
+      // click outside event of the context is fired. It then checks if the click was
+      // inside one of his children, but because the modal element doesn't exists
+      // anymore it thinks it was outside, so is closes the context menu which we don't
+      // want automatically.
+      setTimeout(() => {
+        this.open = false
+      })
 
       // cleanup
       if (this.mouseDownEvent) {
