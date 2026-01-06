@@ -50,6 +50,8 @@ import { required, helpers } from '@vuelidate/validators'
 import { mapActions } from 'vuex'
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
 import languageDetection from '@baserow/modules/core/mixins/languageDetection'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   mixins: [form, error, languageDetection],
@@ -107,6 +109,8 @@ export default {
         const { original } = this.$route.query
         if (original && isRelativeUrl(original)) {
           await this.$router.push(original)
+          await pageFinished()
+          await nextTick()
         }
       } catch (e) {
         const statusCode = e.response?.status

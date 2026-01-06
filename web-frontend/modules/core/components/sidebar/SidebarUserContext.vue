@@ -133,6 +133,8 @@ import context from '@baserow/modules/core/mixins/context'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarUserContext',
@@ -199,7 +201,6 @@ export default {
       })
     },
     async logoff() {
-      this.hide()
       this.logoffLoading = true
       await logoutAndRedirectToLogin(
         this.$nuxt.$router,
@@ -219,6 +220,8 @@ export default {
       )
       try {
         await this.$router.push({ name: activatedAdminTypes[0].routeName })
+        await pageFinished()
+        await nextTick()
       } catch {}
     },
     hasUnreadNotifications(workspaceId) {
@@ -233,6 +236,8 @@ export default {
         name: 'workspace',
         params: { workspaceId: workspace.id },
       })
+      await pageFinished()
+      await nextTick()
       this.hide()
     },
   },

@@ -81,6 +81,8 @@ import {
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
 import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   components: {
@@ -176,6 +178,8 @@ export default {
         } else {
           await this.$router.push({ name: 'dashboard' })
         }
+        await pageFinished()
+        await nextTick()
       }
       this.$emit('success')
     },

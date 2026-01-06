@@ -8,6 +8,8 @@ import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstant
 import PermissionsService from '@baserow/modules/core/services/permissions'
 import RolesService from '@baserow/modules/core/services/roles'
 import { useNuxtApp } from '#app'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export function populateWorkspace(workspace) {
   workspace._ = {
@@ -334,6 +336,8 @@ export const actions = {
       // can't be accessed anymore.
       await dispatch('unselect', workspace)
       await this.$router.push({ name: 'dashboard' })
+      await pageFinished()
+      await nextTick()
     }
 
     commit('DELETE_ITEM', workspace.id)
@@ -532,7 +536,7 @@ export const getters = {
       return {}
     }
     return getters['get'](state.selected.id)
-    
+
   },
   selectedId(state) {
     if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
