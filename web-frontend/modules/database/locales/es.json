@@ -962,8 +962,8 @@
         "productsRow1": "Rebranding del sitio web",
         "productsRow3": "Campaña publicitaria de pago",
         "teamsRow1": "Ventas",
-        "teamsRow2": "RH",
-        "teamsRow3": "Marketing",
+        "teamsRow2": "Recursos Humanos",
+        "teamsRow3": "Mercadotecnia",
         "tasks": "Tareas",
         "tasksRow1": "Rediseño del logo",
         "campaignsRow1": "Venta de verano",
@@ -1155,5 +1155,38 @@
     },
     "webhookDeactivatedNotification": {
         "body": "{name} webhook ha sido desactivado porque falló demasiadas veces consecutivamente."
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "El payload para el webhook {name} con ID de evento {event_id} era demasiado grande. El contenido se ha dividido en varios lotes, pero los datos que superan el límite de lote de {batch_limit} fueron descartados."
+    },
+    "tablesGuidedTourStep": {
+        "title": "Configurar tablas",
+        "content": "Las tablas almacenan tu información ordenadamente. Crea una nueva tabla dentro de tu base de datos para comenzar a estructurar tus datos."
+    },
+    "filterSortGroupGuidedTourStep": {
+        "title": "Encuentra y organiza tus datos",
+        "content": "Ubica rápidamente la información filtrando y ordenando tus filas. Agrupa instantáneamente por cualquiera de los campos para visualizar claramente los patrones y simplificar tus flujos de trabajo."
+    },
+    "addFieldGuidedTourStep": {
+        "title": "Personaliza tus datos",
+        "content": "Haz clic en «+» para añadir nuevos campos (columnas). Elige entre varios tipos de campo para capturar exactamente lo que más importa a tu proyecto."
+    },
+    "createViewGuidedTourStep": {
+        "title": "Personaliza tus vistas",
+        "content": "Crea vistas personalizadas como cuadrícula, calendario, kanban o galería para visualizar tus datos exactamente como los quieres."
+    },
+    "createFormViewGuidedTourStep": {
+        "title": "Crear un formulario",
+        "content": "Construye rápidamente formularios a partir de tus tablas para recopilar respuestas directamente en tu tabla, agilizando la recopilación de datos."
+    },
+    "viewOptionsGuidedTourStep": {
+        "title": "Opciones de vista",
+        "content": "Haz clic en los tres puntos junto a la vista para exportar, importar, duplicar y configurar un webhook."
+    },
+    "fieldRules": {
+        "errorTitle": "Error durante el procesamiento de la regla de campo",
+        "ruleDoesNotExist": "La regla no existe",
+        "ruleTypeDoesNotExist": "El tipo de regla no existe",
+        "ruleAlreadyExists": "La regla ya existe"
     }
 }
