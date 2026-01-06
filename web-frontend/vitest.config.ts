@@ -9,5 +9,6 @@ export default defineVitestConfig({
         domEnvironment: 'happy-dom',
       },
     },
+    include: ['./**/*.spec.js'],
   },
 })
