@@ -33,6 +33,8 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import LicenseService from '@baserow_premium/services/license'
+import { pageFinished } from '@baserow/modules/core/utils/routing.js'
+import { nextTick } from '#imports'
 
 export default {
   name: 'DisconnectLicenseModal',
@@ -56,6 +58,8 @@ export default {
       try {
         await LicenseService(this.$client).disconnect(this.license.id)
         await this.$nuxt.$router.push({ name: 'admin-licenses' })
+        await pageFinished()
+        await nextTick()
       } catch (error) {
         this.handleError(error)
       }

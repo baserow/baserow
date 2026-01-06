@@ -30,6 +30,8 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 import WorkspaceForm from './WorkspaceForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'CreateWorkspaceModal',
@@ -61,6 +63,8 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
+        await pageFinished()
+        await nextTick()
         this.$emit('created')
         this.hide()
       } catch (error) {

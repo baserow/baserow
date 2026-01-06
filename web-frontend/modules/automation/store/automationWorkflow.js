@@ -4,6 +4,8 @@ import { AutomationApplicationType } from '@baserow/modules/automation/applicati
 import AutomationWorkflowService from '@baserow/modules/automation/services/workflow'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undoRedoConstants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export function populateAutomationWorkflow(workflow) {
   return {
@@ -113,6 +115,8 @@ const actions = {
       // Redirect back to the dashboard because the workflow doesn't exist anymore.
       const router = useRouter()
       await router.push({ name: 'dashboard' })
+      await pageFinished()
+      await nextTick()
       commit('UNSELECT')
     }
 

@@ -1,7 +1,8 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
 import jwtDecode from 'jwt-decode'
 import tldjs from 'tldjs'
-import { useCookie, useRuntimeConfig } from '#imports'
+import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 
 const cookieTokenName = 'jwt_token'
 export const userSourceCookieTokenName = 'user_source_token'
@@ -130,12 +131,16 @@ export const logoutAndRedirectToLogin = async (
   } else {
     await store.dispatch('auth/logoff', { invalidateToken })
   }
-  router.push({ name: 'login', query: { noredirect: null } }).then(() => {
-    if (showSessionExpiredToast) {
-      store.dispatch('toast/setUserSessionExpired', true)
-    } else if (showPasswordChangedToast) {
-      store.dispatch('toast/setUserPasswordChanged', true)
-    }
-    store.dispatch('auth/clearAllStoreUserData')
-  })
+
+  await router.push({ name: 'login', query: { noredirect: null } })
+  await pageFinished()
+  await nextTick()
+
+  if (showSessionExpiredToast) {
+    store.dispatch('toast/setUserSessionExpired', true)
+  } else if (showPasswordChangedToast) {
+    store.dispatch('toast/setUserPasswordChanged', true)
+  }
+
+  await store.dispatch('auth/clearAllStoreUserData')
 }

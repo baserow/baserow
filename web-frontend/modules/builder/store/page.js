@@ -2,6 +2,8 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import PageService from '@baserow/modules/builder/services/page'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export function populatePage(page) {
   return {
@@ -109,6 +111,8 @@ const actions = {
       commit('UNSELECT')
       // Redirect back to the dashboard because the page doesn't exist anymore.
       await this.$router.push({ name: 'dashboard' })
+      await pageFinished()
+      await nextTick()
     }
 
     commit('DELETE_ITEM', { builder, id: page.id })
