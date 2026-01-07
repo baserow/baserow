@@ -184,7 +184,7 @@
     "fieldDocs": {
         "readOnly": "Este es un campo de sólo lectura.",
         "text": "Acepta texto de una sola línea.",
-        "longText": "Acepta el texto en varias líneas. Si el formato de texto enriquecido está activado, puede utilizar Markdown para dar formato al texto.",
+        "longText": "Acepta texto multilínea. Si el formato de texto enriquecido está activado, puede utilizar markdown para dar formato al texto.",
         "linkRow": "Acepta una matriz que contiene los identificadores o los valores de texto del campo principal de las filas relacionadas del id de tabla {table}. Deben proporcionarse todos los identificadores cada vez que se actualicen las relaciones. Si se proporciona una matriz vacía, se eliminarán todas las relaciones. En caso de que se proporcione un valor de texto en lugar de un identificador, se buscará una fila con el valor coincidente para su campo principal. Si se encuentra más de una coincidencia, se seleccionará la primera en el orden de la tabla. Puedes enviar una cadena con nombres separados por coma, en cuyo caso la cadena se convierte en una matriz de nombres de fila. También se puede enviar sólo el ID de una fila.",
         "number": "Acepta un número.",
         "numberPositive": "Acepta un número positivo.",
