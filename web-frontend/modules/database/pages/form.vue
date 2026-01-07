@@ -74,7 +74,7 @@ const form = ref(null)
 
 // Replaces asyncData from Nuxt2
 const { data, error } = await useAsyncData(
-  'database-public-form',
+  `database-public-form-${route.params.slug}`,
   async () => {
     const slug = route.params.slug
 

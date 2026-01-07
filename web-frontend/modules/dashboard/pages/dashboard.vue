@@ -29,7 +29,7 @@ const {
   data,
   pending,
   error: fetchError,
-} = await useAsyncData('dashboard-data', async () => {
+} = await useAsyncData(`dashboard-data-${route.params.dashboardId}`, async () => {
   const dashboardId = parseInt(route.params.dashboardId)
 
   try {
