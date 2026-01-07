@@ -217,7 +217,11 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 recovery_code.delete()
                 return True
 
-        provider = TwoFactorAuthProviderModel.objects.filter(user__email=email).first()
+        provider = (
+            TwoFactorAuthProviderModel.objects.select_for_update(of=("self",))
+            .filter(user__email=email)
+            .first()
+        )
         if not provider:
             raise VerificationFailed
 
