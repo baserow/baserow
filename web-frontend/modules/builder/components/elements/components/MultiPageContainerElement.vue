@@ -42,6 +42,7 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'MultiPageContainerElement',
+  emits: ['move'],
   components: {
     PageElement,
     ElementPreview,

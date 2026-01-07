@@ -21,6 +21,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'TimeSelectContext',
+  emits: ['input'],
   mixins: [context],
   props: {
     hideOnClickOutside: {

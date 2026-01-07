@@ -22,6 +22,7 @@ import { DashboardApplicationType } from '@baserow/modules/dashboard/application
 
 export default {
   name: 'DashboardTemplateSidebar',
+  emits: ['selected', 'selected-page'],
   props: {
     application: {
       type: Object,

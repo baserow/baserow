@@ -7,6 +7,7 @@
 <script>
 export default {
   name: 'Tab',
+  emits: ['click'],
   inject: {
     tabsProvider: {
       default: null,

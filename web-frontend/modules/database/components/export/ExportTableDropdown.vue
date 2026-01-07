@@ -27,6 +27,7 @@ import DropdownItem from '@baserow/modules/core/components/DropdownItem'
 
 export default {
   name: 'ExportTableDropdown',
+  emits: ['input'],
   components: { Dropdown, DropdownItem },
   props: {
     loading: {

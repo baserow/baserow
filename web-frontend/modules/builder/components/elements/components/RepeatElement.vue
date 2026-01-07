@@ -139,6 +139,7 @@ import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'RepeatElement',
+  emits: ['move'],
   components: {
     CollectionElementHeader,
     PageElement,

@@ -47,6 +47,7 @@ import { defineComponent, ref, computed, watch, getCurrentInstance } from 'vue'
 export default defineComponent({
   name: 'AutomationSettingsModal',
   mixins: [modal],
+  emits: ['created'],
   props: {
     automation: {
       type: Object,

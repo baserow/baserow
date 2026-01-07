@@ -79,6 +79,7 @@ import TimelineDateSettingsHeaderContext from '@baserow_premium/components/views
 
 export default {
   name: 'TimelineViewHeader',
+  emits: ['refresh'],
   components: {
     ViewFieldsContext,
     TimelineDateSettingsHeaderContext,

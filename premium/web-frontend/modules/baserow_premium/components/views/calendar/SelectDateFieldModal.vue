@@ -34,6 +34,7 @@ import DateFieldSelectForm from '@baserow_premium/components/views/calendar/Date
 
 export default {
   name: 'SelectDateFieldModal',
+  emits: ['refresh'],
   components: {
     DateFieldSelectForm,
   },

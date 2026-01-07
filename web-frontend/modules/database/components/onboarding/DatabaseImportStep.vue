@@ -69,6 +69,7 @@ import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGri
 
 export default {
   name: 'DatabaseImportStep',
+  emits: ['update-data'],
   components: { SimpleGrid },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

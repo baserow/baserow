@@ -28,6 +28,7 @@ import { isMac } from '@baserow/modules/core/utils/events'
 export default {
   name: 'SidebarSearch',
 
+  emits: ['open-workspace-search'],
   props: {
     selectedWorkspace: {
       type: Object,

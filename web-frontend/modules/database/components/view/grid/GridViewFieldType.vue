@@ -307,6 +307,7 @@ import fieldOptions from '~/modules/database/store/view/fieldOptions'
 
 export default {
   name: 'GridViewFieldType',
+  emits: ['dragging', 'field-created', 'move-field', 'refresh', 'updated'],
   components: {
     HorizontalResize,
     FieldContext,

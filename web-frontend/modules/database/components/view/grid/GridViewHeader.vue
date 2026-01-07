@@ -37,6 +37,7 @@ import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 
 export default {
   name: 'GridViewHeader',
+  emits: ['refresh'],
   components: { GridViewRowHeight, GridViewHide, ViewSearch },
   props: {
     database: {

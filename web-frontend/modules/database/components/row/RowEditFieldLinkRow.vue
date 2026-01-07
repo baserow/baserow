@@ -85,6 +85,8 @@ import ForeignRowEditModal from '@baserow/modules/database/components/row/Foreig
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
+  emits: ['refresh-row'],
+
   components: { SelectRowModal, ForeignRowEditModal },
   mixins: [rowEditField, linkRowField, arrayLoading],
   data() {

@@ -34,6 +34,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregationGroupByForm',
+  emits: ['value-changed'],
   props: {
     tableFields: {
       type: Array,

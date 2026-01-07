@@ -19,6 +19,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'TwoWaySyncDeactivated',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   methods: {
     handleClick() {

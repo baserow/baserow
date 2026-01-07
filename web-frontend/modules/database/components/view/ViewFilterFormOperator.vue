@@ -35,7 +35,7 @@
 <script>
 export default {
   name: 'ViewFilterFormOperator',
-  emits: ['update-filter-type'],
+  emits: ['updateFilterType'],
   props: {
     index: {
       type: Number,

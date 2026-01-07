@@ -26,6 +26,7 @@ import TemplateService from '@baserow/modules/core/services/template'
 
 export default {
   name: 'TemplateHeader',
+  emits: ['installed'],
   props: {
     workspace: {
       type: Object,

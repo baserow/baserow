@@ -261,6 +261,7 @@ const timescales = {
 
 export default {
   name: 'TimelineContainer',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     RowCreateModal,
     RowEditModal,

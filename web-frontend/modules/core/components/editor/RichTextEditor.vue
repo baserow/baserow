@@ -123,6 +123,8 @@ const richTextEditorExtensions = ({
 }
 
 export default {
+  emits: ['blur', 'focus', 'input'],
+
   components: {
     EditorContent,
     RichTextEditorBubbleMenu,

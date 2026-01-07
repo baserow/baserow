@@ -6,6 +6,8 @@ import { nextTick } from '#imports'
  * Some helper method to modify workspaces used by the sidebar and dashboard.
  */
 export default {
+  emits: ['selected'],
+
   methods: {
     setLoading(workspace, value) {
       this.$store.dispatch('workspace/setItemLoading', { workspace, value })

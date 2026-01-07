@@ -6,6 +6,8 @@
 
 <script>
 export default {
+  emits: ['click'],
+
   name: 'InsertElementButton',
 }
 </script>

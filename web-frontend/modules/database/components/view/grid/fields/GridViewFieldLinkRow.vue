@@ -101,6 +101,7 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
 
 export default {
   name: 'GridViewFieldLinkRow',
+  emits: ['refresh-row'],
   components: { ForeignRowEditModal, SelectRowModal },
   mixins: [gridField, linkRowField, arrayLoading],
   data() {

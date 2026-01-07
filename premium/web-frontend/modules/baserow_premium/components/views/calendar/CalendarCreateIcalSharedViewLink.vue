@@ -32,6 +32,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'CalendarCreateIcalSharedViewLink',
+  emits: ['update-view'],
   props: {
     view: { type: Object, required: false, default: null },
     /**

@@ -17,6 +17,7 @@ import viewFilter from '@baserow/modules/database/mixins/viewFilter'
 
 export default {
   name: 'ViewFilterTypeMultipleSelectOptions',
+  emits: ['input'],
   components: { FieldSelectOptionsDropdown },
   mixins: [viewFilter],
   computed: {

@@ -48,6 +48,7 @@ import IntegrationCreateEditModal from '@baserow/modules/core/components/integra
 
 export default {
   name: 'IntegrationDropdown',
+  emits: ['input'],
   components: { IntegrationCreateEditModal },
   props: {
     value: {

@@ -1,6 +1,8 @@
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
+  emits: ['click'],
+
   inject: ['multiple', 'dropdownProvider'],
   props: {
     value: {

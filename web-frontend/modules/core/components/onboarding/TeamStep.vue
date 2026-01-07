@@ -17,6 +17,7 @@
 <script>
 export default {
   name: 'TeamStep',
+  emits: ['update-data'],
   data() {
     return {
       team: '',

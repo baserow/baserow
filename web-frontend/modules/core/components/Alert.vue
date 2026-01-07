@@ -29,6 +29,8 @@
 
 <script>
 export default {
+  emits: ['close'],
+
   props: {
     /**
      * The type of alert to display

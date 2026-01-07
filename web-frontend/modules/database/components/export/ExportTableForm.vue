@@ -49,6 +49,7 @@ import ExporterTypeChoices from '@baserow/modules/database/components/export/Exp
 
 export default {
   name: 'ExportTableForm',
+  emits: ['values-changed'],
   components: {
     ExporterTypeChoices,
     ExportTableDropdown,

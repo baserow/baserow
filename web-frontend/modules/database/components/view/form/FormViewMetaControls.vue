@@ -96,6 +96,7 @@ const redirectUrlMaxLength = 2000
 
 export default {
   name: 'FormViewMetaControls',
+  emits: ['updated-form'],
   props: {
     view: {
       type: Object,

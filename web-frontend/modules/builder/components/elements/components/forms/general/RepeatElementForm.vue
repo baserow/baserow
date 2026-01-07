@@ -184,6 +184,7 @@ const MAX_GAP_PX = 2000
 
 export default {
   name: 'RepeatElementForm',
+  emits: ['input', 'values-changed'],
   components: {
     PropertyOptionForm,
     DataSourceDropdown,

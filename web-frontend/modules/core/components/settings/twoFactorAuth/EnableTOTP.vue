@@ -15,6 +15,7 @@ import SaveBackupCode from '@baserow/modules/core/components/settings/twoFactorA
 
 export default {
   name: 'EnableTOTP',
+  emits: ['enabled'],
   components: { EnableWithQRCode, SaveBackupCode },
   props: {},
   data() {

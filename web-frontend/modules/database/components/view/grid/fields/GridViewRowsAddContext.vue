@@ -25,6 +25,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'GridViewRowsAddContext',
+  emits: ['add-rows'],
   mixins: [context],
   computed: {
     rowAmountChoices() {

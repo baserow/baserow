@@ -74,6 +74,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
 
 export default {
   name: 'AssistantPanel',
+  emits: ['toggle-right-sidebar'],
   components: {
     AssistantWelcomeMessage,
     AssistantInputMessage,

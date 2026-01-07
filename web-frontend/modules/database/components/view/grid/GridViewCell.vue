@@ -119,6 +119,7 @@ export default {
     'cell-shift-click',
     'selected',
     'unselected',
+    'select-cell',
     'select-next',
     'add-row-after',
     'edit-modal',

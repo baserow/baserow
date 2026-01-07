@@ -156,6 +156,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'LocalBaserowTableServiceSortForm',
+  emits: ['input'],
   mixins: [context],
   props: {
     value: {

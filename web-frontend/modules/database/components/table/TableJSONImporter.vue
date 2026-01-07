@@ -97,6 +97,7 @@ import importer from '@baserow/modules/database/mixins/importer'
 
 export default {
   name: 'TableCSVImporter',
+  emits: ['changed', 'data', 'getData'],
   components: { CharsetDropdown },
   mixins: [form, importer],
   setup() {

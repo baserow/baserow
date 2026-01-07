@@ -37,6 +37,7 @@ import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals
 
 export default {
   name: 'EditUserModal',
+  emits: ['delete-user', 'update'],
   components: { DeleteUserModal, UserForm },
   mixins: [modal, error],
   props: {

@@ -52,6 +52,7 @@ import AssistantUiContext from '@baserow_enterprise/components/assistant/Assista
 
 export default {
   name: 'AssistantInputMessage',
+  emits: ['cancel-message', 'send-message'],
   components: {
     AssistantUiContext,
   },

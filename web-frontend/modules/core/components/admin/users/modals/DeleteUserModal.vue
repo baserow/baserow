@@ -39,6 +39,7 @@ import UserAdminService from '@baserow/modules/core/services/admin/users'
 
 export default {
   name: 'DeleteUserModal',
+  emits: ['delete-user'],
   mixins: [modal, error],
   props: {
     user: {

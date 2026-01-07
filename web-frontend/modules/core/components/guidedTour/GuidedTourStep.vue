@@ -32,6 +32,7 @@
 <script>
 export default {
   name: 'GuidedTourStep',
+  emits: ['next', 'previous'],
   props: {
     position: {
       required: true,

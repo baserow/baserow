@@ -59,6 +59,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'PremiumViewOptions',
+  emits: ['update-view'],
   components: { PaidFeaturesModal },
 
   props: {

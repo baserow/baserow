@@ -30,6 +30,7 @@
 <script>
 export default {
   name: 'FormViewSidebarField',
+  emits: ['updated-field-options'],
   props: {
     field: {
       type: Object,

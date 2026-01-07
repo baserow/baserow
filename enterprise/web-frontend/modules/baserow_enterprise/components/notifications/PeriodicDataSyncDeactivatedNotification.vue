@@ -26,6 +26,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'PeriodicDataSyncDeactivatedNotification',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   computed: {
     isLicenseUnavailable() {

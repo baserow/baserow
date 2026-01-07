@@ -2,6 +2,8 @@ import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
 
 export default {
+  emits: ['update'],
+
   data() {
     return {
       // If true, then the user must choose which values will be deleted. This only

@@ -42,6 +42,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'DuplicateFieldModal',
+  emits: ['field-created', 'move-field'],
   mixins: [modal, error, jobProgress],
   props: {
     table: {

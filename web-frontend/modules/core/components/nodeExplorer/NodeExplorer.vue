@@ -59,6 +59,7 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'NodeExplorer',
+  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   components: {
     NodeExplorerTab,
   },

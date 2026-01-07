@@ -139,6 +139,7 @@ import AutomationSettingsModal from '@baserow/modules/automation/components/sett
 export default defineComponent({
   name: 'AutomationHeader',
   components: { AutomationSettingsModal },
+  emits: ['debug-toggled'],
   props: {
     automation: {
       type: Object,

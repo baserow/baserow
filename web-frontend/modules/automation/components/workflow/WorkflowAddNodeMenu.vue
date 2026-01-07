@@ -35,6 +35,7 @@
 import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'WorkflowNodeContext',
+  emits: ['change'],
   mixins: [context],
   props: {
     node: {

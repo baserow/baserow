@@ -48,6 +48,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FieldSelectTargetFieldSubForm',
+  emits: ['input'],
   mixins: [form],
   props: {
     database: {

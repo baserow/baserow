@@ -214,6 +214,7 @@ import { FIELD_CONSTRAINT_ERROR_CODES } from '@baserow/modules/database/constant
 // @TODO focus form on open
 export default {
   name: 'FieldForm',
+  emits: ['input', 'keydown-enter'],
   components: { FormTextarea, FieldConstraintsSubForm },
   mixins: [form],
   props: {

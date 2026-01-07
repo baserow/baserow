@@ -1,6 +1,8 @@
 import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 
 export default {
+  emits: ['update'],
+
   methods: {
     /**
      * Removes a file at a given index and then updates the value of the field.

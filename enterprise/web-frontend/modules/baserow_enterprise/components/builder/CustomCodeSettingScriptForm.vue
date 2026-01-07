@@ -87,6 +87,7 @@ import {
 
 export default {
   name: 'CustomCodeSettingScriptForm',
+  emits: ['delete'],
   mixins: [form],
   setup() {
     return { v$: useVuelidate({ lazy: true }) }

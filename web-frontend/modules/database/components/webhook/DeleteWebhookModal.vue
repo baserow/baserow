@@ -32,6 +32,7 @@ import WebhookService from '@baserow/modules/database/services/webhook'
 
 export default {
   name: 'DeleteViewModal',
+  emits: ['deleted'],
   mixins: [modal, error],
   props: {
     webhook: {

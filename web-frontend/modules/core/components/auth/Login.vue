@@ -85,6 +85,8 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export default {
+  emits: ['success'],
+
   components: {
     TOTPLogin,
     PasswordLogin,

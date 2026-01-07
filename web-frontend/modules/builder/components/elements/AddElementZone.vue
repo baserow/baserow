@@ -16,6 +16,7 @@
 <script>
 export default {
   name: 'AddElementZone',
+  emits: ['add-element'],
   props: {
     disabled: {
       type: Boolean,

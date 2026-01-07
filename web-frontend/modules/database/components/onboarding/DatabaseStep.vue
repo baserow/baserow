@@ -47,6 +47,7 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 
 export default {
   name: 'DatabaseStep',
+  emits: ['update-data'],
   components: { AirtableImportForm, TemplateImportForm },
   props: {
     data: {

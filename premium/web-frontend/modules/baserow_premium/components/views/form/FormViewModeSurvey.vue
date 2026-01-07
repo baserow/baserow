@@ -108,6 +108,7 @@ import FormViewSubmitted from '@baserow/modules/database/components/view/form/Fo
 
 export default {
   name: 'FormViewModeSurvey',
+  emits: ['submit'],
   components: {
     FormPageField,
     FormViewPoweredBy,

@@ -77,6 +77,7 @@ import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'MemberRolesMembersList',
+  emits: ['role-updated'],
   components: { RoleSelector },
   props: {
     roleAssignments: {

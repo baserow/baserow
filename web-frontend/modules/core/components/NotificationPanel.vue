@@ -118,6 +118,7 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   name: 'NotificationPanel',
+  emits: ['hidden', 'shown'],
   components: {
     ClearAllNotificationsConfirmModal,
     InfiniteScroll,

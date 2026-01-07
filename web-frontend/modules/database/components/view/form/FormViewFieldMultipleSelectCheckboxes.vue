@@ -26,6 +26,7 @@ import multipleSelectField from '@baserow/modules/database/mixins/multipleSelect
 
 export default {
   name: 'FormViewFieldMultipleSelectCheckboxes',
+  emits: ['update'],
   mixins: [rowEditField, multipleSelectField],
   methods: {
     toggleValue(id, oldValue) {

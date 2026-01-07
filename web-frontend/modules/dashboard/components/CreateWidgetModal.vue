@@ -23,6 +23,7 @@ import CreateWidgetCard from '@baserow/modules/dashboard/components/CreateWidget
 
 export default {
   name: 'CreateWidgetModal',
+  emits: ['widget-variation-selected'],
   components: { CreateWidgetCard },
   mixins: [modal],
   props: {

@@ -20,6 +20,7 @@
 <script>
 export default {
   name: 'RadioCard',
+  emits: ['input'],
   model: {
     prop: 'modelValue',
     event: 'input',

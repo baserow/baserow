@@ -18,6 +18,7 @@ import TableService from '@baserow/modules/database/services/table'
 
 export default {
   name: 'SidebarDuplicateTableContextItem',
+  emits: ['click'],
   props: {
     database: {
       type: Object,

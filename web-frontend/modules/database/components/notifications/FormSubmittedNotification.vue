@@ -38,6 +38,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'FormSubmittedNotification',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   data() {
     return {

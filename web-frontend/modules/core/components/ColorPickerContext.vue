@@ -111,6 +111,7 @@ export const DEFAULT_COLOR_NOTION = COLOR_NOTATIONS.HEX
 
 export default {
   name: 'ColorPickerContext',
+  emits: ['input'],
   components: { ColorPicker },
   mixins: [context],
   props: {

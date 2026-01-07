@@ -13,6 +13,7 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'TimelineGridShowRowButton',
+  emits: ['mousedown'],
   props: {
     label: {
       type: String,

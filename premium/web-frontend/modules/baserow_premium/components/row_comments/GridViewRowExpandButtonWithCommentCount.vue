@@ -25,6 +25,7 @@ import GridViewRowExpandButton from '@baserow/modules/database/components/view/g
 
 export default {
   name: 'GridViewRowExpandButtonWithCommentCount',
+  emits: ['edit-modal'],
   components: { GridViewRowExpandButton },
   inject: { $hasPermission: '$hasPermission' },
   props: {

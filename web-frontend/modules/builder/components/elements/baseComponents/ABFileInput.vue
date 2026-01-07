@@ -51,6 +51,7 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 
 export default {
   name: 'ABFileInput',
+  emits: ['input', 'update:modelValue'],
   props: {
     modelValue: {
       type: [Array, Object, null],

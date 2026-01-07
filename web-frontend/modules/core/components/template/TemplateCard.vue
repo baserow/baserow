@@ -25,6 +25,8 @@
 import TemplateIllustration from '@baserow/modules/core/components/template/TemplateIllustration'
 
 export default {
+  emits: ['click'],
+
   components: {
     TemplateIllustration,
   },

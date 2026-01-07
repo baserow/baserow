@@ -50,6 +50,7 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'FormContainerElement',
+  emits: ['move'],
   components: {
     PageElement,
     ElementPreview,

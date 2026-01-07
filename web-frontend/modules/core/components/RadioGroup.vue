@@ -35,6 +35,7 @@ import Radio from '@baserow/modules/core/components/Radio.vue'
 
 export default {
   name: 'RadioGroup',
+  emits: ['input', 'update:modelValue'],
   components: {
     Radio,
   },

@@ -151,6 +151,7 @@ import WebhookModal from '@baserow/modules/database/components/webhook/WebhookMo
 
 export default {
   name: 'ViewContext',
+  emits: ['enable-rename'],
   components: {
     ExportTableModal,
     WebhookModal,

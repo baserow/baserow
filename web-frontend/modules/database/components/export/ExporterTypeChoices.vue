@@ -43,6 +43,7 @@ import ExporterTypeChoice from '@baserow/modules/database/components/export/Expo
 
 export default {
   name: 'ExporterTypeChoices',
+  emits: ['update:modelValue'],
   components: { ExporterTypeChoice },
   props: {
     database: {

@@ -68,6 +68,7 @@ import Expandable from '@baserow/modules/core/components/Expandable'
 
 export default {
   name: 'AddElementModal',
+  emits: ['element-added'],
   components: { AddElementCard, Expandable },
   mixins: [modal],
   inject: ['workspace', 'builder', 'currentPage'],

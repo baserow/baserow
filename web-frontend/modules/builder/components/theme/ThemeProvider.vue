@@ -8,6 +8,7 @@
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 export default {
   name: 'ThemeProvider',
+  emits: ['click'],
   inject: ['builder'],
   computed: {
     themeConfigBlocks() {

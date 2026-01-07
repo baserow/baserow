@@ -16,6 +16,7 @@ import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDate
 
 export default {
   name: 'ViewFilterTypeDateUpgradeToMultiStep',
+  emits: ['migrate'],
   mixins: [filterTypeDateInput],
   setup: filterTypeDateInput.setup,
   data() {

@@ -23,6 +23,7 @@ import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'WorkspaceStep',
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

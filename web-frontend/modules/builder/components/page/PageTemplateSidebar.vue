@@ -36,6 +36,7 @@ import { BuilderApplicationType } from '@baserow/modules/builder/applicationType
 
 export default {
   name: 'TemplateSidebar',
+  emits: ['selected', 'selected-page'],
   props: {
     application: {
       type: Object,

@@ -26,6 +26,7 @@ import ChooseSingleSelectField from '@baserow/modules/database/components/field/
 
 export default {
   name: 'KanbanViewStackedBy',
+  emits: ['refresh'],
   components: { ChooseSingleSelectField },
   mixins: [kanbanViewHelper],
   props: {

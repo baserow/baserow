@@ -28,6 +28,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'DataSourceItemContext',
+  emits: ['delete', 'share'],
   mixins: [context],
   props: {
     shared: {

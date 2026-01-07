@@ -56,6 +56,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'EnableWithQRCode',
+  emits: ['verified'],
   components: { AuthCodeInput },
   data() {
     return {

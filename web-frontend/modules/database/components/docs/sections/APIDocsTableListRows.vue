@@ -153,6 +153,7 @@ import APIDocsFiltersBuilderModal from '@baserow/modules/database/components/doc
 
 export default {
   name: 'APIDocsTableListRows',
+  emits: ['input'],
   components: {
     APIDocsFiltersBuilderModal,
     APIDocsParameter,

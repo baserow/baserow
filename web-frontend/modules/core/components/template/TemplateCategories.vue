@@ -62,6 +62,7 @@ import templateCategories from '@baserow/modules/core/mixins/templateCategories'
 
 export default {
   name: 'TemplateCategories',
+  emits: ['selected'],
   mixins: [templateCategories],
   props: {
     selectedTemplate: {

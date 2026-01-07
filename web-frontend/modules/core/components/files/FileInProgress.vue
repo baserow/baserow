@@ -36,6 +36,7 @@
 <script>
 export default {
   name: 'FileInProgress',
+  emits: ['delete'],
   props: {
     file: {
       type: Object,

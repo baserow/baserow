@@ -56,6 +56,7 @@ import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'SelectMembersList',
+  emits: ['invite'],
   components: { SelectSubjectsListFooter },
   props: {
     users: {

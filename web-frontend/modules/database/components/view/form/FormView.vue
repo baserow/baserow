@@ -47,6 +47,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FormView',
+  emits: ['refresh'],
   components: { FormViewSidebar, FormViewPreview },
   mixins: [formViewHelpers],
   props: {

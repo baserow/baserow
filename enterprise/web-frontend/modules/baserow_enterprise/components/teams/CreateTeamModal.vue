@@ -31,6 +31,7 @@ import MemberAssignmentModal from '@baserow/modules/core/components/workspace/Me
 
 export default {
   name: 'CreateTeamModal',
+  emits: ['created'],
   components: { ManageTeamForm, MemberAssignmentModal },
   mixins: [modal, error],
   props: {

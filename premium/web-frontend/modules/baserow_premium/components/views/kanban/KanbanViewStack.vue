@@ -160,6 +160,7 @@ import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 
 export default {
   name: 'KanbanViewStack',
+  emits: ['create-row', 'edit-row', 'refresh'],
   components: { InfiniteScroll, RowCard, KanbanViewStackContext },
   mixins: [kanbanViewHelper, viewDecoration],
   props: {
