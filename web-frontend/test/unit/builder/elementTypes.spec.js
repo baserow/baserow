@@ -23,8 +23,6 @@ import {
 
 describe('elementTypes tests', () => {
   const testApp = useNuxtApp()
-  //let testApp
-
   const contextBlankParam = { page: { parameters: { id: '' } } }
 
   const misconfiguredOpenPageWorkflowActionPage = {
@@ -38,10 +36,6 @@ describe('elementTypes tests', () => {
     navigation_type: 'page',
     navigate_to_page_id: misconfiguredOpenPageWorkflowActionPage.id,
   }
-
-  /*beforeEach(() => {
-    testApp = useNuxtApp()
-  })*/
 
   describe('CollectionElementTypeMixin tests', () => {
     test('hasAncestorOfType', () => {

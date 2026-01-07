@@ -15,6 +15,8 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
 import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+
 /**
  * Uses the real baserow plugins to setup a Vuex store and baserow registry
  * correctly.
@@ -77,7 +79,7 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
  *                      on Baserow's components.
  *
  */
-export class TestApp {
+export class OldTestApp {
   constructor(extraPluginSetupFunc = null) {
     this.mock = new MockAdapter(axios, { onNoMatch: 'throwException' })
 
@@ -322,4 +324,70 @@ export const UIHelpers = {
       `Did not find ${itemName} in the Sidebar to click, only found ${allNames}`
     )
   },
+}
+
+export class TestApp {
+  constructor() {
+    const nuxtApp = useNuxtApp()
+    const { $client, $store, $registry } = nuxtApp
+    this.mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    this.mockServer = new MockServer(this.mock, $store)
+    this.store = $store
+    this._initialCleanStoreState = _.cloneDeep($store.state)
+    this.$registry = $registry
+    this.$store = $store
+    this.nuxtApp = nuxtApp
+    this._app = nuxtApp
+    this._wrappers = []
+  }
+
+  getApp() {
+    return useNuxtApp()
+  }
+
+  getStore() {
+    return this.getApp().$store
+  }
+
+  getRegistry() {
+    return this.getApp().$registry
+  }
+
+  setRouteToBe(name) {
+    this.getApp().$route.matched = [{ name }]
+  }
+
+  async mount(component, options) {
+    // Sometimes baserow directly appends to the documents body, ensure that we
+    // are mounting into the document so we can correctly inspect the modals that
+    // are placed there.
+    const rootDiv = document.createElement('div')
+    document.body.appendChild(rootDiv)
+
+    const wrapper = await mountSuspended(component, {
+      attachTo: rootDiv,
+      ...options,
+    })
+
+    await flushPromises()
+
+    this._wrappers.push(wrapper)
+    return wrapper
+  }
+
+  dontFailOnErrorResponses() {}
+
+  /**
+   * Cleans up after a test run performed by TestApp. Make sure you call this
+   * in your test suits afterEach method!
+   */
+  async afterEach() {
+    this._wrappers.forEach((w) => w.unmount())
+    this._wrappers = []
+    await flushPromises()
+    this.store.replaceState(this._initialCleanStoreState)
+    this.mock.restore()
+    // Flushing promises should be done before the mock reset to avoid raising
+    // unwanted exceptions
+  }
 }

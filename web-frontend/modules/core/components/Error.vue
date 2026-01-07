@@ -10,6 +10,7 @@
  * This component works the best if the parent has the error mixin.
  */
 export default {
+  name: 'Error',
   props: {
     error: {
       required: true,
