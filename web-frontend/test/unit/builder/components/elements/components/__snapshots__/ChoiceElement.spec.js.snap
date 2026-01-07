@@ -33,7 +33,7 @@ exports[`ChoiceElement > as default 1`] = `
               <span
                 class="ab-dropdown__selected-placeholder"
               >
-                Add options to begin using this element...
+                choiceElement.addOptions
               </span>
               
               <i
@@ -180,7 +180,7 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
               <span
                 class="ab-dropdown__selected-placeholder"
               >
-                Make a choice
+                action.makeChoice
               </span>
               
               <i

@@ -34,7 +34,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 1`] = 
               <span
                 class="ab-dropdown__selected-placeholder"
               >
-                Make a choice
+                action.makeChoice
               </span>
               
               <i
@@ -117,7 +117,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 2`] = 
               <span
                 class="ab-dropdown__selected-placeholder"
               >
-                Make a choice
+                action.makeChoice
               </span>
               
               <i
@@ -200,7 +200,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 3`] = 
               <span
                 class="ab-dropdown__selected-placeholder"
               >
-                Make a choice
+                action.makeChoice
               </span>
               
               <i

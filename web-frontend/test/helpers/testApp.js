@@ -357,15 +357,31 @@ export class TestApp {
     this.getApp().$route.matched = [{ name }]
   }
 
-  async mount(component, options) {
+  listenersToProps(listeners) {
+    return Object.fromEntries(
+      Object.entries(listeners).map(([key, fn]) => {
+        const camel = key.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+        return [`on${camel[0].toUpperCase()}${camel.slice(1)}`, fn]
+      })
+    )
+  }
+
+  async mount(component, { props, propsData, listeners, ...options }) {
     // Sometimes baserow directly appends to the documents body, ensure that we
     // are mounting into the document so we can correctly inspect the modals that
     // are placed there.
     const rootDiv = document.createElement('div')
     document.body.appendChild(rootDiv)
 
+    // Compat with nuxt2 props
+    let actualProps = propsData ?? props
+    if (listeners) {
+      actualProps = { ...actualProps, ...this.listenersToProps(listeners) }
+    }
+
     const wrapper = await mountSuspended(component, {
       attachTo: rootDiv,
+      props: actualProps,
       ...options,
     })
 

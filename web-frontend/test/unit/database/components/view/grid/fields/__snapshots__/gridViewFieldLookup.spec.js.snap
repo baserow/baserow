@@ -1,4 +1,8 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GridViewFieldLookup component > URL lookup field shows hyperlink when active 1`] = `<!--v-if-->`;
+
+exports[`GridViewFieldLookup component > URL lookup field shows text when inactive 1`] = `<!--v-if-->`;
 
 exports[`GridViewFieldLookup component URL lookup field shows hyperlink when active 1`] = `
 <div
