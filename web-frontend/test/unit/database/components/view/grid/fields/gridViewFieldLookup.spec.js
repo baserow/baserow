@@ -4,17 +4,17 @@ import FunctionalFormulaURLArrayItem from '@baserow/modules/database/components/
 describe('GridViewFieldLookup component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (props, slots = {}) => {
     return testApp.mount(FunctionalFormulaURLArrayItem, {
-      propsData: props,
+      props,
       slots,
     })
   }

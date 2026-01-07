@@ -1,5 +1,8 @@
 import { vi } from 'vitest'
 
+const tMock = (key: string, data: any) =>
+  data?.count !== undefined ? `${key} - ${data.count}` : key
+
 // Mock i18n to return key instead of actual translation
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<any>()
@@ -22,7 +25,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
 
       // Make sure *any* call to global.t returns the key (templates use this)
       if (i18n?.global) {
-        i18n.global.t = (key: string) => key
+        i18n.global.t = tMock
         i18n.global.getBrowserLocale = () => 'en'
       }
 
@@ -34,9 +37,40 @@ vi.mock('vue-i18n', async (importOriginal) => {
       const composer = actual.useI18n?.(...args)
       return {
         ...composer,
-        t: (key: string) => key,
+        t: tMock,
         getBrowserLocale: () => 'en',
       }
     },
   }
+})
+
+// deterministic UUIDs (nice when multiple UUIDs happen in one render)
+const uuidMockState = vi.hoisted(() => {
+  let i = 1
+
+  return {
+    next() {
+      // pad to 12 digits to keep UUID shape stable
+      const suffix = String(i++).padStart(12, '0')
+      return `00000000-0000-0000-0000-${suffix}`
+    },
+    reset() {
+      i = 1
+    },
+  }
+})
+
+vi.mock('@baserow/modules/core/utils/string', async () => {
+  const actual = await vi.importActual<any>(
+    '@baserow/modules/core/utils/string'
+  )
+
+  return {
+    ...actual,
+    uuid: vi.fn(() => uuidMockState.next()),
+  }
+})
+
+beforeEach(() => {
+  uuidMockState.reset()
 })

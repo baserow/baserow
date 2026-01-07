@@ -94,7 +94,7 @@ describe('ViewFilterForm match snapshots', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })
@@ -135,61 +135,58 @@ describe('ViewFilterForm match snapshots', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Test rating filter', (done) => {
-    const f = async function () {
-      // We want to bypass some setTimeout
-      vi.useFakeTimers()
-      // Mock server filter update call
-      mockServer.updateViewFilter(11, '5')
+  test('Test rating filter', async (done) => {
+    // We want to bypass some setTimeout
+    vi.useFakeTimers()
+    // Mock server filter update call
+    mockServer.updateViewFilter(11, '5')
 
-      // Add rating one filter
-      const viewClone = JSON.parse(JSON.stringify(view))
-      viewClone.filters = [
-        {
-          field: 2,
-          type: 'equal',
-          value: '2',
-          preload_values: {},
-          _: { hover: false, loading: false },
-          id: 11,
-        },
-      ]
+    // Add rating one filter
+    const viewClone = JSON.parse(JSON.stringify(view))
+    viewClone.filters = [
+      {
+        field: 2,
+        type: 'equal',
+        value: '2',
+        preload_values: {},
+        _: { hover: false, loading: false },
+        id: 11,
+      },
+    ]
 
-      const onChange = vi.fn(() => {
-        // The test is about to finish
-        expect(wrapper.emitted().changed).toBeTruthy()
-        // The Five star option should be selected
-        expect(wrapper.element).toMatchSnapshot()
-        done()
-      })
-
-      // Mounting the component
-      const wrapper = await mountViewFilterForm(
-        {
-          fields,
-          view: viewClone,
-          readOnly: false,
-        },
-        { changed: onChange }
-      )
-
-      // Open type dropdown
-      await wrapper.find('.filters__type .dropdown__selected').trigger('click')
+    const onChange = vi.fn(() => {
+      // The test is about to finish
+      expect(wrapper.emitted().changed).toBeTruthy()
+      // The Five star option should be selected
       expect(wrapper.element).toMatchSnapshot()
+      done()
+    })
 
-      // Select five stars
-      const option = wrapper.find(
-        '.filters__value  .rating > .rating__star:nth-child(5)'
-      )
+    // Mounting the component
+    const wrapper = await mountViewFilterForm(
+      {
+        fields,
+        view: viewClone,
+        readOnly: false,
+      },
+      { changed: onChange }
+    )
 
-      await option.trigger('click')
-      // Wait some timers
-      await vi.runAllTimers()
+    // Open type dropdown
+    await wrapper.find('.filters__type .dropdown__selected').trigger('click')
+    expect(wrapper.element).toMatchSnapshot()
 
-      // Test finishes only when onChange callback is called
-      // Wait for mockServer to respond -> see onChange callback
-    }
-    f()
+    // Select five stars
+    const option = wrapper.find(
+      '.filters__value  .rating > .rating__star:nth-child(5)'
+    )
+
+    await option.trigger('click')
+    // Wait some timers
+    await vi.runAllTimers()
+
+    // Test finishes only when onChange callback is called
+    // Wait for mockServer to respond -> see onChange callback
   })
 })
 
