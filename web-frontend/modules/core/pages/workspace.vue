@@ -273,7 +273,7 @@ const {
   data: dashboardData,
   pending,
   error,
-} = await useAsyncData('currentWorkspace', async () => {
+} = await useAsyncData(`current-workspace-${route.params.workspaceId}`, async () => {
   const workspaceId = parseInt(route.params.workspaceId, 10)
 
   let workspace

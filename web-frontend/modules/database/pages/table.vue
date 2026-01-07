@@ -51,6 +51,7 @@ definePageMeta({
 })
 
 const route = useRoute()
+const { params, query } = route
 const router = useRouter()
 const nuxtApp = useNuxtApp()
 const {
@@ -72,10 +73,8 @@ const database = computed(() => $store.getters['application/getSelected'])
 const table = computed(() => $store.getters['table/getSelected'])
 
 const { data, error, pending, status } = await useAsyncData(
-  'database-table-page',
+  `database-table-page-${params.viewId ?? 'null'}`,
   async () => {
-    const { params, query } = route
-
     const viewId = params.viewId ? parseInt(params.viewId) : null
 
     const result = {
