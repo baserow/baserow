@@ -66,6 +66,7 @@ import TableForm from '@baserow/modules/database/components/table/TableForm.vue'
 
 export default {
   name: 'ConfigureDataSyncSettings',
+  emits: ['hide'],
   components: { TableForm },
   mixins: [dataSync],
   props: {

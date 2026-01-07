@@ -60,6 +60,7 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableListFields',
+  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,

@@ -9,6 +9,7 @@ import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
  */
 export default {
   mixins: [baseField, copyPasteHelper],
+  emits: ['add-row-after', 'edit-modal', 'paste', 'selectBelow', 'selected', 'unselect', 'unselected', 'update'],
   props: {
     /**
      * Indicates if the grid field is in a selected state.

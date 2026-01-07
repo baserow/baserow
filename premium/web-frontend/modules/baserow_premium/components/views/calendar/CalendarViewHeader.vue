@@ -74,6 +74,7 @@ import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 
 export default {
   name: 'CalendarViewHeader',
+  emits: ['refresh'],
   components: {
     ViewFieldsContext,
     SelectDateFieldModal,

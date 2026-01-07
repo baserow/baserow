@@ -101,6 +101,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'EditRoleContext',
+  emits: ['delete', 'update-role'],
   mixins: [context],
   props: {
     workspace: {

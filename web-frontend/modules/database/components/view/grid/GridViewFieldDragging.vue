@@ -17,6 +17,7 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewFieldDragging',
+  emits: ['scroll'],
   mixins: [gridViewHelpers],
   props: {
     view: {

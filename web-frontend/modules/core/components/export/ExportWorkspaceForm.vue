@@ -44,6 +44,7 @@ import ApplicationSelector from '@baserow/modules/core/components/export/Applica
 
 export default {
   name: 'ExportWorkspaceForm',
+  emits: ['update'],
   components: {
     ApplicationSelector,
   },

@@ -43,6 +43,7 @@ import AirtableImportForm from '@baserow/modules/database/components/airtable/Ai
 
 export default {
   name: 'ImportFromAirtable',
+  emits: ['hidden'],
   components: { AirtableImportForm },
   mixins: [error, jobProgress],
   props: {

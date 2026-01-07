@@ -193,6 +193,7 @@ import KanbanViewCreateStackContext from '@baserow_premium/components/views/kanb
 
 export default {
   name: 'KanbanView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     RowCreateModal,
     RowEditModal,

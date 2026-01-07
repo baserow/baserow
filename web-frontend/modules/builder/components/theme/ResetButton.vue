@@ -12,6 +12,8 @@
 import _ from 'lodash'
 
 export default {
+  emits: ['input', 'update:modelValue'],
+
   inject: ['builder'],
   props: {
     value: { default: undefined, validator: (v) => true },

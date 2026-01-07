@@ -46,6 +46,7 @@ import DateDependencyModal from '@baserow_enterprise/components/dateDependency/D
 
 export default {
   name: 'DateDependencyMenuItem',
+  emits: ['hide-context'],
   components: { DateDependencyModal, PaidFeaturesModal },
   props: {
     table: {

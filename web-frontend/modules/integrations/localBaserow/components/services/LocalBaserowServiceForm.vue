@@ -53,6 +53,7 @@ import form from '@baserow/modules/core/mixins/form'
  */
 export default {
   name: 'LocalBaserowServiceForm',
+  emits: ['table-changed'],
   components: {
     IntegrationDropdown,
     LocalBaserowTableSelector,

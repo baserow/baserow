@@ -26,6 +26,7 @@ import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 
 export default {
   name: 'FormViewImageUpload',
+  emits: ['uploaded'],
   data() {
     return {
       dragging: false,

@@ -54,6 +54,7 @@ import dropdownItem from '@baserow/modules/core/mixins/dropdownItem'
 
 export default {
   name: 'DropdownItem',
+  emits: ['click'],
   mixins: [dropdownItem],
 }
 </script>

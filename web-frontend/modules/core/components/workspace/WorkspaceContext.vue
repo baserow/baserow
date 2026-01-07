@@ -155,6 +155,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'WorkspaceContext',
+  emits: ['rename'],
   components: {
     ExportWorkspaceModal,
     ImportWorkspaceModal,

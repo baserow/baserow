@@ -47,6 +47,7 @@
 import SelectSubjectsListFooter from '@baserow_enterprise/components/rbac/SelectSubjectsListFooter'
 export default {
   name: 'SelectTeamsList',
+  emits: ['invite'],
   components: { SelectSubjectsListFooter },
   props: {
     teams: {

@@ -25,6 +25,7 @@ import ElementsListItem from '@baserow/modules/builder/components/elements/Eleme
 
 export default {
   name: 'ElementsList',
+  emits: ['select'],
   components: { ElementsListItem },
   props: {
     elements: {

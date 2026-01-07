@@ -18,6 +18,7 @@
 <script>
 export default {
   name: 'TwoFactorEnabled',
+  emits: ['disable'],
   props: {
     provider: {
       type: Object,

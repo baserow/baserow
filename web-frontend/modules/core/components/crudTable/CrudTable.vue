@@ -128,6 +128,7 @@ import isObject from 'lodash/isObject'
  */
 export default {
   name: 'CrudTable',
+  emits: ['row-context', 'rows-update'],
   components: { Paginator, CrudTableSearch },
   inheritAttrs: false,
   props: {

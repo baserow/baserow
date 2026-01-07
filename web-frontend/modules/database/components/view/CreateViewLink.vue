@@ -38,6 +38,7 @@ import CreateViewModal from '@baserow/modules/database/components/view/CreateVie
 
 export default {
   name: 'ViewsContext',
+  emits: ['created'],
   components: {
     CreateViewModal,
   },

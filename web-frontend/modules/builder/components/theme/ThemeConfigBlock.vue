@@ -20,6 +20,7 @@
 <script>
 export default {
   name: 'ThemeConfigBlock',
+  emits: ['values-changed'],
   props: {
     defaultValues: {
       type: Object,

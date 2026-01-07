@@ -16,6 +16,7 @@ import CreateFieldContext from '@baserow/modules/database/components/field/Creat
 
 export default {
   name: 'InsertFieldContext',
+  emits: ['field-created', 'move-field'],
   components: { CreateFieldContext },
 
   props: {

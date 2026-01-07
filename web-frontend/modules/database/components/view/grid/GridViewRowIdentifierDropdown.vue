@@ -34,6 +34,7 @@
 <script>
 export default {
   name: 'GridViewRowIdentifierDropdown',
+  emits: ['change'],
   props: {
     rowIdentifierTypeSelected: {
       type: String,

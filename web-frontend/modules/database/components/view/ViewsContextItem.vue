@@ -61,6 +61,7 @@ import EditableViewName from '@baserow/modules/database/components/view/Editable
 
 export default {
   name: 'ViewsContextItem',
+  emits: ['selected'],
   components: { EditableViewName, ViewContext },
   mixins: [context],
   props: {

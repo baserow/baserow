@@ -48,6 +48,7 @@
 <script>
 export default {
   name: 'Tabs',
+  emits: ['click-disabled', 'update:selectedIndex'],
   provide() {
     return {
       tabsProvider: {

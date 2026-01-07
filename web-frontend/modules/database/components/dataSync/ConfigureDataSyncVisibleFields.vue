@@ -113,6 +113,7 @@ import dataSync from '@baserow/modules/database/mixins/dataSync'
 
 export default {
   name: 'ConfigureDataSyncVisibleFields',
+  emits: ['hide'],
   mixins: [dataSync],
   props: {
     database: {

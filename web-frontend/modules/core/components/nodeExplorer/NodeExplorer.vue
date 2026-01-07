@@ -58,6 +58,7 @@ import _ from 'lodash'
 
 export default {
   name: 'NodeExplorer',
+  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   components: {
     NodeExplorerTab,
   },

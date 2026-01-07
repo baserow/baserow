@@ -210,6 +210,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'ImportFileModal',
+  emits: ['table-refresh'],
   components: { ImportErrorReport, SimpleGrid },
   mixins: [modal, error, jobProgress],
   props: {

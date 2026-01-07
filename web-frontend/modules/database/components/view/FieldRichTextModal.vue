@@ -31,6 +31,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'FieldRichTextModal',
+  emits: ['hidden', 'input'],
   components: { RichTextEditor },
   mixins: [modal],
   props: {

@@ -24,6 +24,7 @@ import domainForm from '@baserow/modules/builder/mixins/domainForm'
 
 export default {
   name: 'CustomDomainForm',
+  emits: ['error'],
   mixins: [domainForm],
   setup() {
     return { v$: useVuelidate() }

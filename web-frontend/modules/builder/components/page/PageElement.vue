@@ -39,6 +39,7 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'PageElement',
+  emits: ['move'],
   mixins: [applicationContextMixin],
   inject: ['workspace', 'builder', 'mode', 'currentPage'],
   provide() {

@@ -24,6 +24,7 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewRowDragging',
+  emits: ['scroll'],
   mixins: [gridViewHelpers],
   props: {
     table: {

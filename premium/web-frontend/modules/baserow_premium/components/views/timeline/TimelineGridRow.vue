@@ -78,6 +78,7 @@ import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 
 export default {
   name: 'TimelineGridRow',
+  emits: ['edit-row', 'update-row', 'updating-row'],
   components: { HorizontalResize },
   props: {
     label: {

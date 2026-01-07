@@ -44,6 +44,7 @@
 <script>
 export default {
   name: 'DataSourceDropdown',
+  emits: ['update:modelValue'],
   props: {
     modelValue: {
       type: Number,

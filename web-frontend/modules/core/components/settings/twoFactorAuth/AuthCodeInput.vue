@@ -70,6 +70,7 @@
 <script>
 export default {
   name: 'AuthCodeInput',
+  emits: ['all-filled'],
   props: {
     fullWidth: {
       type: Boolean,

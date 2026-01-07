@@ -41,6 +41,7 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 
 export default {
   name: 'SimpleContainerElement',
+  emits: ['move'],
   components: {
     PageElement,
     ElementPreview,

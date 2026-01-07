@@ -26,6 +26,7 @@ import Radio from '@baserow/modules/core/components/Radio'
 
 export default {
   name: 'ViewOwnershipRadio',
+  emits: ['input'],
   components: { Radio },
   props: {
     viewOwnershipType: {

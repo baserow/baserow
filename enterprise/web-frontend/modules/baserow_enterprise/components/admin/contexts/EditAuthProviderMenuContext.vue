@@ -33,6 +33,7 @@ import authProviderItemMixin from '@baserow_enterprise/mixins/authProviderItemMi
 
 export default {
   name: 'EditAuthProviderMenuContext',
+  emits: ['delete', 'edit'],
   components: {},
   mixins: [context, authProviderItemMixin],
   props: {

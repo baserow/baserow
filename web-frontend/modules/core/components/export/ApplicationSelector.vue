@@ -94,6 +94,7 @@
 <script>
 export default {
   name: 'ApplicationSelector',
+  emits: ['update'],
   props: {
     workspace: {
       type: Object,

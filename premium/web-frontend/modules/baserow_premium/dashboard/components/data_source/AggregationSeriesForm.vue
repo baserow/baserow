@@ -98,6 +98,7 @@ const includes = (array) => (value) => {
 
 export default {
   name: 'AggregationSeriesForm',
+  emits: ['delete-series', 'series-config-changed'],
   mixins: [form],
   props: {
     tableFields: {

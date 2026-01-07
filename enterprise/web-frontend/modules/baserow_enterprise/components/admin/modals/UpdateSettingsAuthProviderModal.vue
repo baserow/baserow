@@ -39,6 +39,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'UpdateSettingsAuthProviderModal',
+  emits: ['cancel', 'settings-updated'],
   mixins: [modal],
   props: {
     authProvider: {

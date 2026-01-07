@@ -65,6 +65,7 @@ import application from '@baserow/modules/core/mixins/application'
 
 export default {
   name: 'SidebarApplication',
+  emits: ['selected'],
   components: {
     TrashModal,
     SidebarDuplicateApplicationContextItem,

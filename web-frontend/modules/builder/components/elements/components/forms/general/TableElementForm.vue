@@ -277,6 +277,7 @@ import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpand
 
 export default {
   name: 'TableElementForm',
+  emits: ['values-changed'],
   components: {
     PropertyOptionForm,
     DataSourceDropdown,

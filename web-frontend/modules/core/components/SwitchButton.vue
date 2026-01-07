@@ -16,6 +16,7 @@
 <script>
 export default {
   name: 'SwitchButton',
+  emits: ['input'],
   model: {
     prop: 'modelValue',
     event: 'input',

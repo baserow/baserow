@@ -397,6 +397,7 @@ import {
 
 export default {
   name: 'GridView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     HorizontalResize,
     GridViewRowsAddContext,

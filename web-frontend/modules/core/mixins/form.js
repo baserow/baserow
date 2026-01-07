@@ -7,6 +7,8 @@ const formParentKey = Symbol('formParentKey')
  * whole component existence is based on being a form.
  */
 export default {
+  emits: ['submitted', 'values-changed'],
+
   props: {
     defaultValues: {
       type: Object,

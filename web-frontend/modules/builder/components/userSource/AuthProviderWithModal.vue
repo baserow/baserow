@@ -47,6 +47,7 @@
 <script>
 export default {
   name: 'AuthProviderWithModal',
+  emits: ['delete', 'hidden'],
   props: {
     authProviderType: {
       type: Object,

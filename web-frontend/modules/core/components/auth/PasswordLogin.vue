@@ -103,6 +103,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'PasswordLogin',
+  emits: ['email-not-verified', 'success', 'two-factor-auth'],
   mixins: [error],
   props: {
     invitation: {

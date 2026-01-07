@@ -5,6 +5,8 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
  * example for the text and number fields. It depends on the gridField mixin.
  */
 export default {
+  emits: ['edit', 'selectBelow', 'update'],
+
   data() {
     return {
       /**

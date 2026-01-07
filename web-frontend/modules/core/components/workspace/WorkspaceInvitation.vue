@@ -45,6 +45,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'WorkspaceInvitation',
+  emits: ['invitation-accepted'],
   props: {
     invitation: {
       type: Object,

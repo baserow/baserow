@@ -55,6 +55,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CommonOIDCSettingsForm',
+  emits: ['delete'],
   components: { OpenIdConnectSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
   props: {

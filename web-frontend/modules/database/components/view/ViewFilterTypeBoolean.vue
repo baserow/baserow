@@ -10,6 +10,7 @@ import viewFilter from '@baserow/modules/database/mixins/viewFilter'
 
 export default {
   name: 'ViewFilterTypeBoolean',
+  emits: ['input'],
   mixins: [viewFilter],
   computed: {
     copy() {

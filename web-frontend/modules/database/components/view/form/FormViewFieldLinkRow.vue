@@ -24,6 +24,7 @@ import ViewService from '@baserow/modules/database/services/view'
 
 export default {
   name: 'FormViewFieldLinkRow',
+  emits: ['update'],
   components: { PaginatedDropdown },
   mixins: [rowEditField],
   props: {

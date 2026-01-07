@@ -47,6 +47,7 @@ import ViewDecoratorContext from '@baserow/modules/database/components/view/View
 
 export default {
   name: 'ViewDecoratorMenu',
+  emits: ['changed'],
   components: { ViewDecoratorContext },
   props: {
     database: {

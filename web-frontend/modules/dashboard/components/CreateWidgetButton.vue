@@ -18,6 +18,7 @@ import CreateWidgetModal from '@baserow/modules/dashboard/components/CreateWidge
 
 export default {
   name: 'CreateWidgetButton',
+  emits: ['widget-variation-selected'],
   components: { CreateWidgetModal },
   props: {
     dashboard: {

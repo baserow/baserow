@@ -39,6 +39,7 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 
 export default {
   name: 'MembersInviteModal',
+  emits: ['invite-submitted'],
   components: { WorkspaceInviteForm },
   mixins: [modal, error],
   props: {

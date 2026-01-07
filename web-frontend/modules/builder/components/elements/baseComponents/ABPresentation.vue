@@ -21,6 +21,7 @@
 <script>
 export default {
   name: 'ABPresentation',
+  emits: ['click'],
   props: {
     initials: {
       type: String,

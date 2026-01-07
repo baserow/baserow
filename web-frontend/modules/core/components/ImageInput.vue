@@ -40,6 +40,7 @@ import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 
 export default {
   name: 'ImageInput',
+  emits: ['update:modelValue'],
   components: {
     UserFilesModal,
   },

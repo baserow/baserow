@@ -93,6 +93,7 @@ import { DIRECTIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'ElementMenu',
+  emits: ['delete', 'duplicate', 'move', 'select-parent'],
   props: {
     isDuplicating: {
       type: Boolean,

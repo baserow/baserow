@@ -65,6 +65,7 @@ import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExpl
 
 export default {
   name: 'FormulaInputContext',
+  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   components: {
     NodeExplorer,
   },

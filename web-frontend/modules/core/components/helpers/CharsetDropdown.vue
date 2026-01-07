@@ -92,6 +92,7 @@ export default {
   // Please keep in sync with
   // src/baserow/contrib/database/api/export/serializers.py:SUPPORTED_EXPORT_CHARSETS
   name: 'CharsetDropdown',
+  emits: ['input'],
   props: {
     value: {
       type: String,

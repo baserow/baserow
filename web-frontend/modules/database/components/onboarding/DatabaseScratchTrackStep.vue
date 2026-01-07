@@ -70,6 +70,7 @@ import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'DatabaseScratchTrackStep',
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

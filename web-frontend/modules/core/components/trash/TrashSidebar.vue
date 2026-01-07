@@ -51,6 +51,7 @@
 <script>
 export default {
   name: 'TrashSidebar',
+  emits: ['selected'],
   props: {
     workspaces: {
       type: Array,

@@ -73,6 +73,7 @@ import applicationContextMixin from '@baserow/modules/builder/mixins/application
 
 export default {
   name: 'ElementPreview',
+  emits: ['move'],
   components: {
     AddElementModal,
     ElementMenu,

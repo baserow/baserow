@@ -27,6 +27,7 @@
 <script>
 export default {
   name: 'Toast',
+  emits: ['close'],
   props: {
     /**
      * The type of toast to display

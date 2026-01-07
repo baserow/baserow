@@ -35,6 +35,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'DeleteAuthProviderModal',
+  emits: ['cancel', 'provider-deleted'],
   mixins: [modal],
   props: {
     authProvider: {

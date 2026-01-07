@@ -20,6 +20,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'FieldMappingContext',
+  emits: ['edit'],
   mixins: [context],
   props: {
     fieldMapping: {

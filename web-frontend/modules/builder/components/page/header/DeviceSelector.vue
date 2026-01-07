@@ -22,6 +22,7 @@
 <script>
 export default {
   name: 'DeviceSelector',
+  emits: ['selected'],
   props: {
     deviceTypeSelected: {
       type: String,

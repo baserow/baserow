@@ -49,6 +49,7 @@ import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/Widg
 
 export default {
   name: 'SummaryWidget',
+  emits: ['delete-widget'],
   components: { WidgetContextMenu },
   props: {
     dashboard: {

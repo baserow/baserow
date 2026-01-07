@@ -28,6 +28,8 @@ import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInpu
 import numberField from '@baserow/modules/database/mixins/numberField'
 
 export default {
+  emits: ['input'],
+
   mixins: [rowEditField, rowEditFieldInput, numberField],
   watch: {
     field: {

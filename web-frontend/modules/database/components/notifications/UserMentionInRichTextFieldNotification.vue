@@ -35,6 +35,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'UserMentionInRichTextFieldNotification',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   props: {
     notification: {

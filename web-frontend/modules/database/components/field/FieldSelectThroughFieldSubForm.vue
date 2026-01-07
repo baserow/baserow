@@ -45,6 +45,7 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 
 export default {
   name: 'FieldSelectThroughFieldSubForm',
+  emits: ['input'],
   mixins: [form],
   props: {
     database: {

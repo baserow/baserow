@@ -21,6 +21,8 @@
 
 <script>
 export default {
+  emits: ['enable'],
+
   props: {
     allowed: {
       type: Boolean,

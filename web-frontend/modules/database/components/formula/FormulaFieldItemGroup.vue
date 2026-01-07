@@ -25,6 +25,7 @@
 <script>
 export default {
   name: 'FormulaFieldItemGroup',
+  emits: ['click-item', 'hover-item'],
   props: {
     title: {
       type: String,

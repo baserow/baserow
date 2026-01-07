@@ -28,6 +28,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'InvitationsRoleField',
+  emits: ['row-update'],
   components: { EditRoleContext },
   props: {
     row: {

@@ -150,6 +150,7 @@ import {mappingToStringifiedJSONLines} from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'APIDocsExample',
+  emits: ['input'],
   props: {
     value: {
       type: Object,

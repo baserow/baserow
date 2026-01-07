@@ -30,6 +30,7 @@
 <script>
 export default {
   name: 'ExporterTypeChoice',
+  emits: ['selected'],
   props: {
     database: {
       type: Object,

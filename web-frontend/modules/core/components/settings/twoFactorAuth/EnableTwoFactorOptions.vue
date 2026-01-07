@@ -27,6 +27,7 @@
 <script>
 export default {
   name: 'EnableTwoFactorOptions',
+  emits: ['cancel', 'continue'],
   data() {
     return {
       values: {

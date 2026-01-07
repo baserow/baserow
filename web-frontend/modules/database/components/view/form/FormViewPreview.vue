@@ -20,6 +20,7 @@ import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 
 export default {
   name: 'FormViewPreview',
+  emits: ['ordered-fields'],
   mixins: [formViewHelpers],
   props: {
     database: {

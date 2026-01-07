@@ -20,6 +20,8 @@
 
 <script>
 export default {
+  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
+
   inject: ['builder', 'currentPage'],
   props: {
     element: {

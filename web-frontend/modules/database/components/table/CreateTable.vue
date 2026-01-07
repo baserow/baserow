@@ -74,6 +74,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'CreateTable',
+  emits: ['hide'],
   components: { ImportErrorReport, TableForm, SimpleGrid },
   mixins: [error, jobProgress],
   props: {

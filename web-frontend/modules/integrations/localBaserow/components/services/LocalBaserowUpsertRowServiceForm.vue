@@ -35,6 +35,7 @@ import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/
 
 export default {
   name: 'LocalBaserowUpsertRowServiceForm',
+  emits: ['values-changed'],
   components: {
     LocalBaserowServiceForm,
     FieldMappingsForm,

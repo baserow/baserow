@@ -2,6 +2,7 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   mixins: [MoveToBody],
+  emits: ['hidden', 'show'],
   data() {
     return {
       open: false,

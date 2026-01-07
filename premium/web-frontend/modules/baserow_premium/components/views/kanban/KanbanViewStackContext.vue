@@ -106,6 +106,7 @@ import KanbanViewUpdateStackContext from '@baserow_premium/components/views/kanb
 
 export default {
   name: 'KanbanViewStackContext',
+  emits: ['create-row', 'refresh'],
   components: { KanbanViewUpdateStackContext },
   mixins: [context, error],
   props: {

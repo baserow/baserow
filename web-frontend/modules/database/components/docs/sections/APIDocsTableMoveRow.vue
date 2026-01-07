@@ -59,6 +59,7 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableMoveRow',
+  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,

@@ -114,6 +114,7 @@ import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrd
 
 export default {
   name: 'ViewGroupByContext',
+  emits: ['changed'],
   components: { ViewSortOrder },
   mixins: [context],
   props: {

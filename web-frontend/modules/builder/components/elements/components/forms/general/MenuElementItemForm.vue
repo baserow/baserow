@@ -171,6 +171,7 @@ import { MenuElementType } from '@baserow/modules/builder/elementTypes'
 
 export default {
   name: 'MenuElementItemForm',
+  emits: ['remove-item'],
   components: {
     LinkNavigationSelectionForm,
     SidebarExpandable,

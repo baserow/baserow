@@ -277,6 +277,8 @@ export default {
     'select',
     'unselect',
     'select-next',
+    'add-row',
+    'add-rows',
     'add-row-after',
     'edit-modal',
     'refresh-row',

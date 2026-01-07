@@ -85,6 +85,7 @@ import fileField from '@baserow/modules/database/mixins/fileField'
 
 export default {
   name: 'GridViewFieldFile',
+  emits: ['add-keep-alive', 'remove-keep-alive', 'select'],
   components: { UserFilesModal, FileFieldModal },
   mixins: [gridField, fileField],
   data() {

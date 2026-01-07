@@ -48,6 +48,7 @@ import importer from '@baserow/modules/database/mixins/importer'
 
 export default {
   name: 'TablePasteImporter',
+  emits: ['changed', 'data', 'getData'],
   mixins: [form, importer],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

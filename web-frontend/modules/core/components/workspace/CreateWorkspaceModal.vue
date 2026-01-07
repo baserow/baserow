@@ -35,6 +35,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'CreateWorkspaceModal',
+  emits: ['created'],
   components: { WorkspaceForm },
   mixins: [modal, error],
   data() {

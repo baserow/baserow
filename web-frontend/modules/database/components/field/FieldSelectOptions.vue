@@ -56,6 +56,7 @@ import { randomColor } from '@baserow/modules/core/utils/colors'
 
 export default {
   name: 'FieldSelectOptions',
+  emits: ['update:modelValue'],
   components: { ColorSelectContext },
   props: {
     modelValue: {

@@ -56,6 +56,7 @@ import { getParentMatchingPredicate } from '@baserow/modules/core/utils/dom'
 
 export default {
   name: 'CustomStyle',
+  emits: ['update:modelValue'],
   components: { ThemeConfigBlock },
   props: {
     modelValue: {

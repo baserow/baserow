@@ -30,6 +30,8 @@ import SnapshotsService from '@baserow/modules/core/services/snapshots'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
+  emits: ['snapshot-deleted'],
+
   components: {
     Modal,
   },

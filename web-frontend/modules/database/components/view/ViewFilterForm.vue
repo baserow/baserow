@@ -67,6 +67,7 @@ import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
 
 export default {
   name: 'ViewFilterForm',
+  emits: ['changed'],
   components: {
     ViewFieldConditionsForm,
   },
