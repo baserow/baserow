@@ -17,6 +17,8 @@
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 
 export default {
+  emits: ['update'],
+
   mixins: [rowEditField],
   methods: {
     toggle(value) {

@@ -38,6 +38,7 @@ import { email, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'InviteStep',
+  emits: ['update-data'],
   setup() {
     const values = reactive({
       emails: [

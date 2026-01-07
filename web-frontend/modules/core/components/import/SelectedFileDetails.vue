@@ -38,6 +38,7 @@ import { formatFileSize } from '@baserow/modules/core/utils/file'
 
 export default {
   name: 'SelectedFileDetails',
+  emits: ['import-workspace-reset'],
   components: {},
   mixins: [error],
   props: {

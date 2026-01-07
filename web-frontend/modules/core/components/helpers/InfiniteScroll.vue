@@ -39,6 +39,8 @@
  * available items.
  */
 export default {
+  emits: ['load-next-page'],
+
   props: {
     currentCount: {
       type: Number,

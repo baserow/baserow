@@ -36,6 +36,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'RowCommentNotification',
+  emits: ['close-panel'],
   components: {
     RichTextEditor,
   },

@@ -56,6 +56,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'BuilderSettingsModal',
+  emits: ['created'],
   mixins: [modal],
   props: {
     builder: {

@@ -59,6 +59,7 @@ import image from '@baserow_enterprise/assets/images/kuma.svg?url'
 
 export default {
   name: 'AssistantWelcomeMessage',
+  emits: ['prompt'],
   props: {
     name: {
       type: String,

@@ -71,6 +71,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CommonSamlSettingsForm',
+  emits: ['delete'],
   components: { SamlSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
   props: {

@@ -51,6 +51,7 @@ import error from '@baserow/modules/core/mixins/error'
 
 export default {
   name: 'DomainsForm',
+  emits: ['created'],
   mixins: [error],
   props: {
     builder: {

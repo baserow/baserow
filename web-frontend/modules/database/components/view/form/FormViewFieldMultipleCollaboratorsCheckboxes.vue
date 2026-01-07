@@ -29,6 +29,7 @@ import collaboratorField from '@baserow/modules/database/mixins/collaboratorFiel
 
 export default {
   name: 'FormViewFieldMultipleCollaboratorsCheckboxes',
+  emits: ['update'],
   mixins: [rowEditField, collaboratorField],
   methods: {
     toggleValue(id, oldValue) {

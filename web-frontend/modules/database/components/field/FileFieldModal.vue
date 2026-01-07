@@ -122,6 +122,7 @@ import {
 
 export default {
   name: 'FileFieldModal',
+  emits: ['removed', 'renamed'],
   components: {
     PreviewAny,
   },

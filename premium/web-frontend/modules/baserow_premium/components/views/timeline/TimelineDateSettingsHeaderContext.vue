@@ -25,6 +25,7 @@ import TimelineDateSettingsForm from '@baserow_premium/components/views/timeline
 
 export default {
   name: 'TimelineDateSettingsHeaderContext',
+  emits: ['refresh'],
   components: {
     TimelineDateSettingsForm,
   },

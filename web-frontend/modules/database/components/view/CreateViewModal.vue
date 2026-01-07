@@ -43,6 +43,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 export default {
   name: 'CreateViewModal',
+  emits: ['created'],
   mixins: [modal, error],
   props: {
     table: {

@@ -31,6 +31,7 @@
 <script>
 export default {
   name: 'GenerateAIValuesFormFoote',
+  emits: ['cancel-job'],
   props: {
     field: {
       type: Object,

@@ -99,6 +99,7 @@ import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'SelectAIModelForm',
+  emits: ['ai-type-changed'],
   mixins: [form, modal],
   props: {
     database: {

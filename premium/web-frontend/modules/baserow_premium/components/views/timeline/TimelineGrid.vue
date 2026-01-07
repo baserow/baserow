@@ -112,6 +112,7 @@ import TimelineGridRowFieldRules from '@baserow_premium/components/views/timelin
 
 export default {
   name: 'TimelineGrid',
+  emits: ['edit-row', 'scroll-to-date', 'update-row', 'updating-row'],
   components: {
     TimelineGridRowFieldRules,
     TimelineGridRow,

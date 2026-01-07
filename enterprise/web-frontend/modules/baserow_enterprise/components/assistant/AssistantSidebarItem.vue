@@ -20,6 +20,7 @@
 <script>
 export default {
   name: 'AssistantSidebarItem',
+  emits: ['toggle-right-sidebar'],
   props: {
     workspace: {
       type: Object,

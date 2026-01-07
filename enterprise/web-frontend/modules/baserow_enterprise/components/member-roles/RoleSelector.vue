@@ -29,6 +29,7 @@ import EditRoleContext from '@baserow/modules/core/components/settings/members/E
 
 export default {
   name: 'RoleSelector',
+  emits: ['delete', 'input'],
   components: { EditRoleContext },
   props: {
     value: {

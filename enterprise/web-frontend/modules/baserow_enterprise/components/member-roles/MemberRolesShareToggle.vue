@@ -18,6 +18,7 @@
 <script>
 export default {
   name: 'MemberRolesShareToggle',
+  emits: ['update:toggled'],
   props: {
     name: {
       type: String,

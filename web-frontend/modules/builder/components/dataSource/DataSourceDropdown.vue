@@ -59,6 +59,7 @@ import DataSourceCreateEditModal from '@baserow/modules/builder/components/dataS
 export default {
   name: 'DataSourceDropdown',
   components: { DataSourceCreateEditModal },
+  emits: ['update:modelValue'],
   props: {
     modelValue: {
       type: Number,

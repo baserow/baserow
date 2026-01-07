@@ -26,6 +26,7 @@ import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'VerticalAlignmentSelector',
+  emits: ['input'],
   props: {
     value: {
       type: String,

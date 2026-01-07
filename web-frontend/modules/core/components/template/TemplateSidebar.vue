@@ -41,6 +41,7 @@
 <script>
 export default {
   name: 'TemplateSidebar',
+  emits: ['collapse-toggled', 'selected-page'],
   props: {
     template: {
       type: Object,

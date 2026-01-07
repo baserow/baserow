@@ -122,6 +122,7 @@ import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataPr
 
 export default {
   name: 'FieldAISubForm',
+  emits: ['input'],
   components: { SelectAIModelForm, FormulaInputField },
   mixins: [form, fieldSubForm],
   setup() {

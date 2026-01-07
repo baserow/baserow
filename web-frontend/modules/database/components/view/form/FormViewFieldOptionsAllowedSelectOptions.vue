@@ -42,6 +42,7 @@ import FieldSelectOptionsDropdown from '@baserow/modules/database/components/fie
 
 export default {
   name: 'FormViewFieldOptionsAllowedSelectOptions',
+  emits: ['updated-field-options'],
   components: { FieldSelectOptionsDropdown },
   props: {
     readOnly: {

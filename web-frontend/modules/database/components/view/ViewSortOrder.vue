@@ -60,6 +60,7 @@
 <script>
 export default {
   name: 'ViewSortOrder',
+  emits: ['update-order'],
   props: {
     disabled: {
       type: Boolean,

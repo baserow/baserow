@@ -87,6 +87,7 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableDeleteRow',
+  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,

@@ -52,6 +52,7 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTablePasswordFieldAuthentication',
+  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,

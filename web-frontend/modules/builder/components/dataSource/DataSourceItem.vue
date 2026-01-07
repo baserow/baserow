@@ -60,6 +60,7 @@ import DataSourceItemContext from '@baserow/modules/builder/components/dataSourc
 
 export default {
   name: 'DataSourceItem',
+  emits: ['delete', 'edit', 'share'],
   components: { DataSourceItemContext },
   inject: ['workspace', 'builder'],
   props: {

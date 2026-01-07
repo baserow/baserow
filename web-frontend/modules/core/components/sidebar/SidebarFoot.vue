@@ -46,6 +46,7 @@ import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLi
 
 export default {
   name: 'SidebarFoot',
+  emits: ['set-col1-width'],
   components: { ExternalLinkBaserowLogo },
   mixins: [undoRedo],
   props: {

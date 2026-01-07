@@ -118,6 +118,7 @@ import { createFiltersTree } from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'ConditionalColorValueProvider',
+  emits: ['update'],
   components: { ViewFieldConditionsForm, ColorSelectContext },
   props: {
     database: {

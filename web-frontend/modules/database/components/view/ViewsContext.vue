@@ -92,6 +92,7 @@ import CreateViewLink from '@baserow/modules/database/components/view/CreateView
 
 export default {
   name: 'ViewsContext',
+  emits: ['selected-view'],
   components: {
     ViewsContextItem,
     CreateViewLink,

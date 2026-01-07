@@ -124,6 +124,7 @@ import RowCreateModal from '@baserow/modules/database/components/row/RowCreateMo
 
 export default {
   name: 'CalendarView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     CalendarMonth,
     RowEditModal,

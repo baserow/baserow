@@ -18,6 +18,8 @@ import gridField from '@baserow/modules/database/mixins/gridField'
 import Rating from '@baserow/modules/database/components/Rating'
 
 export default {
+  emits: ['update'],
+
   components: { Rating },
   mixins: [gridField],
   mounted() {

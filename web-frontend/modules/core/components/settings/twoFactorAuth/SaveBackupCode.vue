@@ -27,6 +27,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'SaveBackupCode',
+  emits: ['continue'],
   props: {
     backupCodes: {
       type: Array,

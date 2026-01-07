@@ -258,6 +258,8 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
  * will load the correct components into the header and body.
  */
 export default {
+  emits: ['navigate-next', 'navigate-previous', 'selected-row', 'selected-view'],
+
   components: {
     DefaultErrorPage,
     ViewGroupBy,

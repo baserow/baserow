@@ -39,6 +39,7 @@ import ConfigureDataSyncSettings from '@baserow/modules/database/components/data
 
 export default {
   name: 'ConfigureDataSyncModal',
+  emits: ['hidden'],
   components: { ConfigureDataSyncVisibleFields, ConfigureDataSyncSettings },
   mixins: [modal],
   props: {

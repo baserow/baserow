@@ -43,6 +43,7 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'RegisterLicenseModal',
+  emits: ['registered'],
   components: { RegisterLicenseForm },
   mixins: [modal, error],
   props: {

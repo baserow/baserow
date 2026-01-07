@@ -308,6 +308,7 @@ import { isValidURLWithHttpScheme } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'WebhookForm',
+  emits: ['formchange'],
   components: {
     Checkbox,
     TestWebhookModal,

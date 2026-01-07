@@ -138,6 +138,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'GroupedAggregateRowsDataSourceForm',
+  emits: ['values-changed', 'widget-values-changed'],
   components: {
     AggregationSeriesForm,
     AggregationGroupByForm,

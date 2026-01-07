@@ -148,6 +148,7 @@ import APIDocsParentParameter from '@baserow/modules/database/components/docs/AP
 
 export default {
   name: 'APIDocsTableUpdateRow',
+  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsParentParameter,

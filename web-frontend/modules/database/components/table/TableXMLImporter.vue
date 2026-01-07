@@ -84,6 +84,7 @@ import { XMLParser } from '@baserow/modules/database/utils/xml'
 
 export default {
   name: 'TableXMLImporter',
+  emits: ['changed', 'data', 'getData'],
   mixins: [form, importer],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

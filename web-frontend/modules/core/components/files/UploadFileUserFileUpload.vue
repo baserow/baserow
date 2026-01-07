@@ -77,6 +77,7 @@ import { getFilesFromEvent } from '@baserow/modules/core/utils/file'
 import { IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
 export default {
   name: 'UploadFileUserFileUpload',
+  emits: ['uploaded'],
   components: { UploadFileDropzone },
   props: {
     uploadFile: {

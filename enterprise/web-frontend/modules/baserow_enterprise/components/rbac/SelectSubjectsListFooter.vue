@@ -37,6 +37,7 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 export default {
   name: 'SelectSubjectsListFooter',
+  emits: ['invite'],
   components: { RoleSelector },
   props: {
     showRoleSelector: {

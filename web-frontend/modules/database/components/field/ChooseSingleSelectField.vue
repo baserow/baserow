@@ -46,6 +46,7 @@ import CreateFieldContext from '@baserow/modules/database/components/field/Creat
 
 export default {
   name: 'ChooseSingleSelectField',
+  emits: ['input'],
   components: { CreateFieldContext },
   props: {
     table: {

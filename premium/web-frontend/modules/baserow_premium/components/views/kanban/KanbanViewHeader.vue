@@ -93,6 +93,7 @@ import kanbanViewHelper from '@baserow_premium/mixins/kanbanViewHelper'
 
 export default {
   name: 'KanbanViewHeader',
+  emits: ['refresh'],
   components: { KanbanViewStackedBy, ViewFieldsContext },
   mixins: [kanbanViewHelper],
   props: {

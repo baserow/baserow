@@ -89,6 +89,7 @@ import {
 
 export default {
   name: 'TimelineDateSettingsForm',
+  emits: ['submitted'],
   mixins: [form],
   props: {
     fields: {

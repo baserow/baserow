@@ -96,6 +96,7 @@ import FormPrefillOrHideModal from '@baserow/modules/database/components/view/fo
 
 export default {
   name: 'FormViewSidebar',
+  emits: ['ordered-fields'],
   components: {
     FormPrefillOrHideModal,
     CreateFieldContext,

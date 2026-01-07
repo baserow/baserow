@@ -49,6 +49,7 @@ import ViewService from '@baserow/modules/database/services/view'
 
 export default {
   name: 'WebhookModal',
+  emits: ['hidden'],
   components: {
     CreateWebhook,
     WebhookList,

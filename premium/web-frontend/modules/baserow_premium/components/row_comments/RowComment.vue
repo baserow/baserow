@@ -87,6 +87,7 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'RowComment',
+  emits: ['stop-edit'],
   components: {
     RowCommentContext,
     RichTextEditor,

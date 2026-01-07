@@ -35,6 +35,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'EditInviteContext',
+  emits: ['refresh'],
   mixins: [context],
   props: {
     invitation: {

@@ -28,6 +28,7 @@
 <script>
 export default {
   name: 'DataSyncTypeChoice',
+  emits: ['selected'],
   props: {
     database: {
       type: Object,

@@ -19,6 +19,8 @@
 import gridField from '@baserow/modules/database/mixins/gridField'
 
 export default {
+  emits: ['update'],
+
   mixins: [gridField],
   data() {
     return {

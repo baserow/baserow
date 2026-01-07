@@ -19,6 +19,7 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'HorizontalAlignmentsSelector',
+  emits: ['input'],
   props: {
     value: {
       type: String,

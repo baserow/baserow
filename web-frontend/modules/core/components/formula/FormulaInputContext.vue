@@ -66,6 +66,7 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputContext',
+  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   components: {
     NodeExplorer,
   },

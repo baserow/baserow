@@ -53,6 +53,7 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'TrashEntry',
+  emits: ['restore'],
   props: {
     trashEntry: {
       type: Object,

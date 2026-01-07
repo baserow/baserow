@@ -28,6 +28,7 @@ import { FieldLevelPermissionsPaidFeature } from '@baserow_enterprise/paidFeatur
 
 export default {
   name: 'FieldPermissionsContextItem',
+  emits: ['hide-context'],
   components: {
     FieldPermissionsModal,
     PaidFeaturesModal,

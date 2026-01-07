@@ -57,6 +57,7 @@ import {
 
 export default {
   name: 'DateFilter',
+  emits: ['input'],
   props: {
     value: {
       type: String,

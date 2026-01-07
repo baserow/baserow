@@ -15,6 +15,7 @@ import MemberSelectionList from '@baserow/modules/core/components/workspace/Memb
 
 export default {
   name: 'MemberAssignmentModal',
+  emits: ['invite'],
   components: { MemberSelectionList },
   mixins: [Modal],
   props: {

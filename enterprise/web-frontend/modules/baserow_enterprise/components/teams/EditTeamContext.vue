@@ -50,6 +50,7 @@ import TeamService from '@baserow_enterprise/services/team'
 
 export default {
   name: 'EditTeamContext',
+  emits: ['deleted', 'edit'],
   mixins: [context],
   props: {
     workspace: {

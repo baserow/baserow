@@ -37,6 +37,7 @@ export {}
 
 export default {
   name: 'UpdateTeamModal',
+  emits: ['updated'],
   components: { ManageTeamForm, MemberAssignmentModal },
   mixins: [modal, error],
   props: {

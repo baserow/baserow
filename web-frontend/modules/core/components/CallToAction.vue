@@ -14,6 +14,7 @@
 <script>
 export default {
   name: 'CallToAction',
+  emits: ['click'],
   props: {
     icon: {
       type: String,

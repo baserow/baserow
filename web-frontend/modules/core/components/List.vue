@@ -23,6 +23,7 @@
 <script>
 export default {
   name: 'List',
+  emits: ['selected'],
   props: {
     items: {
       type: Array,

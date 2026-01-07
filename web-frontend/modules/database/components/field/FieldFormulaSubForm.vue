@@ -46,6 +46,7 @@ import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 
 export default {
   name: 'FieldFormulaSubForm',
+  emits: ['validate'],
   components: {
     FieldFormulaInitialSubForm,
     FormulaAdvancedEditContext,

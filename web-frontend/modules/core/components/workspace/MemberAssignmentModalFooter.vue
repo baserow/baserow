@@ -24,6 +24,7 @@
 <script>
 export default {
   name: 'MemberAssignmentModalFooter',
+  emits: ['invite', 'toggle-select-all'],
   props: {
     filteredMembersCount: {
       type: Number,

@@ -94,6 +94,7 @@
 <script>
 export default {
   name: 'ImportApplicationSelector',
+  emits: ['update'],
   props: {
     applicationGroups: {
       type: Array,

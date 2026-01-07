@@ -136,6 +136,7 @@ import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'ManageTeamForm',
+  emits: ['invite', 'remove-subject'],
   mixins: [form],
   props: {
     workspace: {

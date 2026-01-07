@@ -47,6 +47,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregationSortByForm',
+  emits: ['value-changed'],
   props: {
     allowedSortReferences: {
       type: Array,

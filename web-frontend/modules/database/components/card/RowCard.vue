@@ -60,6 +60,7 @@ import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 
 export default {
   name: 'RowCard',
+  emits: ['mousedown', 'mouseenter', 'mousemove', 'row-context'],
   components: { RecursiveWrapper },
   props: {
     fields: {

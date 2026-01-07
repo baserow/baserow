@@ -6,6 +6,7 @@ import baseField from '@baserow/modules/database/mixins/baseField'
  */
 export default {
   mixins: [baseField],
+  emits: ['touched'],
   props: {
     readOnly: {
       type: Boolean,

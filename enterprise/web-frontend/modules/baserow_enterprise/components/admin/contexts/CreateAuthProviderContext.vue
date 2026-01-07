@@ -24,6 +24,7 @@ import AuthProviderIcon from '@baserow_enterprise/components/AuthProviderIcon.vu
 
 export default {
   name: 'CreateAuthProviderContext',
+  emits: ['create'],
   components: { AuthProviderIcon },
   mixins: [context],
   props: {

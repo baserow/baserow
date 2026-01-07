@@ -28,6 +28,7 @@ import DecoratorValueProviderItem from '@baserow/modules/database/components/vie
 
 export default {
   name: 'DecoratorValueProviderList',
+  emits: ['select'],
   components: { DecoratorValueProviderItem },
   props: {
     decoration: {

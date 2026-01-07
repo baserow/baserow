@@ -53,6 +53,7 @@ import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 
 export default {
   name: 'GalleryViewHeader',
+  emits: ['refresh'],
   components: { ViewFieldsContext, ViewSearch },
   props: {
     database: {

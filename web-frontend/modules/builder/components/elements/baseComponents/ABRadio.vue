@@ -21,6 +21,7 @@
 <script>
 export default {
   name: 'ABRadio',
+  emits: ['input'],
   props: {
     /**
      * The state of the radio.

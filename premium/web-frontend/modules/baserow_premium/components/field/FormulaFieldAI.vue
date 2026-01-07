@@ -29,6 +29,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'FormulaFieldAI',
+  emits: ['update-formula'],
   components: { PaidFeaturesModal, AIFormulaModal },
   props: {
     database: {

@@ -110,6 +110,7 @@ const storeName = 'FieldOptions'
 
 export default {
   name: 'SelectRowContent',
+  emits: ['hide'],
   components: { ViewFieldsContext, Paginator, RowCreateModal, SimpleGrid },
   props: {
     tableId: {

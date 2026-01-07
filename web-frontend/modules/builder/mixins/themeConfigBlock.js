@@ -6,6 +6,7 @@ import _ from 'lodash'
 export default {
   inject: ['builder'],
   mixins: [form],
+  emits: ['values-changed'],
   props: {
     preview: {
       type: Boolean,

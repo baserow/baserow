@@ -50,6 +50,7 @@ import InViewport from '@baserow/modules/core/components/InViewport'
 
 export default {
   name: 'FieldMappingForm',
+  emits: ['update'],
   components: { FieldMappingContext, InjectedFormulaInput, InViewport },
   inject: ['workspace'],
   props: {

@@ -122,6 +122,7 @@ import { passwordValidation } from '@baserow/modules/core/validators'
 
 export default {
   name: 'PasswordRegister',
+  emits: ['success'],
   components: { PasswordInput },
   mixins: [error],
   props: {

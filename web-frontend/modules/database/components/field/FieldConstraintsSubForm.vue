@@ -75,6 +75,7 @@ import FieldConstraintItems from '@baserow/modules/database/components/field/Fie
 
 export default {
   name: 'FieldConstraintsSubForm',
+  emits: ['update:modelValue'],
   components: { ButtonText, FormGroup, FieldConstraintItems },
   props: {
     modelValue: {

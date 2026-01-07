@@ -20,6 +20,7 @@
 
 export default {
   name: 'ABButton',
+  emits: ['click'],
   props: {
     /**
      * @type {string} - The size of the button. Can be `small`, `medium` (default) or `large`.

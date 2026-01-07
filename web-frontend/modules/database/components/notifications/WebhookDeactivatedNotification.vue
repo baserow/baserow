@@ -19,6 +19,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'WebhookDeactivatedNotification',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   methods: {
     handleClick() {

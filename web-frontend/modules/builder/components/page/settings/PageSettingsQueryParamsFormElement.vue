@@ -68,6 +68,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 export default {
   name: 'PageSettingsQueryParamsFormElement',
+  emits: ['update'],
   mixins: [form],
   props: {
     queryParams: {

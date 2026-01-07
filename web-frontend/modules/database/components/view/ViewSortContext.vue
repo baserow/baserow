@@ -111,6 +111,7 @@ import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'ViewSortContext',
+  emits: ['changed'],
   components: { ViewSortOrder },
   mixins: [context],
   props: {

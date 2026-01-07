@@ -49,6 +49,7 @@
 import MemberAssignmentModalFooter from '@baserow/modules/core/components/workspace/MemberAssignmentModalFooter'
 export default {
   name: 'MemberSelectionList',
+  emits: ['invite'],
   components: { MemberAssignmentModalFooter },
   props: {
     members: {

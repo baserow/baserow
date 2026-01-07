@@ -28,6 +28,7 @@ import debounce from 'lodash/debounce'
  */
 export default {
   name: 'CrudTableSearch',
+  emits: ['close-modals', 'search-changed'],
   props: {
     loading: {
       type: Boolean,

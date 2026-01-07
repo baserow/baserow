@@ -40,6 +40,7 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 export default {
   name: 'TeamRoleField',
+  emits: ['row-update'],
   components: { EditRoleContext },
   props: {
     row: {

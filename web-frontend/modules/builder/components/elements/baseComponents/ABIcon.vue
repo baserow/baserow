@@ -14,6 +14,7 @@
 <script>
 export default {
   name: 'ABIcon',
+  emits: ['click'],
   props: {
     loading: {
       type: Boolean,

@@ -82,6 +82,7 @@ import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOw
 
 export default {
   name: 'FieldLinkRowSubForm',
+  emits: ['suggested-field-name'],
   mixins: [form, fieldSubForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

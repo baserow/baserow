@@ -21,6 +21,7 @@ import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 
 export default {
   name: 'SingleSelectColorValueProviderForm',
+  emits: ['update'],
   components: { ChooseSingleSelectField },
   props: {
     options: {

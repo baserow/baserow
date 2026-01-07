@@ -5,6 +5,7 @@
 <script>
 export default {
   name: 'HorizontalResize',
+  emits: ['move', 'update'],
   props: {
     width: {
       type: Number,

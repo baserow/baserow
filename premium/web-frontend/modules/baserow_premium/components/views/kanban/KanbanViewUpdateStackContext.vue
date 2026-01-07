@@ -21,6 +21,7 @@ import KanbanViewOptionForm from '@baserow_premium/components/views/kanban/Kanba
 
 export default {
   name: 'KanbanViewUpdateStackContext',
+  emits: ['saved'],
   components: { KanbanViewOptionForm },
   mixins: [context],
   props: {

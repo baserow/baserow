@@ -29,6 +29,7 @@
 <script>
 export default {
   name: 'ServiceSchemaPropertySelector',
+  emits: ['input'],
   props: {
     schema: {
       type: Object,

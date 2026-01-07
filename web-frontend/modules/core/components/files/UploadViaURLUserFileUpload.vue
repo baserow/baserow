@@ -40,6 +40,7 @@ import UserFileService from '@baserow/modules/core/services/userFile'
 
 export default {
   name: 'UploadViaURLUserFileUpload',
+  emits: ['uploaded'],
   mixins: [error],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

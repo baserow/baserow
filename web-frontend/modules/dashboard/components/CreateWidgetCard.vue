@@ -29,6 +29,7 @@
 <script>
 export default {
   name: 'CreateWidgetCard',
+  emits: ['widget-variation-selected'],
   props: {
     dashboard: {
       type: Object,

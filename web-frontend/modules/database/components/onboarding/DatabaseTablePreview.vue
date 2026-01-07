@@ -23,6 +23,7 @@ import { populateRow } from '@baserow/modules/database/store/view/grid'
 
 export default {
   name: 'DatabaseTablePreview',
+  emits: ['focusOnTable'],
   components: { Table },
   props: {
     data: {

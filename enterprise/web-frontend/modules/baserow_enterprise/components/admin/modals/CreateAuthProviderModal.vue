@@ -36,6 +36,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'CreateAuthProviderModal',
+  emits: ['cancel', 'created'],
   mixins: [modal],
   props: {
     authProviderType: {

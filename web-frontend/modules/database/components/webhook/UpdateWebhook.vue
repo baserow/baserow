@@ -54,6 +54,7 @@ TODO MIG*/
 
 export default {
   name: 'UpdateWebhook',
+  emits: ['deleted', 'updated'],
   components: { WebhookForm, DeleteWebhookModal },
   mixins: [error],
   props: {

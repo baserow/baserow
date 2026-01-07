@@ -48,6 +48,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormViewFieldMultipleLinkRow',
+  emits: ['update'],
   components: { PaginatedDropdown },
   mixins: [rowEditField],
   props: {

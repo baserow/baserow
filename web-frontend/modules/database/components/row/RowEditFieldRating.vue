@@ -19,6 +19,8 @@ import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import Rating from '@baserow/modules/database/components/Rating'
 
 export default {
+  emits: ['update'],
+
   components: { Rating },
   mixins: [rowEditField],
   methods: {

@@ -110,6 +110,7 @@ import FieldSelectOptionsDropdownItem from '@baserow/modules/database/components
 
 export default {
   name: 'FieldSelectOptionsDropdown',
+  emits: ['create-option'],
   components: { FieldSelectOptionsDropdownItem },
   mixins: [dropdown],
   props: {

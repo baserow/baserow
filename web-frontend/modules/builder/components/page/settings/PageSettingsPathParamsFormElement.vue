@@ -37,6 +37,7 @@
 import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'PageSettingsPathParamsFormElement',
+  emits: ['update'],
   mixins: [form],
   props: {
     pathParams: {

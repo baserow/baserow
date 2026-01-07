@@ -30,6 +30,7 @@ import AIFormulaForm from '@baserow_premium/components/field/AIFormulaForm.vue'
 
 export default {
   name: 'AIFormulaModal',
+  emits: ['formula'],
   components: { AIFormulaForm },
   mixins: [modal, error],
   props: {
