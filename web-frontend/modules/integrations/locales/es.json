@@ -189,7 +189,7 @@
         "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
         "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
         "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
-        "refinements": "Refinamientos"
+        "refinements": "Configuración detallada"
     },
     "slackBotForm": {
         "supportSetupDescription": "Según la configuración de tu espacio de trabajo de Slack, es posible que puedas crear una nueva aplicación de Slack. De lo contrario, un administrador tendrá que hacerlo por ti. Si estás reutilizando una aplicación existente que pueda escribir mensajes, pasa a la sección titulada «Emparejamiento con tu aplicación de Slack».",
