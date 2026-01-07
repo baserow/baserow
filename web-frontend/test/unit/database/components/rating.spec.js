@@ -4,7 +4,7 @@ import Rating from '@baserow/modules/database/components/Rating'
 describe('Rating component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

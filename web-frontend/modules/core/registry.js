@@ -1,10 +1,18 @@
+export const REGISTERABLE = Symbol('REGISTERABLE')
+
 /**
  * Only instances that are children of a Registerable can be registered into the
  * registry.
  */
 export class Registerable {
+  [REGISTERABLE] = true
+
   constructor({ app } = {}) {
     this.app = app
+  }
+
+  isRegisterable() {
+    return !!this[REGISTERABLE]
   }
 
   /**
@@ -71,7 +79,7 @@ export class Registry {
    * instantiated classes here.
    */
   register(namespace, object) {
-    if (!(object instanceof Registerable)) {
+    if (!(object.isRegisterable || object.isRegisterable())) {
       throw new TypeError(
         'The registered object must be an instance of Registrable.'
       )

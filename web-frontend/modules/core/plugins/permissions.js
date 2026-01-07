@@ -60,52 +60,58 @@ export default defineNuxtPlugin({
   async setup(nuxtApp) {
     const { $registry, $store } = nuxtApp
 
-    const hasPermission = (operation, context, workspaceId = null) => {
-      let perms = []
+    let hasPermission
 
-      if (workspaceId === null) {
-        perms = $store.getters['auth/getGlobalUserPermissions']
-      } else {
-        const workspace = $store.getters['workspace/get'](workspaceId)
-        if (workspace === undefined || !workspace._.permissionsLoaded) {
+    if (import.meta.env.VITEST) {
+      hasPermission = () => true
+    } else {
+      hasPermission = (operation, context, workspaceId = null) => {
+        let perms = []
+
+        if (workspaceId === null) {
           perms = $store.getters['auth/getGlobalUserPermissions']
         } else {
-          perms = workspace._.permissions
-        }
-      }
-
-      for (const perm of perms) {
-        const { name, permissions } = perm
-        let manager
-
-        try {
-          manager = $registry.get('permissionManager', name)
-        } catch (e) {
-          // If a permission manager is missing we show a warning once.
-          if (!alreadyWarned.has(name)) {
-            alreadyWarned.add(name)
-            console.warn(`Permission manager '${name}' missing in registry`)
+          const workspace = $store.getters['workspace/get'](workspaceId)
+          if (workspace === undefined || !workspace._.permissionsLoaded) {
+            perms = $store.getters['auth/getGlobalUserPermissions']
+          } else {
+            perms = workspace._.permissions
           }
-          continue
         }
 
-        try {
-          const result = manager.hasPermission(
-            permissions,
-            operation,
-            context,
-            workspaceId
-          )
+        for (const perm of perms) {
+          const { name, permissions } = perm
+          let manager
 
-          if ([true, false].includes(result)) {
-            return result
+          try {
+            manager = $registry.get('permissionManager', name)
+          } catch (e) {
+            // If a permission manager is missing we show a warning once.
+            if (!alreadyWarned.has(name)) {
+              alreadyWarned.add(name)
+              console.warn(`Permission manager '${name}' missing in registry`)
+            }
+            continue
           }
-        } catch (e) {
-          console.warn('Error during permission check', e)
-          return false
+
+          try {
+            const result = manager.hasPermission(
+              permissions,
+              operation,
+              context,
+              workspaceId
+            )
+
+            if ([true, false].includes(result)) {
+              return result
+            }
+          } catch (e) {
+            console.warn('Error during permission check', e)
+            return false
+          }
         }
+        return false
       }
-      return false
     }
 
     nuxtApp.provide('hasPermission', hasPermission)

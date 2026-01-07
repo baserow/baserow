@@ -611,6 +611,7 @@ export default {
      * field changes.
      */
     updateVisibleFieldsInRow() {
+      if (!this.$el) return
       const width = this.$el.clientWidth
       const scrollLeft = this.$el.scrollLeft
       // The padding is added to the start and end of the viewport to make sure that

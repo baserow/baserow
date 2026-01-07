@@ -9,14 +9,14 @@ describe('Field footer component', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
     mockServer = testApp.mockServer
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (props, slots = {}) => {
