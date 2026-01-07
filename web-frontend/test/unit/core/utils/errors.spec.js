@@ -9,7 +9,7 @@ function errorInterceptorWithStubAppAndStore(
   errorPageData = {}
 ) {
   const stubApp = {
-    i18n: {
+    $i18n: {
       t(t) {
         return t
       },

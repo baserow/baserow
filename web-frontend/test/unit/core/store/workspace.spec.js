@@ -1,6 +1,7 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { expect } from 'vitest'
+import { createStore } from 'vuex'
 
 describe('Workspace store', () => {
   let testApp = null
@@ -238,10 +239,17 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceUpdateWorkspaceUserAttributes', {
+    const store = createStore({
+      modules: {
+        workspace: {
+          ...workspaceStore,
+          state: () => state,
+        },
+      },
+    })
+
+    await store.dispatch('workspace/forceUpdateWorkspaceUserAttributes', {
       userId: 256,
       values: {
         name: 'John renamed',
@@ -249,17 +257,17 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users[0].name).toBe('John renamed')
     expect(workspace.users[0].to_be_deleted).toBe(true)
 
-    const workspace2 = store.getters['test/get'](2)
+    const workspace2 = store.getters['workspace/get'](2)
     expect(workspace2.users[0].name).toBe('Peter')
     expect(workspace2.users[0].to_be_deleted).toBe(false)
     expect(workspace2.users[1].name).toBe('John renamed')
     expect(workspace2.users[1].to_be_deleted).toBe(true)
 
-    const workspace3 = store.getters['test/get'](3)
+    const workspace3 = store.getters['workspace/get'](3)
     expect(workspace3.users[0].name).toBe('Peter')
     expect(workspace3.users[0].to_be_deleted).toBe(false)
   })
@@ -287,10 +295,17 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceDeleteWorkspaceUser', {
+    const store = createStore({
+      modules: {
+        workspace: {
+          ...workspaceStore,
+          state: () => state,
+        },
+      },
+    })
+
+    await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -305,7 +320,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(0)
   })
 
@@ -368,90 +383,96 @@ describe('Workspace store', () => {
   })
 
   test('forceDeleteUser deletes all workspace users across all workspaces', async () => {
-    const state = Object.assign(workspaceStore.state(), {
-      items: [
-        {
-          id: 1,
-          name: 'Workspace 1',
-          order: 1,
-          permissions: 'ADMIN',
-          users: [
-            {
-              id: 73,
-              user_id: 256,
-              workspace: 1,
-              name: 'John',
-              email: 'john@example.com',
-              permissions: 'ADMIN',
-              to_be_deleted: false,
-              created_on: '2022-08-10T14:20:05.629890Z',
-            },
-          ],
+    const store = createStore({
+      modules: {
+        workspace: {
+          ...workspaceStore,
+          state: () => ({
+            ...workspaceStore.state(),
+            items: [
+              {
+                id: 1,
+                name: 'Workspace 1',
+                order: 1,
+                permissions: 'ADMIN',
+                users: [
+                  {
+                    id: 73,
+                    user_id: 256,
+                    workspace: 1,
+                    name: 'John',
+                    email: 'john@example.com',
+                    permissions: 'ADMIN',
+                    to_be_deleted: false,
+                    created_on: '2022-08-10T14:20:05.629890Z',
+                  },
+                ],
+              },
+              {
+                id: 2,
+                name: 'Workspace 2',
+                order: 1,
+                permissions: 'ADMIN',
+                users: [
+                  {
+                    id: 2136,
+                    user_id: 456,
+                    workspace: 2,
+                    name: 'Peter',
+                    email: 'peter@example.com',
+                    permissions: 'ADMIN',
+                    to_be_deleted: false,
+                    created_on: '2022-08-10T14:20:05.629890Z',
+                  },
+                  {
+                    id: 173,
+                    user_id: 256,
+                    workspace: 2,
+                    name: 'John',
+                    email: 'john@example.com',
+                    permissions: 'ADMIN',
+                    to_be_deleted: false,
+                    created_on: '2022-08-10T14:20:05.629890Z',
+                  },
+                ],
+              },
+              {
+                id: 3,
+                name: 'Workspace 3',
+                order: 1,
+                permissions: 'ADMIN',
+                users: [
+                  {
+                    id: 2132,
+                    user_id: 456,
+                    workspace: 3,
+                    name: 'Peter',
+                    email: 'peter@example.com',
+                    permissions: 'ADMIN',
+                    to_be_deleted: false,
+                    created_on: '2022-08-10T14:20:05.629890Z',
+                  },
+                ],
+              },
+            ],
+          }),
         },
-        {
-          id: 2,
-          name: 'Workspace 2',
-          order: 1,
-          permissions: 'ADMIN',
-          users: [
-            {
-              id: 2136,
-              user_id: 456,
-              workspace: 2,
-              name: 'Peter',
-              email: 'peter@example.com',
-              permissions: 'ADMIN',
-              to_be_deleted: false,
-              created_on: '2022-08-10T14:20:05.629890Z',
-            },
-            {
-              id: 173,
-              user_id: 256,
-              workspace: 2,
-              name: 'John',
-              email: 'john@example.com',
-              permissions: 'ADMIN',
-              to_be_deleted: false,
-              created_on: '2022-08-10T14:20:05.629890Z',
-            },
-          ],
-        },
-        {
-          id: 3,
-          name: 'Workspace 3',
-          order: 1,
-          permissions: 'ADMIN',
-          users: [
-            {
-              id: 2132,
-              user_id: 456,
-              workspace: 3,
-              name: 'Peter',
-              email: 'peter@example.com',
-              permissions: 'ADMIN',
-              to_be_deleted: false,
-              created_on: '2022-08-10T14:20:05.629890Z',
-            },
-          ],
-        },
-      ],
+      },
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceDeleteUser', {
+    await store.dispatch('workspace/forceDeleteUser', {
       userId: 256,
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(0)
 
-    const workspace2 = store.getters['test/get'](2)
+    const workspace2 = store.getters['workspace/get'](2)
     expect(workspace2.users[0].name).toBe('Peter')
     expect(workspace2.users[0].to_be_deleted).toBe(false)
     expect(workspace2.users.length).toBe(1)
 
-    const workspace3 = store.getters['test/get'](3)
+    const workspace3 = store.getters['workspace/get'](3)
     expect(workspace3.users.length).toBe(1)
   })
 

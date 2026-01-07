@@ -1,5 +1,323 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`Preview component > Audio preview component 1`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__audio-wrapper"
+  >
+    <!--v-if-->
+    <audio
+      class="preview__audio preview--hidden"
+      controls=""
+      style="display: none;"
+    >
+      <source
+        src="https://baserow.io/audio.mp3"
+        type="audio/mpeg"
+      />
+      
+      
+      <div
+        class="default"
+      />
+      
+      
+    </audio>
+    
+    
+    <div
+      class="default"
+    />
+    
+    
+  </div>
+</div>
+`;
+
+exports[`Preview component > Default preview component 1`] = `
+<div
+  class="preview"
+>
+  
+  
+</div>
+`;
+
+exports[`Preview component > Image preview component 1`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__image-wrapper"
+    mime-type="image/png"
+  >
+    <div
+      class="preview__loading"
+    />
+    <img
+      class="preview__image preview--hidden"
+      src="https://baserow.io/logo.png"
+    />
+  </div>
+</div>
+`;
+
+exports[`Preview component > Office preview 1`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__select"
+  >
+    
+    <div
+      class="default"
+    />
+    
+    <div
+      class="preview__select-warning"
+    >
+      previewAny.externalWarning
+    </div>
+    <div
+      class="preview__select-buttons"
+    >
+      
+      <button
+        class="button button--regular button--secondary"
+      >
+        <i
+          class="button__icon iconoir-lock-open"
+        />
+        <span
+          class="button__label"
+        >
+          
+          previewType.googleDocs
+          
+        </span>
+        <!--v-if-->
+      </button>
+      
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Preview component > Office preview 2`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__iframe-wrapper"
+    mime-type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  >
+    <div
+      class="preview__loading"
+    />
+    <iframe
+      class="preview__iframe preview--hidden"
+      src="https://docs.google.com/gview?url=https%3A%2F%2Fbaserow.iapplication%2Fvnd.openxmlformats-officedocument.wordprocessingml.documento%2Ffile.xlsx&embedded=true"
+    />
+  </div>
+</div>
+`;
+
+exports[`Preview component > PDF preview component 1`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__select"
+  >
+    
+    <div
+      class="default"
+    />
+    
+    <div
+      class="preview__select-warning"
+    >
+      previewAny.externalWarning
+    </div>
+    <div
+      class="preview__select-buttons"
+    >
+      
+      <button
+        class="button button--regular button--secondary"
+      >
+        <!--v-if-->
+        <span
+          class="button__label"
+        >
+          
+          previewType.pdfBrowser
+          
+        </span>
+        <!--v-if-->
+      </button>
+      <button
+        class="button button--regular button--secondary"
+      >
+        <i
+          class="button__icon iconoir-lock-open"
+        />
+        <span
+          class="button__label"
+        >
+          
+          previewType.googleDocs
+          
+        </span>
+        <!--v-if-->
+      </button>
+      
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Preview component > PDF preview component 2`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__iframe-wrapper"
+    mime-type="application/pdf"
+  >
+    <iframe
+      class="preview__iframe"
+      src="https://baserow.io/file.pdf"
+    />
+  </div>
+</div>
+`;
+
+exports[`Preview component > PDF preview component 3`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__select"
+  >
+    
+    <div
+      class="default"
+    />
+    
+    <div
+      class="preview__select-warning"
+    >
+      previewAny.externalWarning
+    </div>
+    <div
+      class="preview__select-buttons"
+    >
+      
+      <button
+        class="button button--regular button--secondary"
+      >
+        <!--v-if-->
+        <span
+          class="button__label"
+        >
+          
+          previewType.pdfBrowser
+          
+        </span>
+        <!--v-if-->
+      </button>
+      <button
+        class="button button--regular button--secondary"
+      >
+        <i
+          class="button__icon iconoir-lock-open"
+        />
+        <span
+          class="button__label"
+        >
+          
+          previewType.googleDocs
+          
+        </span>
+        <!--v-if-->
+      </button>
+      
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Preview component > PDF preview component 4`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__iframe-wrapper"
+    mime-type="application/pdf"
+  >
+    <div
+      class="preview__loading"
+    />
+    <iframe
+      class="preview__iframe preview--hidden"
+      src="https://docs.google.com/gview?url=https%3A%2F%2Fbaserow.io%2Ffile2.pdf&embedded=true"
+    />
+  </div>
+</div>
+`;
+
+exports[`Preview component > Preview component with default 1`] = `
+<div
+  class="preview"
+>
+  
+  <div
+    class="default"
+  />
+  
+</div>
+`;
+
+exports[`Preview component > Video preview component 1`] = `
+<div
+  class="preview"
+>
+  <div
+    class="preview__video-wrapper"
+  >
+    <!--v-if-->
+    <video
+      class="preview__video preview--hidden"
+      controls=""
+      style="display: none;"
+    >
+      <source
+        src="https://baserow.io/video.mpg"
+        type="video/mp4"
+      />
+      
+      
+      <div
+        class="default"
+      />
+      
+      
+    </video>
+    
+    
+    <div
+      class="default"
+    />
+    
+    
+  </div>
+</div>
+`;
+
 exports[`Preview component Audio preview component 1`] = `
 <div
   class="preview"

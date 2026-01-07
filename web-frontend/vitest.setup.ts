@@ -1,48 +1,6 @@
 import { vi } from 'vitest'
-import { config } from '@vue/test-utils'
 
-// Make template + Options API `this.$t()` return the key
-/*config.global.mocks = {
-  ...(config.global.mocks ?? {}),
-  $t: (key: string) => key,
-  $i18n: {
-    t: vi.fn((key: string) => key),
-    getBrowserLocale: () => 'en',
-  },
-}*/
-/*
-vi.mock('#app', async (importOriginal) => {
-  const actual = await importOriginal<any>()
-
-  return {
-    ...actual, // <-- keeps defineNuxtPlugin and everything else
-    useNuxtApp: () => ({
-      // Provide the bits your components expect from useNuxtApp()
-      $i18n: {
-        t: vi.fn((key: string) => key),
-        getBrowserLocale: () => 'en',
-      },
-    }),
-  }
-})
-
-// Keep vue-i18n real exports (createI18n, etc.) but override useI18n().t
-vi.mock('vue-i18n', async (importOriginal) => {
-  const actual = await importOriginal<any>()
-  return {
-    ...actual,
-    useI18n: (...args: any[]) => {
-      // if something needs the real composer, you can still get it:
-      const composer = actual.useI18n?.(...args) ?? {}
-      return {
-        ...composer,
-        t: (key: string) => key,
-      }
-    },
-  }
-})
-*/
-
+// Mock i18n to return key instead of actual translation
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<any>()
 

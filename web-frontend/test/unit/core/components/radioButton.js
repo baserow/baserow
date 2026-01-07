@@ -1,20 +1,21 @@
-import { mount } from '@vue/test-utils'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+
 import RadioButton from '@baserow/modules/core/components/RadioButton'
 
 describe('RadioButton.vue', () => {
-  it('renders the button', () => {
-    const wrapper = mount(RadioButton)
+  it('renders the button', async () => {
+    const wrapper = await mountSuspended(RadioButton)
     expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(true)
   })
 
-  it('passes the correct props to the button', () => {
+  it('passes the correct props to the button', async () => {
     const propsData = {
       loading: true,
       disabled: true,
       icon: 'test-icon',
       title: 'test-title',
     }
-    const wrapper = mount(RadioButton, { propsData })
+    const wrapper = await mountSuspended(RadioButton, { propsData })
 
     const button = wrapper.findComponent({ name: 'Button' })
     Object.keys(propsData).forEach((key) => {
@@ -24,7 +25,7 @@ describe('RadioButton.vue', () => {
 
   it('emits input event with the correct value when the button is clicked', async () => {
     const value = 'test'
-    const wrapper = mount(RadioButton, {
+    const wrapper = await mountSuspended(RadioButton, {
       propsData: {
         value,
       },

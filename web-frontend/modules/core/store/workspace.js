@@ -7,7 +7,6 @@ import {
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsService from '@baserow/modules/core/services/permissions'
 import RolesService from '@baserow/modules/core/services/roles'
-import { useNuxtApp } from '#app'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
@@ -536,7 +535,6 @@ export const getters = {
       return {}
     }
     return getters['get'](state.selected.id)
-
   },
   selectedId(state) {
     if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
