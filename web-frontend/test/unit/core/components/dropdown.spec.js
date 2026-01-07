@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Dropdown component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -13,7 +13,7 @@ describe('Dropdown component', () => {
   })
 
   const mountComponent = ({ props = {}, listeners = {}, slots = {} } = {}) => {
-    return testApp.mount(Dropdown, { propsData: props, listeners, slots })
+    return testApp.mount(Dropdown, { props: props, listeners, slots })
   }
 
   test('basics', async () => {

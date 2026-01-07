@@ -103,7 +103,7 @@ describe('elementTypes tests', () => {
     })
     test('ColumnElementType returns the name by default', () => {
       const elementType = testApp.$registry.get('element', 'column')
-      expect(elementType.getDisplayName({}, {})).toBe('Columns')
+      expect(elementType.getDisplayName({}, {})).toBe('elementType.column')
     })
     test('InputTextElementType label and default_value variations', () => {
       const elementType = testApp.$registry.get('element', 'input_text')
@@ -219,7 +219,7 @@ describe('elementTypes tests', () => {
           },
           applicationContext
         )
-      ).toBe('Link -> Contact Us')
+      ).toBe('elementType.link -> Contact Us')
 
       // If we were not able to find the page, we fall back to trying for a value.
       expect(
@@ -314,7 +314,7 @@ describe('elementTypes tests', () => {
       }
       expect(
         elementType.getDisplayName({ data_source_id: 1 }, applicationContext)
-      ).toBe('Table - Customers')
+      ).toBe('elementType.table - Customers')
 
       // In the event we don't find the data source.
       expect(
@@ -738,7 +738,7 @@ describe('elementTypes tests', () => {
           placeInContainer: null,
           pagePlace: 'header',
         })
-      ).toEqual('This element is not allowed at this location')
+      ).toEqual('elementType.notAllowedLocation')
 
       expect(
         headingElementType.isDisallowedReason({
@@ -749,7 +749,7 @@ describe('elementTypes tests', () => {
           placeInContainer: null,
           pagePlace: 'footer',
         })
-      ).toEqual('This element is not allowed at this location')
+      ).toEqual('elementType.notAllowedLocation')
     })
   })
 
@@ -788,7 +788,7 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('This element is not allowed in a container of the same type')
+      ).toEqual('elementType.notAllowedInsideSameType')
       expect(
         formContainerElementType.isDisallowedReason({
           builder: { id: 1 },
@@ -797,7 +797,7 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('This element is not allowed in a container of the same type')
+      ).toEqual('elementType.notAllowedInsideSameType')
       // We check a top level column element
       expect(
         formContainerElementType.isDisallowedReason({
@@ -828,7 +828,7 @@ describe('elementTypes tests', () => {
           beforeElement: null,
           placeInContainer: 'content',
         })
-      ).toEqual('This element is not allowed in a container of the same type')
+      ).toEqual('elementType.notAllowedInsideSameType')
     })
     test('RepeatElementType allow itself as a nested child.', () => {
       const repeatContainerElementType = testApp.$registry.get(

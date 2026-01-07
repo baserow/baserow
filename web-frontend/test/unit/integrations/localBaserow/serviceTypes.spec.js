@@ -10,7 +10,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Local baserow service types', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

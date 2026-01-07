@@ -1,4 +1,22 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Rating component > Customized rating component 1`] = `
+<div
+  class="rating color--dark-orange editing"
+>
+  
+  
+</div>
+`;
+
+exports[`Rating component > Default rating component 1`] = `
+<div
+  class="rating color--dark-orange editing"
+>
+  
+  
+</div>
+`;
 
 exports[`Rating component Customized rating component 1`] = `
 <div

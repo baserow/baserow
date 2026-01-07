@@ -1,4 +1,5 @@
 import { defineVitestConfig } from '@nuxt/test-utils/config'
+import path from 'path'
 
 export default defineVitestConfig({
   test: {
@@ -11,5 +12,11 @@ export default defineVitestConfig({
       },
     },
     include: ['./**/*.spec.js'],
+  },
+  resolve: {
+    alias: {
+      // @baserow_test_cases/*
+      '@baserow_test_cases': path.resolve(__dirname, '../tests/cases'),
+    },
   },
 })
