@@ -8,13 +8,13 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-vi.mock('lodash/debounce', () => vi.fn((fn) => fn))
+vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
 
 describe('User Admin Component Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = new MockServer(testApp.mock)
   })
@@ -42,7 +42,11 @@ describe('User Admin Component Tests', () => {
       isActive: true,
       isStaff: true,
     }
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin(userSetup)
+    const { ui, userAdmin } = await whenThereIsAUserAndYouOpenUserAdmin(
+      userSetup
+    )
+
+    expect(userAdmin.html()).toMatchSnapshot()
 
     const cells = ui.findCells()
     expect(cells.length).toBe(7)
@@ -528,6 +532,8 @@ describe('User Admin Component Tests', () => {
 
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
+
+    expect(userAdmin.html()).toMatchSnapshot()
 
     let usernameCellsText = ui.findUsernameColumnCellsText()
     expect(usernameCellsText).toStrictEqual([first, second, third])

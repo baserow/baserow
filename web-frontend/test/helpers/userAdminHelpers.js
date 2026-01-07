@@ -1,5 +1,4 @@
 import EditUserContext from '@baserow/modules/core/components/admin/users/contexts/EditUserContext'
-import Error from '@baserow/modules/core/components/Error'
 import ChangeUserPasswordModal from '@baserow/modules/core/components/admin/users/modals/ChangeUserPasswordModal'
 import ChangePasswordForm from '@baserow/modules/core/components/admin/users/forms/ChangePasswordForm'
 import EditUserModal from '@baserow/modules/core/components/admin/users/modals/EditUserModal'
@@ -116,6 +115,7 @@ export default class UserAdminUserHelpers {
     await this.clickChangeUserPassword(editUserContext)
 
     const changePasswordModal = this.c.findComponent(ChangeUserPasswordModal)
+
     const passwordInputs = changePasswordModal.findAll('input')
 
     passwordInputs.at(0).element.value = password
