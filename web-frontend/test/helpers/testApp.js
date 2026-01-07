@@ -366,7 +366,7 @@ export class TestApp {
     )
   }
 
-  async mount(component, { props, propsData, listeners, ...options }) {
+  async mount(component, { props, propsData, listeners, ...options } = {}) {
     // Sometimes baserow directly appends to the documents body, ensure that we
     // are mounting into the document so we can correctly inspect the modals that
     // are placed there.
@@ -400,10 +400,10 @@ export class TestApp {
   async afterEach() {
     this._wrappers.forEach((w) => w.unmount())
     this._wrappers = []
-    await flushPromises()
-    this.store.replaceState(this._initialCleanStoreState)
+    this.store.replaceState(_.cloneDeep(this._initialCleanStoreState))
     this.mock.restore()
     // Flushing promises should be done before the mock reset to avoid raising
     // unwanted exceptions
+    await flushPromises()
   }
 }

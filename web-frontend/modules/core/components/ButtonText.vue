@@ -147,6 +147,8 @@ export default {
     customBind() {
       const attr = {}
 
+      console.log('this.disabled', this.disabled)
+
       // Only add disabled attribute for button elements, not for links
       // And only add it if it's actually true (not false)
       if (

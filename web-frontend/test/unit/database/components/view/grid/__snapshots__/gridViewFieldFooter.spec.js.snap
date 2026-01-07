@@ -1,5 +1,63 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`Field footer component > Change type 1`] = `
+<div
+  class="context visibility-hidden"
+>
+  <!--v-if-->
+</div>
+`;
+
+exports[`Field footer component > Default component 1`] = `
+<div
+  class="grid-view-aggregation read-only"
+>
+  <!--v-if-->
+</div>
+`;
+
+exports[`Field footer component > Default component 2`] = `
+<div
+  class="grid-view-aggregation read-only"
+>
+  <div
+    class="grid-view-aggregation__generic"
+    field="[object Object]"
+  >
+    <span
+      class="grid-view-aggregation__generic-name"
+    >
+      viewAggregationType.notEmptyCount
+    </span>
+    <span
+      class="grid-view-aggregation__generic-value"
+    />
+  </div>
+</div>
+`;
+
+exports[`Field footer component > Default component 3`] = `
+<div
+  class="grid-view-aggregation read-only"
+>
+  <div
+    class="grid-view-aggregation__generic"
+    field="[object Object]"
+  >
+    <span
+      class="grid-view-aggregation__generic-name"
+    >
+      viewAggregationType.notEmptyCount
+    </span>
+    <span
+      class="grid-view-aggregation__generic-value"
+    >
+      75%
+    </span>
+  </div>
+</div>
+`;
+
 exports[`Field footer component Change type 1`] = `
 <div
   class="context visibility-hidden"

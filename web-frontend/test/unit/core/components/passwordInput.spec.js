@@ -1,18 +1,18 @@
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
-import { bootstrapVueContext } from '@baserow/test/helpers/components'
 import { useVuelidate } from '@vuelidate/core'
 import { reactive, computed } from 'vue'
 import { passwordValidation } from '@baserow/modules/core/validators'
+import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('Password Input Tests', () => {
-  let vueContext = null
+  let testApp = null
 
   beforeEach(() => {
-    vueContext = bootstrapVueContext()
+    testApp = new TestApp()
   })
 
   afterEach(() => {
-    vueContext.teardownVueContext()
+    testApp.afterEach()
   })
 
   function mountPasswordInputWithParentState() {
@@ -35,9 +35,7 @@ describe('Password Input Tests', () => {
         '<div> <password-input v-model="v$.password.$model" :validation-state="v$.password"></password-input> </div>',
       components: { 'password-input': PasswordInput },
     }
-    return vueContext.vueTestUtils.mount(parent, {
-      localVue: vueContext.vue,
-    })
+    return testApp.mount(parent)
   }
 
   async function changePassword(wrapper, passwordValue) {
@@ -50,7 +48,7 @@ describe('Password Input Tests', () => {
 
   test('Correct password does not render error div', async () => {
     const password = 'thisIsAValidPassword'
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
     await wrapper.vm.v$.password.$touch()
     const inputInvalid = wrapper.vm.v$.$invalid
@@ -59,7 +57,7 @@ describe('Password Input Tests', () => {
 
   test('Password must be minimum of 8 characters', async () => {
     const password = 'short'
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
     await wrapper.vm.v$.password.$touch()
@@ -69,7 +67,7 @@ describe('Password Input Tests', () => {
 
   test('Password cannot be empty', async () => {
     const password = ''
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
     await wrapper.vm.v$.password.$touch()
@@ -79,7 +77,7 @@ describe('Password Input Tests', () => {
 
   test('Password cannot be more than 256 characters', async () => {
     const password = 't'.repeat(257)
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
     await wrapper.vm.v$.password.$touch()
@@ -89,7 +87,7 @@ describe('Password Input Tests', () => {
 
   test('Password can be exactly 256 characters', async () => {
     const password = 't'.repeat(256)
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
     await wrapper.vm.v$.password.$touch()
@@ -99,7 +97,7 @@ describe('Password Input Tests', () => {
 
   test('Password can be exactly 8 characters', async () => {
     const password = 't'.repeat(8)
-    const wrapper = mountPasswordInputWithParentState()
+    const wrapper = await mountPasswordInputWithParentState()
     await changePassword(wrapper, password)
 
     await wrapper.vm.v$.password.$touch()
