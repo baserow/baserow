@@ -559,11 +559,10 @@ const prepareRequestHeaders = (store) => (config) => {
 const createAxiosInstance = (runtimeConfig) => {
   const publicBackendUrl = runtimeConfig.public.publicBackendUrl
 
-  const privateBackendUrl =
-    runtimeConfig.privateBackendUrl ?? publicBackendUrl
-  const baseBackendUrl =
-    (import.meta.client ? publicBackendUrl : privateBackendUrl) || ''
-  const url = `${baseBackendUrl}/api`
+  const baseBackendUrl = import.meta.client
+    ? publicBackendUrl
+    : runtimeConfig.privateBackendUrl || publicBackendUrl
+  const url = `${baseBackendUrl || ''}/api`
 
   return axios.create({
     baseURL: url,
