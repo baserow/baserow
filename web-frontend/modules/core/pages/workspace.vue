@@ -231,6 +231,10 @@ import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/Das
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
+defineOptions({
+  mixins: [editWorkspace],
+})
+
 const route = useRoute()
 const router = useRouter()
 const nuxtApp = useNuxtApp()
