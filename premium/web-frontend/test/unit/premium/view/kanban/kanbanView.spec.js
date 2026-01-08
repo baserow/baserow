@@ -17,8 +17,8 @@ describe('KanbanView component', () => {
     mockServer = testApp.mockServer
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (props, slots = {}) => {

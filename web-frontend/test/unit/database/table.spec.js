@@ -10,12 +10,12 @@ describe('Table Component Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })
 
-  afterEach(() => testApp.afterEach())
+  afterEach(async () => await testApp.afterEach())
 
   test('Adding a row to a table increases the row count', async () => {
     const { application, table, gridView } =

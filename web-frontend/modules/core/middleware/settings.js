@@ -13,15 +13,3 @@ export default defineNuxtRouteMiddleware(async () => {
     await store.dispatch('settings/load')
   }
 })
-
-/*
-Previous Nuxt 2 middleware:
-export default async function ({ store, req }) {
-  // If nuxt generate, pass this middleware
-  if (import.meta.server && !req) return
-
-  if (!store.getters['settings/isLoaded']) {
-    await store.dispatch('settings/load')
-  }
-}
-*/

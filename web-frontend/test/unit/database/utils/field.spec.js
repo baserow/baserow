@@ -12,8 +12,8 @@ describe('test field utils', () => {
     testApp = new TestApp()
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   describe('getPrimaryOrFirstField', () => {

@@ -750,7 +750,6 @@ export function saveDefaultViewIdInCookie(
     },
   })
 
-  //const cookieValue = cookies.get(cookieName) || ''
   let defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
 
   function createEntry(view) {
@@ -775,11 +774,5 @@ export function saveDefaultViewIdInCookie(
       encodeDefaultViewIdPerTable
     )
     cookieValue.value = fittedListEncoded
-    /*cookies.set(cookieName, fittedListEncoded, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
-      secure,
-    })*/
   }
 }

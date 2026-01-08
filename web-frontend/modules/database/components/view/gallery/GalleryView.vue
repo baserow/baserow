@@ -392,6 +392,8 @@ export default {
     updateBuffer(dispatchVisibleRows = true, updateOrder = true) {
       const el = this.$refs.scroll
 
+      if (!el) return
+
       const gutterSize = this.gutterSize
       const containerWidth = el.clientWidth
       const containerHeight = el.clientHeight

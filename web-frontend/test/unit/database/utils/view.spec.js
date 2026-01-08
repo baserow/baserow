@@ -109,8 +109,8 @@ describe('matchSearchFilters', () => {
     registry = testApp.getRegistry()
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   it('should return true with no filters', () => {

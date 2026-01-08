@@ -21,8 +21,8 @@ describe('GridView checkbox selection', () => {
     store.$config = { ...baseMockConfig }
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (component, props, slots = {}) => {

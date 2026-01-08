@@ -366,6 +366,7 @@ export const actions = {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
     } catch (error) {
+      console.log('view err', error)
       commit('SET_ITEMS', [])
       commit('SET_LOADING', false)
 
