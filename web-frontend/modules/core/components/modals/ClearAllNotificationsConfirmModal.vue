@@ -10,11 +10,11 @@
       <div class="actions">
         <ul class="action__links">
           <li>
-            <a @click.prevent="onClick">{{ $t('action.cancel') }}</a>
+            <a @click.prevent="onCancel">{{ $t('action.cancel') }}</a>
           </li>
         </ul>
 
-        <Button type="danger" @click.prevent="onClick">
+        <Button type="danger" @click.prevent="onConfirm">
           {{ $t('action.delete') }}
         </Button>
       </div>
@@ -30,8 +30,12 @@ export default {
   emits: ['cancel'],
   mixins: [modal],
   methods: {
-    onClick($event) {
+    onCancel($event) {
       this.$emit('cancel', $event)
+      this.hide()
+    },
+    onConfirm($event) {
+      this.$emit('confirm', $event)
       this.hide()
     },
   },

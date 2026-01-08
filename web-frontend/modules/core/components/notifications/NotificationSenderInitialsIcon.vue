@@ -7,5 +7,11 @@
 <script>
 export default {
   name: 'NotificationSenderInitialsIcon',
+  props: {
+    notification: {
+      type: Object,
+      required: true,
+    }
+  },
 }
 </script>
