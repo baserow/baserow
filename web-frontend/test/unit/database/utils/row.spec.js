@@ -14,8 +14,8 @@ describe('Row utilities', () => {
     store = testApp.store
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   describe('prepareRowForRequest', () => {

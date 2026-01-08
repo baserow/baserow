@@ -339,6 +339,18 @@ export class TestApp {
     this.nuxtApp = nuxtApp
     this._app = nuxtApp
     this._wrappers = []
+    this.failTestOnErrorResponse = true
+    this._app.$client.interceptors.response.use(
+      (response) => {
+        return response
+      },
+      (error) => {
+        if (this.failTestOnErrorResponse) {
+          fail(error)
+        }
+        return Promise.reject(error)
+      }
+    )
   }
 
   getApp() {
@@ -391,7 +403,9 @@ export class TestApp {
     return wrapper
   }
 
-  dontFailOnErrorResponses() {}
+  dontFailOnErrorResponses() {
+    this.failTestOnErrorResponse = false
+  }
 
   /**
    * Cleans up after a test run performed by TestApp. Make sure you call this
