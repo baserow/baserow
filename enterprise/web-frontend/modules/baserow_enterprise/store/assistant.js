@@ -1,5 +1,4 @@
 import assistant from '@baserow_enterprise/services/assistant'
-import { useNuxtApp } from 'nuxt/app'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
 
 const MESSAGE_TYPE = {
@@ -27,15 +26,15 @@ export const mutations = {
   },
 
   SET_CHAT_LOADING(state, { chat, value }) {
-    Vue.set(chat, 'loading', value)
+    chat.loading = value
   },
 
   SET_ASSISTANT_RUNNING(state, { chat, value }) {
-    Vue.set(chat, 'running', value)
+    chat.running = value
   },
 
   SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, message = '' }) {
-    Vue.set(chat, 'runningMessage', message)
+    chat.runningMessage = message
   },
 
   SET_ASSISTANT_CANCELLING(state, { chat, value }) {
