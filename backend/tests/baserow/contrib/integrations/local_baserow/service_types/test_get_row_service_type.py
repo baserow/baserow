@@ -16,7 +16,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
-    DoesNotExist,
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
