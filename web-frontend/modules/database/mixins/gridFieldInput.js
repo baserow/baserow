@@ -5,8 +5,7 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
  * example for the text and number fields. It depends on the gridField mixin.
  */
 export default {
-  emits: ['edit', 'selectBelow', 'update'],
-
+  emits: ['edit', 'selectBelow', 'update', 'editing-changed'],
   data() {
     return {
       /**
@@ -30,6 +29,12 @@ export default {
       if (this.editing) {
         this.$emit('edit', this.prepareValue(newCopy), this.value)
       }
+    },
+    editing: {
+      handler(newValue) {
+        this.$emit('editing-changed', newValue)
+      },
+      immediate: true,
     },
   },
   mounted() {

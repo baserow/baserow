@@ -398,8 +398,7 @@ export default {
         // Allow the Enter key to select the value that is currently being focused
         if (
           this.open &&
-          event.key === 'Enter' &&
-          this.focusedDropdownItem !== null
+          event.key === 'Enter'
         ) {
           // Prevent submitting the whole form when pressing the enter key while the
           // dropdown is open.

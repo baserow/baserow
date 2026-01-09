@@ -21,6 +21,10 @@ export default {
     'unselect',
     'unselected',
     'update',
+    'selectPrevious',
+    'selectAbove',
+    'selectNext',
+    'selectBelow',
   ],
   props: {
     /**
