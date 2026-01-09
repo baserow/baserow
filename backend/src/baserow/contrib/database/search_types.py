@@ -547,6 +547,10 @@ class RowSearchType(SearchableItemType):
 
             field_id_int = int(field_id)
             table_id_int = field_id_to_table_id.get(field_id_int) or int(table_id)
+
+            if (table_id_int, int(row_id)) not in primary_values:
+                continue
+
             database_id = table_id_to_database_id.get(table_id_int)
             database_name = database_id_to_name.get(database_id)
             workspace_id = database_id_to_workspace_id.get(database_id)
