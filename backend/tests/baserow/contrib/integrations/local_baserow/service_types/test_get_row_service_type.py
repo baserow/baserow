@@ -257,7 +257,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_view_filter(data_fixtu
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
@@ -291,7 +291,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_search(
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
@@ -422,7 +422,7 @@ def test_local_baserow_get_row_service_dispatch_data_row_not_exist(data_fixture)
 
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 

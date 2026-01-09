@@ -18,6 +18,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 from django.dispatch import Signal
+from django.utils.translation import gettext as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -1656,6 +1657,7 @@ class LocalBaserowGetRowUserServiceType(
         :param resolved_values: If the service has any formulas, this dictionary will
             contain their resolved values.
         :param dispatch_context: The context used for the dispatch.
+        :raises ServiceImproperlyConfiguredDispatchException: When no rows are found.
         :return: The rows.
         """
 
@@ -1671,7 +1673,7 @@ class LocalBaserowGetRowUserServiceType(
         # row by setting the right condition
         if "row_id" not in resolved_values:
             if not queryset.exists():
-                raise DoesNotExist()
+                raise ServiceImproperlyConfiguredDispatchException(_("No rows found"))
             return {
                 "data": queryset.first(),
                 "baserow_table_model": table_model,
@@ -1686,7 +1688,9 @@ class LocalBaserowGetRowUserServiceType(
                 "public_allowed_properties": only_field_names,
             }
         except table_model.DoesNotExist:
-            raise DoesNotExist()
+            raise ServiceImproperlyConfiguredDispatchException(
+                _(f"Row {resolved_values['row_id']} does not exist.")
+            )
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Improved error handling in the Local Baserow single table row action.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-01-09"
+}
