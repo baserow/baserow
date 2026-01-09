@@ -166,12 +166,14 @@ export class RealTimeHandler {
     this.pages = this.pages.filter(
       (item) => JSON.stringify(item) !== JSON.stringify({ page, parameters })
     )
-    this.socket?.send(
-      JSON.stringify({
-        remove_page: page,
-        ...parameters,
-      })
-    )
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          remove_page: page,
+          ...parameters,
+        })
+      )
+    }
   }
 
   /*
