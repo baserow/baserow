@@ -14,7 +14,9 @@
     "postinstall": "nuxt prepare"
   },
   "resolutions": {
-    "sass": "~1.70.0"
+    "sass": "~1.70.0",
+    "cipher-base": "^1.0.5",
+    "unset-value": "^2.0.1"
   },
   "dependencies": {
     "@nuxt/eslint": "1.10.0",

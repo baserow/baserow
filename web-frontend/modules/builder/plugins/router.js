@@ -19,7 +19,7 @@ export default defineNuxtPlugin({
 
     // Check if request hostname matches main hostname or any extra hostname so we know
     // whether the tool or a published application must be served.
-    isWebFrontendHostname =
+    const isWebFrontendHostname =
       frontendHostname === requestHostname ||
       extraPublicHostnames.includes(requestHostname)
 

@@ -127,7 +127,7 @@ export default {
         dataSource.type && this.$registry.get('service', dataSource.type)
       if (serviceType?.getDataSchema(dataSource)) {
         this.modalKey++
-        this.$emit('input', dataSource.id)
+        this.$emit('update:modelValue', dataSource.id)
       }
     },
   },

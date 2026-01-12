@@ -11,14 +11,14 @@ export class BuilderSearchType extends BaseSearchType {
 
   _getApplicationWithPages(result, context) {
     const appId = this._getApplicationId(result)
-    if (!appId || !context?.store) {
+    if (!appId) {
       return null
     }
-    const application = context.store.getters['application/get'](appId)
+    const application = this.app.$store.getters['application/get'](appId)
     if (!application) {
       return null
     }
-    const pages = context.store.getters['page/getVisiblePages'](application)
+    const pages = this.app.$store.getters['page/getVisiblePages'](application)
     if (pages && pages.length > 0) {
       return { application, pages }
     }

@@ -158,7 +158,7 @@ export default defineNuxtPlugin({
   name: 'builder',
   dependsOn: ['core', 'store'],
   async setup(nuxtApp) {
-    const { $store, $registry, $clientErrorMap } = nuxtApp
+    const { $store, $registry, $clientErrorMap, $i18n } = nuxtApp
     const context = { app: nuxtApp }
 
     // Merge builder translations into i18n
@@ -175,8 +175,8 @@ export default defineNuxtPlugin({
 
     $clientErrorMap.setError(
       'ERROR_PAGE_NAME_NOT_UNIQUE',
-      app.i18n.t('pageErrors.errorNameNotUnique'),
-      app.i18n.t('pageErrors.errorNameNotUniqueDescription')
+      $i18n.t('pageErrors.errorNameNotUnique'),
+      $i18n.t('pageErrors.errorNameNotUniqueDescription')
     )
 
     $store.registerModule('page', pageStore)

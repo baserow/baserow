@@ -79,22 +79,18 @@ export class BaseSearchType {
    */
   focusInSidebar(result, context = null) {
     const appId = this._getApplicationId(result)
-    if (!appId || !context?.store) {
+    if (!appId) {
       return false
     }
-    const application = context.store.getters['application/get'](appId)
+    const application = this.app.$store.getters['application/get'](appId)
     if (application) {
-      context.store.dispatch('application/select', application)
+      this.app.$store.dispatch('application/select', application)
 
       const applicationType = this.app.$registry.get(
         'application',
         application.type
       )
-      applicationType.select(application, {
-        $router: this.app.router,
-        $store: context.store,
-        $i18n: this.app.i18n,
-      })
+      applicationType.select(application, this.app)
       return true
     }
     return false
@@ -111,7 +107,7 @@ export class BaseSearchType {
     if (this.isNavigable(result, context)) {
       return null
     }
-    return this.app.i18n.t('workspaceSearch.empty')
+    return this.app.$i18n.t('workspaceSearch.empty')
   }
 }
 
@@ -134,10 +130,11 @@ export class ApplicationSearchType extends BaseSearchType {
 
   _getApplicationWithChildren(result, context) {
     const applicationId = this._getApplicationId(result)
-    if (!applicationId || !context?.store) {
+    if (!applicationId) {
       return null
     }
-    const application = context.store.getters['application/get'](applicationId)
+    const application =
+      this.app.$store.getters['application/get'](applicationId)
     if (!application) {
       return null
     }

@@ -1853,7 +1853,7 @@ export class RuntimeReplace extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.replaceDescription')
   }
 
@@ -1897,7 +1897,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.lengthDescription')
   }
 
@@ -1951,7 +1951,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.containsDescription')
   }
 
@@ -1999,7 +1999,7 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.reverseDescription')
   }
 
@@ -2060,7 +2060,7 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.joinDescription')
   }
 
@@ -2107,7 +2107,7 @@ export class RuntimeSplit extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.splitDescription')
   }
 
@@ -2163,7 +2163,7 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.isEmptyDescription')
   }
 
@@ -2223,7 +2223,7 @@ export class RuntimeStrip extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.stripDescription')
   }
 
@@ -2263,7 +2263,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.sumDescription')
   }
 
@@ -2307,7 +2307,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.avgDescription')
   }
 
@@ -2355,7 +2355,7 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.atDescription')
   }
 
@@ -2399,7 +2399,7 @@ export class RuntimeToArray extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.toArrayDescription')
   }
 
