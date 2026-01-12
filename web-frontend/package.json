@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "build": "APP_ENV=production nuxt build",
-    "dev": "NODE_OPTIONS=--enable-source-maps APP_ENV=dev nuxt dev",
-    "generate": "nuxt generate",
+    "dev": "APP_ENV=dev nuxt dev",
     "preview": "nuxt preview",
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write"
   },
   "resolutions": {
     "sass": "~1.70.0",
@@ -19,7 +21,6 @@
     "unset-value": "^2.0.1"
   },
   "dependencies": {
-    "@nuxt/eslint": "1.10.0",
     "@nuxtjs/i18n": "10.2.1",
     "@tiptap/core": "^3.13.0",
     "@tiptap/extension-blockquote": "^3.13.0",
@@ -108,6 +109,7 @@
     "vuex": "^4.1.0"
   },
   "devDependencies": {
+    "@nuxt/eslint": "^1.12.1",
     "@nuxt/test-utils": "^3.21.0",
     "@nuxtjs/storybook": "latest",
     "@storybook/addon-designs": "^11.1.0",
@@ -115,8 +117,12 @@
     "@storybook/addon-links": "9.1.16",
     "@vue/test-utils": "^2.4.6",
     "axios-mock-adapter": "^2.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vitest": "^0.5.4",
+    "globals": "^17.0.0",
     "happy-dom": "^20.0.11",
     "node-mocks-http": "^1.17.2",
+    "prettier": "^3.7.4",
     "storybook": "9.1.16",
     "vitest": "^4.0.15"
   }
