@@ -48,8 +48,8 @@
         @refresh="$emit('refresh', $event)"
         @dragging="
           canOrderFields &&
-            !$event.field.primary &&
-            $refs.fieldDragging.start($event.field, $event.event)
+          !$event.field.primary &&
+          $refs.fieldDragging.start($event.field, $event.event)
         "
       ></GridViewHead>
       <div

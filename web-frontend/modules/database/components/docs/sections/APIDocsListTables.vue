@@ -56,7 +56,8 @@ export default {
     },
     getListTablesUrl() {
       return (
-        this.$config.public.publicBackendUrl + '/api/database/tables/all-tables/'
+        this.$config.public.publicBackendUrl +
+        '/api/database/tables/all-tables/'
       )
     },
   },

@@ -104,9 +104,8 @@ const { data: invitation } = await useAsyncData(
     const token = route.query.workspaceInvitationToken
     if (token) {
       try {
-        const { data } = await WorkspaceService($client).fetchInvitationByToken(
-          token
-        )
+        const { data } =
+          await WorkspaceService($client).fetchInvitationByToken(token)
         return data
       } catch {
         return null

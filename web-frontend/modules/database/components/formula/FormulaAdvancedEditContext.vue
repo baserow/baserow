@@ -15,7 +15,7 @@
         @keyup="recalcAutoComplete"
         @keydown.tab="doAutoCompleteAfterTab"
         @keydown.enter.exact.prevent="
-          $refs.context.hide(), $emit('hidden', $event)
+          ($refs.context.hide(), $emit('hidden', $event))
         "
       />
     </div>

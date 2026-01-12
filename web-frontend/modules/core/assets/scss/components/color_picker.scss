@@ -9,7 +9,8 @@
   width: 230px;
   overflow: hidden;
   border: 1px solid $color-neutral-200;
-  background-image: linear-gradient(to top, #000, transparent),
+  background-image:
+    linear-gradient(to top, #000, transparent),
     linear-gradient(to right, #fff, transparent);
 
   @include rounded($rounded-md);

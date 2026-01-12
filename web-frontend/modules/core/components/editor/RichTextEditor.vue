@@ -416,7 +416,9 @@ export default {
       )
     },
     isEventTargetInside(event) {
-      return isElement(this.$refs.root, event.target) || this.isEventFromMenu(event)
+      return (
+        isElement(this.$refs.root, event.target) || this.isEventFromMenu(event)
+      )
     },
     addImages(imageFiles) {
       for (const image of imageFiles) {

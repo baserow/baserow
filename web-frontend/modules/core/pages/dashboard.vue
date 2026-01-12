@@ -78,17 +78,23 @@ const allWorkspaces = computed(() => store.getters['workspace/getAll'])
 
 // Handle redirect logic
 if (Object.keys(selectedWorkspace.value).length > 0) {
-  await navigateTo({
-    name: 'workspace',
-    params: { workspaceId: selectedWorkspace.value.id },
-    query: route.query,
-  }, { replace: true })
+  await navigateTo(
+    {
+      name: 'workspace',
+      params: { workspaceId: selectedWorkspace.value.id },
+      query: route.query,
+    },
+    { replace: true }
+  )
 } else if (allWorkspaces.value?.length > 0) {
-  await navigateTo({
-    name: 'workspace',
-    params: { workspaceId: allWorkspaces.value[0].id },
-    query: route.query,
-  }, { replace: true })
+  await navigateTo(
+    {
+      name: 'workspace',
+      params: { workspaceId: allWorkspaces.value[0].id },
+      query: route.query,
+    },
+    { replace: true }
+  )
 } else {
   await store.dispatch('auth/fetchWorkspaceInvitations')
 }

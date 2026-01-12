@@ -24,14 +24,23 @@ const { data: notification, error: loadError } = await useAsyncData(
 )
 
 if (loadError.value || !notification.value) {
-  throw createError({statusCode: 404, statusMessage: 'Notification not found.'})
+  throw createError({
+    statusCode: 404,
+    statusMessage: 'Notification not found.',
+  })
 }
 
-const notificationType = nuxtApp.$registry.get('notification', notification.value.type)
+const notificationType = nuxtApp.$registry.get(
+  'notification',
+  notification.value.type
+)
 const redirectParams = notificationType.getRoute(notification.value.data)
 
 if (!redirectParams) {
-  throw createError({statusCode: 404, statusMessage: 'Notification has no route.'})
+  throw createError({
+    statusCode: 404,
+    statusMessage: 'Notification has no route.',
+  })
 }
 
 await navigateTo(redirectParams, { replace: true })

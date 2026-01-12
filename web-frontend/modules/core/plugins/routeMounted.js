@@ -42,9 +42,9 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.mixin({
     mounted() {
       if (
-        this.$route
+        this.$route &&
         // Skip components that don't have a layout because those are not Nuxt pages.
-        && this.$route.meta.layout !== undefined
+        this.$route.meta.layout !== undefined
       ) {
         this.$store.commit('routeMounted/SET_ROUTE_MOUNTED', {
           mounted: true,

@@ -35,7 +35,10 @@ export default {
     },
   },
   beforeUnmount() {
-    if (this.parentForm && typeof this.parentForm.unregisterChildForm === 'function') {
+    if (
+      this.parentForm &&
+      typeof this.parentForm.unregisterChildForm === 'function'
+    ) {
       this.parentForm.unregisterChildForm(this)
     }
   },
@@ -61,7 +64,10 @@ export default {
       this.values[key] = value
     }
 
-    if (this.parentForm && typeof this.parentForm.registerChildForm === 'function') {
+    if (
+      this.parentForm &&
+      typeof this.parentForm.registerChildForm === 'function'
+    ) {
       this.parentForm.registerChildForm(this)
     }
   },

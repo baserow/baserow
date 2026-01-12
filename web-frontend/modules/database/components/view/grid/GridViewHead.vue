@@ -5,7 +5,7 @@
       :key="'field-group-' + groupBy.field"
       class="grid-view__head-group"
       :style="{ width: groupBy.width + 'px' }"
-      :set="(field = $options.methods.getField(allFieldsInTable, groupBy))"
+      :set="field = $options.methods.getField(allFieldsInTable, groupBy)"
     >
       <div class="grid-view__group-cell">
         <div class="grid-view__group-name">

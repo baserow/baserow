@@ -168,9 +168,8 @@ export const actions = {
     await dispatch('fetchNewDataSources', dashboardId)
 
     if (forEditing) {
-      const { data: integrationsData } = await IntegrationService(
-        $client
-      ).fetchAll(dashboardId)
+      const { data: integrationsData } =
+        await IntegrationService($client).fetchAll(dashboardId)
       integrationsData.forEach((integration) => {
         commit('ADD_INTEGRATION', integration)
       })
@@ -178,9 +177,8 @@ export const actions = {
   },
   async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
     const { $client } = this
-    const { data: dataSourcesData } = await DataSourceService(
-      $client
-    ).getAllDataSources(dashboardId)
+    const { data: dataSourcesData } =
+      await DataSourceService($client).getAllDataSources(dashboardId)
     dataSourcesData.forEach(async (dataSource) => {
       if (!getters.getDataSourceById(dataSource.id)) {
         commit('ADD_DATA_SOURCE', dataSource)

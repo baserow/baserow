@@ -74,7 +74,7 @@ export default {
       default: null,
     },
   },
-  emits: ["delete", "click", "rename"],
+  emits: ['delete', 'click', 'rename'],
   methods: {
     resetName() {
       this.$refs.nameEditable.set()

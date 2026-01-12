@@ -44,39 +44,36 @@
 </template>
 
 <script setup>
-import {computed} from 'vue'
-import {useHead} from '#imports'
+import { computed } from 'vue'
+import { useHead } from '#imports'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
-import APIDocsSelectDatabase
-  from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
-import {useRouter} from "vue-router";
+import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
 const {
   $store,
   $config,
-  $i18n: {t: $t},
+  $i18n: { t: $t },
 } = useNuxtApp()
-
 
 definePageMeta({
   layout: 'login',
   middleware: ['workspacesAndApplications'],
 })
 
-useHead(
-  {
-    title: 'REST API documentation',
-    link: [
-      {
-        rel: 'canonical',
-        href:
-          $config.public.publicWebFrontendUrl +
-          router.resolve({name: 'database-api-docs'}).href,
-      },
-    ],
-  })
+useHead({
+  title: 'REST API documentation',
+  link: [
+    {
+      rel: 'canonical',
+      href:
+        $config.public.publicWebFrontendUrl +
+        router.resolve({ name: 'database-api-docs' }).href,
+    },
+  ],
+})
 
 const isAuthenticated = computed(() => {
   return $store.getters['auth/isAuthenticated']

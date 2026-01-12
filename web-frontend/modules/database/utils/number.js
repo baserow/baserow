@@ -211,8 +211,8 @@ export const parseNumberValue = (field, value, roundDecimals = true) => {
   return parsedNumber.isNaN()
     ? null
     : isNegative
-    ? parsedNumber.negated()
-    : parsedNumber
+      ? parsedNumber.negated()
+      : parsedNumber
 }
 
 /**

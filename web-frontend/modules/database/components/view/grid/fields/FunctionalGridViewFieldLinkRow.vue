@@ -22,9 +22,7 @@
           }}
         </span>
       </div>
-      <div v-if="shouldFetchRow" class="grid-field-many-to-many__item">
-        ...
-      </div>
+      <div v-if="shouldFetchRow" class="grid-field-many-to-many__item">...</div>
     </div>
   </div>
 </template>

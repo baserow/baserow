@@ -388,7 +388,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addFontFamilyIfExists(theme, `button_font_family`)
     style.addFontWeightIfExists(theme, `button_font_weight`)
@@ -435,7 +435,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addIfExists(theme, `link_font_family`, `--link-font-family`, (v) => {
       const fontFamilyType = this.app.$registry.get('fontFamily', v)
@@ -568,7 +568,7 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
 
     const imageMaxWidth = get(
@@ -807,7 +807,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addPixelValueIfExists(theme, `table_cell_vertical_padding`)
     style.addPixelValueIfExists(theme, `table_cell_horizontal_padding`)

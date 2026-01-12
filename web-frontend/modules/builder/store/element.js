@@ -374,9 +374,8 @@ const actions = {
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
     const { $registry, $i18n, $client, $config } = this
-    const { data: elements } = await PublicBuilderService(
-      $client
-    ).fetchElements(page)
+    const { data: elements } =
+      await PublicBuilderService($client).fetchElements(page)
 
     commit('SET_ITEMS', { builder, page, elements })
 

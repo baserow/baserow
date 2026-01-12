@@ -94,12 +94,15 @@ export default {
   emits: ['update:activeIndex'],
   data() {
     return {
-      internalActiveIndex: this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex,
+      internalActiveIndex:
+        this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex,
     }
   },
   computed: {
     currentActiveIndex() {
-      return this.activeIndex !== null ? this.activeIndex : this.internalActiveIndex
+      return this.activeIndex !== null
+        ? this.activeIndex
+        : this.internalActiveIndex
     },
   },
   watch: {
@@ -115,7 +118,8 @@ export default {
       this.$emit('update:activeIndex', index)
     },
     reset() {
-      this.internalActiveIndex = this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex
+      this.internalActiveIndex =
+        this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex
     },
   },
 }

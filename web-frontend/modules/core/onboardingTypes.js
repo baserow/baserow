@@ -9,7 +9,7 @@ import AppLayoutPreview from '@baserow/modules/core/components/onboarding/AppLay
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import AuthService from '@baserow/modules/core/services/auth'
 import { MemberRoleType } from '@baserow/modules/database/roleTypes'
-import {useRuntimeConfig} from '#imports'
+import { useRuntimeConfig } from '#imports'
 
 export class OnboardingType extends Registerable {
   /**

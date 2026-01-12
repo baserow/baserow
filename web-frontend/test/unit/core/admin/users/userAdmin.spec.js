@@ -42,9 +42,8 @@ describe('User Admin Component Tests', () => {
       isActive: true,
       isStaff: true,
     }
-    const { ui, userAdmin } = await whenThereIsAUserAndYouOpenUserAdmin(
-      userSetup
-    )
+    const { ui, userAdmin } =
+      await whenThereIsAUserAndYouOpenUserAdmin(userSetup)
 
     expect(userAdmin.html()).toMatchSnapshot()
 

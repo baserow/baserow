@@ -30,7 +30,7 @@
     <i
       v-if="editing && !isModalOpen()"
       class="baserow-icon-enlarge grid-field-rich-text__textarea-expand-icon"
-      @click="$refs.expandedModal.toggle(), resetCellSize()"
+      @click="($refs.expandedModal.toggle(), resetCellSize())"
     />
     <FieldRichTextModal
       ref="expandedModal"

@@ -63,7 +63,8 @@ export default {
         'switch--small': this.small,
         'switch--disabled': this.disabled,
         'switch--active': this.currentValue,
-        'switch--indeterminate': this.currentValue !== true && this.currentValue !== false,
+        'switch--indeterminate':
+          this.currentValue !== true && this.currentValue !== false,
         [`switch--color-${this.color}`]: true,
       }
     },

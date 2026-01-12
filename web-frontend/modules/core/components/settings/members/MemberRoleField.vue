@@ -2,11 +2,7 @@
   <span v-if="isReadOnly">
     {{ roleName(column.additionalProps.roles, row) }}
   </span>
-  <a
-    v-else
-    class="member-role-field__link"
-    @click.prevent="onClick"
-  >
+  <a v-else class="member-role-field__link" @click.prevent="onClick">
     <span>
       {{ roleName(column.additionalProps.roles, row) }}
     </span>
