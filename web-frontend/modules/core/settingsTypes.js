@@ -128,12 +128,12 @@ export class EmailSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('settingType.email')
+    const { $i18n } = this.app
+    return $i18n.t('settingType.email')
   }
 
   isEnabled() {
-    return this.app.store.getters['authProvider/getPasswordLoginEnabled']
+    return this.app.$store.getters['authProvider/getPasswordLoginEnabled']
   }
 
   getComponent() {

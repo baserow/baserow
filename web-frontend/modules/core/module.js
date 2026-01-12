@@ -17,6 +17,8 @@ import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
 import page from '../builder/services/page'
+import { parseHostnamesFromUrls } from './utils/url'
+
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
@@ -159,7 +161,9 @@ export default defineNuxtModule({
         integrationLocalBaserowPageSizeLimit: parseInt(
           process.env.BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT ?? 200
         ),
-        // extraPublicWebFrontendHostnames TODO MIG
+        extraPublicWebFrontendHostnames: parseHostnamesFromUrls(
+          process.env.BASEROW_EXTRA_PUBLIC_URLS ?? ''
+        ),
         baserowBuilderDomains: process.env.BASEROW_BUILDER_DOMAINS
           ? process.env.BASEROW_BUILDER_DOMAINS.split(',')
           : [],

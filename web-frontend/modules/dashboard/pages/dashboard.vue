@@ -29,28 +29,31 @@ const {
   data,
   pending,
   error: fetchError,
-} = await useAsyncData(`dashboard-data-${route.params.dashboardId}`, async () => {
-  const dashboardId = parseInt(route.params.dashboardId)
+} = await useAsyncData(
+  `dashboard-data-${route.params.dashboardId}`,
+  async () => {
+    const dashboardId = parseInt(route.params.dashboardId)
 
-  try {
-    const dashboard = await store.dispatch(
-      'application/selectById',
-      dashboardId
-    )
-    const workspace = await store.dispatch(
-      'workspace/selectById',
-      dashboard.workspace.id
-    )
+    try {
+      const dashboard = await store.dispatch(
+        'application/selectById',
+        dashboardId
+      )
+      const workspace = await store.dispatch(
+        'workspace/selectById',
+        dashboard.workspace.id
+      )
 
-    return {
-      workspace,
-      dashboard,
+      return {
+        workspace,
+        dashboard,
+      }
+    } catch (e) {
+      console.error('Error loading dashboard:', e)
+      throw createError({ statusCode: 404, message: 'Dashboard not found.' })
     }
-  } catch (e) {
-    console.error('Error loading dashboard:', e)
-    throw createError({ statusCode: 404, message: 'Dashboard not found.' })
   }
-})
+)
 
 const dashboard = computed(() => data.value?.dashboard)
 const workspace = computed(() => data.value?.workspace)
@@ -60,7 +63,7 @@ onMounted(() => {
   const forEditing = $hasPermission(
     'application.update',
     dashboard.value,
-    dashboard.value.workspace.id
+    workspace.value.id
   )
 
   store.dispatch('dashboardApplication/fetchInitial', {
