@@ -7,7 +7,9 @@ export class PublicSiteErrorPageType extends ErrorPageType {
   }
 
   isApplicable() {
-    return this.app.context.route.name === 'application-builder-page'
+    return (
+      this.app.$router.currentRoute.value.name === 'application-builder-page'
+    )
   }
 
   static getType() {

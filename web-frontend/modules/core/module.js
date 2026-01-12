@@ -244,10 +244,6 @@ export default defineNuxtModule({
       })
     })
 
-    addLayout(
-      { src: resolve('layouts/error.vue'), filename: 'error.vue' },
-      'error'
-    )
     addLayout({ src: resolve('layouts/app.vue'), filename: 'app.vue' }, 'app')
     addLayout(
       { src: resolve('layouts/login.vue'), filename: 'login.vue' },
