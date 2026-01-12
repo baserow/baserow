@@ -1,6 +1,56 @@
-// @ts-check
+// Please keep in sync with the premium/enterprise eslintrc.js
 import withNuxt from './.nuxt/eslint.config.mjs'
 
-export default withNuxt(
-  // Your custom configs here
-)
+import globals from 'globals'
+import vitest from 'eslint-plugin-vitest'
+import prettier from 'eslint-config-prettier'
+
+export default withNuxt([
+  {
+    ignores: [
+      '.nuxt/**',
+      'node_modules/**',
+      '**/node_modules/**',
+      'coverage/**',
+      '**/generated/**'
+    ]
+  },
+
+  prettier,
+
+  {
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node
+      }
+    },
+    rules: {
+      'no-console': 0,
+      'vue/no-mutating-props': 0,
+      'import/order': 'off',
+      'vue/html-self-closing': 'off',
+      'vue/no-unused-components': 'warn',
+      'vue/no-use-computed-property-like-method': 'off',
+      'vue/multi-word-component-names': 'off',
+      'vue/no-reserved-component-names': 'off',
+      'import/no-named-as-default-member': 'off'
+    }
+  },
+
+  {
+    files: [
+      '**/*.{test,spec}.{js,ts,jsx,tsx}',
+      '**/__tests__/**/*.{js,ts,jsx,tsx}'
+    ],
+    plugins: { vitest },
+    languageOptions: {
+      globals: {
+        ...vitest.environments.env.globals
+      }
+    },
+    rules: {
+      ...vitest.configs.recommended.rules
+    }
+  }
+])
