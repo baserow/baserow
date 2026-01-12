@@ -268,7 +268,9 @@ export default {
       // has selected another cell while uploading.
       alive: [],
       rowExpandButton: markRaw(
-        this.$registry.get('application', 'database').getRowExpandButtonComponent()
+        this.$registry
+          .get('application', 'database')
+          .getRowExpandButtonComponent()
       ),
     }
   },

@@ -19,15 +19,12 @@ export default {
   name: 'FunctionalFormulaArrayItems',
   inheritAttrs: false,
   props: {
-    field: {type: Object, required: true},
-    value: {type: Array, default: () => []},
+    field: { type: Object, required: true },
+    value: { type: Array, default: () => [] },
   },
   computed: {
     formulaType() {
-      return this.$registry.get(
-        'formula_type',
-        this.field.array_formula_type
-      )
+      return this.$registry.get('formula_type', this.field.array_formula_type)
     },
     itemComponent() {
       return this.formulaType.getFunctionalFieldArrayComponent()
@@ -35,7 +32,7 @@ export default {
     componentAttrs() {
       // Forward everything except class/style to each item component because those
       // must be applied to the root element.
-      const {class: _c, style: _s, ...rest} = this.$attrs
+      const { class: _c, style: _s, ...rest } = this.$attrs
       return rest
     },
   },

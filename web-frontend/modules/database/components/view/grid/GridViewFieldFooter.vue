@@ -7,12 +7,7 @@
     }"
     @click.prevent="
       userCanMakeAggregations &&
-        $refs[`fieldContext`].toggle(
-          $refs.fieldContextAnchor,
-          'top',
-          'right',
-          10
-        )
+      $refs[`fieldContext`].toggle($refs.fieldContextAnchor, 'top', 'right', 10)
     "
   >
     <component

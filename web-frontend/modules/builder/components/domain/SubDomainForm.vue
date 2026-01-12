@@ -41,8 +41,8 @@ export default {
         ? this.serverErrors.domain_name.code === 'invalid'
           ? this.$t('domainForm.invalidDomain')
           : this.serverErrors.domain_name.code === 'unique'
-          ? this.$t('domainForm.notUniqueDomain')
-          : ''
+            ? this.$t('domainForm.notUniqueDomain')
+            : ''
         : ''
     },
   },

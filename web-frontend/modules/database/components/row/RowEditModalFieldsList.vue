@@ -42,7 +42,14 @@ import RowEditModalField from '@baserow/modules/database/components/row/RowEditM
 
 export default {
   name: 'RowEditModalFieldsList',
-  emits: ['field-deleted', 'field-updated', 'order-fields', 'refresh-row', 'toggle-field-visibility', 'update'],
+  emits: [
+    'field-deleted',
+    'field-updated',
+    'order-fields',
+    'refresh-row',
+    'toggle-field-visibility',
+    'update',
+  ],
   components: {
     RowEditModalField,
   },

@@ -72,7 +72,7 @@
           v-model="value.userFieldNames"
           class="api-docs__example-type-item"
           @input="$emit('input', { userFieldNames: $event, type: value.type })"
-        >{{ $t('apiDocsExample.userFieldNames') }}
+          >{{ $t('apiDocsExample.userFieldNames') }}
         </Checkbox>
       </div>
       <div class="api-docs__example-content-container">
@@ -145,8 +145,8 @@
 </template>
 
 <script>
-import {copyToClipboard} from '@baserow/modules/database/utils/clipboard'
-import {mappingToStringifiedJSONLines} from '@baserow/modules/core/utils/object'
+import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { mappingToStringifiedJSONLines } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'APIDocsExample',

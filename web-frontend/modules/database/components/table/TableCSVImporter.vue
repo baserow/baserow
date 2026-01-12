@@ -178,7 +178,9 @@ export default {
 
       const file = event.target.files[0]
       const maxSize =
-        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) * 1024 * 1024
+        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) *
+        1024 *
+        1024
 
       if (file.size > maxSize) {
         this.values.filename = ''

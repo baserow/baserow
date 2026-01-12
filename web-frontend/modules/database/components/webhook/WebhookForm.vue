@@ -122,8 +122,8 @@
           tooltip-position="bottom-cursor"
           @mousedown="
             webhookEvent.isDeactivated(database.workspace.id) &&
-              !values.events.includes(webhookEvent.type) &&
-              $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
+            !values.events.includes(webhookEvent.type) &&
+            $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
           "
         >
           <Checkbox

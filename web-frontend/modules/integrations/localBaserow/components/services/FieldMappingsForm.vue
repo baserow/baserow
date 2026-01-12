@@ -31,7 +31,10 @@ export default {
   computed: {
     fieldMappingMap() {
       return Object.fromEntries(
-        this.modelValue.map((fieldMapping) => [fieldMapping.field_id, fieldMapping])
+        this.modelValue.map((fieldMapping) => [
+          fieldMapping.field_id,
+          fieldMapping,
+        ])
       )
     },
     filteredFields() {

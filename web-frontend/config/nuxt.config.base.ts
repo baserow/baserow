@@ -25,7 +25,7 @@ function baserowModuleConfig(
     `./modules/dashboard/module.js`,
     `./modules/builder/module.js`,
     `./modules/automation/module.js`,
-    `./modules/integrations/module.js`
+    `./modules/integrations/module.js`,
   ]
 
   if (!process.env.BASEROW_OSS_ONLY) {
@@ -43,7 +43,7 @@ function baserowModuleConfig(
 
   return {
     modules,
-    zipUmdPath
+    zipUmdPath,
   }
 }
 
@@ -56,19 +56,19 @@ const locales = [
   { code: 'de', name: 'Deutsch', file: 'de.json' },
   { code: 'es', name: 'Español', file: 'es.json' },
   { code: 'it', name: 'Italiano', file: 'it.json' },
-  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' }
+  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
 ]
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   alias: {
-    '@baserow': ''
+    '@baserow': '',
   },
   css: [],
   modules: [
     ...baserow.modules,
     '@nuxtjs/i18n',
-    ...(process.env.NODE_ENV === 'development' ? ['@nuxt/eslint'] : [])
+    ...(process.env.NODE_ENV === 'development' ? ['@nuxt/eslint'] : []),
   ],
   i18n: {
     strategy: 'no_prefix',
@@ -76,18 +76,18 @@ export default defineNuxtConfig({
     fallbackLocale: 'en',
     detectBrowserLanguage: {
       useCookie: true,
-      cookieKey: 'i18n-language'
+      cookieKey: 'i18n-language',
     },
     langDir: './locales',
     restructureDir: '../i18n',
     locales,
     trailingSlash: true,
-    vueI18n: './i18n.config.ts'
+    vueI18n: './i18n.config.ts',
   },
   nitro: {
     externals: {
-      external: ['vuejs3-datepicker']
-    }
+      external: ['vuejs3-datepicker'],
+    },
   },
   vite: {
     plugins: [
@@ -97,16 +97,16 @@ export default defineNuxtConfig({
         globals: {
           process: false,
           Buffer: false,
-          global: false
-        }
+          global: false,
+        },
       }),
-      svgLoader()
+      svgLoader(),
     ],
     ssr: {
-      noExternal: ['vue-chartjs', 'chart.js']
-    }
+      noExternal: ['vue-chartjs', 'chart.js'],
+    },
   },
   build: {
-    transpile: ['vue-chartjs', 'chart.js']
-  }
+    transpile: ['vue-chartjs', 'chart.js'],
+  },
 })

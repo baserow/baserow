@@ -12,8 +12,8 @@ export default withNuxt([
       'node_modules/**',
       '**/node_modules/**',
       'coverage/**',
-      '**/generated/**'
-    ]
+      '**/generated/**',
+    ],
   },
 
   prettier,
@@ -22,8 +22,8 @@ export default withNuxt([
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.node
-      }
+        ...globals.node,
+      },
     },
     rules: {
       'no-console': 0,
@@ -34,23 +34,23 @@ export default withNuxt([
       'vue/no-use-computed-property-like-method': 'off',
       'vue/multi-word-component-names': 'off',
       'vue/no-reserved-component-names': 'off',
-      'import/no-named-as-default-member': 'off'
-    }
+      'import/no-named-as-default-member': 'off',
+    },
   },
 
   {
     files: [
       '**/*.{test,spec}.{js,ts,jsx,tsx}',
-      '**/__tests__/**/*.{js,ts,jsx,tsx}'
+      '**/__tests__/**/*.{js,ts,jsx,tsx}',
     ],
     plugins: { vitest },
     languageOptions: {
       globals: {
-        ...vitest.environments.env.globals
-      }
+        ...vitest.environments.env.globals,
+      },
     },
     rules: {
-      ...vitest.configs.recommended.rules
-    }
-  }
+      ...vitest.configs.recommended.rules,
+    },
+  },
 ])

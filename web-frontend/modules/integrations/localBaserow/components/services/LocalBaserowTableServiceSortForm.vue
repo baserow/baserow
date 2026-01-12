@@ -13,7 +13,7 @@
         v-for="(sort, index) in value"
         :key="sort.id"
         class="sortings__item"
-        :set="(field = getField(sort.field))"
+        :set="field = getField(sort.field)"
       >
         <a
           v-if="!disableSort"

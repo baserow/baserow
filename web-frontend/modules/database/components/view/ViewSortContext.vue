@@ -25,7 +25,7 @@
           :class="{
             'sortings__item--loading': sort._.loading,
           }"
-          :set="(field = getField(sort.field))"
+          :set="field = getField(sort.field)"
         >
           <a
             v-if="!disableSort"

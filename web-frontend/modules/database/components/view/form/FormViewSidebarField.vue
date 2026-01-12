@@ -11,8 +11,8 @@
       }"
       @click="
         !readOnly &&
-          compatible &&
-          $emit('updated-field-options', { enabled: true })
+        compatible &&
+        $emit('updated-field-options', { enabled: true })
       "
     >
       <i

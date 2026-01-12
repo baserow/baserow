@@ -145,46 +145,29 @@
 </template>
 
 <script setup>
-
-import {isElement} from '@baserow/modules/core/utils/dom'
-import APIDocsSelectDatabase
-  from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
-import {DatabaseApplicationType} from '@baserow/modules/database/applicationTypes'
+import { isElement } from '@baserow/modules/core/utils/dom'
+import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import FieldService from '@baserow/modules/database/services/field'
 
 // All sections
-import APIDocsIntro
-  from '@baserow/modules/database/components/docs/sections/APIDocsIntro'
+import APIDocsIntro from '@baserow/modules/database/components/docs/sections/APIDocsIntro'
 import APIDocsAuth from '@baserow/modules/database/components/docs/sections/APIDocsAuth'
-import APIDocsTableFields
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableFields'
-import APIDocsTableListFields
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableListFields'
-import APIDocsTableListRows
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableListRows'
-import APIDocsTableGetRow
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableGetRow'
-import APIDocsTableCreateRow
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableCreateRow'
-import APIDocsTableUpdateRow
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableUpdateRow'
-import APIDocsTableMoveRow
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableMoveRow'
-import APIDocsTableDeleteRow
-  from '@baserow/modules/database/components/docs/sections/APIDocsTableDeleteRow'
-import APIDocsUploadFile
-  from '@baserow/modules/database/components/docs/sections/APIDocsUploadFile'
-import APIDocsUploadFileViaURL
-  from '@baserow/modules/database/components/docs/sections/APIDocsUploadFileViaURL'
-import APIDocsListTables
-  from '@baserow/modules/database/components/docs/sections/APIDocsListTables'
-import APIDocsFilters
-  from '@baserow/modules/database/components/docs/sections/APIDocsFilters'
-import APIDocsErrors
-  from '@baserow/modules/database/components/docs/sections/APIDocsErrors'
+import APIDocsTableFields from '@baserow/modules/database/components/docs/sections/APIDocsTableFields'
+import APIDocsTableListFields from '@baserow/modules/database/components/docs/sections/APIDocsTableListFields'
+import APIDocsTableListRows from '@baserow/modules/database/components/docs/sections/APIDocsTableListRows'
+import APIDocsTableGetRow from '@baserow/modules/database/components/docs/sections/APIDocsTableGetRow'
+import APIDocsTableCreateRow from '@baserow/modules/database/components/docs/sections/APIDocsTableCreateRow'
+import APIDocsTableUpdateRow from '@baserow/modules/database/components/docs/sections/APIDocsTableUpdateRow'
+import APIDocsTableMoveRow from '@baserow/modules/database/components/docs/sections/APIDocsTableMoveRow'
+import APIDocsTableDeleteRow from '@baserow/modules/database/components/docs/sections/APIDocsTableDeleteRow'
+import APIDocsUploadFile from '@baserow/modules/database/components/docs/sections/APIDocsUploadFile'
+import APIDocsUploadFileViaURL from '@baserow/modules/database/components/docs/sections/APIDocsUploadFileViaURL'
+import APIDocsListTables from '@baserow/modules/database/components/docs/sections/APIDocsListTables'
+import APIDocsFilters from '@baserow/modules/database/components/docs/sections/APIDocsFilters'
+import APIDocsErrors from '@baserow/modules/database/components/docs/sections/APIDocsErrors'
 import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu'
-import APIDocsTablePasswordFieldAuthentication
-  from '@baserow/modules/database/components/docs/sections/APIDocsPasswordFieldAuthentication.vue'
+import APIDocsTablePasswordFieldAuthentication from '@baserow/modules/database/components/docs/sections/APIDocsPasswordFieldAuthentication.vue'
 
 // Re-use the FileFieldType docs response example.
 import {
@@ -192,11 +175,11 @@ import {
   PasswordFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
-import {computed, onMounted, onBeforeUnmount, useTemplateRef} from 'vue'
-import {useHead} from '#imports'
+import { computed, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
+import { useHead } from '#imports'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 
-import {useRoute, useRouter} from "vue-router";
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
@@ -211,33 +194,34 @@ const {
   $config,
   $client,
   $registry,
-  $i18n: {t: $t},
+  $i18n: { t: $t },
 } = useNuxtApp()
 
+const { data, status, pending, error, refresh, clear } = await useAsyncData(
+  'api-docs-database-' + route.params.databaseId,
+  async () => {
+    const params = route.params
+    const databaseId = parseInt(params.databaseId)
+    const database = $store.getters['application/get'](databaseId)
+    const type = DatabaseApplicationType.getType()
 
-const { data, status, pending, error, refresh, clear } = await useAsyncData('api-docs-database-'+ route.params.databaseId, async () => {
-  const params = route.params
-  const databaseId = parseInt(params.databaseId)
-  const database = $store.getters['application/get'](databaseId)
-  const type = DatabaseApplicationType.getType()
+    if (database === undefined || database.type !== type) {
+      throw new Error(`database ${databaseId} not found`)
+    }
 
-  if (database === undefined || database.type !== type) {
-    throw new Error(`database ${databaseId} not found`)
+    const fieldData = {}
+
+    for (const i in database.tables) {
+      const table = database.tables[i]
+      const { data } = await FieldService($client).fetchAll(table.id)
+      fieldData[table.id] = data
+    }
+
+    return { database, fieldData }
   }
+)
 
-  const fieldData = {}
-
-  for (const i in database.tables) {
-    const table = database.tables[i]
-    const {data} = await FieldService($client).fetchAll(table.id)
-    fieldData[table.id] = data
-  }
-
-  return {database, fieldData}
-})
-
-
-const {database, fieldData} = data.value;
+const { database, fieldData } = data.value
 
 useHead({
   title: $t('apiDocsDatabase.pageTitle', database),
@@ -255,7 +239,6 @@ const exampleData = ref({
 
 const navActive = ref('')
 const databasesOpen = ref(false)
-
 
 const userFieldNamesParam = computed(() => {
   return exampleData.value.userFieldNames ? '?user_field_names=true' : ''
@@ -319,7 +302,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', $el.value.resizeEvent)
 })
 
-
 /** methods **/
 
 const populateField = (field) => {
@@ -348,12 +330,9 @@ const updateNav = () => {
     const top = section.offsetTop
     const nextIndex = (index + 1).toString()
     const next =
-      nextIndex in sections
-        ? sections[nextIndex].offsetTop
-        : body.scrollHeight
+      nextIndex in sections ? sections[nextIndex].offsetTop : body.scrollHeight
     if (top <= body.scrollTop && body.scrollTop < next) {
       navActive.value = section.id
-
     }
   })
 }
@@ -385,9 +364,7 @@ const getRequestExample = (table, response = false, includeId = false) => {
   }
 
   fieldsToLoopOver.forEach((field) => {
-    const example = response
-      ? field._.responseExample
-      : field._.requestExample
+    const example = response ? field._.responseExample : field._.requestExample
     if (exampleData.value.userFieldNames) {
       item[field.name] = example
     } else {
@@ -417,7 +394,7 @@ const getBatchDeleteRequestExample = (table, response = false) => {
  * Generates an example response object based on the available fields of the table.
  */
 const getResponseItem = (table) => {
-  const item = {id: 0, order: '1.00000000000000000000'}
+  const item = { id: 0, order: '1.00000000000000000000' }
   Object.assign(item, getRequestExample(table, true))
   return item
 }
@@ -500,6 +477,4 @@ const getItemURL = (table, addUserFieldParam) => {
     (addUserFieldParam ? userFieldNamesParam.value : '')
   )
 }
-
-
 </script>

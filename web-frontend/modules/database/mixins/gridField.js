@@ -1,4 +1,7 @@
-import {getElementFromRef, onClickOutside} from '@baserow/modules/core/utils/dom'
+import {
+  getElementFromRef,
+  onClickOutside,
+} from '@baserow/modules/core/utils/dom'
 import baseField from '@baserow/modules/database/mixins/baseField'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 
@@ -9,7 +12,16 @@ import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
  */
 export default {
   mixins: [baseField, copyPasteHelper],
-  emits: ['add-row-after', 'edit-modal', 'paste', 'selectBelow', 'selected', 'unselect', 'unselected', 'update'],
+  emits: [
+    'add-row-after',
+    'edit-modal',
+    'paste',
+    'selectBelow',
+    'selected',
+    'unselect',
+    'unselected',
+    'update',
+  ],
   props: {
     /**
      * Indicates if the grid field is in a selected state.
@@ -75,7 +87,7 @@ export default {
      */
     setupAllEventListenersOnCellSelected() {
       const cellElement = this.getRootCell()
-      cellElement.addEventListener("dblclick", this.doubleClick)
+      cellElement.addEventListener('dblclick', this.doubleClick)
 
       // Register a body click event listener so that we can detect if a user has
       // clicked outside the field. If that happens we want to unselect the field and
@@ -157,10 +169,7 @@ export default {
           this.$emit('edit-modal')
         }
       }
-      document.body.addEventListener(
-        'keydown',
-        this.keyDownEventListener,
-      )
+      document.body.addEventListener('keydown', this.keyDownEventListener)
 
       this.copyEventListener = (event) => {
         if (!this.canKeyDown(event) || !this.canKeyboardShortcut(event)) return
@@ -233,7 +242,7 @@ export default {
     },
     removeAllEventListenersOnCellSelected() {
       const cellElement = this.getRootCell()
-      cellElement.removeEventListener("dblclick", this.doubleClick)
+      cellElement.removeEventListener('dblclick', this.doubleClick)
       if (this.clickOutsideEventCancel !== null) {
         this.clickOutsideEventCancel()
       }

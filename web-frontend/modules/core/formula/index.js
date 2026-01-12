@@ -278,7 +278,7 @@ export const buildFormulaFunctionNodes = (app) => {
             minArgs,
             maxArgs: isVariadic
               ? null
-              : instance.numArgs ?? instance.args.length,
+              : (instance.numArgs ?? instance.args.length),
           }
         } else {
           signature = {

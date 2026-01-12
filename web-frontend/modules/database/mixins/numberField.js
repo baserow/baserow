@@ -110,8 +110,8 @@ export default {
       return decimalSeparatorIndex !== -1
         ? decimalSeparatorIndex
         : suffixIndex !== -1
-        ? suffixIndex
-        : value.length
+          ? suffixIndex
+          : value.length
     },
     updateCopy(field, newCopy) {
       if (newCopy == null || newCopy === '') {

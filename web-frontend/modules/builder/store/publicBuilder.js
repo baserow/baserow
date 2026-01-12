@@ -17,9 +17,8 @@ const actions = {
 
   async fetchByDomain({ dispatch }, { domain }) {
     const { $registry, $i18n, $client, $config } = this
-    const { data } = await PublishedBuilderService($client).fetchByDomain(
-      domain
-    )
+    const { data } =
+      await PublishedBuilderService($client).fetchByDomain(domain)
 
     return await dispatch('application/forceCreate', data, { root: true })
   },

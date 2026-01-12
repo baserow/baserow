@@ -1,9 +1,5 @@
 <template>
-  <component
-    :is="component"
-    v-bind="forwarded"
-    class="active"
-  />
+  <component :is="component" v-bind="forwarded" class="active" />
 </template>
 
 <script>

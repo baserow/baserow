@@ -236,7 +236,9 @@ const visibleFields = computed(() => {
     const conditions = field.conditions.filter((condition) => {
       const filterType = $registry.get('viewFilter', condition.type)
       const filterField = fieldsBefore.find((f) => f.id === condition.field)
-      return filterField !== undefined && filterType.fieldIsCompatible(filterField)
+      return (
+        filterField !== undefined && filterType.fieldIsCompatible(filterField)
+      )
     })
 
     const conditionType = field.condition_type

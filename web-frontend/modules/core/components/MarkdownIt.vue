@@ -11,9 +11,7 @@
 
 <script setup>
 import { generateHash } from '@baserow/modules/core/utils/hashing'
-const emit = defineEmits([
-  'click',
-])
+const emit = defineEmits(['click'])
 
 const props = defineProps({
   content: {

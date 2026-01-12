@@ -26,7 +26,7 @@
           :class="{
             'group-bys__item--loading': groupBy._.loading,
           }"
-          :set="(field = getField(groupBy.field))"
+          :set="field = getField(groupBy.field)"
         >
           <a
             v-if="!disableGroupBy"

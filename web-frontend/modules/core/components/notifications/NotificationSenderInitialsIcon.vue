@@ -11,7 +11,7 @@ export default {
     notification: {
       type: Object,
       required: true,
-    }
+    },
   },
 }
 </script>

@@ -193,7 +193,11 @@ export default {
       return !this.existingNames.includes(param.trim())
     },
     getFormValues(deep = false) {
-      const values = Object.assign({}, this.values, this.getChildFormsValues(deep))
+      const values = Object.assign(
+        {},
+        this.values,
+        this.getChildFormsValues(deep)
+      )
       if (this.$refs.subForm?.getFormValues) {
         return { ...values, ...this.$refs.subForm.getFormValues(deep) }
       }

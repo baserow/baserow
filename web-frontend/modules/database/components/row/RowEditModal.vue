@@ -165,7 +165,7 @@ export default {
     'toggle-hidden-fields-visibility',
     'refresh-row',
     'field-created',
-    'field-created-callback-done'
+    'field-created-callback-done',
   ],
   mixins: [modal],
   props: {

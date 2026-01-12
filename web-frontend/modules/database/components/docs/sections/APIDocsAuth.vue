@@ -25,7 +25,7 @@
         @input="$emit('input', $event)"
       ></APIDocsExample>
     </div>
-    <SettingsModal ref="settingsModal"/>
+    <SettingsModal ref="settingsModal" />
   </div>
 </template>
 

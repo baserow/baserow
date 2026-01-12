@@ -121,14 +121,12 @@ export default {
     },
   },
   data() {
-    const view = populateView(
-      {
-        type: GridViewType.getType(),
-        filters: [this.getNewFilterObject(null)],
-        filter_groups: [],
-        filter_type: 'AND',
-      }
-    )
+    const view = populateView({
+      type: GridViewType.getType(),
+      filters: [this.getNewFilterObject(null)],
+      filter_groups: [],
+      filter_type: 'AND',
+    })
     return {
       view,
       mutableUserFieldNames: this.userFieldNames,

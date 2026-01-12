@@ -48,15 +48,13 @@ export default {
     },
   },
   async mounted() {
-    const { CodeBlockLowlight } = await import(
-      '@tiptap/extension-code-block-lowlight'
-    )
+    const { CodeBlockLowlight } =
+      await import('@tiptap/extension-code-block-lowlight')
     const { createLowlight } = await import('lowlight')
     const lowlight = createLowlight()
 
-    const { default: javascript } = await import(
-      'highlight.js/lib/languages/javascript'
-    )
+    const { default: javascript } =
+      await import('highlight.js/lib/languages/javascript')
     const { default: css } = await import('highlight.js/lib/languages/css')
 
     lowlight.register('javascript', javascript)

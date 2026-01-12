@@ -23,7 +23,11 @@
         </div>
         <div class="workflow-node__edges">
           <WorkflowEdge
-            :ref="(el) => { childEdge = el }"
+            :ref="
+              (el) => {
+                childEdge = el
+              }
+            "
             class="workflow-node__edge"
             :node="node"
             :is-child="true"
@@ -54,7 +58,11 @@
     <div class="workflow-node__edges">
       <WorkflowEdge
         v-for="edge in nodeEdges"
-        :ref="(el) => { if (el) edgeRefs[edge.uid] = el }"
+        :ref="
+          (el) => {
+            if (el) edgeRefs[edge.uid] = el
+          }
+        "
         :key="edge.uid"
         class="workflow-node__edge"
         :node="node"

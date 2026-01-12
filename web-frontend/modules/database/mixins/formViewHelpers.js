@@ -11,8 +11,10 @@ export default {
   },
   computed: {
     fieldOptions() {
-          return this.$store.getters[`${this.storePrefix}view/form/getAllFieldOptions`]
-      },
+      return this.$store.getters[
+        `${this.storePrefix}view/form/getAllFieldOptions`
+      ]
+    },
   },
   methods: {
     async updateForm(values) {

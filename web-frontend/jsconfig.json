@@ -2,19 +2,14 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@baserow/*": [
-        "./*"
-      ]
+      "@baserow/*": ["./*"]
     }
   },
   "resolve": {
     "extensions": [".js", ".vue", ".json"],
     "alias": {
-        "@baserow": "."
+      "@baserow": "."
     }
   },
-  "exclude": [
-    "node_modules",
-    ".nuxt"
-  ]
+  "exclude": ["node_modules", ".nuxt"]
 }

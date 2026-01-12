@@ -62,7 +62,7 @@ export default {
       default: true,
     },
   },
-  emits: ["input"],
+  emits: ['input'],
   data() {
     return {
       dragging: false,

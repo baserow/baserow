@@ -4,7 +4,8 @@
   border: var(--input-border-size, 1px) solid var(--input-border-color, black);
   border-radius: var(--input-border-radius, 0);
   background-color: var(--input-background-color, $white);
-  padding: var(--input-vertical-padding, 8px) var(--input-horizontal-padding, 12px);
+  padding: var(--input-vertical-padding, 8px)
+    var(--input-horizontal-padding, 12px);
 }
 
 .ab-datetime-picker__input {

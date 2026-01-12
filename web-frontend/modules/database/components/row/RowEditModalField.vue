@@ -70,7 +70,13 @@ import FieldContext from '@baserow/modules/database/components/field/FieldContex
 
 export default {
   name: 'RowEditModalField',
-  emits: ['field-deleted', 'field-updated', 'refresh-row', 'toggle-field-visibility', 'update'],
+  emits: [
+    'field-deleted',
+    'field-updated',
+    'refresh-row',
+    'toggle-field-visibility',
+    'update',
+  ],
   components: { FieldContext },
   props: {
     database: {

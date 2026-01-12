@@ -149,10 +149,9 @@ const actions = {
     return data
   },
   async update({ dispatch }, { automation, workflow, values }) {
-    const { data } = await AutomationWorkflowService(useNuxtApp().$client).update(
-      workflow.id,
-      values
-    )
+    const { data } = await AutomationWorkflowService(
+      useNuxtApp().$client
+    ).update(workflow.id, values)
 
     const update = Object.keys(values).reduce((result, key) => {
       result[key] = data[key]
@@ -173,7 +172,10 @@ const actions = {
     commit('ORDER_WORKFLOWS', { automation, order, isHashed })
 
     try {
-      await AutomationWorkflowService(useNuxtApp().$client).order(automation.id, order)
+      await AutomationWorkflowService(useNuxtApp().$client).order(
+        automation.id,
+        order
+      )
     } catch (error) {
       commit('ORDER_WORKFLOWS', { automation, order: oldOrder, isHashed })
       throw error

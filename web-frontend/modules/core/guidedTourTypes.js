@@ -123,9 +123,7 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
   get content() {
     const { $i18n: i18n } = this.app
-    return (
-      i18n.t('welcomeGuidedTourStep.content')
-    )
+    return i18n.t('welcomeGuidedTourStep.content')
   }
 
   get selectors() {
@@ -138,9 +136,7 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
   get buttonText() {
     const { $i18n: i18n } = this.app
-    return (
-      i18n.t('welcomeGuidedTourStep.buttonText')
-    )
+    return i18n.t('welcomeGuidedTourStep.buttonText')
   }
 
   get skipIfNotFirst() {
@@ -151,16 +147,12 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 class ControlCenterGuidedTourStep extends GuidedTourStep {
   get title() {
     const { $i18n: i18n } = this.app
-    return (
-      i18n.t('controlCenterGuidedTourStep.title')
-    )
+    return i18n.t('controlCenterGuidedTourStep.title')
   }
 
   get content() {
     const { $i18n: i18n } = this.app
-    return (
-      i18n.t('controlCenterGuidedTourStep.content')
-    )
+    return i18n.t('controlCenterGuidedTourStep.content')
   }
 
   get selectors() {
@@ -180,9 +172,7 @@ class CreateNewGuidedTourStep extends GuidedTourStep {
 
   get content() {
     const { $i18n: i18n } = this.app
-    return (
-      i18n.t('createNewGuidedTourStep.content')
-    )
+    return i18n.t('createNewGuidedTourStep.content')
   }
 
   get selectors() {

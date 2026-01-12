@@ -31,11 +31,11 @@
       >
         <a class="context__menu-item-link" @click="handleRename()">
           <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-        {{
-          $t('sidebarApplication.rename', {
-            type: application._?.type?.name?.toLowerCase() || '',
-          })
-        }}
+          {{
+            $t('sidebarApplication.rename', {
+              type: application._?.type?.name?.toLowerCase() || '',
+            })
+          }}
         </a>
       </li>
       <li

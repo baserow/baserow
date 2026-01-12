@@ -1992,8 +1992,8 @@ export class RatingFieldType extends FieldType {
           ? -1
           : 1
         : numberB < numberA
-        ? -1
-        : 1
+          ? -1
+          : 1
     }
   }
 

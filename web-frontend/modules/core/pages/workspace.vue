@@ -277,48 +277,51 @@ const {
   data: dashboardData,
   pending,
   error,
-} = await useAsyncData(`current-workspace-${route.params.workspaceId}`, async () => {
-  const workspaceId = parseInt(route.params.workspaceId, 10)
+} = await useAsyncData(
+  `current-workspace-${route.params.workspaceId}`,
+  async () => {
+    const workspaceId = parseInt(route.params.workspaceId, 10)
 
-  let workspace
-  try {
-    workspace = await $store.dispatch('workspace/selectById', workspaceId)
-  } catch (e) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Workspace not found.',
-    })
+    let workspace
+    try {
+      workspace = await $store.dispatch('workspace/selectById', workspaceId)
+    } catch (e) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Workspace not found.',
+      })
+    }
+
+    try {
+      await $store.dispatch('auth/fetchWorkspaceInvitations')
+
+      let asyncData = {
+        workspaceComponentArguments: {},
+        selectedWorkspace: workspace,
+      }
+
+      // Loop over all plugins and let them extend the dashboard data.
+      const plugins = Object.values($registry.getAll('plugin'))
+      for (const p of plugins) {
+        asyncData = await p.fetchAsyncDashboardData(
+          nuxtApp,
+          asyncData,
+          workspace.id
+        )
+      }
+
+      return {
+        selectedWorkspace: asyncData.selectedWorkspace,
+        workspaceComponentArguments: asyncData.workspaceComponentArguments,
+      }
+    } catch {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Error loading dashboard.',
+      })
+    }
   }
-
-  try {
-    await $store.dispatch('auth/fetchWorkspaceInvitations')
-
-    let asyncData = {
-      workspaceComponentArguments: {},
-      selectedWorkspace: workspace,
-    }
-
-    // Loop over all plugins and let them extend the dashboard data.
-    const plugins = Object.values($registry.getAll('plugin'))
-    for (const p of plugins) {
-      asyncData = await p.fetchAsyncDashboardData(
-        nuxtApp,
-        asyncData,
-        workspace.id
-      )
-    }
-
-    return {
-      selectedWorkspace: asyncData.selectedWorkspace,
-      workspaceComponentArguments: asyncData.workspaceComponentArguments,
-    }
-  } catch {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Error loading dashboard.',
-    })
-  }
-})
+)
 
 /**
  * Hydrate local refs from the async data.
