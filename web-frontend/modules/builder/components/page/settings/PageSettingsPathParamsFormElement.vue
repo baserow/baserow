@@ -37,7 +37,6 @@
 import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'PageSettingsPathParamsFormElement',
-  emits: ['update'],
   mixins: [form],
   props: {
     pathParams: {
@@ -51,6 +50,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   computed: {
     pathParamTypes() {
       return this.$registry.getOrderedList('pathParamType')

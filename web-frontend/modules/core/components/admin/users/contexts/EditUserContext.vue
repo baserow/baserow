@@ -100,7 +100,6 @@ import UserAdminService from '@baserow/modules/core/services/admin/users'
 
 export default {
   name: 'EditUserContext',
-  emits: ['delete-user', 'update'],
   components: {
     ChangePasswordModal,
     DeleteUserModal,
@@ -113,6 +112,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['delete-user', 'update'],
   data() {
     return {
       loading: false,

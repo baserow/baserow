@@ -57,7 +57,6 @@ import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/
 
 export default {
   name: 'CreateFieldContext',
-  emits: ['field-created', 'field-created-callback-done', 'shown'],
   components: { FieldForm },
   mixins: [context],
   props: {
@@ -83,6 +82,7 @@ export default {
       required: true,
     },
   },
+  emits: ['field-created', 'field-created-callback-done', 'shown'],
   data() {
     return {
       loading: false,

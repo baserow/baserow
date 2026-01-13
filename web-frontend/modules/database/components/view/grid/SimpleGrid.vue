@@ -192,7 +192,6 @@ import { GRID_VIEW_MIN_FIELD_WIDTH } from '@baserow/modules/database/constants'
 
 export default {
   name: 'SimpleGrid',
-  emits: ['add-row', 'row-click', 'update-field-width'],
   components: { HorizontalResize, SimpleGridField },
   props: {
     rows: {
@@ -259,6 +258,7 @@ export default {
       default: false,
     },
   },
+  emits: ['add-row', 'row-click', 'update-field-width'],
   data() {
     return {
       addRowHover: false,

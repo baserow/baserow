@@ -22,7 +22,6 @@ import ApplicationService from '@baserow/modules/core/services/application'
 
 export default {
   name: 'SidebarDuplicateApplicationContextItem',
-  emits: ['click'],
   props: {
     application: {
       type: Object,
@@ -34,6 +33,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   data() {
     return {
       duplicating: false,

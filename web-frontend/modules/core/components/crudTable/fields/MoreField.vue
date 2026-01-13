@@ -9,13 +9,13 @@
 <script>
 export default {
   name: 'MoreField',
-  emits: ['row-context'],
   props: {
     row: {
       required: true,
       type: Object,
     },
   },
+  emits: ['row-context'],
   methods: {
     onClick(event) {
       this.$emit('row-context', {

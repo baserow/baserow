@@ -18,12 +18,12 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'FunctionalGridViewFieldLastModifiedBy',
+  mixins: [collaboratorName],
   props: {
     value: {
       type: Object,
       default: null,
     },
   },
-  mixins: [collaboratorName],
 }
 </script>

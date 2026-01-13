@@ -107,7 +107,7 @@ describe('Row utilities', () => {
     ]
 
     test.each(rowsToTest)(
-      'Test that %o is correctly prepared for request',
+      'that %o is correctly prepared for request',
       ({ input, output }) => {
         expect(
           prepareRowForRequest(input.row, input.fields, store.$registry)

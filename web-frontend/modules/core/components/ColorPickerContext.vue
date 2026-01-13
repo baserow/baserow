@@ -111,7 +111,6 @@ export const DEFAULT_COLOR_NOTION = COLOR_NOTATIONS.HEX
 
 export default {
   name: 'ColorPickerContext',
-  emits: ['input'],
   components: { ColorPicker },
   mixins: [context],
   props: {
@@ -130,6 +129,7 @@ export default {
       default: true,
     },
   },
+  emits: ['input'],
   data() {
     return {
       hexColorIncludingAlpha: '',

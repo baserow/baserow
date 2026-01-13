@@ -19,12 +19,12 @@
 <script>
 export default {
   name: 'SubDomainDetails',
-  emits: ['delete'],
   props: {
     domain: {
       type: Object,
       required: true,
     },
   },
+  emits: ['delete'],
 }
 </script>

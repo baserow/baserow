@@ -21,7 +21,6 @@ import { focusEnd } from '@baserow/modules/core/utils/dom'
 
 export default {
   name: 'Editable',
-  emits: ['change', 'editing'],
   props: {
     value: {
       type: String,
@@ -38,6 +37,7 @@ export default {
       default: false,
     },
   },
+  emits: ['change', 'editing'],
   data() {
     return {
       editing: false,

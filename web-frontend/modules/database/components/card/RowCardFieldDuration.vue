@@ -10,6 +10,7 @@ import durationField from '@baserow/modules/database/mixins/durationField'
 export default {
   height: 16,
   name: 'RowCardFieldDuration',
+  mixins: [durationField],
   props: {
     field: {
       type: Object,
@@ -20,6 +21,5 @@ export default {
       default: null,
     },
   },
-  mixins: [durationField],
 }
 </script>

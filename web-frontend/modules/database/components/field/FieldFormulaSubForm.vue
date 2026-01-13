@@ -46,7 +46,6 @@ import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 
 export default {
   name: 'FieldFormulaSubForm',
-  emits: ['validate'],
   components: {
     FieldFormulaInitialSubForm,
     FormulaAdvancedEditContext,
@@ -58,6 +57,7 @@ export default {
       type: String,
     },
   },
+  emits: ['validate'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

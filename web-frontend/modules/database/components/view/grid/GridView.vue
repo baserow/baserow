@@ -442,7 +442,6 @@ import {
 
 export default {
   name: 'GridView',
-  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     HorizontalResize,
     GridViewRowsAddContext,
@@ -473,6 +472,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   data() {
     return {
       lastHoveredRow: null,

@@ -34,7 +34,6 @@
 <script>
 export default {
   name: 'FileFailed',
-  emits: ['delete'],
   props: {
     file: {
       type: Object,
@@ -51,5 +50,6 @@ export default {
       default: null,
     },
   },
+  emits: ['delete'],
 }
 </script>

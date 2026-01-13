@@ -41,7 +41,7 @@ describe('Rating component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Test interactions with rating component', async () => {
+  test('interactions with rating component', async () => {
     const onUpdate = vi.fn()
     const wrapper = await mountComponent(
       {

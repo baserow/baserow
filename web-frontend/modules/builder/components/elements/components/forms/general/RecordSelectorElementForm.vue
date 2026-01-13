@@ -148,7 +148,6 @@ import PropertyOptionForm from '@baserow/modules/builder/components/elements/com
 
 export default {
   name: 'RecordSelectorElementForm',
-  emits: ['values-changed'],
   components: {
     PropertyOptionForm,
     DataSourceDropdown,
@@ -156,6 +155,7 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [formElementForm, collectionElementForm],
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate() }
   },

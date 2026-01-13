@@ -64,7 +64,6 @@ export default {
   components: { DataSourceForm },
 
   mixins: [modal, error],
-  emits: ['updated'],
   provide() {
     // I know, it's not the page of the element but it's injected into the
     // ApplicationBuilderFormulaInput for data source loading states,
@@ -78,6 +77,7 @@ export default {
   props: {
     dataSourceId: { type: Number, required: false, default: null },
   },
+  emits: ['updated'],
   data() {
     return {
       loading: false,

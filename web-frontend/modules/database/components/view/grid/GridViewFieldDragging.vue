@@ -17,7 +17,6 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewFieldDragging',
-  emits: ['scroll'],
   mixins: [gridViewHelpers],
   props: {
     view: {
@@ -46,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['scroll'],
   data() {
     return {
       // Indicates if the user is dragging a field to another position.

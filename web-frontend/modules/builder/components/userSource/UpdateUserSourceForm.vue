@@ -108,7 +108,6 @@ import AuthProviderWithModal from '@baserow/modules/builder/components/userSourc
 import { required, maxLength, helpers } from '@vuelidate/validators'
 
 export default {
-  emits: ['values-changed'],
 
   components: { IntegrationDropdown, AuthProviderWithModal },
   mixins: [form],
@@ -123,6 +122,7 @@ export default {
       default: null,
     },
   },
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

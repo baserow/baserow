@@ -25,7 +25,6 @@
 <script>
 export default {
   name: 'FormulaFieldItemGroup',
-  emits: ['click-item', 'hover-item'],
   props: {
     title: {
       type: String,
@@ -45,6 +44,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click-item', 'hover-item'],
   methods: {
     getFilterIndicator(unfilteredList, filteredList) {
       const numFiltered = unfilteredList.length - filteredList.length

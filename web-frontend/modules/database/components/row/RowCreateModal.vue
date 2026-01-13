@@ -76,14 +76,6 @@ import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 
 export default {
   name: 'RowCreateModal',
-  emits: [
-    'created',
-    'field-deleted',
-    'field-updated',
-    'order-fields',
-    'toggle-field-visibility',
-    'toggle-hidden-fields-visibility',
-  ],
   components: {
     RowEditModalFieldsList,
     RowEditModalHiddenFieldsSection,
@@ -142,6 +134,14 @@ export default {
       default: () => ({}),
     },
   },
+  emits: [
+    'created',
+    'field-deleted',
+    'field-updated',
+    'order-fields',
+    'toggle-field-visibility',
+    'toggle-hidden-fields-visibility',
+  ],
   data() {
     return {
       row: {},

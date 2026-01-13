@@ -28,7 +28,6 @@
 <script>
 export default {
   name: 'DataSyncTypeChoice',
-  emits: ['selected'],
   props: {
     database: {
       type: Object,
@@ -43,6 +42,7 @@ export default {
       type: Boolean,
     },
   },
+  emits: ['selected'],
   computed: {
     deactivated() {
       return this.dataSyncType.isDeactivated(this.database.workspace.id)

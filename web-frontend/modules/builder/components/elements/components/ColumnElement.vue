@@ -62,7 +62,6 @@ import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 
 export default {
   name: 'ColumnElement',
-  emits: ['move'],
   components: {
     AddElementZone,
     ElementPreview,
@@ -87,6 +86,7 @@ export default {
       default: null,
     },
   },
+  emits: ['move'],
   computed: {
     flexAlignment() {
       const alignmentMapping = {

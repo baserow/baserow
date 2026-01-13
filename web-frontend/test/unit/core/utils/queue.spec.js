@@ -8,7 +8,7 @@ function sleep(ms) {
 }
 
 describe('test GroupTaskQueue when immediately filling the queue', () => {
-  test('test GroupTaskQueue when immediately filling the queue', async () => {
+  test('GroupTaskQueue when immediately filling the queue', async () => {
     let executed1 = false
     let executed2 = false
 
@@ -45,7 +45,7 @@ describe('test GroupTaskQueue when immediately filling the queue', () => {
   })
 })
 describe('test GroupTaskQueue adding to queue on the fly', () => {
-  test('test GroupTaskQueue adding to queue on the fly', async () => {
+  test('GroupTaskQueue adding to queue on the fly', async () => {
     let executed1 = false
     let executed2 = false
     let executed3 = false
@@ -100,7 +100,7 @@ describe('test GroupTaskQueue adding to queue on the fly', () => {
   })
 })
 describe('test GroupTaskQueue with different ids', () => {
-  test('test GroupTaskQueue with different ids', async () => {
+  test('GroupTaskQueue with different ids', async () => {
     let executed1 = false
     let executed2 = false
     let executed3 = false
@@ -143,7 +143,7 @@ describe('test GroupTaskQueue with different ids', () => {
   })
 })
 describe('test GroupTaskQueue with waiting for add to resolve', () => {
-  test('test GroupTaskQueue with waiting for add to resolve', async () => {
+  test('GroupTaskQueue with waiting for add to resolve', async () => {
     let executed1 = false
     let executed2 = false
     let executed3 = false
@@ -182,7 +182,7 @@ describe('test GroupTaskQueue with waiting for add to resolve', () => {
   })
 })
 describe('test GroupTaskQueue with exception during execution', () => {
-  test('test GroupTaskQueue with exception during execution', async () => {
+  test('GroupTaskQueue with exception during execution', async () => {
     let failed1 = false
     let failed1Error = null
     let failed2 = false
@@ -220,7 +220,7 @@ describe('test GroupTaskQueue with exception during execution', () => {
   })
 })
 describe('test GroupTaskQueue with lock', () => {
-  test('test GroupTaskQueue with exception during execution', async () => {
+  test('GroupTaskQueue with exception during execution', async () => {
     let executed1 = false
     let executed2 = false
     let executed3 = false
@@ -276,7 +276,7 @@ describe('test GroupTaskQueue with lock', () => {
   })
 })
 describe('test queue deleted from GroupTaskQueue', () => {
-  test('test queue deleted from GroupTaskQueue', async () => {
+  test('queue deleted from GroupTaskQueue', async () => {
     const queue = new GroupTaskQueue()
     queue.add(async () => {
       await sleep(20)

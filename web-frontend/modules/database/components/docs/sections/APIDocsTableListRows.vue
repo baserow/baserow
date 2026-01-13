@@ -153,7 +153,6 @@ import APIDocsFiltersBuilderModal from '@baserow/modules/database/components/doc
 
 export default {
   name: 'APIDocsTableListRows',
-  emits: ['input'],
   components: {
     APIDocsFiltersBuilderModal,
     APIDocsParameter,
@@ -174,6 +173,7 @@ export default {
     getResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
   },
+  emits: ['input'],
   methods: {},
 }
 </script>

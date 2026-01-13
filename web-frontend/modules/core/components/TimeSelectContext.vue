@@ -21,7 +21,6 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'TimeSelectContext',
-  emits: ['input'],
   mixins: [context],
   props: {
     hideOnClickOutside: {
@@ -40,6 +39,7 @@ export default {
       default: '',
     },
   },
+  emits: ['input'],
   methods: {
     /**
      * Generates a list of times that the user can choose from. It ranges from 00:00

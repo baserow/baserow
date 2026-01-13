@@ -85,7 +85,6 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export default {
-  emits: ['success'],
 
   components: {
     TOTPLogin,
@@ -127,6 +126,7 @@ export default {
       default: false,
     },
   },
+  emits: ['success'],
   data() {
     return {
       passwordLoginHiddenIfDisabled: true,

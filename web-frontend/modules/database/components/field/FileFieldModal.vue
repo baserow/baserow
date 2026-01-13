@@ -122,7 +122,6 @@ import {
 
 export default {
   name: 'FileFieldModal',
-  emits: ['removed', 'renamed'],
   components: {
     PreviewAny,
   },
@@ -137,6 +136,7 @@ export default {
       required: true,
     },
   },
+  emits: ['removed', 'renamed'],
   data() {
     return {
       renaming: false,

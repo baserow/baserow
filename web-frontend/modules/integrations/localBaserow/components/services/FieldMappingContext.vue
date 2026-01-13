@@ -20,7 +20,6 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'FieldMappingContext',
-  emits: ['edit'],
   mixins: [context],
   props: {
     fieldMapping: {
@@ -28,6 +27,7 @@ export default {
       required: true,
     },
   },
+  emits: ['edit'],
   computed: {
     enabledClass() {
       return this.fieldMapping.enabled ? 'iconoir-eye-off' : 'iconoir-eye-empty'

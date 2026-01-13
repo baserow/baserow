@@ -20,7 +20,6 @@
 
 <script>
 export default {
-  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
 
   inject: ['builder', 'currentPage'],
   props: {
@@ -29,6 +28,7 @@ export default {
       required: true,
     },
   },
+  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
   computed: {
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)

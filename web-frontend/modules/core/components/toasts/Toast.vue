@@ -27,7 +27,6 @@
 <script>
 export default {
   name: 'Toast',
-  emits: ['close'],
   props: {
     /**
      * The type of toast to display
@@ -69,6 +68,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close'],
   computed: {
     hasTitleSlot() {
       return !!this.$slots.title

@@ -12,7 +12,6 @@ import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'VerticalAlignmentSelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     /**
      * Vue 3 v-model binding.
@@ -30,6 +29,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     // Prefer Vue 3 modelValue when provided, otherwise fall back to Vue 2 value.
     currentValue() {

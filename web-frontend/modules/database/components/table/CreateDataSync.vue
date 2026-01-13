@@ -112,7 +112,6 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'CreateDataSync',
-  emits: ['hide'],
   components: { TableForm },
   mixins: [dataSync],
   props: {
@@ -125,6 +124,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       formValues: null,

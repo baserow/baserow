@@ -19,7 +19,6 @@
 import DnsStatus from '@baserow/modules/builder/components/domain/DnsStatus'
 export default {
   name: 'CustomDomainDetails',
-  emits: ['delete'],
   components: { DnsStatus },
   props: {
     domain: {
@@ -27,5 +26,6 @@ export default {
       required: true,
     },
   },
+  emits: ['delete'],
 }
 </script>

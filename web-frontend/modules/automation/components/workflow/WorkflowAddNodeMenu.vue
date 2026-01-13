@@ -35,7 +35,6 @@
 import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'WorkflowNodeContext',
-  emits: ['change'],
   mixins: [context],
   props: {
     node: {
@@ -49,6 +48,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['change'],
   computed: {
     editingTriggerNode() {
       return this.onlyTrigger

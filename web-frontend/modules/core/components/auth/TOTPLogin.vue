@@ -117,7 +117,6 @@ import { required } from '@vuelidate/validators'
 
 export default {
   name: 'TOTPLogin',
-  emits: ['expired', 'success'],
   components: { AuthCodeInput },
   mixins: [form],
   props: {
@@ -130,6 +129,7 @@ export default {
       required: true,
     },
   },
+  emits: ['expired', 'success'],
   setup() {
     const values = reactive({
       values: {

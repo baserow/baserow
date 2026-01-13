@@ -25,7 +25,6 @@ import { RATING_STYLES } from '@baserow/modules/core/enums'
 
 export default {
   name: 'Rating',
-  emits: ['update'],
   props: {
     readOnly: {
       type: Boolean,
@@ -61,6 +60,7 @@ export default {
       type: String,
     },
   },
+  emits: ['update'],
   methods: {
     onClick(index) {
       if (this.readOnly) {

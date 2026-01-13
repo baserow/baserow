@@ -29,8 +29,8 @@
     </div>
 
     <Modal
-      class="formula-input-context__advanced-mode-modal"
       ref="advancedModeModal"
+      class="formula-input-context__advanced-mode-modal"
     >
       <h2 class="box__title">
         {{
@@ -66,7 +66,6 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputContext',
-  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   components: {
     NodeExplorer,
   },
@@ -120,6 +119,7 @@ export default {
       required: true,
     },
   },
+  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   data() {
     return {
       searchQuery: '',

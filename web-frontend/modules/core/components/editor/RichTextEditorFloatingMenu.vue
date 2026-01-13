@@ -139,7 +139,6 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 
 export default {
   name: 'RichTextEditorBubbleMenuContext',
-  emits: ['hidden', 'show'],
   components: { FloatingMenu },
   props: {
     editor: {
@@ -156,6 +155,7 @@ export default {
       default: true,
     },
   },
+  emits: ['hidden', 'show'],
   data() {
     return {
       open: true,

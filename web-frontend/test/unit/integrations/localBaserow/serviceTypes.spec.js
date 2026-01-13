@@ -114,7 +114,7 @@ describe('Local baserow service types', () => {
     ).toEqual(['Field 42 content row 1', 'Field 42 content row 2'])
   })
 
-  test('List service should resolve correctly in builder data provider', () => {
+  test('Get service should resolve correctly in builder data provider', () => {
     const dataProvider = testApp
       .getRegistry()
       .get('builderDataProvider', 'data_source')

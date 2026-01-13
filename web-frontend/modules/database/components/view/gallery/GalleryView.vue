@@ -180,7 +180,6 @@ import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'GalleryView',
-  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: { RowCard, RowCreateModal, RowEditModal },
   mixins: [viewHelpers, bufferedRowsDragAndDrop, viewDecoration],
   props: {
@@ -209,6 +208,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   data() {
     return {
       gutterSize: 30,

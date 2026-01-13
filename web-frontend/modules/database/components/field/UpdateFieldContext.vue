@@ -58,7 +58,6 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'UpdateFieldContext',
-  emits: ['update', 'updated'],
   components: { FieldForm },
   mixins: [context],
   props: {
@@ -83,6 +82,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update', 'updated'],
   data() {
     return {
       loading: false,

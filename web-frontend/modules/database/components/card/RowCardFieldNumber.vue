@@ -11,6 +11,7 @@ import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 export default {
   name: 'RowCardFieldNumber',
   height: 16,
+  mixins: [numberField],
   props: {
     field: {
       type: Object,
@@ -21,7 +22,6 @@ export default {
       default: null,
     },
   },
-  mixins: [numberField],
   methods: {
     formatValue(field, value) {
       return formatDecimalNumber(field, value)

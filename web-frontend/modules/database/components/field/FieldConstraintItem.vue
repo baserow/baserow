@@ -39,7 +39,6 @@ import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 
 export default {
   name: 'FieldConstraintItem',
-  emits: ['remove', 'update'],
   components: { ButtonIcon },
   props: {
     constraint: {
@@ -69,6 +68,7 @@ export default {
       default: null,
     },
   },
+  emits: ['remove', 'update'],
   methods: {
     updateConstraintTypeName(typeName) {
       this.$emit('update', this.index, { type_name: typeName })

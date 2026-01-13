@@ -42,7 +42,6 @@ import RemoveFromWorkspaceModal from '@baserow/modules/core/components/workspace
 
 export default {
   name: 'EditMemberContext',
-  emits: ['remove-user'],
   components: {
     RemoveFromWorkspaceModal,
   },
@@ -57,6 +56,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['remove-user'],
   computed: {
     ...mapGetters({
       userId: 'auth/getUserId',

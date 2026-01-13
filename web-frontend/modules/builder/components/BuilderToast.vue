@@ -22,7 +22,6 @@
 <script>
 export default {
   name: 'BuilderToast',
-  emits: ['close'],
   props: {
     /**
      * The type of toast to display
@@ -56,6 +55,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close'],
   data() {
     return {
       timer: null,

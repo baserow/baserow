@@ -131,7 +131,6 @@ import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/compon
 import applicationContext from '@baserow/modules/core/mixins/applicationContext'
 
 export default {
-  emits: ['rename'],
 
   components: {
     TrashModal,
@@ -149,6 +148,7 @@ export default {
       required: true,
     },
   },
+  emits: ['rename'],
   data() {
     return {
       deleting: false,

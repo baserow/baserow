@@ -11,7 +11,7 @@
           content-no-padding
           rounded
           full-height
-          @update:selectedIndex="resetSearch"
+          @update:selected-index="resetSearch"
         >
           <Tab
             v-for="hierarchyNode in filteredNodesHierarchy"
@@ -59,7 +59,6 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'NodeExplorer',
-  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   components: {
     NodeExplorerTab,
   },
@@ -96,6 +95,7 @@ export default {
       default: false,
     },
   },
+  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   data() {
     return {
       activeTabIndex: 0,

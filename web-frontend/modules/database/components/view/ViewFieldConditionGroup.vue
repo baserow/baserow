@@ -111,13 +111,6 @@ export default {
     ViewFilterFormOperator,
     ViewFieldConditionItem,
   },
-  emits: [
-    'updateFilterType',
-    'updateFilter',
-    'deleteFilter',
-    'addFilter',
-    'addFilterGroup',
-  ],
   props: {
     view: {
       type: Object,
@@ -162,6 +155,13 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'updateFilterType',
+    'updateFilter',
+    'deleteFilter',
+    'addFilter',
+    'addFilterGroup',
+  ],
   computed: {
     addConditionLabel() {
       return (

@@ -25,6 +25,7 @@ import readOnlyDateField from '@baserow/modules/database/mixins/readOnlyDateFiel
 
 export default {
   name: 'FunctionalGridViewFieldDate',
+  mixins: [readOnlyDateField],
   props: {
     field: {
       type: Object,
@@ -35,6 +36,5 @@ export default {
       default: null,
     },
   },
-  mixins: [readOnlyDateField],
 }
 </script>

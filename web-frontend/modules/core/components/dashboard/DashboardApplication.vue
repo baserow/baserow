@@ -46,7 +46,6 @@ import application from '@baserow/modules/core/mixins/application'
 import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
 
 export default {
-  emits: ['click'],
 
   mixins: [application],
   props: {
@@ -59,6 +58,7 @@ export default {
       required: true,
     },
   },
+  emits: ['click'],
   computed: {
     humanCreatedAt() {
       const { period, count } = getHumanPeriodAgoCount(

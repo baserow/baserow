@@ -346,7 +346,7 @@ export default {
       }
     },
 
-    // eslint-disable-next-line require-await
+     
     async onJobFailed() {
       this.importing = false
       this.showError(

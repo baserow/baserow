@@ -35,7 +35,6 @@ import ThemeConfigBlock from '@baserow/modules/builder/components/theme/ThemeCon
 export default {
   name: 'CustomStyleForm',
   components: { ThemeConfigBlock },
-  emits: ['values-changed'],
   props: {
     /**
      * @type {Object}
@@ -51,6 +50,7 @@ export default {
       required: true,
     },
   },
+  emits: ['values-changed'],
   computed: {
     themeConfigBlocks() {
       return this.customStylesContext.configBlockTypes.map((confType) =>

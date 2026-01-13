@@ -34,7 +34,6 @@ import { floor, ceil } from '@baserow/modules/core/utils/number'
  */
 export default {
   name: 'Scrollbars',
-  emits: ['horizontal', 'vertical'],
   props: {
     /**
      * The vertical property should be the reference of the vertical scrollable element
@@ -55,6 +54,7 @@ export default {
       default: null,
     },
   },
+  emits: ['horizontal', 'vertical'],
   data() {
     return {
       dragging: null,

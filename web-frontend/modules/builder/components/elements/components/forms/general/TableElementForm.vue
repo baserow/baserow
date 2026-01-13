@@ -277,7 +277,6 @@ import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpand
 
 export default {
   name: 'TableElementForm',
-  emits: ['values-changed'],
   components: {
     PropertyOptionForm,
     DataSourceDropdown,
@@ -288,6 +287,7 @@ export default {
     SidebarExpandable,
   },
   mixins: [collectionElementForm],
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

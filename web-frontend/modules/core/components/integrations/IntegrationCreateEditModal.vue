@@ -47,7 +47,6 @@ import IntegrationEditForm from '@baserow/modules/core/components/integrations/I
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
-  emits: ['created'],
 
   components: { IntegrationEditForm },
   mixins: [modal, error],
@@ -72,6 +71,7 @@ export default {
       default: false,
     },
   },
+  emits: ['created'],
   data() {
     return { loading: false }
   },

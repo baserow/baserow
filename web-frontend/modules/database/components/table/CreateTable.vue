@@ -12,7 +12,7 @@
         @changed="reset()"
         @header="onHeader($event)"
         @data="onData($event)"
-        @getData="onGetData($event)"
+        @get-data="onGetData($event)"
       />
     </TableForm>
 
@@ -74,7 +74,6 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'CreateTable',
-  emits: ['hide'],
   components: { ImportErrorReport, TableForm, SimpleGrid },
   mixins: [error, jobProgress],
   props: {
@@ -87,6 +86,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       uploadProgressPercentage: 0,

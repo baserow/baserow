@@ -18,7 +18,6 @@
 <script>
 export default {
   name: 'PixelValueSelector',
-  emits: ['input', 'update:modelValue', 'blur'],
   props: {
     /**
      * The model value in Vue 3 style.
@@ -41,6 +40,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'update:modelValue', 'blur'],
   computed: {
     // Prefer Vue 3 modelValue if provided, else fall back to Vue 2 value
     currentValue() {

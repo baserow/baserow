@@ -12,7 +12,6 @@
 <script>
 export default {
   name: 'FontFamilySelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     /**
      * The model value of the dropdown in Vue 3 style.
@@ -30,6 +29,7 @@ export default {
       default: 'Inter',
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     // This computed must be used instead of .value
     currentValue() {

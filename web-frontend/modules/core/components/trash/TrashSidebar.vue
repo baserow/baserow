@@ -51,7 +51,6 @@
 <script>
 export default {
   name: 'TrashSidebar',
-  emits: ['selected'],
   props: {
     workspaces: {
       type: Array,
@@ -68,6 +67,7 @@ export default {
       default: null,
     },
   },
+  emits: ['selected'],
   computed: {
     groupedApplicationsForSelectedWorkspace() {
       const applicationTypes = Object.values(

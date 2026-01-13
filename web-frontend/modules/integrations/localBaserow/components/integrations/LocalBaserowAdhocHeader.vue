@@ -42,7 +42,6 @@ import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 import { getFilters, getOrderBy } from '@baserow/modules/database/utils/view'
 
 export default {
-  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
 
   components: { ViewSearch, ViewSort, ViewFilter },
   props: {
@@ -64,6 +63,7 @@ export default {
       required: true,
     },
   },
+  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
   data() {
     return {
       view: {

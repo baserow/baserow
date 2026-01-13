@@ -22,7 +22,6 @@
 <script>
 export default {
   name: 'DeviceSelector',
-  emits: ['selected'],
   props: {
     deviceTypeSelected: {
       type: String,
@@ -34,6 +33,7 @@ export default {
       default: 'column',
     },
   },
+  emits: ['selected'],
   computed: {
     deviceTypes() {
       return Object.values(this.$registry.getOrderedList('device'))

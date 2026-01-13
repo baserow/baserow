@@ -64,7 +64,6 @@ import EditableViewName from '@baserow/modules/database/components/view/Editable
 
 export default {
   name: 'ViewsContextItem',
-  emits: ['selected'],
   components: { EditableViewName, ViewContext },
   mixins: [context],
   props: {
@@ -86,6 +85,7 @@ export default {
       default: true,
     },
   },
+  emits: ['selected'],
   computed: {
     viewType() {
       return this.$registry.get('view', this.view.type)

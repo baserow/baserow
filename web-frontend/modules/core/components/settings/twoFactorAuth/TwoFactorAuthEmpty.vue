@@ -21,7 +21,6 @@
 
 <script>
 export default {
-  emits: ['enable'],
 
   props: {
     allowed: {
@@ -29,5 +28,6 @@ export default {
       default: true,
     },
   },
+  emits: ['enable'],
 }
 </script>

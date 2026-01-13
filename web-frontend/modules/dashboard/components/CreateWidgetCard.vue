@@ -29,7 +29,6 @@
 <script>
 export default {
   name: 'CreateWidgetCard',
-  emits: ['widget-variation-selected'],
   props: {
     dashboard: {
       type: Object,
@@ -44,6 +43,7 @@ export default {
       required: true,
     },
   },
+  emits: ['widget-variation-selected'],
   computed: {
     isWidgetAvailable() {
       return this.widgetType.isAvailable(this.dashboard.workspace.id)

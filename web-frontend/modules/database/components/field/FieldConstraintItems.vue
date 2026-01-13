@@ -21,7 +21,6 @@ import BigNumber from 'bignumber.js'
 
 export default {
   name: 'FieldConstraintItems',
-  emits: ['input'],
   components: { FieldConstraintItem },
   props: {
     value: {
@@ -48,6 +47,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input'],
   computed: {
     constraints: {
       get() {

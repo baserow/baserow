@@ -160,7 +160,6 @@ import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearc
 
 export default {
   name: 'SidebarMenu',
-  emits: ['open-workspace-search'],
   components: {
     TrashModal,
     NotificationPanel,
@@ -179,6 +178,7 @@ export default {
       default: false,
     },
   },
+  emits: ['open-workspace-search'],
   computed: {
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))

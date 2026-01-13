@@ -66,12 +66,12 @@ import FormViewSubmitted from '@baserow/modules/database/components/view/form/Fo
 
 export default {
   name: 'FormViewModeForm',
-  emits: ['submit'],
   components: {
     FormViewSubmitted,
     FormPageField,
     FormViewPoweredBy,
   },
   mixins: [baseFormViewMode],
+  emits: ['submit'],
 }
 </script>

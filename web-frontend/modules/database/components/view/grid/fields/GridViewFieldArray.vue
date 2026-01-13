@@ -29,9 +29,9 @@ import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
 
 export default {
   name: 'GridViewFieldArray',
-  inheritAttrs: false,
   components: { FunctionalGridViewFieldArray },
   mixins: [gridField, arrayLoading],
+  inheritAttrs: false,
   computed: {
     subType() {
       return this.$registry.get('formula_type', this.field.array_formula_type)

@@ -94,7 +94,6 @@
 <script>
 export default {
   name: 'ApplicationSelector',
-  emits: ['update'],
   props: {
     workspace: {
       type: Object,
@@ -109,6 +108,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   data() {
     return {
       groupExpanded: {},

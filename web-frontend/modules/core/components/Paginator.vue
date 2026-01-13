@@ -39,7 +39,6 @@
 <script>
 export default {
   name: 'Paginator',
-  emits: ['change-page'],
   props: {
     /**
      * The total number of pages available.
@@ -59,6 +58,7 @@ export default {
       default: 0,
     },
   },
+  emits: ['change-page'],
   methods: {
     changePage(newPage) {
       if (newPage <= this.totalPages && newPage > 0)

@@ -50,7 +50,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsUploadFile',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -64,5 +63,6 @@ export default {
     getUploadFileExample: { type: Function, required: true },
     getUploadFileResponse: { type: Function, required: true },
   },
+  emits: ['input'],
 }
 </script>

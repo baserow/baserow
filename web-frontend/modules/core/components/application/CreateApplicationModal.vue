@@ -26,7 +26,6 @@ import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export default {
   name: 'CreateApplicationModal',
-  emits: ['created'],
   mixins: [modal, error],
   props: {
     applicationType: {
@@ -38,6 +37,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   data() {
     return {
       loading: false,

@@ -30,7 +30,6 @@
 <script>
 export default {
   name: 'ExporterTypeChoice',
-  emits: ['selected'],
   props: {
     database: {
       type: Object,
@@ -49,6 +48,7 @@ export default {
       type: Boolean,
     },
   },
+  emits: ['selected'],
   computed: {
     deactivatedText() {
       return this.$registry

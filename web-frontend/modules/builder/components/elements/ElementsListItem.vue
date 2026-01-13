@@ -25,7 +25,6 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'ElementsListItem',
-  emits: ['select'],
   inject: ['builder', 'mode'],
   props: {
     element: {
@@ -38,6 +37,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['select'],
   computed: {
     ...mapGetters({
       getElementSelected: 'element/getSelected',

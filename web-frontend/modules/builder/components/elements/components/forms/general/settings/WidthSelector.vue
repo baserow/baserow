@@ -14,7 +14,6 @@ import { WIDTHS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'WidthSelector',
-  emits: ['input'],
   props: {
     value: {
       type: String,
@@ -27,6 +26,7 @@ export default {
       default: () => Object.values(WIDTHS),
     },
   },
+  emits: ['input'],
   computed: {
     widthOptions() {
       return this.widths.map((width) => {

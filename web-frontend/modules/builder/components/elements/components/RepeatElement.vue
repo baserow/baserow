@@ -139,7 +139,6 @@ import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'RepeatElement',
-  emits: ['move'],
   components: {
     CollectionElementHeader,
     PageElement,
@@ -166,6 +165,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   computed: {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
     isCollapsed() {

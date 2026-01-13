@@ -55,7 +55,7 @@ export default function ({ app: { router, $config, store } }, inject) {
 }
 */
 
-// eslint-disable-next-line import/no-named-as-default
+ 
 import posthog from 'posthog-js'
 import { nextTick } from 'vue'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'

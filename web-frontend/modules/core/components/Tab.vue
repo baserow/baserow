@@ -7,7 +7,6 @@
 <script>
 export default {
   name: 'Tab',
-  emits: ['click'],
   inject: {
     tabsProvider: {
       default: null,
@@ -53,6 +52,7 @@ export default {
       default: null,
     },
   },
+  emits: ['click'],
   data() {
     return {
       isActive: false,

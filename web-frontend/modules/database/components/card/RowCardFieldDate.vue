@@ -16,6 +16,7 @@ import readOnlyDateField from '@baserow/modules/database/mixins/readOnlyDateFiel
 export default {
   height: 16,
   name: 'RowCardFieldDate',
+  mixins: [readOnlyDateField],
   props: {
     field: {
       type: Object,
@@ -26,6 +27,5 @@ export default {
       default: null,
     },
   },
-  mixins: [readOnlyDateField],
 }
 </script>

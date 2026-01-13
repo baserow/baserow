@@ -30,7 +30,6 @@
 <script>
 export default {
   name: 'FormViewSidebarField',
-  emits: ['updated-field-options'],
   props: {
     field: {
       type: Object,
@@ -41,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['updated-field-options'],
   computed: {
     compatible() {
       const fieldType = this.$registry.get('field', this.field.type)

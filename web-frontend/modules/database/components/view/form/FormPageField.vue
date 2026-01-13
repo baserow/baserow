@@ -34,7 +34,6 @@ import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database
 
 export default {
   name: 'FormPageField',
-  emits: ['focussed', 'input'],
   components: { FieldContext },
   props: {
     slug: {
@@ -50,6 +49,7 @@ export default {
       required: true,
     },
   },
+  emits: ['focussed', 'input'],
   computed: {
     selectedFieldComponent() {
       const components = this.$registry

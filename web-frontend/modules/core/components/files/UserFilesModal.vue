@@ -34,7 +34,6 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'UserFilesModal',
-  emits: ['hidden', 'uploaded'],
   mixins: [modal],
   props: {
     uploadFile: {
@@ -58,6 +57,7 @@ export default {
       default: null,
     },
   },
+  emits: ['hidden', 'uploaded'],
   data() {
     return {
       page: null,

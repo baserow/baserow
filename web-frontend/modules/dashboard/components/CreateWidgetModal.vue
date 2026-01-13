@@ -23,7 +23,6 @@ import CreateWidgetCard from '@baserow/modules/dashboard/components/CreateWidget
 
 export default {
   name: 'CreateWidgetModal',
-  emits: ['widget-variation-selected'],
   components: { CreateWidgetCard },
   mixins: [modal],
   props: {
@@ -32,6 +31,7 @@ export default {
       required: true,
     },
   },
+  emits: ['widget-variation-selected'],
   computed: {
     widgetTypes() {
       return this.$registry.getOrderedList('dashboardWidget')

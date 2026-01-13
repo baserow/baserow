@@ -39,7 +39,6 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'ViewSearchContext',
-  emits: ['refresh', 'search-changed'],
   mixins: [context],
   props: {
     view: {
@@ -64,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['refresh', 'search-changed'],
   data() {
     return {
       activeSearchTerm: '',

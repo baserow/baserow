@@ -60,7 +60,6 @@ import DataSourceItemContext from '@baserow/modules/builder/components/dataSourc
 
 export default {
   name: 'DataSourceItem',
-  emits: ['delete', 'edit', 'share'],
   components: { DataSourceItemContext },
   inject: ['workspace', 'builder'],
   props: {
@@ -74,6 +73,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'edit', 'share'],
   computed: {
     isInError() {
       return this.dataSourceType?.isInError({ service: this.dataSource })

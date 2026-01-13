@@ -14,7 +14,6 @@ import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 
 export default {
   name: 'FontWeightSelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: String,
@@ -30,6 +29,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     currentValue() {
       return this.modelValue !== undefined

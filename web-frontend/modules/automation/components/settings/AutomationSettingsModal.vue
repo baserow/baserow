@@ -47,7 +47,6 @@ import { defineComponent, ref, computed, watch, getCurrentInstance } from 'vue'
 export default defineComponent({
   name: 'AutomationSettingsModal',
   mixins: [modal],
-  emits: ['created'],
   props: {
     automation: {
       type: Object,
@@ -63,6 +62,7 @@ export default defineComponent({
       default: false,
     },
   },
+  emits: ['created'],
 
   setup(props, { emit }) {
     const instance = getCurrentInstance()

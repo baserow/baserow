@@ -1,4 +1,4 @@
-/* eslint-disable */
+ 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { firstBy } from 'thenby'
 

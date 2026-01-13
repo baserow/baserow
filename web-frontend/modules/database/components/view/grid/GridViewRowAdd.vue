@@ -26,7 +26,6 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewRowAdd',
-  emits: ['add-row', 'add-rows'],
   mixins: [gridViewHelpers],
   props: {
     visibleFields: {
@@ -38,6 +37,7 @@ export default {
       required: true,
     },
   },
+  emits: ['add-row', 'add-rows'],
   computed: {
     width() {
       let width = this.visibleFields.reduce(

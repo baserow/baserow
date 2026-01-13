@@ -98,7 +98,6 @@ import SidebarAdminItem from './SidebarAdminItem.vue'
 
 export default {
   name: 'Sidebar',
-  emits: ['open-workspace-search', 'set-col1-width'],
   components: {
     SidebarAdmin,
     SidebarWithoutWorkspace,
@@ -136,6 +135,7 @@ export default {
       default: false,
     },
   },
+  emits: ['open-workspace-search', 'set-col1-width'],
   data() {
     return {
       showAdmin: false,

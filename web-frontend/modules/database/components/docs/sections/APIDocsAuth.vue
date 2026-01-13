@@ -35,7 +35,6 @@ import APIDocsExample from '@baserow/modules/database/components/docs/APIDocsExa
 
 export default {
   name: 'APIDocsAuth',
-  emits: ['input'],
   components: {
     SettingsModal,
     APIDocsExample,
@@ -46,5 +45,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

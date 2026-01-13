@@ -32,7 +32,6 @@
 <script>
 export default {
   name: 'PaddingSelector',
-  emits: ['input', 'blur', 'update:modelValue'],
   props: {
     value: {
       type: Object,
@@ -48,6 +47,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'blur', 'update:modelValue'],
   computed: {
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value

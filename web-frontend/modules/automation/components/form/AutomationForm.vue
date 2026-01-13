@@ -40,11 +40,11 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted'],
   computed: {
     automationApplicationType() {
       return this.$registry.get('application', 'automation')
     },
   },
-  emits: ['submitted'],
 }
 </script>

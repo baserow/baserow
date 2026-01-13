@@ -20,13 +20,13 @@
 import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 export default {
   name: 'RowCardFieldLink',
+  mixins: [linkURLField],
   props: {
     value: {
       type: Object,
       default: null,
     },
   },
-  mixins: [linkURLField],
   height: 16,
 }
 </script>

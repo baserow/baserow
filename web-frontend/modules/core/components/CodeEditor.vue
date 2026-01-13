@@ -13,7 +13,6 @@ import { Text } from '@tiptap/extension-text'
 
 export default {
   name: 'CodeEditor',
-  emits: ['update:modelValue'],
   components: {
     EditorContent,
   },
@@ -28,6 +27,7 @@ export default {
       default: '',
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       editor: null,

@@ -22,7 +22,6 @@ import Webhook from './Webhook.vue'
 
 export default {
   name: 'WebhookList',
-  emits: ['deleted', 'updated'],
   components: {
     Webhook,
   },
@@ -48,5 +47,6 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted', 'updated'],
 }
 </script>

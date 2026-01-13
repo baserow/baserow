@@ -16,7 +16,6 @@
 <script>
 export default {
   name: 'RadioButton',
-  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: [String, Number, Boolean, Object],
@@ -49,6 +48,7 @@ export default {
       default: '',
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     selected() {
       return this.modelValue === this.value

@@ -19,7 +19,6 @@
 <script>
 export default {
   name: 'Radio',
-  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: [String, Number, Boolean, Object],
@@ -42,6 +41,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     classNames() {
       return {

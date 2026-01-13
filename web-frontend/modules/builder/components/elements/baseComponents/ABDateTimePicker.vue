@@ -75,7 +75,6 @@ import { DateOnly } from '@baserow/modules/core/utils/date'
 import moment from '@baserow/modules/core/moment'
 export default {
   name: 'ABDateTimePicker',
-  emits: ['update:modelValue'],
   props: {
     modelValue: {
       type: [String, DateOnly, Date],
@@ -108,6 +107,7 @@ export default {
       default: () => ({}),
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       dateInputValue: '',

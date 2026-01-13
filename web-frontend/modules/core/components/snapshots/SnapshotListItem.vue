@@ -50,7 +50,6 @@ import timeAgo from '@baserow/modules/core/mixins/timeAgo'
 import { RestoreSnapshotJobType } from '@baserow/modules/core/jobTypes'
 
 export default {
-  emits: ['snapshot-deleted'],
 
   components: {
     DeleteSnapshotModal,
@@ -62,6 +61,7 @@ export default {
       required: true,
     },
   },
+  emits: ['snapshot-deleted'],
   mounted() {
     if (!this.job) {
       this.restoreRunningState()

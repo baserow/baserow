@@ -90,7 +90,6 @@ import dropdown from '@baserow/modules/core/mixins/dropdown'
 
 export default {
   name: 'ABDropdown',
-  emits: ['query-change', 'scroll'],
   mixins: [dropdown],
   props: {
     /**
@@ -102,5 +101,6 @@ export default {
       default: false,
     },
   },
+  emits: ['query-change', 'scroll'],
 }
 </script>

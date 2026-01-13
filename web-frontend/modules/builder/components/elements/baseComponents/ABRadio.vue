@@ -21,7 +21,6 @@
 <script>
 export default {
   name: 'ABRadio',
-  emits: ['input'],
   props: {
     /**
      * The state of the radio.
@@ -64,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   computed: {
     hasSlot() {
       return !!this.$slots.default

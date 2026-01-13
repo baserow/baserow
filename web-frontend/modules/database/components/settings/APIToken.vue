@@ -190,13 +190,13 @@ import TokenService from '@baserow/modules/database/services/token'
 
 export default {
   name: 'APIToken',
-  emits: ['deleted'],
   props: {
     token: {
       type: Object,
       required: true,
     },
   },
+  emits: ['deleted'],
   data() {
     return {
       open: false,

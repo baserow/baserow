@@ -33,7 +33,6 @@ import APIDocsExample from '@baserow/modules/database/components/docs/APIDocsExa
 
 export default {
   name: 'APIDocsListTables',
-  emits: ['input'],
   components: {
     APIDocsExample,
   },
@@ -43,6 +42,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
   methods: {
     getListTablesResponse() {
       return [

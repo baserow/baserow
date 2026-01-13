@@ -27,8 +27,8 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'WorkspaceInvitationCreatedNotification',
-  emits: ['close-panel'],
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick() {
       this.$emit('close-panel')

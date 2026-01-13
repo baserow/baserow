@@ -165,7 +165,7 @@ export default {
       }
     },
 
-    // eslint-disable-next-line require-await
+     
     async onJobFailed() {
       this.createLoading = false
       this.showError(

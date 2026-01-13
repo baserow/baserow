@@ -47,7 +47,6 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FormView',
-  emits: ['refresh'],
   components: { FormViewSidebar, FormViewPreview },
   mixins: [formViewHelpers],
   props: {
@@ -72,6 +71,7 @@ export default {
       required: true,
     },
   },
+  emits: ['refresh'],
   computed: {
     sortedFields() {
       const fields = this.fields.slice()

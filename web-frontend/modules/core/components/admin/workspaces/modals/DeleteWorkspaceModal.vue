@@ -38,7 +38,6 @@ import WorkspacesAdminService from '@baserow/modules/core/services/admin/workspa
 
 export default {
   name: 'DeleteWorkspaceModal',
-  emits: ['workspace-deleted'],
   mixins: [modal, error],
   props: {
     workspace: {
@@ -46,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['workspace-deleted'],
   data() {
     return {
       loading: false,

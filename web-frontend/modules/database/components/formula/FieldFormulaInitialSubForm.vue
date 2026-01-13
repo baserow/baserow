@@ -65,7 +65,6 @@ import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 
 export default {
   name: 'FieldFormulaInitialSubForm',
-  emits: ['open-advanced-context', 'refresh-formula-type', 'update-formula'],
   components: {
     FormulaTypeSubForms,
   },
@@ -94,6 +93,7 @@ export default {
       required: true,
     },
   },
+  emits: ['open-advanced-context', 'refresh-formula-type', 'update-formula'],
   data() {
     return {
       allowedValues: [],

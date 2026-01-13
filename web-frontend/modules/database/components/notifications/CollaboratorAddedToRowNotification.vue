@@ -35,8 +35,8 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'CollaboratorAddedToRowNotification',
-  emits: ['close-panel'],
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick() {
       this.$emit('close-panel')

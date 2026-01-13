@@ -22,7 +22,6 @@ import WidgetContext from '@baserow/modules/dashboard/components/widget/WidgetCo
 
 export default {
   name: 'WidgetContextMenu',
-  emits: ['delete-widget'],
   components: { WidgetContext },
   props: {
     dashboard: {
@@ -34,5 +33,6 @@ export default {
       required: true,
     },
   },
+  emits: ['delete-widget'],
 }
 </script>

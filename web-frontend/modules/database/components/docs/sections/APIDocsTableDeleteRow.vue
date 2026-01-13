@@ -87,7 +87,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableDeleteRow',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -102,6 +101,7 @@ export default {
     getDeleteListUrl: { type: Function, required: true },
     getBatchDeleteRequestExample: { type: Function, required: true },
   },
+  emits: ['input'],
   data() {
     return {
       batchMode: false,

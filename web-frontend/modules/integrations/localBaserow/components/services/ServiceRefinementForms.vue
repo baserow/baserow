@@ -85,8 +85,8 @@
           <LocalBaserowTableServiceConditionalForm
             v-if="values.table_id"
             v-model="values.filters"
+            v-model:filter-type="values.filter_type"
             :fields="tableFields"
-            :filter-type.sync="values.filter_type"
           />
           <p v-if="!values.table_id">
             {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
@@ -150,8 +150,8 @@
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
               v-model="values.filters"
+              v-model:filter-type="values.filter_type"
               :fields="tableFields"
-              :filter-type.sync="values.filter_type"
             />
             <p v-if="!values.table_id">
               {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}

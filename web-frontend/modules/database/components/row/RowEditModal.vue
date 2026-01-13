@@ -153,20 +153,6 @@ export default {
     RowEditModalHiddenFieldsSection,
     RowEditModalSidebar,
   },
-  emits: [
-    'field-updated',
-    'field-deleted',
-    'order-fields',
-    'hidden',
-    'update',
-    'navigate-previous',
-    'navigate-next',
-    'toggle-field-visibility',
-    'toggle-hidden-fields-visibility',
-    'refresh-row',
-    'field-created',
-    'field-created-callback-done',
-  ],
   mixins: [modal],
   props: {
     database: {
@@ -229,6 +215,20 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'field-updated',
+    'field-deleted',
+    'order-fields',
+    'hidden',
+    'update',
+    'navigate-previous',
+    'navigate-next',
+    'toggle-field-visibility',
+    'toggle-hidden-fields-visibility',
+    'refresh-row',
+    'field-created',
+    'field-created-callback-done',
+  ],
   computed: {
     ...mapGetters({
       navigationLoading: 'rowModalNavigation/getLoading',

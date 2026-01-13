@@ -16,6 +16,7 @@ import Rating from '@baserow/modules/database/components/Rating'
 export default {
   height: 18,
   name: 'RowCardFieldRating',
+  components: { Rating },
   props: {
     field: {
       type: Object,
@@ -26,6 +27,5 @@ export default {
       default: 0,
     },
   },
-  components: { Rating },
 }
 </script>

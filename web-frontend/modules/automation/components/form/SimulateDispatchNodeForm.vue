@@ -94,10 +94,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  automation: {
-    type: Object,
-    required: true,
-  },
 })
 
 const isSimulating = computed(() => {

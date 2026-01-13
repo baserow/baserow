@@ -20,12 +20,12 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 export default {
   name: 'RowCardFieldLastModifiedBy',
   height: 30,
+  mixins: [collaboratorName],
   props: {
     value: {
       type: Object,
       default: null,
     },
   },
-  mixins: [collaboratorName],
 }
 </script>

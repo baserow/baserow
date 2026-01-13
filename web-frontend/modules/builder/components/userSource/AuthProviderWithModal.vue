@@ -47,7 +47,6 @@
 <script>
 export default {
   name: 'AuthProviderWithModal',
-  emits: ['delete', 'hidden'],
   props: {
     authProviderType: {
       type: Object,
@@ -63,6 +62,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'hidden'],
   methods: {
     onEdit() {
       this.$refs.modal.show()

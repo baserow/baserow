@@ -34,13 +34,13 @@
 <script>
 export default {
   name: 'GridViewRowIdentifierDropdown',
-  emits: ['change'],
   props: {
     rowIdentifierTypeSelected: {
       type: String,
       required: true,
     },
   },
+  emits: ['change'],
   computed: {
     options() {
       return ['id', 'count']

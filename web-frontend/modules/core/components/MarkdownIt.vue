@@ -4,7 +4,7 @@
     :is="tag"
     :key="contentHash"
     class="markdown"
-    :innerHTML="htmlContent"
+    :inner-h-t-m-l="htmlContent"
     @click="$emit('click', $event)"
   />
 </template>

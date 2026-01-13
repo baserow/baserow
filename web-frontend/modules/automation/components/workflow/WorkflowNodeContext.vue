@@ -13,7 +13,6 @@ import context from '@baserow/modules/core/mixins/context'
 import WorkflowAddNodeMenu from './WorkflowAddNodeMenu.vue'
 export default {
   name: 'WorkflowNodeContext',
-  emits: ['change'],
   components: { WorkflowAddNodeMenu },
   mixins: [context],
   props: {
@@ -28,6 +27,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['change'],
   methods: {
     onChange(nodeType) {
       this.hide()

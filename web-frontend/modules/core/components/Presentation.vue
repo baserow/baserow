@@ -20,7 +20,6 @@
 <script>
 export default {
   name: 'Presentation',
-  emits: ['click'],
   props: {
     initials: {
       type: String,
@@ -63,5 +62,6 @@ export default {
       default: '',
     },
   },
+  emits: ['click'],
 }
 </script>

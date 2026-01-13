@@ -218,7 +218,7 @@ export default {
           this.resolveFormula,
           this.mode
         )
-      } catch (e) {
+      } catch {
         return '#error'
       }
     },

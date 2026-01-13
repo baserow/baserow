@@ -81,13 +81,13 @@ import { DatabaseScratchTrackOnboardingType } from '@baserow/modules/database/on
 
 export default {
   name: 'DatabaseScratchTrackFieldsStep',
-  emits: ['update-data'],
   props: {
     data: {
       type: Object,
       required: true,
     },
   },
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

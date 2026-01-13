@@ -48,7 +48,6 @@
 <script>
 export default {
   name: 'Tabs',
-  emits: ['click-disabled', 'update:selectedIndex'],
   provide() {
     return {
       tabsProvider: {
@@ -143,6 +142,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click-disabled', 'update:selectedIndex'],
   data() {
     return {
       internalSelectedIndex: 0, // In case the prop isn't used by a parent

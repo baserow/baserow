@@ -33,7 +33,6 @@ import {
  */
 export default {
   name: 'ForeignRowEditModal',
-  emits: ['hidden', 'refresh-row'],
   components: { RowEditModal },
   props: {
     tableId: {
@@ -56,6 +55,7 @@ export default {
       default: false,
     },
   },
+  emits: ['hidden', 'refresh-row'],
   data() {
     return {
       fetchedTableAndFields: false,

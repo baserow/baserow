@@ -14,7 +14,6 @@ import ViewDecoratorList from '@baserow/modules/database/components/view/ViewDec
 
 export default {
   name: 'AddViewDecoratorContext',
-  emits: ['select'],
   components: {
     ViewDecoratorList,
   },
@@ -29,5 +28,6 @@ export default {
       required: true,
     },
   },
+  emits: ['select'],
 }
 </script>

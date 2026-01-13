@@ -92,7 +92,6 @@ import APIDocsExample from '@baserow/modules/database/components/docs/APIDocsExa
 
 export default {
   name: 'APIDocsErrors',
-  emits: ['input'],
   components: {
     APIDocsExample,
   },
@@ -102,5 +101,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

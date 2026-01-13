@@ -19,6 +19,7 @@
 import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 export default {
   name: 'FunctionalFormulaURLArrayItem',
+  mixins: [linkURLField],
   props: {
     value: {
       type: String,
@@ -29,6 +30,5 @@ export default {
       default: false,
     },
   },
-  mixins: [linkURLField],
 }
 </script>

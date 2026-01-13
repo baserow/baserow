@@ -128,7 +128,6 @@ import isObject from 'lodash/isObject'
  */
 export default {
   name: 'CrudTable',
-  emits: ['row-context', 'rows-update'],
   components: { Paginator, CrudTableSearch },
   inheritAttrs: false,
   props: {
@@ -209,6 +208,7 @@ export default {
       default: true,
     },
   },
+  emits: ['row-context', 'rows-update'],
   data() {
     return {
       loading: false,
@@ -219,9 +219,6 @@ export default {
       columnSorts: this.defaultColumnSorts,
     }
   },
-  async mounted() {
-    await this.fetch()
-  },
   watch: {
     rows() {
       this.$emit('rows-update', this.rows)
@@ -229,6 +226,9 @@ export default {
     filters() {
       this.fetch()
     },
+  },
+  async mounted() {
+    await this.fetch()
   },
   methods: {
     /**

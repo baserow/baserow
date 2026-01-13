@@ -5,7 +5,6 @@
 <script>
 export default {
   name: 'HorizontalResize',
-  emits: ['move', 'update'],
   props: {
     width: {
       type: Number,
@@ -32,6 +31,7 @@ export default {
       default: false,
     },
   },
+  emits: ['move', 'update'],
   data() {
     return {
       dragging: false,

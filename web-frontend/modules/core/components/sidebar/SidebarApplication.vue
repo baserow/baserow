@@ -65,7 +65,6 @@ import application from '@baserow/modules/core/mixins/application'
 
 export default {
   name: 'SidebarApplication',
-  emits: ['selected'],
   components: {
     TrashModal,
     SidebarDuplicateApplicationContextItem,
@@ -86,6 +85,7 @@ export default {
       default: false,
     },
   },
+  emits: ['selected'],
   data() {
     return {
       deleting: false,

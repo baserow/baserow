@@ -1,7 +1,7 @@
 <template>
   <div
-    ref="root"
     v-show="dragging"
+    ref="root"
     class="grid-view__row-dragging-container"
     :style="{ left: offset + 'px' }"
   >
@@ -24,7 +24,6 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewRowDragging',
-  emits: ['scroll'],
   mixins: [gridViewHelpers],
   props: {
     table: {
@@ -53,6 +52,7 @@ export default {
       default: () => 0,
     },
   },
+  emits: ['scroll'],
   data() {
     return {
       // Indicates if the user is dragging a row to another position.
