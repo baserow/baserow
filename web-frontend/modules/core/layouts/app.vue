@@ -141,7 +141,8 @@ function keyDown(event) {
       el.isContentEditable
 
     if (!avoid) {
-      event.shiftKey ? undoRedo.methods.redo() : undoRedo.methods.undo()
+      if (event.shiftKey) undoRedo.methods.redo()
+      else undoRedo.methods.undo()
       event.preventDefault()
     }
   }

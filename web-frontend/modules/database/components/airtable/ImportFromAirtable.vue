@@ -90,9 +90,8 @@ export default {
     stopPollAndHandleError(error, specificErrorMap = null) {
       this.loading = false
       this.stopPollIfRunning()
-      error.handler
-        ? this.handleError(error, 'airtable', specificErrorMap)
-        : this.showError(error)
+      if (error.handler) this.handleError(error, 'airtable', specificErrorMap)
+      else this.showError(error)
     },
     getCustomHumanReadableJobState(state) {
       const importingTablePrefix = 'importing-table-'

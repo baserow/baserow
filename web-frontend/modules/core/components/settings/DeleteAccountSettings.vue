@@ -85,7 +85,24 @@ export default {
       fetchError: null,
     }
   },
+  computed: {
+    ...mapGetters({
+      userId: 'auth/getUserId',
+      settings: 'settings/get',
+      sortedWorkspaces: 'workspace/getAllSorted',
+    }),
 
+    orphanWorkspaces() {
+      return this.sortedWorkspaces.filter(({ id: workspaceId }) => {
+        return (
+          this.workspaceMembers[workspaceId] &&
+          this.workspaceMembers[workspaceId].every(
+            ({ permissions }) => permissions !== 'ADMIN'
+          )
+        )
+      })
+    },
+  },
   async mounted() {
     try {
       this.fetchPending = true
@@ -111,25 +128,6 @@ export default {
     } finally {
       this.fetchPending = false
     }
-  },
-
-  computed: {
-    ...mapGetters({
-      userId: 'auth/getUserId',
-      settings: 'settings/get',
-      sortedWorkspaces: 'workspace/getAllSorted',
-    }),
-
-    orphanWorkspaces() {
-      return this.sortedWorkspaces.filter(({ id: workspaceId }) => {
-        return (
-          this.workspaceMembers[workspaceId] &&
-          this.workspaceMembers[workspaceId].every(
-            ({ permissions }) => permissions !== 'ADMIN'
-          )
-        )
-      })
-    },
   },
   methods: {
     async logoff() {

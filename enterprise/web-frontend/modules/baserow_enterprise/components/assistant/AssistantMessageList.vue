@@ -128,11 +128,7 @@ export default {
     },
 
     toggleSources(messageId) {
-      this.$set(
-        this.expandedSources,
-        messageId,
-        !this.expandedSources[messageId]
-      )
+      this.expandedSources[messageId] = !this.expandedSources[messageId]
     },
 
     isLastMessage(index) {

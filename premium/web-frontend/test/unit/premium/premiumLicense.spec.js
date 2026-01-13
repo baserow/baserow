@@ -229,7 +229,7 @@ describe('Test premium licensing', () => {
       ],
     ]
 
-    test.each(testCases)('test %s', (name, testCaseSpecification) => {
+    test.each(testCases)('case %s', (name, testCaseSpecification) => {
       testApp.store.dispatch('auth/forceSetUserData', {
         ...fakeUserData,
         ...testCaseSpecification.whenUserDataIs,
@@ -239,17 +239,17 @@ describe('Test premium licensing', () => {
           .getApp()
           .$hasFeature(
             PremiumFeatures.PREMIUM,
-            testCaseSpecification.forWorkspace
+            testCaseSpecification.forWorkspace,
           )
         expect(hasPerWorkspacePremium).toBe(
-          testCaseSpecification.thenUserHasPremiumFeatureIs
+          testCaseSpecification.thenUserHasPremiumFeatureIs,
         )
       } else {
         const hasInstanceWidePremium = testApp
           .getApp()
           .$hasFeature(PremiumFeatures.PREMIUM)
         expect(hasInstanceWidePremium).toBe(
-          testCaseSpecification.thenUserHasPremiumFeatureIs
+          testCaseSpecification.thenUserHasPremiumFeatureIs,
         )
       }
     })

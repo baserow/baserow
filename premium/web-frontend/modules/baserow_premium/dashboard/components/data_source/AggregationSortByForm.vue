@@ -30,7 +30,7 @@
       :active-index="orderDirectionIndex"
       :segments="orderDirectionOptions"
       :initial-active-index="orderDirectionIndex"
-      @update:activeIndex="orderByChangedByUser"
+      @update:active-index="orderByChangedByUser"
     ></SegmentControl>
   </FormSection>
 </template>
@@ -81,7 +81,7 @@ export default {
         if (aggregationSorts.length !== 0) {
           this.sortReference = aggregationSorts[0].reference
           this.orderDirectionIndex = this.orderDirectionOptions.findIndex(
-            (item) => item.value === aggregationSorts[0].direction
+            (item) => item.value === aggregationSorts[0].direction,
           )
           if (this.$refs.sortDirectionSegment) {
             this.$refs.sortDirectionSegment.reset()
@@ -103,7 +103,7 @@ export default {
       sortReference: {
         isValidSortReference: (value) => {
           const sortReferences = self.allowedSortReferences.map(
-            (item) => item.reference
+            (item) => item.reference,
           )
           return includesIfSet(sortReferences)(value)
         },
@@ -126,7 +126,7 @@ export default {
       }
 
       const chosenReference = this.allowedSortReferences.find(
-        (item) => item.reference === this.sortReference
+        (item) => item.reference === this.sortReference,
       )
       this.$emit('value-changed', {
         sort_on: chosenReference.sort_on,

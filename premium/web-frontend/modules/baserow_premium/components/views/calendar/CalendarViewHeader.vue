@@ -31,7 +31,7 @@
             $refs.customizeContextLink,
             'bottom',
             'left',
-            4
+            4,
           )
         "
       >
@@ -83,7 +83,6 @@ export default {
   props: {
     storePrefix: {
       type: String,
-      required: true,
       default: '',
     },
     database: {
@@ -159,7 +158,7 @@ export default {
         this.$hasPermission(
           'database.table.view.update',
           this.view,
-          this.database.workspace.id
+          this.database.workspace.id,
         )
       )
     },
@@ -198,9 +197,9 @@ export default {
               !this.$hasPermission(
                 'database.table.view.update_field_options',
                 this.view,
-                this.database.workspace.id
+                this.database.workspace.id,
               ),
-          }
+          },
         )
       } catch (error) {
         notifyIf(error, 'view')
@@ -219,9 +218,9 @@ export default {
               !this.$hasPermission(
                 'database.table.view.update_field_options',
                 this.view,
-                this.database.workspace.id
+                this.database.workspace.id,
               ),
-          }
+          },
         )
       } catch (error) {
         notifyIf(error, 'view')
@@ -234,7 +233,7 @@ export default {
           {
             order,
             readOnly: this.readOnly,
-          }
+          },
         )
       } catch (error) {
         notifyIf(error, 'view')

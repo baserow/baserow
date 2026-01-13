@@ -93,13 +93,17 @@ describe('GridView component with decoration', () => {
     // Clean up potentially registered stuff
     try {
       store.$registry.unregister('viewDecorator', 'fake_decorator')
-    } catch {}
+    } catch {
+      /* empty */
+    }
     try {
       store.$registry.unregister(
         'decoratorValueProvider',
         'fake_value_provider_type'
       )
-    } catch {}
+    } catch {
+      /* empty */
+    }
   })
 
   const mountComponent = async (props, slots = {}) => {

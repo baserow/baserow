@@ -15,6 +15,8 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
 import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 
+import { fail } from 'vitest'
+
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 /**

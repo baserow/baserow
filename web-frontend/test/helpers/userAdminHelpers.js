@@ -4,6 +4,8 @@ import ChangePasswordForm from '@baserow/modules/core/components/admin/users/for
 import EditUserModal from '@baserow/modules/core/components/admin/users/modals/EditUserModal'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
+import { expect } from 'vitest'
+
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {
     this.c = userAdminComponent

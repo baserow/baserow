@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { beforeEach, vi, expect } from 'vitest'
 
 const tMock = (key: string, data: any) =>
   data?.count !== undefined ? `${key} - ${data.count}` : key
@@ -73,4 +73,24 @@ vi.mock('@baserow/modules/core/utils/string', async () => {
 
 beforeEach(() => {
   uuidMockState.reset()
+})
+
+// Mock Nuxt components
+//config.stubs.nuxt = { template: '<div />' }
+//config.stubs['nuxt-link'] = { template: '<a><slot /></a>' }
+//config.stubs['no-ssr'] = { template: '<span><slot /></span>' }
+
+function fail(message = '') {
+  let failMessage = ''
+  failMessage += '\n'
+  failMessage += 'FAIL FUNCTION TRIGGERED\n'
+  failMessage += 'The fail function has been triggered'
+  failMessage += message ? ' with message:' : ''
+
+  expect(message).toEqual(failMessage)
+}
+global.fail = fail
+
+process.on('unhandledRejection', (err) => {
+  fail(err)
 })

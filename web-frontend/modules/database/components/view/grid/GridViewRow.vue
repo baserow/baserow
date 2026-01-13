@@ -222,7 +222,7 @@ export default {
     },
     rowIdentifierType: {
       type: String,
-      required: true,
+      required: false,
       default: 'count',
     },
     count: {

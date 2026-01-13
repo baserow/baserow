@@ -107,7 +107,7 @@ export default {
   mounted() {
     this.$bus.$on('field-permissions-updated', this.forceUpdate)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('field-permissions-updated', this.forceUpdate)
   },
   methods: {

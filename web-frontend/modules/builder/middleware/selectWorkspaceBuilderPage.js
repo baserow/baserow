@@ -1,5 +1,7 @@
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
+
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  const { $store } = useNuxtApp()
+  const { $store, $i18n } = useNuxtApp()
 
   const builderId = parseInt(to.params.builderId)
   const pageId = parseInt(to.params.pageId)

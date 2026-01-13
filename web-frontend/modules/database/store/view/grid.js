@@ -752,7 +752,7 @@ export const mutations = {
       (key) => state.pendingFieldOps[key][0] === fieldId
     )
     keysToDelete.forEach((key) => {
-      Vue.delete(state.pendingFieldOps, key)
+      delete state.pendingFieldOps[key]
     })
   },
   UPDATE_ROW_HEIGHT(state, value) {

@@ -242,7 +242,7 @@ export default {
     this.scrollObserver = observer
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
     }

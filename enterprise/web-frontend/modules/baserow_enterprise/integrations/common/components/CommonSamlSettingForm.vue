@@ -7,10 +7,9 @@
     @hidden="checkValidity()"
   >
     <SamlSettingsForm
-      v-bind="$props"
+      v-bind="$attrs"
       ref="form"
       @values-changed="checkValidity"
-      v-on="$listeners"
     >
       <template #config>
         <FormGroup
@@ -71,7 +70,6 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CommonSamlSettingsForm',
-  emits: ['delete'],
   components: { SamlSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
   props: {
@@ -84,6 +82,7 @@ export default {
       required: true,
     },
   },
+  emits: ['delete'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

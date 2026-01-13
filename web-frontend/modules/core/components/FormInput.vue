@@ -65,17 +65,17 @@ import { computed, ref, inject } from 'vue'
 
 const props = defineProps({
   error: Boolean,
-  label: String,
+  label: { type: String, default: '' },
   size: {
     type: String,
     default: 'regular',
     validator: (v) => ['regular', 'small', 'large', 'xlarge'].includes(v),
   },
-  placeholder: String,
+  placeholder: { default: '', type: String },
 
   /* Legacy + new v-model */
-  value: { default: undefined },
-  modelValue: { default: undefined },
+  value: { default: undefined, validator: () => true },
+  modelValue: { default: undefined, validator: () => true },
 
   toValue: { type: Function, default: (v) => v },
   fromValue: { type: Function, default: (v) => v },
@@ -85,8 +85,8 @@ const props = defineProps({
   disabled: Boolean,
   monospace: Boolean,
   loading: Boolean,
-  iconLeft: String,
-  iconRight: String,
+  iconLeft: { type: String, default: '' },
+  iconRight: { type: String, default: '' },
   required: Boolean,
   removeNumberInputControls: Boolean,
   autocomplete: { type: String, default: '' },
@@ -153,155 +153,3 @@ const hasSuffixSlot = computed(() => !!slots.suffix)
 
 defineExpose({ focus })
 </script>
-
-<sscript>
-export default {
-  name: 'FormInput',
-  inject: {
-    forInput: { from: 'forInput', default: null },
-  },
-  props: {
-    error: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    label: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    size: {
-      type: String,
-      required: false,
-      validator: function (value) {
-        return ['regular', 'small', 'large', 'xlarge'].includes(value)
-      },
-      default: 'regular',
-    },
-    placeholder: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    value: {
-      required: false,
-      validator: (value) => true,
-    },
-    toValue: {
-      type: Function,
-      required: false,
-      default: (value) => value,
-    },
-    defaultValueWhenEmpty: {
-      type: [Number, String],
-      required: false,
-      default: null,
-    },
-    fromValue: {
-      type: Function,
-      required: false,
-      default: (value) => value,
-    },
-    type: {
-      type: String,
-      required: false,
-      default: 'text',
-    },
-    disabled: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    monospace: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    loading: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    iconLeft: {
-      type: String,
-      required: false,
-      default: '',
-    },
-    iconRight: {
-      type: String,
-      required: false,
-      default: '',
-    },
-    required: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    removeNumberInputControls: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    autocomplete: {
-      type: String,
-      required: false,
-      default: '',
-    },
-    min: {
-      type: Number,
-      required: false,
-      default: -1,
-    },
-    max: {
-      type: Number,
-      required: false,
-      default: -1,
-    },
-    step: {
-      type: Number,
-      required: false,
-      default: -1,
-    },
-    focusOnClick: {
-      type: Boolean,
-      required: false,
-      default: true,
-    },
-    textInvisible: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-  },
-  computed: {
-    hasSuffixSlot() {
-      return !!this.$slots.suffix
-    },
-  },
-  methods: {
-    focus() {
-      this.$refs.input.focus()
-      this.previousValue = this.value
-    },
-    blur() {
-      this.$refs.input.blur()
-    },
-    onInput(event) {
-      const value = this.$refs.input.value
-      if (!value && this.defaultValueWhenEmpty !== null) {
-        return
-      }
-      this.$emit('input', this.toValue(event.target.value))
-    },
-    onBlur(event) {
-      const value = this.$refs.input.value
-      if (!value && this.defaultValueWhenEmpty !== null) {
-        this.$refs.input.value = this.defaultValueWhenEmpty
-        this.$emit('input', this.defaultValueWhenEmpty)
-      }
-      this.$emit('blur', event)
-    },
-  },
-}
-</sscript>

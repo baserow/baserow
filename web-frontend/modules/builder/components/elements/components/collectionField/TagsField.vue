@@ -19,7 +19,6 @@ export default {
   props: {
     tags: {
       type: Array,
-      required: true,
       default: () => [],
     },
   },

@@ -12,7 +12,7 @@
         :icon="deviceType.iconClass"
         :model-value="deviceTypeSelected"
         class="device-selector__button"
-        @click.native="$emit('selected', deviceType.getType())"
+        @click="$emit('selected', deviceType.getType())"
       ></RadioButton>
       <slot name="deviceTypeControl" :device-type="deviceType"></slot>
     </div>

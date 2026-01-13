@@ -187,7 +187,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import debounce from 'lodash/debounce'
 import ResizeObserver from 'resize-observer-polyfill'
 
@@ -201,12 +200,10 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
-import GridViewRow from '~/modules/database/components/view/grid/GridViewRow.vue'
 
 export default {
   name: 'GridViewSection',
   components: {
-    GridViewRow,
     HorizontalResize,
     GridViewHead,
     GridViewPlaceholder,

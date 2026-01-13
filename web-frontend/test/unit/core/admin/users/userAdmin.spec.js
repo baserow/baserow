@@ -171,6 +171,7 @@ describe('User Admin Component Tests', () => {
     expect(isActiveCell.text()).toContain('user.active')
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('A users password can be changed', async () => {
     const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
@@ -228,6 +229,7 @@ describe('User Admin Component Tests', () => {
     expect(error.$validator).toMatch('maxLength')
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('users password can be changed to 256 characters', async () => {
     const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
@@ -369,18 +371,22 @@ describe('User Admin Component Tests', () => {
     const userFormComponent = editUserModal.findComponent(UserForm)
     expect(userFormComponent.vm.v$.values.username.$model).toBe(initialUsername)
   })
+  // eslint-disable-next-line vitest/expect-expect
   test('a user can be set as staff', async () => {
     await testToggleStaff(false)
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('a user can be unset as staff', async () => {
     await testToggleStaff(true)
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('a user can be set as active', async () => {
     await testToggleActive(false)
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('a user can be unset as active', async () => {
     await testToggleActive(true)
   })

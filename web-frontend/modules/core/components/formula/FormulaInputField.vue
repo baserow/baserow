@@ -27,7 +27,7 @@
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown.native="onDataExplorerMouseDown"
+      @mousedown="onDataExplorerMouseDown"
     />
 
     <NodeHelpTooltip

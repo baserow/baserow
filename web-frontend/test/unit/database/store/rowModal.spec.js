@@ -64,7 +64,7 @@ describe('rowModal store', () => {
     })
   })
 
-  test('open row', async () => {
+  test('open rows', async () => {
     const testStore = rowModal
     const state = Object.assign(testStore.state(), {})
     testStore.state = () => state
@@ -170,7 +170,7 @@ describe('rowModal store', () => {
     expect(valuesOfComponent1.row.field_1).toBe('Test 2')
   })
 
-  test('row exists', async () => {
+  test('rows exist', async () => {
     const testStore = rowModal
     const state = Object.assign(testStore.state(), {})
     testStore.state = () => state

@@ -649,9 +649,11 @@ export default {
     },
     stopPollAndHandleError(error, specificErrorMap = null) {
       this.stopPollIfRunning()
-      error.handler
-        ? this.handleError(error, 'application', specificErrorMap)
-        : this.showError(error)
+      if (error.handler) {
+        this.handleError(error, 'application', specificErrorMap)
+      } else {
+        this.showError(error)
+      }
     },
   },
 }

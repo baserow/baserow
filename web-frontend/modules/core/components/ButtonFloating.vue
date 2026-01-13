@@ -38,7 +38,6 @@ export default {
      * The icon that must be shown inside the button.
      */
     icon: {
-      required: true,
       type: String,
       default: '',
     },

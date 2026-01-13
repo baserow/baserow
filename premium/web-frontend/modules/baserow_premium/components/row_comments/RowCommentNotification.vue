@@ -2,7 +2,7 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
       <i18n-t keypath="rowCommentNotification.title" tag="span">
@@ -36,11 +36,11 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'RowCommentNotification',
-  emits: ['close-panel'],
   components: {
     RichTextEditor,
   },
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick(evt) {
       this.$emit('close-panel')

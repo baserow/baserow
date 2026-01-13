@@ -28,7 +28,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 export default {
   name: 'ClearAllNotificationsConfirmModal',
   mixins: [modal],
-  emits: ['cancel'],
+  emits: ['cancel', 'confirm'],
   methods: {
     onCancel($event) {
       this.$emit('cancel', $event)
