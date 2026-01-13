@@ -39,7 +39,6 @@ const defaultColors = [
 
 export default {
   name: 'ColorSelectContext',
-  emits: ['selected'],
   mixins: [context],
   props: {
     colors: {
@@ -48,6 +47,7 @@ export default {
       required: false,
     },
   },
+  emits: ['selected'],
   data() {
     return {
       active: '',

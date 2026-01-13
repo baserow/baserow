@@ -20,7 +20,6 @@
 <script>
 export default {
   name: 'ViewFilterTypeFileTypeDropdown',
-  emits: ['input'],
   props: {
     filter: {
       type: Object,
@@ -35,5 +34,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

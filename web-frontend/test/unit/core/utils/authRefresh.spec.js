@@ -32,7 +32,7 @@ describe('test stub interceptors', () => {
       operations.push('retry')
     })
 
-  test('test should use correctly requests and response interceptors', async () => {
+  test('should use correctly requests and response interceptors', async () => {
     const operations = []
     const client = stubClient(operations)
 
@@ -88,7 +88,7 @@ describe('test stub interceptors', () => {
     ])
   })
 
-  test('test should not intercept different errors', async () => {
+  test('should not intercept different errors', async () => {
     const operations = []
     const client = stubClient(operations)
     const refreshMock = refreshAuthMock(operations)

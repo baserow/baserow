@@ -67,12 +67,12 @@
         :sorted="true"
         :add-condition-string="$t('viewFilterContext.addFilter')"
         :add-condition-group-string="$t('viewFilterContext.addFilterGroup')"
-        @addFilter="addFilter"
-        @addFilterGroup="addFilter"
-        @deleteFilter="deleteFilter"
-        @updateFilter="updateFilter"
-        @updateFilterType="updateFilterType"
-        @deleteFilterGroup="deleteFilterGroup"
+        @add-filter="addFilter"
+        @add-filter-group="addFilter"
+        @delete-filter="deleteFilter"
+        @update-filter="updateFilter"
+        @update-filter-type="updateFilterType"
+        @delete-filter-group="deleteFilterGroup"
       />
     </div>
     <div class="flex">

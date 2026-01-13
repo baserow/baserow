@@ -22,7 +22,6 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   name: 'Context',
-  emits: ['hidden', 'shown'],
   mixins: [MoveToBody],
   props: {
     hideOnClickOutside: {
@@ -51,6 +50,7 @@ export default {
       required: false,
     },
   },
+  emits: ['hidden', 'shown'],
   data() {
     return {
       open: false,

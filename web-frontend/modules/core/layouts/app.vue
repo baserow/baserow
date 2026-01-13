@@ -3,7 +3,7 @@
     <Toasts />
     <GuidedTour />
 
-    <div class="layout" ref="app">
+    <div ref="app" class="layout">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <Sidebar
           :workspaces="workspaces"
@@ -155,7 +155,7 @@ onMounted(() => {
   const handler = (e) => keyDown(e)
   document.body.addEventListener('keydown', handler)
   //nuxtApp.$el = { keydownEvent: handler }
-  app.keydownEvent = handler
+  app.value.keydownEvent = handler
 
   store.dispatch('undoRedo/updateCurrentScopeSet', CORE_ACTION_SCOPES.root())
 
@@ -167,8 +167,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   $realtime.disconnect()
 
-  if (app?.keydownEvent) {
-    document.body.removeEventListener('keydown', app?.keydownEvent)
+  if (app.value?.keydownEvent) {
+    document.body.removeEventListener('keydown', app.value?.keydownEvent)
   }
 
   store.dispatch(

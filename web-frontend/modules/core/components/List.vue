@@ -23,7 +23,6 @@
 <script>
 export default {
   name: 'List',
-  emits: ['selected'],
   props: {
     items: {
       type: Array,
@@ -46,6 +45,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['selected'],
   computed: {
     /**
      * If no attributes are provided as a prop we will just use all the attributes

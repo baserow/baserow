@@ -112,7 +112,6 @@ import ChangePrimaryFieldModal from '@baserow/modules/database/components/field/
 
 export default {
   name: 'FieldContext',
-  emits: ['delete', 'update'],
   components: {
     ChangePrimaryFieldModal,
     UpdateFieldContext,
@@ -141,6 +140,7 @@ export default {
       required: true,
     },
   },
+  emits: ['delete', 'update'],
   data() {
     return {
       deleteLoading: false,

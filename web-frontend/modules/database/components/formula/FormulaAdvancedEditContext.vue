@@ -62,7 +62,6 @@ import FormulaFieldItemDescription from '@baserow/modules/database/components/fo
 
 export default {
   name: 'FormulaAdvancedEditContext',
-  emits: ['blur', 'hidden', 'update:modelValue'],
   components: {
     FormulaFieldItemDescription,
     FormulaFieldItemGroup,
@@ -87,6 +86,7 @@ export default {
       default: null,
     },
   },
+  emits: ['blur', 'hidden', 'update:modelValue'],
   data() {
     return {
       selectedItem: null,

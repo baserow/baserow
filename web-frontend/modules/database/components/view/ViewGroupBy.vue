@@ -31,7 +31,6 @@ import ViewGroupByContext from '@baserow/modules/database/components/view/ViewGr
 
 export default {
   name: 'ViewGroupBy',
-  emits: ['changed'],
   components: { ViewGroupByContext },
   props: {
     fields: {
@@ -52,5 +51,6 @@ export default {
       default: false,
     },
   },
+  emits: ['changed'],
 }
 </script>

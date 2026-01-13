@@ -67,7 +67,6 @@ import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
 
 export default {
   name: 'ViewFilterForm',
-  emits: ['changed'],
   components: {
     ViewFieldConditionsForm,
   },
@@ -95,6 +94,7 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   methods: {
     sortableUid: ulid,
     async addFilter({ filterGroupId = null, parentGroupId = null } = {}) {

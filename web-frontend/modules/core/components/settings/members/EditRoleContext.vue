@@ -101,7 +101,6 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'EditRoleContext',
-  emits: ['delete', 'update-role'],
   mixins: [context],
   props: {
     workspace: {
@@ -126,6 +125,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'update-role'],
   computed: {
     visibleRoles() {
       return this.roles.filter((role) => role.isVisible)

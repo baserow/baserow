@@ -21,7 +21,6 @@
 <script>
 export default {
   name: 'ABCheckbox',
-  emits: ['update:modelValue'],
   props: {
     /**
      * The state of the checkbox.
@@ -64,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update:modelValue'],
   computed: {
     hasSlot() {
       return !!this.$slots.default

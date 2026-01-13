@@ -1,5 +1,5 @@
 <template>
-  <div class="api-docs" ref="api-docs">
+  <div ref="api-docs" class="api-docs">
     <div ref="header" class="api-docs__header">
       <nuxt-link :to="{ name: 'index' }" class="api-docs__logo">
         <Logo />

@@ -9,7 +9,7 @@
         v-model:active-index="selectedTypeIndex"
         :segments="types"
         :initial-active-index="0"
-        @update:activeIndex="updateValue"
+        @update:active-index="updateValue"
       ></SegmentControl>
     </div>
     <template v-if="hasName">
@@ -47,7 +47,6 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 
 export default {
   name: 'DatabaseStep',
-  emits: ['update-data'],
   components: { AirtableImportForm, TemplateImportForm },
   props: {
     data: {
@@ -55,6 +54,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

@@ -37,7 +37,6 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'RemoveFromWorkspaceModal',
-  emits: ['remove-user'],
   mixins: [modal, error],
   props: {
     workspace: {
@@ -49,6 +48,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-user'],
   data() {
     return {
       loading: false,

@@ -21,7 +21,6 @@
 <script>
 export default {
   name: 'ABPresentation',
-  emits: ['click'],
   props: {
     initials: {
       type: String,
@@ -64,5 +63,6 @@ export default {
       default: '',
     },
   },
+  emits: ['click'],
 }
 </script>

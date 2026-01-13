@@ -59,7 +59,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableMoveRow',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -75,6 +74,7 @@ export default {
     getResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
   },
+  emits: ['input'],
   computed: {
     userFieldNamesParam() {
       return this.userFieldNames ? '?user_field_names=true' : ''

@@ -22,7 +22,6 @@ import { DashboardApplicationType } from '@baserow/modules/dashboard/application
 
 export default {
   name: 'DashboardTemplateSidebar',
-  emits: ['selected', 'selected-page'],
   props: {
     application: {
       type: Object,
@@ -33,6 +32,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected', 'selected-page'],
   methods: {
     selectDashboard(application) {
       this.$emit('selected', application)

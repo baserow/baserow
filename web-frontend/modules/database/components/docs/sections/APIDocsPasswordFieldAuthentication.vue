@@ -52,7 +52,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTablePasswordFieldAuthentication',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -65,6 +64,7 @@ export default {
     table: { type: Object, required: true },
     field: { type: Object, required: true },
   },
+  emits: ['input'],
   methods: {},
 }
 </script>

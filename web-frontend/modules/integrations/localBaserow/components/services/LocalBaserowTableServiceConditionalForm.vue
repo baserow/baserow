@@ -98,7 +98,6 @@ export default {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
   },
-  emits: ['update:modelValue', 'update:filterType'],
   props: {
     modelValue: {
       type: Array,
@@ -113,6 +112,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update:modelValue', 'update:filterType'],
   computed: {
     filterTypes() {
       return this.$registry.getAll('viewFilter')

@@ -73,11 +73,11 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted', 'hidden'],
   data() {
     return {
       importType: 'none',
     }
   },
-  emits: ['submitted', 'hidden'],
 }
 </script>

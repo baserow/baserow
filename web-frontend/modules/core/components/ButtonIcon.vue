@@ -1,7 +1,7 @@
 <template>
   <button
-    v-if="tag === 'button'"
     :is="tag"
+    v-if="tag === 'button'"
     class="button-icon"
     :class="classes"
     :disabled="disabled"
@@ -11,8 +11,8 @@
     <i v-if="!loading" class="button-icon__icon" :class="icon" />
   </button>
   <component
-    v-else
     :is="tag"
+    v-else
     class="button-icon"
     :class="classes"
     :disabled="disabled"

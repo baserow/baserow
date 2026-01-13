@@ -135,7 +135,7 @@ describe('ViewFilterForm match snapshots', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Test rating filter', async (done) => {
+  test('rating filter', async (done) => {
     // We want to bypass some setTimeout
     vi.useFakeTimers()
     // Mock server filter update call

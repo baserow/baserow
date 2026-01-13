@@ -21,7 +21,7 @@ import {
   useHead,
   useNuxtApp,
   navigateTo,
-  useRequestHeaders,
+  useRequestHeaders, createError 
 } from '#app'
 import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
@@ -41,7 +41,6 @@ import {
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
-import { createError } from '#app'
 import { useRoute, useRouter } from '#imports'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
@@ -56,7 +55,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
 }
 
 defineOptions({
-  name: 'publicPage',
+  name: 'PublicPage',
 })
 
 const store = useStore()

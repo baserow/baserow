@@ -13,7 +13,6 @@
 <script>
 export default {
   name: 'MemberRoleField',
-  emits: ['edit-role-context'],
   props: {
     row: {
       type: Object,
@@ -24,6 +23,7 @@ export default {
       required: true,
     },
   },
+  emits: ['edit-role-context'],
   computed: {
     isReadOnly() {
       const { additionalProps } = this.column

@@ -369,15 +369,15 @@ describe('User Admin Component Tests', () => {
     const userFormComponent = editUserModal.findComponent(UserForm)
     expect(userFormComponent.vm.v$.values.username.$model).toBe(initialUsername)
   })
-  test('a user can be set as staff ', async () => {
+  test('a user can be set as staff', async () => {
     await testToggleStaff(false)
   })
 
-  test('a user can be unset as staff ', async () => {
+  test('a user can be unset as staff', async () => {
     await testToggleStaff(true)
   })
 
-  test('a user can be set as active ', async () => {
+  test('a user can be set as active', async () => {
     await testToggleActive(false)
   })
 

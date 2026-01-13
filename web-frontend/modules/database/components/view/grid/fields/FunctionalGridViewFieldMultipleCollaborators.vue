@@ -28,12 +28,12 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'FunctionalGridViewFieldMultipleCollaborators',
+  mixins: [collaboratorName],
   props: {
     value: {
       type: Array,
       default: () => [],
     },
   },
-  mixins: [collaboratorName],
 }
 </script>

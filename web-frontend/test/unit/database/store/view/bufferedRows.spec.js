@@ -808,7 +808,7 @@ describe('Buffered rows view store helper', () => {
     expect(index).toStrictEqual({ index: 13, isCertain: false })
   })
 
-  test('test row matches filters', async () => {
+  test('row matches filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -881,7 +881,7 @@ describe('Buffered rows view store helper', () => {
     ).toBe(true)
   })
 
-  test('test created new row', async () => {
+  test('created new row', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1101,7 +1101,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[16].id).toBe(17)
   })
 
-  test('test created new row ignored if filtered', async () => {
+  test('created new row ignored if filtered', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1179,7 +1179,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[10]).toBe(null)
   })
 
-  test('test updated existing row without filters', async () => {
+  test('updated existing row without filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1337,7 +1337,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11]).toBe(null)
   })
 
-  test('test updated existing row with filters', async () => {
+  test('updated existing row with filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1499,7 +1499,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11].id).toBe(14)
   })
 
-  test('test updated existing row with sorting', async () => {
+  test('updated existing row with sorting', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1668,7 +1668,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[3].id).toBe(3)
   })
 
-  test('test updated existing with sorting from null', async () => {
+  test('updated existing with sorting from null', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1743,7 +1743,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[7]).toBe(null)
   })
 
-  test('test deleted existing row', async () => {
+  test('deleted existing row', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1888,7 +1888,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[6].id).toBe(12)
   })
 
-  test('test deleted existing row ignored if filtered', async () => {
+  test('deleted existing row ignored if filtered', async () => {
     const view = {
       id: 1,
       filters_disabled: false,

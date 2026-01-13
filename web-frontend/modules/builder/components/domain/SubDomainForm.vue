@@ -22,8 +22,8 @@ import domainForm from '@baserow/modules/builder/mixins/domainForm'
 
 export default {
   name: 'SubDomainForm',
-  emits: ['error'],
   mixins: [domainForm],
+  emits: ['error'],
   setup() {
     return { v$: useVuelidate() }
   },

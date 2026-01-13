@@ -15,7 +15,6 @@ import MemberSelectionList from '@baserow/modules/core/components/workspace/Memb
 
 export default {
   name: 'MemberAssignmentModal',
-  emits: ['invite'],
   components: { MemberSelectionList },
   mixins: [Modal],
   props: {
@@ -24,6 +23,7 @@ export default {
       required: true,
     },
   },
+  emits: ['invite'],
   methods: {
     storeSelectedMembers(membersSelected) {
       this.$emit('invite', membersSelected)

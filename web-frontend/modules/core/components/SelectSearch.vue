@@ -15,7 +15,6 @@
 <script>
 export default {
   name: 'SelectSearch',
-  emits: ['input'],
   props: {
     value: {
       type: String,
@@ -28,5 +27,6 @@ export default {
       default: '',
     },
   },
+  emits: ['input'],
 }
 </script>

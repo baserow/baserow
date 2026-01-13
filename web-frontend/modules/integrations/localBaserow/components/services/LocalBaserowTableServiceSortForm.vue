@@ -156,7 +156,6 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'LocalBaserowTableServiceSortForm',
-  emits: ['input'],
   mixins: [context],
   props: {
     value: {
@@ -173,6 +172,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   computed: {
     /**
      * Calculates the total amount of available fields.

@@ -28,7 +28,6 @@
 <script>
 export default {
   name: 'AddElementCard',
-  emits: ['click'],
   props: {
     elementType: {
       type: Object,
@@ -72,6 +71,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   computed: {
     disallowedClickModal() {
       return this.elementType.getDeactivatedClickModal({

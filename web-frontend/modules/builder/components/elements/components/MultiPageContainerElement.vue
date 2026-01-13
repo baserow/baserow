@@ -42,7 +42,6 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'MultiPageContainerElement',
-  emits: ['move'],
   components: {
     PageElement,
     ElementPreview,
@@ -66,6 +65,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   computed: {
     submitButtonLabelResolved() {
       return ensureString(this.resolveFormula(this.element.submit_button_label))

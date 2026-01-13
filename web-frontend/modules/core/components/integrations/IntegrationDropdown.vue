@@ -48,7 +48,6 @@ import IntegrationCreateEditModal from '@baserow/modules/core/components/integra
 
 export default {
   name: 'IntegrationDropdown',
-  emits: ['input'],
   components: { IntegrationCreateEditModal },
   props: {
     value: {
@@ -89,6 +88,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   watch: {
     integrations: {
       handler(newValue) {

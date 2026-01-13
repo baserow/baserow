@@ -29,7 +29,6 @@ import ViewDecoratorItem from '@baserow/modules/database/components/view/ViewDec
 
 export default {
   name: 'ViewDecoratorList',
-  emits: ['select'],
   components: { ViewDecoratorItem },
   props: {
     database: {
@@ -41,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['select'],
   computed: {
     viewDecoratorTypes() {
       return this.$registry

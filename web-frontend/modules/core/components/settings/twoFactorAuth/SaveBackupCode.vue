@@ -27,13 +27,13 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'SaveBackupCode',
-  emits: ['continue'],
   props: {
     backupCodes: {
       type: Array,
       required: true,
     },
   },
+  emits: ['continue'],
   computed: {
     backupCodesAsText() {
       return this.backupCodes.join('\n')

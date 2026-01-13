@@ -13,11 +13,10 @@ export default withNuxt([
       '**/node_modules/**',
       'coverage/**',
       '**/generated/**',
+      '.nuxt-storybook/**',
     ],
   },
-
   prettier,
-
   {
     languageOptions: {
       globals: {
@@ -35,6 +34,8 @@ export default withNuxt([
       'vue/multi-word-component-names': 'off',
       'vue/no-reserved-component-names': 'off',
       'import/no-named-as-default-member': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
 

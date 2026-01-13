@@ -108,12 +108,6 @@ import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/
 
 export default {
   name: 'ViewFieldsContext',
-  emits: [
-    'update-all-field-options',
-    'update-cover-image-field',
-    'update-field-options-of-field',
-    'update-order',
-  ],
   mixins: [context],
   props: {
     database: {
@@ -148,6 +142,12 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'update-all-field-options',
+    'update-cover-image-field',
+    'update-field-options-of-field',
+    'update-order',
+  ],
   data() {
     return {
       query: '',

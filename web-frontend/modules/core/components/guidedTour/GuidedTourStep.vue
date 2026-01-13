@@ -32,7 +32,6 @@
 <script>
 export default {
   name: 'GuidedTourStep',
-  emits: ['next', 'previous'],
   props: {
     position: {
       required: true,
@@ -81,6 +80,7 @@ export default {
       default: null,
     },
   },
+  emits: ['next', 'previous'],
   async mounted() {
     const updatePosition = () => {
       const rect = this.$el.getBoundingClientRect()

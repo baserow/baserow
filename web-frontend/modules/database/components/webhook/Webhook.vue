@@ -77,7 +77,6 @@ import WebhookCall from '@baserow/modules/database/components/webhook/WebhookCal
 
 export default {
   name: 'Webhook',
-  emits: ['deleted', 'updated'],
   components: { UpdateWebhook, WebhookCall },
   props: {
     webhook: {
@@ -101,6 +100,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted', 'updated'],
   data() {
     return {
       isExpanded: false,

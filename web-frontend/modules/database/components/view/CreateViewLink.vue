@@ -38,7 +38,6 @@ import CreateViewModal from '@baserow/modules/database/components/view/CreateVie
 
 export default {
   name: 'ViewsContext',
-  emits: ['created'],
   components: {
     CreateViewModal,
   },
@@ -56,6 +55,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   computed: {
     tooltipText() {
       if (!this.viewType.isCompatibleWithDataSync(this.table.data_sync)) {

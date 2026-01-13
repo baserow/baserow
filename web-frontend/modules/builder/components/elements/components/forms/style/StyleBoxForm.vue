@@ -65,7 +65,6 @@ export default {
   components: { PixelValueSelector },
   mixins: [form],
   inject: ['builder'],
-  emits: ['input', 'update:modelValue'],
   props: {
     title: {
       type: String,
@@ -95,6 +94,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['input', 'update:modelValue'],
   setup() {
     return { v$: useVuelidate() }
   },

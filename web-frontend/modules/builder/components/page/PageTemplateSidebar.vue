@@ -36,7 +36,6 @@ import { BuilderApplicationType } from '@baserow/modules/builder/applicationType
 
 export default {
   name: 'TemplateSidebar',
-  emits: ['selected', 'selected-page'],
   props: {
     application: {
       type: Object,
@@ -47,6 +46,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected', 'selected-page'],
   computed: {
     orderedPages() {
       return this.$store.getters['page/getVisiblePages'](this.application)

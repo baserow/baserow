@@ -77,7 +77,6 @@ import TrashEmptyModal from '@baserow/modules/core/components/trash/TrashEmptyMo
 
 export default {
   name: 'TrashContents',
-  emits: ['empty', 'load-next-page', 'restore'],
   components: { InfiniteScroll, TrashEntry, TrashEmptyModal },
   mixins: [],
   props: {
@@ -107,6 +106,7 @@ export default {
       required: true,
     },
   },
+  emits: ['empty', 'load-next-page', 'restore'],
   computed: {
     parentIsTrashed() {
       return (

@@ -20,7 +20,6 @@
 <script>
 export default {
   name: 'ThemeConfigBlock',
-  emits: ['values-changed'],
   props: {
     defaultValues: {
       type: Object,
@@ -43,6 +42,7 @@ export default {
       default: true,
     },
   },
+  emits: ['values-changed'],
   methods: {
     reset() {
       this.$refs.themeConfigBlockForm.reset()

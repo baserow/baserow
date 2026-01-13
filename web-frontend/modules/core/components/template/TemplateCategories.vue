@@ -62,7 +62,6 @@ import templateCategories from '@baserow/modules/core/mixins/templateCategories'
 
 export default {
   name: 'TemplateCategories',
-  emits: ['selected'],
   mixins: [templateCategories],
   props: {
     selectedTemplate: {
@@ -70,6 +69,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected'],
   mounted() {
     this.$priorityBus.$on(
       'start-search',

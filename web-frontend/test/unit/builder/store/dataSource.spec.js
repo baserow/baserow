@@ -20,7 +20,7 @@ describe('dataSource store', () => {
     mock.restore()
   })
 
-  test('Test getPageDataSources', () => {
+  test('getPageDataSources', () => {
     const page = {
       id: 42,
       dataSources: [
@@ -36,7 +36,7 @@ describe('dataSource store', () => {
     expect(collectionDataSources.length).toBe(3)
   })
 
-  test('Test fetch', async () => {
+  test('fetch', async () => {
     const page = {
       id: 42,
       dataSources: [],

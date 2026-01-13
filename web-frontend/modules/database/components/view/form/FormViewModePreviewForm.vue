@@ -156,7 +156,6 @@ import FormViewMetaControls from '@baserow/modules/database/components/view/form
 
 export default {
   name: 'FormViewModePreviewForm',
-  emits: ['ordered-fields'],
   components: {
     FormViewPoweredBy,
     FormViewField,
@@ -186,6 +185,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ordered-fields'],
   data() {
     return {
       editingTitle: false,

@@ -16,7 +16,6 @@
 <script>
 export default {
   name: 'SwitchButton',
-  emits: ['input'],
   model: {
     prop: 'modelValue',
     event: 'input',
@@ -48,6 +47,7 @@ export default {
       default: '',
     },
   },
+  emits: ['input'],
   computed: {
     restProps() {
       const { value, modelValue, ...rest } = this.$attrs

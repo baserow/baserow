@@ -49,7 +49,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableGetRow',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -64,6 +63,7 @@ export default {
     getResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
   },
+  emits: ['input'],
   methods: {},
 }
 </script>

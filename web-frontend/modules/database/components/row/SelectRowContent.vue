@@ -110,7 +110,6 @@ const storeName = 'FieldOptions'
 
 export default {
   name: 'SelectRowContent',
-  emits: ['hide'],
   components: { ViewFieldsContext, Paginator, RowCreateModal, SimpleGrid },
   props: {
     tableId: {
@@ -148,6 +147,7 @@ export default {
       default: '',
     },
   },
+  emits: ['hide'],
   data() {
     return {
       // Indicates if we're loading new rows.

@@ -40,11 +40,11 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted'],
   computed: {
     dashboardApplicationType() {
       return this.$registry.get('application', 'dashboard')
     },
   },
-  emits: ['submitted'],
 }
 </script>

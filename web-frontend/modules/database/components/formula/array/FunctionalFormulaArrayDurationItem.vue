@@ -10,6 +10,7 @@
 import durationField from '@baserow/modules/database/mixins/durationField'
 export default {
   name: 'FunctionalFormulaArrayDurationItem',
+  mixins: [durationField],
   props: {
     value: {
       type: null,
@@ -20,6 +21,5 @@ export default {
       required: true,
     },
   },
-  mixins: [durationField],
 }
 </script>

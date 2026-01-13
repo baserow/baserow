@@ -50,7 +50,6 @@ import NodeExplorerContent from '@baserow/modules/core/components/nodeExplorer/N
 
 export default {
   name: 'NodeExplorerTab',
-  emits: ['node-selected', 'reset-search', 'toggle', 'update:search'],
   components: {
     SelectSearch,
     NodeExplorerContent,
@@ -92,5 +91,6 @@ export default {
       required: true,
     },
   },
+  emits: ['node-selected', 'reset-search', 'toggle', 'update:search'],
 }
 </script>

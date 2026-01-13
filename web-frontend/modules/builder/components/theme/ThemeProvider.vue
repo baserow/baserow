@@ -8,8 +8,8 @@
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 export default {
   name: 'ThemeProvider',
-  emits: ['click'],
   inject: ['builder'],
+  emits: ['click'],
   computed: {
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')

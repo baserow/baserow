@@ -16,7 +16,6 @@ import CreateFieldContext from '@baserow/modules/database/components/field/Creat
 
 export default {
   name: 'InsertFieldContext',
-  emits: ['field-created', 'move-field'],
   components: { CreateFieldContext },
 
   props: {
@@ -46,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['field-created', 'move-field'],
   data() {
     return {
       position: 'left', // left or right

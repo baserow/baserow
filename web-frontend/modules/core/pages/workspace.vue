@@ -215,8 +215,6 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'app' })
-
 import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead, useAsyncData } from '#imports'
@@ -230,6 +228,8 @@ import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
+
+definePageMeta({ layout: 'app' })
 
 defineOptions({
   mixins: [editWorkspace],

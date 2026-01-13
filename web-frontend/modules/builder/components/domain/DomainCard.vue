@@ -48,7 +48,6 @@ import LastPublishedDomainDate from '@baserow/modules/builder/components/domain/
 
 export default {
   name: 'DomainCard',
-  emits: ['delete'],
   components: { DnsStatus, LastPublishedDomainDate },
   props: {
     domain: {
@@ -61,6 +60,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete'],
   computed: {
     domainType() {
       return this.$registry.get('domain', this.domain.type)

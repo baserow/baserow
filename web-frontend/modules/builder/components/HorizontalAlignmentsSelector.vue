@@ -12,7 +12,6 @@ import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'HorizontalAlignmentsSelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     /**
      * The model value of the component in Vue 3 style.
@@ -31,6 +30,7 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     // Prefer Vue 3 modelValue if provided, else fall back to Vue 2 value
     currentValue() {

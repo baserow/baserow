@@ -55,7 +55,7 @@
           @changed="reset()"
           @header="onHeader($event)"
           @data="onData($event)"
-          @getData="onGetData($event)"
+          @get-data="onGetData($event)"
         >
           <template #upsertMapping>
             <div class="control margin-top-1">
@@ -210,7 +210,6 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'ImportFileModal',
-  emits: ['table-refresh'],
   components: { ImportErrorReport, SimpleGrid },
   mixins: [modal, error, jobProgress],
   props: {
@@ -229,6 +228,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['table-refresh'],
   data() {
     return {
       importer: '',

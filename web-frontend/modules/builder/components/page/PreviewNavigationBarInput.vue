@@ -13,7 +13,6 @@ import _ from 'lodash'
 
 export default {
   inheritAttrs: false,
-  emits: ['change'],
   props: {
     defaultValue: {
       type: [String, Number, Array],
@@ -25,6 +24,7 @@ export default {
       required: true,
     },
   },
+  emits: ['change'],
   data() {
     return {
       value: this.defaultValue,

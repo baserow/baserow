@@ -41,7 +41,6 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 
 export default {
   name: 'SimpleContainerElement',
-  emits: ['move'],
   components: {
     PageElement,
     ElementPreview,
@@ -55,6 +54,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   methods: {
     showAddElementModal() {
       this.$refs.addElementModal.show({

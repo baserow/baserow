@@ -42,7 +42,6 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'DuplicateFieldModal',
-  emits: ['field-created', 'move-field'],
   mixins: [modal, error, jobProgress],
   props: {
     table: {
@@ -58,6 +57,7 @@ export default {
       required: true,
     },
   },
+  emits: ['field-created', 'move-field'],
   data() {
     return {
       loading: false,
@@ -82,7 +82,7 @@ export default {
     showError(title, message) {
       this.$store.dispatch('toast/error', { title, message }, { root: true })
     },
-    // eslint-disable-next-line require-await
+     
     async onJobFailed() {
       this.onDuplicationEnd()
       this.showError(
@@ -90,7 +90,7 @@ export default {
         this.$t('clientHandler.notCompletedDescription')
       )
     },
-    // eslint-disable-next-line require-await
+     
     async onJobPollingError(error) {
       this.onDuplicationEnd()
       notifyIf(error, 'table')

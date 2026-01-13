@@ -308,7 +308,6 @@ import { isValidURLWithHttpScheme } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'WebhookForm',
-  emits: ['formchange'],
   components: {
     Checkbox,
     TestWebhookModal,
@@ -332,6 +331,7 @@ export default {
       required: true,
     },
   },
+  emits: ['formchange'],
   setup() {
     const values = reactive({
       values: {

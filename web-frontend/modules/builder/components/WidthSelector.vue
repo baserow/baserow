@@ -12,7 +12,6 @@ import { WIDTHS_NEW } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'WidthSelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     /**
      * Vue 3 v-model value.
@@ -31,6 +30,7 @@ export default {
       default: WIDTHS_NEW.AUTO,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     // Prefer Vue 3 modelValue when defined.
     currentValue() {

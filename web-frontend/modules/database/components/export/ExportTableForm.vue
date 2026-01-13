@@ -49,7 +49,6 @@ import ExporterTypeChoices from '@baserow/modules/database/components/export/Exp
 
 export default {
   name: 'ExportTableForm',
-  emits: ['values-changed'],
   components: {
     ExporterTypeChoices,
     ExportTableDropdown,
@@ -83,6 +82,7 @@ export default {
       default: true,
     },
   },
+  emits: ['values-changed'],
   setup() {
     const values = reactive({
       values: {

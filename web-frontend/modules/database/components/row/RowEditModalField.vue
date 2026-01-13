@@ -70,13 +70,6 @@ import FieldContext from '@baserow/modules/database/components/field/FieldContex
 
 export default {
   name: 'RowEditModalField',
-  emits: [
-    'field-deleted',
-    'field-updated',
-    'refresh-row',
-    'toggle-field-visibility',
-    'update',
-  ],
   components: { FieldContext },
   props: {
     database: {
@@ -133,6 +126,13 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'field-deleted',
+    'field-updated',
+    'refresh-row',
+    'toggle-field-visibility',
+    'update',
+  ],
   methods: {
     isReadOnlyField(field) {
       return !this.$registry.get('field', field.type).canWriteFieldValues(field)

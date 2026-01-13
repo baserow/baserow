@@ -48,7 +48,6 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'FieldSelectTargetFieldSubForm',
-  emits: ['input'],
   mixins: [form],
   props: {
     database: {
@@ -69,6 +68,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

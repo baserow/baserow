@@ -60,7 +60,6 @@ import APIDocsParameter from '@baserow/modules/database/components/docs/APIDocsP
 
 export default {
   name: 'APIDocsTableListFields',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsExample,
@@ -73,6 +72,7 @@ export default {
     table: { type: Object, required: true },
     fields: { type: Object, required: true },
   },
+  emits: ['input'],
   methods: {
     getFieldsURL(table) {
       return `${this.$config.public.publicBackendUrl}/api/database/fields/table/${table.id}/`

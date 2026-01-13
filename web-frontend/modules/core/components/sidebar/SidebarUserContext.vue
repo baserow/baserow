@@ -138,7 +138,6 @@ import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarUserContext',
-  emits: ['toggle-admin'],
   components: { SettingsModal, CreateWorkspaceModal },
   mixins: [context],
   props: {
@@ -151,6 +150,7 @@ export default {
       required: true,
     },
   },
+  emits: ['toggle-admin'],
   data() {
     return {
       logoffLoading: false,

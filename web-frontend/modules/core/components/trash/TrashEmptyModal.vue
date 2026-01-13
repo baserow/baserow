@@ -44,7 +44,6 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'TrashEmptyModal',
-  emits: ['empty'],
   components: {},
   mixins: [modal],
   props: {
@@ -57,6 +56,7 @@ export default {
       required: true,
     },
   },
+  emits: ['empty'],
   methods: {
     emitEmptyAndClose() {
       this.$emit('empty')

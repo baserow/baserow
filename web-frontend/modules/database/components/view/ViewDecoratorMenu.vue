@@ -47,7 +47,6 @@ import ViewDecoratorContext from '@baserow/modules/database/components/view/View
 
 export default {
   name: 'ViewDecoratorMenu',
-  emits: ['changed'],
   components: { ViewDecoratorContext },
   props: {
     database: {
@@ -71,6 +70,7 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   computed: {
     decoratorCount() {
       return this.view.decorations.filter(({ type }) => {

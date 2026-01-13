@@ -98,18 +98,18 @@ export default {
       }
     }
   },
+  data() {
+    return {
+      // Event handler reference for cleanup
+      keydownEvent: null,
+    }
+  },
   head() {
     const head = { title: this.view.name }
     if (!this.view.show_logo) {
       head.titleTemplate = '%s'
     }
     return head
-  },
-  data() {
-    return {
-      // Event handler reference for cleanup
-      keydownEvent: null,
-    }
   },
   computed: {
     ...mapGetters({

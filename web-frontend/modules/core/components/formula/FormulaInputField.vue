@@ -85,7 +85,6 @@ export default {
     EditorContent,
     NodeHelpTooltip,
   },
-  emits: ['input', 'update:mode', 'data-node-clicked'],
 
   provide() {
     return fixPropertyReactivityForProvide(
@@ -163,6 +162,7 @@ export default {
       default: () => BASEROW_FORMULA_MODES,
     },
   },
+  emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
     return {
       editor: null,

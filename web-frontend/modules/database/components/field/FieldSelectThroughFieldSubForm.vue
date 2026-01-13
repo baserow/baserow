@@ -45,7 +45,6 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 
 export default {
   name: 'FieldSelectThroughFieldSubForm',
-  emits: ['input'],
   mixins: [form],
   props: {
     database: {
@@ -57,6 +56,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

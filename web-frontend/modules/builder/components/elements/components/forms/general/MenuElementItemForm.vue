@@ -171,7 +171,6 @@ import { MenuElementType } from '@baserow/modules/builder/elementTypes'
 
 export default {
   name: 'MenuElementItemForm',
-  emits: ['remove-item'],
   components: {
     LinkNavigationSelectionForm,
     SidebarExpandable,
@@ -192,6 +191,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-item'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

@@ -31,7 +31,6 @@ import ViewSortContext from '@baserow/modules/database/components/view/ViewSortC
 
 export default {
   name: 'ViewSort',
-  emits: ['changed'],
   components: { ViewSortContext },
   props: {
     fields: {
@@ -52,5 +51,6 @@ export default {
       default: false,
     },
   },
+  emits: ['changed'],
 }
 </script>

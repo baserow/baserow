@@ -50,8 +50,8 @@
       </a>
       <div class="api-docs__example-type">
         <Dropdown
-          class="dropdown--floating"
           v-model="value.type"
+          class="dropdown--floating"
           @input="
             $emit('input', {
               userFieldNames: value.userFieldNames,
@@ -150,7 +150,6 @@ import { mappingToStringifiedJSONLines } from '@baserow/modules/core/utils/objec
 
 export default {
   name: 'APIDocsExample',
-  emits: ['input'],
   props: {
     value: {
       type: Object,
@@ -192,6 +191,7 @@ export default {
       default: true,
     },
   },
+  emits: ['input'],
   computed: {
     formattedResponse() {
       return this.getFormattedResponse()

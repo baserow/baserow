@@ -16,7 +16,6 @@
 import Avatar from '@baserow/modules/core/components/Avatar'
 export default {
   name: 'BadgeCollaborator',
-  emits: ['remove'],
   components: {
     Avatar,
   },
@@ -50,6 +49,7 @@ export default {
       },
     },
   },
+  emits: ['remove'],
   computed: {
     classes() {
       const classObj = {

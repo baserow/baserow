@@ -114,7 +114,6 @@ import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrd
 
 export default {
   name: 'ViewGroupByContext',
-  emits: ['changed'],
   components: { ViewSortOrder },
   mixins: [context],
   props: {
@@ -135,6 +134,7 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   computed: {
     /**
      * Calculates the total amount of available fields.

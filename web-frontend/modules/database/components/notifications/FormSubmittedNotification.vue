@@ -38,8 +38,8 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'FormSubmittedNotification',
-  emits: ['close-panel'],
   mixins: [notificationContent],
+  emits: ['close-panel'],
   data() {
     return {
       limitValues: 3, // only the first 3 elements to keep it short

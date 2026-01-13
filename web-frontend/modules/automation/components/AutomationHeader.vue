@@ -139,13 +139,13 @@ import AutomationSettingsModal from '@baserow/modules/automation/components/sett
 export default defineComponent({
   name: 'AutomationHeader',
   components: { AutomationSettingsModal },
-  emits: ['debug-toggled'],
   props: {
     automation: {
       type: Object,
       required: true,
     },
   },
+  emits: ['debug-toggled'],
   setup(props, { emit }) {
     const store = useStore()
     const app = useNuxtApp()
@@ -160,7 +160,7 @@ export default defineComponent({
       if (!props.automation) return null
       try {
         return store.getters['automationWorkflow/getSelected']
-      } catch (error) {
+      } catch {
         return null
       }
     })

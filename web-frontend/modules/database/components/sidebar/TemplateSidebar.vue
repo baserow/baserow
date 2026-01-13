@@ -37,7 +37,6 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 
 export default {
   name: 'DBTemplateSidebar',
-  emits: ['selected', 'selected-page'],
   props: {
     application: {
       type: Object,
@@ -48,6 +47,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected', 'selected-page'],
   computed: {
     orderedTables() {
       return this.application.tables

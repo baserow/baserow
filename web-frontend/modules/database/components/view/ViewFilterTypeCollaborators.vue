@@ -18,9 +18,9 @@ import availableCollaborators from '@baserow/modules/database/mixins/availableCo
 
 export default {
   name: 'ViewFilterTypeSelectOptions',
-  emits: ['input'],
   components: { FieldCollaboratorDropdown },
   mixins: [viewFilter, availableCollaborators],
+  emits: ['input'],
   computed: {
     copy() {
       const value = this.filter.value

@@ -93,7 +93,6 @@ import GridViewRowIdentifierDropdown from '@baserow/modules/database/components/
 
 export default {
   name: 'GridViewHead',
-  emits: ['dragging', 'field-created', 'refresh'],
   components: {
     GridViewRowIdentifierDropdown,
     GridViewFieldType,
@@ -151,6 +150,7 @@ export default {
       required: true,
     },
   },
+  emits: ['dragging', 'field-created', 'refresh'],
   methods: {
     /**
      * After newField is created pressing "insert left" or "insert right" button,

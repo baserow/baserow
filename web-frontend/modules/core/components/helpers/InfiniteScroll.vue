@@ -39,7 +39,6 @@
  * available items.
  */
 export default {
-  emits: ['load-next-page'],
 
   props: {
     currentCount: {
@@ -78,6 +77,7 @@ export default {
       default: true,
     },
   },
+  emits: ['load-next-page'],
   data() {
     return {
       // We don't want to show the end-line unless the user has scrolled somewhere and

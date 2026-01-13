@@ -56,7 +56,6 @@ import { randomColor } from '@baserow/modules/core/utils/colors'
 
 export default {
   name: 'FieldSelectOptions',
-  emits: ['update:modelValue'],
   components: { ColorSelectContext },
   props: {
     modelValue: {
@@ -64,6 +63,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update:modelValue'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

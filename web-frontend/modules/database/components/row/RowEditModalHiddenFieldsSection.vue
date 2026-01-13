@@ -32,12 +32,12 @@
 <script>
 export default {
   name: 'RowModalHiddenFieldsSection',
-  emits: ['toggle-hidden-fields-visibility'],
   props: {
     showHiddenFields: {
       type: Boolean,
       required: true,
     },
   },
+  emits: ['toggle-hidden-fields-visibility'],
 }
 </script>

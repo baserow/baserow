@@ -31,7 +31,6 @@
 <script>
 export default {
   name: 'ABInput',
-  emits: ['input', 'update:modelValue', 'blur', 'click', 'keydown', 'focus'],
   props: {
     /**
      * @type {string} - The value of the input.
@@ -96,6 +95,7 @@ export default {
       },
     },
   },
+  emits: ['input', 'update:modelValue', 'blur', 'click', 'keydown', 'focus'],
   computed: {
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value

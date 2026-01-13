@@ -42,7 +42,6 @@ import { UserSourcesBuilderSettingsType } from '@baserow/modules/builder/builder
 export default {
   name: 'UserSourceDropdown',
   components: { BuilderSettingsModal },
-  emits: ['update:modelValue'],
   inject: ['workspace'],
   props: {
     modelValue: {
@@ -59,6 +58,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update:modelValue'],
   methods: {
     openUserSettings() {
       this.$refs.userSourcesSettingsModal.show(

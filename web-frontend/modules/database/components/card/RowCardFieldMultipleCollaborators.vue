@@ -26,12 +26,12 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 export default {
   name: 'RowCardFieldMultipleCollaborators',
   height: 30,
+  mixins: [collaboratorName],
   props: {
     value: {
       type: Array,
       default: () => [],
     },
   },
-  mixins: [collaboratorName],
 }
 </script>

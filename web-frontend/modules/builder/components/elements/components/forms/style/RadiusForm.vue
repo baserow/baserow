@@ -41,7 +41,6 @@ const MAX_RADIUS_PX = 100
 
 export default {
   name: 'RadiusForm',
-  emits: ['input', 'update:modelValue'],
   components: { PixelValueSelector },
   mixins: [form],
   inject: ['builder'],
@@ -65,6 +64,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['input', 'update:modelValue'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

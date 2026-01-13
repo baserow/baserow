@@ -26,7 +26,6 @@ import TemplateService from '@baserow/modules/core/services/template'
 
 export default {
   name: 'TemplateHeader',
-  emits: ['installed'],
   props: {
     workspace: {
       type: Object,
@@ -41,6 +40,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['installed'],
   data() {
     return {
       job: null,

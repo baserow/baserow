@@ -48,7 +48,6 @@ import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormViewFieldMultipleLinkRow',
-  emits: ['update'],
   components: { PaginatedDropdown },
   mixins: [rowEditField],
   props: {
@@ -69,6 +68,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   created() {
     if (this.value.length === 0 && this.required) {
       this.add()

@@ -24,12 +24,12 @@ import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 
 export default {
   name: 'FunctionalGridViewFieldButton',
+  mixins: [linkURLField],
   props: {
     value: {
       type: Object,
       default: null,
     },
   },
-  mixins: [linkURLField],
 }
 </script>

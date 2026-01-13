@@ -30,7 +30,6 @@
 <script>
 export default {
   name: 'TextDecorationSelector',
-  emits: ['input', 'update:modelValue'],
   props: {
     /**
      * Vue 3 model binding.
@@ -49,6 +48,7 @@ export default {
       default: () => [false, false, false, false],
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     // Prefer Vue 3 modelValue if provided.
     currentValue() {

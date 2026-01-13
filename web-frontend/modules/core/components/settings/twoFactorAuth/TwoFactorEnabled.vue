@@ -18,13 +18,13 @@
 <script>
 export default {
   name: 'TwoFactorEnabled',
-  emits: ['disable'],
   props: {
     provider: {
       type: Object,
       required: true,
     },
   },
+  emits: ['disable'],
   computed: {
     providerType() {
       return this.$registry.get('twoFactorAuth', this.provider.type)

@@ -29,7 +29,6 @@
 <script>
 export default {
   name: 'ServiceSchemaPropertySelector',
-  emits: ['input'],
   props: {
     schema: {
       type: Object,
@@ -61,6 +60,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   computed: {
     schemaProperties() {
       if (!this.schema) return []

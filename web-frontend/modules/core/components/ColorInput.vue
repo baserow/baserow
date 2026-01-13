@@ -35,7 +35,6 @@ export default {
   inject: {
     forInput: { from: 'forInput', default: null },
   },
-  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: String,
@@ -67,6 +66,7 @@ export default {
       default: true,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     currentValue() {
       return this.modelValue !== undefined

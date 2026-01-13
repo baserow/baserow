@@ -28,7 +28,6 @@ import WebhookService from '@baserow/modules/database/services/webhook'
 
 export default {
   name: 'CreateWebhook',
-  emits: ['created'],
   components: { WebhookForm },
   mixins: [error],
   props: {
@@ -49,6 +48,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   data() {
     return {
       loading: false,

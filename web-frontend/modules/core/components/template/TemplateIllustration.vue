@@ -16,6 +16,7 @@ export const TYPES = ['calendar', 'table', 'kanban', 'gallery', 'form']
 </script>
 
 <script setup>
+// eslint-disable-next-line import/first
 import { computed } from 'vue'
 
 const props = defineProps({

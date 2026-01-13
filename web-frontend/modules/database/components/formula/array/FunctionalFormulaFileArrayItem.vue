@@ -23,7 +23,6 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 
 export default {
   name: 'FunctionalFormulaFileArrayItem',
-  emits: ['show'],
   props: {
     selected: {
       type: Boolean,
@@ -38,6 +37,7 @@ export default {
       default: null,
     },
   },
+  emits: ['show'],
   methods: {
     getIconClass(mimeType) {
       return mimetype2icon(mimeType)

@@ -5,7 +5,7 @@
         large
         :tab-items="[{ title: 'Basic' }, { title: 'Advanced' }]"
         :selected-index="selectedTabIndex"
-        @update:selectedIndex="selectedTabIndex = $event"
+        @update:selected-index="selectedTabIndex = $event"
       ></Tabs>
     </div>
     <div v-auto-overflow-scroll class="context__form context__form--scrollable">
@@ -214,7 +214,6 @@ import { FIELD_CONSTRAINT_ERROR_CODES } from '@baserow/modules/database/constant
 // @TODO focus form on open
 export default {
   name: 'FieldForm',
-  emits: ['input', 'keydown-enter'],
   components: { FormTextarea, FieldConstraintsSubForm },
   mixins: [form],
   props: {
@@ -246,6 +245,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input', 'keydown-enter'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

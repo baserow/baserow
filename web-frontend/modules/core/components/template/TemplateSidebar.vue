@@ -41,7 +41,6 @@
 <script>
 export default {
   name: 'TemplateSidebar',
-  emits: ['collapse-toggled', 'selected-page'],
   props: {
     template: {
       type: Object,
@@ -60,6 +59,7 @@ export default {
       required: true,
     },
   },
+  emits: ['collapse-toggled', 'selected-page'],
   computed: {
     sortedApplications() {
       return this.applications

@@ -28,7 +28,6 @@
 <script>
 export default {
   name: 'Expandable',
-  emits: ['toggle'],
   props: {
     defaultExpanded: {
       type: Boolean,
@@ -54,6 +53,7 @@ export default {
       default: false,
     },
   },
+  emits: ['toggle'],
   data() {
     return { expandedState: this.defaultExpanded }
   },

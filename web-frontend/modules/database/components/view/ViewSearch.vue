@@ -29,7 +29,6 @@ import ViewSearchContext from '@baserow/modules/database/components/view/ViewSea
 
 export default {
   name: 'ViewSearch',
-  emits: ['close-modals', 'refresh'],
   components: { ViewSearchContext },
   props: {
     view: {
@@ -56,6 +55,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close-modals', 'refresh'],
   data: () => {
     return {
       headerSearchTerm: '',

@@ -60,7 +60,6 @@
 <script>
 export default {
   name: 'ViewSortOrder',
-  emits: ['update-order'],
   props: {
     disabled: {
       type: Boolean,
@@ -80,6 +79,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update-order'],
   computed: {
     sortIndicator() {
       return this.sortTypes[this.type].indicator

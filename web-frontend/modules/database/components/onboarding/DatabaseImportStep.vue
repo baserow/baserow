@@ -48,7 +48,7 @@
         :is="importerComponent"
         ref="importer"
         @data="onData($event)"
-        @getData="onGetData($event)"
+        @get-data="onGetData($event)"
       />
     </div>
 
@@ -69,8 +69,8 @@ import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGri
 
 export default {
   name: 'DatabaseImportStep',
-  emits: ['update-data'],
   components: { SimpleGrid },
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

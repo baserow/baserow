@@ -19,9 +19,9 @@
 import gridField from '@baserow/modules/database/mixins/gridField'
 
 export default {
-  emits: ['update'],
 
   mixins: [gridField],
+  emits: ['update'],
   data() {
     return {
       // Event handler reference for cleanup

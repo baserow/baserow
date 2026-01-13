@@ -141,15 +141,6 @@ export default {
     ViewFieldConditionItem,
     ViewFieldConditionGroup,
   },
-  emits: [
-    'updateFilterType',
-    'addFilter',
-    'addFilterGroup',
-    'filterFocused',
-    'deleteFilterGroup',
-    'deleteFilter',
-    'updateFilter',
-  ],
   props: {
     filters: {
       type: Array,
@@ -241,6 +232,15 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'updateFilterType',
+    'addFilter',
+    'addFilterGroup',
+    'filterFocused',
+    'deleteFilterGroup',
+    'deleteFilter',
+    'updateFilter',
+  ],
   data() {
     return {
       groups: {},

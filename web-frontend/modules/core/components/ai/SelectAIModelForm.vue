@@ -99,7 +99,6 @@ import form from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'SelectAIModelForm',
-  emits: ['ai-type-changed'],
   mixins: [form, modal],
   props: {
     database: {
@@ -107,6 +106,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ai-type-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

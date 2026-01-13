@@ -30,7 +30,6 @@ import DeleteWorkspaceModal from '@baserow/modules/core/components/admin/workspa
 
 export default {
   name: 'EditWorkspaceContext',
-  emits: ['workspace-deleted'],
   components: { DeleteWorkspaceModal },
   mixins: [context],
   props: {
@@ -39,6 +38,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['workspace-deleted'],
   methods: {
     showDeleteModal() {
       this.hide()

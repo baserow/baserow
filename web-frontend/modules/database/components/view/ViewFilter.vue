@@ -38,7 +38,6 @@ import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilter
 
 export default {
   name: 'ViewFilter',
-  emits: ['changed'],
   components: { ViewFilterForm },
   props: {
     fields: {
@@ -63,6 +62,7 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   beforeMount() {
     this.$bus.$on('view-filter-created', this.filterCreated)
   },

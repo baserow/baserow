@@ -107,7 +107,7 @@ describe('MultipleSelectFieldType sorting', () => {
     testApp.afterEach()
   })
 
-  test('Test ascending and descending order', () => {
+  test('ascending and descending order', () => {
     testTableData.sort(sortASC)
     let ids = testTableData.map((obj) => obj.id)
     expect(ids).toEqual([2, 3, 4, 1, 6, 5])
@@ -117,7 +117,7 @@ describe('MultipleSelectFieldType sorting', () => {
     expect(ids).toEqual([5, 6, 1, 4, 3, 2])
   })
 
-  test('Test ascending and descending order with null values', () => {
+  test('ascending and descending order with null values', () => {
     testTableDataWithNull.sort(sortASC)
     let ids = testTableDataWithNull.map((obj) => obj.id)
     expect(ids).toEqual([1, 2, 3])
@@ -127,7 +127,7 @@ describe('MultipleSelectFieldType sorting', () => {
     expect(ids).toEqual([3, 2, 1])
   })
 
-  test('Test sort matches backend', () => {
+  test('sort matches backend', () => {
     // This is a naive sorting test running on Node.js and thus not really testing
     // collation sorting in the browsers where this functionality is mostly used The
     // Peseta character in particular seems to be sorted differently in our Node.js,
@@ -157,7 +157,7 @@ describe('MultipleSelectFieldType sorting', () => {
 })
 
 describe('TextFieldType sorting', () => {
-  test('Test sort matches backend', () => {
+  test('sort matches backend', () => {
     // This is a naive sorting test running on Node.js
     // and thus not really testing collation sorting in
     // the browsers where this functionality is mostly used
@@ -189,7 +189,7 @@ describe('TextFieldType sorting', () => {
 })
 
 describe('SingleSelectFieldType sorting', () => {
-  test('Test sort matches backend', () => {
+  test('sort matches backend', () => {
     // This is a naive sorting test running on Node.js and thus not really testing
     // collation sorting in the browsers where this functionality is mostly used The
     // Peseta character in particular seems to be sorted differently in our Node.js,
@@ -229,7 +229,7 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
     testApp.afterEach()
   })
 
-  test('Test sort matches backend', () => {
+  test('sort matches backend', () => {
     // This is a naive sorting test running on Node.js and thus not really testing
     // collation sorting in the browsers where this functionality is mostly used The
     // Peseta character in particular seems to be sorted differently in our Node.js,
@@ -273,7 +273,7 @@ describe('LinkRowFieldType sorting text values according to collation', () => {
     testApp.afterEach()
   })
 
-  test('Test sort matches backend', () => {
+  test('sort matches backend', () => {
     // This is a naive sorting test running on Node.js and thus not really testing
     // collation sorting in the browsers where this functionality is mostly used The
     // Peseta character in particular seems to be sorted differently in our Node.js,
@@ -319,7 +319,7 @@ describe('LinkRowFieldType sorting with other primary fields', () => {
     testApp.afterEach()
   })
 
-  test('Test ascending and descending order with number primary field', () => {
+  test('ascending and descending order with number primary field', () => {
     const testData = [
       {
         id: 1,
@@ -387,7 +387,7 @@ describe('LinkRowFieldType sorting with other primary fields', () => {
     expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
   })
 
-  test('Test ascending and descending order with duration primary field', () => {
+  test('ascending and descending order with duration primary field', () => {
     const testData = [
       {
         id: 1,
@@ -457,7 +457,7 @@ describe('LinkRowFieldType sorting with other primary fields', () => {
     expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
   })
 
-  test('Test ascending and descending order with date primary field', () => {
+  test('ascending and descending order with date primary field', () => {
     const testData = [
       {
         id: 1,

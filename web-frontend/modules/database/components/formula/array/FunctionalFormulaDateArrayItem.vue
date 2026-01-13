@@ -13,6 +13,7 @@
 import readOnlyDateField from '@baserow/modules/database/mixins/readOnlyDateField'
 export default {
   name: 'FunctionalFormulaDateArrayItem',
+  mixins: [readOnlyDateField],
   props: {
     value: {
       type: null,
@@ -23,6 +24,5 @@ export default {
       required: true,
     },
   },
-  mixins: [readOnlyDateField],
 }
 </script>

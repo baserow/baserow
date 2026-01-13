@@ -151,13 +151,13 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'McpEndpoint',
-  emits: ['deleted'],
   props: {
     endpoint: {
       type: Object,
       required: true,
     },
   },
+  emits: ['deleted'],
   data() {
     return {
       reveal: false,

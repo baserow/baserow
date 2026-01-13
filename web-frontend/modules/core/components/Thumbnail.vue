@@ -11,7 +11,6 @@
 <script>
 export default {
   name: 'Thumbnail',
-  emits: ['remove'],
   props: {
     src: {
       type: String,
@@ -22,5 +21,6 @@ export default {
       default: false,
     },
   },
+  emits: ['remove'],
 }
 </script>

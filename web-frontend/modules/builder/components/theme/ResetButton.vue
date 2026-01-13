@@ -12,7 +12,6 @@
 import _ from 'lodash'
 
 export default {
-  emits: ['input', 'update:modelValue'],
 
   inject: ['builder'],
   props: {
@@ -24,6 +23,7 @@ export default {
       default: undefined,
     },
   },
+  emits: ['input', 'update:modelValue'],
   data() {
     return {}
   },

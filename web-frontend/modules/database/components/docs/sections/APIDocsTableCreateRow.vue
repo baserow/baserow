@@ -149,7 +149,6 @@ import APIDocsParentParameter from '@baserow/modules/database/components/docs/AP
 
 export default {
   name: 'APIDocsTableCreateRow',
-  emits: ['input'],
   components: {
     APIDocsParameter,
     APIDocsParentParameter,
@@ -170,6 +169,7 @@ export default {
     getFieldMapping: { type: Function, required: true },
     getRequestExample: { type: Function, required: true },
   },
+  emits: ['input'],
   data() {
     return {
       batchMode: false,
