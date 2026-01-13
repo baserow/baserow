@@ -242,7 +242,7 @@ export default {
       this.duplicateLoading = false
 
       // Redirect to the newly created view.
-      this.$nuxt.$router.push({
+      this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.table.database_id,

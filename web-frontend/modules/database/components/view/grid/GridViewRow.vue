@@ -86,7 +86,7 @@
               :row="row"
               :workspace-id="workspaceId"
               :table="view.table"
-              @edit-modal="$emit('edit-modal', row)"
+              @edit-modal="onEditModal"
             ></component>
             <component
               :is="dec.component"
@@ -144,7 +144,6 @@
 </template>
 
 <script>
-import { markRaw } from 'vue'
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
@@ -331,6 +330,9 @@ export default {
     },
   },
   methods: {
+    onEditModal() {
+      this.$emit('edit-modal', this.row)
+    },
     isCheckboxDisabled(rowId) {
       const checkboxSelectedRows =
         this.$store.state[this.storePrefix + 'view/grid'].checkboxSelectedRows

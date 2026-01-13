@@ -204,7 +204,7 @@ export default {
     async logoff() {
       this.logoffLoading = true
       await logoutAndRedirectToLogin(
-        this.$nuxt.$router,
+        this.$router,
         this.$store,
         false,
         false,

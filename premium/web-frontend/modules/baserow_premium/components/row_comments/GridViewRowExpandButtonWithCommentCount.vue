@@ -7,6 +7,7 @@
     "
     :row="row"
     v-bind="$attrs"
+    @edit-modal="$emit('edit-modal')"
   />
   <a
     v-else

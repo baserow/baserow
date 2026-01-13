@@ -109,11 +109,11 @@ export default {
         const entryFields = new Set(
           Object.keys(entry.before).concat(Object.keys(entry.after))
         )
-        const validEntryFieldIds = entryFields
+        const validEntryFieldIds = [...entryFields]
           .map((fieldIdentifier) => entry.fields_metadata[fieldIdentifier]?.id)
           .filter((entryFieldId) => fieldIds.includes(entryFieldId))
         return (
-          validEntryFieldIds.size > 0 || entry.action_type !== 'update_rows'
+          validEntryFieldIds.length > 0 || entry.action_type !== 'update_rows'
         )
       })
 

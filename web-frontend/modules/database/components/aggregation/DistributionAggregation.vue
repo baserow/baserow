@@ -94,10 +94,10 @@ export default {
       return this.$registry.get('field', this.field.type)
     },
     othersCount() {
-      return this.$i18n.t('viewAggregationType.othersCount')
+      return this.$t('viewAggregationType.othersCount')
     },
     emptyCount() {
-      return this.$i18n.t('viewAggregationType.emptyCount')
+      return this.$t('viewAggregationType.emptyCount')
     },
   },
   methods: {

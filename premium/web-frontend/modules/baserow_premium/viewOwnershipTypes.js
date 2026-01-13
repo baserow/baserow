@@ -15,8 +15,8 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.personalDescription')
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.personalDescription')
   }
 
   getFeatureName() {

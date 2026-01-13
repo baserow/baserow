@@ -56,7 +56,7 @@ export default {
       try {
         await this.$store.dispatch('workspace/leave', this.workspace)
         if (selected) {
-          await this.$nuxt.$router.push({ name: 'dashboard' })
+          await this.$router.push({ name: 'dashboard' })
           await pageFinished()
           await nextTick()
         }

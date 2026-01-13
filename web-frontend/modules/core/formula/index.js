@@ -203,8 +203,7 @@ export const buildFormulaFunctionNodes = (app) => {
   const nodes = []
 
   // Get translation methods once at the beginning
-  const tcMethod = i18nInstance.t || i18nInstance.$t
-  const tMethod = i18nInstance.t || i18nInstance.$t
+  const tMethod = app.$t?.bind(app) || i18nInstance?.t?.bind(i18nInstance)
 
   // Process regular functions
   if (functionNodes.length > 0) {
@@ -337,15 +336,9 @@ export const buildFormulaFunctionNodes = (app) => {
 
     // Add functions as a top-level section
     nodes.push({
-      name: tcMethod
-        ? tcMethod.call(
-            i18nInstance,
-            'runtimeFormulaTypes.formulaTypeFormula',
-            {
-              count: functionNodes.length,
-            }
-          )
-        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeFormula'),
+      name: tMethod('runtimeFormulaTypes.formulaTypeFormula', {
+        count: functionNodes.length,
+      }),
       type: 'function',
       identifier: null,
       order: null,
@@ -453,15 +446,9 @@ export const buildFormulaFunctionNodes = (app) => {
 
     // Add operators as a top-level section
     nodes.push({
-      name: tcMethod
-        ? tcMethod.call(
-            i18nInstance,
-            'runtimeFormulaTypes.formulaTypeOperator',
-            {
-              count: operatorNodes.length,
-            }
-          )
-        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeOperator'),
+      name: tMethod('runtimeFormulaTypes.formulaTypeOperator', {
+        count: operatorNodes.length,
+      }),
       type: 'operator',
       nodes: operatorCategories,
     })

@@ -96,14 +96,6 @@ export function populateView(view) {
     view.group_bys = []
   }
 
-  if (Object.prototype.hasOwnProperty.call(view, 'group_bys')) {
-    view.group_bys.forEach((groupBy) => {
-      populateGroupBy(groupBy)
-    })
-  } else {
-    view.group_bys = []
-  }
-
   if (Object.prototype.hasOwnProperty.call(view, 'decorations')) {
     view.decorations.forEach((decoration) => {
       populateDecoration(decoration)
@@ -659,7 +651,7 @@ export const actions = {
       parentGroupId = null,
     }
   ) {
-    const { $client, $registry } = this
+    const { $client, $registry, $bus } = this
 
     // If the type is not provided we are going to choose the first available type.
     if (!Object.prototype.hasOwnProperty.call(values, 'type')) {
@@ -719,7 +711,7 @@ export const actions = {
     commit('ADD_FILTER', { view, filter })
 
     if (emitEvent) {
-      this.$bus.$emit('view-filter-created', { view, filter })
+      $bus.$emit('view-filter-created', { view, filter })
     }
     commit('SET_FILTER_FOCUS', { view, filterId: filter.id })
 
