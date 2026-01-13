@@ -20,10 +20,6 @@
 <script>
 export default {
   name: 'RadioCard',
-  model: {
-    prop: 'modelValue',
-    event: 'input',
-  },
   props: {
     value: {
       type: [String, Number, Boolean, Object],
@@ -45,7 +41,7 @@ export default {
       default: undefined,
     },
   },
-  emits: ['input'],
+  emits: ['input', 'update:modelValue'],
   computed: {
     classNames() {
       return {
@@ -65,6 +61,7 @@ export default {
         return
       }
       this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
   },
 }

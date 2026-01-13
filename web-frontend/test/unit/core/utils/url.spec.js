@@ -118,7 +118,7 @@ describe('test url utils', () => {
     })
   })
   describe('test parseHostnamesFromUrls', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     afterEach(() => {
       warnSpy.mockClear()

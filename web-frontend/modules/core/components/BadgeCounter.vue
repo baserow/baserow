@@ -16,7 +16,6 @@ export default {
      */
     count: {
       type: Number,
-      required: true,
       default: 1,
     },
     /**

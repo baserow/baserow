@@ -286,33 +286,32 @@ export default {
     this.v$.$validate()
   },
   validations() {
-    const self = this
     return {
       values: {
         table_id: {
           required,
           isValidTableId: (value) => {
-            const ids = self.tableIds
+            const ids = this.tableIds
             return includes(ids)(value)
           },
         },
         view_id: {
           isValidViewId: (value) => {
-            const ids = self.tableViewIds
+            const ids = this.tableViewIds
             return includesIfSet(ids)(value)
           },
         },
         field_id: {
           required,
           isValidFieldId: (value) => {
-            const ids = self.tableFieldIds
+            const ids = this.tableFieldIds
             return includes(ids)(value)
           },
         },
         aggregation_type: {
           required,
           isValidAggregationType: (value) => {
-            const types = self.aggregationTypeNames
+            const types = this.aggregationTypeNames
             return includes(types)(value)
           },
         },

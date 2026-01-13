@@ -12,7 +12,7 @@
         :class="{ 'row-comments__comment-head-details--right': ownComment }"
       >
         <div v-if="!ownComment" class="row-comments__comment-head-initial">
-          {{ firstName | nameAbbreviation }}
+          {{ $filters.nameAbbreviation(firstName) }}
         </div>
         <div class="row-comments__comment-head-name">
           {{ ownComment ? $t('rowComment.you') : firstName }}
@@ -87,7 +87,6 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'RowComment',
-  emits: ['stop-edit'],
   components: {
     RowCommentContext,
     RichTextEditor,
@@ -110,12 +109,14 @@ export default {
       required: true,
     },
   },
+  emits: ['stop-edit'],
   data() {
     return {
       editing: false,
       updating: false,
       deleting: false,
       message: this.cloneCommentMessage(),
+      onClickOutsideHandler: null,
     }
   },
   computed: {
@@ -176,7 +177,16 @@ export default {
       },
     },
   },
+  beforeUnmount() {
+    this.cleanupClickOutside()
+  },
   methods: {
+    cleanupClickOutside() {
+      if (this.onClickOutsideHandler) {
+        document.removeEventListener('click', this.onClickOutsideHandler)
+        this.onClickOutsideHandler = null
+      }
+    },
     getLocalizedMoment(timestamp) {
       return moment.utc(timestamp).tz(moment.tz.guess())
     },
@@ -186,7 +196,7 @@ export default {
           this.$refs.commentContextLink,
           'bottom',
           'right',
-          0
+          0,
         )
       }
     },
@@ -197,7 +207,7 @@ export default {
       this.$refs.commentContext.hide()
       this.editing = true
 
-      const onClickOutside = (evt) => {
+      this.onClickOutsideHandler = (evt) => {
         if (
           !this.$el.contains(evt.target) &&
           !this.$refs.commentContext.$el.contains(evt.target) &&
@@ -206,16 +216,14 @@ export default {
           this.stopEdit()
         }
       }
-      document.addEventListener('click', onClickOutside)
-      for (const evt of ['stop-edit', 'hook:beforeDestroy']) {
-        this.$once(evt, () => {
-          document.removeEventListener('click', onClickOutside)
-        })
-      }
+
+      document.addEventListener('click', this.onClickOutsideHandler)
     },
+
     async stopEdit(save = false) {
       this.$emit('stop-edit')
       this.editing = false
+      this.cleanupClickOutside()
 
       if (save) {
         await this.updateComment()
@@ -223,6 +231,7 @@ export default {
         this.message = this.cloneCommentMessage()
       }
     },
+
     async updateComment() {
       if (!this.message) {
         return

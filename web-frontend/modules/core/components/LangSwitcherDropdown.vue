@@ -7,10 +7,10 @@
     v-bind="$attrs"
   >
     <DropdownItem
-      v-for="locale in locales"
-      :key="locale.code"
-      :name="locale.name"
-      :value="locale.code"
+      v-for="loc in locales"
+      :key="loc.code"
+      :name="loc.name"
+      :value="loc.code"
     />
   </Dropdown>
 </template>

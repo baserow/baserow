@@ -1,6 +1,5 @@
 <template>
   <button
-    :is="tag"
     v-if="tag === 'button'"
     class="button-icon"
     :class="classes"

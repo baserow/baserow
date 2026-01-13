@@ -99,7 +99,6 @@ export default {
     const refProps = toRefs(props)
 
     const {
-      element,
       builder,
       adhocFilters,
       adhocSortings,
@@ -117,7 +116,6 @@ export default {
     } = useCollectionElement(refProps)
 
     return {
-      element,
       builder,
       elementContent,
       contentLoading,

@@ -185,7 +185,7 @@ describe('Row utilities', () => {
     })
   })
 
-  test('prepareNewOldAndUpdateRequestValues', () => {
+  test('extractRowReadOnlyValues', () => {
     const row = {
       id: 1,
       field_2: '2024-01-04T15:15:59.163126Z',

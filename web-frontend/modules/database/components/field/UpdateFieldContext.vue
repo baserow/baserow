@@ -112,7 +112,7 @@ export default {
     reset() {
       this.showDescription = false
       this.$nextTick(() => {
-        this.$refs.form && this.$refs.form.reset()
+        this.$refs.form?.reset()
       })
     },
     async submit(values) {
@@ -134,7 +134,7 @@ export default {
         // callback must still be called.
         const callback = async () => {
           await forceUpdateCallback()
-          this.$refs.form && this.$refs.form.reset()
+          this.$refs.form?.reset()
           this.loading = false
           this.hide()
           this.$emit('updated')

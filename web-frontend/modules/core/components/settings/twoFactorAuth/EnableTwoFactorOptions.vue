@@ -7,7 +7,7 @@
       :model-value="values.twoFaChoice"
       :label="option.name"
       :side-label="option.sideLabel"
-      @input="updateValue"
+      @update:model-value="updateValue"
     >
       <div>
         {{ option.description }}

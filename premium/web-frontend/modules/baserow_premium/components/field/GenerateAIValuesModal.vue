@@ -206,19 +206,19 @@ export default {
         this.handleError(error)
       }
     },
-    // eslint-disable-next-line require-await
+     
     async onJobFinished() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+     
     async onJobFailed() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+     
     async onJobCancelled() {
       this.previousJobs.unshift(this.job)
       this.job = null

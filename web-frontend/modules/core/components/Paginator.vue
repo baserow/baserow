@@ -44,7 +44,6 @@ export default {
      * The total number of pages available.
      */
     totalPages: {
-      required: true,
       type: Number,
       default: 0,
       validator: (prop) => typeof prop === 'number' || prop === null,
@@ -53,7 +52,6 @@ export default {
      * The currently selected page.
      */
     page: {
-      required: true,
       type: Number,
       default: 0,
     },

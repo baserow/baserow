@@ -23,8 +23,7 @@
       v-else
       ref="cell"
       :read-only="readOnly || generating"
-      v-bind="$props"
-      v-on="$listeners"
+      v-bind="$attrs"
     >
       <template v-if="!readOnly && editing" #default="{ editing }">
         <div style="background-color: #fff; padding: 8px">
@@ -82,7 +81,7 @@ export default {
     value(newValue) {
       const outputType = this.$registry.get(
         'aiFieldOutputType',
-        this.field.ai_output_type
+        this.field.ai_output_type,
       )
       this.$nextTick(() => {
         if (this.$refs.cell) {

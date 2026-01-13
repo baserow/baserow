@@ -331,7 +331,7 @@ export const actions = {
    * Only makes the delete call to the server.
    */
   async deleteCall({ commit, dispatch }, field) {
-    const { $registry, $client } = this
+    const { $client } = this
     return await FieldService($client).delete(field.id)
   },
   /**
@@ -347,8 +347,8 @@ export const actions = {
     // Call the field delete event on all the registered views because they might
     // need to change things in loaded data. For example the grid field will remove the
     // field options of that field.
-    const fieldType = $registry.get('field', field.type)
-    for (const viewType of Object.values($registry.getAll('view'))) {
+    const fieldType = this.$registry.get('field', field.type)
+    for (const viewType of Object.values(this.$registry.getAll('view'))) {
       await viewType.afterFieldDeleted(context, field, fieldType, 'page/')
     }
   },

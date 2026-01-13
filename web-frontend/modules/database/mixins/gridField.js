@@ -236,7 +236,9 @@ export default {
             event.stopPropagation()
             this.$emit('paste', { textData: data, jsonData })
           }
-        } catch (e) {}
+        } catch (e) {
+          /* empty */
+        }
       }
       document.addEventListener('paste', this.pasteEventListener)
     },

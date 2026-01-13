@@ -2707,46 +2707,55 @@ describe('All Tests', () => {
     expect(result).toBe(values.expectedResult)
   }
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldEmptyCases)(
     'formulaUrlFieldFilters empty values test case',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldNotEmptyCases)(
     'formulaUrlFieldFilters not empty values test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterEqualCases)(
     'formulaUrlFieldFilters equal test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterNotEqualCases)(
     'formulaUrlFieldFilters not equal test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterContainsCases)(
     'formulaUrlFieldFilters contains test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterDoesNotContainCases)(
     'formulaUrlFieldFilters contains test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterContainsWordCases)(
     'formulaUrlFieldFilters contains word test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterDoesntContainWordCases)(
     'formulaUrlFieldFilters does not contain word test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterLengthIsLowerThanCases)(
     'formulaUrlFieldFilters lenght is lower than test case %j',
     runUrlFormulafieldTest

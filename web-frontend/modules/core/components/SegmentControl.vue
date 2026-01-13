@@ -36,7 +36,6 @@ export default {
      */
     segments: {
       type: Array,
-      required: true,
       default: () => [],
     },
     /**

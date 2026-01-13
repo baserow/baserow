@@ -248,7 +248,9 @@ export default {
           this.persistentFieldOptionsKey,
           value
         )
-      } catch (error) {}
+      } catch (error) {
+        /* empty */
+      }
     },
   },
   async mounted() {

@@ -109,11 +109,6 @@ describe('GridViewRows component with decoration', () => {
   let mock = null
 
   beforeEach(() => {
-    //store = testApp.store
-    //mockServer = testApp.mockServer
-    //$registry.registerNamespace('viewDecorator')
-    //$registry.registerNamespace('decoratorValueProvider')
-
     testApp = useNuxtApp()
     const { $store, $client, $registry } = useNuxtApp()
     store = $store
@@ -125,13 +120,17 @@ describe('GridViewRows component with decoration', () => {
     // Clean up potentially registered stuff
     try {
       store.$registry.unregister('viewDecorator', 'fake_decorator')
-    } catch {}
+    } catch {
+      /* empty */
+    }
     try {
       store.$registry.unregister(
         'decoratorValueProvider',
         'fake_value_provider_type'
       )
-    } catch {}
+    } catch {
+      /* empty */
+    }
     if (wrapperToDestroy) {
       wrapperToDestroy.unmount()
       wrapperToDestroy = null
@@ -165,9 +164,6 @@ describe('GridViewRows component with decoration', () => {
 
   const mountComponent = async (props) => {
     const wrapper = await mountSuspended(ViewDecoratorContext, { props })
-    /*const wrapper = await testApp.mount(ViewDecoratorContext, {
-      propsData: props,
-    })*/
 
     await wrapper.vm.show(document.body)
     await wrapper.vm.$nextTick()

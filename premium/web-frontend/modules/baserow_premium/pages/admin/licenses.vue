@@ -16,8 +16,8 @@
           <ul class="premium-features margin-bottom-2">
             <li
               v-for="feature in features"
-              class="premium-features__feature"
               :key="feature"
+              class="premium-features__feature"
             >
               <i class="iconoir-check premium-features__feature-icon"></i>
               {{ feature.getName() }}
@@ -126,9 +126,9 @@
           </ul>
           <ul class="licenses__item-details">
             <li
-              class="licenses__item-detail-item"
               v-for="(feature, index) in licenseFeatureDescription(license)"
               :key="index"
+              class="licenses__item-detail-item"
             >
               {{ feature.name }}
               <i
@@ -144,8 +144,8 @@
       </div>
     </div>
     <RegisterLicenseModal
-      :instance-id="instanceId"
       ref="registerModal"
+      :instance-id="instanceId"
     ></RegisterLicenseModal>
   </div>
 </template>
@@ -208,7 +208,7 @@ const orderedLicenses = computed(() => {
     .slice()
     .sort(
       (a, b) =>
-        new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime()
+        new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime(),
     )
     .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
     .sort((a, b) => a.application_users - b.application_users)

@@ -23,8 +23,8 @@
               <HelpIcon
                 class="margin-left-1"
                 :tooltip="$t('exportWorkspaceForm.onlyStructureDescription')"
-                @mousedown.native.stop
-                @click.native.stop
+                @mousedown.stop
+                @click.stop
               />
             </Checkbox>
           </div>
