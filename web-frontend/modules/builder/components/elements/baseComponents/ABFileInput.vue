@@ -161,7 +161,9 @@ export default {
       } else {
         this.files = newFiles.slice(0, 1)
       }
-      this.$emit('input', this.toValueFormat(this.files))
+      const value = this.toValueFormat(this.files)
+      this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
     onDragOver() {
       this.isDragOver = true
@@ -174,7 +176,9 @@ export default {
     },
     removeFile(index) {
       this.files.splice(index, 1)
-      this.$emit('input', this.toValueFormat(this.files))
+      const value = this.toValueFormat(this.files)
+      this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
     formatSize(bytes) {
       const sizes = ['Bytes', 'KB', 'MB', 'GB']

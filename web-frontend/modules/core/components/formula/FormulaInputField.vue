@@ -458,11 +458,14 @@ export default {
     },
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      const formula = this.toFormula(this.wrapperContent)
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {
-        this.$emit('input', this.toFormula(this.wrapperContent))
+        this.$emit('input', formula)
       }
     },
     onUpdate() {
