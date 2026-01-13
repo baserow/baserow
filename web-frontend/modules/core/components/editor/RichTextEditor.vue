@@ -123,7 +123,6 @@ const richTextEditorExtensions = ({
 }
 
 export default {
-
   components: {
     EditorContent,
     RichTextEditorBubbleMenu,

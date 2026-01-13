@@ -29,7 +29,6 @@
 
 <script>
 export default {
-
   props: {
     /**
      * The type of alert to display

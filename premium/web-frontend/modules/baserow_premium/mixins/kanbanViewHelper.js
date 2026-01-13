@@ -14,14 +14,24 @@ export default {
         `${this.storePrefix}view/kanban/getAllFieldOptions`
       ]
     },
-     singleSelectFieldId() {
-      return this.$store.getters[`${this.storePrefix}view/kanban/getSingleSelectFieldId`]
+    singleSelectFieldId() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getSingleSelectFieldId`
+      ]
     },
-    allRows(){return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]},
-    draggingRow() {return this.$store.getters[`${this.storePrefix}view/kanban/getDraggingRow`]},
+    allRows() {
+      return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]
+    },
+    draggingRow() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getDraggingRow`
+      ]
+    },
     draggingOriginalStackId() {
-      return this.$store.getters[`${this.storePrefix}view/kanban/getDraggingOriginalStackId`]
-    }
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getDraggingOriginalStackId`
+      ]
+    },
   },
   methods: {
     async updateKanban(values) {

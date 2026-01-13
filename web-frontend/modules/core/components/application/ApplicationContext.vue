@@ -131,7 +131,6 @@ import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/compon
 import applicationContext from '@baserow/modules/core/mixins/applicationContext'
 
 export default {
-
   components: {
     TrashModal,
     SnapshotsModal,

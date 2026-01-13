@@ -475,21 +475,18 @@ export default {
     })
     resizeObserver.observe(this.$el)
 
-
     // Open the row edit modal if the row is set.
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
 
-    this.onUnmountCallback = ()=> {
-
+    this.onUnmountCallback = () => {
       el.removeEventListener('scroll', onScroll)
       resizeObserver.disconnect()
     }
   },
   beforeUnmount() {
     if (this.onUnmountCallback) {
-
       this.onUnmountCallback()
       this.onUnmountCallback = null
     }

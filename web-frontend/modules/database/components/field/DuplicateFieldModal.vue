@@ -82,7 +82,7 @@ export default {
     showError(title, message) {
       this.$store.dispatch('toast/error', { title, message }, { root: true })
     },
-     
+
     async onJobFailed() {
       this.onDuplicationEnd()
       this.showError(
@@ -90,7 +90,7 @@ export default {
         this.$t('clientHandler.notCompletedDescription')
       )
     },
-     
+
     async onJobPollingError(error) {
       this.onDuplicationEnd()
       notifyIf(error, 'table')

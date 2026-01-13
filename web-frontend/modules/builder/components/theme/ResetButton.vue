@@ -12,7 +12,6 @@
 import _ from 'lodash'
 
 export default {
-
   inject: ['builder'],
   props: {
     value: { default: undefined, validator: (v) => true },

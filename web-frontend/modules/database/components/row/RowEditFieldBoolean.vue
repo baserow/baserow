@@ -17,7 +17,6 @@
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 
 export default {
-
   mixins: [rowEditField],
   emits: ['update'],
   methods: {

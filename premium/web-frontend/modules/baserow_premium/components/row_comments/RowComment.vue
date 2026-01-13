@@ -196,7 +196,7 @@ export default {
           this.$refs.commentContextLink,
           'bottom',
           'right',
-          0,
+          0
         )
       }
     },

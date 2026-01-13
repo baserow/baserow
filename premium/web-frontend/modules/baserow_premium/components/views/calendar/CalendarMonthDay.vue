@@ -64,7 +64,7 @@
       :parent-height="height"
       :decorations-by-place="decorationsByPlace"
       @edit-row="
-        $refs.calendarMonthDayExpanded.hide(), $emit('edit-row', $event)
+        ($refs.calendarMonthDayExpanded.hide(), $emit('edit-row', $event))
       "
       @row-context="$emit('row-context', $event)"
     >

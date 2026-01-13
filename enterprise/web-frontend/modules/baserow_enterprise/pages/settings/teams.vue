@@ -18,13 +18,13 @@ export default {
   mounted() {
     this.$store.dispatch(
       'undoRedo/updateCurrentScopeSet',
-      ENTERPRISE_ACTION_SCOPES.teams_in_workspace(this.workspace.id),
+      ENTERPRISE_ACTION_SCOPES.teams_in_workspace(this.workspace.id)
     )
   },
   beforeUnmount() {
     this.$store.dispatch(
       'undoRedo/updateCurrentScopeSet',
-      ENTERPRISE_ACTION_SCOPES.teams_in_workspace(null),
+      ENTERPRISE_ACTION_SCOPES.teams_in_workspace(null)
     )
   },
 }

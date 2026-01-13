@@ -33,7 +33,6 @@ import { maxLength, required, helpers } from '@vuelidate/validators'
 const COLOR_NAME_MAX_LENGTH = 255
 
 export default {
-
   props: {
     value: {
       type: Object,

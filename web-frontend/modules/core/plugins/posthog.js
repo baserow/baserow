@@ -55,7 +55,6 @@ export default function ({ app: { router, $config, store } }, inject) {
 }
 */
 
- 
 import posthog from 'posthog-js'
 import { nextTick } from 'vue'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'

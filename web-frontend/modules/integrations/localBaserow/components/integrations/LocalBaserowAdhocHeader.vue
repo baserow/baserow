@@ -42,7 +42,6 @@ import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 import { getFilters, getOrderBy } from '@baserow/modules/database/utils/view'
 
 export default {
-
   components: { ViewSearch, ViewSort, ViewFilter },
   props: {
     /**

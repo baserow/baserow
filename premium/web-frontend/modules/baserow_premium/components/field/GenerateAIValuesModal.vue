@@ -206,19 +206,19 @@ export default {
         this.handleError(error)
       }
     },
-     
+
     async onJobFinished() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-     
+
     async onJobFailed() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-     
+
     async onJobCancelled() {
       this.previousJobs.unshift(this.job)
       this.job = null

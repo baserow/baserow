@@ -46,7 +46,6 @@ import application from '@baserow/modules/core/mixins/application'
 import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
 
 export default {
-
   mixins: [application],
   props: {
     application: {
