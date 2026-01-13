@@ -8,12 +8,20 @@
     "dev": "APP_ENV=dev nuxt dev",
     "preview": "nuxt preview",
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
+    "test": "yarn test:core && yarn test:premium && yarn test:enterprise",
+    "test:coverage": "yarn test:core:coverage && yarn test:premium:coverage && yarn test:enterprise:coverage",
+    "test-coverage": "yarn test:coverage",
+    "test:core": "TZ=UTC vitest",
+    "test:core:coverage": "TZ=UTC vitest --coverage",
+    "test:premium": "TZ=UTC vitest --config  ../premium/web-frontend/vitest.config.ts",
+    "test:premium:coverage": "TZ=UTC vitest --config  ../premium/web-frontend/vitest.config.ts --coverage",
+    "test:enterprise": "TZ=UTC vitest --config  ../enterprise/web-frontend/vitest.config.ts",
+    "test:enterprise:coverage": "TZ=UTC vitest --config  ../enterprise/web-frontend/vitest.config.ts --coverage",
     "postinstall": "nuxt prepare",
     "lint": "yarn eslint && yarn stylelint",
     "eslint": "yarn eslint:core && yarn eslint:premium && yarn eslint:enterprise",
-    "eslint:fix": "yarn eslint:core --fix && yarn eslint:premium  --fix && yarn eslint:enterprise --fix",
+    "stylelint": "stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
+    "eslint:fix": "yarn eslint:core --fix && yarn eslint:premium --fix && yarn eslint:enterprise --fix",
     "eslint:core": "eslint --cache --cache-location=.cache/eslint .",
     "eslint:premium": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config premium/web-frontend/eslint.config.mjs premium/web-frontend",
     "eslint:enterprise": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config enterprise/web-frontend/eslint.config.mjs enterprise/web-frontend",
@@ -22,8 +30,7 @@
     "format:core": "prettier . --write",
     "format:premium": "prettier ../premium/web-frontend --write",
     "format:enterprise": "prettier ../enterprise/web-frontend --write",
-    "format:all": "prettier . ../premium/web-frontend ../enterprise/web-frontend --write",
-    "stylelint": "stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss"
+    "format:all": "prettier . ../premium/web-frontend ../enterprise/web-frontend --write"
   },
   "resolutions": {
     "sass": "~1.70.0",
@@ -124,6 +131,7 @@
     "@storybook/addon-designs": "^11.1.0",
     "@storybook/addon-docs": "9.1.16",
     "@storybook/addon-links": "9.1.16",
+    "@vitest/coverage-v8": "^4.0.17",
     "@vue/test-utils": "^2.4.6",
     "axios-mock-adapter": "^2.1.0",
     "eslint-config-prettier": "^10.1.8",
@@ -135,10 +143,9 @@
     "prettier": "^3.7.4",
     "storybook": "9.1.16",
     "stylelint": "^16.26.1",
-    "stylelint-config-prettier": "^9.0.5",
     "stylelint-config-standard": "^39.0.1",
     "stylelint-config-standard-scss": "^16.0.0",
     "stylelint-selector-bem-pattern": "^4.0.1",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.17"
   }
 }

@@ -5,17 +5,12 @@ export default defineVitestConfig({
   test: {
     globals: true,
     environment: 'nuxt',
-    setupFiles: ['./vitest.setup.ts'],
+    setupFiles: ['../web-frontend/vitest.setup.ts'],
     environmentOptions: {
       nuxt: {
         domEnvironment: 'happy-dom',
       },
     },
-    include: ['./**/*.spec.js'],
-  },
-  resolve: {
-    alias: {
-      '@baserow_test_cases': path.resolve(__dirname, '../tests/cases'),
-    },
+    include: ['../enterprise/web-frontend/test/**/*.{test,spec}.{js,ts}'],
   },
 })
