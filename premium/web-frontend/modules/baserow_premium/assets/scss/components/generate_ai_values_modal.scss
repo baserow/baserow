@@ -29,7 +29,7 @@
     font-weight: 600;
     color: $color-neutral-900;
     line-height: 1.35;
-    word-break: break-word;
+    overflow-wrap: break-word;
     flex: 1;
     min-width: 0;
   }

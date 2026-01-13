@@ -1,3 +1,4 @@
+/* stylelint-disable scss/operator-no-unspaced */
 @mixin baserow-icon($name) {
   &::before {
     mask-image: url('@baserow/modules/core/assets/icons/' + $name + '.svg');
@@ -5,6 +6,7 @@
 }
 
 %icon {
+  /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
   @extend [class^='iconoir-'], [class*=' iconoir-'];
 }
 
