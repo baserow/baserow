@@ -8,12 +8,12 @@ import MockPremiumServer from '@baserow_premium_test/fixtures/mockPremiumServer'
 export class PremiumTestApp extends TestApp {
   constructor(...args) {
     super(...args)
-    const store = this.store
+    //const store = this.store
     const app = this.getApp()
-    setupPremium({ store, app }, (name, dep) => {
+    setupPremium({ store: this.$store, app }, (name, dep) => {
       app[`$${name}`] = dep
     })
-    setupLicensePlugin({ store, app }, (name, dep) => {
+    setupLicensePlugin({ store: this.$store, app }, (name, dep) => {
       app[`$${name}`] = dep
     })
     this._initialCleanStoreState = _.cloneDeep(this.store.state)
