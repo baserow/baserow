@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
@@ -14,6 +15,7 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaObject,
 )
+from baserow.core.formula.visitors import BaserowFormulaArgumentVisitor
 from baserow.core.registry import Registry
 
 
@@ -112,8 +114,32 @@ class FormulaSerializerField(serializers.JSONField):
         if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:
             return data
 
+        # Have any formula argument validation context kwargs been provided? If so,
+        # we will use them to validate the formula arguments with the
+        # `BaserowFormulaArgumentVisitor`.
+        formula_arg_validation_kwargs = None
+        if self.context:
+            formula_arg_validation_kwargs = self.context.get(
+                "formula_arg_validation_kwargs"
+            )
+
         try:
-            get_parse_tree_for_formula(data["formula"])
+            tree = get_parse_tree_for_formula(data["formula"])
+            if formula_arg_validation_kwargs:
+                try:
+                    BaserowFormulaArgumentVisitor(
+                        **formula_arg_validation_kwargs
+                    ).visit(tree)
+                except BaserowFormulaSyntaxError as exc:
+                    raise ValidationError(
+                        exc.args[0],
+                        code="invalid_function_syntax",
+                    ) from exc
+                except InstanceTypeDoesNotExist as exc:
+                    raise ValidationError(
+                        exc.args[0],
+                        code="invalid_data_provider",
+                    ) from exc
             return data
         except BaserowFormulaSyntaxError as e:
             raise ValidationError(f"The formula is invalid: {e}", code="invalid")

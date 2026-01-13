@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, TypeVar
 
+from django.utils.translation import gettext as _
+
 from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentType
 from baserow.core.formula.parser.exceptions import (
     FormulaFunctionTypeDoesNotExist,
@@ -170,6 +172,13 @@ class DataProviderType(
 
         return path
 
+    def is_valid(self, path: List[str]) -> bool:
+        """
+        Allows to hook into the path validation process. Not currently implemented.
+
+        :param path: the list of path strings after the provider name.
+        """
+
     def extract_properties(
         self,
         path: List[str],
@@ -212,6 +221,9 @@ class DataProviderTypeRegistry(
     """
 
     name = "data_provider"
+
+    # The human-readable module name which uses this data provider.
+    provided_module_name = _("core")
 
 
 formula_runtime_function_registry = BaserowRuntimeFormulaFunctionRegistry()

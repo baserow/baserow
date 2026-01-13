@@ -44,6 +44,9 @@ from baserow.contrib.automation.api.nodes.serializers import (
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
 )
+from baserow.contrib.automation.data_providers.registries import (
+    automation_data_provider_type_registry,
+)
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -244,6 +247,9 @@ class AutomationNodeView(APIView):
             automation_node_type_registry,
             request.data,
             base_serializer_class=UpdateAutomationNodeSerializer,
+            serializer_class_context={
+                "data_provider_type_registry": automation_data_provider_type_registry,
+            },
             partial=True,
             return_validated=True,
         )

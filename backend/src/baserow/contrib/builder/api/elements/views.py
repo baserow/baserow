@@ -38,6 +38,9 @@ from baserow.contrib.builder.api.elements.serializers import (
     UpdateElementSerializer,
 )
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
+from baserow.contrib.builder.data_providers.registries import (
+    builder_data_provider_type_registry,
+)
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
@@ -228,6 +231,11 @@ class ElementView(APIView):
             element_type_registry,
             request.data,
             base_serializer_class=UpdateElementSerializer,
+            serializer_class_context={
+                "formula_arg_validation_kwargs": {
+                    "data_provider_type_registry": builder_data_provider_type_registry,
+                }
+            },
             partial=True,
             return_validated=True,
         )
