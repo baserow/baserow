@@ -62,7 +62,7 @@
   .cell {
     padding: 0;
     margin: 2px;
-    font-size: 13px; // Override vuejs3-datepicker default font size
+    font-size: $datepicker-cell-font-size; // Override vuejs3-datepicker default font size
   }
 
   header {
