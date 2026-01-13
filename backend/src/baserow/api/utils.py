@@ -24,7 +24,6 @@ from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 if TYPE_CHECKING:
     from baserow.core.registry import Instance, Registry
-    from baserow.core.formula.registries import DataProviderTypeRegistry
 
 from .exceptions import RequestBodyValidationException
 

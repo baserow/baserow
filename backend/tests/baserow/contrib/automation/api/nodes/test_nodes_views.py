@@ -375,7 +375,6 @@ def test_duplicate_node_invalid_node(api_client, data_fixture):
 def test_update_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger()
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     assert node.label == ""
@@ -391,6 +390,38 @@ def test_update_node(api_client, data_fixture):
         "service": AnyDict(),
         "type": node.get_type().type,
         "workflow": workflow.id,
+    }
+
+
+@pytest.mark.django_db
+def test_updating_node_with_invalid_formula_arguments_throws_error(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    service_type = node.service.get_type()
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"type": service_type.type, "row_id": "get('foobar.123')"}},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "service": {
+                "row_id": [
+                    {
+                        "error": "The formula provider 'foobar' used "
+                        "in 'foobar.123' does not exist in the automation module.",
+                        "code": "invalid_data_provider",
+                    }
+                ]
+            }
+        },
     }
 
 

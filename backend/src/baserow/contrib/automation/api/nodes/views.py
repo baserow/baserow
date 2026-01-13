@@ -248,7 +248,9 @@ class AutomationNodeView(APIView):
             request.data,
             base_serializer_class=UpdateAutomationNodeSerializer,
             serializer_class_context={
-                "data_provider_type_registry": automation_data_provider_type_registry,
+                "formula_arg_validation_kwargs": {
+                    "data_provider_type_registry": automation_data_provider_type_registry,
+                }
             },
             partial=True,
             return_validated=True,

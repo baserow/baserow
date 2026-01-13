@@ -15,6 +15,7 @@ from baserow.contrib.automation.nodes.node_types import (
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
     LocalBaserowDeleteRowNodeType,
+    LocalBaserowGetRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
 )
@@ -108,6 +109,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=LocalBaserowDeleteRowNodeType.type,
+            **kwargs,
+        )
+
+    def create_local_baserow_get_row_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowGetRowNodeType.type,
             **kwargs,
         )
 

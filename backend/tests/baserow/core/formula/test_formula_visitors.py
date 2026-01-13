@@ -52,7 +52,7 @@ def test_get_with_two_arguments_raises_syntax_error(mock_registry):
         )
 
 
-def test_get_with_empty_provider_name_raises_instance_type_does_not_exist(
+def test_get_with_empty_provider_name_raises_syntax_error(
     mock_registry,
 ):
     with pytest.raises(
