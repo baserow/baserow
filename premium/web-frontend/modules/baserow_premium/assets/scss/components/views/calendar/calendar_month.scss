@@ -19,7 +19,7 @@
   grid-template-columns: repeat(7, minmax(110px, 1fr));
   grid-template-rows: 32px;
   grid-auto-rows: minmax(38px, 1fr);
-  overflow: auto auto;
+  overflow: auto;
   position: relative;
   border-right: solid 1px $color-neutral-200;
   border-bottom: solid 1px $color-neutral-200;

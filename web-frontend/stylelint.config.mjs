@@ -1,13 +1,12 @@
-module.exports = {
-  overrides: [
-    {
-      files: ['**/*.scss'],
-      customSyntax: 'postcss-scss',
-    },
-  ],
+export default {
   extends: ['stylelint-config-standard-scss'],
   plugins: ['stylelint-selector-bem-pattern'],
+  overrides: [
+    { files: ['**/*.scss'], customSyntax: 'postcss-scss' },
+    { files: ['**/*.vue'], customSyntax: 'postcss-html' },
+  ],
   rules: {
+    // Your BEM class name regex
     'selector-class-pattern': [
       '^[a-z]([-]?[a-z0-9]+)*(__[a-z0-9]([-]?[a-z0-9]+)*)?(--[a-z0-9]([-]?[a-z0-9]+)*)?$',
       {
@@ -17,6 +16,8 @@ module.exports = {
         },
       },
     ],
+
+    // Your BEM plugin rule
     'plugin/selector-bem-pattern': {
       componentName: '[A-Z]+',
       componentSelectors: {
@@ -25,9 +26,10 @@ module.exports = {
       },
       utilitySelectors: '^\\.util-[a-z]+$',
     },
-    'scss/dollar-variable-pattern': null,
-    'scss/dollar-variable-empty-line-before': null,
-    'at-rule-no-unknown': [
+
+    // SCSS: use the SCSS-aware at-rule rule
+    'at-rule-no-unknown': null,
+    'scss/at-rule-no-unknown': [
       true,
       {
         ignoreAtRules: [
@@ -46,10 +48,16 @@ module.exports = {
         ],
       },
     ],
+
+    'scss/dollar-variable-pattern': null,
+    'scss/dollar-variable-empty-line-before': null,
+
+    // Keep your other choices
     'media-feature-range-notation': 'prefix',
     'color-function-notation': 'legacy',
     'scss/no-global-function-names': null,
     'alpha-value-notation': 'number',
     'selector-not-notation': 'simple',
+    'color-function-alias-notation': null,
   },
 }

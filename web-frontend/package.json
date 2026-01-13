@@ -11,16 +11,19 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "postinstall": "nuxt prepare",
-    "lint": "yarn eslint",
+    "lint": "yarn eslint && yarn stylelint",
     "eslint": "yarn eslint:core && yarn eslint:premium && yarn eslint:enterprise",
     "eslint:fix": "yarn eslint:core --fix && yarn eslint:premium  --fix && yarn eslint:enterprise --fix",
     "eslint:core": "eslint --cache --cache-location=.cache/eslint .",
     "eslint:premium": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config premium/web-frontend/eslint.config.mjs premium/web-frontend",
     "eslint:enterprise": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config enterprise/web-frontend/eslint.config.mjs enterprise/web-frontend",
-    "format": "yarn format:core && yarn format:premium && yarn format:enterprise",
+    "format": "yarn format:all",
+    "fix": "yarn format:all && yarn eslint:fix",
     "format:core": "prettier . --write",
     "format:premium": "prettier ../premium/web-frontend --write",
-    "format:enterprise": "prettier ../enterprise/web-frontend --write"
+    "format:enterprise": "prettier ../enterprise/web-frontend --write",
+    "format:all": "prettier . ../premium/web-frontend ../enterprise/web-frontend --write",
+    "stylelint": "stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss"
   },
   "resolutions": {
     "sass": "~1.70.0",
@@ -129,8 +132,14 @@
     "globals": "^17.0.0",
     "happy-dom": "^20.0.11",
     "node-mocks-http": "^1.17.2",
+    "postcss-scss": "^4.0.9",
     "prettier": "^3.7.4",
     "storybook": "9.1.16",
+    "stylelint": "^16.26.1",
+    "stylelint-config-prettier": "^9.0.5",
+    "stylelint-config-standard": "^39.0.1",
+    "stylelint-config-standard-scss": "^16.0.0",
+    "stylelint-selector-bem-pattern": "^4.0.1",
     "vitest": "^4.0.15"
   }
 }

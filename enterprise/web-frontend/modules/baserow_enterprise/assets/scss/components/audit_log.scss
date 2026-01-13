@@ -3,7 +3,7 @@
   grid-template-columns:
     3fr 3fr 3fr minmax(10%, 120px) minmax(10%, 120px)
     max-content;
-  grid-gap: 12px;
+  gap: 12px;
   padding: 16px 42px 25px;
   z-index: 4;
   max-width: 1200px;

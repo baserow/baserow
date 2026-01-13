@@ -58,6 +58,7 @@
 
   .prev {
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-left;
 
     &::before {
@@ -67,6 +68,7 @@
 
   .next {
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-right;
   }
 
