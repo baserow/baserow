@@ -1,7 +1,3 @@
-/**
- * @jest-environment jsdom
- */
-
 import importer from '@baserow/modules/database/mixins/importer'
 
 describe('test file importer', () => {

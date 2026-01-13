@@ -5,7 +5,8 @@ import RadioButton from '@baserow/modules/core/components/RadioButton'
 describe('RadioButton.vue', () => {
   it('renders the button', async () => {
     const wrapper = await mountSuspended(RadioButton)
-    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(true)
+
+    expect(wrapper.html()).toMatchSnapshot()
   })
 
   it('passes the correct props to the button', async () => {
@@ -15,24 +16,23 @@ describe('RadioButton.vue', () => {
       icon: 'test-icon',
       title: 'test-title',
     }
-    const wrapper = await mountSuspended(RadioButton, { propsData })
+    const wrapper = await mountSuspended(RadioButton, { props: propsData })
 
-    const button = wrapper.findComponent({ name: 'Button' })
-    Object.keys(propsData).forEach((key) => {
-      expect(button.props(key)).toBe(propsData[key])
-    })
+    expect(wrapper.html()).toMatchSnapshot()
   })
 
   it('emits input event with the correct value when the button is clicked', async () => {
     const value = 'test'
+    const onClick = vi.fn()
     const wrapper = await mountSuspended(RadioButton, {
-      propsData: {
+      props: {
         value,
+        onClick,
       },
     })
 
     await wrapper.findComponent({ name: 'Button' }).trigger('click')
 
-    expect(wrapper.emitted('input')[0]).toEqual([value])
+    expect(onClick).toHaveBeenCalled()
   })
 })

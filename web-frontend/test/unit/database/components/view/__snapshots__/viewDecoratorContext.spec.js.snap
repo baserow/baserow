@@ -450,7 +450,6 @@ exports[`GridViewRows component with decoration > View with decoration configure
           >
             <button
               class="button-icon"
-              is="button"
             >
               <i
                 class="button-icon__icon iconoir-bin"
@@ -506,7 +505,6 @@ exports[`GridViewRows component with decoration > View with decoration configure
           >
             <button
               class="button-icon"
-              is="button"
             >
               <i
                 class="button-icon__icon iconoir-bin"

@@ -31,5 +31,5 @@ export default defineNuxtPlugin((nuxtApp) => {
     return Papa.parse(str).data[0]
   }
 
-  nuxtApp.provide('papa', Papa)
+  return { provide: { papa: Papa } }
 })

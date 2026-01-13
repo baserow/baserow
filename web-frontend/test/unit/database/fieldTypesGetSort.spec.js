@@ -94,7 +94,7 @@ describe('MultipleSelectFieldType sorting', () => {
   let sortASC = firstBy()
   let sortDESC = firstBy()
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     multipleSelectFieldType = new MultipleSelectFieldType()
     ASC = multipleSelectFieldType.getSort('field_275', 'ASC')
@@ -221,7 +221,7 @@ describe('SingleSelectFieldType sorting', () => {
 describe('MultipleCollaboratorsFieldType sorting', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -264,7 +264,7 @@ describe('LinkRowFieldType sorting text values according to collation', () => {
   let testApp = null
   let linkRowFieldType = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     linkRowFieldType = testApp._app.$registry.registry.field.link_row
   })
@@ -310,7 +310,7 @@ describe('LinkRowFieldType sorting with other primary fields', () => {
   let testApp = null
   let linkRowFieldType = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     linkRowFieldType = testApp._app.$registry.registry.field.link_row
   })

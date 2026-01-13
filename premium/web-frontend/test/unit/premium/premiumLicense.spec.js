@@ -16,7 +16,7 @@ describe('Test premium licensing', () => {
       `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`,
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
   })
 

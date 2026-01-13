@@ -15,29 +15,13 @@ vi.mock('lodash/debounce', { default: () => vi.fn((fn) => fn) })
 describe('View Tests', () => {
   let testApp = null
   let mockServer = null
-  let originalReplaceFunc = null
 
   beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
-
-    // Mock the redirect function so we can test the component without having to
-    // worry about the router.
-    originalReplaceFunc = testApp._app.$router.replace
-    /*testApp._app.$router.replace = ({ params }) => {
-      return Table.asyncData({
-        app: testApp._app,
-        store: testApp._app.store,
-        params,
-      })
-    }*/
   })
 
   afterEach(async () => await testApp.afterEach())
-
-  /*afterEach(() => {
-    testApp._app.$router.replace = originalReplaceFunc
-  })*/
 
   test('Default view is being set correctly initially', async () => {
     const { application, table, views } =

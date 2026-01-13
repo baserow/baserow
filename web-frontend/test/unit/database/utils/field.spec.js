@@ -8,7 +8,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('test field utils', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

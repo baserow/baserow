@@ -9,7 +9,7 @@ describe('Row utilities', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
   })

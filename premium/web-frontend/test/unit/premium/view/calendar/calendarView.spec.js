@@ -9,7 +9,7 @@ describe('CalendarView component', () => {
   let store = null
   const originalDateNow = Date.now
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp(null)
     testApp.giveCurrentUserGlobalPremiumFeatures()
     store = testApp.store

@@ -341,6 +341,14 @@ const mockedFields = {
     type: 'password',
     testingRowData: [null, true, 'test'],
   },
+  ai: {
+    id: 26,
+    name: 'ai',
+    order: 26,
+    primary: false,
+    table_id: 42,
+    ai_output_type: 'text',
+  },
 }
 
 const valuesToCall = [null, undefined]
@@ -713,7 +721,7 @@ describe('FieldType tests', () => {
   let testApp = null
   let fieldRegistry = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldRegistry = testApp._app.$registry.registry.field
 

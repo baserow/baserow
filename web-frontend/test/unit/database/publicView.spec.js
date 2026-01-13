@@ -3,13 +3,13 @@ import PublicGrid from '@baserow/modules/database/pages/publicView'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-vi.mock('lodash/debounce', () => vi.fn((fn) => fn))
+vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
 
 describe('Public View Page Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })

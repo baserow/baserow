@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Paginator.vue', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

@@ -1,7 +1,3 @@
-/**
- * @jest-environment jsdom
- */
-
 import { parseXML } from '@baserow/modules/database/utils/xml'
 
 describe('test xml utils', () => {

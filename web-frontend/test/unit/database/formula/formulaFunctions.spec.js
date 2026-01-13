@@ -1,7 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Formula Functions Test', () => {
   let testApp = null
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

@@ -36,7 +36,7 @@ async function openViewContextAndClickOnCreateKanbanView(
 describe('Premium View Type Component Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
   })
 

@@ -3,6 +3,7 @@
 # Execute the node command like if we were a level up.
 # needed for some commands like eslint that don't
 # want to go out of current root directory
+
 set -e
 
 # Resolve the directory of this script (portable)

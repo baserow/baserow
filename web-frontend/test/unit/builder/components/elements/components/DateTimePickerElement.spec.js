@@ -5,7 +5,7 @@ describe('DateTimePickerElement', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = useNuxtApp()
     store = testApp.$store
   })

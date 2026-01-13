@@ -13,23 +13,12 @@ describe('RecordSelectorElement', () => {
   let mockServer = null
   let mock = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = useNuxtApp()
     const { $store, $client, $registry } = useNuxtApp()
     store = $store
     mock = new MockAdapter($client, { onNoMatch: 'throwException' })
     mockServer = new MockServer(mock, $store)
-
-    // NOTE: TestApp wraps any exception raised by the axios mock adapter and
-    // re-raises it as a Jest error.
-    // This mutates the error object and make some properties not available.
-    // In this case `collectionElement` mixin needs to access the response
-    // object when the server returns a 400/404 error, so we disable
-    // `failTestOnErrorResponse`.
-    /*testApp = new TestApp()
-    testApp.failTestOnErrorResponse = false
-    store = testApp.store
-    mockServer = testApp.mockServer*/
   })
 
   afterEach(() => {

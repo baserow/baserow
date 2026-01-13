@@ -5,6 +5,7 @@ import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
 import { MockServer } from '@baserow/test/fixtures/mockServer'
+import { DOMWrapper } from '@vue/test-utils'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -19,7 +20,7 @@ describe('User Admin Component Tests', () => {
     mockServer = new MockServer(testApp.mock)
   })
 
-  afterEach(() => testApp.afterEach())
+  afterEach(async () => await testApp.afterEach())
 
   test('A users attributes will be displayed', async () => {
     const userSetup = {
@@ -363,13 +364,14 @@ describe('User Admin Component Tests', () => {
 
     const usernameEnteredButNotSaved = 'invalid'
 
-    const editUserModal = await ui.changeEmail(usernameEnteredButNotSaved, {
+    await ui.changeEmail(usernameEnteredButNotSaved, {
       clickSave: false,
       exit: true,
     })
 
-    const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.username.$model).toBe(initialUsername)
+    const userEditInputs = await ui.getUserEditModalEmailField()
+
+    expect(userEditInputs.element.value).toBe(initialUsername)
   })
   // eslint-disable-next-line vitest/expect-expect
   test('a user can be set as staff', async () => {

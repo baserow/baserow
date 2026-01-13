@@ -10,7 +10,7 @@ describe('KanbanView component', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp(null)
     testApp.giveCurrentUserGlobalPremiumFeatures()
     store = testApp.store

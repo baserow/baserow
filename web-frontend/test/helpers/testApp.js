@@ -18,6 +18,7 @@ import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 import { fail } from 'vitest'
 
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { createStore } from 'vuex'
 
 /**
  * Uses the real baserow plugins to setup a Vuex store and baserow registry
@@ -348,7 +349,8 @@ export class TestApp {
       },
       (error) => {
         if (this.failTestOnErrorResponse) {
-          fail(error)
+          //fail(error)
+          throw error
         }
         return Promise.reject(error)
       }
@@ -407,6 +409,30 @@ export class TestApp {
 
   dontFailOnErrorResponses() {
     this.failTestOnErrorResponse = false
+  }
+
+  failOnErrorResponses() {
+    this.failTestOnErrorResponse = true
+  }
+
+  /**
+   * Helper to create a temporary store for tests. Adds the extra properties.
+   */
+  createStore(...args) {
+    const $store = createStore(...args)
+    const nuxtApp = useNuxtApp()
+    const { $i18n, $config, $client, $registry, $router, runWithContext } =
+      nuxtApp
+
+    $store.app = nuxtApp
+    $store.$i18n = $i18n
+    $store.$config = $config
+    $store.$client = $client
+    $store.$registry = $registry
+    $store.$router = $router
+    $store.runWithContext = runWithContext
+
+    return $store
   }
 
   /**

@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { firstBy } from 'thenby'
 import workspaceStore from '@baserow/modules/core/store/workspace'
+import { LastModifiedByFieldType } from '@baserow/modules/database/fieldTypes'
 
 const tableRows = [
   {
@@ -41,7 +42,6 @@ describe('LastModifiedByFieldType.getSort()', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
 
     const state = Object.assign(workspaceStore.state(), {
       items: [
@@ -56,9 +56,9 @@ describe('LastModifiedByFieldType.getSort()', () => {
       ],
     })
 
-    workspaceStore.state = () => state
-    store.unregisterModule('workspace')
-    store.registerModule('workspace', workspaceStore)
+    store = testApp.createStore({
+      modules: { workspace: { ...workspaceStore, state: () => state } },
+    })
   })
 
   afterEach(() => {
@@ -67,10 +67,10 @@ describe('LastModifiedByFieldType.getSort()', () => {
 
   test('sorting based on the provided user name', () => {
     const lastModifiedByField = {}
-    const lastModifiedByType = testApp._app.$registry.get(
-      'field',
-      'last_modified_by'
-    )
+
+    const context = { app: { ...useNuxtApp(), $store: store } }
+
+    const lastModifiedByType = new LastModifiedByFieldType(context)
 
     expect(lastModifiedByType.getCanSortInView(lastModifiedByField)).toBe(true)
 

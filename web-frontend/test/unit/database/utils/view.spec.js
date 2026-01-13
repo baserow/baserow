@@ -104,7 +104,7 @@ describe('matchSearchFilters', () => {
   let testApp = null
   let registry = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     registry = testApp.getRegistry()
   })

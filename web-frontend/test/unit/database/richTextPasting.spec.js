@@ -141,13 +141,9 @@ describe('Rich test pasting tests', () => {
     'Verify that prepareValueForPaste returns the expected output for multi select' +
       ' type: %j',
     ({ input, output }) => {
-      const app = {}
-      papa(app, (key, value) => {
-        app['$' + key] = value
-      })
-
+      const nuxtApp = useNuxtApp()
       expect(
-        new MultipleSelectFieldType({ app }).prepareValueForPaste(
+        new MultipleSelectFieldType({ app: nuxtApp }).prepareValueForPaste(
           input.field,
           input.clipboardData,
           input.richClipboardData

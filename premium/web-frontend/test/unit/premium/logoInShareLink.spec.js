@@ -21,7 +21,7 @@ describe('Premium Share View Link Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
     mockServer = new MockPremiumServer(testApp.mock)
   })

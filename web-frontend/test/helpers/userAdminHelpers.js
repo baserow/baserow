@@ -5,6 +5,8 @@ import EditUserModal from '@baserow/modules/core/components/admin/users/modals/E
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
 import { expect } from 'vitest'
+import flushPromises from 'flush-promises'
+import { DOMWrapper } from '@vue/test-utils'
 
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {
@@ -159,12 +161,15 @@ export default class UserAdminUserHelpers {
     await this.clickEditUser(editUserContext)
 
     const editUserModal = this.c.findComponent(EditUserModal)
+
     const userEditInputs = editUserModal.findAll('input')
 
     userEditInputs.at(inputIndex).element.value = newValue
     await userEditInputs.at(inputIndex).trigger('input')
 
-    await editUserModal.find('button').trigger('click')
+    if (clickSave) {
+      await editUserModal.find('button').trigger('click')
+    }
 
     if (exit) {
       await editUserModal.find('.modal__close').trigger('click')

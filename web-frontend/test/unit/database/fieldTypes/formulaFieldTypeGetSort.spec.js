@@ -135,7 +135,7 @@ const ArrayOfArraysTable = [
 describe('FormulaFieldType.getSort()', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

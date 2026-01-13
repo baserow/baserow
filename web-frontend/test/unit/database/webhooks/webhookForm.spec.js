@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Webhook form Input Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

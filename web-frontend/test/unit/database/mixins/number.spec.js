@@ -1,7 +1,3 @@
-/**
- * @jest-environment jsdom
- */
-
 import {
   formatNumberValue,
   parseNumberValue,

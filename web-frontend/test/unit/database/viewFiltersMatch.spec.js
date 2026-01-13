@@ -985,7 +985,7 @@ describe('(DEPRECATED) Date in this week, month and year tests', () => {
   let testApp = null
   let dateNowSpy
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     // Wed Jun 01 2022 00:00:00 UTC
     dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => 1654041600000)
@@ -1959,7 +1959,7 @@ const booleanFieldTests = [
 describe('All Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
   afterEach(() => {
@@ -2789,7 +2789,7 @@ const MultipleCollaboratorsEmptyCases = [
 describe('Multiple collaborators view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -2909,7 +2909,7 @@ const emptyFilterValueSingleSelectCases = [
 describe('Empty filter value tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

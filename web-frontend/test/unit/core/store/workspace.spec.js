@@ -1,7 +1,6 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { expect } from 'vitest'
-import { createStore } from 'vuex'
 
 describe('Workspace store', () => {
   let testApp = null
@@ -9,7 +8,11 @@ describe('Workspace store', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        test: workspaceStore,
+      },
+    })
   })
 
   afterEach(() => {
@@ -39,8 +42,7 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('test/forceAddWorkspaceUser', {
       workspaceId: 1,
@@ -85,8 +87,7 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('test/forceUpdateWorkspaceUser', {
       workspaceId: 1,
@@ -144,8 +145,7 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('test/forceUpdateWorkspaceUser', {
       workspaceId: 1,
@@ -240,14 +240,7 @@ describe('Workspace store', () => {
       ],
     })
 
-    const store = createStore({
-      modules: {
-        workspace: {
-          ...workspaceStore,
-          state: () => state,
-        },
-      },
-    })
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('workspace/forceUpdateWorkspaceUserAttributes', {
       userId: 256,
@@ -296,14 +289,7 @@ describe('Workspace store', () => {
       ],
     })
 
-    const store = createStore({
-      modules: {
-        workspace: {
-          ...workspaceStore,
-          state: () => state,
-        },
-      },
-    })
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
@@ -360,8 +346,8 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('test/forceDeleteWorkspaceUser', {
       workspaceId: 1,
@@ -383,82 +369,77 @@ describe('Workspace store', () => {
   })
 
   test('forceDeleteUser deletes all workspace users across all workspaces', async () => {
-    const store = createStore({
-      modules: {
-        workspace: {
-          ...workspaceStore,
-          state: () => ({
-            ...workspaceStore.state(),
-            items: [
-              {
-                id: 1,
-                name: 'Workspace 1',
-                order: 1,
-                permissions: 'ADMIN',
-                users: [
-                  {
-                    id: 73,
-                    user_id: 256,
-                    workspace: 1,
-                    name: 'John',
-                    email: 'john@example.com',
-                    permissions: 'ADMIN',
-                    to_be_deleted: false,
-                    created_on: '2022-08-10T14:20:05.629890Z',
-                  },
-                ],
-              },
-              {
-                id: 2,
-                name: 'Workspace 2',
-                order: 1,
-                permissions: 'ADMIN',
-                users: [
-                  {
-                    id: 2136,
-                    user_id: 456,
-                    workspace: 2,
-                    name: 'Peter',
-                    email: 'peter@example.com',
-                    permissions: 'ADMIN',
-                    to_be_deleted: false,
-                    created_on: '2022-08-10T14:20:05.629890Z',
-                  },
-                  {
-                    id: 173,
-                    user_id: 256,
-                    workspace: 2,
-                    name: 'John',
-                    email: 'john@example.com',
-                    permissions: 'ADMIN',
-                    to_be_deleted: false,
-                    created_on: '2022-08-10T14:20:05.629890Z',
-                  },
-                ],
-              },
-              {
-                id: 3,
-                name: 'Workspace 3',
-                order: 1,
-                permissions: 'ADMIN',
-                users: [
-                  {
-                    id: 2132,
-                    user_id: 456,
-                    workspace: 3,
-                    name: 'Peter',
-                    email: 'peter@example.com',
-                    permissions: 'ADMIN',
-                    to_be_deleted: false,
-                    created_on: '2022-08-10T14:20:05.629890Z',
-                  },
-                ],
-              },
-            ],
-          }),
+    const state = {
+      ...workspaceStore.state(),
+      items: [
+        {
+          id: 1,
+          name: 'Workspace 1',
+          order: 1,
+          permissions: 'ADMIN',
+          users: [
+            {
+              id: 73,
+              user_id: 256,
+              workspace: 1,
+              name: 'John',
+              email: 'john@example.com',
+              permissions: 'ADMIN',
+              to_be_deleted: false,
+              created_on: '2022-08-10T14:20:05.629890Z',
+            },
+          ],
         },
-      },
-    })
+        {
+          id: 2,
+          name: 'Workspace 2',
+          order: 1,
+          permissions: 'ADMIN',
+          users: [
+            {
+              id: 2136,
+              user_id: 456,
+              workspace: 2,
+              name: 'Peter',
+              email: 'peter@example.com',
+              permissions: 'ADMIN',
+              to_be_deleted: false,
+              created_on: '2022-08-10T14:20:05.629890Z',
+            },
+            {
+              id: 173,
+              user_id: 256,
+              workspace: 2,
+              name: 'John',
+              email: 'john@example.com',
+              permissions: 'ADMIN',
+              to_be_deleted: false,
+              created_on: '2022-08-10T14:20:05.629890Z',
+            },
+          ],
+        },
+        {
+          id: 3,
+          name: 'Workspace 3',
+          order: 1,
+          permissions: 'ADMIN',
+          users: [
+            {
+              id: 2132,
+              user_id: 456,
+              workspace: 3,
+              name: 'Peter',
+              email: 'peter@example.com',
+              permissions: 'ADMIN',
+              to_be_deleted: false,
+              created_on: '2022-08-10T14:20:05.629890Z',
+            },
+          ],
+        },
+      ],
+    }
+
+    store.replaceState({ ...state.store, test: state })
 
     await store.dispatch('workspace/forceDeleteUser', {
       userId: 256,
@@ -545,8 +526,8 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+
+    store.replaceState({ ...state.store, test: state })
 
     const allUsers = await store.getters['test/getAllUsers']
     expect(allUsers[256].name).toBe('John')
@@ -623,8 +604,8 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+
+    store.replaceState({ ...state.store, test: state })
 
     const allUsers = await store.getters['test/getAllUsersByEmail']
     expect(allUsers['john@example.com'].name).toBe('John')
@@ -701,8 +682,8 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+
+    store.replaceState({ ...state.store, test: state })
 
     const mark = await store.getters['test/getUserById'](556)
     expect(mark.name).toBe('Mark')
@@ -777,8 +758,8 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+
+    store.replaceState({ ...state.store, test: state })
 
     const mark = await store.getters['test/getUserByEmail']('mark@example.com')
     expect(mark.name).toBe('Mark')
