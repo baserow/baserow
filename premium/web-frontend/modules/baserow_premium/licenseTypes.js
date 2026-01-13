@@ -118,4 +118,3 @@ export class PremiumLicenseType extends LicenseType {
     return ''
   }
 }
-

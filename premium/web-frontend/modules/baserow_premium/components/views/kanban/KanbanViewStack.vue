@@ -42,7 +42,7 @@
               $refs.editContextLink,
               'bottom',
               'right',
-              -2,
+              -2
             )
           "
         >
@@ -113,12 +113,12 @@
             ($hasPermission(
               'database.table.create_row',
               table,
-              database.workspace.id,
+              database.workspace.id
             ) ||
               $hasPermission(
                 'database.table.view.create_row',
                 view,
-                database.workspace.id,
+                database.workspace.id
               ))
           "
           type="primary"
@@ -222,17 +222,17 @@ export default {
         (this.$hasPermission(
           'database.table.create_row',
           this.table,
-          this.database.workspace.id,
+          this.database.workspace.id
         ) ||
           this.$hasPermission(
             'database.table.view.create_row',
             this.view,
-            this.database.workspace.id,
+            this.database.workspace.id
           ) ||
           this.$hasPermission(
             'database.table.field.update',
             this.singleSelectField,
-            this.database.workspace.id,
+            this.database.workspace.id
           ))
       )
     },
@@ -260,7 +260,7 @@ export default {
      */
     stack() {
       return this.$store.getters[this.storePrefix + 'view/kanban/getStack'](
-        this.id,
+        this.id
       )
     },
     coverImageField() {
@@ -320,7 +320,7 @@ export default {
         this.$hasPermission(
           'database.table.move_row',
           this.table,
-          this.database.workspace.id,
+          this.database.workspace.id
         )
       ) {
         const rect = event.target.getBoundingClientRect()
@@ -333,7 +333,7 @@ export default {
         this.copyElement.innerHTML = event.target.outerHTML
         this.copyElement.style = `position: absolute; left: 0; top: 0; width: ${rect.width}px; z-index: 10;`
         this.copyElement.firstChild.classList.add(
-          'kanban-view__stack-card--dragging-copy',
+          'kanban-view__stack-card--dragging-copy'
         )
 
         this.$el.keydownEvent = (event) => {
@@ -344,7 +344,7 @@ export default {
                 {
                   row: this.draggingRow,
                   originalStackId: this.draggingOriginalStackId,
-                },
+                }
               )
             }
             this.cardCancel(event)
@@ -369,7 +369,7 @@ export default {
             this.storePrefix + 'view/kanban/startRowDrag',
             {
               row: this.downCardRow,
-            },
+            }
           )
         }
       }
@@ -387,7 +387,7 @@ export default {
             {
               table: this.table,
               fields: this.fields,
-            },
+            }
           )
         } catch (error) {
           notifyIf(error)
@@ -438,7 +438,7 @@ export default {
           row: this.draggingRow,
           targetRow: row,
           targetBefore: before,
-        },
+        }
       )
       if (moved) {
         this.moved(event)
@@ -465,7 +465,7 @@ export default {
           row: this.draggingRow,
           targetStackId: id,
           targetIndex: 0,
-        },
+        }
       )
       if (moved) {
         this.moved(event)
@@ -484,7 +484,7 @@ export default {
         },
         // Must be kept in sync with the transition-duration of
         // kanban.scss.kanban-view__stack--dragging
-        100,
+        100
       )
     },
     wrapperMouseLeave() {
@@ -499,7 +499,7 @@ export default {
       const min = Math.ceil(containerHeight / cardHeight) + 2
       const rows = this.stack.results.slice(
         Math.floor(scrollTop / cardHeight),
-        Math.ceil((scrollTop + containerHeight) / cardHeight),
+        Math.ceil((scrollTop + containerHeight) / cardHeight)
       )
       this.bufferTop =
         rows.length > 0

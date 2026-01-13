@@ -142,7 +142,9 @@
       @toggle-field-visibility="toggleFieldVisibility"
       @field-updated="$emit('refresh', $event)"
       @field-deleted="$emit('refresh')"
-      @field-created="fieldCreated($event), (showHiddenFieldsInRowModal = true)"
+      @field-created="
+        (fieldCreated($event), (showHiddenFieldsInRowModal = true))
+      "
       @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
       @navigate-previous="$emit('navigate-previous', $event)"
       @navigate-next="$emit('navigate-next', $event)"
@@ -274,15 +276,25 @@ export default {
     },
     existingSelectOption() {
       return this.singleSelectField.select_options.filter((option) => {
-        return this.$store.getters[`${this.storePrefix}view/kanban/stackExists`](option.id)
+        return this.$store.getters[
+          `${this.storePrefix}view/kanban/stackExists`
+        ](option.id)
       })
     },
     singleSelectFieldId() {
-      return this.$store.getters[`${this.storePrefix}view/kanban/getSingleSelectFieldId`]
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getSingleSelectFieldId`
+      ]
     },
-    allRows(){return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]},
-    draggingRow() {return this.$store.getters[`${this.storePrefix}view/kanban/getDraggingRow`]},
-      fieldOptions() {
+    allRows() {
+      return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]
+    },
+    draggingRow() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getDraggingRow`
+      ]
+    },
+    fieldOptions() {
       return this.$store.getters[
         `${this.storePrefix}view/kanban/getAllFieldOptions`
       ]

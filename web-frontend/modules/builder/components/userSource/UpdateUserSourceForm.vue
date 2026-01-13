@@ -108,7 +108,6 @@ import AuthProviderWithModal from '@baserow/modules/builder/components/userSourc
 import { required, maxLength, helpers } from '@vuelidate/validators'
 
 export default {
-
   components: { IntegrationDropdown, AuthProviderWithModal },
   mixins: [form],
   props: {

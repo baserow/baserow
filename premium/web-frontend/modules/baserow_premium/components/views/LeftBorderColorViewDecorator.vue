@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="left-border-decorator"
-    :class="borderClass"
-  ></div>
+  <div class="left-border-decorator" :class="borderClass"></div>
 </template>
 
 <script>

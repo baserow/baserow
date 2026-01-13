@@ -106,7 +106,7 @@ export default {
       return this.$hasPermission(
         'application.read_role',
         this.database,
-        this.workspace.id,
+        this.workspace.id
       )
     },
     canManageTable() {
@@ -115,7 +115,7 @@ export default {
         this.$hasPermission(
           'database.table.read_role',
           this.table,
-          this.workspace.id,
+          this.workspace.id
         )
       )
     },
@@ -125,7 +125,7 @@ export default {
         this.$hasPermission(
           'database.table.view.read_role',
           this.view,
-          this.workspace.id,
+          this.workspace.id
         )
       )
     },
@@ -152,25 +152,25 @@ export default {
             await RoleAssignmentsService(this.$client).getRoleAssignments(
               this.workspace.id,
               this.database.id,
-              'application',
+              'application'
             )
           this.databaseRoleAssignments = databaseRoleAssignments
         }
 
         if (this.canManageTable) {
           const { data: tableRoleAssignments } = await RoleAssignmentsService(
-            this.$client,
+            this.$client
           ).getRoleAssignments(
             this.workspace.id,
             this.table.id,
-            'database_table',
+            'database_table'
           )
           this.tableRoleAssignments = tableRoleAssignments
         }
 
         if (this.canManageView) {
           const { data: viewRoleAssignments } = await RoleAssignmentsService(
-            this.$client,
+            this.$client
           ).getRoleAssignments(this.workspace.id, this.view.id, 'database_view')
           this.viewRoleAssignments = viewRoleAssignments
         }
@@ -180,21 +180,21 @@ export default {
         this.viewRoleAssignments = []
         this.showError(
           this.$t('memberRolesModal.error.title'),
-          this.$t('memberRolesModal.error.description'),
+          this.$t('memberRolesModal.error.description')
         )
       }
     },
     async fetchTeams() {
       try {
         const { data: teams } = await TeamService(this.$client).fetchAll(
-          this.workspace.id,
+          this.workspace.id
         )
         this.teams = teams
       } catch (error) {
         this.teams = []
         this.showError(
           this.$t('memberRolesModal.error.title'),
-          this.$t('memberRolesModal.error.description'),
+          this.$t('memberRolesModal.error.description')
         )
       }
     },
@@ -204,7 +204,7 @@ export default {
         'auth.User',
         role,
         'application',
-        this.database.id,
+        this.database.id
       )
       this.databaseRoleAssignments =
         this.databaseRoleAssignments.concat(roleAssignments)
@@ -215,7 +215,7 @@ export default {
         'baserow_enterprise.Team',
         role,
         'application',
-        this.database.id,
+        this.database.id
       )
       this.databaseRoleAssignments =
         this.databaseRoleAssignments.concat(roleAssignments)
@@ -226,7 +226,7 @@ export default {
         'auth.User',
         role,
         'database_table',
-        this.table.id,
+        this.table.id
       )
       this.tableRoleAssignments =
         this.tableRoleAssignments.concat(roleAssignments)
@@ -237,7 +237,7 @@ export default {
         'baserow_enterprise.Team',
         role,
         'database_table',
-        this.table.id,
+        this.table.id
       )
       this.tableRoleAssignments =
         this.tableRoleAssignments.concat(roleAssignments)
@@ -248,7 +248,7 @@ export default {
         'auth.User',
         role,
         'database_view',
-        this.view.id,
+        this.view.id
       )
       this.viewRoleAssignments =
         this.viewRoleAssignments.concat(roleAssignments)
@@ -259,7 +259,7 @@ export default {
         'baserow_enterprise.Team',
         role,
         'database_view',
-        this.view.id,
+        this.view.id
       )
       this.viewRoleAssignments =
         this.viewRoleAssignments.concat(roleAssignments)
@@ -283,7 +283,7 @@ export default {
 
       try {
         const { data: roleAssignments } = await RoleAssignmentsService(
-          this.$client,
+          this.$client
         ).assignRoleBatch(this.workspace.id, items)
 
         this.loading = false
@@ -296,7 +296,7 @@ export default {
     },
     async updateRole(roleAssignments, roleAssignment, newRole) {
       const roleAssignmentIndex = roleAssignments.findIndex(
-        ({ id }) => roleAssignment.id === id,
+        ({ id }) => roleAssignment.id === id
       )
 
       let previousRoleAssignment = null
@@ -319,7 +319,7 @@ export default {
           this.workspace.id,
           roleAssignment.scope_id,
           roleAssignment.scope_type,
-          newRole,
+          newRole
         )
       } catch (error) {
         // Restore previous role
@@ -328,7 +328,7 @@ export default {
             roleAssignments.splice(
               roleAssignmentIndex,
               0,
-              previousRoleAssignment,
+              previousRoleAssignment
             )
           } else {
             roleAssignments[roleAssignmentIndex].role =

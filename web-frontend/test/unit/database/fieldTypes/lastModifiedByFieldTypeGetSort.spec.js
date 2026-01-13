@@ -1,4 +1,3 @@
- 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { firstBy } from 'thenby'
 import workspaceStore from '@baserow/modules/core/store/workspace'

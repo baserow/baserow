@@ -2,13 +2,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@baserow_enterprise/*": [
-        "./modules/baserow_enterprise/*"
-      ]
+      "@baserow_enterprise/*": ["./modules/baserow_enterprise/*"]
     }
   },
-  "exclude": [
-    "node_modules",
-    ".nuxt"
-  ]
+  "exclude": ["node_modules", ".nuxt"]
 }

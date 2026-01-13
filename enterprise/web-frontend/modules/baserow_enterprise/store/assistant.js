@@ -158,9 +158,8 @@ export const actions = {
     commit('SET_CHATS_LOADING', true)
 
     try {
-      const { results: chats } = await assistant($client).fetchChats(
-        workspaceId
-      )
+      const { results: chats } =
+        await assistant($client).fetchChats(workspaceId)
       commit('SET_CHATS', chats)
     } finally {
       commit('SET_CHATS_LOADING', false)

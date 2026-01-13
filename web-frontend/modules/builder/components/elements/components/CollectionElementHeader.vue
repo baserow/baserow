@@ -20,7 +20,6 @@
 
 <script>
 export default {
-
   inject: ['builder', 'currentPage'],
   props: {
     element: {

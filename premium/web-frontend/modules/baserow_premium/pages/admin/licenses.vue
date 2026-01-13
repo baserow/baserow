@@ -208,7 +208,7 @@ const orderedLicenses = computed(() => {
     .slice()
     .sort(
       (a, b) =>
-        new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime(),
+        new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime()
     )
     .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
     .sort((a, b) => a.application_users - b.application_users)

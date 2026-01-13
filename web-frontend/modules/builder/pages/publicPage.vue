@@ -21,7 +21,8 @@ import {
   useHead,
   useNuxtApp,
   navigateTo,
-  useRequestHeaders, createError 
+  useRequestHeaders,
+  createError,
 } from '#app'
 import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'

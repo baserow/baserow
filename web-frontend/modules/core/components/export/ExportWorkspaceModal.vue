@@ -165,7 +165,6 @@ export default {
       }
     },
 
-     
     async onJobFailed() {
       this.createLoading = false
       this.showError(

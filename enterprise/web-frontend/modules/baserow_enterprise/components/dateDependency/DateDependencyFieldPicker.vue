@@ -14,8 +14,8 @@
       :error="hasError"
       size="regular"
       @update:model-value="
-        isAddNew($event) ? $emit('add-new', $event) : null,
-          $emit('update:modelValue', $event)
+        (isAddNew($event) ? $emit('add-new', $event) : null,
+        $emit('update:modelValue', $event))
       "
     >
       <DropdownItem

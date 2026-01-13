@@ -121,13 +121,7 @@ export class ConditionalColorValueProviderType extends DecoratorValueProviderTyp
       if (
         row.id !== -1 &&
         row.id !== undefined &&
-        matchSearchFilters(
-          operator,
-          filters,
-          filterGroups,
-          fields,
-          row
-        )
+        matchSearchFilters(operator, filters, filterGroups, fields, row)
       ) {
         return color
       }

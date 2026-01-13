@@ -81,7 +81,7 @@ export default {
     value(newValue) {
       const outputType = this.$registry.get(
         'aiFieldOutputType',
-        this.field.ai_output_type,
+        this.field.ai_output_type
       )
       this.$nextTick(() => {
         if (this.$refs.cell) {

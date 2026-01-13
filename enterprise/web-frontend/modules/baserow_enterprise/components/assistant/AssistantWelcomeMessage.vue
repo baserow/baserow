@@ -11,7 +11,7 @@
         :poster="image"
         controlslist="nodownload nofullscreen noplaybackrate noremoteplayback"
         disablepictureinpicture
-        oncontextmenu="return false;"
+        oncontextmenu="return false"
         aria-hidden="true"
         role="presentation"
         class="assistant__welcome-video"

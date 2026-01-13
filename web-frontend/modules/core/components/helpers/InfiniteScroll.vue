@@ -39,7 +39,6 @@
  * available items.
  */
 export default {
-
   props: {
     currentCount: {
       type: Number,

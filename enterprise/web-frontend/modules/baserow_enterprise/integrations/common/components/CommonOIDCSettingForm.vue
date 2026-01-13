@@ -75,7 +75,7 @@ export default {
     callbacks() {
       const userSourceType = this.$registry.get(
         'userSource',
-        this.userSource.type,
+        this.userSource.type
       )
 
       const userSourceUid = userSourceType.genUid(this.userSource)
@@ -83,7 +83,7 @@ export default {
       const url = `${this.app.$config.public.publicBackendUrl}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
       const previewUrl = `${this.app.$config.public.publicBackendUrl.substr(
         0,
-        10,
+        10
       )}.../user-source/${userSourceUid}/sso/...`
 
       const preview = [
@@ -99,7 +99,7 @@ export default {
         url: `${this.$config.public.publicBackendUrl}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
         previewUrl: `${this.$config.public.publicBackendUrl.substr(
           0,
-          10,
+          10
         )}.../user-source/domain_${domain.id}__${userSourceUid}/sso/...`,
       }))
 

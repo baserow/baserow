@@ -169,7 +169,7 @@ export default {
             isWeekend: this.isWeekend(date),
             isToday: dateString === this.today,
           }
-        },
+        }
       )
     },
     nextMonthDays() {
@@ -213,7 +213,7 @@ export default {
           this.storePrefix + 'view/calendar/fetchInitial',
           {
             fields: this.fields,
-          },
+          }
         )
       } catch (error) {
         notifyIf(error)
@@ -228,7 +228,7 @@ export default {
         this.storePrefix + 'view/calendar/selectDateAndStartLoading',
         {
           selectedDate: newSelectedDate,
-        },
+        }
       )
       if (this.selectDateDebounced) {
         this.selectDateDebounced.cancel()
@@ -244,7 +244,7 @@ export default {
           {
             dateTime: newSelectedDate,
             fields: this.fields,
-          },
+          }
         )
       } catch (error) {
         notifyIf(error)

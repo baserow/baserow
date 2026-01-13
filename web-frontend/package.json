@@ -13,10 +13,14 @@
     "postinstall": "nuxt prepare",
     "lint": "yarn eslint",
     "eslint": "yarn eslint:core && yarn eslint:premium && yarn eslint:enterprise",
+    "eslint:fix": "yarn eslint:core --fix && yarn eslint:premium  --fix && yarn eslint:enterprise --fix",
     "eslint:core": "eslint --cache --cache-location=.cache/eslint .",
-    "eslint:premium": "./rootNode.sh eslint --config premium/web-frontend/eslint.config.mjs premium/web-frontend",
-    "eslint:enterprise": "./rootNode.sh eslint --config enterprise/web-frontend/eslint.config.mjs enterprise/web-frontend",
-    "format": "prettier . --write"
+    "eslint:premium": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config premium/web-frontend/eslint.config.mjs premium/web-frontend",
+    "eslint:enterprise": "./rootNode.sh eslint --cache --cache-location=web-frontend/.cache/eslint --config enterprise/web-frontend/eslint.config.mjs enterprise/web-frontend",
+    "format": "yarn format:core && yarn format:premium && yarn format:enterprise",
+    "format:core": "prettier . --write",
+    "format:premium": "prettier ../premium/web-frontend --write",
+    "format:enterprise": "prettier ../enterprise/web-frontend --write"
   },
   "resolutions": {
     "sass": "~1.70.0",

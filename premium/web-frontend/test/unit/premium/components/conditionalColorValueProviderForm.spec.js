@@ -66,7 +66,7 @@ describe('ConditionalColorValueProviderForm', () => {
 
     // Initially no filters are present
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(0)
 
     // Find the "Add condition" button and click it to add a new condition
@@ -97,7 +97,7 @@ describe('ConditionalColorValueProviderForm', () => {
 
     // The condition should be visible now
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
   })
 
@@ -129,7 +129,7 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     wrapper.find('.filters__remove').trigger('click')
@@ -141,7 +141,7 @@ describe('ConditionalColorValueProviderForm', () => {
 
     await wrapper.setProps({ options: { colors: expectedColors } })
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(0)
   })
 
@@ -179,7 +179,7 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(2)
 
     wrapper
@@ -217,11 +217,11 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(0)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(0)
 
     wrapper
@@ -257,11 +257,11 @@ describe('ConditionalColorValueProviderForm', () => {
     await wrapper.setProps({ options: { colors: expectedColors } })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(1)
   })
 
@@ -299,11 +299,11 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(1)
 
     wrapper
@@ -325,11 +325,11 @@ describe('ConditionalColorValueProviderForm', () => {
     await wrapper.setProps({ options: { colors: expectedColors } })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(0)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(0)
   })
 
@@ -381,18 +381,18 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(3)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(2)
 
     expect(
       wrapper
         .findAllComponents({ name: 'ViewFilterFormOperator' })
         .at(2)
-        .props().filterType,
+        .props().filterType
     ).toBe('AND')
 
     // First one is for the `WHERE` clause in root filter group, the second one is the
@@ -425,7 +425,7 @@ describe('ConditionalColorValueProviderForm', () => {
       wrapper
         .findAllComponents({ name: 'ViewFilterFormOperator' })
         .at(2)
-        .props().filterType,
+        .props().filterType
     ).toBe('OR')
   })
 
@@ -465,11 +465,11 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(1)
 
     wrapper
@@ -506,11 +506,11 @@ describe('ConditionalColorValueProviderForm', () => {
     await wrapper.setProps({ options: { colors: expectedColors } })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(2)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(2)
   })
 
@@ -565,11 +565,11 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(2)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(2)
 
     wrapper
@@ -591,11 +591,11 @@ describe('ConditionalColorValueProviderForm', () => {
 
     await wrapper.setProps({ options: { colors: expectedColors } })
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(1)
   })
 
@@ -640,11 +640,11 @@ describe('ConditionalColorValueProviderForm', () => {
     })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(1)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(2)
 
     wrapper
@@ -669,11 +669,11 @@ describe('ConditionalColorValueProviderForm', () => {
     await wrapper.setProps({ options: { colors: expectedColors } })
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionItem' }).length
     ).toBe(0)
 
     expect(
-      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length,
+      wrapper.findAllComponents({ name: 'ViewFieldConditionGroup' }).length
     ).toBe(0)
   })
 })

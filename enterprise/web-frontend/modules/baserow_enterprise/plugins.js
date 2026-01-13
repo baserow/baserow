@@ -161,8 +161,8 @@ export class EnterprisePlugin extends BaserowPlugin {
         s.crossorigin === 'credentials'
           ? 'use-credentials'
           : s.crossorigin === 'anonymous'
-          ? 'anonymous'
-          : null
+            ? 'anonymous'
+            : null
 
       if (s.type === 'javascript') {
         script.push({
