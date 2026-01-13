@@ -79,7 +79,7 @@ export default defineNuxtConfig({
       cookieKey: 'i18n-language',
     },
     langDir: './locales',
-    restructureDir: '../i18n',
+    restructureDir: './i18n',
     locales,
     trailingSlash: true,
     vueI18n: './i18n.config.ts',
