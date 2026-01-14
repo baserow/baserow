@@ -89,6 +89,7 @@
           :mode="localMode"
           :nodes-hierarchy="nodesHierarchy"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
+          :validation-context="{ dataProviderRegistry: dataProviders }"
           @input="updatedFormulaStr"
           @update:mode="updateMode"
         />

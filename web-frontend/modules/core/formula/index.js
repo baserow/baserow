@@ -1,5 +1,6 @@
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import JavascriptExecutor from '@baserow/modules/core/formula/parser/javascriptExecutor'
+import BaserowFormulaArgumentVisitor from '@baserow/modules/core/formula/parser/functionArgumentVisitor'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
 /**
@@ -46,6 +47,33 @@ export const isFormulaValid = (formula, functions) => {
     return true
   } catch (err) {
     return false
+  }
+}
+
+/**
+ * Validates formula function arguments with optional context for validation.
+ * Each function can define its own validation logic via validateArgs().
+ *
+ * @param {string} formula - The formula string to validate
+ * @param {FunctionCollection} functions - The collection of available formula functions
+ * @param {Object} validationContext - Context needed for validation (e.g., { dataProviderRegistry })
+ * @returns {Object} - Object with { valid: boolean, errors: Array<Error> }
+ */
+export const validateFormulaArguments = (
+  formula,
+  functions,
+  validationContext = {}
+) => {
+  if (!formula) {
+    return { valid: true, errors: [] }
+  }
+
+  try {
+    const tree = parseBaserowFormula(formula)
+    new BaserowFormulaArgumentVisitor(functions, validationContext).visit(tree)
+    return { valid: true, errors: [] }
+  } catch (err) {
+    return { valid: false, errors: [err] }
   }
 }
 

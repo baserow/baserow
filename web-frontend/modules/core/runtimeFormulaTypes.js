@@ -10,6 +10,7 @@ import {
   ArrayBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
+  InvalidFormulaArgument,
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
@@ -71,21 +72,25 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   /**
-   * This function can be called to validate all arguments given to the formula
+   * This function can be called to perform basic argument validation on the formula
+   * functions. The first check is to ensure that the correct number of arguments
+   * have been provided, and then it will also validate that the type of each
+   * argument is correct.
    *
-   * @param args - The arguments provided to the formula
+   * Individual formula functions should override this method if they need to
+   * perform custom argument validation beyond number and type checks.
+   *
+   * @param {Array} argExpressions - ANTLR parse tree nodes for arguments
+   * @param {Object} validationContext - Contains { dataProviderRegistry }
+   * @param {Object} ctx - ANTLR context object
    * @throws InvalidNumberOfArguments - If the number of arguments is incorrect
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
-  validateArgs(args, validateType = true) {
-    if (!this.validateNumberOfArgs(args)) {
-      throw new InvalidNumberOfArguments(this, args)
-    }
-    if (validateType) {
-      const invalidArg = this.validateTypeOfArgs(args)
-      if (invalidArg) {
-        throw new InvalidFormulaArgumentType(this, invalidArg)
-      }
+  validateArgs(argExpressions, validationContext, ctx) {
+    this.validateNumberOfArgs(argExpressions, true)
+    const invalidArg = this.validateTypeOfArgs(argExpressions)
+    if (invalidArg) {
+      throw new InvalidFormulaArgumentType(this, invalidArg)
     }
   }
 
@@ -93,15 +98,26 @@ export class RuntimeFormulaFunction extends Registerable {
    * This function validates that the number of args is correct.
    *
    * @param args - The args passed to the execute function
-   * @returns {boolean} - If the number is correct.
+   * @param throwOnError - Whether to throw an error if the number of args is incorrect
+   * @throws {InvalidNumberOfArguments} - If the number of args is incorrect
    */
-  validateNumberOfArgs(args) {
+  validateNumberOfArgs(args, throwOnError = false) {
     if (this.numArgs === null) return true
-
     const requiredArgs = this.args.filter((arg) => !arg.optional).length
     const totalArgs = this.args.length
-
-    return args.length >= requiredArgs && args.length <= totalArgs
+    const validArgLength =
+      args.length >= requiredArgs && args.length <= totalArgs
+    if (!validArgLength && throwOnError) {
+      const argRequirements =
+        requiredArgs === totalArgs
+          ? `exactly ${totalArgs}`
+          : `between ${requiredArgs} and ${totalArgs}`
+      throw new InvalidNumberOfArguments(
+        args,
+        `The '${this.getType()}' function expects ${argRequirements} arguments.`
+      )
+    }
+    return validArgLength
   }
 
   /**
@@ -217,8 +233,15 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     return args.map((arg) => ensureString(arg)).join('')
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
+  validateNumberOfArgs(args, throwOnError = false) {
+    const validArgLength = args.length > 1
+    if (!validArgLength && throwOnError) {
+      throw new InvalidNumberOfArguments(
+        args,
+        `The 'concat' function expects at least 2 arguments.`
+      )
+    }
+    return validArgLength
   }
 
   toNode(args, mode = 'simple') {
@@ -346,6 +369,53 @@ export class RuntimeGet extends RuntimeFormulaFunction {
         result: "'Hello world'",
       },
     ]
+  }
+
+  /**
+   * Validates the arguments for the get() function.
+   *
+   * @param {Array} argExpressions - ANTLR parse tree nodes for arguments
+   * @param {Object} validationContext - Contains { dataProviderRegistry }
+   * @param {Object} ctx - ANTLR context object
+   * @throws {InvalidFormulaArgument} - If the argument is invalid.
+   */
+  validateArgs(argExpressions, validationContext, ctx) {
+    // Perform our argument count and type validation first.
+    super.validateArgs(argExpressions, validationContext, ctx)
+
+    const { i18n } = this.app
+    const { dataProviderRegistry } = validationContext
+
+    const argument = argExpressions[0]
+    const path = argument.getText().slice(1, -1)
+    const [providerName, ...rest] = _.toPath(path)
+
+    // Ensure that a provider has been given to us.
+    if (!providerName) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        i18n.t('runtimeGetErrors.missingProvider', { path })
+      )
+    }
+
+    // Check if provider exists in registry
+    const provider = dataProviderRegistry.find(
+      (p) => p.getType() === providerName
+    )
+    if (!provider) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        i18n.t('runtimeGetErrors.unknownProvider', { providerName })
+      )
+    }
+
+    // Ask the provider to validate this path.
+    if (!provider.isValid(rest)) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        i18n.t('runtimeGetErrors.invalidProviderPath', { providerName, path })
+      )
+    }
   }
 }
 

@@ -16,10 +16,10 @@ export class UnknownOperatorError extends Error {
 }
 
 export class InvalidNumberOfArguments extends Error {
-  constructor(formulaFunctionType, args) {
+  constructor(args, message) {
     super()
-    this.formulaFunctionType = formulaFunctionType
     this.args = args
+    this.message = message
   }
 }
 
@@ -28,5 +28,13 @@ export class InvalidFormulaArgumentType extends Error {
     super()
     this.formulaFunctionType = formulaFunctionType
     this.arg = arg
+  }
+}
+
+export class InvalidFormulaArgument extends Error {
+  constructor(arg, message) {
+    super()
+    this.arg = arg
+    this.message = message
   }
 }

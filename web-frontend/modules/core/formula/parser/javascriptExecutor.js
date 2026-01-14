@@ -12,11 +12,10 @@ export class FunctionCollection {
 }
 
 export default class JavascriptExecutor extends BaserowFormulaVisitor {
-  constructor(functions, context = {}, validateArgsType = true) {
+  constructor(functions, formulaContext = {}) {
     super()
     this.functions = functions
-    this.context = context
-    this.validateArgsType = validateArgsType
+    this.formulaContext = formulaContext
   }
 
   visitRoot(ctx) {
@@ -42,20 +41,17 @@ export default class JavascriptExecutor extends BaserowFormulaVisitor {
   processString(ctx) {
     const literalWithoutOuterQuotes = ctx.getText().slice(1, -1)
     let literal
-
     if (ctx.SINGLEQ_STRING_LITERAL() !== null) {
       literal = literalWithoutOuterQuotes.replace(/\\'/g, "'")
     } else {
       literal = literalWithoutOuterQuotes.replace(/\\"/g, '"')
     }
-
     return literal
   }
 
   visitFunctionCall(ctx) {
     const functionName = this.visitFuncName(ctx.func_name()).toLowerCase()
     const functionArgumentExpressions = ctx.expr()
-
     return this.doFunc(functionArgumentExpressions, functionName)
   }
 
@@ -63,18 +59,9 @@ export default class JavascriptExecutor extends BaserowFormulaVisitor {
     const args = Array.from(functionArgumentExpressions, (expr) =>
       expr.accept(this)
     )
-
     const formulaFunctionType = this.functions.get(functionName)
-
-    formulaFunctionType.validateArgs(args, this.validateArgsType)
-
-    if (!this.validateArgsType) {
-      return null
-    }
-
     const argsParsed = formulaFunctionType.parseArgs(args)
-
-    return formulaFunctionType.execute(this.context, argsParsed)
+    return formulaFunctionType.execute(this.formulaContext, argsParsed)
   }
 
   visitBinaryOp(ctx) {

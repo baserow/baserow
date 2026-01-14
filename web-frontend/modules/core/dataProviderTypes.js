@@ -327,4 +327,15 @@ export class DataProviderType extends Registerable {
   getOrder() {
     return 0
   }
+
+  /**
+   * Validate that the given path is valid for this data provider. By default,
+   * all paths are valid, but specific data providers can override this method
+   * to add custom validation.
+   * @param pathParts - the path to validate
+   * @return {boolean} - true if the path is valid, false otherwise
+   */
+  isValid(pathParts) {
+    return true
+  }
 }

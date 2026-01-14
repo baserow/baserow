@@ -702,6 +702,11 @@
     "categoryDate": "Date",
     "categoryCondition": "Condition"
   },
+  "runtimeGetErrors": {
+    "missingProvider": "The 'get' argument '{path}' is missing its formula provider prefix.",
+    "unknownProvider": "The '{providerName}' formula provider does not exist.",
+    "invalidProviderPath": "The '{providerName}' formula provider found '{path}' to be invalid."
+  },
   "nodeExplorer": {
     "noResults": "No results found",
     "resetSearch": "Reset search"

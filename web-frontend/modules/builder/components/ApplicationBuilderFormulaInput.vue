@@ -7,6 +7,7 @@
     :loading="dataExplorerLoading"
     :nodes-hierarchy="nodesHierarchy"
     :context-position="isInSidePanel ? 'left' : 'bottom'"
+    :validation-context="{ dataProviderRegistry: dataProviders }"
     @input="updatedFormulaStr"
     @update:mode="updateMode"
   />

@@ -12,6 +12,10 @@
         @data-node-clicked="dataNodeClicked"
       />
     </div>
+    <Alert v-if="formulaErrorContext.scope === 'argument'" type="error">
+      <template #title>{{ formulaErrorContext.title }}</template>
+      <p>{{ formulaErrorContext.message }}</p>
+    </Alert>
 
     <FormulaInputContext
       v-if="isFocused && !readOnly"
@@ -72,7 +76,10 @@ import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollect
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
-import { isFormulaValid } from '@baserow/modules/core/formula'
+import {
+  isFormulaValid,
+  validateFormulaArguments,
+} from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
@@ -154,6 +161,11 @@ export default {
       required: false,
       default: () => BASEROW_FORMULA_MODES,
     },
+    validationContext: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
   },
   emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
@@ -161,6 +173,7 @@ export default {
       editor: null,
       content: null,
       isFormulaInvalid: false,
+      formulaErrorContext: { scope: null, title: '', message: '' },
       isFocused: false,
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
@@ -454,12 +467,37 @@ export default {
       this.createEditor(currentFormula)
     },
     emitChange() {
+      this.formulaErrorContext = { scope: null, title: '', message: '' }
+
       const functions = new RuntimeFunctionCollection(this.$registry)
       // this.wrapperContent can be stale content, so get the data
       // directly from the editor.
       const editorContent = this.editor.getJSON()
       const formula = this.toFormula(editorContent)
-      this.isFormulaInvalid = !isFormulaValid(formula, functions)
+      // Basic syntax validation
+      const syntaxValid = isFormulaValid(formula, functions)
+
+      // Argument validation (if validationContext is provided)
+      let argumentsValid = true
+      if (syntaxValid && Object.keys(this.validationContext).length > 0) {
+        const validation = validateFormulaArguments(
+          formula,
+          functions,
+          this.validationContext
+        )
+        argumentsValid = validation.valid
+
+        if (!argumentsValid && validation.errors.length > 0) {
+          this.formulaErrorContext = {
+            scope: 'argument',
+            title: this.$t("formulaInputField.invalidFunctionArgumentsTitle"),
+            message: validation.errors[0].message,
+          }
+        }
+      }
+
+      // Formula is invalid if either syntax or arguments fail validation
+      this.isFormulaInvalid = !syntaxValid || !argumentsValid
 
       if (!this.isFormulaInvalid) {
         this.$emit('input', formula)
@@ -564,6 +602,7 @@ export default {
         this.$emit('update:mode', newMode)
         this.$emit('input', '')
         this.isFormulaInvalid = false
+        this.formulaErrorContext = { scope: null, title: '', message: '' }
         this.isHandlingModeChange = false
       } else {
         // Otherwise (simple to advanced), keep the current formula
