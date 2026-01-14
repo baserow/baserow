@@ -30,6 +30,7 @@
   box-sizing: content-box;
   background-color: var(--input-background-color, $white);
   color: var(--input-text-color, $black);
+
   // Remove vuejs3-datepicker default shadow and margin
   box-shadow: none;
   margin-top: 0;
@@ -73,7 +74,9 @@
   }
 
   .prev {
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-left;
 
     &::before {
@@ -82,7 +85,9 @@
   }
 
   .next {
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-right;
   }
 
@@ -132,6 +137,7 @@
   .cell.day-header {
     font-size: 12px;
     font-weight: 500;
+
     // Override vuejs3-datepicker transformation that causes the weekdays
     // to be capitalized.
     text-transform: none;
