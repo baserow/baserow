@@ -33,7 +33,7 @@
       <template v-if="node.type !== 'array'">
         <NodeExplorerContent
           v-for="child in node.nodes"
-          :key="child.name"
+          :key="child.identifier"
           :node="child"
           :depth="depth + 1"
           :open-nodes="openNodes"

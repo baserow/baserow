@@ -28,7 +28,7 @@
       <div v-else class="node-explorer__content">
         <NodeExplorerContent
           v-for="node in hierarchyNode.nodes"
-          :key="node.name"
+          :key="node.identifier || node.name"
           :node="node"
           :open-nodes="openNodes"
           :path="node.identifier || node.name"
