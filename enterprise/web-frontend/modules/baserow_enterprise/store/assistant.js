@@ -445,6 +445,18 @@ export const getters = {
         uiContext.workflow = { id: workflow.id, name: workflow.name }
       }
     } catch {}
+
+    try {
+      const page =
+        application?.type === 'builder' && scope.page
+          ? rootGetters['page/getById'](application, scope.page)
+          : null
+      if (page) {
+        uiContext.page = { id: page.id, name: page.name }
+      }
+    } catch {}
+
+
     return uiContext
   },
 

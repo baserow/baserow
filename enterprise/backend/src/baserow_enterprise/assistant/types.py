@@ -236,11 +236,22 @@ class WorkflowNavigationType(BaseModel):
         return _("workflow %(workflow_name)s") % {"workflow_name": self.workflow_name}
 
 
+class BuilderPageNavigationType(BaseModel):
+    type: Literal["builder-page"]
+    application_id: int
+    page_id: int
+    page_name: str
+
+    def to_localized_string(self):
+        return _("page %(page_name)s") % {"page_name": self.page_name}
+
+
 AnyNavigationType = Annotated[
     TableNavigationType
     | WorkspaceNavigationType
     | ViewNavigationType
-    | WorkflowNavigationType,
+    | WorkflowNavigationType
+    | BuilderPageNavigationType,
     Field(discriminator="type"),
 ]
 

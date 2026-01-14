@@ -323,6 +323,8 @@ class BaserowEnterpriseConfig(AppConfig):
             ListViewsToolType,
             ListWorkflowsToolType,
             NavigationToolType,
+            PageContentToolFactoryToolType,
+            PageToolFactoryToolType,
             RowsToolFactoryToolType,
             SearchDocsToolType,
             TableAndFieldsToolFactoryToolType,
@@ -349,6 +351,9 @@ class BaserowEnterpriseConfig(AppConfig):
 
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
+
+        assistant_tool_registry.register(PageToolFactoryToolType())
+        assistant_tool_registry.register(PageContentToolFactoryToolType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,

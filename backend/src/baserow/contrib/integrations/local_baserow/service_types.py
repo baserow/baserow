@@ -1169,6 +1169,97 @@ class LocalBaserowListRowsUserServiceType(
                 "The selected table is trashed"
             ) from e
 
+    def get_default_collection_fields(self, service: Service) -> List[Dict[str, Any]]:
+        """
+        Returns the default collection fields configuration for this service.
+        This is used to auto-populate table element fields when a data source
+        is selected.
+
+        :param service: The service instance.
+        :return: A list of field configuration dictionaries.
+        """
+
+        schema = self.generate_schema(service)
+        if not schema or "items" not in schema:
+            return []
+
+        properties = schema.get("items", {}).get("properties", {})
+        fields = []
+
+        # Mapping of original_type to output_type
+        output_type_mapping = {
+            "boolean": "boolean",
+            "rating": "rating",
+        }
+
+        # Mapping of original_type to formula path suffix
+        formula_path_mapping = {
+            "last_modified_by": ".name",
+            "created_by": ".name",
+            "single_select": ".value",
+            "multiple_collaborators": ".*.name",
+        }
+
+        for field_name, field_props in properties.items():
+            # Skip 'id' and formula fields (every formula has different properties)
+            original_type = field_props.get("original_type")
+            if field_name == "id" or original_type == "formula":
+                continue
+
+            title = field_props.get("title", field_name)
+            base_formula = f"get('current_record.{field_name}"
+
+            # Handle special field types that return different structures
+            if original_type == "url":
+                value_formula = base_formula + "')"
+                fields.append(
+                    {
+                        "link_name": {
+                            "config": {
+                                "value": BaserowFormulaObject.create(value_formula)
+                            }
+                        },
+                        "name": title,
+                        "navigate_to_page_id": None,
+                        "navigate_to_url": BaserowFormulaObject.create(value_formula),
+                        "navigation_type": "custom",
+                        "page_parameters": [],
+                        "target": "blank",
+                        "type": "link",
+                    }
+                )
+            elif original_type == "file":
+                fields.append(
+                    {
+                        "name": title,
+                        "type": "image",
+                        "src": BaserowFormulaObject.create(base_formula + ".*.url')"),
+                        "alt": BaserowFormulaObject.create(
+                            base_formula + ".*.visible_name')"
+                        ),
+                    }
+                )
+            else:
+                # Determine output type and formula path
+                output_type = output_type_mapping.get(original_type, "text")
+                path_suffix = formula_path_mapping.get(original_type, "")
+
+                # For array types not in the mapping, use .*.value
+                if not path_suffix and field_props.get("type") == "array":
+                    path_suffix = ".*.value"
+
+                value_formula = base_formula + path_suffix + "')"
+
+                fields.append(
+                    {
+                        "name": title,
+                        "type": output_type,
+                        "config": {"value": BaserowFormulaObject.create(value_formula)},
+                    }
+                )
+
+        return fields
+
 
 class LocalBaserowAggregateRowsUserServiceType(
     LocalBaserowTableServiceSearchableMixin,

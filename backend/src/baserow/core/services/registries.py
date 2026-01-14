@@ -563,6 +563,18 @@ class ListServiceTypeMixin:
         unless instructed otherwise by a user.
         """
 
+    def get_default_collection_fields(self, service: Service) -> List[Dict[str, Any]]:
+        """
+        Returns the default collection fields configuration for this service.
+        This is used to auto-populate table element fields when a data source
+        is selected.
+
+        :param service: The service instance.
+        :return: A list of field configuration dictionaries.
+        """
+
+        return []
+
 
 class TriggerServiceTypeMixin(ABC):
     # The callable function which should be called when the event occurs.
