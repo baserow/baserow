@@ -21,7 +21,7 @@
   border-radius: var(--input-border-radius, 0);
 }
 
-.vdp-datepicker.ab-datetime-picker__calendar .vdp-datepicker__calendar {
+.vuejs3-datepicker.ab-datetime-picker__calendar .vuejs3-datepicker__calendar {
   /* Behave similar to database date picker, except for the AB theming overrides */
   border: none;
   border-radius: var(--input-border-radius, 0);
@@ -31,8 +31,27 @@
   background-color: var(--input-background-color, $white);
   color: var(--input-text-color, $black);
 
-  &.vdp-datepicker__calendar--small {
+  // Remove vuejs3-datepicker default shadow and margin
+  box-shadow: none;
+  margin-top: 0;
+
+  // Disable vuejs3-datepicker transition when switching between days
+  * {
+    transition: none !important;
+  }
+
+  &.vuejs3-datepicker__calendar--small {
     width: 280px;
+    padding: 0;
+  }
+
+  // Hide vuejs3-datepicker "top bar" which shows the selected date
+  .vuejs3-datepicker__calendar-topbar {
+    display: none;
+  }
+
+  // Remove vuejs3-datepicker default padding around days
+  .vuejs3-datepicker__calendar-actionarea {
     padding: 0;
   }
 
@@ -44,6 +63,7 @@
   .cell {
     padding: 0;
     margin: 2px;
+    font-size: $datepicker-cell-font-size; // Override vuejs3-datepicker default font size
   }
 
   header {
@@ -55,8 +75,9 @@
 
   .prev {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-left;
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+    @extend .iconoir-nav-arrow-left;
 
     &::before {
       position: relative;
@@ -65,8 +86,9 @@
 
   .next {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-right;
     @extend %icon;
+    /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+    @extend .iconoir-nav-arrow-right;
   }
 
   .prev,
@@ -115,11 +137,24 @@
   .cell.day-header {
     font-size: 12px;
     font-weight: 500;
+
+    // Override vuejs3-datepicker transformation that causes the weekdays
+    // to be capitalized.
+    text-transform: none;
   }
 
   .cell.day.today {
     font-size: 14px;
     font-weight: 600;
+  }
+
+  // Override vuejs3-datepicker default styling that affects
+  // the month and year selection.
+  .cell.month,
+  .cell.year {
+    padding: 0;
+    height: $datepicker-month-year-cell-height;
+    line-height: $datepicker-month-year-cell-height;
   }
 
   .cell:not(.blank):not(.disabled).day {
