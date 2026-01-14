@@ -46,7 +46,7 @@
   .cell {
     padding: 0;
     margin: 2px;
-    font-size: 13px;
+    font-size: $datepicker-cell-font-size;
   }
 
   header {
@@ -129,8 +129,8 @@
   .cell.month,
   .cell.year {
     padding: 0;
-    height: 40px;
-    line-height: 40px;
+    height: $datepicker-month-year-cell-height;
+    line-height: $datepicker-month-year-cell-height;
   }
 
   /* stylelint-disable */
