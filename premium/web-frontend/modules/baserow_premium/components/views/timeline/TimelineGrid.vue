@@ -438,28 +438,32 @@ export default {
      * This method is called when a row is resized or moved.
      */
     updateRow(row, { startOffset, endOffset }) {
-      const startField = this.startDateField
-      const newStartDate = this.getRowDateValue(row, startField).clone()
+      let start = null
+      let end = null
 
-      if (startOffset !== 0) {
+      if (startOffset !== 0 && !this.startDateFieldReadOnly) {
+        const startField = this.startDateField
+        const newStartDate = this.getRowDateValue(row, startField).clone()
         const numberOfUnits = Math.round(startOffset / this.stepPx)
         newStartDate.add(numberOfUnits, this.step)
+        start = this.$registry
+          .get('field', startField.type)
+          .formatValue(startField, newStartDate)
       }
-      const start = this.$registry
-        .get('field', startField.type)
-        .formatValue(startField, newStartDate)
 
-      const endField = this.endDateField
-      const newEndDate = this.getRowDateValue(row, endField).clone()
-      if (endOffset !== 0) {
+      if (endOffset !== 0 && !this.endDateFieldReadOnly) {
+        const endField = this.endDateField
+        const newEndDate = this.getRowDateValue(row, endField).clone()
         const numberOfUnits = Math.round(endOffset / this.stepPx)
         newEndDate.add(numberOfUnits, this.step)
+        end = this.$registry
+          .get('field', endField.type)
+          .formatValue(endField, newEndDate)
       }
-      const end = this.$registry
-        .get('field', endField.type)
-        .formatValue(endField, newEndDate)
 
-      this.$emit('update-row', { row, start, end })
+      if (start !== null || end !== null) {
+        this.$emit('update-row', { row, start, end })
+      }
     },
     /*
      * Returns the background color for the given row.

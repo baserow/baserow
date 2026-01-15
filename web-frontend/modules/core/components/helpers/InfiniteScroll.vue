@@ -124,7 +124,8 @@ export default {
      * page event if the user has scrolled to the end of the wrapper.
      */
     handleScroll({ target: { scrollTop, clientHeight, scrollHeight } }) {
-      const height = clientHeight + this.$refs.loadingWrapper.clientHeight
+      const loadingWrapperHeight = this.$refs.loadingWrapper?.clientHeight || 0
+      const height = clientHeight + loadingWrapperHeight
       if (this.reverse) {
         if (-scrollTop + height >= scrollHeight) {
           this.loadNextPage()

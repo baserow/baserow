@@ -209,8 +209,8 @@ export default {
         return
       }
 
-      const limit = this.config.public.initialTableDataLimit
-      if (limit !== null && json.length > limit - 1) {
+      const limit = parseInt(this.config.public.initialTableDataLimit, 10)
+      if (limit && json.length > limit - 1) {
         this.handleImporterError(
           this.$t('tableJSONImporter.limitError', {
             limit,

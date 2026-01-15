@@ -245,10 +245,10 @@ export default {
 
       const decoder = new TextDecoder(this.encoding)
       const decodedData = decoder.decode(this.rawData)
-      const limit = this.config.public.initialTableDataLimit
+      const limit = parseInt(this.config.public.initialTableDataLimit, 10)
       const count = decodedData.split(/\r\n|\r|\n/).length
 
-      if (limit !== null && count > limit) {
+      if (limit && count > limit) {
         this.handleImporterError(
           this.$t('tableCSVImporter.limitError', {
             limit,

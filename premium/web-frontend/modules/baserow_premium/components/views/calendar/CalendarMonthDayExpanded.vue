@@ -140,7 +140,7 @@ export default {
       return this.parentHeight * 2 - 10
     },
     contextWidth() {
-      return this.$refs.context.$el.clientWidth
+      return this.$refs.context?.$el?.clientWidth || 0
     },
     innerHeight() {
       return this.contextHeight - 48
