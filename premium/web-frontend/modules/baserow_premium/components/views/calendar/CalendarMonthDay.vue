@@ -51,6 +51,7 @@
     >
       {{
         $t('calendarMonthDay.hiddenRowsCount', {
+          count: hiddenRowsCount,
           hiddenRowsCount,
         })
       }}
@@ -158,9 +159,12 @@ export default {
   },
   methods: {
     getClientHeight() {
-      return this.$refs.calendarMonthDay.clientHeight
+      return this.$refs.calendarMonthDay?.clientHeight ?? 0
     },
     updateVisibleRowsCount() {
+      if (!this.$refs.calendarMonthDay) {
+        return
+      }
       const itemHeight = 28
       this.width = this.$refs.calendarMonthDay.clientWidth
       this.height = this.getClientHeight()

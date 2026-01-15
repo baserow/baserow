@@ -181,7 +181,7 @@ export default {
   },
   methods: {
     showChooseDateFieldModal() {
-      if (this.canChooseDateField) {
+      if (this.canChooseDateField && this.$refs.selectDateFieldModal) {
         this.$refs.selectDateFieldModal.show()
       }
     },

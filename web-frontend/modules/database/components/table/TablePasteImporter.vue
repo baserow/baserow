@@ -87,9 +87,9 @@ export default {
         this.resetImporterState()
         return
       }
-      const limit = this.config.public.initialTableDataLimit
+      const limit = parseInt(this.config.public.initialTableDataLimit, 10)
       const count = this.values.content.split(/\r\n|\r|\n/).length
-      if (limit !== null && count > limit) {
+      if (limit && count > limit) {
         this.handleImporterError(
           this.$t('tablePasteImporter.limitError', {
             limit,

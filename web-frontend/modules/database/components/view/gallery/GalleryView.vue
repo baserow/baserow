@@ -280,10 +280,13 @@ export default {
         this.updateBuffer(true, false)
       })
     },
-    allRows() {
-      this.$nextTick(() => {
-        this.updateBuffer(true, false)
-      })
+    allRows: {
+      deep: true,
+      handler() {
+        this.$nextTick(() => {
+          this.updateBuffer(true, false)
+        })
+      },
     },
     row: {
       deep: true,
@@ -370,8 +373,12 @@ export default {
     }
   },
   beforeUnmount() {
-    this.resizeObserver.unobserve(this.$el)
-    this.$refs.scroll.removeEventListener('scroll', this.scrollEvent)
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(this.$el)
+    }
+    if (this.$refs.scroll) {
+      this.$refs.scroll.removeEventListener('scroll', this.scrollEvent)
+    }
   },
   methods: {
     getDragAndDropStoreName(props) {
