@@ -1,3 +1,4 @@
+import { AuditLogExportJobType } from '@baserow_enterprise/jobTypes'
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
 import {
   RolePermissionManagerType,
@@ -152,6 +153,8 @@ export default defineNuxtPlugin({
       'workspaceSettingsPage',
       new TeamsWorkspaceSettingsPageType(context)
     )
+
+    $registry.register('job', new AuditLogExportJobType(context))
 
     $registry.register('license', new AdvancedLicenseType(context))
     $registry.register(

@@ -80,3 +80,23 @@ export class FileImportJobType extends JobType {
     return 'fileImport'
   }
 }
+
+export class DuplicateFieldJobType extends JobType {
+  static getType() {
+    return 'duplicate_field'
+  }
+
+  getName() {
+    return 'duplicate_field'
+  }
+}
+
+export class AirtableJobType extends JobType {
+  static getType() {
+    return 'airtable'
+  }
+
+  getName() {
+    return 'airtable'
+  }
+}
