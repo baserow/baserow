@@ -1031,7 +1031,7 @@ def test_create_rows_action_row_history_with_undo_redo(
         },
     ]
 
-    freezed_timestamp_undo = datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc)
+    freezed_timestamp_undo = datetime(2021, 1, 1, 12, 1, tzinfo=timezone.utc)
     with freeze_time(freezed_timestamp_undo):
         undone = ActionHandler.undo(
             user,
@@ -1085,7 +1085,8 @@ def test_create_rows_action_row_history_with_undo_redo(
         },
     ]
 
-    with freeze_time(freezed_timestamp_do):
+    freezed_timestamp_redo = datetime(2021, 1, 1, 12, 2, tzinfo=timezone.utc)
+    with freeze_time(freezed_timestamp_redo):
         redone = ActionHandler.redo(
             user,
             [TableActionScopeType.value(table_id=table.id)],
@@ -1129,7 +1130,7 @@ def test_create_rows_action_row_history_with_undo_redo(
             "user_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
-            "action_timestamp": freezed_timestamp_do,
+            "action_timestamp": freezed_timestamp_undo,
             "action_type": action_type_name,
             "action_command_type": "UNDO",
             "after_values": {},
@@ -1141,7 +1142,7 @@ def test_create_rows_action_row_history_with_undo_redo(
             "user_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
-            "action_timestamp": freezed_timestamp_do,
+            "action_timestamp": freezed_timestamp_redo,
             "action_type": action_type_name,
             "action_command_type": "REDO",
             "before_values": {},
