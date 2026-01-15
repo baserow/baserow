@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 
 from django.conf import settings
@@ -80,30 +81,32 @@ class ConcurrencyLimiterASGI:
 def log_env_warnings():
     from django.conf import settings
 
-    if not settings.BASEROW_PUBLIC_URL:
-        if settings.BASEROW_PUBLIC_URL == "http://localhost":
+    if settings.BASEROW_PUBLIC_URL:
+        if settings.BASEROW_PUBLIC_URL.startswith("http://localhost"):
             logger.warning(
-                "Baserow is configured to use a BASEROW_PUBLIC_URL of "
-                "http://localhost. If you attempt to access Baserow on any other hostname "
-                "requests to the backend will fail as they will be from an unknown host. "
+                "WARNING: Baserow is configured to use a BASEROW_PUBLIC_URL of "
+                f"{settings.BASEROW_PUBLIC_URL}. If you attempt to access Baserow on "
+                "any other hostname requests to the backend will fail as they will be "
+                "from an unknown host. "
                 "Please set BASEROW_PUBLIC_URL if you will be accessing Baserow "
-                "from any other URL than http://localhost."
+                f"from any other URL then {settings.BASEROW_PUBLIC_URL}."
             )
     else:
-        if settings.PUBLIC_BACKEND_URL == "http://localhost:8000":
+        if "PUBLIC_BACKEND_URL" not in os.environ:
             logger.warning(
-                "Baserow is configured to use a PUBLIC_BACKEND_URL of "
-                "http://localhost:8000. If you attempt to access Baserow on any other "
+                "WARNING: Baserow is configured to use a PUBLIC_BACKEND_URL of "
+                f"{settings.PUBLIC_BACKEND_URL}. If you attempt to access Baserow on any other "
                 "hostname requests to the backend will fail as they will be from an "
-                "unknown host. "
+                "unknown host."
                 "Please ensure you set PUBLIC_BACKEND_URL if you will be accessing "
-                "Baserow from any other URL than http://localhost."
+                f"Baserow from any other URL then {settings.PUBLIC_BACKEND_URL}."
             )
-        if settings.PUBLIC_WEB_FRONTEND_URL == "http://localhost:3000":
+        if "PUBLIC_WEB_FRONTEND_URL" not in os.environ:
             logger.warning(
-                "Baserow is configured to use a default PUBLIC_WEB_FRONTEND_URL "
-                "of http://localhost:3000. Emails sent by Baserow will use links pointing "
-                "to http://localhost:3000 when telling users how to access your server. If "
-                "this is incorrect please ensure you have set PUBLIC_WEB_FRONTEND_URL to "
+                "WARNING: Baserow is configured to use a default PUBLIC_WEB_FRONTEND_URL "
+                f"of {settings.PUBLIC_WEB_FRONTEND_URL}. Emails sent by Baserow will use links "
+                f"pointing to {settings.PUBLIC_WEB_FRONTEND_URL} when telling users how to "
+                "access your server. "
+                "If this is incorrect please ensure you have set PUBLIC_WEB_FRONTEND_URL to "
                 "the URL where users can access your Baserow server."
             )

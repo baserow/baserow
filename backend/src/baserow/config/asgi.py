@@ -4,9 +4,12 @@ from django.urls import re_path
 
 from channels.routing import ProtocolTypeRouter, URLRouter
 
-from baserow.config.helpers import ConcurrencyLimiterASGI, check_lazy_loaded_libraries,  log_env_warnings
+from baserow.config.helpers import (
+    ConcurrencyLimiterASGI,
+    check_lazy_loaded_libraries,
+    log_env_warnings,
+)
 from baserow.core.mcp import get_baserow_mcp_server
-
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
 

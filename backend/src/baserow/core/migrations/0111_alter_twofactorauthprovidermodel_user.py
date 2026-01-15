@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0108_alter_userfile_unique"),
+        ("core", "0110_totpusedcode"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
