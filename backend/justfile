@@ -82,7 +82,7 @@ repo_root := clean(justfile_directory() / "..")
 
 # Helper to load .env.local if present and set PYTHONPATH with absolute paths
 # Include this at the start of bash recipes that need env vars
-_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi; export PYTHONPATH="' + repo_root / 'backend/src:' + repo_root / 'premium/backend/src:' + repo_root / 'enterprise/backend/src:' + repo_root / 'backend/flake8_plugins:' + repo_root / 'backend/tests:' + repo_root / 'premium/backend/tests:' + repo_root / 'enterprise/backend/tests${PYTHONPATH:+:$PYTHONPATH}"'
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi; export PYTHONPATH="' + repo_root / 'backend/src:' + repo_root / 'premium/backend/src:' + repo_root / 'enterprise/backend/src:' + repo_root / 'backend/tests:' + repo_root / 'premium/backend/tests:' + repo_root / 'enterprise/backend/tests${PYTHONPATH:+:$PYTHONPATH}"'
 
 # Source directories
 backend_source_dirs := "src/ ../premium/backend/src/ ../enterprise/backend/src/"
@@ -211,6 +211,10 @@ lint: _check-dev
 
 # Check for missing migrations
 lint-migrations: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    
     DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
 
 # Run all lint checks including migrations (for CI)
