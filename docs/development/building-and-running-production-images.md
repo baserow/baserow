@@ -82,7 +82,6 @@ just build
 #   web-frontend    - Nuxt web frontend
 #   all-in-one      - Single container (production)
 #   all-in-one-lite - Single container without postgres/redis
-#   all-in-one-dev  - Single container (development)
 #   heroku          - Heroku platform
 #   cloudron        - Cloudron marketplace
 #   render          - Render.com platform
@@ -151,7 +150,6 @@ Run specific deployment configurations:
 just dc-deploy
 # Shows available deployments:
 #   all-in-one      - All-in-one container (production)
-#   all-in-one-dev  - All-in-one container (development)
 #   cloudron        - Cloudron deployment
 #   heroku          - Heroku deployment
 #   traefik         - Traefik reverse proxy

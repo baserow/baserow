@@ -6,7 +6,7 @@
 services:
   # A caddy http server just used for serving media in dev.
   caddy:
-    image: caddy:2
+    image: caddy:2.10.2
     env_file:
       - .env
     ports:

@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # CI builder stage
 # =============================================================================
-FROM node:24-bookworm-slim AS builder-ci
+FROM node:24.13-bookworm-slim AS builder-ci
 ARG UID
 ARG GID
 
@@ -51,7 +51,7 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
 # =============================================================================
 # Production builder stage
 # =============================================================================
-FROM node:24-bookworm-slim AS builder-prod
+FROM node:24.13-bookworm-slim AS builder-prod
 ARG UID
 ARG GID
 
@@ -73,7 +73,7 @@ COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-fronten
 # Copy all dependencies so we can build the production files
 COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
     && chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh \
     && chown $UID:$GID /baserow/web-frontend/docker/docker-entrypoint.sh
@@ -88,9 +88,14 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
 
 
 # =============================================================================
+# Busybox helper stage for wget binary
+# =============================================================================
+FROM busybox:musl AS busybox-helper
+
+# =============================================================================
 # CI target - used in CI pipelines
 # =============================================================================
-FROM node:24-bookworm-slim AS ci
+FROM node:24.13-bookworm-slim AS ci
 ARG UID
 ARG GID
 
@@ -100,11 +105,11 @@ ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend"
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --from=busybox:musl /bin/wget /usr/local/bin/wget
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
 
 RUN mkdir -p /baserow/web-frontend/.cache /baserow/reports /baserow/.cache /baserow/.yarn /baserow/web-frontend/reports/coverage && \
     chown -R $UID:$GID /baserow
@@ -114,8 +119,8 @@ COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
 COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
 
-COPY --link --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
-COPY --link --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
+COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
+COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 
 COPY --chown=$UID:$GID tests /baserow/tests
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
@@ -131,7 +136,7 @@ CMD ["nuxt-local"]
 # =============================================================================
 # Development target - used for local development with live reload
 # =============================================================================
-FROM node:24-bookworm-slim AS dev
+FROM node:24.13-bookworm-slim AS dev
 ARG UID
 ARG GID
 
@@ -159,11 +164,11 @@ ENV DOCKER_USER=baserow_docker_user \
     YARN_CACHE_FOLDER=/tmp/.yarn-dev-cache
 
 # Install rust-just for running justfiles
-RUN pip3 install --break-system-packages rust-just
+RUN pip3 install --break-system-packages --no-cache-dir rust-just==1.43.1
 
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
@@ -177,10 +182,8 @@ USER $UID:$GID
 WORKDIR /baserow/web-frontend
 
 # Configure tmux to preserve environment variables (don't start login shell)
-RUN echo 'set -g default-command "${SHELL}"' > /baserow/.tmux.conf
-
-# Create .bashrc with environment variables for interactive shells
-RUN printf '%s\n' \
+RUN echo "set -g default-command \"\${SHELL}\"" > /baserow/.tmux.conf && \
+    printf '%s\n' \
     '# Aliases' \
     'alias j="just"' \
     'alias y="yarn"' \
@@ -199,6 +202,9 @@ RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
 COPY --chown=$UID:$GID web-frontend/package.json /baserow/web-frontend/package.json
 COPY --chown=$UID:$GID web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
 
+# Make sure these directories exist and are owned by the non-root user
+RUN mkdir -p /baserow/web-frontend/.nuxt /baserow/web-frontend/.cache /baserow/web-frontend/.nuxt-storybook
+
 # Install dependencies (including dev)
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
     yarn install --pure-lockfile --cache-folder $YARN_CACHE_FOLDER
@@ -211,7 +217,7 @@ CMD ["nuxt-dev"]
 # =============================================================================
 # Production target - minimal image with only runtime requirements
 # =============================================================================
-FROM node:24-bookworm-slim AS local-base
+FROM node:24.13-bookworm-slim AS local-base
 ARG UID
 ARG GID
 
@@ -222,13 +228,13 @@ ENV DOCKER_USER=baserow_docker_user \
     NODE_ENV=production \
     YARN_CACHE_FOLDER=/tmp/.yarn-cache
 
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --from=busybox:musl /bin/wget /usr/local/bin/wget
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-    useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
 USER $UID:$GID
 RUN mkdir -p /baserow/web-frontend
@@ -265,7 +271,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/do
 
 FROM local-base AS local
 
-COPY --link --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
+COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 
 CMD ["nuxt-local"]
 

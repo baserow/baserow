@@ -7,7 +7,7 @@
 services:
   # A caddy reverse proxy sitting in-front of all the services.
   caddy:
-    image: caddy:2
+    image: caddy:2.10.2
     restart: unless-stopped
     env_file:
       - .env

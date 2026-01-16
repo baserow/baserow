@@ -72,9 +72,11 @@ services:
       - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - ./tests/:/baserow/tests
       - ./deploy/plugins:/baserow/plugins
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
+      # dev volumes to avoid polluting your local filesystem with build files or
+      # overwriting existing node_modules.
       - node_modules:/baserow/web-frontend/node_modules
+      - nuxt:/baserow/web-frontend/.nuxt/
+      - cache:/baserow/web-frontend/.cache/
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -98,9 +100,12 @@ services:
       - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - ./tests/:/baserow/tests
       - ./deploy/plugins:/baserow/plugins
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
+      # dev volumes to avoid polluting your local filesystem with build files or
+      # overwriting existing node_modules.
       - node_modules:/baserow/web-frontend/node_modules
+      - nuxt:/baserow/web-frontend/.nuxt/
+      - storybook:/baserow/web-frontend/.nuxt-storybook/
+      - cache:/baserow/web-frontend/.cache/
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -243,3 +248,6 @@ services:
 volumes:
   pgdatadev:
   node_modules:
+  nuxt:
+  storybook:
+  cache:

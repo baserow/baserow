@@ -890,30 +890,21 @@ build target="" tag="latest" *ARGS:
             ;;
         "all-in-one")
             echo "Building backend (prod)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
             echo "Building web-frontend (prod)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
             echo "Building all-in-one..."
             NAME_ARG="baserow/baserow:{{ tag }}"
             $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod -t $NAME_ARG .
             ;;
         "all-in-one-lite")
             echo "Building backend (prod)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
             echo "Building web-frontend (prod)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
             echo "Building all-in-one-lite (no postgres/redis)..."
             NAME_ARG="baserow/baserow:lite-{{ tag }}"
             $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod-lite -t $NAME_ARG .
-            ;;
-        "all-in-one-dev")
-            echo "Building backend (dev)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target dev -t baserow_backend:dev .
-            echo "Building web-frontend (dev)..."
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
-            echo "Building all-in-one-dev..."
-            NAME_ARG="baserow/baserow:dev-{{ tag }}"
-            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target dev -t $NAME_ARG .
             ;;
         "heroku")
             NAME_ARG="baserow/heroku:{{ tag }}"
@@ -945,7 +936,6 @@ build target="" tag="latest" *ARGS:
             echo "  web-frontend    - Nuxt web frontend"
             echo "  all-in-one      - Single container (production)"
             echo "  all-in-one-lite - Single container without postgres/redis"
-            echo "  all-in-one-dev  - Single container (development)"
             echo "  heroku          - Heroku platform"
             echo "  cloudron        - Cloudron marketplace"
             echo "  render          - Render.com platform"
@@ -981,18 +971,6 @@ dc-deploy name="" *ARGS:
         "all-in-one")
             docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
             ;;
-        "all-in-one-dev")
-            # Export UID/GID for docker-compose user: directive
-            if [[ -z "${UID:-}" ]]; then
-                UID=$(id -u)
-            fi
-            export UID
-            if [[ -z "${GID:-}" ]]; then
-                GID=$(id -g)
-            fi
-            export GID
-            docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
-            ;;
         "cloudron")
             docker compose -f deploy/cloudron/docker-compose.yml {{ ARGS }}
             ;;
@@ -1018,7 +996,6 @@ dc-deploy name="" *ARGS:
             echo ""
             echo "Deployments:"
             echo "  all-in-one      - All-in-one container (production)"
-            echo "  all-in-one-dev  - All-in-one container (development)"
             echo "  cloudron        - Cloudron deployment"
             echo "  heroku          - Heroku deployment"
             echo "  traefik         - Traefik reverse proxy"

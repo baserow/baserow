@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # Production base builder stage: builds runtime dependencies only
 # =============================================================================
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder-prod-base
+FROM python:3.11.14-slim-bookworm AS builder-prod-base
 ARG UID
 ARG GID
 
@@ -49,7 +49,10 @@ ENV UV_PYTHON_DOWNLOADS=0 \
     PYTHONUNBUFFERED=1 \
     PATH="/baserow/venv/bin:$PATH" \
     PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src"
-    
+
+# hadolint ignore=DL3022
+COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
+
 # Create baserow directory structure (including subdirs for COPY targets)
 RUN mkdir -p /baserow/ && chown -R $UID:$GID /baserow/
     
@@ -84,14 +87,15 @@ ARG GID
 USER $UID:$GID
 WORKDIR /baserow/backend
 
+COPY --chown=$UID:$GID LICENSE /baserow/LICENSE
+COPY --chown=$UID:$GID premium/LICENSE /baserow/premium/LICENSE
+COPY --chown=$UID:$GID enterprise/LICENSE /baserow/enterprise/LICENSE
+
 # Install dev dependencies before copying source code to leverage caching
 RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
-    --mount=type=bind,source=LICENSE,target=/baserow/LICENSE \
     --mount=type=bind,source=backend/uv.lock,target=/baserow/backend/uv.lock \
     --mount=type=bind,source=backend/pyproject.toml,target=/baserow/backend/pyproject.toml \
-    --mount=type=bind,source=premium/LICENSE,target=/baserow/premium/LICENSE \
     --mount=type=bind,source=premium/backend/pyproject.toml,target=/baserow/premium/backend/pyproject.toml \
-    --mount=type=bind,source=enterprise/LICENSE,target=/baserow/enterprise/LICENSE \
     --mount=type=bind,source=enterprise/backend/pyproject.toml,target=/baserow/enterprise/backend/pyproject.toml \
     uv sync --frozen --no-install-workspace --no-install-project \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
@@ -102,16 +106,12 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
     && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
         -not -path "*/botocore/*" -not -path "*/boto3/*" -prune -exec rm -rf {} \; || true)
 
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 # Copy source code and tests
-COPY --chown=$UID:$GID LICENSE /baserow/LICENSE
+
 COPY --chown=$UID:$GID backend /baserow/backend
-
-COPY --chown=$UID:$GID premium/LICENSE /baserow/premium/LICENSE
 COPY --chown=$UID:$GID premium/backend /baserow/premium/backend
-
-COPY --chown=$UID:$GID enterprise/LICENSE /baserow/enterprise/LICENSE
 COPY --chown=$UID:$GID enterprise/backend /baserow/enterprise/backend
 
 COPY --chown=$UID:$GID tests /baserow/tests
@@ -140,7 +140,7 @@ FROM builder-prod-base AS builder-prod
 ARG UID
 ARG GID
 
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 USER $UID:$GID
 WORKDIR /baserow/backend
@@ -173,7 +173,7 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
 # =============================================================================
 # CI Target - lightweight image for pytest and E2E tests
 # =============================================================================
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS ci
+FROM python:3.11.14-slim-bookworm AS ci
 ARG UID
 ARG GID
 
@@ -196,15 +196,17 @@ ENV DOCKER_USER=baserow_docker_user \
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
       useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini      
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+# hadolint ignore=DL3022
+COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
 # Create baserow directory structure (including subdirs for COPY targets)
 RUN mkdir -p /baserow/backend/reports /baserow/premium/backend /baserow/enterprise/backend /baserow/media && \
     chown -R $UID:$GID /baserow/
 
 # Copy the virtual environment and source code with tests
-COPY --link --from=builder-ci /baserow /baserow
+COPY --chown=$UID:$GID --from=builder-ci /baserow /baserow
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 
 USER $UID:$GID
@@ -217,7 +219,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-
 # Only works mounting the source code as a bind mount. See docker-compose.dev.yml for usage.
 # =============================================================================
 
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS dev
+FROM python:3.11.14-slim-bookworm AS dev
 ARG UID="9999"
 ARG GID="9999"
 
@@ -258,9 +260,11 @@ RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
     echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
     chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
-COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+# hadolint ignore=DL3022
+COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
 # Create directory structure to install dependencies
 RUN mkdir -p /baserow/backend/docker /baserow/premium/ /baserow/enterprise/ /baserow/media && \
@@ -280,11 +284,9 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
     --mount=type=bind,source=enterprise/backend/pyproject.toml,target=/baserow/enterprise/backend/pyproject.toml \
     uv sync --frozen --no-install-workspace --no-install-project
 
-# Configure tmux to preserve environment variables (don't start login shell)
-RUN echo 'set -g default-command "${SHELL}"' > /baserow/.tmux.conf
-
-# Create .bashrc with environment variables for interactive shells
-RUN printf '%s\n' \
+# Configure tmux and bashrc
+RUN echo "set -g default-command \"\${SHELL}\"" > /baserow/.tmux.conf && \
+    printf '%s\n' \
     '# Aliases' \
     'alias j="just"' \
     'alias m="python /baserow/backend/src/baserow/manage.py"' \
@@ -311,7 +313,7 @@ CMD ["django-dev"]
 # =============================================================================
 # Production target
 # =============================================================================
-FROM python:3.11-slim-bookworm AS local 
+FROM python:3.11.14-slim-bookworm AS local 
 ARG UID
 ARG GID
 
@@ -341,18 +343,18 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY ./backend/docker/mime.types /etc/
-COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 
 RUN mkdir -p /baserow/media && chown -R $UID:$GID /baserow/
 
 # Copy the virtual environment with the production dependencies
-COPY --link --from=builder-prod /baserow/venv /baserow/venv/
+COPY --chown=$UID:$GID --from=builder-prod /baserow/venv /baserow/venv/
 
 COPY --chown=$UID:$GID LICENSE /baserow/LICENSE
-COPY --link --from=builder-prod /baserow/backend /baserow/backend/
-COPY --link --from=builder-prod /baserow/premium /baserow/premium/
-COPY --link --from=builder-prod /baserow/enterprise /baserow/enterprise/
+COPY --chown=$UID:$GID --from=builder-prod /baserow/backend /baserow/backend/
+COPY --chown=$UID:$GID --from=builder-prod /baserow/premium /baserow/premium/
+COPY --chown=$UID:$GID --from=builder-prod /baserow/enterprise /baserow/enterprise/
 
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 
