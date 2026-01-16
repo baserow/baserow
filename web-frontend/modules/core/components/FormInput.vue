@@ -126,7 +126,7 @@ function updateValue(raw) {
 }
 
 function onInput(e) {
-  const raw = input.value?.value
+  const raw = input.value.value
 
   if (!raw && props.defaultValueWhenEmpty !== null) return
 
@@ -134,9 +134,9 @@ function onInput(e) {
 }
 
 function onBlur(e) {
-  const raw = input.value?.value
+  const raw = input.value.value
 
-  if (!raw && props.defaultValueWhenEmpty !== null && input.value) {
+  if (!raw && props.defaultValueWhenEmpty !== null) {
     input.value.value = props.defaultValueWhenEmpty
     updateValue(props.defaultValueWhenEmpty)
   }
