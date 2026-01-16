@@ -874,7 +874,7 @@ jobs:
   build-final-backend:
     name: Build Final Backend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-backend
       - test-e2e
@@ -916,7 +916,7 @@ jobs:
   build-final-web-frontend:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-frontend
       - test-e2e
@@ -958,7 +958,7 @@ jobs:
   build-final-all-in-one:
     name: Build All-in-One Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-backend
       - build-final-web-frontend
@@ -999,7 +999,7 @@ jobs:
   build-cloudron:
     name: Build Cloudron Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-all-in-one
       - check-build-and-publish
