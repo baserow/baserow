@@ -2464,7 +2464,7 @@ class LinkRowFieldType(
                 filter=Q(
                     **{f"{field_name}__isnull": False, f"{field_name}__trashed": False}
                 ),
-                ordering=(f"{field_name}__order", f"{field_name}__id"),
+                order_by=(f"{field_name}__order", f"{field_name}__id"),
             )
 
         value_query = get_array_agg(sortable_column_expr)
@@ -5292,7 +5292,7 @@ class MultipleSelectFieldType(
         agg_expr = JSONBAgg(
             get_select_option_extractor(db_column, model_field),
             filter=Q(**{f"{db_column}__isnull": False}),
-            ordering=(f"{db_column}__order", f"{db_column}__id"),
+            order_by=(f"{db_column}__order", f"{db_column}__id"),
         )
         if already_in_subquery:
             return Coalesce(agg_expr, Value([], output_field=JSONField()))

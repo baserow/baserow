@@ -10,7 +10,7 @@ network := "baserow-e2e"
 # Use same image names as `just build backend ci` and `just build web-frontend ci`
 backend_image := "baserow/backend:ci"
 frontend_image := "baserow/web-frontend:ci"
-db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
+db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
 redis_image := "redis:6"
 
 # Database dump settings

@@ -2009,9 +2009,9 @@ def array_agg_expression(
             )
         else:
             json_builder_args["id"] = F(join_ids[0][0] + "__id")
-        expr = JSONBAgg(JSONObject(**json_builder_args), ordering=orders)
+        expr = JSONBAgg(JSONObject(**json_builder_args), order_by=orders)
     else:
-        expr = JSONBAgg(args[0].expression, ordering=orders)
+        expr = JSONBAgg(args[0].expression, order_by=orders)
     wrapped_expr = aggregate_wrapper(
         WrappedExpressionWithMetadata(
             expr, pre_annotations, aggregate_filters, join_ids
@@ -2097,7 +2097,7 @@ def string_agg_array_of_multiple_select_field(
             )
         )
         .annotate(res=JSONObject(**json_builder_args))
-        .values(result=JSONBAgg(F("res"), ordering=orders))[:1],
+        .values(result=JSONBAgg(F("res"), order_by=orders))[:1],
         output_field=JSONField(),
     )
 
@@ -2174,7 +2174,7 @@ def aggregate_many_to_many_values(
         model.objects_and_trash.annotate(**expr_with_metadata.pre_annotations)
         .filter(id=OuterRef("id"), **not_null_filters_for_inner_join)
         .annotate(res=JSONObject(**json_builder_args))
-        .values(result=JSONBAgg(F("res"), ordering=orders))[:1],
+        .values(result=JSONBAgg(F("res"), order_by=orders))[:1],
         output_field=JSONField(),
     )
 
@@ -2699,7 +2699,7 @@ class BaserowAggJoin(TwoArgumentBaserowFunction):
                 BaserowStringAgg(
                     args[0].expression,
                     args[1].expression,
-                    ordering=orders,
+                    order_by=orders,
                     output_field=fields.TextField(),
                 ),
                 pre_annotations,

@@ -99,7 +99,7 @@ just test-db ps
 
 **Configuration**: Set `TEST_DB_PORT` environment variable to use a different port (default: 5433).
 
-The ramdisk database (`baserow-test-db` container using `pgvector/pgvector:pg13`) runs with optimized settings:
+The ramdisk database (`baserow-test-db` container using `pgvector/pgvector:pg14`) runs with optimized settings:
 - **tmpfs storage**: All data in RAM (8GB allocated)
 - **Large shared_buffers**: 512MB for better caching
 - **Disabled fsync/WAL**: No durability overhead

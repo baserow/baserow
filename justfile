@@ -68,7 +68,7 @@ dev *ARGS:
     # Parse args from just
     ALLARGS=({{ ARGS }})
     CMD="${ALLARGS[0]:-}"
-    REST=("${ALLARGS[@]:1}")    
+    REST=("${ALLARGS[@]:1}")
 
     case "$CMD" in
         wipe)
@@ -1042,7 +1042,7 @@ dc-deploy name="" *ARGS:
 # Test DB settings
 test_db_name := "baserow-test-db"
 test_db_port := env("TEST_DB_PORT", "5431")
-test_db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
+test_db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
 
 # Ramdisk PostgreSQL for fast tests (2-5x faster)
 [group('4 - testing')]

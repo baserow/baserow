@@ -81,7 +81,7 @@ class TimezoneExpr(BinaryOpExpr):
 
 class BaserowStringAgg(OrderableAggMixin, Aggregate):
     function = "STRING_AGG"
-    template = "%(function)s(%(distinct)s%(expressions)s %(ordering)s)"
+    template = "%(function)s(%(distinct)s%(expressions)s %(order_by)s)"
     allow_distinct = True
 
     def __init__(self, expression, delimiter, **extra):

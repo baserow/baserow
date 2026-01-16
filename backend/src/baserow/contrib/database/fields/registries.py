@@ -2139,7 +2139,7 @@ class ManyToManyGroupByMixin:
                     res=ArrayAgg(
                         F(f"{related_field}_id"),
                         filter=Q(**{f"{related_field}_id__isnull": False}),
-                        ordering=self.get_group_by_aggregated_order(related_field),
+                        order_by=self.get_group_by_aggregated_order(related_field),
                     )
                 )
             )
