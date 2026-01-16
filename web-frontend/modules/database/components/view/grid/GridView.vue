@@ -789,8 +789,8 @@ export default {
         }).href
       copyToClipboard(url)
       this.$store.dispatch('toast/info', {
-        title: this.$i18n.t('gridView.copiedRowURL'),
-        message: this.$i18n.t('gridView.copiedRowURLMessage', {
+        title: this.$t('gridView.copiedRowURL'),
+        message: this.$t('gridView.copiedRowURLMessage', {
           id: selectedRow.id,
         }),
       })
@@ -1308,7 +1308,7 @@ export default {
       // being sorted, and this will only be the case after a refresh.
       await this.$store.dispatch(
         this.storePrefix + 'view/grid/updateActiveGroupBys',
-        clone(this.view.group_bys)
+        clone(this.view.group_bys || [])
       )
       this.$nextTick(() => {
         this.fieldsUpdated()

@@ -152,6 +152,7 @@ export default {
     return {
       editLink: false,
       editLinkValue: '',
+      unsetLinkMarkHandler: null,
     }
   },
   watch: {
@@ -163,7 +164,7 @@ export default {
   },
   mounted() {
     // if the space key or escape is pressed, we should unselect the link.
-    this._unsetLinkMark = (event) => {
+    this.unsetLinkMarkHandler = (event) => {
       if (
         this.editor?.isActive('link') &&
         (event.key === ' ' || event.key === 'Escape')
@@ -171,13 +172,11 @@ export default {
         this.unselectLink()
       }
     }
-
-    this.$el.addEventListener('keyup', this._unsetLinkMark)
+    this.$el.addEventListener('keyup', this.unsetLinkMarkHandler)
   },
-
   beforeUnmount() {
-    if (this._unsetLinkMark) {
-      this.$el.removeEventListener('keyup', this._unsetLinkMark)
+    if (this.unsetLinkMarkHandler) {
+      this.$el.removeEventListener('keyup', this.unsetLinkMarkHandler)
     }
   },
   methods: {

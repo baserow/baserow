@@ -74,6 +74,7 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { clone } from '@baserow/modules/core/utils/object'
 import suggestion from '@baserow/modules/core/editor/suggestion'
 
 const richTextEditorExtensions = ({
@@ -129,7 +130,7 @@ export default {
     RichTextEditorFloatingMenu,
   },
   props: {
-    value: {
+    modelValue: {
       type: [Object, String],
       required: true,
     },
@@ -170,7 +171,7 @@ export default {
       default: false,
     },
   },
-  emits: ['blur', 'focus', 'input'],
+  emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
   data() {
     return {
       editor: null,
@@ -204,7 +205,7 @@ export default {
         this.createEditor()
       },
     },
-    value(value) {
+    modelValue(value) {
       if (!_.isEqual(value, this.editor.getJSON())) {
         this.editor.commands.setContent(value, false)
       }
@@ -288,7 +289,7 @@ export default {
     createEditor() {
       const extensions = this.getConfiguredExtensions()
       this.editor = new Editor({
-        content: this.value,
+        content: this.modelValue,
         editable: this.editable,
         editorProps: {
           handleClickOn: (view, pos, node, nodePos, event, direct) => {
@@ -314,7 +315,7 @@ export default {
         },
         extensions,
         onUpdate: () => {
-          this.$emit('input', this.editor.getJSON())
+          this.$emit('update:modelValue', clone(this.editor.getJSON()))
         },
         onFocus: ({ editor, event }) => {
           if (this.editable && !this.bubbleMenuVisible) {

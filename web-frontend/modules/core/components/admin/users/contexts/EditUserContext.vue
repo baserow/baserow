@@ -167,7 +167,7 @@ export default {
         return
       }
       this.impersonateLoading = true
-      let url = this.$nuxt.$router.resolve({ name: 'dashboard' }).href
+      let url = this.$router.resolve({ name: 'dashboard' }).href
       // Adding the `__impersonate-user` query parameter impersonates the user when the
       // page first loads.
       url += '?__impersonate-user=' + this.user.id

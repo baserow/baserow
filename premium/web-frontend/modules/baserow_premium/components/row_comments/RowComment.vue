@@ -80,6 +80,7 @@
 import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { clone } from '@baserow/modules/core/utils/object'
 import RowCommentContext from '@baserow_premium/components/row_comments/RowCommentContext'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 
@@ -201,7 +202,8 @@ export default {
       }
     },
     cloneCommentMessage() {
-      return structuredClone(this.comment.message)
+      // Use clone() instead of structuredClone to handle Vue 3 Proxy objects
+      return clone(this.comment.message)
     },
     startEdit() {
       this.$refs.commentContext.hide()

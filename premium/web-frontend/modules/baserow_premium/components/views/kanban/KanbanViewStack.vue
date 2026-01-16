@@ -236,6 +236,21 @@ export default {
           ))
       )
     },
+    draggingRow() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getDraggingRow'
+      ]
+    },
+    draggingOriginalStackId() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getDraggingOriginalStackId'
+      ]
+    },
+    singleSelectFieldId() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getSingleSelectFieldId'
+      ]
+    },
     /**
      * In order for the virtual scrolling to work, we need to know what the height of
      * the card is to correctly position it.
@@ -267,6 +282,9 @@ export default {
       const fieldId = this.view.card_cover_image_field
       return this.fields.find((field) => field.id === fieldId) || null
     },
+    singleSelectField() {
+      return this.fields.find((field) => field.id === this.singleSelectFieldId)
+    },
   },
   watch: {
     cardHeight() {
@@ -274,10 +292,13 @@ export default {
         this.updateBuffer()
       })
     },
-    'stack.results'() {
-      this.$nextTick(() => {
-        this.updateBuffer()
-      })
+    'stack.results': {
+      handler() {
+        this.$nextTick(() => {
+          this.updateBuffer()
+        })
+      },
+      deep: true,
     },
   },
   mounted() {

@@ -119,6 +119,7 @@
 <script>
 import { required, helpers } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { useRuntimeConfig } from '#imports'
 
 import form from '@baserow/modules/core/mixins/form'
 import CharsetDropdown from '@baserow/modules/core/components/helpers/CharsetDropdown'
@@ -132,7 +133,8 @@ export default {
   mixins: [form, importer],
   emits: ['changed', 'data', 'getData'],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const config = useRuntimeConfig()
+    return { v$: useVuelidate({ $lazy: true }), config }
   },
   data() {
     return {
@@ -178,7 +180,7 @@ export default {
 
       const file = event.target.files[0]
       const maxSize =
-        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) *
+        parseInt(this.config.public.baserowMaxImportFileSizeMb, 10) *
         1024 *
         1024
 
@@ -186,7 +188,7 @@ export default {
         this.values.filename = ''
         this.handleImporterError(
           this.$t('tableCSVImporter.limitFileSize', {
-            limit: this.$config.public.baserowMaxImportFileSizeMb,
+            limit: this.config.public.baserowMaxImportFileSizeMb,
           })
         )
       } else {
@@ -243,7 +245,7 @@ export default {
 
       const decoder = new TextDecoder(this.encoding)
       const decodedData = decoder.decode(this.rawData)
-      const limit = this.$config.public.initialTableDataLimit
+      const limit = this.config.public.initialTableDataLimit
       const count = decodedData.split(/\r\n|\r|\n/).length
 
       if (limit !== null && count > limit) {

@@ -334,8 +334,8 @@ export default {
           await this.$store.dispatch('application/forceCreate', application)
         }
         this.$store.dispatch('toast/info', {
-          title: this.$i18n.t('importWorkspaceModal.successTitle'),
-          message: this.$i18n.t('importWorkspaceModal.successMessage', {
+          title: this.$t('importWorkspaceModal.successTitle'),
+          message: this.$t('importWorkspaceModal.successMessage', {
             count: installedApplications.length,
           }),
         })

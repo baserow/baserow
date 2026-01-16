@@ -8,7 +8,7 @@
           :editable="false"
           :enable-rich-text-formatting="true"
           :mentionable-users="workspace.users"
-          :value="entry.before[fieldIdentifier]"
+          :model-value="entry.before[fieldIdentifier]"
         ></RichTextEditor>
       </div>
     </div>
@@ -20,7 +20,7 @@
           :editable="false"
           :enable-rich-text-formatting="true"
           :mentionable-users="workspace.users"
-          :value="entry.after[fieldIdentifier]"
+          :model-value="entry.after[fieldIdentifier]"
         ></RichTextEditor>
       </div>
     </div>

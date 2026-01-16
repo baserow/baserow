@@ -308,7 +308,7 @@ export default {
       this.setLoading(database, true)
 
       try {
-        await this.$nuxt.$router.push({
+        await this.$router.push({
           name: 'database-table',
           params: {
             databaseId: database.id,
@@ -386,7 +386,7 @@ export default {
       this.deleteLoading = false
     },
     resolveTableHref(database, table) {
-      const props = this.$nuxt.$router.resolve({
+      const props = this.$router.resolve({
         name: 'database-table',
         params: {
           databaseId: database.id,

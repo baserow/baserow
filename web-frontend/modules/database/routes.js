@@ -84,5 +84,6 @@ export const routes = [
     name: 'database-public-view-auth',
     path: '/public/auth/:slug',
     file: path.resolve(__dirname, 'pages/publicViewLogin.vue'),
+    meta: { layout: 'login' },
   },
 ]

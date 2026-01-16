@@ -42,6 +42,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
+import { useI18n } from 'vue-i18n'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -49,7 +50,11 @@ export default {
   name: 'AccountForm',
   mixins: [form],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const { locales } = useI18n()
+    return {
+      v$: useVuelidate({ $lazy: true }),
+      locales,
+    }
   },
   data() {
     return {
@@ -59,12 +64,6 @@ export default {
         language: '',
       },
     }
-  },
-  computed: {
-    locales() {
-      const { locales } = useI18n()
-      return locales.value
-    },
   },
 
   validations() {

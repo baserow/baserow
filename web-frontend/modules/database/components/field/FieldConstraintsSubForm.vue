@@ -57,7 +57,7 @@
 
     <FieldConstraintItems
       v-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
-      :value="value"
+      :value="modelValue"
       :field="field"
       :disabled="disabled"
       :error="error"

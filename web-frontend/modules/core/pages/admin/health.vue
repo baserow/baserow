@@ -103,37 +103,3 @@ function error() {
   }, 1)
 }
 </script>
-
-<sscript>
-import HealthService from '@baserow/modules/core/services/health'
-import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
-
-export default {
-  components: { EmailTester },
-  layout: 'app',
-  middleware: 'staff',
-  async asyncData({ app }) {
-    const { data } = await HealthService(app.$client).getAll()
-    return {
-      healthChecks: data.checks,
-      celeryQueueSize: data.celery_queue_size,
-      celeryExportQueueSize: data.celery_export_queue_size,
-    }
-  },
-  methods: {
-    camelCaseToSpaceSeparated(camelCaseString) {
-      if (!camelCaseString) {
-        return 'unknown'
-      } else {
-        camelCaseString = camelCaseString.toString()
-      }
-      return camelCaseString.replace(/([A-Z])/g, ' $1')
-    },
-    error() {
-      setTimeout(() => {
-        throw new Error('Health check error')
-      }, 1)
-    },
-  },
-}
-</sscript>
