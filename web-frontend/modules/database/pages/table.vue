@@ -73,10 +73,8 @@ function parseIntOrNull(x) {
 const database = computed(() => $store.getters['application/getSelected'])
 const table = computed(() => $store.getters['table/getSelected'])
 
-const asyncDataKey = 'database-table-page'
-
 const { data, error, pending, status, refresh } = await useAsyncData(
-  asyncDataKey,
+  `database-table-page-${route.params.viewId ?? 'null'}`,
   async () => {
     // Use current route params (not captured params) so refresh works correctly
     const currentParams = route.params
@@ -86,11 +84,9 @@ const { data, error, pending, status, refresh } = await useAsyncData(
       view: undefined,
     }
 
-    // Get current table from store (middleware has selected it)
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
 
-    // Let's fetch the views
     await $store.dispatch('view/fetchAll', currentTable)
 
     // No viewId → redirect to default view
@@ -157,7 +153,6 @@ const { data, error, pending, status, refresh } = await useAsyncData(
       })
     }
 
-    // Stop loading animation after data is fetched
     $store.dispatch('table/setLoading', false)
 
     return result
