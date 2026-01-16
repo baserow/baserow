@@ -1,5 +1,5 @@
 {
-    "VALID_FORMULA_TESTS": [
+    "VALID_FORMULA_EXECUTION_TESTS": [
         {
             "formula": "'test'",
             "result": "test",
@@ -43,7 +43,7 @@
             "context": {"a":  1, "b":  3}
         }
     ],
-    "INVALID_FORMULA_TESTS": [
+    "INVALID_FORMULA_EXECUTION_TESTS": [
         {
             "formula": "invalid()",
             "context": {}
@@ -55,14 +55,58 @@
         {
             "formula": "get(1,2)",
             "context": {}
+        }
+    ],
+    "VALID_FORMULA_VALIDATION_TESTS": [
+        {
+            "formula": "'test'",
+            "context": {}
+        },
+        {
+          "formula": "get('test_data_provider.1')",
+          "context": {}
+        }
+    ],
+    "INVALID_FORMULA_VALIDATION_TESTS": [
+        {
+            "formula": "unknownfunction()",
+            "context": {},
+            "error": null
+        },
+        {
+            "formula": "get()",
+            "context": {},
+            "error": "The 'get' function expects exactly 1 arguments."
+        },
+        {
+            "formula": "get('a', 'b')",
+            "context": {},
+            "error": "The 'get' function expects exactly 1 arguments."
+        },
+        {
+            "formula": "get('jeff')",
+            "context": {},
+            "error": "runtimeGetErrors.invalidPath"
+        },
+        {
+            "formula": "get('.1')",
+            "context": {},
+            "error": "runtimeGetErrors.missingProvider"
+        },
+        {
+            "formula": "get('foo.1')",
+            "context": {},
+            "error": "runtimeGetErrors.unknownProvider"
         },
         {
             "formula": "concat()",
-            "context": {}
+            "context": {},
+            "error": null
         },
         {
             "formula": "concat('a')",
-            "context": {}
+            "context": {},
+            "error": null
         }
     ]
 }

@@ -76,10 +76,7 @@ import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollect
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
-import {
-  isFormulaValid,
-  validateFormulaArguments,
-} from '@baserow/modules/core/formula'
+import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
@@ -474,32 +471,22 @@ export default {
       // directly from the editor.
       const editorContent = this.editor.getJSON()
       const formula = this.toFormula(editorContent)
-      // Basic syntax validation
-      const syntaxValid = isFormulaValid(formula, functions)
 
-      // Argument validation (if validationContext is provided)
-      let argumentsValid = true
-      if (syntaxValid && Object.keys(this.validationContext).length > 0) {
-        const validation = validateFormulaArguments(
-          formula,
-          functions,
-          this.validationContext
-        )
-        argumentsValid = validation.valid
-
-        if (!argumentsValid && validation.errors.length > 0) {
-          this.formulaErrorContext = {
-            scope: 'argument',
-            title: this.$t("formulaInputField.invalidFunctionArgumentsTitle"),
-            message: validation.errors[0].message,
-          }
+      // Validate the syntax, and assuming it's valid, then validate the arguments.
+      const validationResult = isFormulaValid(
+        formula,
+        functions,
+        false,
+        this.validationContext
+      )
+      this.isFormulaInvalid = !validationResult.valid
+      if (this.isFormulaInvalid) {
+        this.formulaErrorContext = {
+          scope: validationResult.scope,
+          title: this.$t('formulaInputField.invalidFunctionArgumentsTitle'),
+          message: validationResult.errors[0],
         }
-      }
-
-      // Formula is invalid if either syntax or arguments fail validation
-      this.isFormulaInvalid = !syntaxValid || !argumentsValid
-
-      if (!this.isFormulaInvalid) {
+      } else {
         this.$emit('input', formula)
       }
     },

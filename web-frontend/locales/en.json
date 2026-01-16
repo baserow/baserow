@@ -703,6 +703,7 @@
     "categoryCondition": "Condition"
   },
   "runtimeGetErrors": {
+    "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",
     "missingProvider": "The 'get' argument '{path}' is missing its formula provider prefix.",
     "unknownProvider": "The '{providerName}' formula provider does not exist.",
     "invalidProviderPath": "The '{providerName}' formula provider found '{path}' to be invalid."

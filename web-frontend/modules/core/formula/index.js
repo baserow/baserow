@@ -35,45 +35,39 @@ export const resolveFormula = (
   }
 }
 
-export const isFormulaValid = (formula, functions) => {
-  if (!formula) {
-    return true
-  }
-
-  try {
-    const tree = parseBaserowFormula(formula)
-    // we don't validate type as we can't without the right context
-    new JavascriptExecutor(functions, {}, false).visit(tree)
-    return true
-  } catch (err) {
-    return false
-  }
-}
-
 /**
- * Validates formula function arguments with optional context for validation.
- * Each function can define its own validation logic via validateArgs().
+ * Validates if a formula is syntactically correct and optionally validates
+ * its arguments using the provided functions and validation context.
  *
  * @param {string} formula - The formula string to validate
  * @param {FunctionCollection} functions - The collection of available formula functions
- * @param {Object} validationContext - Context needed for validation (e.g., { dataProviderRegistry })
- * @returns {Object} - Object with { valid: boolean, errors: Array<Error> }
+ * @param {boolean} syntaxOnly - If true, only syntax is validated; if false, arguments are also validated.
+ * @param validationContext - Context needed for validation (e.g., { dataProviderRegistry })
+ * @returns {Object} - Object with { scope: string, valid: boolean, errors: Array<string> }
  */
-export const validateFormulaArguments = (
+export const isFormulaValid = (
   formula,
   functions,
+  syntaxOnly = true,
   validationContext = {}
 ) => {
   if (!formula) {
-    return { valid: true, errors: [] }
+    return { scope: null, valid: true, errors: [] }
   }
-
   try {
     const tree = parseBaserowFormula(formula)
-    new BaserowFormulaArgumentVisitor(functions, validationContext).visit(tree)
-    return { valid: true, errors: [] }
+    if (!syntaxOnly) {
+      new BaserowFormulaArgumentVisitor(functions, validationContext).visit(
+        tree
+      )
+    }
+    return {
+      errors: [],
+      valid: true,
+      scope: syntaxOnly ? 'syntax' : 'arguments',
+    }
   } catch (err) {
-    return { valid: false, errors: [err] }
+    return { scope: err.scope, valid: false, errors: [err.message] }
   }
 }
 

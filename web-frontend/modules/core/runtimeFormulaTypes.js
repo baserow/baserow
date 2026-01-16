@@ -73,22 +73,19 @@ export class RuntimeFormulaFunction extends Registerable {
 
   /**
    * This function can be called to perform basic argument validation on the formula
-   * functions. The first check is to ensure that the correct number of arguments
-   * have been provided, and then it will also validate that the type of each
-   * argument is correct.
+   * functions. By default, it'll check if the argument types match what the function
+   * expects.
    *
    * Individual formula functions should override this method if they need to
    * perform custom argument validation beyond number and type checks.
    *
-   * @param {Array} argExpressions - ANTLR parse tree nodes for arguments
-   * @param {Object} validationContext - Contains { dataProviderRegistry }
+   * @param {Array} args - The parsed ANTLR arguments.
+   * @param {Object} validationContext - E.g. { dataProviderRegistry }
    * @param {Object} ctx - ANTLR context object
-   * @throws InvalidNumberOfArguments - If the number of arguments is incorrect
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
-  validateArgs(argExpressions, validationContext, ctx) {
-    this.validateNumberOfArgs(argExpressions, true)
-    const invalidArg = this.validateTypeOfArgs(argExpressions)
+  validateArgs(args, validationContext, ctx) {
+    const invalidArg = this.validateTypeOfArgs(args)
     if (invalidArg) {
       throw new InvalidFormulaArgumentType(this, invalidArg)
     }
@@ -233,6 +230,12 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     return args.map((arg) => ensureString(arg)).join('')
   }
 
+  /**
+   * Validates that the number of args is at least 2.
+   * @param args - The ANTLR parsed args.
+   * @param throwOnError - Whether to throw an error if the number of args is incorrect.
+   * @return {boolean} - Whether the number of args is valid.
+   */
   validateNumberOfArgs(args, throwOnError = false) {
     const validArgLength = args.length > 1
     if (!validArgLength && throwOnError) {
@@ -374,20 +377,26 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   /**
    * Validates the arguments for the get() function.
    *
-   * @param {Array} argExpressions - ANTLR parse tree nodes for arguments
+   * @param {Array} args - The accepted ANTLR parse tree nodes for arguments
    * @param {Object} validationContext - Contains { dataProviderRegistry }
    * @param {Object} ctx - ANTLR context object
    * @throws {InvalidFormulaArgument} - If the argument is invalid.
    */
-  validateArgs(argExpressions, validationContext, ctx) {
+  validateArgs(args, validationContext, ctx) {
     // Perform our argument count and type validation first.
-    super.validateArgs(argExpressions, validationContext, ctx)
+    super.validateArgs(args, validationContext, ctx)
 
     const { i18n } = this.app
     const { dataProviderRegistry } = validationContext
+    const path = args[0]
 
-    const argument = argExpressions[0]
-    const path = argument.getText().slice(1, -1)
+    // Ensure the path is dot-delimited (e.g., 'a.b' or 'a.b.c')
+    if (!path.includes('.')) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        i18n.t('runtimeGetErrors.invalidPath', { path })
+      )
+    }
     const [providerName, ...rest] = _.toPath(path)
 
     // Ensure that a provider has been given to us.
