@@ -172,7 +172,6 @@ export default {
     },
   },
   emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
-  emits: ['blur', 'focus', 'input'],
   data() {
     return {
       editor: null,

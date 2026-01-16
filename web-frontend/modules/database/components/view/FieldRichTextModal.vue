@@ -48,7 +48,6 @@ export default {
     },
   },
   emits: ['hidden', 'input', 'update:modelValue'],
-  emits: ['hidden', 'input'],
   watch: {
     modelValue: {
       handler(value) {
