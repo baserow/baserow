@@ -363,6 +363,9 @@ case "$1" in
     ci-check-startup-oss-only)
         exec just ci-check-startup-oss-only
     ;;
+    ci-check-migrations)
+        exec just check-migrations
+    ;;
     celery-worker)
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
         export OTEL_SERVICE_NAME="celery-worker-combined"

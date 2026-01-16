@@ -360,6 +360,15 @@ jobs:
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup-oss-only
+      - name: Check backend migrations
+        run: |
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-migrations
 
   test-backend:
     name: Backend Tests (Group ${{ matrix.group }})

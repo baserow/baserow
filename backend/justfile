@@ -59,8 +59,6 @@ backend *ARGS:
 alias b := backend
 
 # Common shortcuts
-alias l := lint
-alias f := fix
 alias t := test
 alias dev := run-dev-server
 alias serve := run-dev-server
@@ -201,7 +199,7 @@ uv *ARGS:
 
 # Run all lint checks
 [group('4 - code-quality')]
-lint: _check-dev
+check: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
@@ -209,16 +207,8 @@ lint: _check-dev
     {{ uv_run }} ruff check {{ backend_source_dirs }} {{ backend_tests_dirs }}
     {{ uv_run }} ruff format --check {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
-# Check for missing migrations
-lint-migrations: _check-dev
-    #!/usr/bin/env bash
-    set -euo pipefail
-    {{ _load_env }}
-    
-    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
-
-# Run all lint checks including migrations (for CI)
-ci-lint: lint lint-migrations
+alias lint := check 
+alias l := check
 
 # Fix code style (sort imports + format)
 [group('4 - code-quality')]
@@ -227,6 +217,7 @@ fix: _check-dev
     {{ uv_run }} ruff format {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 alias format := fix
+alias f := fix
 
 # =============================================================================
 # Testing
@@ -339,6 +330,14 @@ ci-check-startup-oss-only: _check-dev
     BASEROW_OSS_ONLY=true timeout --preserve-status 10s \
         {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
         -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+
+[group('8 - ci')]
+check-migrations: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    
+    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
 
 # =============================================================================
 # Translations
