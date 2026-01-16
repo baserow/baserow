@@ -107,7 +107,7 @@ export default defineNuxtModule({
     nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)
 
     // Alias
-    nuxt.options.alias['@baserow'] = '/baserow/web-frontend'
+    nuxt.options.alias['@baserow'] = resolve('../../')
 
     // Runtime config
     const BASEROW_PUBLIC_URL = process.env.BASEROW_PUBLIC_URL

@@ -76,7 +76,7 @@ export default {
     formUrl() {
       return (
         this.$config.public.publicWebFrontendUrl +
-        this.$nuxt.$router.resolve({
+        this.$router.resolve({
           name: this.$registry.get('view', this.view.type).getPublicRoute(),
           params: { slug: this.view.slug },
         }).href

@@ -73,7 +73,6 @@ import { useStore } from 'vuex'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts.vue'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
 import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar.vue'
-import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize.vue'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour.vue'
 import WorkspaceSearchModal from '@baserow/modules/core/components/workspace/WorkspaceSearchModal.vue'
@@ -82,6 +81,7 @@ import {
   isOsSpecificModifierPressed,
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const store = useStore()
 const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
@@ -141,8 +141,8 @@ function keyDown(event) {
       el.isContentEditable
 
     if (!avoid) {
-      if (event.shiftKey) undoRedo.methods.redo()
-      else undoRedo.methods.undo()
+      const actionName = event.shiftKey ? 'undoRedo/redo' : 'undoRedo/undo'
+      store.dispatch(actionName, { showLoadingToast: false }).catch(notifyIf)
       event.preventDefault()
     }
   }

@@ -234,7 +234,7 @@ export default {
       }
     },
     async onJobDone() {
-      await this.$nuxt.$router.push({
+      await this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.database.id,

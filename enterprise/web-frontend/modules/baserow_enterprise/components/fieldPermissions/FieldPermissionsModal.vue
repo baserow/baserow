@@ -1,5 +1,5 @@
 <template>
-  <Modal @show="init()">
+  <Modal ref="modal" @show="init()">
     <h2 class="box__title">{{ $t('fieldPermissionModal.title') }}</h2>
     <p>
       <i18n-t keypath="fieldPermissionModal.description" tag="span">

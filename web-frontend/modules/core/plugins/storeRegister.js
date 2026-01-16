@@ -1,6 +1,6 @@
 export default defineNuxtPlugin({
   name: 'store',
-  dependsOn: ['create-store', 'client-handler', 'core', 'i18n'],
+  dependsOn: ['create-store', 'client-handler', 'core', 'i18n', 'bus'],
   async setup(nuxtApp) {
     const {
       $store,
@@ -9,6 +9,7 @@ export default defineNuxtPlugin({
       $client,
       $registry,
       $router,
+      $bus,
       runWithContext,
     } = nuxtApp
 
@@ -18,6 +19,7 @@ export default defineNuxtPlugin({
     $store.$client = $client
     $store.$registry = $registry
     $store.$router = $router
+    $store.$bus = $bus
     $store.runWithContext = runWithContext
   },
 })

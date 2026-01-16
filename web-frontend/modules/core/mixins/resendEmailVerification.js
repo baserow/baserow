@@ -20,10 +20,8 @@ export default {
         await AuthService(this.$client).sendVerifyEmail(email)
         this.resendSuccess = true
         this.$store.dispatch('toast/info', {
-          title: this.$i18n.t(
-            'resendEmailVerification.confirmationEmailSentTitle'
-          ),
-          message: this.$i18n.t(
+          title: this.$t('resendEmailVerification.confirmationEmailSentTitle'),
+          message: this.$t(
             'resendEmailVerification.confirmationEmailSentDescription'
           ),
         })

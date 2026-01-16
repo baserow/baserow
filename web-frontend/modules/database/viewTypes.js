@@ -576,7 +576,7 @@ export class GridViewType extends ViewType {
     // being sorted, and this will only be the case after a refresh.
     await store.dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
-      clone(view.group_bys)
+      clone(view.group_bys || [])
     )
 
     if (
@@ -720,7 +720,7 @@ export class GridViewType extends ViewType {
     // active group bys.
     await dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
-      clone(rootGetters['view/getSelected'].group_bys),
+      clone(rootGetters['view/getSelected'].group_bys || []),
       {
         root: true,
       }

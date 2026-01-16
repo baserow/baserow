@@ -618,7 +618,7 @@ export default {
     },
     async openTable() {
       // Redirect to the newly created table.
-      await this.$nuxt.$router.push({
+      await this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.database.id,

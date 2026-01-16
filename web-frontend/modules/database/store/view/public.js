@@ -1,4 +1,5 @@
 import { getToken, setToken } from '@baserow/modules/core/utils/auth'
+import { useNuxtApp } from '#app'
 
 export const state = () => ({
   authToken: null,
@@ -17,7 +18,8 @@ export const mutations = {
 export const actions = {
   async setAuthTokenFromCookiesIfNotSet({ state, commit }, { slug }) {
     if (!state.authToken) {
-      const token = await getToken(this.app, slug)
+      const nuxtApp = useNuxtApp()
+      const token = await getToken(nuxtApp, slug)
       commit('SET_AUTH_TOKEN', token)
       return token
     } else {
@@ -25,7 +27,8 @@ export const actions = {
     }
   },
   async setAuthToken({ commit }, { slug, token }) {
-    await setToken(this.app, token, slug)
+    const nuxtApp = useNuxtApp()
+    await setToken(nuxtApp, token, slug)
     commit('SET_AUTH_TOKEN', token)
   },
   setIsPublic({ commit }, value) {

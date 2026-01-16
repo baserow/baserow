@@ -109,4 +109,7 @@ export default defineNuxtConfig({
   build: {
     transpile: ['vue-chartjs', 'chart.js'],
   },
+  experimental: {
+    appManifest: process.env.NODE_ENV !== 'development',
+  },
 })

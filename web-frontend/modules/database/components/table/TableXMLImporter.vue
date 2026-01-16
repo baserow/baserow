@@ -77,6 +77,7 @@
 <script>
 import { required, helpers } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { useRuntimeConfig } from '#imports'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -87,7 +88,8 @@ export default {
   mixins: [form, importer],
   emits: ['changed', 'data', 'getData'],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const config = useRuntimeConfig()
+    return { v$: useVuelidate({ $lazy: true }), config }
   },
   data() {
     return {
@@ -124,14 +126,14 @@ export default {
 
       const file = event.target.files[0]
       const maxSize =
-        parseInt(this.$config.public.baserowMaxImportFileSizeMb, 10) *
+        parseInt(this.config.public.baserowMaxImportFileSizeMb, 10) *
         1024 *
         1024
 
       if (file.size > maxSize) {
         this.handleImporterError(
           this.$t('tableXMLImporter.limitFileSize', {
-            limit: this.$config.public.baserowMaxImportFileSizeMb,
+            limit: this.config.public.baserowMaxImportFileSizeMb,
           })
         )
         this.values.filename = ''
@@ -184,7 +186,7 @@ export default {
         return
       }
 
-      const limit = this.$config.public.initialTableDataLimit
+      const limit = this.config.public.initialTableDataLimit
       if (limit !== null && xmlData.length > limit) {
         this.handleImporterError(
           this.$t('tableXMLImporter.limitError', { limit })
