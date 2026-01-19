@@ -182,6 +182,7 @@
 </template>
 
 <script>
+import { useHead } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import ActiveUsers from '@baserow/modules/core/components/admin/dashboard/charts/ActiveUsers'
@@ -191,6 +192,10 @@ export default {
   components: { ActiveUsers },
   layout: 'app',
   middleware: 'staff',
+  setup() {
+    const { $i18n } = useNuxtApp()
+    useHead({ title: $i18n.t('adminDashboard.title') })
+  },
   data() {
     return {
       loading: true,

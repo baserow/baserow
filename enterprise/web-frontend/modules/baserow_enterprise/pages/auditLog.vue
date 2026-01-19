@@ -106,6 +106,7 @@ import {
   createError,
   definePageMeta,
   useI18n,
+  useHead,
 } from '#imports'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
@@ -137,6 +138,8 @@ const route = useRoute()
 const router = useRouter()
 const { $client, $hasFeature, $hasPermission } = useNuxtApp()
 const { t: $t } = useI18n()
+
+useHead({ title: $t('auditLog.adminTitle') })
 
 // Helper function
 function initFilters(wsId = null) {

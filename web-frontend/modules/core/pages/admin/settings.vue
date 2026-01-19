@@ -242,7 +242,7 @@ import {
   getCurrentInstance,
   onMounted,
 } from 'vue'
-import { useAsyncData, useNuxtApp } from '#app'
+import { useAsyncData, useNuxtApp, useHead } from '#app'
 import { useStore } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
 import { required, integer, between, helpers } from '@vuelidate/validators'
@@ -252,9 +252,11 @@ import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
-const { $registry, $client, $baserowVersion } = useNuxtApp()
+const { $registry, $client, $baserowVersion, $i18n } = useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
+
+useHead({ title: $i18n.t('settings.settingsTitle') })
 
 const instanceIdCopied = ref(null)
 

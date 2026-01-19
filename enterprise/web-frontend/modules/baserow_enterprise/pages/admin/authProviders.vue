@@ -41,7 +41,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp, definePageMeta, useI18n } from '#imports'
+import { useNuxtApp, definePageMeta, useI18n, useHead } from '#imports'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
@@ -55,6 +55,8 @@ definePageMeta({
 const store = useStore()
 const { $registry } = useNuxtApp()
 const { t: $t } = useI18n()
+
+useHead({ title: $t('authProviders.title') })
 
 // Template refs
 const createContextLink = ref(null)
