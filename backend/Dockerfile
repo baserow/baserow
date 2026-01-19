@@ -207,6 +207,7 @@ RUN mkdir -p /baserow/backend/reports /baserow/premium/backend /baserow/enterpri
 
 # Copy the virtual environment and source code with tests
 COPY --chown=$UID:$GID --from=builder-ci /baserow /baserow
+COPY --chown=$UID:$GID ./docs /baserow/docs/
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 
 USER $UID:$GID
@@ -355,6 +356,7 @@ COPY --chown=$UID:$GID LICENSE /baserow/LICENSE
 COPY --chown=$UID:$GID --from=builder-prod /baserow/backend /baserow/backend/
 COPY --chown=$UID:$GID --from=builder-prod /baserow/premium /baserow/premium/
 COPY --chown=$UID:$GID --from=builder-prod /baserow/enterprise /baserow/enterprise/
+COPY --chown=$UID:$GID ./docs /baserow/docs/
 
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 

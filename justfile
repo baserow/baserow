@@ -218,12 +218,12 @@ _dev-start:
 
     # Create .env.local from example if it doesn't exist
     if [ ! -f .env.local ]; then
-        if [ -f .env.local.example ]; then
-            echo "Creating .env.local from .env.local.example..."
-            cp .env.local.example .env.local
+        if [ -f .env.local-dev.example ]; then
+            echo "Creating .env.local from .env.local-dev.example..."
+            cp .env.local-dev.example .env.local
             echo ""
         else
-            echo "Warning: .env.local.example not found, skipping .env.local creation"
+            echo "Warning: .env.local-dev.example not found, skipping .env.local creation"
             echo ""
         fi
     fi
@@ -240,7 +240,7 @@ _dev-start:
 
     # Start docker services (redis, db, mailhog, otel-collector)
     echo "==> Starting Docker services (redis, db, mailhog, otel-collector)..."
-    just dc-dev up -d redis db mailhog otel-collector
+    just dc-dev up -d redis db mailhog otel-collector caddy
 
     # Wait for services to be ready
     echo "==> Waiting for PostgreSQL to be ready..."

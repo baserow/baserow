@@ -120,13 +120,13 @@ init: _setup-env _create-venv
     @echo "  just run <command>"
     @echo "  uv run <command>"
 
-# Copy .env.local.example to .env.local if it doesn't exist (in project root)
+# Copy .env.local-dev.example to .env.local if it doesn't exist (in project root)
 _setup-env:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ ! -f ../.env.local ] && [ -f ../.env.local.example ]; then
-        echo "Creating .env.local from .env.local.example..."
-        cp ../.env.local.example ../.env.local
+    if [ ! -f ../.env.local ] && [ -f ../.env.local-dev.example ]; then
+        echo "Creating .env.local from .env.local-dev.example..."
+        cp ../.env.local-dev.example ../.env.local
         echo "Please review and edit .env.local as needed."
     fi
 

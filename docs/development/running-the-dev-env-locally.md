@@ -121,7 +121,7 @@ All processes log to `/tmp/`:
 
 ### The .env.local File
 
-The `just init` command creates `.env.local` in the project root with sensible defaults, taken from `.env.local.example`:
+The `just init` command creates `.env.local` in the project root with sensible defaults, taken from `.env.local-dev.example`:
 
 ```bash
 # Key settings in .env.local
