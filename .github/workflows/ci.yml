@@ -1195,6 +1195,127 @@ jobs:
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
 
+  # ==========================================================================
+  # CI STATUS - Single required check for branch protection
+  # ==========================================================================
+  # This job aggregates the results of all CI jobs and provides a single
+  # status check for branch protection rules.
+  #
+  # To configure optional checks:
+  # 1. Go to Settings → Secrets and variables → Actions → Variables
+  # 2. Create a repository variable named OPTIONAL_CHECKS
+  # 3. Set its value to a comma-separated list of job names that should be optional
+  #    Example: "test-e2e,test-zapier,helm-chart-lint"
+  #
+  # Jobs listed in OPTIONAL_CHECKS can fail without blocking the PR.
+  # Jobs NOT listed are required and must pass (or be skipped due to path filtering).
+  # ==========================================================================
+
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      # Lint jobs (can be skipped based on path changes)
+      - backend-lint
+      - frontend-lint
+      - dockerfile-lint
+      - helm-chart-lint
+      # Test jobs (can be skipped based on path changes)
+      - backend-check-startup
+      - test-backend
+      - test-frontend
+      - test-zapier
+      - check-mjml-compiled
+      # E2E tests (can be skipped based on path changes)
+      - test-e2e
+      - collect-e2e-reports
+      # Coverage (depends on test-backend)
+      - collect-coverage
+    steps:
+      - name: Evaluate CI results
+        env:
+          OPTIONAL_CHECKS: ${{ vars.OPTIONAL_CHECKS || '' }}
+          RESULTS: |
+            backend-lint=${{ needs.backend-lint.result }}
+            frontend-lint=${{ needs.frontend-lint.result }}
+            dockerfile-lint=${{ needs.dockerfile-lint.result }}
+            helm-chart-lint=${{ needs.helm-chart-lint.result }}
+            backend-check-startup=${{ needs.backend-check-startup.result }}
+            test-backend=${{ needs.test-backend.result }}
+            test-frontend=${{ needs.test-frontend.result }}
+            test-zapier=${{ needs.test-zapier.result }}
+            check-mjml-compiled=${{ needs.check-mjml-compiled.result }}
+            test-e2e=${{ needs.test-e2e.result }}
+            collect-e2e-reports=${{ needs.collect-e2e-reports.result }}
+            collect-coverage=${{ needs.collect-coverage.result }}
+        run: |
+          echo "=================================="
+          echo "CI Status Check"
+          echo "=================================="
+          echo ""
+          echo "Optional checks (from OPTIONAL_CHECKS variable):"
+          echo "  ${OPTIONAL_CHECKS:-"(none configured)"}"
+          echo ""
+          echo "Job results:"
+          echo "$RESULTS" | grep -v '^$'
+          echo ""
+          echo "=================================="
+
+          # Convert OPTIONAL_CHECKS to an array for easier lookup
+          IFS=',' read -ra OPTIONAL_ARRAY <<< "$OPTIONAL_CHECKS"
+
+          is_optional() {
+            local job_name="$1"
+            for optional in "${OPTIONAL_ARRAY[@]}"; do
+              # Trim whitespace
+              optional=$(echo "$optional" | xargs)
+              if [[ "$job_name" == "$optional" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          has_failure=false
+
+          while IFS='=' read -r job_name result; do
+            # Skip empty lines
+            [[ -z "$job_name" ]] && continue
+
+            # Trim whitespace
+            job_name=$(echo "$job_name" | xargs)
+            result=$(echo "$result" | xargs)
+
+            if is_optional "$job_name"; then
+              if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+                echo "⚠️  $job_name: $result (optional - ignored)"
+              else
+                echo "✅ $job_name: $result (optional)"
+              fi
+            else
+              if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+                echo "❌ $job_name: $result (required)"
+                has_failure=true
+              elif [[ "$result" == "skipped" ]]; then
+                echo "⏭️  $job_name: $result (skipped due to path filter)"
+              else
+                echo "✅ $job_name: $result"
+              fi
+            fi
+          done <<< "$RESULTS"
+
+          echo ""
+          echo "=================================="
+
+          if [[ "$has_failure" == "true" ]]; then
+            echo "❌ CI failed: one or more required checks failed"
+            exit 1
+          else
+            echo "✅ CI passed: all required checks passed (or were skipped)"
+            exit 0
+          fi
+
   trigger-saas-build:
     name: Trigger SaaS GitLab Pipeline
     runs-on: ubuntu-latest
