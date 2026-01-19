@@ -1,111 +1,97 @@
-from typing import TYPE_CHECKING, List, Optional, Type
+from typing import TYPE_CHECKING, Optional
 
-from baserow.core.exceptions import InstanceTypeDoesNotExist
-from baserow.core.formula import BaserowFormulaSyntaxError
+from baserow.core.formula.parser.exceptions import (
+    FieldByIdReferencesAreDeprecated,
+    InvalidNumberOfArguments,
+)
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
     BaserowFormulaVisitor,
 )
-from baserow.core.formula.parser.parser import convert_string_literal_token_to_string
-from baserow.core.formula.runtime_formula_types import RuntimeGet
-from baserow.core.utils import to_path
 
 if TYPE_CHECKING:
-    from baserow.core.formula.registries import (
-        DataProviderTypeRegistry,
-        RuntimeFormulaFunction,
-    )
+    from baserow.core.formula import FunctionCollection
+    from baserow.core.formula.registries import DataProviderTypeRegistry
 
 
 class BaserowFormulaArgumentVisitor(BaserowFormulaVisitor):
     """
     A Baserow formula visitor which is responsible for validating a formula's
-    function arguments. At the moment only one function is supported, `RuntimeGet`.
-
-    The `RuntimeGet` function requires a `data_provider_type_registry` to be passed in
-    the constructor in order to validate its argument paths. If it's given, we
-    can then check if the path's provider name exists, and then using that provider,
-    check if the rest of the path is valid.
+    function arguments.
     """
 
     def __init__(
-        self, data_provider_type_registry: Optional["DataProviderTypeRegistry"] = None
+        self,
+        functions: "FunctionCollection",
+        data_provider_type_registry: Optional["DataProviderTypeRegistry"] = None,
     ):
+        self.functions = functions
         self.data_provider_type_registry = data_provider_type_registry
 
-    def validate_argument_length(
-        self,
-        function: Type["RuntimeFormulaFunction"],
-        expressions: List[BaserowFormula.ExprContext],
+    def visitRoot(self, ctx: BaserowFormula.RootContext):
+        return ctx.expr().accept(self)
+
+    def visitStringLiteral(self, ctx: BaserowFormula.StringLiteralContext):
+        # noinspection PyTypeChecker
+        return self.process_string(ctx)
+
+    def process_string(self, ctx):
+        literal_without_outer_quotes = ctx.getText()[1:-1]
+        if ctx.SINGLEQ_STRING_LITERAL() is not None:
+            literal = literal_without_outer_quotes.replace("\\'", "'")
+        else:
+            literal = literal_without_outer_quotes.replace('\\"', '"')
+        return literal
+
+    def visitDecimalLiteral(self, ctx: BaserowFormula.DecimalLiteralContext):
+        return float(ctx.getText())
+
+    def visitBooleanLiteral(self, ctx: BaserowFormula.BooleanLiteralContext):
+        return ctx.TRUE() is not None
+
+    def visitBrackets(self, ctx: BaserowFormula.BracketsContext):
+        return ctx.expr().accept(self)
+
+    def visitIdentifier(self, ctx: BaserowFormula.IdentifierContext):
+        return ctx.getText()
+
+    def visitIntegerLiteral(self, ctx: BaserowFormula.IntegerLiteralContext):
+        return int(ctx.getText())
+
+    def visitFieldByIdReference(self, ctx: BaserowFormula.FieldByIdReferenceContext):
+        raise FieldByIdReferencesAreDeprecated()
+
+    def visitLeftWhitespaceOrComments(
+        self, ctx: BaserowFormula.LeftWhitespaceOrCommentsContext
     ):
-        """
-        Validates that the number of arguments provided to a function matches the
-        expected number of arguments for that function.
+        return ctx.expr().accept(self)
 
-        :param function: The runtime formula function to validate against.
-        :param expressions: A list of expression contexts containing the arguments.
-        :raises BaserowFormulaSyntaxError: if the number of arguments does not match.
-        """
-
-        expected_args = len(function.args or [])
-        if expected_args != len(expressions):
-            raise BaserowFormulaSyntaxError(
-                f"The '{function.type}' function requires exactly {expected_args} "
-                f"argument(s), but {len(expressions)} were provided."
-            )
-
-    def validate_get_arguments(
-        self, expressions: List[BaserowFormula.StringLiteralContext]
+    def visitRightWhitespaceOrComments(
+        self, ctx: BaserowFormula.RightWhitespaceOrCommentsContext
     ):
-        """
-        Validates the arguments of a `RuntimeGet` function call.
-
-        :param expressions: A list of string literal contexts containing the arguments.
-            This particular function expects exactly one argument.
-        :raises InstanceTypeDoesNotExist: if the data provider does not exist.
-        """
-
-        self.validate_argument_length(RuntimeGet, expressions)
-
-        # At this stage the text is single quoted, so we need to remove them.
-        arguments = convert_string_literal_token_to_string(
-            expressions[0].getText(), True
-        )
-
-        provider_name, *rest = to_path(arguments)
-        if not provider_name:
-            raise BaserowFormulaSyntaxError(
-                f"The '{RuntimeGet.type}' function arguments "
-                "must start with a formula provider name."
-            )
-
-        try:
-            provider = self.data_provider_type_registry.get(provider_name)
-        except InstanceTypeDoesNotExist:
-            # Re-raise the exception but with a more precise message. We
-            # are at a stage where we have enough variables that we can
-            # precisely say where the argument is wrong.
-            raise InstanceTypeDoesNotExist(
-                provider_name,
-                f"The formula provider '{provider_name}' "
-                f"used in '{arguments}' does not exist in the "
-                f"{self.data_provider_type_registry.provided_module_name} module.",
-            )
-        provider.is_valid(rest)
+        return ctx.expr().accept(self)
 
     def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
         """
-        Visits a function call node in the parse tree. If the function is `RuntimeGet`,
-        then it validates its arguments.
+        Visits a function call node in the parse tree. For each function we encounter,
+        we validate its args using the corresponding function type's `validate_args`
+        method.
 
         :param ctx: The function call context from the parse tree.
+        :raises InvalidNumberOfArguments: If the number of arguments provided to the
+            function does not match the expected number.
         :return: The result of visiting child nodes.
         """
 
+        accepted_args = [expr.accept(self) for expr in ctx.expr()]
         function_name = ctx.func_name().getText().lower()
-        function_argument_expressions = ctx.expr()
-
-        if function_name == RuntimeGet.type:
-            self.validate_get_arguments(function_argument_expressions)
-
-        return self.visitChildren(ctx)
+        formula_function_type = self.functions.get(function_name)
+        if not formula_function_type.validate_number_of_args(accepted_args):
+            raise InvalidNumberOfArguments(formula_function_type, len(accepted_args))
+        args_parsed = formula_function_type.parse_args(accepted_args)
+        formula_function_type.validate_args(
+            args_parsed,
+            validation_context={
+                "data_provider_type_registry": self.data_provider_type_registry
+            },
+        )

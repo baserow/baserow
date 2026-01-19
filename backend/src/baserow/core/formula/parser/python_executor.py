@@ -54,11 +54,7 @@ class BaserowPythonExecutor(BaserowFormulaVisitor):
     def _do_func(self, function_argument_expressions, function_name: str):
         args = [expr.accept(self) for expr in function_argument_expressions]
         formula_function_type = self._get_formula_function_type(function_name)
-
-        formula_function_type.validate_args(args)
-
         args_parsed = formula_function_type.parse_args(args)
-
         return formula_function_type.execute(self.context, args_parsed)
 
     def _get_formula_function_type(self, function_name: str) -> FormulaFunction:

@@ -5,8 +5,13 @@ import pytest
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaSyntaxError
+from baserow.core.formula.parser.exceptions import InvalidNumberOfArguments
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
-from baserow.core.formula.registries import DataProviderType, DataProviderTypeRegistry
+from baserow.core.formula.registries import (
+    DataProviderType,
+    DataProviderTypeRegistry,
+    formula_runtime_function_registry,
+)
 from baserow.core.formula.visitors import BaserowFormulaArgumentVisitor
 from baserow.core.services.dispatch_context import DispatchContext
 
@@ -30,22 +35,24 @@ def mock_registry():
 
 def parse_and_visit_formula(formula: str, registry=None):
     tree = get_parse_tree_for_formula(formula)
-    visitor = BaserowFormulaArgumentVisitor(data_provider_type_registry=registry)
+    visitor = BaserowFormulaArgumentVisitor(
+        formula_runtime_function_registry, data_provider_type_registry=registry
+    )
     return visitor.visit(tree)
 
 
-def test_get_with_no_arguments_raises_syntax_error(mock_registry):
+def test_get_with_no_arguments_raises_invalid_number_of_args(mock_registry):
     with pytest.raises(
-        BaserowFormulaSyntaxError,
-        match=r"The 'get' function requires exactly 1 argument\(s\), but 0 were provided.",
+        InvalidNumberOfArguments,
+        match=r"0 arguments were given .* it must instead be given 1",
     ):
         parse_and_visit_formula("get()", mock_registry)
 
 
-def test_get_with_two_arguments_raises_syntax_error(mock_registry):
+def test_get_with_two_arguments_raises_invalid_number_of_args(mock_registry):
     with pytest.raises(
-        BaserowFormulaSyntaxError,
-        match=r"The 'get' function requires exactly 1 argument\(s\), but 2 were provided.",
+        InvalidNumberOfArguments,
+        match=r"2 arguments were given .* it must instead be given 1",
     ):
         parse_and_visit_formula(
             "get('test_provider.field1', 'extra_arg')", mock_registry

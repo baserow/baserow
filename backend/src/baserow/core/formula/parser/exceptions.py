@@ -16,8 +16,8 @@ class InvalidNumberOfArguments(BaserowFormulaException):
         else:
             error_prefix = f"{num_args} arguments were"
         super().__init__(
-            f"{error_prefix} given to the {function_def}, it must instead "
-            f"be given {function_def.num_args}"
+            f"{error_prefix} given to the '{function_def.type}' function, it must "
+            f"instead be given {function_def.num_args}"
         )
 
 

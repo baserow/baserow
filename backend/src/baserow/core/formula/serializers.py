@@ -7,8 +7,12 @@ from rest_framework.exceptions import ValidationError
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
+from baserow.core.formula.parser.exceptions import (
+    BaserowFormulaSyntaxError,
+    InvalidNumberOfArguments,
+)
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_ADVANCED,
     BASEROW_FORMULA_MODE_RAW,
@@ -128,17 +132,17 @@ class FormulaSerializerField(serializers.JSONField):
             if formula_arg_validation_kwargs:
                 try:
                     BaserowFormulaArgumentVisitor(
-                        **formula_arg_validation_kwargs
+                        formula_runtime_function_registry,
+                        **formula_arg_validation_kwargs,
                     ).visit(tree)
-                except BaserowFormulaSyntaxError as exc:
+                except (
+                    BaserowFormulaSyntaxError,
+                    InvalidNumberOfArguments,
+                    InstanceTypeDoesNotExist,
+                ) as exc:
                     raise ValidationError(
                         exc.args[0],
-                        code="invalid_function_syntax",
-                    ) from exc
-                except InstanceTypeDoesNotExist as exc:
-                    raise ValidationError(
-                        exc.args[0],
-                        code="invalid_data_provider",
+                        code="invalid_formula_argument",
                     ) from exc
             return data
         except BaserowFormulaSyntaxError as e:
