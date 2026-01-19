@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where the Collaborators field couldn't be updated when the value was a string.",
+    "issue_origin": "github",
+    "issue_number": 3954,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-01-19"
+}
