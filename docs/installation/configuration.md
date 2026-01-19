@@ -239,7 +239,7 @@ come with a [Caddy](https://caddy.io) reverse proxy which is configured to serve
 back any user uploaded files which are stored in the data/media volume.
 
 If you do not wish to use our default Caddy see the following guides on configuring
-an Apache, NGinx or Traefik to serve user files for you:
+an Apache, Nginx or Traefik to serve user files for you:
 * [Apache](./install-behind-apache.md)
 * [Nginx](./install-behind-nginx.md)
 * [Traefik](./install-with-traefik.md)
