@@ -195,6 +195,25 @@ def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
     return result
 
 
+def ensure_link_row_value(value: Any) -> Any:
+    """
+    Convert string values that look like integers to actual integers.
+    This is used for link row fields where IDs may be passed as strings
+    (e.g. from form data).
+
+    :param value: The value to process.
+    :return: The value possibly converted to an integer.
+    """
+
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return value
+
+    return value
+
+
 def guess_cast_function_from_response_serializer_field(
     serializer_field: Union[Field, Serializer], service: LocalBaserowUpsertRow
 ) -> Optional[Callable]:
@@ -207,6 +226,7 @@ def guess_cast_function_from_response_serializer_field(
 
     from baserow.contrib.database.api.fields.serializers import (
         FileFieldRequestSerializer,
+        LinkRowRequestSerializer,
     )
 
     if isinstance(serializer_field, FileFieldRequestSerializer):
@@ -216,6 +236,12 @@ def guess_cast_function_from_response_serializer_field(
         return lambda value: prepare_files_for_db(
             value, service.integration.authorized_user
         )
+
+    if isinstance(serializer_field, LinkRowRequestSerializer):
+        # Special case for the link row field serializer. The resolved value may
+        # be a string or an integer. When it is a string, it may be a numeric
+        # row ID that needs to be converted to an integer.
+        return ensure_link_row_value
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
 

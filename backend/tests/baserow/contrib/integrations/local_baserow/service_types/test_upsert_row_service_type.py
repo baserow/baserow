@@ -833,3 +833,57 @@ def test_extract_properties_returns_expected_list(path, expected):
     result = service_type.extract_properties(path)
 
     assert result == expected
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_link_row_with_string_id(
+    data_fixture,
+):
+    """
+    Test that when using a link row field mapping, the resolved value is converted
+    to an integer if it is a row ID that is a string (e.g. form data)
+    """
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+
+    related_table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[("Name", "text", {})],
+    )
+    related_row = RowHandler().create_row(user=user, table=related_table, values={})
+
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("linked", "link_row", {"link_row_table": related_table}),
+        ],
+    )
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    service_type = service.get_type()
+    link_field = table.field_set.get(name="linked")
+    service.field_mappings.create(field=link_field, value='get("form_data.999")')
+
+    # Simulate form data where the row ID is provided as a string
+    formula_context = {"form_data": {"999": str(related_row.id)}}
+    dispatch_context = FakeDispatchContext(context=formula_context)
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert getattr(dispatch_data["data"], link_field.db_column).count() == 1
