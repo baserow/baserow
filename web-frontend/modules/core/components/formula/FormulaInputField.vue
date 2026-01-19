@@ -369,7 +369,10 @@ export default {
     },
 
     value(value) {
-      if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
+      // Use editor.getJSON() directly instead of this.wrapperContent to avoid stale cached data
+      const editorContent = this.editor?.getJSON()
+      const currentFormula = this.toFormula(editorContent)
+      if (!_.isEqual(value, currentFormula)) {
         const content = this.toContent(value)
 
         if (!this.isFormulaInvalid) {
