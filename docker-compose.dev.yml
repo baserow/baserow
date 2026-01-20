@@ -42,6 +42,7 @@ services:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
@@ -92,6 +93,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
@@ -110,6 +112,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
@@ -218,6 +221,28 @@ services:
       local:
     ports:
       - "4318:4318"
+  
+  embeddings:
+    profiles: ["ai"]
+    build:
+      context: ./embeddings
+      dockerfile: Dockerfile
+    ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:7999:80"
+    networks:
+      local:
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost/health').raise_for_status()",
+        ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   pgdatadev:

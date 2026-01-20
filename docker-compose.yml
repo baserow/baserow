@@ -320,6 +320,7 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+      BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
     depends_on:
       - backend
     networks:
@@ -340,7 +341,8 @@ services:
           "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck",
         ]
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:
@@ -361,7 +363,8 @@ services:
           "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck",
         ]
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:
@@ -385,7 +388,8 @@ services:
     # See https://github.com/sibson/redbeat/issues/129#issuecomment-1057478237
     stop_signal: SIGQUIT
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:

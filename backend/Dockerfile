@@ -182,6 +182,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
+    gettext \
     xmlsec1
 
 ENV DOCKER_USER=baserow_docker_user \
@@ -236,6 +237,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python3.11-dev \
     ca-certificates \
     postgresql-client-15 \
+    gettext \
     xmlsec1 \
     curl \
     graphviz \
@@ -275,13 +277,14 @@ USER $UID:$GID
 WORKDIR /baserow/backend
 
 # Install all dependencies
+COPY --chown=$UID:$GID LICENSE /baserow/LICENSE
+COPY --chown=$UID:$GID premium/LICENSE /baserow/premium/LICENSE
+COPY --chown=$UID:$GID enterprise/LICENSE /baserow/enterprise/LICENSE
+
 RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
-    --mount=type=bind,source=LICENSE,target=/baserow/LICENSE \
     --mount=type=bind,source=backend/uv.lock,target=/baserow/backend/uv.lock \
     --mount=type=bind,source=backend/pyproject.toml,target=/baserow/backend/pyproject.toml \
-    --mount=type=bind,source=premium/LICENSE,target=/baserow/premium/LICENSE \
     --mount=type=bind,source=premium/backend/pyproject.toml,target=/baserow/premium/backend/pyproject.toml \
-    --mount=type=bind,source=enterprise/LICENSE,target=/baserow/enterprise/LICENSE \
     --mount=type=bind,source=enterprise/backend/pyproject.toml,target=/baserow/enterprise/backend/pyproject.toml \
     uv sync --frozen --no-install-workspace --no-install-project
 
