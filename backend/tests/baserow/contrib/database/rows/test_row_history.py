@@ -998,7 +998,7 @@ def test_create_rows_action_row_history_with_undo_redo(
 
     assert RowHistory.objects.count() == 1
 
-    history_entries = RowHistory.objects.order_by("row_id").values(
+    history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
         "user_id",
         "user_name",
         "table_id",
@@ -1040,7 +1040,7 @@ def test_create_rows_action_row_history_with_undo_redo(
         )
         assert undone
 
-    history_entries = RowHistory.objects.order_by("row_id").values(
+    history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
         "user_id",
         "user_name",
         "table_id",
@@ -1094,7 +1094,7 @@ def test_create_rows_action_row_history_with_undo_redo(
         )
         assert redone
 
-    history_entries = RowHistory.objects.order_by("row_id").values(
+    history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
         "user_id",
         "user_name",
         "table_id",
