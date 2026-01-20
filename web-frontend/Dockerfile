@@ -73,6 +73,10 @@ COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-fronten
 # Copy all dependencies so we can build the production files
 COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 
+# Create symlinks because premium and enterprise are node packages
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+
 COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
     && chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh \
