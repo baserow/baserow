@@ -104,8 +104,11 @@ export default defineNuxtConfig({
       noExternal: ['vue-chartjs', 'chart.js'],
     },
   },
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   build: {
     transpile: ['vue-chartjs', 'chart.js'],
+    cache: true,
+    cacheDirectory: process.env.NUXT_CACHE_DIR || 'node_modules/.cache',
   },
   experimental: {
     appManifest: process.env.NODE_ENV !== 'development',
