@@ -126,6 +126,10 @@ COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 
+# Create symlinks because premium and enterprise are node packages
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+
 COPY --chown=$UID:$GID tests /baserow/tests
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 
@@ -206,6 +210,10 @@ RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
 COPY --chown=$UID:$GID web-frontend/package.json /baserow/web-frontend/package.json
 COPY --chown=$UID:$GID web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
 
+# Create symlinks because premium and enterprise are node packages
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+
 # Make sure these directories exist and are owned by the non-root user
 RUN mkdir -p /baserow/web-frontend/.nuxt /baserow/web-frontend/.cache /baserow/web-frontend/.nuxt-storybook
 
@@ -269,6 +277,10 @@ COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
 COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
+
+# Create symlinks because premium and enterprise are node packages
+RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 
 HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]

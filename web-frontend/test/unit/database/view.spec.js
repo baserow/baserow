@@ -335,7 +335,7 @@ describe('View Tests', () => {
     )
   })
 
-  test.only('API error during view rows loading', async () => {
+  test('API error during view rows loading', async () => {
     const rowsError = { statusCode: 500, data: { message: 'Unknown error' } }
     const errorHandler = vi.fn()
 

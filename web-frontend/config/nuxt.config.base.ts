@@ -65,11 +65,7 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
-  modules: [
-    ...baserow.modules,
-    '@nuxtjs/i18n',
-    ...(process.env.NODE_ENV === 'development' ? ['@nuxt/eslint'] : []),
-  ],
+  modules: [...baserow.modules, '@nuxtjs/i18n', '@nuxt/eslint'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
