@@ -9,8 +9,6 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import DurationField, ExpressionWrapper, F, Q, Value
-from django.db.models.functions import Coalesce, NullIf
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -1172,6 +1170,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         "hour",
         "day_of_week",
         "day_of_month",
+        "next_run_at",
     ]
 
     serializer_field_overrides = {
@@ -1219,6 +1218,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         hour: int
         day_of_week: int
         day_of_month: int
+        next_run_at: datetime
 
     def prepare_values(
         self,
@@ -1247,8 +1247,142 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return super().prepare_values(values, user, instance)
 
+    def after_create(
+        self,
+        instance: CorePeriodicService,
+        values: Dict[str, Any],
+    ):
+        """
+        Calculate and set the next_run_at field after creating the periodic service.
+
+        :param instance: The created CorePeriodicService instance.
+        :param values: The values used to create the service.
+        """
+
+        instance.next_run_at = self.calculate_next_run(
+            interval=instance.interval,
+            minute=instance.minute,
+            hour=instance.hour,
+            day_of_week=instance.day_of_week,
+            day_of_month=instance.day_of_month,
+        )
+        instance.save(update_fields=["next_run_at"])
+
+    def after_update(
+        self,
+        instance: CorePeriodicService,
+        values: Dict[str, Any],
+        changes: Dict[str, Tuple],
+    ):
+        """
+        Recalculate and update the next_run_at field if any schedule-related fields
+        have changed during an update.
+
+        :param instance: The updated CorePeriodicService instance.
+        :param values: The values used to update the service.
+        :param changes: A dict of fields that have changed with their old/new values.
+        """
+
+        schedule_fields = {"interval", "minute", "hour", "day_of_week", "day_of_month"}
+        if schedule_fields & set(changes.keys()):
+            # The schedule changed, so we recalculate `next_run_at`.
+            instance.next_run_at = self.calculate_next_run(
+                interval=instance.interval,
+                minute=instance.minute,
+                hour=instance.hour,
+                day_of_week=instance.day_of_week,
+                day_of_month=instance.day_of_month,
+            )
+            instance.save(update_fields=["next_run_at"])
+
     def can_immediately_be_tested(self, service):
         return True
+
+    @staticmethod
+    def calculate_next_run(
+        interval: str,
+        minute: int,
+        hour: int,
+        day_of_week: int,
+        day_of_month: int,
+        from_time: Optional[datetime] = None,
+    ) -> datetime:
+        """
+        Calculate the next scheduled run time based on the service's schedule configuration.
+
+        :param interval: The interval type (MINUTE, HOUR, DAY, WEEK, MONTH)
+        :param minute: The minute value (0-59)
+        :param hour: The hour value (0-23)
+        :param day_of_week: The day of week (0=Monday, 6=Sunday)
+        :param day_of_month: The day of month (1-31)
+        :param from_time: Calculate next run from this time (defaults to now)
+        :return: The next scheduled run time
+        """
+
+        if from_time is None:
+            from_time = timezone.now()
+
+        # Truncate to minute precision
+        from_time = from_time.replace(second=0, microsecond=0)
+
+        if interval == PERIODIC_INTERVAL_MINUTE:
+            # For minute intervals, add the interval to the from_time
+            interval_minutes = minute if minute > 0 else 1
+            next_run = from_time + timedelta(minutes=interval_minutes)
+
+        elif interval == PERIODIC_INTERVAL_HOUR:
+            # Run at the specified minute of each hour
+            next_run = from_time.replace(minute=minute)
+            # If we've already passed this minute in the current hour, move to next hour
+            if next_run <= from_time:
+                next_run += timedelta(hours=1)
+
+        elif interval == PERIODIC_INTERVAL_DAY:
+            # Run at the specified hour:minute each day
+            next_run = from_time.replace(hour=hour, minute=minute)
+            # If we've already passed this time today, move to tomorrow
+            if next_run <= from_time:
+                next_run += timedelta(days=1)
+
+        elif interval == PERIODIC_INTERVAL_WEEK:
+            # Run at the specified day_of_week at hour:minute each week
+            current_weekday = from_time.weekday()
+            days_ahead = day_of_week - current_weekday
+
+            if days_ahead < 0:  # Target day already happened this week
+                days_ahead += 7
+            elif days_ahead == 0:  # Target day is today
+                # Check if we've already passed the scheduled time
+                scheduled_time_today = from_time.replace(hour=hour, minute=minute)
+                if scheduled_time_today <= from_time:
+                    days_ahead = 7  # Move to next week
+
+            next_run = from_time + timedelta(days=days_ahead)
+            next_run = next_run.replace(hour=hour, minute=minute)
+
+        elif interval == PERIODIC_INTERVAL_MONTH:
+            # Run at the specified day_of_month at hour:minute each month
+            next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
+
+            # If we've already passed this time this month, move to next month
+            if next_run <= from_time:
+                # Move to next month
+                next_run += relativedelta(months=1)
+
+            # Handle case where day_of_month doesn't exist in the target month
+            # (e.g., day 31 in February)
+            try:
+                next_run = next_run.replace(day=day_of_month)
+            except ValueError:
+                # If the day doesn't exist, use the last day of the month
+                next_run = next_run.replace(day=1) + relativedelta(months=1, days=-1)
+                next_run = next_run.replace(hour=hour, minute=minute)
+
+        else:
+            # Unknown interval type, default to 1 hour from now
+            next_run = from_time + timedelta(hours=1)
+
+        return next_run
 
     def _setup_periodic_task(self, sender, **kwargs):
         """
@@ -1279,16 +1413,18 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         super().stop_listening()
         self._cancel_periodic_task()
 
-    def _get_payload(self, now=None):
-        now = now if now else timezone.now()
-        return {"triggered_at": now.isoformat()}
+    def _get_payload(self, service: Service) -> Dict[str, str]:
+        return {
+            "triggered_at": service.last_periodic_run.isoformat(),
+            "next_run_at": service.next_run_at.isoformat(),
+        }
 
     def dispatch_data(
         self,
         service: CorePeriodicService,
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
-    ) -> None:
+    ) -> Dict[str, str]:
         """
         Responsible for dispatching a single periodic service. In practice we
         dispatch all periodic services that are due in one go so this method just
@@ -1302,90 +1438,20 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         if dispatch_context.event_payload is not None:
             return dispatch_context.event_payload
 
-        return self._get_payload()
+        return self._get_payload(service)
 
-    def call_periodic_services_that_are_due(self, now: datetime):
+    def call_periodic_services_that_are_due(self):
         """
         Responsible for finding all periodic services that are due to run and
         calling the `on_event` callback with them.
-
-        :param now: The current datetime.
         """
 
-        # Truncate to minute precision for consistent interval calculations
-        # Note: we replace the seconds and microseconds due to jitter that
-        # can exist between when the Celery task is scheduled, and when the
-        # services were actually processed. For example:
-        #
-        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
-        # - Celery runs at 12:00:00.500 (half a second delay)
-        # - Service is triggered, last_periodic_run = 12:00:00.500
-        # Next checks:
-        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
-        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
-        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
-        now = now.replace(second=0, microsecond=0)
+        # Truncate to minute precision for consistent comparisons
+        now = timezone.now().replace(second=0, microsecond=0)
 
-        query_conditions = Q()
-        is_null = Q(last_periodic_run__isnull=True)
-
-        # MINUTE
-        minute_condition = Q(
-            is_null
-            | Q(
-                last_periodic_run__lte=now
-                - ExpressionWrapper(
-                    Coalesce(NullIf(F("minute"), 0), Value(1)) * timedelta(minutes=1),
-                    output_field=DurationField(),
-                )
-            ),
-            interval=PERIODIC_INTERVAL_MINUTE,
-        )
-        query_conditions |= minute_condition
-
-        # HOUR
-        hour_ago = now - timedelta(hours=1)
-        hour_condition = Q(
-            is_null | Q(last_periodic_run__lt=hour_ago),
-            interval=PERIODIC_INTERVAL_HOUR,
-            minute__lte=now.minute,
-        )
-        query_conditions |= hour_condition
-
-        # DAY
-        day_ago = now - timedelta(days=1)
-        day_condition = Q(
-            is_null | Q(last_periodic_run__lt=day_ago),
-            interval=PERIODIC_INTERVAL_DAY,
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= day_condition
-
-        # WEEK
-        week_ago = now - timedelta(weeks=1)
-        week_condition = Q(
-            is_null | Q(last_periodic_run__lt=week_ago),
-            interval=PERIODIC_INTERVAL_WEEK,
-            day_of_week=now.weekday(),
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= week_condition
-
-        # MONTH
-        month_ago = now - relativedelta(months=1)
-        month_condition = Q(
-            is_null | Q(last_periodic_run__lt=month_ago),
-            interval=PERIODIC_INTERVAL_MONTH,
-            day_of_month=now.day,
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= month_condition
-
-        periodic_services = (
-            CorePeriodicService.objects.filter(query_conditions)
+        # Find all services where next_run_at <= now
+        periodic_services_due = (
+            CorePeriodicService.objects.filter(next_run_at__lte=now)
             .select_for_update(
                 of=("self",),
                 skip_locked=True,
@@ -1394,12 +1460,45 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             .order_by("id")
         )
 
-        self.on_event(
-            periodic_services,
-            self._get_payload(now),
-        )
+        # After execution, calculate the next run time for each service
+        triggered_services = []
+        for service in periodic_services_due:
+            # Calculate next run from the current `next_run_at` (not from 'now').
+            # This prevents drift even if the service runs late.
+            # If the service ran *very* late (e.g. it was scheduled, but the server
+            # was down, and we didn't run any services), keep advancing until we get
+            # a future time. For example:
+            # - A service is scheduled to run every minute.
+            #   The next run is scheduled for 10:00:00.
+            # - The server is down, and we only restart it at 10:05:00.
+            # - When we restart, we run the service (as 10:00:00 <= 10:05:00).
+            # - The next run would technically be scheduled for 10:01:00, but that time
+            #   is also in the past. So we keep advancing until we find a future time
+            #  (10:06:00 in this case).
+            next_run = service.next_run_at
+            while next_run <= now:
+                next_run = self.calculate_next_run(
+                    interval=service.interval,
+                    minute=service.minute,
+                    hour=service.hour,
+                    day_of_week=service.day_of_week,
+                    day_of_month=service.day_of_month,
+                    from_time=next_run,
+                )
 
-        periodic_services.update(last_periodic_run=now)
+            service.next_run_at = next_run
+            service.last_periodic_run = now
+            triggered_services.append(service)
+
+        if triggered_services:
+            CorePeriodicService.objects.bulk_update(
+                triggered_services, ["next_run_at", "last_periodic_run"]
+            )
+
+        self.on_event(
+            triggered_services,
+            lambda s: self._get_payload(s),
+        )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"
@@ -1415,7 +1514,11 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             "properties": {
                 "triggered_at": {
                     "type": "string",
-                    "title": _("Triggered at"),
+                    "title": _("Previous scheduled run"),
+                },
+                "next_run_at": {
+                    "type": "string",
+                    "title": _("Next scheduled run"),
                 },
             },
         }
