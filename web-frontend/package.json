@@ -20,7 +20,7 @@
     "test:enterprise:coverage": "TZ=UTC vitest --config  ../enterprise/web-frontend/vitest.config.ts --coverage",
     "postinstall": "nuxt prepare",
     "lint": "yarn eslint && yarn stylelint",
-    "eslint": "yarn eslint:core && yarn eslint:premium && yarn eslint:enterprise",
+    "eslint": "yarn postinstall && yarn eslint:core && yarn eslint:premium && yarn eslint:enterprise",
     "stylelint": "stylelint  --cache --cache-location=.cache/stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "eslint:fix": "yarn eslint:core --fix && yarn eslint:premium --fix && yarn eslint:enterprise --fix",
     "eslint:core": "eslint --cache --cache-location=.cache/eslint .",
