@@ -479,7 +479,7 @@ jobs:
             --name=webfrontend_test \
             -e EXTRA_VITEST_PARAMS="$EXTRA_VITEST_PARAMS" \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
-          docker cp webfrontend_test:/baserow/reports/* ./reports
+          docker cp webfrontend_test:/baserow/reports/junit.xml ./reports
           docker rm webfrontend_test
           ls ./reports
 
