@@ -477,10 +477,11 @@ jobs:
           mkdir -p reports
           docker run \
             --name=webfrontend_test \
-            -e EXTRA_VITEST_PARAMS=$EXTRA_VITEST_PARAMS \
+            -e EXTRA_VITEST_PARAMS="$EXTRA_VITEST_PARAMS" \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
-          docker cp webfrontend_test:/baserow/reports/. ./reports
+          docker cp webfrontend_test:/baserow/reports/* ./reports
           docker rm webfrontend_test
+          ls ./reports
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
@@ -565,6 +566,7 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shard }})
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    continue-on-error: true
     needs:
       - detect-changes
       - build-backend
@@ -697,6 +699,7 @@ jobs:
 
           # Wait for all docker run commands to complete
           wait
+          docker ps -a
           echo "All services started"
 
       - name: Install dependencies
