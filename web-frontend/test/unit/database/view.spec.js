@@ -59,12 +59,15 @@ describe('View Tests', () => {
     const gridView = views[0]
     const galleryView = views[1]
 
+    console.log(gridView.id, galleryView.id)
+
     // The first view is the Grid view, the Default view is the Gallery view which
     // is going to be rendered initially:
     const tableComponent = await testApp.mount(Table, {
       route: `/database/${application.id}/table/${table.id}/${galleryView.id}?token=fake`,
     })
 
+    console.log('after')
     const tableId = gridView.table_id
 
     // Check if Vuex store is updated correctly (first view):

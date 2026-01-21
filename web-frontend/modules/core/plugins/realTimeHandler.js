@@ -24,6 +24,10 @@ export class RealTimeHandler {
    * received.
    */
   connect(reconnect = true, anonymous = false) {
+    if (!import.meta.client) {
+      return
+    }
+
     this.reconnect = reconnect
     this.anonymous = anonymous
 
@@ -433,16 +437,10 @@ export class RealTimeHandler {
   }
 }
 
-/*export default function (context, inject) {
-  inject('realtime', new RealTimeHandler(context))
-}
-*/
-
 export default defineNuxtPlugin({
   name: 'realtime',
   dependsOn: ['store', 'registry'],
   setup(nuxtApp) {
-    const router = useRouter()
     const context = {
       store: nuxtApp.$store,
       app: nuxtApp,

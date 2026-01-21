@@ -36,7 +36,7 @@ describe('index redirect', () => {
       },
     })
 
-    nuxt = await createNuxt(true)
+    //nuxt = await createNuxt(true)
   }, 300000)
 
   afterAll(async () => {
