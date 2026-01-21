@@ -88,7 +88,8 @@ WORKDIR /baserow/web-frontend
 # Build, then clean reinstall production only
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
     yarn run build-local \
-    && find .nuxt -type f -name "*.map" -delete
+    && ls .output \
+    && find .output -type f -name "*.map" -delete
 
 
 # =============================================================================
@@ -216,7 +217,7 @@ RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node
     && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 
 # Make sure these directories exist and are owned by the non-root user
-RUN mkdir -p /baserow/web-frontend/.nuxt /baserow/web-frontend/.cache /baserow/web-frontend/.nuxt-storybook
+RUN mkdir -p /baserow/web-frontend/.nuxt /baserow/web-frontend/.cache /baserow/web-frontend/.nuxt-storybook /baserow/web-frontend/.output
 
 # Install dependencies (including dev)
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
@@ -289,6 +290,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/do
 FROM local-base AS local
 
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
+COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 
 CMD ["nuxt-local"]
 
