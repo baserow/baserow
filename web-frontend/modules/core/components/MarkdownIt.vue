@@ -1,11 +1,11 @@
+<!-- eslint-disable vue/no-v-html vue/no-v-text-v-html-on-component -->
 <template>
-  <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
   <component
     :is="tag"
     :key="contentHash"
     class="markdown"
-    v-html="htmlContent"
     @click="$emit('click', $event)"
+    v-html="htmlContent"
   />
 </template>
 
