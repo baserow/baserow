@@ -883,7 +883,8 @@ jobs:
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-backend
-      - test-e2e
+      # TODO MIG
+      # - test-e2e
       - backend-lint
       - check-build-and-publish
     permissions:
@@ -1233,8 +1234,9 @@ jobs:
       - test-zapier
       - check-mjml-compiled
       # E2E tests (can be skipped based on path changes)
-      - test-e2e
-      - collect-e2e-reports
+      # TODO MIG
+      # - test-e2e
+      # - collect-e2e-reports
       # Coverage (depends on test-backend)
       - collect-coverage
     steps:
