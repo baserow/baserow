@@ -97,7 +97,6 @@ process.on('unhandledRejection', (err) => {
 
 // We can't test socket anyway
 global.WebSocket = class {
-  constructor() {}
   close() {}
   send() {}
 }
