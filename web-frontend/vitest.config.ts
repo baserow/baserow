@@ -20,6 +20,9 @@ export default defineVitestConfig({
       '**/playwright-report/**',
     ],
     setupFiles: ['./vitest.setup.ts'],
+    coverage: {
+      provider: 'istanbul',
+    },
     environmentOptions: {
       nuxt: {
         domEnvironment: 'happy-dom',
@@ -46,6 +49,13 @@ export default defineVitestConfig({
     },
 
     include: ['./**/*.spec.js'],
+    onConsoleLog(log) {
+      if (
+        log.includes('The Vitest environment nuxt defines the "transformMode"')
+      ) {
+        return false
+      }
+    },
   },
   resolve: {
     alias: {
