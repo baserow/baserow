@@ -1,14 +1,11 @@
 <template>
-  <FloatingMenu
+  <BubbleMenu
     v-if="editor"
-    v-show="visible"
     :editor="editor"
-    :should-show="() => true"
-    :tippy-options="{
-      duration: 250,
+    :should-show="() => visible"
+    :options="{
       placement: 'top',
-      offset: [0, 5],
-      appendTo,
+      offset: 5,
     }"
   >
     <div :style="{ visibility: 'visible' }">
@@ -125,17 +122,17 @@
         </li>
       </ul>
     </div>
-  </FloatingMenu>
+  </BubbleMenu>
 </template>
 
 <script>
-import { FloatingMenu } from '@tiptap/extension-floating-menu'
+import { BubbleMenu } from '@tiptap/vue-3/menus'
 import { isElement } from '@baserow/modules/core/utils/dom'
 
 export default {
   name: 'RichTextEditorBubbleMenu',
   components: {
-    FloatingMenu,
+    BubbleMenu,
   },
   props: {
     editor: {
@@ -180,9 +177,6 @@ export default {
     }
   },
   methods: {
-    appendTo() {
-      return document.body
-    },
     isEventTargetInside(event) {
       return (
         isElement(this.$el, event.target) ||

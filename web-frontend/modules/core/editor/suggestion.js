@@ -11,8 +11,8 @@ export default ({ users }) => ({
     return {
       onStart: (props) => {
         component = new VueRenderer(RichTextEditorMentionsList, {
-          parent: this,
-          propsData: { users, ...props },
+          editor: props.editor,
+          props: { users, ...props },
         })
 
         if (!props.clientRect) {

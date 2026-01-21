@@ -164,7 +164,9 @@ definePageMeta({
   middleware: 'staff',
 })
 
-const { $client, $registry } = useNuxtApp()
+const { $client, $registry, $i18n } = useNuxtApp()
+
+useHead({ title: $i18n.t('licenses.titleLicenses') })
 
 // Fetch data using useAsyncData and return the values from the callback
 const { data } = await useAsyncData('licensesPage', async () => {
