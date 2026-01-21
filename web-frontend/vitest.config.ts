@@ -49,13 +49,6 @@ export default defineVitestConfig({
     },
 
     include: ['./**/*.spec.js'],
-    onConsoleLog(log) {
-      if (
-        log.includes('The Vitest environment nuxt defines the "transformMode"')
-      ) {
-        return false
-      }
-    },
   },
   resolve: {
     alias: {
