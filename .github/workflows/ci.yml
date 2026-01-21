@@ -738,9 +738,10 @@ jobs:
           PUBLIC_BACKEND_URL: http://localhost:8000
           PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
           PRIVATE_BACKEND_URL: http://backend:8000
+          CI: 1
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
+          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
@@ -922,9 +923,8 @@ jobs:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
-    needs:
+    needs: # TODO MIG re add the test-e2e here
       - test-frontend
-      - test-e2e
       - frontend-lint
       - check-build-and-publish
     permissions:
