@@ -125,6 +125,7 @@ COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
 
 COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
+COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 
 # Create symlinks because premium and enterprise are node packages
 RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
