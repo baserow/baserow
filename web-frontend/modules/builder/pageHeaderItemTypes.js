@@ -56,7 +56,7 @@ export class ElementsPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app?.i18n?.t('pageHeaderItemTypes.labelElements')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelElements')
   }
 
   get icon() {
@@ -78,7 +78,7 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app?.i18n?.t('pageHeaderItemTypes.labelDataSource')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelDataSource')
   }
 
   get icon() {
@@ -116,7 +116,7 @@ export class VariablesPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app?.i18n?.t('pageHeaderItemTypes.labelVariables')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelVariables')
   }
 
   get icon() {
@@ -138,7 +138,7 @@ export class SettingsPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app?.i18n?.t('pageHeaderItemTypes.labelSettings')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelSettings')
   }
 
   get icon() {

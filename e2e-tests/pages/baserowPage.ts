@@ -15,8 +15,11 @@ export class BaserowPage {
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
   }
 
-  async goto() {
-    await this.page.goto(this.getFullUrl());
+  async goto(params = {}) {
+    await this.page.goto(this.getFullUrl(), {
+      waitUntil: "networkidle",
+      ...params,
+    });
   }
 
   async checkOnPage() {

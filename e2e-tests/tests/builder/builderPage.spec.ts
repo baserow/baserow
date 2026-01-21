@@ -49,7 +49,7 @@ test.describe("Builder page test suite", () => {
       page.getByText("The page settings have been updated.")
     ).toBeVisible();
 
-    await page.getByTitle("Close").click();
+    await page.locator(".modal__close", { title: "Close" }).click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
 
     await expect(
@@ -135,7 +135,7 @@ test.describe("Builder page test suite", () => {
     ).toBeVisible();
 
     // Close the modal
-    await page.getByTitle("Close").click();
+    await page.locator(".modal__close", { title: "Close" }).click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
 
     // Wait for page update

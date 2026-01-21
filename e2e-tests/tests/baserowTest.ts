@@ -21,6 +21,26 @@ type BaserowFixtures = {
  */
 export const test = base.extend<BaserowFixtures>({
   workspacePage: async ({ page }, use) => {
+    // Don't show the cookie notice
+    await page.context().addCookies([
+      {
+        name: "baserow_dashboard_alert_closed_v2",
+        value: "true",
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+
+    await page.addStyleTag({
+      content: `
+        nuxt-devtools,
+        nuxt-devtools-anchor,
+        nuxt-devtools-inspect-panel {
+          display: none !important;
+        }
+      `,
+    });
+
     const user = await createUser();
     const workspace = await createWorkspace(user);
     const workspacePage = new WorkspacePage(page, user, workspace);
