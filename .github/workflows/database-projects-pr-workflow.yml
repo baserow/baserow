@@ -211,9 +211,9 @@ jobs:
             } else {
               status = 'In Review';
 
-              // Get pending reviewer logins
+              // Get pending reviewer identifiers (login for users, name for teams)
               const pendingReviewers = pr.reviewRequests.nodes
-                .map(r => r.requestedReviewer?.login)
+                .map(r => r.requestedReviewer?.login || r.requestedReviewer?.name)
                 .filter(Boolean);
 
               // Get reviewers who requested changes
@@ -235,12 +235,16 @@ jobs:
               } else if (pendingReviewers.length > 0) {
                 reviewStatus = 'Awaiting';
                 console.log(`Has pending reviewers (${pendingReviewers.join(', ')}) → Awaiting`);
-              } else if (pr.reviewDecision === 'APPROVED' && pr.mergeable === 'MERGEABLE') {
-                reviewStatus = 'Merge';
-                console.log('Approved + no conflicts → Merge');
               } else {
-                reviewStatus = 'Awaiting';
-                console.log(`Awaiting (reviewDecision=${pr.reviewDecision}, mergeable=${pr.mergeable})`);
+                // No pending reviewers - check if at least one approval exists
+                const hasApproval = pr.latestOpinionatedReviews.nodes.some(r => r.state === 'APPROVED');
+                if (hasApproval) {
+                  reviewStatus = 'Merge';
+                  console.log('No pending reviewers + has approval → Merge');
+                } else {
+                  reviewStatus = 'Awaiting';
+                  console.log('No pending reviewers, no approval yet → Awaiting');
+                }
               }
             }
 
