@@ -699,8 +699,6 @@ jobs:
 
           # Wait for all docker run commands to complete
           wait
-          docker ps -a
-          docker logs -f web-frontend
           echo "All services started"
 
       - name: Install dependencies
