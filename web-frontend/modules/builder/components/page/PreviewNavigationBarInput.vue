@@ -1,6 +1,7 @@
 <template>
   <input
     v-model="inputValue"
+    v-bind="$attrs"
     class="preview-navigation-bar-input"
     :class="{
       'preview-navigation-bar-input--invalid': invalidValueForType,

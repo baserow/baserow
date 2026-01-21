@@ -81,7 +81,11 @@
       <a
         ref="createApplicationContextLink"
         class="sidebar__new"
-        @click="onClick()"
+        @click="
+          $refs.createApplicationContext.toggle(
+            $refs.createApplicationContextLink
+          )
+        "
       >
         <i class="sidebar__new-icon iconoir-plus"></i>
         {{ $t('action.createNew') }}...
@@ -138,7 +142,6 @@ export default {
       return applicationTypes
     },
     applicationsCount() {
-      console.log('appcounte')
       return this.groupedApplicationsForSelectedWorkspace.reduce(
         (acc, group) => acc + group.applications.length,
         0
@@ -164,12 +167,6 @@ export default {
     },
   },
   methods: {
-    onClick() {
-      console.log('on click')
-      this.$refs.createApplicationContext.toggle(
-        this.$refs.createApplicationContextLink
-      )
-    },
     getApplicationComponent(application) {
       return this.$registry
         .get('application', application.type)

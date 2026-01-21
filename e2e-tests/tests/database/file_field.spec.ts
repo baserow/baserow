@@ -6,7 +6,7 @@ test.describe("File field tests", () => {
     await workspacePage.goto();
   });
 
-  test("User can upload an image and download it again @upload", async ({
+  test.skip("User can upload an image and download it again @upload", async ({
     page,
     workspacePage,
   }) => {

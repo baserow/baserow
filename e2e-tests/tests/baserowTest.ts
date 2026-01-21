@@ -31,16 +31,6 @@ export const test = base.extend<BaserowFixtures>({
       },
     ]);
 
-    await page.addStyleTag({
-      content: `
-        nuxt-devtools,
-        nuxt-devtools-anchor,
-        nuxt-devtools-inspect-panel {
-          display: none !important;
-        }
-      `,
-    });
-
     const user = await createUser();
     const workspace = await createWorkspace(user);
     const workspacePage = new WorkspacePage(page, user, workspace);
