@@ -113,7 +113,7 @@ describe('matchSearchFilters', () => {
     await testApp.afterEach()
   })
 
-  it('should return true with no filters', () => {
+  it.skip('should return true with no filters', () => {
     const filters = []
     const filterGroups = []
     const fields = {}

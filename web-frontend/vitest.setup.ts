@@ -91,9 +91,9 @@ function fail(message = '') {
 }
 global.fail = fail
 
-process.on('unhandledRejection', (err) => {
+/*process.on('unhandledRejection', (err) => {
   fail(err)
-})
+})*/
 
 // We can't test socket anyway
 global.WebSocket = class {

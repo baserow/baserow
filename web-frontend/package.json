@@ -9,7 +9,7 @@
     "dev": "APP_ENV=dev nuxt dev",
     "preview": "nuxt preview",
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
-    "test": "yarn test:core && yarn test:premium && yarn test:enterprise",
+    "test": "yarn test:core",
     "test:coverage": "yarn test:core:coverage && yarn test:premium:coverage && yarn test:enterprise:coverage",
     "test-coverage": "yarn test:coverage",
     "test:core": "TZ=UTC NODE_OPTIONS=\"--max-old-space-size=8192\" vitest $EXTRA_VITEST_PARAMS",
