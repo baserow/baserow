@@ -33,8 +33,7 @@ const config: PlaywrightTestConfig = {
   retries: !!process.env.CI ? 3 : 0,
   workers: !!process.env.CI ? 1 : 3,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  // TODO MIG reporter: !!process.env.CI ? [["blob"], ["html"]] : "list",
-  reporter: !!process.env.CI ? [["blob"], ["html"], ["dot"]] : "list",
+  reporter: !!process.env.CI ? [["blob"], ["html"]] : "list",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */

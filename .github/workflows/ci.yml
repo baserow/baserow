@@ -784,7 +784,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "24"
 
       - name: Download all E2E test results
         uses: actions/download-artifact@v4
