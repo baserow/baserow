@@ -447,7 +447,6 @@ jobs:
   test-frontend:
     name: Web-Frontend Tests (Shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    continue-on-error: true
     needs:
       - build-frontend
       - detect-changes
@@ -566,7 +565,6 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shard }})
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    continue-on-error: true
     needs:
       - detect-changes
       - build-backend
@@ -741,7 +739,7 @@ jobs:
           CI: 1
         run: |
           cd e2e-tests
-          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
@@ -883,8 +881,7 @@ jobs:
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-backend
-      # TODO MIG
-      # - test-e2e
+      - test-e2e
       - backend-lint
       - check-build-and-publish
     permissions:
@@ -924,9 +921,10 @@ jobs:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
-    needs: # TODO MIG re add the test-e2e here
+    needs:
       - test-frontend
       - frontend-lint
+      - test-e2e
       - check-build-and-publish
     permissions:
       contents: read
@@ -1234,9 +1232,8 @@ jobs:
       - test-zapier
       - check-mjml-compiled
       # E2E tests (can be skipped based on path changes)
-      # TODO MIG
-      # - test-e2e
-      # - collect-e2e-reports
+      - test-e2e
+      - collect-e2e-reports
       # Coverage (depends on test-backend)
       - collect-coverage
     steps:
