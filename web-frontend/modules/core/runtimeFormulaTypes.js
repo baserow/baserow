@@ -386,7 +386,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     // Perform our argument count and type validation first.
     super.validateArgs(args, validationContext, ctx)
 
-    const { i18n } = this.app
+    const { $i18n } = this.app
     const { dataProviderRegistry } = validationContext
     const path = args[0]
 
@@ -394,7 +394,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     if (!path.includes('.')) {
       throw new InvalidFormulaArgument(
         this.getType(),
-        i18n.t('runtimeGetErrors.invalidPath', { path })
+        $i18n.t('runtimeGetErrors.invalidPath', { path })
       )
     }
     const [providerName, ...rest] = _.toPath(path)
@@ -403,7 +403,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     if (!providerName) {
       throw new InvalidFormulaArgument(
         this.getType(),
-        i18n.t('runtimeGetErrors.missingProvider', { path })
+        $i18n.t('runtimeGetErrors.missingProvider', { path })
       )
     }
 
@@ -414,7 +414,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     if (!provider) {
       throw new InvalidFormulaArgument(
         this.getType(),
-        i18n.t('runtimeGetErrors.unknownProvider', { providerName })
+        $i18n.t('runtimeGetErrors.unknownProvider', { providerName })
       )
     }
 
@@ -422,7 +422,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     if (!provider.isValid(rest)) {
       throw new InvalidFormulaArgument(
         this.getType(),
-        i18n.t('runtimeGetErrors.invalidProviderPath', { providerName, path })
+        $i18n.t('runtimeGetErrors.invalidProviderPath', { providerName, path })
       )
     }
   }
