@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixed a bug where the Collaborators field couldn't be updated when the value was a string.",
+    "message": "Fixed a bug where the collaborators field couldn't be updated via upsert actions.",
     "issue_origin": "github",
     "issue_number": 3954,
     "domain": "core",
