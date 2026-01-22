@@ -1,4 +1,5 @@
 <template>
+  <!-- TODO MIG add a skeleton loader while the page is loading. -->
   <div v-if="builder && currentPage && sharedPage" class="page-editor">
     <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
@@ -41,7 +42,6 @@ definePageMeta({
 
 const mode = 'editing'
 const route = useRoute()
-const router = useRouter()
 const { $store, $registry, $i18n } = useNuxtApp()
 
 const panelWidth = ref(360)
