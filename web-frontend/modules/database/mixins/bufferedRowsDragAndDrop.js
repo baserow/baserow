@@ -198,7 +198,7 @@ export default {
      */
     async rowMoveOver(event, row) {
       if (
-        !row ||
+        row === null ||
         this.dragAndDropDraggingRow === null ||
         this.dragAndDropDraggingRow.id === row.id ||
         this.dragAndDropTransitioning

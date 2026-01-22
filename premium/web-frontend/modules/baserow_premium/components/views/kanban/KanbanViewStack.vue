@@ -315,12 +315,18 @@ export default {
 
     window.addEventListener('resize', this.$el.resizeEvent)
     this.$nextTick(() => {
-      this.$refs.scroll?.$el?.addEventListener('scroll', this.$el.scrollEvent)
+      const scrollEl = this.$refs.scroll?.$el
+      if (scrollEl) {
+        this.$el.scrollElement = scrollEl
+        scrollEl.addEventListener('scroll', this.$el.scrollEvent)
+      }
     })
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.$el.resizeEvent)
-    this.$refs.scroll?.$el?.removeEventListener('scroll', this.$el.scrollEvent)
+    if (this.$el.scrollElement) {
+      this.$el.scrollElement.removeEventListener('scroll', this.$el.scrollEvent)
+    }
   },
   methods: {
     /**

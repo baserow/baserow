@@ -6,8 +6,8 @@
     :editor="editor"
     :should-show="() => visible"
     :options="{
-      placement: 'left-start',
-      offset: { mainAxis: 8, crossAxis: 0 },
+      placement: 'left',
+      offset: { mainAxis: 14, crossAxis: 0 },
     }"
     :get-referenced-virtual-element="getVirtualElement"
   >
