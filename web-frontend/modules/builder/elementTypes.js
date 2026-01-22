@@ -1282,15 +1282,15 @@ export class IterateElementType extends CollectionElementTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('elementType.iterate')
+    return this.app.$i18n.t('elementType.iterate')
   }
 
   get deprecatedName() {
-    return this.app.i18n.t('elementType.iterateDeprecated')
+    return this.app.$i18n.t('elementType.iterateDeprecated')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.iterateDescription')
+    return this.app.$i18n.t('elementType.iterateDescription')
   }
 
   get iconClass() {

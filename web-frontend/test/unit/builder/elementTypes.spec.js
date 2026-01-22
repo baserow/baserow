@@ -62,7 +62,7 @@ describe('elementTypes tests', () => {
         page_id: page.id,
         parent_element_id: iterateAncestor.id,
       }
-      page.elementMap = { 111: repeatAncestor, 222: tableElement }
+      page.elementMap = { 111: iterateAncestor, 222: tableElement }
       const iterateElementType = testApp.$registry.get(
         'element',
         iterateAncestor.type

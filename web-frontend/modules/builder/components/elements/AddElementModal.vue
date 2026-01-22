@@ -167,7 +167,7 @@ export default {
 
       await this.$nextTick()
       // Let's focus search input
-      this.$refs.search.focus()
+      this.$refs.search?.focus()
     },
 
     async addElement(elementType) {
