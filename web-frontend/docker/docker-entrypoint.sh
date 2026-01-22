@@ -14,6 +14,7 @@ nuxt-dev                : Start a normal nuxt development server
 nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
 nuxt                    : Start a non-dev prod ready nuxt server
 nuxt-local              : Start a non-dev prod ready nuxt server using the preset local config
+nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
 storybook-dev           : Start a storybook dev server
 bash                    : Start a bash shell
 build-local             : Triggers a nuxt re-build of Baserow's web-frontend.
@@ -95,6 +96,10 @@ case "$1" in
       startup_plugin_setup
       setup_additional_modules
       exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.ts "${@:2}"
+    ;;
+    nuxt-prepare)
+      setup_additional_modules
+      exec ./node_modules/.bin/nuxt prepare "${@:2}"
     ;;
     nuxt-dev-with-storybook)
       startup_plugin_setup
