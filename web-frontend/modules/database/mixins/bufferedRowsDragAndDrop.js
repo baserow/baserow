@@ -31,6 +31,12 @@ export default {
       mouseUpEvent: null,
       keydownEvent: null,
       mouseMoveEvent: null,
+      // Cloned elements for drag visual feedback
+      clonedElement: null,
+      clonedWrapper: null,
+      // Position offsets for dragged element
+      dragAndDropDownRowTop: 0,
+      dragAndDropDownRowLeft: 0,
     }
   },
   computed: {
@@ -57,7 +63,7 @@ export default {
      */
     rowDown(event, row, readOnly = false) {
       // If it isn't a left click.
-      if (event.button !== 0 || row === null) {
+      if (event.button !== 0 || !row) {
         return
       }
 
@@ -77,12 +83,12 @@ export default {
 
         this.clonedElement = document.createElement('div')
         this.clonedElement.innerHTML = event.target.outerHTML
-        this.clonedElement.style = `position: absolute; left: 0; top: 0; width: ${rect.width}px; z-index: 10;`
+        this.clonedElement.style = `position: absolute; left: 0; top: 0; width: ${rect.width}px; z-index: 10; pointer-events: none;`
         this.clonedElement.firstChild.classList.add(this.dragAndDropCloneClass)
 
         this.clonedWrapper = document.createElement('div')
         this.clonedWrapper.style =
-          'position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; pointer-event: none;'
+          'position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none;'
         this.clonedWrapper.appendChild(this.clonedElement)
 
         this.keydownEvent = (event) => {
@@ -175,10 +181,15 @@ export default {
       // If the view is read only, the clonedWrapper is never created.
       if (this.clonedWrapper) {
         this.clonedWrapper.remove()
+        this.clonedWrapper = null
+        this.clonedElement = null
       }
       document.body.removeEventListener('keydown', this.keydownEvent)
       window.removeEventListener('mousemove', this.mouseMoveEvent)
       window.removeEventListener('mouseup', this.mouseUpEvent)
+      this.keydownEvent = null
+      this.mouseMoveEvent = null
+      this.mouseUpEvent = null
     },
     /**
      * Must be called when the user hovers over another row. It will check if we're

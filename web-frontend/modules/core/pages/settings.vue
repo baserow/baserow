@@ -31,12 +31,15 @@
 </template>
 
 <script setup>
+import { useHead } from '#imports'
+
 /* Using Vuex in Nuxt 3 with Composition API */
 
 const route = useRoute()
 const router = useRouter()
 const nuxtApp = useNuxtApp()
 const store = nuxtApp.$store
+const { $i18n } = nuxtApp
 
 /* asyncData → useAsyncData */
 const { data: workspace } = await useAsyncData('workspace', async () => {
@@ -76,6 +79,16 @@ const pages = computed(() => {
 const deactivatedPagesWithModal = computed(() =>
   pages.value.filter((page) => !page.navigable && page.deactivatedModal)
 )
+
+/* Dynamic page title based on current tab */
+const currentPageName = computed(() => {
+  const currentPage = pages.value.find((p) => p.to?.name === route.name)
+  return currentPage?.name || $i18n.t('sidebar.settings')
+})
+
+useHead(() => ({
+  title: currentPageName.value,
+}))
 
 /* Modal refs */
 const modalRefs = reactive({})

@@ -5,7 +5,7 @@
       enabled: () => draggingRow !== null,
       speed: 3,
       padding: 24,
-      scrollElement: () => $refs.scroll.$el,
+      scrollElement: () => $refs.scroll?.$el,
     }"
     class="kanban-view__stack-wrapper"
     @mouseleave.stop="wrapperMouseLeave"
@@ -302,7 +302,9 @@ export default {
     },
   },
   mounted() {
-    this.updateBuffer()
+    this.$nextTick(() => {
+      this.updateBuffer()
+    })
 
     this.$el.resizeEvent = () => {
       this.updateBuffer()
@@ -312,11 +314,19 @@ export default {
     }
 
     window.addEventListener('resize', this.$el.resizeEvent)
-    this.$refs.scroll.$el.addEventListener('scroll', this.$el.scrollEvent)
+    this.$nextTick(() => {
+      const scrollEl = this.$refs.scroll?.$el
+      if (scrollEl) {
+        this.$el.scrollElement = scrollEl
+        scrollEl.addEventListener('scroll', this.$el.scrollEvent)
+      }
+    })
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.$el.resizeEvent)
-    this.$refs.scroll.$el.removeEventListener('scroll', this.$el.scrollEvent)
+    if (this.$el.scrollElement) {
+      this.$el.scrollElement.removeEventListener('scroll', this.$el.scrollEvent)
+    }
   },
   methods: {
     /**
@@ -514,9 +524,10 @@ export default {
     },
     updateBuffer() {
       const scroll = this.$refs.scroll
+      if (!scroll) return
       const cardHeight = this.cardHeight
       const containerHeight = scroll.clientHeight()
-      const scrollTop = scroll.$el.scrollTop
+      const scrollTop = scroll.$el?.scrollTop || 0
       const min = Math.ceil(containerHeight / cardHeight) + 2
       const rows = this.stack.results.slice(
         Math.floor(scrollTop / cardHeight),

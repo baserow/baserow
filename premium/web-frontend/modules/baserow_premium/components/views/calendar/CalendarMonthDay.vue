@@ -51,6 +51,7 @@
     >
       {{
         $t('calendarMonthDay.hiddenRowsCount', {
+          count: hiddenRowsCount,
           hiddenRowsCount,
         })
       }}
@@ -151,16 +152,20 @@ export default {
   },
   mounted() {
     this.updateVisibleRowsCount()
-    window.addEventListener('resize', this.updateVisibleRowsCount)
+    this.$el.resizeListener = this.updateVisibleRowsCount.bind(this)
+    window.addEventListener('resize', this.$el.resizeListener)
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.updateVisibleRowsCount)
+    window.removeEventListener('resize', this.$el.resizeListener)
   },
   methods: {
     getClientHeight() {
-      return this.$refs.calendarMonthDay.clientHeight
+      return this.$refs.calendarMonthDay.clientHeight || 0
     },
     updateVisibleRowsCount() {
+      if (!this.$refs.calendarMonthDay) {
+        return
+      }
       const itemHeight = 28
       this.width = this.$refs.calendarMonthDay.clientWidth
       this.height = this.getClientHeight()

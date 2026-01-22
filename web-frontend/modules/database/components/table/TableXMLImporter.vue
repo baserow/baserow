@@ -186,8 +186,8 @@ export default {
         return
       }
 
-      const limit = this.config.public.initialTableDataLimit
-      if (limit !== null && xmlData.length > limit) {
+      const limit = parseInt(this.config.public.initialTableDataLimit, 10)
+      if (limit && xmlData.length > limit) {
         this.handleImporterError(
           this.$t('tableXMLImporter.limitError', { limit })
         )

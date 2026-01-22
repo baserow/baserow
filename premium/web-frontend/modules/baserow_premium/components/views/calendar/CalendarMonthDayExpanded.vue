@@ -33,7 +33,6 @@
             :fields="fields"
             :store-prefix="storePrefix"
             :class="{ last: index == rows.length - 1 }"
-            :parent-width="contextWidth"
             :decorations-by-place="decorationsByPlace"
             @edit-row="$emit('edit-row', $event)"
             @row-context="$emit('row-context', $event)"
@@ -138,9 +137,6 @@ export default {
     },
     maxContextHeight() {
       return this.parentHeight * 2 - 10
-    },
-    contextWidth() {
-      return this.$refs.context.$el.clientWidth
     },
     innerHeight() {
       return this.contextHeight - 48

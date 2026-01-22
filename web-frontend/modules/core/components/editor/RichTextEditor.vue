@@ -18,7 +18,6 @@
         ref="floatingMenu"
         :editor="editor"
         :visible="floatingMenuVisible"
-        :get-scrollable-area-bounding-rect="scrollableAreaBoundingRect"
       />
     </div>
     <EditorContent
@@ -187,12 +186,6 @@ export default {
     ...mapGetters({
       loggedUserId: 'auth/getUserId',
     }),
-    scrollableAreaBoundingRect() {
-      if (this.scrollableAreaElement !== null) {
-        return this.scrollableAreaElement.getBoundingClientRect()
-      }
-      return () => this.$refs.root.getBoundingClientRect()
-    },
     canUploadImages() {
       const enableImages = false
       return this.editable && this.enableRichTextFormatting && enableImages
@@ -232,7 +225,6 @@ export default {
   methods: {
     registerResizeObserver() {
       const resizeObserver = new ResizeObserver(() => {
-        this.$refs.floatingMenu?.updateReferenceClientRect()
         this.bubbleMenuVisible = false
       })
       resizeObserver.observe(this.$refs.root)
@@ -367,7 +359,10 @@ export default {
       }
     },
     registerAutoCollapseFloatingMenuHandler() {
-      this.mousedownEvent = () => {
+      this.mousedownEvent = (event) => {
+        if (this.$refs.floatingMenu?.isEventTargetInside(event)) {
+          return
+        }
         this.$refs.floatingMenu?.collapse()
       }
       this.$refs.root.addEventListener('mousedown', this.mousedownEvent)

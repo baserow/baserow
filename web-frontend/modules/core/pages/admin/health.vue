@@ -67,6 +67,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useHead } from '#imports'
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
@@ -77,7 +78,9 @@ definePageMeta({
 })
 
 // Access Baserow client from Nuxt app
-const { $client } = useNuxtApp()
+const { $client, $i18n } = useNuxtApp()
+
+useHead({ title: $i18n.t('health.title') })
 
 // Fetch data (equivalent to asyncData)
 const { data } = await useAsyncData('health', async () => {

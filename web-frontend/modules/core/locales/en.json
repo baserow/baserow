@@ -1131,5 +1131,11 @@
     "verificationFailedDescription": "The entered code is not valid.",
     "provisioningFailed": "Provisioning failed",
     "checkSuccess": "Successfully enabled two-factor authentication"
+  },
+  "adminUsers": {
+    "title": "Users"
+  },
+  "adminWorkspaces": {
+    "title": "Workspaces"
   }
 }

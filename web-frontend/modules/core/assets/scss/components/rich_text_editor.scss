@@ -178,9 +178,10 @@ span[data-type='mention'] {
   margin-block: 0;
 }
 
-.rich-text-editor__bubble-menu {
+ul.rich-text-editor__bubble-menu {
   display: flex;
   list-style: none;
+  padding-inline-start: 4px;
 }
 
 .rich-text-editor__floating-menu--expanded {

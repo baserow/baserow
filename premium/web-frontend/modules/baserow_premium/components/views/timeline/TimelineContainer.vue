@@ -337,9 +337,6 @@ export default {
     rowCount() {
       return this.rows.length
     },
-    containerHeight() {
-      return this.rowsCount * this.rowHeight
-    },
     scrollAreaElement() {
       return this.$refs.gridBody
     },
@@ -409,6 +406,9 @@ export default {
     },
     'view.timescale'() {
       // Update the timescale as soon as it changes in the store.
+      if (!this.firstVisibleDate) {
+        return // Grid not initialized yet
+      }
       let currDate = this.firstVisibleDate
         .clone()
         .add(Math.floor(this.visibleColumnCount / 2), this.unit)
@@ -538,6 +538,9 @@ export default {
      */
     updateGridDimensions() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return
+      }
       this.gridWidth = el.clientWidth
       this.gridHeight = el.clientHeight
       this.columnWidth = Math.max(
@@ -552,6 +555,9 @@ export default {
      */
     getVisibleColumnsRange() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return { startIndex: 0, endIndex: 0 }
+      }
       const startIndex = Math.floor(el.scrollLeft / this.columnWidth)
       const endIndex = startIndex + this.visibleColumnCount + 1
       return { startIndex, endIndex }
@@ -570,6 +576,9 @@ export default {
      */
     onResizeUpdateGrid() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return
+      }
       const prevPos = el.scrollLeft / el.scrollWidth
 
       this.updateGridDimensions()
@@ -634,12 +643,15 @@ export default {
      */
     getVisibleRowsRange() {
       const el = this.scrollAreaElement
+      if (!el) {
+        return { startIndex: 0, endIndex: 0 }
+      }
       const elHeight = el.clientHeight
       const minRowsToRender = Math.ceil(elHeight / this.rowHeight) + 1
       let startIndex = Math.floor(el.scrollTop / this.rowHeight)
       let endIndex = startIndex + minRowsToRender
-      if (endIndex > this.rowsCount) {
-        endIndex = this.rowsCount
+      if (endIndex > this.rowCount) {
+        endIndex = this.rowCount
         startIndex = Math.max(0, endIndex - minRowsToRender)
       }
       return { startIndex, endIndex }

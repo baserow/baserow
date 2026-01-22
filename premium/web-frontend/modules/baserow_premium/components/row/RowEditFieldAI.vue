@@ -3,7 +3,7 @@
     <component
       :is="outputRowEditFieldComponent"
       ref="field"
-      v-bind="$attrs"
+      v-bind="$props"
       :read-only="generating || readOnly"
     ></component>
     <div v-if="!readOnly" class="margin-top-2">
