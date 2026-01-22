@@ -95,7 +95,7 @@ dev *ARGS:
                 echo ""
                 echo "Following logs (Ctrl+C to stop all services)..."
                 echo ""
-                just dev logs -f backend celery frontend
+                just dev logs -f backend celery frontend storybook
             fi
             ;;
         stop|down)
@@ -105,11 +105,12 @@ dev *ARGS:
             BACKEND_LOG="{{ backend_log_file }}"
             CELERY_LOG="{{ celery_log_file }}"
             FRONTEND_LOG="{{ frontend_log_file }}"
+            STORYBOOK_LOG="{{ storybook_log_file }}"
 
             # Parse args: known service names go to SERVICES, everything else to OPTS
             OPTS=()
             SERVICES=()
-            VALID_SERVICES="backend celery frontend"
+            VALID_SERVICES="backend celery frontend storybook"
             for arg in ${REST[@]+"${REST[@]}"}; do
                 if [[ " $VALID_SERVICES " == *" $arg "* ]]; then
                     SERVICES+=("$arg")
@@ -120,16 +121,17 @@ dev *ARGS:
 
             # Show all services if none specified
             if [ ${#SERVICES[@]} -eq 0 ]; then
-                SERVICES=(backend frontend celery)
+                SERVICES=(backend frontend celery storybook)
             fi
 
             # Map service names to log files
             FILES=()
             for svc in "${SERVICES[@]}"; do
                 case "$svc" in
-                    backend)  [ -f "$BACKEND_LOG" ] && FILES+=("$BACKEND_LOG") ;;
-                    celery)   [ -f "$CELERY_LOG" ] && FILES+=("$CELERY_LOG") ;;
-                    frontend) [ -f "$FRONTEND_LOG" ] && FILES+=("$FRONTEND_LOG") ;;
+                    backend)   [ -f "$BACKEND_LOG" ] && FILES+=("$BACKEND_LOG") ;;
+                    celery)    [ -f "$CELERY_LOG" ] && FILES+=("$CELERY_LOG") ;;
+                    frontend)  [ -f "$FRONTEND_LOG" ] && FILES+=("$FRONTEND_LOG") ;;
+                    storybook) [ -f "$STORYBOOK_LOG" ] && FILES+=("$STORYBOOK_LOG") ;;
                 esac
             done
 
@@ -165,7 +167,7 @@ dev *ARGS:
             ;;
         ps)
             echo "==> Process Status"
-            for name in backend celery frontend; do
+            for name in backend celery frontend storybook; do
                 pid_file="/tmp/baserow-${name}.pid"
                 if [ -f "$pid_file" ]; then
                     PID=$(cat "$pid_file")
@@ -194,7 +196,7 @@ dev *ARGS:
             echo "  up       Start and follow logs (Ctrl+C stops everything)"
             echo "  up -d    Start in background (detached)"
             echo "  stop     Stop all services"
-            echo "  logs     View logs: just dev logs [-f] [backend|celery|frontend]"
+            echo "  logs     View logs: just dev logs [-f] [backend|celery|frontend|storybook]"
             echo "  ps       Show running services"
             echo "  wipe     Delete database volume (wipe up to restart fresh)"
             echo "  tmux     Start tmux session with all services"
@@ -290,10 +292,16 @@ _dev-start:
     FRONTEND_PID=$!
     echo "    PID: $FRONTEND_PID (log: {{ frontend_log_file }})"
 
+    echo "==> Starting Storybook dev server..."
+    (cd web-frontend && just storybook) > "{{ storybook_log_file }}" 2>&1 &
+    STORYBOOK_PID=$!
+    echo "    PID: $STORYBOOK_PID (log: {{ storybook_log_file }})"
+
     # Save PIDs
     echo "$BACKEND_PID" > /tmp/baserow-backend.pid
     echo "$CELERY_PID" > /tmp/baserow-celery.pid
     echo "$FRONTEND_PID" > /tmp/baserow-frontend.pid
+    echo "$STORYBOOK_PID" > /tmp/baserow-storybook.pid
 
     echo ""
     echo "=============================================="
@@ -303,6 +311,7 @@ _dev-start:
     echo "Services:"
     echo "  Backend:   http://localhost:8000"
     echo "  Frontend:  http://localhost:3000"
+    echo "  Storybook: http://localhost:6006"
     echo "  Mailhog:   http://localhost:8025"
     echo ""
     echo "Commands:"
@@ -347,6 +356,15 @@ _dev-stop:
             kill "$PID" 2>/dev/null || true
         fi
         rm -f /tmp/baserow-frontend.pid
+    fi
+
+    if [ -f /tmp/baserow-storybook.pid ]; then
+        PID=$(cat /tmp/baserow-storybook.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Stopping storybook (PID: $PID)..."
+            kill "$PID" 2>/dev/null || true
+        fi
+        rm -f /tmp/baserow-storybook.pid
     fi
 
     # Stop docker services
@@ -396,11 +414,12 @@ _dev-tmux:
     # Create session with a temporary window (will be closed after creating real windows)
     tmux new-session -d -s $SESSION -n _tmp -c "$ROOT"
 
-    create_window "backend"  "$ROOT/backend"       "just run-dev-server"
-    create_window "frontend" "$ROOT/web-frontend"  "just run-dev-server"
-    create_window "celery"   "$ROOT/backend"       "just run-dev-celery"
-    create_window "db"       "$ROOT"               "just dc-dev logs -f db"       "PGPASSWORD=${DATABASE_PASSWORD:-baserow} just dc-dev exec db psql -U ${DATABASE_USER:-baserow} -d ${DATABASE_NAME:-baserow}"
-    create_window "redis"    "$ROOT"               "just dc-dev logs -f redis"    "just dc-dev exec redis redis-cli -a ${REDIS_PASSWORD:-baserow}"
+    create_window "backend"   "$ROOT/backend"       "just run-dev-server"
+    create_window "frontend"  "$ROOT/web-frontend"  "just run-dev-server"
+    create_window "storybook" "$ROOT/web-frontend"  "just storybook"
+    create_window "celery"    "$ROOT/backend"       "just run-dev-celery"
+    create_window "db"        "$ROOT"               "just dc-dev logs -f db"       "PGPASSWORD=${DATABASE_PASSWORD:-baserow} just dc-dev exec db psql -U ${DATABASE_USER:-baserow} -d ${DATABASE_NAME:-baserow}"
+    create_window "redis"     "$ROOT"               "just dc-dev logs -f redis"    "just dc-dev exec redis redis-cli -a ${REDIS_PASSWORD:-baserow}"
 
     # Kill the temporary window
     tmux kill-window -t $SESSION:_tmp
@@ -452,6 +471,7 @@ fix:
 backend_log_file := "/tmp/baserow-backend.log"
 celery_log_file := "/tmp/baserow-celery.log"
 frontend_log_file := "/tmp/baserow-web-frontend.log"
+storybook_log_file := "/tmp/baserow-storybook.log"
 
 # =============================================================================
 # Docker Development (everything runs in containers - easier setup)
