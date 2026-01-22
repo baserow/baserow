@@ -828,6 +828,14 @@ def second_separate_database_for_migrations(
     _set_suffix_to_test_databases(suffix)
 
     with django_db_blocker.unblock():
+        # Clear ContentType cache before setting up the second database.
+        # The cache may contain IDs from the first test database, which would
+        # cause foreign key violations when post_migrate signals try to create
+        # records referencing ContentTypes in the new database.
+        from django.contrib.contenttypes.models import ContentType
+
+        ContentType.objects.clear_cache()
+
         db_cfg = setup_databases(
             verbosity=request.config.option.verbose,
             interactive=False,

@@ -29,5 +29,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_app_labels),
+        migrations.RunPython(migrate_app_labels, migrations.RunPython.noop),
     ]

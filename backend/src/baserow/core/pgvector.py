@@ -45,9 +45,6 @@ def try_enable_pgvector() -> bool:
     :return: True if the extension is now enabled, False otherwise.
     """
 
-    if is_pgvector_enabled():
-        return True
-
     try:
         with connection.cursor() as cursor:
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
@@ -320,6 +317,15 @@ def try_migrate_vector_fields(sender, **kwargs):
     If we just enabled pgvector, we also make sure to reset the state if it was
     previously disabled, so that the field and index can be created later.
     """
+
+    # Check if the ContentType for SchemaOperation exists. If not, it means the
+    # core migrations haven't fully run yet (e.g., in migration tests with a
+    # separate database), so we skip the vector field migration.
+    if not ContentType.objects.filter(
+        app_label="core", model="schemaoperation"
+    ).exists():
+        print("skipped (SchemaOperation content type not ready).")
+        return
 
     was_enabled = is_pgvector_enabled()
     pgvector_enabled = try_enable_pgvector()
