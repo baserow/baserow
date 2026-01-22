@@ -100,6 +100,9 @@ export default defineNuxtConfig({
     ssr: {
       noExternal: ['vue-chartjs', 'chart.js'],
     },
+    server: {
+      sourcemapIgnoreList: (sourcePath) => sourcePath.includes('node_modules'),
+    },
   },
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   build: {
