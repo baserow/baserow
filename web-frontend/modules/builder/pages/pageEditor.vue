@@ -1,5 +1,5 @@
 <template>
-  <div class="page-editor">
+  <div v-if="builder && currentPage && sharedPage" class="page-editor">
     <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
@@ -129,7 +129,6 @@ const currentPage = computed(() => pageData.value?.page ?? null)
 
 // Computed properties
 const dataSources = computed(() => {
-  if (!currentPage.value) return []
   return $store.getters['dataSource/getPageDataSources'](currentPage.value)
 })
 
@@ -139,7 +138,6 @@ const sharedPage = computed(() => {
 })
 
 const sharedDataSources = computed(() => {
-  if (!sharedPage.value) return []
   return $store.getters['dataSource/getPageDataSources'](sharedPage.value)
 })
 
@@ -219,19 +217,16 @@ watch(
 
 // Navigation guards
 onBeforeRouteUpdate((to, from) => {
-  // TODO MIG Somehow this hook is called when we leave the route for another component
-  // This tests avoid navigation errors.
-  if (from.params.builderId === undefined) {
-    return
-  }
   // Unselect previously selected element
   const currentBuilder = $store.getters['application/get'](
     parseInt(from.params.builderId)
   )
-  $store.dispatch('element/select', {
-    builder: currentBuilder,
-    element: null,
-  })
+  if (currentBuilder) {
+    $store.dispatch('element/select', {
+      builder: currentBuilder,
+      element: null,
+    })
+  }
   if (from.params.builderId !== to.params?.builderId) {
     // When we switch from one application to another we want to logoff the current user
     if (currentBuilder) {

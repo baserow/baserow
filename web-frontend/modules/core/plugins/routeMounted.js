@@ -52,13 +52,5 @@ export default defineNuxtPlugin((nuxtApp) => {
         })
       }
     },
-    beforeUnmount() {
-      if (this.$route && this.$route.meta.layout !== undefined) {
-        this.$store.commit('routeMounted/SET_ROUTE_MOUNTED', {
-          mounted: false,
-          route: null,
-        })
-      }
-    },
   })
 })

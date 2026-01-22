@@ -388,19 +388,10 @@ const actions = {
 
 const getters = {
   getPageDataSources: (state) => (page) => {
-    if (!page || !page.dataSources) return [] // TODO MIG: remove this
     return page.dataSources
   },
   getPagesDataSources: (state) => (pages) => {
-    if (!pages) return [] // TODO MIG: remove this
-    // TODO MIG: this is a fix for the fact that pages.dataSources is not an array, might not be useful at the.
-    // Replace it with the original return below
-    return pages
-      .filter((page) => page && page.dataSources)
-      .map(({ dataSources }) => dataSources)
-      .flat()
-    // TODO MIG: original return is the following
-    // return pages.map(({ dataSources }) => dataSources).flat()
+    return pages.map(({ dataSources }) => dataSources).flat()
   },
   getPagesDataSourceById: (state, getters) => (pages, id) => {
     return getters
@@ -411,7 +402,6 @@ const getters = {
     return getters.getPagesDataSourceById([page], id)
   },
   getLoading: (state) => (page) => {
-    if (!page || !page._) return false // TODO MIG: remove this
     return page._.dataSourceLoading
   },
 }

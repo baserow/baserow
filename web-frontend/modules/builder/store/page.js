@@ -182,7 +182,6 @@ const actions = {
 
 const getters = {
   getAllPages: (state) => (builder) => {
-    if (!builder || !builder.pages) return [] // TODO MIG remove this
     return builder.pages
   },
   getById: (state, getters) => (builder, pageId) => {
@@ -205,9 +204,7 @@ const getters = {
       .sort((a, b) => a.order - b.order)
   },
   getSharedPage: (state, getters) => (builder) => {
-    return (
-      getters.getAllPages(builder).find((page) => page.shared === true) || null // TODO MIG remove the || null
-    )
+    return getters.getAllPages(builder).find((page) => page.shared === true)
   },
   getSelected(state) {
     return state.selected

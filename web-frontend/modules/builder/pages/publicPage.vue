@@ -80,7 +80,6 @@ const { data: asyncDataResult, error } = await useAsyncData(
   `publicPage_${requestHostname}_${route.fullPath}`,
   async () => {
     let mode = 'public'
-    //const params = route.params
     const query = route.query
 
     const builderId = route.params.builderId
@@ -119,13 +118,10 @@ const { data: asyncDataResult, error } = await useAsyncData(
           )
         }
       } catch (e) {
-        console.log(e)
-        throw e
-        // TODO MIG doesn't work
-        /*throw createError({
+        throw createError({
           statusCode: 404,
           statusMessage: $i18n.t('publicPage.siteNotFound'),
-        })*/
+        })
       }
 
       needPostBuilderLoading = true
@@ -215,7 +211,6 @@ const { data: asyncDataResult, error } = await useAsyncData(
 
     // Handle 404
     if (!found) {
-      // TODO MIG this doesn't work
       throw createError({
         statusCode: 404,
         statusMessage: $i18n.t('publicPage.pageNotFound'),
@@ -226,7 +221,6 @@ const { data: asyncDataResult, error } = await useAsyncData(
     // Handle 404
     if (pageFound.shared) {
       throw createError({
-        // TODO MIG this doesn't work
         statusCode: 404,
         statusMessage: $i18n.t('publicPage.pageNotFound'),
       })
@@ -404,10 +398,6 @@ const sharedPage = computed(() =>
   store.getters['page/getSharedPage'](builder.value)
 )
 
-const sharedDataSources = computed(() =>
-  store.getters['dataSource/getPageDataSources'](sharedPage.value)
-)
-
 const sharedElements = computed(() =>
   store.getters['element/getRootElements'](sharedPage.value)
 )
@@ -443,8 +433,6 @@ const headConfig = computed(() => {
     bodyAttrs: {
       class: 'public-page',
     },
-    // TODO MIG it shouldn't be necessary anymore but need to check
-    //__dangerouslyDisableSanitizers: ['style'],
     style: [{ children: `:root { ${cssVars} }`, type: 'text/css' }],
   }
 
