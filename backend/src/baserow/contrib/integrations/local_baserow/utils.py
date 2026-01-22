@@ -239,7 +239,9 @@ def guess_cast_function_from_response_serializer_field(
             value, service.integration.authorized_user
         )
 
-    if isinstance(serializer_field.child, CollaboratorSerializer):
+    if isinstance(serializer_field, ListSerializer) and isinstance(
+        serializer_field.child, CollaboratorSerializer
+    ):
         # Special case for collaborator serializer. We need to convert the value
         # to a list of dicts that contains the row ID.
         return ensure_collaborator_value
