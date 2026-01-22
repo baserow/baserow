@@ -1,8 +1,9 @@
 import { expect, test } from "../baserowTest";
 
 test.describe("Builder application test suite", () => {
-  test.beforeEach(async ({ workspacePage }) => {
-    await workspacePage.goto();
+  test.beforeEach(async ({ workspacePage, goto }) => {
+    await goto(workspacePage.getFullUrl(), { waitUntil: "hydration" });
+    //await workspacePage.goto();
   });
 
   test("Can create builder application", async ({ page }) => {

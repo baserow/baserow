@@ -33,7 +33,8 @@ const config: PlaywrightTestConfig = {
   retries: !!process.env.CI ? 3 : 0,
   workers: !!process.env.CI ? 1 : 3,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: !!process.env.CI ? [["blob"], ["html"]] : "list",
+  // TODO MIG reporter: !!process.env.CI ? [["blob"], ["html"]] : "list",
+  reporter: !!process.env.CI ? [["blob"], ["html"], ["dot"]] : "list",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
@@ -42,6 +43,9 @@ const config: PlaywrightTestConfig = {
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
     video: "on-first-retry",
+    nuxt: {
+      host: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
+    },
   },
   projects: [
     {

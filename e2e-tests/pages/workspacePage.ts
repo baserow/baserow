@@ -1,5 +1,5 @@
 import { Page } from "@playwright/test";
-import { BaserowPage } from "./baserowPage";
+import { BaserowPage, PageConfig } from "./baserowPage";
 import { Sidebar } from "./components/sidebar";
 import { Workspace } from "../fixtures/workspace";
 import { deleteUser, User } from "../fixtures/user";
@@ -9,9 +9,9 @@ export class WorkspacePage extends BaserowPage {
   readonly workspace: Workspace;
   readonly user: User;
 
-  constructor(page: Page, user: User, workspace: Workspace) {
-    super(page);
-    this.sidebar = new Sidebar(page);
+  constructor(pageConfig: PageConfig, user: User, workspace: Workspace) {
+    super(pageConfig);
+    this.sidebar = new Sidebar(pageConfig.page);
     this.user = user;
     this.workspace = workspace;
   }

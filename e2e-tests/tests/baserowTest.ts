@@ -1,4 +1,4 @@
-import { test as base } from "@playwright/test";
+//import { test as base } from "@playwright/test";
 import { WorkspacePage } from "../pages/workspacePage";
 import { createUser } from "../fixtures/user";
 import { BuilderPagePage } from "../pages/builder/builderPagePage";
@@ -8,6 +8,7 @@ import { createBuilder } from "../fixtures/builder/builder";
 import { createAutomation } from "../fixtures/automation/automation";
 import { createAutomationWorkflow } from "../fixtures/automation/automationWorkflow";
 import { AutomationWorkflowPage } from "../pages/automation/automationWorkflowPage";
+import { expect, test as base } from "@nuxt/test-utils/playwright";
 
 // Declare the types of your fixtures.
 type BaserowFixtures = {
@@ -20,7 +21,7 @@ type BaserowFixtures = {
  * Fixture for all tests that need an authenticated user with an empty workspace.
  */
 export const test = base.extend<BaserowFixtures>({
-  workspacePage: async ({ page }, use) => {
+  workspacePage: async ({ page, goto }, use) => {
     // Don't show the cookie notice
     await page.context().addCookies([
       {
@@ -33,7 +34,7 @@ export const test = base.extend<BaserowFixtures>({
 
     const user = await createUser();
     const workspace = await createWorkspace(user);
-    const workspacePage = new WorkspacePage(page, user, workspace);
+    const workspacePage = new WorkspacePage({ page, goto }, user, workspace);
     await workspacePage.authenticate();
 
     await page.evaluate(() => {
@@ -47,7 +48,7 @@ export const test = base.extend<BaserowFixtures>({
     // Clean up the fixture.
     await workspacePage.removeAll();
   },
-  builderPagePage: async ({ page, workspacePage }, use) => {
+  builderPagePage: async ({ page, workspacePage, goto }, use) => {
     const builder = await createBuilder(
       "Test builder",
       workspacePage.workspace
@@ -57,13 +58,17 @@ export const test = base.extend<BaserowFixtures>({
       "/default/page",
       builder
     );
-    const builderPagePage = new BuilderPagePage(page, builder, builderPage);
+    const builderPagePage = new BuilderPagePage(
+      { page, goto },
+      builder,
+      builderPage
+    );
 
     await use(builderPagePage);
 
     await builderPagePage.removeAll();
   },
-  automationWorkflowPage: async ({ page, workspacePage }, use) => {
+  automationWorkflowPage: async ({ page, workspacePage, goto }, use) => {
     const automation = await createAutomation(
       "Test automation",
       workspacePage.workspace
@@ -73,7 +78,7 @@ export const test = base.extend<BaserowFixtures>({
       automation
     );
     const automationWorkflowPage = new AutomationWorkflowPage(
-      page,
+      { page, goto },
       automation,
       automationWorkflow
     );
@@ -81,4 +86,4 @@ export const test = base.extend<BaserowFixtures>({
     await use(automationWorkflowPage);
   },
 });
-export { expect } from "@playwright/test";
+export { expect } from "@nuxt/test-utils/playwright";
