@@ -61,6 +61,7 @@ from baserow.core.utils import (
 )
 
 WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
+WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_history_{}"
 AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
 tracer = trace.get_tracer(__name__)
@@ -684,12 +685,41 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # If we don't come from an event, we need to reset the states
         self.reset_workflow_temporary_states(workflow)
-
         self._check_too_many_errors(workflow)
-        self._check_is_rate_limited(workflow.id)
 
     def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def _get_workflow_history_rate_limit_cache_key(self, workflow_id: int) -> str:
+        return WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def _should_create_workflow_history(self, workflow_id: int) -> bool:
+        cache_key = self._get_workflow_history_rate_limit_cache_key(workflow_id)
+
+        should_create_history = False
+
+        def _should_create_history(history_exists):
+            """
+            Sets should_create_history to True if this is the first time
+            we're checking the workflow history in this window.
+
+            Returns True because we always want to set the cache key
+            when update() is called.
+            """
+
+            if not history_exists:
+                nonlocal should_create_history
+                should_create_history = True
+            return True
+
+        global_cache.update(
+            cache_key,
+            callback=_should_create_history,
+            default_value=lambda: False,
+            timeout=settings.AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS,
+        )
+
+        return should_create_history
 
     def _check_is_rate_limited(self, workflow_id: int) -> None:
         """Uses a global cache key to track recent runs for the given workflow."""
@@ -834,6 +864,24 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
         """
+
+        history_handler = AutomationHistoryHandler()
+
+        try:
+            self._check_is_rate_limited(workflow.id)
+        except AutomationWorkflowRateLimited as e:
+            if self._should_create_workflow_history(workflow.id):
+                original_workflow = self.get_original_workflow(workflow)
+                now = timezone.now()
+                history_handler.create_workflow_history(
+                    original_workflow,
+                    is_test_run=original_workflow == workflow,
+                    started_on=now,
+                    completed_on=now,
+                    message=str(e),
+                    status=HistoryStatusChoices.ERROR,
+                )
+            return
 
         start_workflow_celery_task.delay(
             workflow.id,
