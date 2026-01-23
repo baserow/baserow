@@ -408,3 +408,244 @@ def list_elements(page: Page) -> list[ElementItem]:
 
     elements = ElementHandler().get_elements(page)
     return [ElementItem.from_orm(el) for el in elements]
+
+
+# =============================================================================
+# Theme Utilities
+# =============================================================================
+
+
+def get_builder_theme(builder: Builder) -> dict[str, Any]:
+    """
+    Serialize the builder's theme settings grouped by category for LLM readability.
+
+    :param builder: The builder application.
+    :return: Dict of theme settings grouped by category.
+    """
+
+    from baserow.contrib.builder.api.theme.serializers import serialize_builder_theme
+
+    theme_data = serialize_builder_theme(builder)
+
+    # Group by category for easier understanding
+    grouped = {
+        "colors": {},
+        "typography": {"body": {}, "headings": {}},
+        "buttons": {},
+        "links": {},
+        "images": {},
+        "page": {},
+        "inputs": {"label": {}, "input": {}},
+        "tables": {"border": {}, "header": {}, "cell": {}, "separator": {}},
+    }
+
+    for key, value in theme_data.items():
+        # Colors
+        if key in (
+            "primary_color",
+            "secondary_color",
+            "border_color",
+            "main_success_color",
+            "main_warning_color",
+            "main_error_color",
+        ):
+            grouped["colors"][key] = value
+        # Typography - body
+        elif key.startswith("body_"):
+            grouped["typography"]["body"][key.replace("body_", "")] = value
+        # Typography - headings
+        elif key.startswith("heading_"):
+            grouped["typography"]["headings"][key] = value
+        # Buttons
+        elif key.startswith("button_"):
+            grouped["buttons"][key.replace("button_", "")] = value
+        # Links
+        elif key.startswith("link_"):
+            grouped["links"][key.replace("link_", "")] = value
+        # Images
+        elif key.startswith("image_"):
+            grouped["images"][key.replace("image_", "")] = value
+        # Page
+        elif key.startswith("page_"):
+            grouped["page"][key.replace("page_", "")] = value
+        # Inputs - label
+        elif key.startswith("label_"):
+            grouped["inputs"]["label"][key.replace("label_", "")] = value
+        # Inputs - input
+        elif key.startswith("input_"):
+            grouped["inputs"]["input"][key.replace("input_", "")] = value
+        # Tables
+        elif key.startswith("table_header_"):
+            grouped["tables"]["header"][key.replace("table_header_", "")] = value
+        elif key.startswith("table_cell_"):
+            grouped["tables"]["cell"][key.replace("table_cell_", "")] = value
+        elif key.startswith("table_vertical_separator_") or key.startswith(
+            "table_horizontal_separator_"
+        ):
+            sep_key = key.replace("table_", "")
+            grouped["tables"]["separator"][sep_key] = value
+        elif key.startswith("table_"):
+            grouped["tables"]["border"][key.replace("table_", "")] = value
+
+    return grouped
+
+
+def flatten_theme_update(
+    colors=None,
+    typography=None,
+    buttons=None,
+    links=None,
+    images=None,
+    page=None,
+    inputs=None,
+    tables=None,
+) -> dict[str, Any]:
+    """
+    Convert grouped theme updates to flat kwargs for ThemeService.
+
+    :param colors: ColorThemeUpdate instance
+    :param typography: TypographyThemeUpdate instance
+    :param buttons: ButtonThemeUpdate instance
+    :param links: LinkThemeUpdate instance
+    :param images: ImageThemeUpdate instance
+    :param page: PageThemeUpdate instance
+    :param inputs: InputThemeUpdate instance
+    :param tables: TableThemeUpdate instance
+    :return: Flat dict of theme properties for ThemeService.update_theme()
+    """
+
+    flat = {}
+
+    # Colors (no prefix)
+    if colors:
+        for key, value in colors.model_dump(exclude_none=True).items():
+            flat[key] = value
+
+    # Typography
+    if typography:
+        data = typography.model_dump(exclude_none=True)
+        for key, value in data.items():
+            if key.startswith("body_"):
+                flat[key] = value
+            elif key.startswith("heading_") and isinstance(value, dict):
+                # Handle nested heading objects
+                level = key.split("_")[1]
+                for sub_key, sub_value in value.items():
+                    if sub_key == "text_decoration" and isinstance(sub_value, dict):
+                        # Convert text_decoration dict to list format
+                        flat[f"heading_{level}_text_decoration"] = [
+                            sub_value.get("underline", False),
+                            sub_value.get("strike", False),
+                            sub_value.get("uppercase", False),
+                            sub_value.get("italic", False),
+                        ]
+                    else:
+                        flat[f"heading_{level}_{sub_key}"] = sub_value
+
+    # Buttons (add button_ prefix)
+    if buttons:
+        for key, value in buttons.model_dump(exclude_none=True).items():
+            flat[f"button_{key}"] = value
+
+    # Links (add link_ prefix)
+    if links:
+        data = links.model_dump(exclude_none=True)
+        for key, value in data.items():
+            if key.endswith("_text_decoration") and isinstance(value, dict):
+                # Convert text_decoration dict to list format
+                flat[f"link_{key}"] = [
+                    value.get("underline", False),
+                    value.get("strike", False),
+                    value.get("uppercase", False),
+                    value.get("italic", False),
+                ]
+            else:
+                flat[f"link_{key}"] = value
+
+    # Images (add image_ prefix)
+    if images:
+        for key, value in images.model_dump(exclude_none=True).items():
+            flat[f"image_{key}"] = value
+
+    # Page (add page_ prefix)
+    if page:
+        for key, value in page.model_dump(exclude_none=True).items():
+            flat[f"page_{key}"] = value
+
+    # Inputs (mixed prefix - already has label_ or input_)
+    if inputs:
+        for key, value in inputs.model_dump(exclude_none=True).items():
+            flat[key] = value
+
+    # Tables (add table_ prefix)
+    if tables:
+        for key, value in tables.model_dump(exclude_none=True).items():
+            flat[f"table_{key}"] = value
+
+    return flat
+
+
+# =============================================================================
+# Element Update/Delete Utilities
+# =============================================================================
+
+
+def update_element_by_id(
+    user: AbstractUser,
+    element_id: int,
+    style=None,
+    styles=None,
+    css_classes=None,
+    visibility=None,
+) -> Any:
+    """
+    Update an element's style properties.
+
+    :param user: The user making the update.
+    :param element_id: The ID of the element to update.
+    :param style: ElementStyleConfig instance with style properties.
+    :param styles: ElementThemeOverrides instance with theme overrides.
+    :param css_classes: CSS class string.
+    :param visibility: Visibility setting.
+    :return: The updated element.
+    """
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element_for_update(element_id)
+
+    kwargs = {}
+
+    # Add style properties with style_ prefix
+    if style:
+        kwargs.update(style.to_orm_kwargs())
+
+    # Add styles (theme overrides)
+    if styles is not None:
+        kwargs["styles"] = styles.model_dump(exclude_none=True)
+
+    # Add css_classes
+    if css_classes is not None:
+        kwargs["css_classes"] = css_classes
+
+    # Add visibility
+    if visibility is not None:
+        kwargs["visibility"] = visibility
+
+    if kwargs:
+        return ElementService().update_element(user, element, **kwargs)
+    return element
+
+
+def delete_element_by_id(user: AbstractUser, element_id: int) -> None:
+    """
+    Delete an element by ID.
+
+    :param user: The user making the deletion.
+    :param element_id: The ID of the element to delete.
+    """
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element_for_update(element_id)
+    ElementService().delete_element(user, element)

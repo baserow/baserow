@@ -328,6 +328,7 @@ class BaserowEnterpriseConfig(AppConfig):
             RowsToolFactoryToolType,
             SearchDocsToolType,
             TableAndFieldsToolFactoryToolType,
+            ThemeToolFactoryToolType,
             ViewsToolFactoryToolType,
             WorkflowToolFactoryToolType,
         )
@@ -354,6 +355,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         assistant_tool_registry.register(PageToolFactoryToolType())
         assistant_tool_registry.register(PageContentToolFactoryToolType())
+        assistant_tool_registry.register(ThemeToolFactoryToolType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,

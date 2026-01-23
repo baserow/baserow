@@ -31,6 +31,23 @@ from .element import (
     element_type_mapping,
 )
 from .page import PageCreate, PageItem, PagePathParam, PageQueryParam
+from .style import (
+    ElementStyleConfig,
+    ElementThemeOverrides,
+    ElementUpdate,
+)
+from .theme import (
+    ButtonThemeUpdate,
+    ColorThemeUpdate,
+    HeadingStyleUpdate,
+    ImageThemeUpdate,
+    InputThemeUpdate,
+    LinkThemeUpdate,
+    PageThemeUpdate,
+    TableThemeUpdate,
+    TextDecorationUpdate,
+    TypographyThemeUpdate,
+)
 from .workflow_action import (
     AnyWorkflowActionCreate,
     CreateRowActionCreate,
@@ -73,6 +90,21 @@ __all__ = [
     "TableFieldConfig",
     "RepeatElementCreate",
     "element_type_mapping",
+    # Style types
+    "ElementStyleConfig",
+    "ElementThemeOverrides",
+    "ElementUpdate",
+    # Theme types
+    "ColorThemeUpdate",
+    "TypographyThemeUpdate",
+    "HeadingStyleUpdate",
+    "TextDecorationUpdate",
+    "ButtonThemeUpdate",
+    "LinkThemeUpdate",
+    "ImageThemeUpdate",
+    "PageThemeUpdate",
+    "InputThemeUpdate",
+    "TableThemeUpdate",
     # Data source types
     "AnyDataSourceCreate",
     "DataSourceFilter",

@@ -29,8 +29,13 @@ class NotificationActionCreate(WorkflowActionBase):
     """Show a notification to the user."""
 
     type: Literal["notification"] = "notification"
-    title: str = Field(..., description="Notification title (can be formula)")
-    description: str = Field(default="", description="Notification message")
+    title: str = Field(
+        ..., description="Notification title formula. Wrap in quotes for static text."
+    )
+    description: str = Field(
+        default="",
+        description="Notification message formula. Wrap in quotes for static text.",
+    )
 
     def get_action_type(self) -> str:
         return "notification"

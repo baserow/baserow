@@ -18,6 +18,7 @@ from .types import (
     PageCreate,
     PageItem,
 )
+from .types.style import ElementUpdate
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.assistant import ToolHelpers
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 __all__ = [
     "PageToolFactoryToolType",
     "PageContentToolFactoryToolType",
+    "ThemeToolFactoryToolType",
 ]
 
 
@@ -389,18 +391,96 @@ def get_page_content_tool_factory(
 
         return {"created_actions": created_actions}
 
+    def update_elements(
+        page_id: int,
+        element_updates: list[ElementUpdate],
+    ) -> dict[str, Any]:
+        """
+        Update existing elements on a page.
+
+        - Use list_elements first to get element IDs.
+        - Each update specifies element_id and properties to change.
+        - Only provided properties are updated; others remain unchanged.
+
+        Updatable properties:
+        - style: Border, padding, margin, background settings
+        - styles: Theme property overrides for the element
+        - css_classes: Space-separated CSS class names
+        - visibility: 'all', 'logged-in', or 'not-logged'
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        if not element_updates:
+            return {"updated_elements": []}
+
+        # Verify access to page
+        page = utils.get_page(user, page_id)
+
+        tool_helpers.update_status(
+            _("Updating %(count)d elements on %(page_name)s...")
+            % {"count": len(element_updates), "page_name": page.name}
+        )
+
+        updated_elements = []
+
+        with transaction.atomic():
+            for update in element_updates:
+                element = utils.update_element_by_id(
+                    user,
+                    update.element_id,
+                    style=update.style,
+                    styles=update.styles,
+                    css_classes=update.css_classes,
+                    visibility=update.visibility,
+                )
+                updated_elements.append(
+                    {
+                        "id": element.id,
+                        "type": element.get_type().type,
+                    }
+                )
+
+        return {"updated_elements": updated_elements}
+
+    def delete_element(page_id: int, element_id: int) -> dict[str, Any]:
+        """
+        Delete an element from a page.
+
+        - Use list_elements first to get element IDs.
+        - Deleting a container element will also delete its children.
+        - This action cannot be undone.
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        # Verify access to page
+        page = utils.get_page(user, page_id)
+
+        tool_helpers.update_status(
+            _("Deleting element %(element_id)d from %(page_name)s...")
+            % {"element_id": element_id, "page_name": page.name}
+        )
+
+        utils.delete_element_by_id(user, element_id)
+
+        return {"deleted": True, "element_id": element_id}
+
     def load_page_content_tools():
         """
         TOOL LOADER: Loads tools to manage UI elements and actions on pages.
 
         Call this loader when you need to:
-        - List or create UI elements (headings, buttons, forms, tables, etc.)
+        - List, create, update, or delete UI elements
         - Add actions to elements (form submit, button click, navigation, etc.)
         - Build interactive page content
+        - Style elements (border, padding, margin, background, CSS classes)
 
         After calling this loader, you will have access to:
         - list_elements: List existing elements on a page
-        - create_elements: Create UI elements (headings, buttons, forms, tables, etc.)
+        - create_elements: Create UI elements with optional styling
+        - update_elements: Update element styles, visibility, CSS classes
+        - delete_element: Remove an element from a page
         - create_actions: Add actions to elements (CRUD, notifications, navigation)
 
         Element types available:
@@ -426,13 +506,21 @@ def get_page_content_tool_factory(
             new_tools = [
                 udspy.Tool(list_elements),
                 udspy.Tool(create_elements),
+                udspy.Tool(update_elements),
+                udspy.Tool(delete_element),
                 udspy.Tool(create_actions),
             ]
             observation.append(
                 "- Use `list_elements` to list existing elements on a page."
             )
             observation.append(
-                "- Use `create_elements` to create UI elements (headings, buttons, forms, tables, etc.)."
+                "- Use `create_elements` to create UI elements with optional styling."
+            )
+            observation.append(
+                "- Use `update_elements` to update element styles, visibility, or CSS classes."
+            )
+            observation.append(
+                "- Use `delete_element` to remove an element from a page."
             )
             observation.append(
                 "- Use `create_actions` to add actions to elements "
@@ -455,3 +543,175 @@ class PageContentToolFactoryToolType(AssistantToolType):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_page_content_tool_factory(user, workspace, tool_helpers)
+
+
+# =============================================================================
+# Theme Tool Factory
+# =============================================================================
+
+
+def get_theme_tool_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable[[], Any]:
+    """
+    Returns a tool factory that provides theme customization tools.
+    """
+
+    from .types.theme import (
+        ButtonThemeUpdate,
+        ColorThemeUpdate,
+        ImageThemeUpdate,
+        InputThemeUpdate,
+        LinkThemeUpdate,
+        PageThemeUpdate,
+        TableThemeUpdate,
+        TypographyThemeUpdate,
+    )
+
+    def get_theme(application_id: int) -> dict[str, Any]:
+        """
+        Get the current theme settings for an application builder.
+
+        - Returns all theme properties grouped by category.
+        - Categories: colors, typography, buttons, links, images, page, inputs, tables.
+        - Use this to understand current theme before making updates.
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        builder = utils.get_builder(user, workspace, application_id)
+
+        tool_helpers.update_status(
+            _("Getting theme for %(app_name)s...") % {"app_name": builder.name}
+        )
+
+        theme = utils.get_builder_theme(builder)
+        return {"theme": theme}
+
+    def update_theme(
+        application_id: int,
+        colors: ColorThemeUpdate | None = None,
+        typography: TypographyThemeUpdate | None = None,
+        buttons: ButtonThemeUpdate | None = None,
+        links: LinkThemeUpdate | None = None,
+        images: ImageThemeUpdate | None = None,
+        page: PageThemeUpdate | None = None,
+        inputs: InputThemeUpdate | None = None,
+        tables: TableThemeUpdate | None = None,
+    ) -> dict[str, Any]:
+        """
+        Update theme settings for an application builder.
+
+        - Only provide the categories you want to update.
+        - Each category accepts partial updates (only set fields are updated).
+        - Colors use hex format with alpha (e.g., '#5190efff').
+        - Use 'primary', 'secondary', 'border' to reference theme colors.
+        - Font weights: 'regular', 'medium', 'semi_bold', 'bold'.
+        - Alignments: 'left', 'center', 'right'.
+
+        IMPORTANT - Color Contrast:
+        When updating colors (especially primary_color, secondary_color, or page background),
+        ensure proper contrast with text and UI elements. Consider updating these together:
+        - typography: body_text_color and heading text colors
+        - buttons: text_color, background_color, hover/active states
+        - inputs: label_text_color, input_text_color, input_background_color
+        - tables: header_text_color, header_background_color, cell_background_color
+        - links: text_color, hover_text_color
+
+        Categories:
+        - colors: primary_color, secondary_color, border_color, success/warning/error colors
+        - typography: body_* props, heading_1 through heading_6 (including colors, fonts, sizes)
+        - buttons: font, colors, border, padding, hover/active states
+        - links: font, colors, hover/active states
+        - images: alignment, max_width, max_height, border_radius, constraint
+        - page: background_color, background_mode
+        - inputs: label_* and input_* properties
+        - tables: border, header, cell, separator styling
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        builder = utils.get_builder(user, workspace, application_id)
+
+        tool_helpers.update_status(
+            _("Updating theme for %(app_name)s...") % {"app_name": builder.name}
+        )
+
+        # Flatten the grouped updates to individual theme properties
+        flat_kwargs = utils.flatten_theme_update(
+            colors=colors,
+            typography=typography,
+            buttons=buttons,
+            links=links,
+            images=images,
+            page=page,
+            inputs=inputs,
+            tables=tables,
+        )
+
+        if flat_kwargs:
+            from baserow.contrib.builder.theme.service import ThemeService
+
+            ThemeService().update_theme(user, builder, **flat_kwargs)
+
+        # Return the updated theme
+        theme = utils.get_builder_theme(builder)
+        return {"updated": True, "theme": theme}
+
+    def load_theme_tools():
+        """
+        TOOL LOADER: Loads tools to customize the application theme.
+
+        Call this loader when you need to:
+        - View current theme settings (colors, typography, buttons, etc.)
+        - Update application-wide styling (colors, fonts, spacing, etc.)
+        - Customize the look and feel of the entire application
+
+        After calling this loader, you will have access to:
+        - get_theme: Get current theme settings grouped by category
+        - update_theme: Update theme settings by category
+
+        Theme categories:
+        - colors: Primary, secondary, border, success/warning/error colors
+        - typography: Body text and headings (1-6) font settings
+        - buttons: Button styling including hover and active states
+        - links: Link styling including hover and active states
+        - images: Default image alignment, sizing, and border radius
+        - page: Page background color and image mode
+        - inputs: Form input and label styling
+        - tables: Table border, header, cell, and separator styling
+        """
+
+        @udspy.module_callback
+        def _load_theme_tools(context):
+            nonlocal user, workspace, tool_helpers
+
+            observation = ["New tools are now available.\n"]
+
+            new_tools = [
+                udspy.Tool(get_theme),
+                udspy.Tool(update_theme),
+            ]
+            observation.append(
+                "- Use `get_theme` to view current theme settings grouped by category."
+            )
+            observation.append(
+                "- Use `update_theme` to update theme settings (colors, typography, buttons, etc.)."
+            )
+
+            context.module.init_module(tools=context.module._tools + new_tools)
+            return "\n".join(observation)
+
+        return _load_theme_tools
+
+    return load_theme_tools
+
+
+class ThemeToolFactoryToolType(AssistantToolType):
+    type = "theme_tool_factory"
+
+    @classmethod
+    def get_tool(
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+    ) -> Callable[[Any], Any]:
+        return get_theme_tool_factory(user, workspace, tool_helpers)

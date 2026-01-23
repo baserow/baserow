@@ -9,6 +9,8 @@ from baserow.core.formula.types import (
 )
 from baserow_enterprise.assistant.types import BaseModel
 
+from .style import ElementStyleConfig, ElementThemeOverrides
+
 
 class ElementBase(BaseModel):
     """Base properties for all elements."""
@@ -22,6 +24,38 @@ class ElementBase(BaseModel):
         description="Position within parent container (e.g., '0', '1' for columns)",
     )
     visibility: Literal["all", "logged-in", "not-logged"] = Field(default="all")
+
+    # Style configuration (optional)
+    style: Optional[ElementStyleConfig] = Field(
+        default=None,
+        description="Element-specific style (border, padding, margin, background)",
+    )
+    styles: Optional[ElementThemeOverrides] = Field(
+        default=None,
+        description="Theme property overrides for this element",
+    )
+    css_classes: Optional[str] = Field(
+        default=None,
+        description="Space-separated CSS class names",
+    )
+
+    def get_style_kwargs(self) -> dict:
+        """Get style-related kwargs for element creation."""
+        kwargs = {}
+
+        # Add style properties with style_ prefix
+        if self.style:
+            kwargs.update(self.style.to_orm_kwargs())
+
+        # Add theme overrides
+        if self.styles is not None:
+            kwargs["styles"] = self.styles.model_dump(exclude_none=True)
+
+        # Add CSS classes
+        if self.css_classes is not None:
+            kwargs["css_classes"] = self.css_classes
+
+        return kwargs
 
 
 class RefCreate(BaseModel):
@@ -48,11 +82,13 @@ class ColumnElementCreate(ElementBase, RefCreate):
     )
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "column_amount": self.column_amount,
             "column_gap": self.column_gap,
             "alignment": self.alignment,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class FormContainerElementCreate(ElementBase, RefCreate):
@@ -63,12 +99,14 @@ class FormContainerElementCreate(ElementBase, RefCreate):
     reset_initial_values_post_submission: bool = Field(default=False)
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "submit_button_label": BaserowFormulaObject.create(
                 f"'{self.submit_button_label}'"
             ),
             "reset_initial_values_post_submission": self.reset_initial_values_post_submission,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class SimpleContainerElementCreate(ElementBase, RefCreate):
@@ -77,7 +115,7 @@ class SimpleContainerElementCreate(ElementBase, RefCreate):
     type: Literal["simple_container"] = "simple_container"
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {}
+        return self.get_style_kwargs()
 
 
 # =============================================================================
@@ -97,10 +135,12 @@ class HeadingElementCreate(ElementBase, RefCreate):
     )
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "value": BaserowFormulaObject.create(self.value),
             "level": self.level,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class TextElementCreate(ElementBase, RefCreate):
@@ -111,10 +151,12 @@ class TextElementCreate(ElementBase, RefCreate):
     format: Literal["plain", "markdown"] = Field(default="plain")
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "value": BaserowFormulaObject.create(self.value),
             "format": self.format,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class ButtonElementCreate(ElementBase, RefCreate):
@@ -126,9 +168,11 @@ class ButtonElementCreate(ElementBase, RefCreate):
     )
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "value": BaserowFormulaObject.create(self.value),
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class LinkElementCreate(ElementBase, RefCreate):
@@ -164,6 +208,7 @@ class LinkElementCreate(ElementBase, RefCreate):
             kwargs["navigate_to_url"] = BaserowFormulaObject.create(
                 self.navigate_to_url
             )
+        kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
@@ -176,7 +221,7 @@ class ImageElementCreate(ElementBase, RefCreate):
     alt_text: str = Field(default="")
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "image_source_type": self.image_source_type,
             "image_url": BaserowFormulaObject.create(self.image_url)
             if self.image_url
@@ -185,6 +230,8 @@ class ImageElementCreate(ElementBase, RefCreate):
             if self.alt_text
             else BaserowFormulaObject.create("''"),
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 # =============================================================================
@@ -205,7 +252,7 @@ class InputTextElementCreate(ElementBase, RefCreate):
     rows: int = Field(default=3, description="Rows for multiline input")
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "label": BaserowFormulaObject.create(f"'{self.label}'"),
             "placeholder": BaserowFormulaObject.create(f"'{self.placeholder}'"),
             "default_value": BaserowFormulaObject.create(
@@ -216,6 +263,8 @@ class InputTextElementCreate(ElementBase, RefCreate):
             "is_multiline": self.is_multiline,
             "rows": self.rows,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class ChoiceOption(BaseModel):
@@ -239,13 +288,15 @@ class ChoiceElementCreate(ElementBase, RefCreate):
     )
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "label": BaserowFormulaObject.create(f"'{self.label}'"),
             "placeholder": BaserowFormulaObject.create(f"'{self.placeholder}'"),
             "required": self.required,
             "multiple": self.multiple,
             "show_as_dropdown": self.show_as_dropdown,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
     def get_options(self) -> list[dict]:
         """Get options in format for ORM."""
@@ -262,11 +313,13 @@ class CheckboxElementCreate(ElementBase, RefCreate):
     required: bool = Field(default=False)
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "label": BaserowFormulaObject.create(f"'{self.label}'"),
             "default_value": BaserowFormulaObject.create(self.default_value),
             "required": self.required,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class DateTimePickerElementCreate(ElementBase, RefCreate):
@@ -279,12 +332,14 @@ class DateTimePickerElementCreate(ElementBase, RefCreate):
     date_format: Literal["EU", "US", "ISO"] = Field(default="EU")
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "label": BaserowFormulaObject.create(f"'{self.label}'"),
             "required": self.required,
             "include_time": self.include_time,
             "date_format": self.date_format,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 class RecordSelectorElementCreate(ElementBase, RefCreate):
@@ -300,13 +355,15 @@ class RecordSelectorElementCreate(ElementBase, RefCreate):
     placeholder: str = Field(default="")
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "label": BaserowFormulaObject.create(f"'{self.label}'"),
             "data_source_id": self.data_source_id,
             "required": self.required,
             "multiple": self.multiple,
             "placeholder": BaserowFormulaObject.create(f"'{self.placeholder}'"),
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 # =============================================================================
@@ -360,6 +417,7 @@ class TableElementCreate(ElementBase, RefCreate):
                 orm_kwargs["fields"] = service.get_type().get_default_collection_fields(
                     service
                 )
+        orm_kwargs.update(self.get_style_kwargs())
         return orm_kwargs
 
 
@@ -377,12 +435,14 @@ class RepeatElementCreate(ElementBase, RefCreate):
     )
 
     def to_orm_kwargs(self, user, page) -> dict:
-        return {
+        kwargs = {
             "data_source_id": self.data_source_id,
             "orientation": self.orientation,
             "items_per_page": self.items_per_page,
             "items_per_row": self.items_per_row,
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
 
 
 # =============================================================================
