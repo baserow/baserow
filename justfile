@@ -369,7 +369,7 @@ _dev-stop:
 
     # Stop docker services
     echo "Stopping Docker services..."
-    just dc-dev stop redis db mailhog otel-collector
+    just dc-dev down
 
     echo ""
     echo "Development environment stopped."
