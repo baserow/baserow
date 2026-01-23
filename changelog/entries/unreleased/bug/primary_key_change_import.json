@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix field mapping when importing CSV",
+    "issue_origin": "github",
+    "issue_number": 3259,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-07"
+}

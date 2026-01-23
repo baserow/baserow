@@ -265,7 +265,6 @@ export const actions = {
     data = populateField(data, $registry)
 
     commit('UPDATE_ITEM', { id: field.id, values: data })
-    commit('UPDATE_ITEM', { id: field.id, values: data })
 
     // The view might need to do some cleanup regarding the filters and sortings if the
     // type has changed.
