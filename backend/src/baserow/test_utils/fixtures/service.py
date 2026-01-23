@@ -9,6 +9,7 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterService,
     CoreSMTPEmailService,
 )
+from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
@@ -149,10 +150,6 @@ class ServiceFixtures:
         """
         from django.utils import timezone
 
-        from baserow.contrib.integrations.core.service_types import (
-            CorePeriodicServiceType,
-        )
-
         # If next_run_at is not explicitly provided, calculate it
         if "next_run_at" not in kwargs:
             # Get schedule parameters with defaults
@@ -164,7 +161,7 @@ class ServiceFixtures:
             last_periodic_run = kwargs.get("last_periodic_run")
 
             # Calculate next_run_at
-            kwargs["next_run_at"] = CorePeriodicServiceType.calculate_next_run(
+            kwargs["next_run_at"] = calculate_next_periodic_run(
                 interval=interval,
                 minute=minute,
                 hour=hour,

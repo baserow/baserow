@@ -1,39 +1,65 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Optional
 
-from dateutil.relativedelta import relativedelta
-from django.db import migrations
 from django.utils import timezone
 
+from dateutil.relativedelta import relativedelta
 
-def _calculate_next_run(interval, minute, hour, day_of_week, day_of_month, from_time):
+from baserow.contrib.integrations.core.constants import (
+    PERIODIC_INTERVAL_DAY,
+    PERIODIC_INTERVAL_HOUR,
+    PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_MONTH,
+    PERIODIC_INTERVAL_WEEK,
+)
+
+
+def calculate_next_periodic_run(
+    interval: str,
+    minute: int,
+    hour: int,
+    day_of_week: int,
+    day_of_month: int,
+    from_time: Optional[datetime] = None,
+) -> datetime:
     """
     Calculate the next scheduled run time based on the service's schedule configuration.
-    This is a copy of CorePeriodicServiceType.calculate_next_run() for use in the migration.
+
+    :param interval: The interval type (MINUTE, HOUR, DAY, WEEK, MONTH)
+    :param minute: The minute value (0-59)
+    :param hour: The hour value (0-23)
+    :param day_of_week: The day of week (0=Monday, 6=Sunday)
+    :param day_of_month: The day of month (1-31)
+    :param from_time: Calculate next run from this time (defaults to now)
+    :return: The next scheduled run time
     """
+
+    if from_time is None:
+        from_time = timezone.now()
 
     # Truncate to minute precision
     from_time = from_time.replace(second=0, microsecond=0)
 
-    if interval == "MINUTE":
+    if interval == PERIODIC_INTERVAL_MINUTE:
         # For minute intervals, add the interval to the from_time
         interval_minutes = minute if minute > 0 else 1
         next_run = from_time + timedelta(minutes=interval_minutes)
 
-    elif interval == "HOUR":
+    elif interval == PERIODIC_INTERVAL_HOUR:
         # Run at the specified minute of each hour
         next_run = from_time.replace(minute=minute)
         # If we've already passed this minute in the current hour, move to next hour
         if next_run <= from_time:
             next_run += timedelta(hours=1)
 
-    elif interval == "DAY":
+    elif interval == PERIODIC_INTERVAL_DAY:
         # Run at the specified hour:minute each day
         next_run = from_time.replace(hour=hour, minute=minute)
         # If we've already passed this time today, move to tomorrow
         if next_run <= from_time:
             next_run += timedelta(days=1)
 
-    elif interval == "WEEK":
+    elif interval == PERIODIC_INTERVAL_WEEK:
         # Run at the specified day_of_week at hour:minute each week
         current_weekday = from_time.weekday()
         days_ahead = day_of_week - current_weekday
@@ -49,7 +75,7 @@ def _calculate_next_run(interval, minute, hour, day_of_week, day_of_month, from_
         next_run = from_time + timedelta(days=days_ahead)
         next_run = next_run.replace(hour=hour, minute=minute)
 
-    elif interval == "MONTH":
+    elif interval == PERIODIC_INTERVAL_MONTH:
         # Run at the specified day_of_month at hour:minute each month
         next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
 
@@ -72,58 +98,3 @@ def _calculate_next_run(interval, minute, hour, day_of_week, day_of_month, from_
         next_run = from_time + timedelta(hours=1)
 
     return next_run
-
-
-def forward(apps, schema_editor):
-    """
-    Backfill next_run_at for all existing CorePeriodicService records.
-    """
-    CorePeriodicService = apps.get_model("integrations", "CorePeriodicService")
-    now = timezone.now().replace(second=0, microsecond=0)
-
-    services_to_update = []
-    for service in CorePeriodicService.objects.all():
-        # Calculate next_run_at based on the service's schedule
-        # Use last_periodic_run as the base if available, otherwise use now
-        from_time = service.last_periodic_run if service.last_periodic_run else now
-
-        next_run = _calculate_next_run(
-            interval=service.interval,
-            minute=service.minute,
-            hour=service.hour,
-            day_of_week=service.day_of_week,
-            day_of_month=service.day_of_month,
-            from_time=from_time,
-        )
-
-        # If the service has never run (no last_periodic_run), and the calculated
-        # next_run is in the past, keep advancing until we get a future time.
-        # For services that have run before, keep the calculated next_run even if
-        # it's in the past, as they may be overdue and should run ASAP.
-        if not service.last_periodic_run:
-            while next_run < now:
-                next_run = _calculate_next_run(
-                    interval=service.interval,
-                    minute=service.minute,
-                    hour=service.hour,
-                    day_of_week=service.day_of_week,
-                    day_of_month=service.day_of_month,
-                    from_time=next_run,
-                )
-
-        service.next_run_at = next_run
-        services_to_update.append(service)
-
-    # Bulk update all services
-    if services_to_update:
-        CorePeriodicService.objects.bulk_update(services_to_update, ["next_run_at"])
-
-
-class Migration(migrations.Migration):
-    dependencies = [
-        ("integrations", "0025_coreperiodicservice_next_run_at"),
-    ]
-
-    operations = [
-        migrations.RunPython(forward, migrations.RunPython.noop),
-    ]
