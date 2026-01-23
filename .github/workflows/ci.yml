@@ -61,73 +61,12 @@ jobs:
 
   build-backend:
     name: Build Backend CI Image
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/build-backend-ci-image.yml
+    with:
+      clear_cache: ${{ inputs.clear_cache == true }}
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.image.outputs.full }}
-      is_fork: ${{ steps.fork-check.outputs.is_fork }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check if PR is from a fork
-        id: fork-check
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" && \
-                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
-            echo "is_fork=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_fork=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        if: steps.fork-check.outputs.is_fork != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image tag
-        id: image
-        run: |
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
-          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
-          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
-
-      - name: Build and push backend CI image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: backend/Dockerfile
-          target: ci
-          push: ${{ steps.fork-check.outputs.is_fork != 'true' }}
-          load: ${{ steps.fork-check.outputs.is_fork == 'true' }}
-          tags: ${{ steps.image.outputs.full }}
-          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
-          cache-to: ${{ steps.fork-check.outputs.is_fork != 'true' && 'type=gha,scope=backend-ci,mode=max' || '' }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-
-      - name: Save Docker image for fork PRs
-        if: steps.fork-check.outputs.is_fork == 'true'
-        run: docker save ${{ steps.image.outputs.full }} | gzip > /tmp/backend-ci-image.tar.gz
-
-      - name: Upload Docker image artifact
-        if: steps.fork-check.outputs.is_fork == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-ci-image
-          path: /tmp/backend-ci-image.tar.gz
-          retention-days: 1
 
   build-frontend:
     name: Build Web-Frontend CI Image
@@ -447,90 +386,21 @@ jobs:
             ${{ needs.build-backend.outputs.image }} ci-check-migrations
 
   test-backend:
-    name: Backend Tests (Group ${{ matrix.group }})
-    runs-on: ubuntu-latest
+    name: Backend Tests
     needs:
       - build-backend
       - backend-lint
       - detect-changes
     if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    uses: ./.github/workflows/run-backend-tests.yml
+    with:
+      image: ${{ needs.build-backend.outputs.image }}
+      is_fork: ${{ needs.build-backend.outputs.is_fork }}
     permissions:
       contents: read
       packages: read
       checks: write
       pull-requests: write
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    services:
-      db:
-        image: pgvector/pgvector:pg14
-        env:
-          POSTGRES_USER: baserow
-          POSTGRES_PASSWORD: baserow
-          POSTGRES_DB: baserow
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
-          --shm-size=512m
-    steps:
-      - name: Log in to GitHub Container Registry
-        if: needs.build-backend.outputs.is_fork != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download backend image artifact
-        if: needs.build-backend.outputs.is_fork == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-ci-image
-          path: /tmp
-
-      - name: Load backend image from artifact
-        if: needs.build-backend.outputs.is_fork == 'true'
-        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
-
-      - name: Run backend tests for group ${{ matrix.group }}
-        run: |
-          mkdir -p reports
-          docker run \
-            --name=baserow_backend_test_container \
-            --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=10 \
-            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
-            -e DATABASE_HOST=db \
-            -e DATABASE_PORT=5432 \
-            -e DATABASE_NAME=baserow \
-            -e DATABASE_USER=baserow \
-            -e DATABASE_PASSWORD=baserow \
-            -e SECRET_KEY=test-secret-key \
-            ${{ needs.build-backend.outputs.image }} ci-test
-          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
-          docker rm baserow_backend_test_container
-
-      - name: Upload test reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-test-reports-group-${{ matrix.group }}
-          path: reports/
-          retention-days: 7
-          include-hidden-files: true
-
-      - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: reports/report.xml
-          check_name: Backend Tests (Group ${{ matrix.group }})
-          comment_mode: off
 
   test-frontend:
     name: Web-Frontend Tests (Shard ${{ matrix.shard }})

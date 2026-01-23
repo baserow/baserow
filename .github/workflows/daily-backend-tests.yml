@@ -1,0 +1,28 @@
+name: Daily Backend Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  build-backend:
+    name: Build Backend CI Image
+    uses: ./.github/workflows/build-backend-ci-image.yml
+    permissions:
+      contents: read
+      packages: write
+
+  test-backend:
+    name: Backend Tests
+    needs:
+      - build-backend
+    uses: ./.github/workflows/run-backend-tests.yml
+    with:
+      image: ${{ needs.build-backend.outputs.image }}
+      is_fork: ${{ needs.build-backend.outputs.is_fork }}
+      run_once_per_day: true
+    permissions:
+      contents: read
+      packages: read
+      checks: write
