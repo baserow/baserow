@@ -115,11 +115,11 @@ To check if the variables are set correctly in development, from the host run:
 
 ```bash
 # Check backend
-just dcd run --rm backend bash -c "env | grep LLM_MODEL"
-just dcd run --rm backend bash -c "env | grep API_KEY"
+just dcd run --rm backend bash -c env | grep LLM_MODEL
+just dcd run --rm backend bash -c env | grep API_KEY
 
 # Check frontend
-just dcd run --rm web-frontend bash -c "env | grep LLM_MODEL"
+just dcd run --rm web-frontend bash -c env | grep LLM_MODEL
 ```
 
 Both commands must return the same value for `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`. If either is missing or they differ, update your environment configuration and restart the services.

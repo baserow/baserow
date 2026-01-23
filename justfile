@@ -242,7 +242,7 @@ _dev-start:
 
     # Start docker services (redis, db, mailhog, otel-collector)
     echo "==> Starting Docker services (redis, db, mailhog, otel-collector)..."
-    just dc-dev up -d redis db mailhog otel-collector caddy
+    just dc-dev up -d --scale backend=0 --scale web-frontend=0 --scale celery=0 --scale celery-beat-worker=0 --scale celery-export-worker=0
 
     # Wait for services to be ready
     echo "==> Waiting for PostgreSQL to be ready..."
