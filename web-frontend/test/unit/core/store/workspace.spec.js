@@ -1,4 +1,5 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
+import authStore from '@baserow/modules/core/store/auth'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { expect, test } from 'vitest'
 
@@ -10,7 +11,8 @@ describe('Workspace store', () => {
     testApp = new TestApp()
     store = testApp.createStore({
       modules: {
-        test: workspaceStore,
+        workspace: workspaceStore,
+        auth: authStore,
       },
     })
   })
@@ -42,9 +44,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceAddWorkspaceUser', {
+    await store.dispatch('workspace/forceAddWorkspaceUser', {
       workspaceId: 1,
       values: {
         id: 74,
@@ -58,7 +60,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(2)
     expect(workspace.users[1].user_id).toBe(257)
     expect(workspace.users[1].permissions).toBe('MEMBER')
@@ -87,9 +89,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceUpdateWorkspaceUser', {
+    await store.dispatch('workspace/forceUpdateWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -104,13 +106,13 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(1)
     expect(workspace.users[0].name).toBe('Petr')
     expect(workspace.users[0].permissions).toBe('MEMBER')
   })
 
-  test.skip(`forceUpdateWorkspaceUser updates a current workspace permissions
+  test(`forceUpdateWorkspaceUser updates a current workspace permissions
         when the current user is updated`, async () => {
     await store.dispatch('auth/forceSetUserData', {
       user: {
@@ -123,6 +125,7 @@ describe('Workspace store', () => {
         `iwidXNlcl9wcm9maWxlX2lkIjpbMl0sIm9yaWdfaWF0IjoxNjYwMjkxMDg2fQ.RQ-M` +
         `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`,
     })
+
     const state = Object.assign(workspaceStore.state(), {
       items: [
         {
@@ -145,9 +148,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceUpdateWorkspaceUser', {
+    await store.dispatch('workspace/forceUpdateWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -162,7 +165,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(1)
     expect(workspace.users[0].name).toBe('Petr')
     expect(workspace.users[0].permissions).toBe('MEMBER')
@@ -170,7 +173,7 @@ describe('Workspace store', () => {
     expect(workspace.permissions).toBe('MEMBER')
   })
 
-  test.skip('forceUpdateWorkspaceUserAttributes updates a user across all workspaces', async () => {
+  test('forceUpdateWorkspaceUserAttributes updates a user across all workspaces', async () => {
     const state = Object.assign(workspaceStore.state(), {
       items: [
         {
@@ -240,7 +243,7 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
     await store.dispatch('workspace/forceUpdateWorkspaceUserAttributes', {
       userId: 256,
@@ -265,7 +268,7 @@ describe('Workspace store', () => {
     expect(workspace3.users[0].to_be_deleted).toBe(false)
   })
 
-  test.skip('forceDeleteWorkspaceUser removes a user from the workspace', async () => {
+  test('forceDeleteWorkspaceUser removes a user from the workspace', async () => {
     const state = Object.assign(workspaceStore.state(), {
       items: [
         {
@@ -289,7 +292,7 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
     await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
@@ -310,7 +313,7 @@ describe('Workspace store', () => {
     expect(workspace.users.length).toBe(0)
   })
 
-  test.skip(`forceDeleteWorkspaceUser removes the whole workspace if the
+  test(`forceDeleteWorkspaceUser removes the whole workspace if the
         current user is being removed`, async () => {
     await store.dispatch('auth/forceSetUserData', {
       user: {
@@ -347,9 +350,9 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceDeleteWorkspaceUser', {
+    await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -364,11 +367,11 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspaces = store.getters['test/getAll']
+    const workspaces = store.getters['workspace/getAll']
     expect(workspaces.length).toBe(0)
   })
 
-  test.skip('forceDeleteUser deletes all workspace users across all workspaces', async () => {
+  test('forceDeleteUser deletes all workspace users across all workspaces', async () => {
     const state = {
       ...workspaceStore.state(),
       items: [
@@ -439,7 +442,7 @@ describe('Workspace store', () => {
       ],
     }
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
     await store.dispatch('workspace/forceDeleteUser', {
       userId: 256,
@@ -527,9 +530,9 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    const allUsers = await store.getters['test/getAllUsers']
+    const allUsers = await store.getters['workspace/getAllUsers']
     expect(allUsers[256].name).toBe('John')
     expect(allUsers[456].name).toBe('Peter')
     expect(allUsers[556].name).toBe('Mark')
@@ -605,9 +608,9 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    const allUsers = await store.getters['test/getAllUsersByEmail']
+    const allUsers = await store.getters['workspace/getAllUsersByEmail']
     expect(allUsers['john@example.com'].name).toBe('John')
     expect(allUsers['peter@example.com'].name).toBe('Peter')
     expect(allUsers['mark@example.com'].name).toBe('Mark')
@@ -683,9 +686,9 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    const mark = await store.getters['test/getUserById'](556)
+    const mark = await store.getters['workspace/getUserById'](556)
     expect(mark.name).toBe('Mark')
   })
 
@@ -759,9 +762,10 @@ describe('Workspace store', () => {
       ],
     })
 
-    store.replaceState({ ...state.store, test: state })
+    store.replaceState({ ...store.state, workspace: state })
 
-    const mark = await store.getters['test/getUserByEmail']('mark@example.com')
+    const mark =
+      await store.getters['workspace/getUserByEmail']('mark@example.com')
     expect(mark.name).toBe('Mark')
   })
 })

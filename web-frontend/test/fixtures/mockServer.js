@@ -42,7 +42,11 @@ export class MockServer {
   }
 
   fakeSettings(result = {}) {
-    this.mock.onGet(`settings/`).reply(200, {})
+    this.mock.onGet(`settings/`).reply(200, result)
+  }
+
+  fakeJobs(result = {}) {
+    this.mock.onGet(`jobs/`).reply(200, result)
   }
 
   fakeAuthentication(

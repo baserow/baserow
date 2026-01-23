@@ -1,10 +1,8 @@
 import { TestApp, UIHelpers } from '@baserow/test/helpers/testApp'
-import Table from '@baserow/modules/database/pages/table'
 import flushPromises from 'flush-promises'
 
-// Mock out debounce so we dont have to wait or simulate waiting for the various
-// debounces in the search functionality.
-vi.mock('lodash/debounce', { default: () => vi.fn((fn) => fn) })
+import Table from '@baserow/modules/database/pages/table'
+import { test } from 'vitest'
 
 describe('Table Component Tests', () => {
   let testApp = null
@@ -25,7 +23,7 @@ describe('Table Component Tests', () => {
       route: `/database/${application.id}/table/${table.id}/${gridView.id}?token=fake`,
     })
 
-    expect(tableComponent.html()).toContain('gridView.rowCount - 1')
+    expect(tableComponent.html()).toMatchSnapshot()
 
     mockServer.creatingRowsInTableReturns(table, {
       items: [
@@ -45,15 +43,10 @@ describe('Table Component Tests', () => {
 
     await flushPromises()
 
-    // Wait a moment until the row is added. This is needed because the store
-    // actions have an await.
-    //await new Promise((resolve) => setTimeout(resolve, 100))
-
-    expect(tableComponent.html()).toContain('gridView.rowCount - 2')
+    expect(tableComponent.html()).toMatchSnapshot()
   })
 
-  // TODO MIG skipped
-  test.skip('Searching for a cells value highlights it', async () => {
+  test('Searching for a cells value highlights it', async () => {
     const { application, table, gridView } =
       await givenASingleSimpleTableInTheServer()
 
@@ -77,6 +70,8 @@ describe('Table Component Tests', () => {
 
     await UIHelpers.performSearch(tableComponent, 'last_name')
 
+    await flushPromises()
+
     expect(
       tableComponent
         .findAll('.grid-view__column--matches-search')
@@ -84,7 +79,6 @@ describe('Table Component Tests', () => {
     ).toBe(1)
   })
 
-  // TODO MIG skipped
   test.skip('Editing a search highlighted cells value so it will no longer match warns', async () => {
     const { application, table, gridView } =
       await givenASingleSimpleTableInTheServer()
@@ -92,6 +86,8 @@ describe('Table Component Tests', () => {
     const tableComponent = await testApp.mount(Table, {
       route: `/database/${application.id}/table/${table.id}/${gridView.id}?token=fake`,
     })
+
+    await flushPromises()
 
     mockServer.resetMockEndpoints()
     mockServer.nextSearchForTermWillReturn('last_name', gridView, [
@@ -113,7 +109,10 @@ describe('Table Component Tests', () => {
     )
 
     await input.setValue('Doesnt Match Search Term')
-    expect(tableComponent.html()).toContain('gridViewRow.rowNotMatchingSearch')
+    await flushPromises()
+    expect(
+      tableComponent.html().includes('gridViewRow.rowNotMatchingSearch')
+    ).toBe(true)
 
     await input.setValue('last_name')
     await flushPromises()

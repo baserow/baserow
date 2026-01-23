@@ -447,6 +447,7 @@ export const actions = {
   ) {
     commit('UPDATE_WORKSPACE_USER', { workspaceId, id, values })
     const userId = rootGetters['auth/getUserId']
+
     if (values.user_id === userId) {
       commit('UPDATE_ITEM', {
         id: workspaceId,

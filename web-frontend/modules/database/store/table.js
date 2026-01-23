@@ -222,6 +222,7 @@ export const actions = {
     // selectWorkspaceDatabaseTable middleware when the context is not yet
     // initialized.
     //await dispatch('application/clearChildrenSelected', null, { root: true })
+
     await dispatch('forceSelect', { database, table })
     return { database, table }
   },

@@ -3,6 +3,12 @@ import path from 'path'
 
 export default defineVitestConfig({
   test: {
+    env: {
+      LC_ALL: 'en_GB.UTF-8',
+      LANG: 'en_GB.UTF-8',
+      LANGUAGE: 'en_GB',
+      TZ: 'UTC',
+    },
     globals: true,
     environment: 'nuxt',
     isolate: true,
@@ -24,6 +30,7 @@ export default defineVitestConfig({
       provider: 'istanbul',
     },
     environmentOptions: {
+      timezone: 'UTC',
       nuxt: {
         domEnvironment: 'happy-dom',
         overrides: {

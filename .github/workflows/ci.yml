@@ -756,7 +756,7 @@ jobs:
           CI: 1
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
+          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4

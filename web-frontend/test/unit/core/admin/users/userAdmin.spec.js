@@ -5,7 +5,6 @@ import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
 import { MockServer } from '@baserow/test/fixtures/mockServer'
-import { DOMWrapper } from '@vue/test-utils'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -112,7 +111,7 @@ describe('User Admin Component Tests', () => {
     expect(workspaces.length).toBe(0)
   })
 
-  test.skip('A user can be deleted', async () => {
+  test('A user can be deleted', async () => {
     // TODO: This test is skipped as it fails at
     // TypeError: Converting circular structure to JSON
 

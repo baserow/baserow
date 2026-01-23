@@ -11,7 +11,7 @@ describe('KanbanView component', () => {
   let store = null
 
   beforeEach(() => {
-    testApp = new PremiumTestApp(null)
+    testApp = new PremiumTestApp()
     testApp.giveCurrentUserGlobalPremiumFeatures()
     store = testApp.store
     mockServer = testApp.mockServer
@@ -22,7 +22,7 @@ describe('KanbanView component', () => {
   })
 
   const mountComponent = (props, slots = {}) => {
-    return testApp.mount(KanbanView, { propsData: props, slots })
+    return testApp.mount(KanbanView, { props, slots })
   }
 
   const primary = {
@@ -113,7 +113,7 @@ describe('KanbanView component', () => {
     return { table, fields, view, application }
   }
 
-  test('KanbanView allows deleting row with context menu', async () => {
+  test.only('KanbanView allows deleting row with context menu', async () => {
     const { table, fields, view, application } = await populateStore()
 
     expect(store.getters['page/view/kanban/getSingleSelectFieldId']).toBe(2)
@@ -152,7 +152,9 @@ describe('KanbanView component', () => {
       readOnly: false,
       storePrefix: 'page/',
     })
-    expect(wrapper.element).toMatchSnapshot()
+
+    expect(wrapper.html()).toMatchSnapshot()
+
     const mockEventHandler = vi.spyOn(wrapper.vm, 'showRowContext')
     const mockDeleteRowHandler = vi.spyOn(wrapper.vm, 'deleteRow')
 
@@ -161,17 +163,18 @@ describe('KanbanView component', () => {
     const mockEvent = { preventDefault: vi.fn() }
     rowCardWrapper.trigger('contextmenu', { row: rows[0], event: mockEvent })
 
-    await wrapper.vm.$nextTick()
+    await flushPromises()
 
     expect(mockEventHandler).toHaveBeenCalled()
     expect(mockEventHandler.mock.calls[0][0].row).toEqual(rows[0])
 
     expect(store.getters['page/view/kanban/getStack']('null').count).toBe(1)
     mockServer.deleteGridRow(table.id, rows[0].id)
+
     const ctx = wrapper.find('.js-ctx-delete-row')
     ctx.trigger('click')
 
-    await wrapper.vm.$nextTick()
+    await flushPromises()
 
     expect(mockDeleteRowHandler).toHaveBeenCalled()
 

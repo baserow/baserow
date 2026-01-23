@@ -6,7 +6,7 @@
       :class="{
         'active active--primary': headerSearchTerm.length > 0,
       }"
-      @click="$refs.context.toggle($refs.contextLink, 'bottom', 'right', 4)"
+      @click="onClick()"
     >
       <i class="header__search-icon iconoir-search"></i>
       {{ headerSearchTerm }}
@@ -84,6 +84,9 @@ export default {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {
+    onClick() {
+      this.$refs.context.toggle(this.$refs.contextLink, 'bottom', 'right', 4)
+    },
     searchChanged(newSearch) {
       this.headerSearchTerm = newSearch
     },

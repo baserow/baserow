@@ -1,4573 +1,1720 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`KanbanView component KanbanView allows deleting row with context menu 1`] = `
-<div
-  class="kanban-view"
->
-  <div
-    class="kanban-view__stacks"
-  >
-    <div
-      class="kanban-view__stack-wrapper"
-    >
-      <div
-        class="kanban-view__stack"
-      >
-        <div
-          class="kanban-view__stack-head"
-        >
-          <div
-            class="kanban-view__uncategorized"
-          >
-            
-        kanbanViewStack.uncategorized
-      
-          </div>
-           
-          <div
-            class="kanban-view__count"
-          >
-            
-        1
-      
-          </div>
-           
-          <a
-            class="kanban-view__options"
-          >
-            <i
-              class="iconoir-nav-arrow-down"
-            />
-          </a>
-           
+exports[`KanbanView component > KanbanView allows deleting row with context menu 1`] = `
+"<div class="kanban-view">
+  <div class="kanban-view__stacks">
+    <div class="kanban-view__stack-wrapper">
+      <div class="kanban-view__stack">
+        <div class="kanban-view__stack-head">
+          <div class="kanban-view__uncategorized">kanbanViewStack.uncategorized</div>
+          <div class="kanban-view__count">1</div><a class="kanban-view__options"><i class="iconoir-nav-arrow-down"></i></a>
         </div>
-         
-        <section
-          class="infinite-scroll kanban-view__stack-cards"
-        >
-          <div
-            style="min-height: 138px;"
-          >
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(0px);"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+        <section class="infinite-scroll kanban-view__stack-cards">
+          <div style="min-height: 138px;">
+            <div class="card kanban-view__stack-card" style="transform: translateY(0px);">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  2nd field text
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1">2nd field text</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-           
-          <!---->
-           
-          <div
-            class="infinite-scroll__loading-wrapper"
-            style="display: none;"
-          >
-            <!---->
+          <!--v-if-->
+          <div class="infinite-scroll__loading-wrapper" style="display: none;">
+            <!--v-if-->
           </div>
-           
-          <!---->
+          <!--v-if-->
         </section>
-         
-        <div
-          class="kanban-view__stack-foot"
-        >
-          <button
-            class="button-floating button-floating--primary button-floating--regular"
-            full-width=""
-          >
-            <i
-              class="button-floating__icon iconoir-plus"
-            />
-          </button>
-        </div>
+        <div class="kanban-view__stack-foot"><button class="button-floating button-floating--primary button-floating--regular" full-width=""><i class="button-floating__icon iconoir-plus"></i></button></div>
+      </div>
+      <!--
+    <div class="kanban-view__stack-wrapper">
+      <div class="kanban-view__collapsed-stack-wrapper">
+        <a class="kanban-view__collapsed-stack">
+          <div class="kanban-view__count">10 records</div>
+          <div class="kanban-view__option-wrapper margin-right-0">
+            <div class="kanban-view__option background-color--green">
+              Idea
+            </div>
+          </div>
+        </a>
       </div>
     </div>
-     
-    <div
-      class="kanban-view__stack-wrapper"
-    >
-      <div
-        class="kanban-view__stack"
-      >
-        <div
-          class="kanban-view__stack-head"
-        >
-          <div
-            class="kanban-view__option-wrapper"
-          >
-            <div
-              class="kanban-view__option background-color--blue"
-            >
-              
-            Blue color
-          
-            </div>
+    -->
+    </div>
+    <div class="kanban-view__stack-wrapper">
+      <div class="kanban-view__stack">
+        <div class="kanban-view__stack-head">
+          <!--<a v-if="!readOnly" href="#" class="kanban-view__drag"></a>-->
+          <div class="kanban-view__option-wrapper">
+            <div class="kanban-view__option background-color--blue">Blue color</div>
           </div>
-           
-          <div
-            class="kanban-view__count"
-          >
-            
-        2
-      
-          </div>
-           
-          <a
-            class="kanban-view__options"
-          >
-            <i
-              class="iconoir-nav-arrow-down"
-            />
-          </a>
-           
+          <div class="kanban-view__count">2</div><a class="kanban-view__options"><i class="iconoir-nav-arrow-down"></i></a>
         </div>
-         
-        <section
-          class="infinite-scroll kanban-view__stack-cards"
-        >
-          <div
-            style="min-height: 414px;"
-          >
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(0px);"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <div
-                          class="card-single-select-option background-color--blue"
-                        >
-                          
-    Blue color
-  
-                        </div>
+        <section class="infinite-scroll kanban-view__stack-cards">
+          <div style="min-height: 414px;">
+            <div class="card kanban-view__stack-card" style="transform: translateY(0px);">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <div class="card-single-select-option background-color--blue">Blue color</div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  4th field text
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1">4th field text</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(138px);"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <div
-                          class="card-single-select-option background-color--blue"
-                        >
-                          
-    Blue color
-  
-                        </div>
+            <div class="card kanban-view__stack-card" style="transform: translateY(138px);">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <div class="card-single-select-option background-color--blue">Blue color</div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  3rd field text
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1">3rd field text</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(276px);"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <div
-                          class="card-single-select-option background-color--blue"
-                        >
-                          
-    Blue color
-  
-                        </div>
+            <div class="card kanban-view__stack-card" style="transform: translateY(276px);">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <div class="card-single-select-option background-color--blue">Blue color</div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  6th field text
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1">6th field text</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              class="card kanban-view__stack-card"
-              style="transform: translateY(-138px); display: none;"
-            >
-               
-              <!---->
-               
-              <div
-                class="card__content"
-              >
-                <div
-                  class="card__fields"
-                >
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Options
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-single-select-option__wrapper"
-                      >
-                        <!---->
+            <div class="card kanban-view__stack-card" style="transform: translateY(-138px); display: none;">
+              <!--v-if-->
+              <div class="card__content">
+                <div class="card__fields">
+                  <div class="card__field">
+                    <div class="card__field-name">Options</div>
+                    <div class="card__field-value">
+                      <div class="card-single-select-option__wrapper" row="[object Object]" field="[object Object]" workspace-id="1">
+                        <!--v-if-->
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="card__field"
-                  >
-                    <div
-                      class="card__field-name"
-                    >
-                      Name
-                    </div>
-                     
-                    <div
-                      class="card__field-value"
-                    >
-                      <div
-                        class="card-text"
-                      >
-                        
-  
-
-                      </div>
+                  <div class="card__field">
+                    <div class="card__field-name">Name</div>
+                    <div class="card__field-value">
+                      <div class="card-text" row="[object Object]" field="[object Object]" workspace-id="1"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-           
-          <!---->
-           
-          <div
-            class="infinite-scroll__loading-wrapper"
-            style="display: none;"
-          >
-            <!---->
+          <!--v-if-->
+          <div class="infinite-scroll__loading-wrapper" style="display: none;">
+            <!--v-if-->
           </div>
-           
-          <!---->
+          <!--v-if-->
         </section>
-         
-        <div
-          class="kanban-view__stack-foot"
-        >
-          <button
-            class="button-floating button-floating--primary button-floating--regular"
-            full-width=""
-          >
-            <i
-              class="button-floating__icon iconoir-plus"
-            />
-          </button>
-        </div>
+        <div class="kanban-view__stack-foot"><button class="button-floating button-floating--primary button-floating--regular" full-width=""><i class="button-floating__icon iconoir-plus"></i></button></div>
+      </div>
+      <!--
+    <div class="kanban-view__stack-wrapper">
+      <div class="kanban-view__collapsed-stack-wrapper">
+        <a class="kanban-view__collapsed-stack">
+          <div class="kanban-view__count">10 records</div>
+          <div class="kanban-view__option-wrapper margin-right-0">
+            <div class="kanban-view__option background-color--green">
+              Idea
+            </div>
+          </div>
+        </a>
       </div>
     </div>
-     
-    <div
-      class="kanban-view__stack-wrapper"
-    >
-      <div
-        class="kanban-view__stack"
-      >
-        <div
-          class="kanban-view__stack-head"
-        >
-          <a
-            class="button button--regular button--secondary button--full-width"
-          >
-            <i
-              class="button__icon iconoir-plus"
-            />
-             
-            <span
-              class="button__label"
-            >
-              kanbanView.addStack
-            </span>
-             
-            <!---->
-          </a>
-           
-        </div>
+    -->
+    </div>
+    <div class="kanban-view__stack-wrapper">
+      <div class="kanban-view__stack">
+        <div class="kanban-view__stack-head"><a class="button button--regular button--secondary button--full-width"><i class="button__icon iconoir-plus"></i><span class="button__label">kanbanView.addStack</span>
+            <!--v-if-->
+          </a></div>
       </div>
     </div>
   </div>
-   
-   
-   
-</div>
+</div>"
 `;

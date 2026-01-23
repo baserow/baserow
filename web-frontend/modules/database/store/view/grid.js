@@ -1152,7 +1152,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
   ) {
-    const { $registry, $client, $i18n, $config } = this
+    const { $client, $config } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     const gridId = getters.getLastGridId
@@ -3351,7 +3351,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { row, fields = null, overrides, forced = false }
   ) {
-    const { $registry, $client, $i18n, $config } = this
+    const { $registry, $config } = this
     // Avoid computing search on table loading
     if (getters.getActiveSearchTerm || forced) {
       const rowSearchMatches = calculateSingleRowSearchMatches(

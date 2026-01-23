@@ -258,6 +258,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
  * will load the correct components into the header and body.
  */
 export default {
+  name: 'Table',
   components: {
     DefaultErrorPage,
     ViewGroupBy,

@@ -7,7 +7,7 @@ import ViewRotateSlugModal from '@baserow/modules/database/components/view/ViewR
 
 async function openShareViewLinkContext(testApp, view) {
   const shareViewLinkComponent = await testApp.mount(ShareViewLink, {
-    propsData: {
+    props: {
       view,
       readOnly: false,
     },
@@ -30,20 +30,23 @@ describe('Premium Share View Calendar ical feed Tests', () => {
     mockServer = new MockPremiumServer(testApp.mock)
   })
 
-  afterEach(() => testApp.afterEach())
+  afterEach(async () => await testApp.afterEach())
 
   test('User with global premium can share ical feed url', async () => {
     const workspace = { id: 1, name: 'testWorkspace' }
     await testApp.getStore().dispatch('workspace/forceCreate', workspace)
+
     const tableId = 1
     const databaseId = 3
     const viewId = 5
+
     testApp.getStore().dispatch('application/forceCreate', {
       id: databaseId,
       type: 'database',
       tables: [{ id: tableId }],
       workspace,
     })
+
     const icalFeedUrl = '/aaaaAAAA.ics'
     const view = {
       id: viewId,
@@ -88,7 +91,7 @@ describe('Premium Share View Calendar ical feed Tests', () => {
       shareViewLinkContext.findAllComponents({ name: 'Button' })
     ).toHaveLength(2)
 
-    // last .view-sharing__create-link is a element which needs to be clicked
+    // last .view-sharing__create-link is an element which needs to be clicked
     await shareViewLinkContext
       .findAllComponents({ name: 'Button' })
       .at(1)
@@ -96,9 +99,10 @@ describe('Premium Share View Calendar ical feed Tests', () => {
 
     // need to wait for async store stuff
     await flushPromises()
-    // await shareViewLinkContext.vm.$nextTick();
 
     // state changed: one shared-link element with ical_feed_url
+
+    console.log(testApp.body.html())
 
     expect(shareViewLinkContext.props('view').ical_feed_url).toEqual(
       icalFeedUrl

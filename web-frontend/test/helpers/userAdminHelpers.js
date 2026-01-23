@@ -5,8 +5,6 @@ import EditUserModal from '@baserow/modules/core/components/admin/users/modals/E
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
 import { expect } from 'vitest'
-import flushPromises from 'flush-promises'
-import { DOMWrapper } from '@vue/test-utils'
 
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {

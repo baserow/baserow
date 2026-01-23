@@ -17,7 +17,12 @@
       @navigate-previous="(row, term) => setAdjacentRow(true, row, term)"
       @navigate-next="(row, term) => setAdjacentRow(false, row, term)"
     />
-    <NuxtPage :database="database" :table="table" :fields="fields" />
+    <NuxtPage
+      v-if="hasChildRoute"
+      :database="database"
+      :table="table"
+      :fields="fields"
+    />
   </div>
 </template>
 
@@ -30,7 +35,7 @@ import {
   useRouter,
 } from 'vue-router'
 import { useHead } from '#imports'
-import { useAsyncData, refreshNuxtData } from '#app'
+import { useAsyncData } from '#app'
 
 import Table from '@baserow/modules/database/components/table/Table'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
@@ -52,7 +57,6 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { params, query } = route
 const router = useRouter()
 const nuxtApp = useNuxtApp()
 const {
@@ -344,4 +348,6 @@ async function fetchAdjacentRow(previous, activeSearchTerm = null) {
     await navigateToRowModal(row)
   }
 }
+
+const hasChildRoute = computed(() => route.matched.length > 1)
 </script>

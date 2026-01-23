@@ -1,5 +1,5 @@
 <template>
-  <div ref="cell" class="grid-view__cell">
+  <div class="grid-view__cell">
     <div class="grid-field-text">{{ value }}</div>
   </div>
 </template>

@@ -1398,7 +1398,7 @@ export class InputTextElementType extends FormElementType {
   }
 
   isValid(element, value) {
-    if (value == null) {
+    if (!value && value !== 0) {
       return !element.required
     }
     switch (element.validation_type) {

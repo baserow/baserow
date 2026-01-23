@@ -15,10 +15,11 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
 import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 
-import { fail } from 'vitest'
+import { fail, vi } from 'vitest'
 
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createStore } from 'vuex'
+import { DOMWrapper } from '@vue/test-utils'
 
 /**
  * Uses the real baserow plugins to setup a Vuex store and baserow registry
@@ -281,12 +282,17 @@ export class OldTestApp {
 export const UIHelpers = {
   async performSearch(tableComponent, searchTerm) {
     await tableComponent.get('i.header__search-icon').trigger('click')
-    const searchBox = tableComponent.get(
+
+    const body = new DOMWrapper(document.body)
+    const searchBox = body.get(
       'input[placeholder*="viewSearchContext.searchInRows"]'
     )
     await searchBox.setValue(searchTerm)
+    vi.useFakeTimers()
     await searchBox.trigger('submit')
+    vi.runAllTimers() // Consume the debounce
     await flushPromises()
+    vi.useRealTimers()
   },
   async startEditForCellContaining(tableComponent, htmlInsideCellToSearchFor) {
     const targetCell = tableComponent
@@ -333,17 +339,17 @@ export class TestApp {
   constructor() {
     const nuxtApp = useNuxtApp()
     const { $client, $store, $registry } = nuxtApp
+
     this.mock = new MockAdapter($client, { onNoMatch: 'throwException' })
-    this.mockServer = new MockServer(this.mock, $store)
     this.store = $store
+    this.$store = $store
     this._initialCleanStoreState = _.cloneDeep($store.state)
     this.$registry = $registry
-    this.$store = $store
     this.nuxtApp = nuxtApp
     this._app = nuxtApp
     this._wrappers = []
     this.failTestOnErrorResponse = true
-    this._app.$client.interceptors.response.use(
+    this._responseInterceptorId = this._app.$client.interceptors.response.use(
       (response) => {
         return response
       },
@@ -355,6 +361,7 @@ export class TestApp {
         return Promise.reject(error)
       }
     )
+    this.mockServer = this.setupMockServer()
   }
 
   getApp() {
@@ -371,6 +378,10 @@ export class TestApp {
 
   setRouteToBe(name) {
     this.getApp().$route.matched = [{ name }]
+  }
+
+  setupMockServer() {
+    return new MockServer(this.mock, this.$store)
   }
 
   listenersToProps(listeners) {
@@ -415,6 +426,10 @@ export class TestApp {
     this.failTestOnErrorResponse = true
   }
 
+  get body() {
+    return new DOMWrapper(document.body)
+  }
+
   /**
    * Helper to create a temporary store for tests. Adds the extra properties.
    */
@@ -440,12 +455,13 @@ export class TestApp {
    * in your test suits afterEach method!
    */
   async afterEach() {
+    this._app.$client.interceptors.response.eject(this._responseInterceptorId)
     this._wrappers.forEach((w) => w.unmount())
     this._wrappers = []
     this.store.replaceState(_.cloneDeep(this._initialCleanStoreState))
     this.mock.restore()
-    // Flushing promises should be done before the mock reset to avoid raising
-    // unwanted exceptions
+    const router = useRouter()
+    await router.replace('/') // reset route between tests
     await flushPromises()
   }
 }
