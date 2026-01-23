@@ -272,10 +272,11 @@ class DataSourceService:
             context=data_source,
         )
 
+        data_source_id = data_source.id
         self.handler.delete_data_source(data_source)
 
         data_source_deleted.send(
-            self, data_source_id=data_source.id, page=page, user=user
+            self, data_source_id=data_source_id, page=page, user=user
         )
 
     def dispatch_data_sources(

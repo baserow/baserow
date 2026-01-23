@@ -65,7 +65,7 @@ class DataSourceSerializer(ServiceSerializer):
 
     @extend_schema_field(OpenApiTypes.FLOAT)
     def get_order(self, instance):
-        return self.context["data_source"].order
+        return str(self.context["data_source"].order)
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_schema(self, instance):

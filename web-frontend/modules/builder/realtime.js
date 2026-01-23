@@ -150,4 +150,79 @@ export const registerRealtimeEvents = (realtime) => {
       }
     })
   })
+
+  // Data source events
+  realtime.registerEvent('data_source_created', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.data_source.page_id) {
+      store.dispatch('dataSource/forceCreate', {
+        page: selectedPage,
+        dataSource: data.data_source,
+        beforeId: data.before_id,
+      })
+    }
+  })
+
+  realtime.registerEvent('data_source_updated', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.data_source.page_id) {
+      const dataSource = store.getters['dataSource/getPageDataSources'](
+        selectedPage
+      ).find((ds) => ds.id === data.data_source.id)
+      if (dataSource) {
+        store.dispatch('dataSource/forceUpdate', {
+          page: selectedPage,
+          dataSource,
+          values: data.data_source,
+        })
+      }
+    }
+  })
+
+  realtime.registerEvent('data_source_deleted', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.page_id) {
+      store.dispatch('dataSource/forceDelete', {
+        page: selectedPage,
+        dataSourceId: data.data_source_id,
+      })
+    }
+  })
+
+  // Workflow action events
+  realtime.registerEvent('workflow_action_created', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.page_id) {
+      store.dispatch('builderWorkflowAction/forceCreate', {
+        page: selectedPage,
+        workflowAction: data.workflow_action,
+      })
+    }
+  })
+
+  realtime.registerEvent('workflow_action_updated', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.page_id) {
+      const workflowAction = store.getters[
+        'builderWorkflowAction/getWorkflowActions'
+      ](selectedPage).find((wa) => wa.id === data.workflow_action.id)
+      if (workflowAction) {
+        store.dispatch('builderWorkflowAction/forceUpdate', {
+          page: selectedPage,
+          workflowAction,
+          values: data.workflow_action,
+        })
+      }
+    }
+  })
+
+  realtime.registerEvent('workflow_action_deleted', ({ store }, data) => {
+    const selectedPage = store.getters['page/getSelected']
+    if (selectedPage.id === data.page_id) {
+      store.dispatch('builderWorkflowAction/forceDelete', {
+        page: selectedPage,
+        workflowActionId: data.workflow_action_id,
+      })
+    }
+  })
 }
