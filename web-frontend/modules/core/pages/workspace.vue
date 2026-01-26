@@ -231,7 +231,9 @@ import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardH
 
 definePageMeta({
   layout: 'app',
-  middleware: ['impersonate'],
+  // Note: these middlewares must be explicitly listed because child pages
+  // don't automatically inherit parent middleware in Nuxt 3's page meta
+  middleware: ['authenticated', 'workspacesAndApplications', 'impersonate'],
 })
 
 defineOptions({

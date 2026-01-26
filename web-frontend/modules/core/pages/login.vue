@@ -34,23 +34,26 @@ if (store.getters['settings/get'].show_admin_signup_page === true) {
   await navigateTo({ name: 'dashboard' })
 }
 
-// Data fetching
-const { data } = await useAsyncData('loginData', async () => {
-  // Fetch login options (will populate Vuex store)
-  await store.dispatch('authProvider/fetchLoginOptions')
-  // Logic from workspaceInvitationToken mixin
-  const token = route.query.workspaceInvitationToken
-  let invitation = null
-  if (token) {
-    try {
-      const { data } = await WorkspaceService(
-        app.$client
-      ).fetchInvitationByToken(token)
-      invitation = data
-    } catch {}
+// Data fetching - use token in key to avoid caching issues
+const invitationToken = route.query.workspaceInvitationToken
+const { data } = await useAsyncData(
+  `loginData-${invitationToken || 'none'}`,
+  async () => {
+    // Fetch login options (will populate Vuex store)
+    await store.dispatch('authProvider/fetchLoginOptions')
+    // Logic from workspaceInvitationToken mixin
+    let invitation = null
+    if (invitationToken) {
+      try {
+        const { data } = await WorkspaceService(
+          app.$client
+        ).fetchInvitationByToken(invitationToken)
+        invitation = data
+      } catch {}
+    }
+    return { invitation }
   }
-  return { invitation }
-})
+)
 
 // Head
 useHead({

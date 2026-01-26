@@ -140,7 +140,7 @@ export const actions = {
    * Authenticate a user by his email and password.
    */
   async login({ getters, dispatch }, { email, password }) {
-    const { data } = await AuthService(useNuxtApp().$client).login(
+    const { data } = await AuthService(this.$client).login(
       email,
       password
     )
@@ -181,7 +181,7 @@ export const actions = {
       templateId = null,
     }
   ) {
-    const { data } = await AuthService(useNuxtApp().$client).register(
+    const { data } = await AuthService(this.$client).register(
       email,
       name,
       password,
@@ -203,13 +203,14 @@ export const actions = {
    */
   logoff({ getters, dispatch }, { invalidateToken = false }) {
     const refreshToken = getters.refreshToken
+    const $client = this.$client
 
     dispatch('forceLogoff')
 
     if (invalidateToken) {
       // Invalidate the token async because we don't have to wait for that.
       setTimeout(() => {
-        AuthService(useNuxtApp().$client).blacklistToken(refreshToken)
+        AuthService($client).blacklistToken(refreshToken)
       })
     }
   },
@@ -277,7 +278,7 @@ export const actions = {
    * Updates the account information is the authenticated user.
    */
   async update({ getters, commit, dispatch }, values) {
-    const { data } = await AuthService(useNuxtApp().$client).update(values)
+    const { data } = await AuthService(this.$client).update(values)
     dispatch('forceUpdateUserData', { user: data })
     dispatch(
       'workspace/forceUpdateWorkspaceUserAttributes',
@@ -321,7 +322,7 @@ export const actions = {
     commit('SET_USER_SESSION_EXPIRED', value)
   },
   async fetchWorkspaceInvitations({ commit }) {
-    const { data } = await AuthService(useNuxtApp().$client).dashboard()
+    const { data } = await AuthService(this.$client).dashboard()
     commit('SET_WORKSPACE_INVIATIONS', data.workspace_invitations)
     return data.workspace_invitations
   },
@@ -330,7 +331,7 @@ export const actions = {
   },
   async acceptWorkspaceInvitation({ commit }, invitationId) {
     const { data: workspace } = await WorkspaceService(
-      useNuxtApp().$client
+      this.$client
     ).acceptInvitation(invitationId)
     commit('REMOVE_WORKSPACE_INVITATION', invitationId)
     return workspace
@@ -339,7 +340,7 @@ export const actions = {
     commit('REMOVE_WORKSPACE_INVITATION', invitation.id)
   },
   async rejectWorkspaceInvitation({ commit }, invitationId) {
-    await WorkspaceService(useNuxtApp().$client).rejectInvitation(invitationId)
+    await WorkspaceService(this.$client).rejectInvitation(invitationId)
     commit('REMOVE_WORKSPACE_INVITATION', invitationId)
   },
   forceRejectWorkspaceInvitation({ commit }, invitation) {

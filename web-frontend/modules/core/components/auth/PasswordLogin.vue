@@ -2,17 +2,14 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      {{ $t('invitationMessage').replace('{invitedBy}',
-      `<strong>${invitation.invited_by}</strong>`).replace('{workspace}',
-      `<strong>${invitation.workspace}</strong>`) }}
-      <!--i18n path="invitationMessage" tag="p">
+      <i18n-t keypath="invitationMessage" tag="span">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>
         <template #workspace>
           <strong>{{ invitation.workspace }}</strong>
         </template>
-      </!--i18n-->
+      </i18n-t>
     </Alert>
     <Error :error="error"></Error>
     <form @submit.prevent="login">
@@ -116,7 +113,7 @@ export default {
       default: true,
     },
   },
-  emits: ['email-not-verified', 'success', 'two-factor-auth'],
+  emits: ['email-not-verified', 'success', 'two-factor-auth', 'invitation-accepted'],
   setup() {
     const values = reactive({
       values: {
@@ -212,13 +209,19 @@ export default {
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
+        let acceptedWorkspace = null
         if (this.invitation?.email === this.values.email) {
-          await WorkspaceService(this.$client).acceptInvitation(
-            this.invitation.id
-          )
+          const { data: workspace } = await WorkspaceService(
+            this.$client
+          ).acceptInvitation(this.invitation.id)
+          acceptedWorkspace = workspace
         }
         this.$i18n.setLocale(data.language)
-        this.$emit('success')
+        if (acceptedWorkspace) {
+          this.$emit('invitation-accepted', acceptedWorkspace)
+        } else {
+          this.$emit('success')
+        }
       } catch (error) {
         if (error.handler) {
           const response = error.handler.response

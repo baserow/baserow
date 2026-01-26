@@ -53,6 +53,7 @@
             settings.allow_reset_password && !passwordLoginHidden
           "
           @success="success"
+          @invitation-accepted="invitationAccepted"
           @two-factor-auth="setTwoFactorRequired"
           @email-not-verified="emailNotVerified"
         />
@@ -179,6 +180,21 @@ export default {
         } else {
           await this.$router.push({ name: 'dashboard' })
         }
+        await pageFinished()
+        await nextTick()
+      }
+      this.$emit('success')
+    },
+    async invitationAccepted(workspace) {
+      if (this.redirectOnSuccess) {
+        // Clear workspace loaded state so it gets refetched on next page
+        this.$store.commit('workspace/SET_LOADED', false)
+        this.$store.commit('application/SET_LOADED', false)
+        // Redirect to the specific workspace
+        await this.$router.push({
+          name: 'workspace',
+          params: { workspaceId: workspace.id },
+        })
         await pageFinished()
         await nextTick()
       }

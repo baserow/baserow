@@ -88,8 +88,9 @@ const displayEmailNotVerified = ref(false)
 const emailToVerify = ref(null)
 
 // Fetch invitation data based on token
+const invitationToken = route.query.workspaceInvitationToken
 const { data: invitation } = await useAsyncData(
-  'workspace-invitation',
+  `signup-invitation-${invitationToken || 'none'}`,
   async () => {
     // Redirect if already authenticated
     if (store.getters['auth/isAuthenticated']) {
@@ -101,11 +102,10 @@ const { data: invitation } = await useAsyncData(
     await store.dispatch('authProvider/fetchLoginOptions')
 
     // Fetch workspace invitation if token exists
-    const token = route.query.workspaceInvitationToken
-    if (token) {
+    if (invitationToken) {
       try {
         const { data } =
-          await WorkspaceService($client).fetchInvitationByToken(token)
+          await WorkspaceService($client).fetchInvitationByToken(invitationToken)
         return data
       } catch {
         return null
