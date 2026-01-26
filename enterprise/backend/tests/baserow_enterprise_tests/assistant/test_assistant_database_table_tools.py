@@ -10,6 +10,7 @@ from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.database.tools import (
     get_generate_database_formula_tool,
     get_list_tables_tool,
+    get_schema_tools_factory,
     get_table_and_fields_tools_factory,
 )
 from baserow_enterprise.assistant.tools.database.types import (
@@ -689,3 +690,187 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
         assert func in captured_formula_docs, (
             f"Expected function '{func}' not found in documentation"
         )
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_loads_all_tools_by_default(data_fixture):
+    """Test that get_schema_tools_factory loads all tools when include is None."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    # Call with include=None (default) to load all tools
+    tools_upgrade = factory(include=None)
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+
+    # Should load all 7 tools: list_rows, list_views, create_tables, create_fields,
+    # create_views, create_view_filters, generate_database_formula
+    assert len(added_tools) == 7
+
+    tool_names = {tool.name for tool in added_tools}
+    expected_tools = {
+        "list_rows",
+        "list_views",
+        "create_tables",
+        "create_fields",
+        "create_views",
+        "create_view_filters",
+        "generate_database_formula",
+    }
+    assert tool_names == expected_tools
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_loads_specific_tools(data_fixture):
+    """Test that get_schema_tools_factory loads only requested tools."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+
+    # Test loading only tables and fields
+    tools_upgrade = factory(include=["tables", "fields"])
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 2
+
+    tool_names = {tool.name for tool in added_tools}
+    assert tool_names == {"create_tables", "create_fields"}
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_loads_views_and_filters(data_fixture):
+    """Test that get_schema_tools_factory loads views and filters tools."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+
+    # Test loading views and filters
+    tools_upgrade = factory(include=["views", "filters"])
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 2
+
+    tool_names = {tool.name for tool in added_tools}
+    assert tool_names == {"create_views", "create_view_filters"}
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_loads_list_tools(data_fixture):
+    """Test that get_schema_tools_factory loads list_rows and list_views tools."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+
+    # Test loading list tools
+    tools_upgrade = factory(include=["list_rows", "list_views"])
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 2
+
+    tool_names = {tool.name for tool in added_tools}
+    assert tool_names == {"list_rows", "list_views"}
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_loads_formulas(data_fixture):
+    """Test that get_schema_tools_factory loads formula generation tool."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+
+    # Test loading formula tool
+    tools_upgrade = factory(include=["formulas"])
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 1
+
+    tool_names = {tool.name for tool in added_tools}
+    assert tool_names == {"generate_database_formula"}
+
+
+@pytest.mark.django_db
+def test_schema_tools_factory_create_tables_works(data_fixture):
+    """Test that create_tables loaded via schema factory actually works."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Database 1"
+    )
+
+    factory = get_schema_tools_factory(user, workspace, fake_tool_helpers)
+    tools_upgrade = factory(include=["tables"])
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_tables_tool = next(
+        (tool for tool in added_tools if tool.name == "create_tables"), None
+    )
+    assert create_tables_tool is not None
+
+    # Call the underlying function directly
+    response = create_tables_tool.func(
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Schema Factory Table",
+                primary_field=TextFieldItemCreate(type="text", name="Name"),
+                fields=[],
+            )
+        ],
+        add_sample_rows=False,
+    )
+
+    assert response["created_tables"][0]["name"] == "Schema Factory Table"
+
+    # Verify the table was created
+    assert Table.objects.filter(
+        id=response["created_tables"][0]["id"], name="Schema Factory Table"
+    ).exists()

@@ -315,21 +315,17 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow_enterprise.assistant.tools import (
             CreateBuildersToolType,
-            GenerateDatabaseFormulaToolType,
             GetTablesSchemaToolType,
             ListBuildersToolType,
-            ListRowsToolType,
             ListTablesToolType,
-            ListViewsToolType,
             ListWorkflowsToolType,
             NavigationToolType,
             PageContentToolFactoryToolType,
             PageToolFactoryToolType,
             RowsToolFactoryToolType,
+            SchemaToolFactoryType,
             SearchDocsToolType,
-            TableAndFieldsToolFactoryToolType,
             ThemeToolFactoryToolType,
-            ViewsToolFactoryToolType,
             WorkflowToolFactoryToolType,
         )
         from baserow_enterprise.assistant.tools.registries import (
@@ -341,14 +337,12 @@ class BaserowEnterpriseConfig(AppConfig):
 
         assistant_tool_registry.register(ListBuildersToolType())
         assistant_tool_registry.register(CreateBuildersToolType())
+
+        # Database tools (4 tools instead of 8)
         assistant_tool_registry.register(ListTablesToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
-        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
-        assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
-        assistant_tool_registry.register(ListRowsToolType())
+        assistant_tool_registry.register(SchemaToolFactoryType())
         assistant_tool_registry.register(RowsToolFactoryToolType())
-        assistant_tool_registry.register(ListViewsToolType())
-        assistant_tool_registry.register(ViewsToolFactoryToolType())
 
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())

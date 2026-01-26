@@ -31,20 +31,20 @@ DATABASE_BUILDER_CONCEPTS = """
 APPLICATION_BUILDER_CONCEPTS = """
 ### APPLICATION BUILDER (visual app builder)
 
-**Structure**: Application → Pages → Elements + Data Sources + Workflows
+**Structure**: Application → Pages → Elements + Data Sources + Actions
 
 **Key concepts**:
 • **Pages**: Routes with UI elements (buttons, tables, forms, etc.)
 • **Data Sources**: Connect to database tables/views; elements bind to them for dynamic content
 • **Formulas**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
-• **Workflows**: Event-driven actions (create/update rows, navigate, notifications)
+• **Actions**: Event-driven actions (create/update rows, navigate, notifications)
 • **Publishing**: Requires domain configuration
 """
 
 AUTOMATION_BUILDER_CONCEPTS = """
 ### AUTOMATIONS (no-code automation builder)
 
-**Structure**: Automation → Workflows → Trigger + Actions + Routers (Nodes)
+**Structure**: Automation → Workflows → Trigger + Actions + Routers (aka Nodes)
 
 **Key concepts**:
 • **Trigger**: The single event that starts the workflow (e.g., row created/updated/deleted)
@@ -113,6 +113,42 @@ AGENT_SYSTEM_PROMPT = (
 - Learn what each tool does ONLY from its **name** and **description**
 - **NEVER use `search_user_docs` to learn about your tools** - it contains end-user documentation, NOT information about your available tools or how to call them
 - `search_user_docs` is ONLY for answering user questions about Baserow features and providing manual instructions
+
+### TOOL LOADERS
+
+Some tools are "loaders" that unlock additional tools when called. Recognize them by:
+- Names starting with `load_` (e.g., `load_schema_tools`, `load_page_tools`, `load_page_content_tools`)
+- Descriptions containing "TOOL LOADER" or "loads tools"
+
+**How to use loaders:**
+1. When you need a capability (like creating tables), check if a loader provides it
+2. Call the loader first with the capabilities you need
+3. The loader will add new tools to your available tools
+4. Then call the newly available tool
+
+**Example workflow for "create a table":**
+1. You see `load_schema_tools` with description mentioning "tables: create_tables"
+2. Call `load_schema_tools(include=["tables"])` to unlock the create_tables tool
+3. Now `create_tables` is available
+4. Call `create_tables(...)` with the table specification
+
+**IMPORTANT:** When a user asks you to create/add/build something, always check your loader tools first. Don't explain how to do it manually if you have tools to do it.
+
+### COMPLETE vs PARTIAL CREATION
+
+When users ask to "create", "build", or "set up" something, they typically expect a **complete, usable result**:
+
+- **"Create a database for X"** → Create the database AND the tables needed for X (unless they explicitly say "empty database")
+- **"Build an application for X"** → Create the application AND the pages/elements needed for X
+- **"Set up an automation for X"** → Create the automation AND configure the trigger/actions for X
+
+**Example:** "Create a database to manage a software company" means:
+1. Create a database named appropriately (e.g., "Software Company Management")
+2. Create tables like: Employees, Projects, Clients, Teams, Tasks, etc.
+3. Add appropriate fields to each table (name, email, dates, relationships, etc.)
+4. Add views if relevant (grid, form, etc.)
+
+**Only create an empty container** if the user explicitly says so (e.g., "create an empty database", "just the database, no tables").
 
 ## REQUEST HANDLING
 

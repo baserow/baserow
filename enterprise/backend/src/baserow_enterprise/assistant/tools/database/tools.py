@@ -171,9 +171,11 @@ class GetTablesSchemaToolType(AssistantToolType):
         return get_tables_schema_tool(user, workspace, tool_helpers)
 
 
-def get_table_and_fields_tools_factory(
+def get_create_fields_tool(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[list[TableItemCreate]], list[dict[str, Any]]]:
+) -> Callable:
+    """Returns a function that creates fields in a table."""
+
     def create_fields(
         table_id: int, fields: list[AnyFieldItemCreate]
     ) -> list[AnyFieldItem]:
@@ -197,6 +199,14 @@ def get_table_and_fields_tools_factory(
         with transaction.atomic():
             created_fields = utils.create_fields(user, table, fields, tool_helpers)
             return {"created_fields": [field.model_dump() for field in created_fields]}
+
+    return create_fields
+
+
+def get_create_tables_tool(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """Returns a function that creates tables in a database."""
 
     def create_tables(
         database_id: int, tables: list[TableItemCreate], add_sample_rows: bool = True
@@ -295,48 +305,41 @@ def get_table_and_fields_tools_factory(
             "notes": notes,
         }
 
+    return create_tables
+
+
+# Backward compatibility wrapper for tests
+def get_table_and_fields_tools_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """
+    DEPRECATED: Use SchemaToolFactoryType instead.
+    This is kept for backward compatibility with existing tests.
+    """
+
+    create_fields = get_create_fields_tool(user, workspace, tool_helpers)
+    create_tables = get_create_tables_tool(user, workspace, tool_helpers)
+
     def load_table_and_fields_tools():
-        """
-        TOOL LOADER: Loads table and field creation tools for a database.
-
-        After calling this loader, you will have access to:
-        - create_tables: Create new tables in a database with fields and sample rows
-        - create_fields: Add new fields to an existing table
-
-        Use this when you need to create tables or add fields but don't have the tools.
-        """
+        """Loads table and field creation tools."""
 
         @udspy.module_callback
         def _load_table_and_fields_tools(context):
-            nonlocal user, workspace, tool_helpers
-
             observation = ["New tools are now available.\n"]
 
-            create_tool = udspy.Tool(create_tables)
-            new_tools = [create_tool]
+            new_tools = [
+                udspy.Tool(create_tables),
+                udspy.Tool(create_fields),
+            ]
             observation.append("- Use `create_tables` to create tables in a database.")
-
-            create_fields_tool = udspy.Tool(create_fields)
-            new_tools.append(create_fields_tool)
             observation.append("- Use `create_fields` to create fields in a table.")
 
-            # Re-initialize the module with the new tools for the next iteration
             context.module.init_module(tools=context.module._tools + new_tools)
             return "\n".join(observation)
 
         return _load_table_and_fields_tools
 
     return load_table_and_fields_tools
-
-
-class TableAndFieldsToolFactoryToolType(AssistantToolType):
-    type = "table_and_fields_tool_factory"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_table_and_fields_tools_factory(user, workspace, tool_helpers)
 
 
 def get_list_rows_tool(
@@ -386,16 +389,6 @@ def get_list_rows_tool(
         }
 
     return list_rows
-
-
-class ListRowsToolType(AssistantToolType):
-    type = "list_rows"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_list_rows_tool(user, workspace, tool_helpers)
 
 
 def get_rows_tools_factory(
@@ -525,19 +518,11 @@ def get_list_views_tool(
     return list_views
 
 
-class ListViewsToolType(AssistantToolType):
-    type = "list_views"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_list_views_tool(user, workspace, tool_helpers)
-
-
-def get_views_tool_factory(
+def get_create_view_filters_tool(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[int, list[str]], list[str]]:
+) -> Callable:
+    """Returns a function that creates filters in views."""
+
     def create_view_filters(
         view_filters: list[ViewFiltersArgs],
     ) -> list[AnyViewFilterItem]:
@@ -575,6 +560,14 @@ def get_views_tool_factory(
             )
 
         return {"created_view_filters": created_view_filters}
+
+    return create_view_filters
+
+
+def get_create_views_tool(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """Returns a function that creates views in a table."""
 
     def create_views(
         table_id: int, views: list[AnyViewItemCreate]
@@ -629,51 +622,41 @@ def get_views_tool_factory(
 
         return {"created_views": created_views}
 
+    return create_views
+
+
+# Backward compatibility wrapper for tests
+def get_views_tool_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """
+    DEPRECATED: Use SchemaToolFactoryType instead.
+    This is kept for backward compatibility with existing tests.
+    """
+
+    create_views = get_create_views_tool(user, workspace, tool_helpers)
+    create_view_filters = get_create_view_filters_tool(user, workspace, tool_helpers)
+
     def load_views_tools():
-        """
-        TOOL LOADER: Loads tools to manage views and filters
-        (grid, gallery, form, kanban, calendar and timeline).
-
-        After calling this loader, you will be able to:
-        - create_views: Create grid, gallery, form, kanban, calendar and timeline views
-        - create_view_filters: Create filters for specific views to filter rows
-
-        Use this when you need to create views or filters but don't have the tools yet.
-        """
+        """Loads view creation tools."""
 
         @udspy.module_callback
         def _load_views_tools(context):
-            nonlocal user, workspace, tool_helpers
-
             observation = ["New tools are now available.\n"]
 
-            create_tool = udspy.Tool(create_views)
-            new_tools = [create_tool]
+            new_tools = [
+                udspy.Tool(create_views),
+                udspy.Tool(create_view_filters),
+            ]
             observation.append("- Use `create_views` to create views.")
+            observation.append("- Use `create_view_filters` to create filters in views.")
 
-            create_filters_tool = udspy.Tool(create_view_filters)
-            new_tools.append(create_filters_tool)
-            observation.append(
-                "- Use `create_view_filters` to create filters in views."
-            )
-
-            # Re-initialize the module with the new tools for the next iteration
             context.module.init_module(tools=context.module._tools + new_tools)
             return "\n".join(observation)
 
         return _load_views_tools
 
     return load_views_tools
-
-
-class ViewsToolFactoryToolType(AssistantToolType):
-    type = "views_tool_factory"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_views_tool_factory(user, workspace, tool_helpers)
 
 
 def get_formula_type_tool(
@@ -862,11 +845,132 @@ def get_generate_database_formula_tool(
     return generate_database_formula
 
 
-class GenerateDatabaseFormulaToolType(AssistantToolType):
-    type = "generate_database_formula"
+def get_schema_tools_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """
+    Factory that returns a loader function for schema-related tools.
+    Consolidates list_rows, list_views, tables, fields, views, filters, and formulas
+    into a single factory to reduce initial context.
+    """
+
+    def load_schema_tools(
+        include: list[
+            Literal[
+                "list_rows",
+                "list_views",
+                "tables",
+                "fields",
+                "views",
+                "filters",
+                "formulas",
+            ]
+        ]
+        | None = None,
+    ):
+        """
+        TOOL LOADER: Loads database schema and data tools.
+
+        Options (pass as list, or None to load all):
+        - list_rows: List rows in a table
+        - list_views: List views in a table
+        - tables: create_tables - Create tables in a database
+        - fields: create_fields - Add fields to tables
+        - views: create_views - Create views (grid, form, gallery, kanban, timeline, calendar)
+        - filters: create_view_filters - Add filters to views
+        - formulas: generate_database_formula - Generate formula fields
+
+        Example: load_schema_tools(include=["tables", "fields", "views"])
+        """
+
+        @udspy.module_callback
+        def _load_schema_tools(context):
+            nonlocal user, workspace, tool_helpers
+
+            tools_to_load = include or [
+                "list_rows",
+                "list_views",
+                "tables",
+                "fields",
+                "views",
+                "filters",
+                "formulas",
+            ]
+
+            new_tools = []
+            observation = ["New tools are now available:\n"]
+
+            if "list_rows" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(get_list_rows_tool(user, workspace, tool_helpers))
+                )
+                observation.append("- list_rows: List rows in a table")
+
+            if "list_views" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(get_list_views_tool(user, workspace, tool_helpers))
+                )
+                observation.append("- list_views: List views in a table")
+
+            if "tables" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(get_create_tables_tool(user, workspace, tool_helpers))
+                )
+                observation.append("- create_tables: Create tables in a database")
+
+            if "fields" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(get_create_fields_tool(user, workspace, tool_helpers))
+                )
+                observation.append("- create_fields: Add fields to a table")
+
+            if "views" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(get_create_views_tool(user, workspace, tool_helpers))
+                )
+                observation.append("- create_views: Create views in a table")
+
+            if "filters" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(
+                        get_create_view_filters_tool(user, workspace, tool_helpers)
+                    )
+                )
+                observation.append("- create_view_filters: Add filters to views")
+
+            if "formulas" in tools_to_load:
+                new_tools.append(
+                    udspy.Tool(
+                        get_generate_database_formula_tool(
+                            user, workspace, tool_helpers
+                        )
+                    )
+                )
+                observation.append(
+                    "- generate_database_formula: Generate formula fields"
+                )
+
+            context.module.init_module(tools=context.module._tools + new_tools)
+            return "\n".join(observation)
+
+        return _load_schema_tools
+
+    return load_schema_tools
+
+
+class SchemaToolFactoryType(AssistantToolType):
+    """
+    Unified factory for schema-related tools. Loads list_rows, list_views,
+    create_tables, create_fields, create_views, create_view_filters, and
+    generate_database_formula based on the include parameter.
+
+    This consolidates 5 separate tools/factories into one to reduce context.
+    """
+
+    type = "schema_tool_factory"
 
     @classmethod
     def get_tool(
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
-        return get_generate_database_formula_tool(user, workspace, tool_helpers)
+        return get_schema_tools_factory(user, workspace, tool_helpers)

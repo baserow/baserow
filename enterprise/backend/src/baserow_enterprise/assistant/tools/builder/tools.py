@@ -28,6 +28,11 @@ __all__ = [
     "PageToolFactoryToolType",
     "PageContentToolFactoryToolType",
     "ThemeToolFactoryToolType",
+    # Backward compatibility wrappers for tests
+    "get_element_tool_factory",
+    "get_list_pages_tool",
+    "get_data_source_tool_factory",
+    "get_workflow_action_tool_factory",
 ]
 
 
@@ -715,3 +720,138 @@ class ThemeToolFactoryToolType(AssistantToolType):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_theme_tool_factory(user, workspace, tool_helpers)
+
+
+# =============================================================================
+# Backward Compatibility Wrappers (DEPRECATED - for tests only)
+# =============================================================================
+
+
+def get_list_pages_tool(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable:
+    """
+    DEPRECATED: Use PageToolFactoryToolType instead.
+
+    Returns a standalone list_pages function for backward compatibility with tests.
+    """
+
+    def list_pages(application_id: int) -> dict[str, Any]:
+        """List all pages in an application builder."""
+
+        builder = utils.get_builder(user, workspace, application_id)
+
+        tool_helpers.update_status(
+            _("Listing pages in %(app_name)s...") % {"app_name": builder.name}
+        )
+
+        pages = utils.list_pages(builder)
+        return {"pages": [p.model_dump() for p in pages]}
+
+    return list_pages
+
+
+def get_element_tool_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable[[], Any]:
+    """
+    DEPRECATED: Use PageContentToolFactoryToolType instead.
+
+    Returns a tool factory that provides element tools for backward compatibility.
+    """
+
+    return get_page_content_tool_factory(user, workspace, tool_helpers)
+
+
+def get_data_source_tool_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable[[], Any]:
+    """
+    DEPRECATED: Use PageToolFactoryToolType instead.
+
+    Returns a tool factory that provides data source tools for backward compatibility.
+    """
+
+    return get_page_tool_factory(user, workspace, tool_helpers)
+
+
+def get_workflow_action_tool_factory(
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+) -> Callable[[], Any]:
+    """
+    DEPRECATED: Use PageContentToolFactoryToolType instead.
+
+    Returns a tool factory that provides workflow action tools for backward compatibility.
+    This is an alias for get_page_content_tool_factory but the tests expect
+    create_workflow_actions instead of create_actions.
+    """
+
+    def load_workflow_action_tools():
+        """
+        TOOL LOADER: Loads tools to manage workflow actions on pages.
+        """
+
+        @udspy.module_callback
+        def _load_workflow_action_tools(context):
+            nonlocal user, workspace, tool_helpers
+
+            observation = ["New tools are now available.\n"]
+
+            def create_workflow_actions(
+                page_id: int,
+                workflow_actions: list[AnyWorkflowActionCreate],
+                element_refs: dict[str, int] | None = None,
+                data_source_refs: dict[str, int] | None = None,
+            ) -> dict[str, Any]:
+                """Create workflow actions attached to elements."""
+
+                if not workflow_actions:
+                    return {"created_workflow_actions": []}
+
+                page = utils.get_page(user, page_id)
+                integration = utils.get_local_baserow_integration(page.builder)
+
+                tool_helpers.update_status(
+                    _("Creating %(count)d actions...")
+                    % {"count": len(workflow_actions)}
+                )
+
+                element_ref_to_id_map = element_refs or {}
+                data_source_ref_to_id_map = data_source_refs or {}
+                created_actions = []
+
+                with transaction.atomic():
+                    for action_create in workflow_actions:
+                        _action, action_id = utils.create_workflow_action(
+                            user,
+                            page,
+                            action_create,
+                            element_ref_to_id_map,
+                            data_source_ref_to_id_map,
+                            integration,
+                        )
+
+                        created_actions.append(
+                            {
+                                "id": action_id,
+                                "type": action_create.type,
+                                "element_ref": action_create.element_ref,
+                                "event": action_create.event,
+                            }
+                        )
+
+                return {"created_workflow_actions": created_actions}
+
+            new_tools = [
+                udspy.Tool(create_workflow_actions),
+            ]
+            observation.append(
+                "- Use `create_workflow_actions` to add actions to elements."
+            )
+
+            context.module.init_module(tools=context.module._tools + new_tools)
+            return "\n".join(observation)
+
+        return _load_workflow_action_tools
+
+    return load_workflow_action_tools
