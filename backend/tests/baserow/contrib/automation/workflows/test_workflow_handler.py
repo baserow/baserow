@@ -26,6 +26,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.trash.handler import TrashHandler
+from tests.baserow.contrib.automation.history.utils import assert_history
 
 WORKFLOWS_MODULE = "baserow.contrib.automation.workflows"
 HANDLER_MODULE = f"{WORKFLOWS_MODULE}.handler"
@@ -566,6 +567,71 @@ def test_check_is_rate_limited_raises_if_above_limit():
 
         assert (
             str(e.value) == "The workflow was rate limited due to too many recent runs."
+        )
+
+
+@pytest.mark.django_db
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=2,
+)
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
+    mock_celery_task, data_fixture
+):
+    user = data_fixture.create_user()
+
+    original_workflow = data_fixture.create_automation_workflow(user=user)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, user=user
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    handler = AutomationWorkflowHandler()
+    rate_limited_error = "The workflow was rate limited due to too many recent runs."
+
+    with freeze_time("2026-01-26 13:00:00"):
+        # First 2 calls should queue workflow runs
+        handler.async_start_workflow(published_workflow)
+        handler.async_start_workflow(published_workflow)
+        assert mock_celery_task.delay.call_count == 2
+        assert_history(original_workflow, 0, "error", rate_limited_error)
+
+        # 3rd call should be rate limited
+        handler.async_start_workflow(published_workflow)
+        assert mock_celery_task.delay.call_count == 2
+        assert_history(original_workflow, 1, "error", rate_limited_error)
+
+
+@pytest.mark.django_db
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+)
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_should_create_rate_limited_workflow_history(mock_celery_task, data_fixture):
+    workflow_id = 99999
+    handler = AutomationWorkflowHandler()
+
+    with freeze_time("2026-01-26 13:00:00"):
+        # True because this is the first time we're attempting to create a history
+        assert handler._should_create_rate_limited_workflow_history(workflow_id) is True
+
+        # False because a history already exists within the expiry window
+        assert (
+            handler._should_create_rate_limited_workflow_history(workflow_id) is False
+        )
+        assert (
+            handler._should_create_rate_limited_workflow_history(workflow_id) is False
+        )
+
+    with freeze_time("2026-01-26 13:00:06"):
+        # True because the cache window of 5 seconds has expired
+        assert handler._should_create_rate_limited_workflow_history(workflow_id) is True
+
+        # False because a new history was created via the previous call to the method
+        assert (
+            handler._should_create_rate_limited_workflow_history(workflow_id) is False
         )
 
 
