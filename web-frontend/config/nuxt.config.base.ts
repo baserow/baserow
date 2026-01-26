@@ -57,6 +57,7 @@ const locales = [
   { code: 'es', name: 'Español', file: 'es.json' },
   { code: 'it', name: 'Italiano', file: 'it.json' },
   { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
+  { code: 'ko', name: '한국어', file: 'ko.json' },
 ]
 
 export default defineNuxtConfig({
