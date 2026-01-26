@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2021-10-28 20:39+0000\n"
-"PO-Revision-Date: 2024-12-16 15:08+0000\n"
-"Last-Translator: Hugel <qihu@nfschina.com>\n"
+"PO-Revision-Date: 2026-01-26 22:26+0000\n"
+"Last-Translator: Marat Dospolov <marat.dospolov@gmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/baserow/"
 "backend-core/uk/>\n"
 "Language: uk\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.9\n"
+"X-Generator: Weblate 5.16-dev\n"
 
 #: src/baserow/core/emails.py:88
 #, python-format
@@ -78,7 +78,7 @@ msgstr ""
 
 #: src/baserow/core/user/emails.py:16
 msgid "Reset password - Baserow"
-msgstr "Скинути пароль - Базеров"
+msgstr "Скинути пароль - Baserow"
 
 #: src/baserow/core/user/handler.py:155
 #, python-format
