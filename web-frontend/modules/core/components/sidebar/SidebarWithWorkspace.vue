@@ -1,6 +1,6 @@
 <template>
   <div class="sidebar__section sidebar__section--scrollable">
-    <div v-if="hasItems" class="sidebar__section-scrollable">
+    <div class="sidebar__section-scrollable">
       <div
         class="sidebar__section-scrollable-inner"
         data-highlight="applications"
@@ -14,52 +14,66 @@
           >
           </component>
         </ul>
-        <ul v-if="applicationsCount" class="tree">
+        <ul class="tree">
           <li
-            v-for="applicationGroup in groupedApplicationsForSelectedWorkspace"
+            v-for="(applicationGroup, index) in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
           >
-            <template v-if="applicationGroup.applications.length > 0">
-              <div class="tree__heading">
+            <div class="tree__heading" :class="{'margin-bottom-2': applicationGroup.applications.length === 0 && index < groupedApplicationsForSelectedWorkspace.length - 1}">
+              <div class="tree__heading-name">
                 {{ applicationGroup.name }}
               </div>
-              <ul
-                class="tree"
-                :class="{
-                  'margin-bottom-0': pendingJobs[applicationGroup.type].length,
-                }"
-                data-highlight="applications"
+              <a
+                :ref="'createApplicationToggle' + applicationGroup.type"
+                v-if="canCreateCreateApplication"
+                class="tree__heading-add"
+                @click="openCreateApplicationModal(applicationGroup.type)"
               >
-                <component
-                  :is="getApplicationComponent(application)"
-                  v-for="application in applicationGroup.applications"
-                  :key="application.id"
-                  v-sortable="{
-                    id: application.id,
-                    update: orderApplications,
-                    handle: '[data-sortable-handle]',
-                    marginTop: -1.5,
-                    enabled: $hasPermission(
-                      'workspace.order_applications',
-                      selectedWorkspace,
-                      selectedWorkspace.id
-                    ),
-                  }"
-                  :application="application"
-                  :pending-jobs="pendingJobs[application.type]"
+                <i class="iconoir-plus"></i>
+                <CreateApplicationModal
+                  :ref="'createApplicationModal' + applicationGroup.type"
+                  :application-type="applicationGroup.applicationType"
                   :workspace="selectedWorkspace"
-                ></component>
-              </ul>
-              <ul v-if="pendingJobs[applicationGroup.type].length" class="tree">
-                <component
-                  :is="getPendingJobComponent(job)"
-                  v-for="job in pendingJobs[applicationGroup.type]"
-                  :key="job.id"
-                  :job="job"
-                >
-                </component>
-              </ul>
-            </template>
+                ></CreateApplicationModal>
+              </a>
+            </div>
+            <ul
+              class="tree"
+              :class="{
+                'margin-bottom-0': pendingJobs[applicationGroup.type].length,
+              }"
+              data-highlight="applications"
+            >
+              <component
+                :is="getApplicationComponent(application)"
+                v-for="application in applicationGroup.applications"
+                :key="application.id"
+                v-sortable="{
+                  id: application.id,
+                  update: orderApplications,
+                  handle: '[data-sortable-handle]',
+                  marginTop: -1.5,
+                  enabled: $hasPermission(
+                    'workspace.order_applications',
+                    selectedWorkspace,
+                    selectedWorkspace.id
+                  ),
+                }"
+                :application="application"
+                :pending-jobs="pendingJobs[application.type]"
+                :workspace="selectedWorkspace"
+              ></component>
+            </ul>
+            <ul v-if="pendingJobs[applicationGroup.type].length" class="tree">
+              <component
+                :is="getPendingJobComponent(job)"
+                v-for="job in pendingJobs[applicationGroup.type]"
+                :key="job.id"
+                :job="job"
+              >
+              </component>
+            </ul>
+            <div v-if="index < groupedApplicationsForSelectedWorkspace.length - 1" class="tree__separator"></div>
           </li>
         </ul>
       </div>
@@ -72,10 +86,7 @@
           selectedWorkspace.id
         )
       "
-      class="sidebar__new-wrapper"
-      :class="{
-        'sidebar__new-wrapper--separator': hasItems,
-      }"
+      class="sidebar__new-wrapper sidebar__new-wrapper--separator"
       data-highlight="create-new"
     >
       <a
@@ -100,11 +111,12 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 
 export default {
   name: 'SidebarWithWorkspace',
-  components: { CreateApplicationContext },
+  components: { CreateApplicationContext, CreateApplicationModal },
   props: {
     applications: {
       type: Array,
@@ -127,6 +139,7 @@ export default {
           return {
             name: applicationType.getNamePlural(),
             type: applicationType.getType(),
+            applicationType: applicationType,
             developmentStage: applicationType.developmentStage,
             applications: this.applications
               .filter((application) => {
@@ -140,12 +153,6 @@ export default {
           }
         })
       return applicationTypes
-    },
-    applicationsCount() {
-      return this.groupedApplicationsForSelectedWorkspace.reduce(
-        (acc, group) => acc + group.applications.length,
-        0
-      )
     },
     pendingJobs() {
       const grouped = { null: [] }
@@ -162,8 +169,12 @@ export default {
       })
       return grouped
     },
-    hasItems() {
-      return this.applicationsCount || this.pendingJobs.null.length
+    canCreateCreateApplication() {
+      return this.$hasPermission(
+        'workspace.create_application',
+        this.selectedWorkspace,
+        this.selectedWorkspace.id
+      )
     },
   },
   methods: {
@@ -185,6 +196,14 @@ export default {
       } catch (error) {
         notifyIf(error, 'application')
       }
+    },
+    openCreateApplicationModal(type) {
+      if (!this.canCreateCreateApplication) {
+        return
+      }
+
+      const target = this.$refs['createApplicationModalToggle' + type]
+      this.$refs['createApplicationModal' + type][0].toggle(target)
     },
   },
 }
