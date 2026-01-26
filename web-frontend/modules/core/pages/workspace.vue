@@ -229,7 +229,10 @@ import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/Das
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
-definePageMeta({ layout: 'app' })
+definePageMeta({
+  layout: 'app',
+  middleware: ['impersonate'],
+})
 
 defineOptions({
   mixins: [editWorkspace],
