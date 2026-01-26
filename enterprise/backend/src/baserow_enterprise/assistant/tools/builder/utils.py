@@ -31,9 +31,13 @@ from .types import (
     DataSourceItem,
     DeleteRowActionCreate,
     ElementItem,
+    FooterElementCreate,
+    HeaderElementCreate,
+    MenuElementCreate,
     PageCreate,
     PageItem,
     UpdateRowActionCreate,
+    WorkflowActionItem,
 )
 
 if TYPE_CHECKING:
@@ -131,6 +135,7 @@ def create_element(
     element_create: AnyElementCreate,
     ref_to_id_map: dict[str, int],
     data_source_ref_to_id_map: dict[str, int],
+    shared_page_refs: set[str] | None = None,
 ) -> tuple[Any, int]:
     """
     Create an element on a page, resolving refs to IDs.
@@ -140,18 +145,46 @@ def create_element(
     :param element_create: The element creation data.
     :param ref_to_id_map: Mapping of element refs to their IDs.
     :param data_source_ref_to_id_map: Mapping of data source refs to their IDs.
+    :param shared_page_refs: Set of refs that are on the shared page (for tracking).
     :return: Tuple of (created element, element ID).
     """
 
-    element_type = element_type_registry.get(element_create.type)
-    kwargs = element_create.to_orm_kwargs(user, page)
+    if shared_page_refs is None:
+        shared_page_refs = set()
 
-    # Resolve parent element ref to ID
-    if element_create.parent_element_ref:
+    element_type = element_type_registry.get(element_create.type)
+
+    # Determine if this element should be created on the shared page
+    # Header/footer elements must be created on the shared page
+    # Child elements of shared page elements must also be on the shared page
+    use_shared_page = False
+    if isinstance(element_create, (HeaderElementCreate, FooterElementCreate)):
+        use_shared_page = True
+    elif (
+        element_create.parent_element_ref
+        and element_create.parent_element_ref in shared_page_refs
+    ):
+        use_shared_page = True
+
+    # Get the target page (shared page for multi-page elements)
+    target_page = page
+    if use_shared_page:
+        target_page = page.builder.shared_page
+        shared_page_refs.add(element_create.ref)
+
+    kwargs = element_create.to_orm_kwargs(user, target_page)
+
+    # Resolve parent element - prefer direct ID, fall back to ref resolution
+    if element_create.parent_element_id:
+        # Direct ID reference to an existing element
+        kwargs["parent_element_id"] = element_create.parent_element_id
+    elif element_create.parent_element_ref:
+        # Ref-based reference to element created in same batch
         if element_create.parent_element_ref not in ref_to_id_map:
             raise ValueError(
                 f"Parent element ref '{element_create.parent_element_ref}' not found. "
-                "Make sure parent elements are defined before their children."
+                "Make sure parent elements are defined before their children, "
+                "or use parent_element_id to reference an existing element."
             )
         kwargs["parent_element_id"] = ref_to_id_map[element_create.parent_element_ref]
 
@@ -168,7 +201,11 @@ def create_element(
         if data_source_ref and data_source_ref in data_source_ref_to_id_map:
             kwargs["data_source_id"] = data_source_ref_to_id_map[data_source_ref]
 
-    element = ElementService().create_element(user, element_type, page, **kwargs)
+    # Handle menu items for MenuElementCreate - pass to kwargs for after_create hook
+    if isinstance(element_create, MenuElementCreate) and element_create.menu_items:
+        kwargs["menu_items"] = element_create.get_menu_items()
+
+    element = ElementService().create_element(user, element_type, target_page, **kwargs)
 
     # Handle choice options separately
     if isinstance(element_create, ChoiceElementCreate) and element_create.options:
@@ -184,6 +221,12 @@ def create_element(
                 for opt in element_create.options
             ]
         )
+
+    # Handle multi-page elements (header/footer) - set page associations
+    if isinstance(element_create, (HeaderElementCreate, FooterElementCreate)):
+        page_ids = element_create.get_page_ids()
+        if page_ids:
+            element.pages.set(page_ids)
 
     return element, element.id
 
@@ -521,46 +564,20 @@ def flatten_theme_update(
         for key, value in colors.model_dump(exclude_none=True).items():
             flat[key] = value
 
-    # Typography
+    # Typography - all keys are already flat
     if typography:
-        data = typography.model_dump(exclude_none=True)
-        for key, value in data.items():
-            if key.startswith("body_"):
-                flat[key] = value
-            elif key.startswith("heading_") and isinstance(value, dict):
-                # Handle nested heading objects
-                level = key.split("_")[1]
-                for sub_key, sub_value in value.items():
-                    if sub_key == "text_decoration" and isinstance(sub_value, dict):
-                        # Convert text_decoration dict to list format
-                        flat[f"heading_{level}_text_decoration"] = [
-                            sub_value.get("underline", False),
-                            sub_value.get("strike", False),
-                            sub_value.get("uppercase", False),
-                            sub_value.get("italic", False),
-                        ]
-                    else:
-                        flat[f"heading_{level}_{sub_key}"] = sub_value
+        for key, value in typography.model_dump(exclude_none=True).items():
+            flat[key] = value
 
     # Buttons (add button_ prefix)
     if buttons:
         for key, value in buttons.model_dump(exclude_none=True).items():
             flat[f"button_{key}"] = value
 
-    # Links (add link_ prefix)
+    # Links - all keys are already flat, just add link_ prefix
     if links:
-        data = links.model_dump(exclude_none=True)
-        for key, value in data.items():
-            if key.endswith("_text_decoration") and isinstance(value, dict):
-                # Convert text_decoration dict to list format
-                flat[f"link_{key}"] = [
-                    value.get("underline", False),
-                    value.get("strike", False),
-                    value.get("uppercase", False),
-                    value.get("italic", False),
-                ]
-            else:
-                flat[f"link_{key}"] = value
+        for key, value in links.model_dump(exclude_none=True).items():
+            flat[f"link_{key}"] = value
 
     # Images (add image_ prefix)
     if images:
@@ -649,3 +666,129 @@ def delete_element_by_id(user: AbstractUser, element_id: int) -> None:
 
     element = ElementHandler().get_element_for_update(element_id)
     ElementService().delete_element(user, element)
+
+
+def verify_theme_properties_applied(
+    requested: dict[str, Any], actual_flat: dict[str, Any]
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Compare requested theme properties with actual applied values.
+
+    :param requested: Flat dict of requested theme properties (from flatten_theme_update).
+    :param actual_flat: Flat dict of actual theme properties (from serialize_builder_theme).
+    :return: Dict with 'mismatched' and 'not_found' lists of property issues.
+    """
+
+    def _normalize_value(value: Any) -> Any:
+        """Normalize value for comparison."""
+        if isinstance(value, str):
+            return value.lower().strip()
+        if isinstance(value, list):
+            return [_normalize_value(v) for v in value]
+        return value
+
+    mismatched = []
+    not_found = []
+
+    for key, requested_value in requested.items():
+        if key not in actual_flat:
+            not_found.append(
+                {
+                    "property": key,
+                    "requested_value": requested_value,
+                    "reason": "Property not recognized by the theme system",
+                }
+            )
+        else:
+            actual_value = actual_flat[key]
+            # Normalize for comparison (colors may be case-insensitive)
+            if _normalize_value(requested_value) != _normalize_value(actual_value):
+                mismatched.append(
+                    {
+                        "property": key,
+                        "requested_value": requested_value,
+                        "actual_value": actual_value,
+                    }
+                )
+
+    return {"mismatched": mismatched, "not_found": not_found}
+
+
+# =============================================================================
+# Workflow Action Utilities
+# =============================================================================
+
+
+def list_workflow_actions(page: Page) -> list[WorkflowActionItem]:
+    """
+    List all workflow actions on a page.
+
+    :param page: The page.
+    :return: List of WorkflowActionItem instances with field mapping details.
+    """
+
+    actions = BuilderWorkflowActionHandler().get_workflow_actions(page)
+    return [WorkflowActionItem.from_orm(action) for action in actions]
+
+
+def add_field_mapping_to_action(
+    action_id: int, field_id: int, value_formula: str
+) -> dict[str, Any]:
+    """
+    Add or update a field mapping on a create_row/update_row workflow action.
+
+    :param action_id: The ID of the workflow action.
+    :param field_id: The ID of the table field to map to.
+    :param value_formula: The formula for the value (e.g., "get('form_data.123')").
+    :return: Dict with status and updated mappings.
+    """
+
+    from baserow.contrib.integrations.local_baserow.models import (
+        LocalBaserowTableServiceFieldMapping,
+    )
+    from baserow.core.formula.types import BaserowFormulaObject
+
+    action = BuilderWorkflowActionHandler().get_workflow_action(action_id)
+    action_type = action.get_type().type
+
+    if action_type not in ("create_row", "update_row"):
+        raise ValueError(
+            f"Cannot add field mappings to action type '{action_type}'. "
+            "Only create_row and update_row actions support field mappings."
+        )
+
+    service = action.service.specific
+
+    # Check if mapping for this field already exists
+    existing_mapping = LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+        service=service, field_id=field_id
+    ).first()
+
+    if existing_mapping:
+        # Update existing mapping
+        existing_mapping.value = BaserowFormulaObject.create(value_formula)
+        existing_mapping.enabled = True
+        existing_mapping.save()
+        status = "updated"
+    else:
+        # Create new mapping
+        LocalBaserowTableServiceFieldMapping.objects.create(
+            service=service,
+            field_id=field_id,
+            value=BaserowFormulaObject.create(value_formula),
+            enabled=True,
+        )
+        status = "created"
+
+    # Return updated list of mappings
+    mappings = []
+    for mapping in service.field_mappings.all():
+        mappings.append(
+            {
+                "field_id": mapping.field_id,
+                "field_name": mapping.field.name,
+                "value": str(mapping.value) if mapping.value else "",
+            }
+        )
+
+    return {"status": status, "field_mappings": mappings}

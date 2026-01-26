@@ -212,6 +212,16 @@ AnyWorkflowActionCreate = Annotated[
 ]
 
 
+class FieldMappingItem(BaseModel):
+    """Field mapping for create_row/update_row workflow actions."""
+
+    field_id: int = Field(..., description="The ID of the target database field")
+    field_name: str = Field(..., description="The name of the target database field")
+    value: str = Field(
+        ..., description="The value/formula (e.g., get('form_data.123') for form input)"
+    )
+
+
 class WorkflowActionItem(BaseModel):
     """Existing workflow action with ID."""
 
@@ -219,14 +229,62 @@ class WorkflowActionItem(BaseModel):
     type: str = Field(..., description="Action type")
     element_id: Optional[int] = Field(default=None, description="Element ID")
     event: str = Field(..., description="Trigger event")
+    # Additional info for create_row/update_row actions
+    table_id: Optional[int] = Field(
+        default=None, description="Target table ID (for create_row/update_row/delete_row)"
+    )
+    row_id_formula: Optional[str] = Field(
+        default=None, description="Row ID formula (for update_row/delete_row)"
+    )
+    field_mappings: Optional[list[FieldMappingItem]] = Field(
+        default=None,
+        description=(
+            "Field mappings for create_row/update_row. Shows which form inputs "
+            "are mapped to which table fields. Use get('form_data.<element_id>') "
+            "to reference form inputs."
+        ),
+    )
 
     @classmethod
     def from_orm(cls, action) -> "WorkflowActionItem":
         """Create WorkflowActionItem from ORM BuilderWorkflowAction instance."""
 
-        return cls(
-            id=action.id,
-            type=action.get_type().type,
-            element_id=action.element_id,
-            event=action.event,
-        )
+        action_type = action.get_type().type
+        kwargs = {
+            "id": action.id,
+            "type": action_type,
+            "element_id": action.element_id,
+            "event": action.event,
+        }
+
+        # For service-based actions, extract additional info
+        specific_action = action.specific
+
+        if action_type in ("create_row", "update_row", "delete_row"):
+            # Get the service to access table and field mappings
+            if hasattr(specific_action, "service") and specific_action.service:
+                service = specific_action.service.specific
+                if hasattr(service, "table") and service.table:
+                    kwargs["table_id"] = service.table_id
+
+                # Get row_id formula for update/delete
+                if hasattr(service, "row_id") and service.row_id:
+                    kwargs["row_id_formula"] = str(service.row_id)
+
+                # Get field mappings for create/update
+                if action_type in ("create_row", "update_row"):
+                    # Access field_mappings through the service
+                    if hasattr(service, "field_mappings"):
+                        mappings = []
+                        for mapping in service.field_mappings.all():
+                            mappings.append(
+                                FieldMappingItem(
+                                    field_id=mapping.field_id,
+                                    field_name=mapping.field.name,
+                                    value=str(mapping.value) if mapping.value else "",
+                                )
+                            )
+                        if mappings:
+                            kwargs["field_mappings"] = mappings
+
+        return cls(**kwargs)

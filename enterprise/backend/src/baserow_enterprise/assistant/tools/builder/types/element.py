@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated, Literal, Optional
 
 from pydantic import Field
@@ -15,9 +16,13 @@ from .style import ElementStyleConfig, ElementThemeOverrides
 class ElementBase(BaseModel):
     """Base properties for all elements."""
 
+    parent_element_id: Optional[int] = Field(
+        default=None,
+        description="ID of existing parent container element (use this for adding to existing containers)",
+    )
     parent_element_ref: Optional[str] = Field(
         default=None,
-        description="Reference to parent container element (for nested elements)",
+        description="Reference to parent container element created in the same batch",
     )
     place_in_container: Optional[str] = Field(
         default=None,
@@ -446,6 +451,107 @@ class RepeatElementCreate(ElementBase, RefCreate):
 
 
 # =============================================================================
+# Navigation Elements
+# =============================================================================
+
+
+class MenuItemCreate(BaseModel):
+    """A menu item linking to an internal page."""
+
+    name: str = Field(..., description="Display text for the menu item")
+    page_id: int = Field(..., description="Target page ID to navigate to")
+
+
+class MenuElementCreate(ElementBase, RefCreate):
+    """Menu navigation element with configurable items."""
+
+    type: Literal["menu"] = "menu"
+    orientation: Literal["horizontal", "vertical"] = Field(
+        default="horizontal", description="Menu layout orientation"
+    )
+    alignment: Literal["left", "center", "right", "justify"] = Field(
+        default="left", description="Horizontal alignment of menu items"
+    )
+    menu_items: list[MenuItemCreate] = Field(
+        default_factory=list,
+        description="List of menu items with navigation configuration",
+    )
+
+    def to_orm_kwargs(self, user, page) -> dict:
+        kwargs = {
+            "orientation": self.orientation,
+            "alignment": self.alignment,
+        }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
+
+    def get_menu_items(self) -> list[dict]:
+        """Convert menu items to format expected by MenuElementType.after_create()."""
+        return [
+            {
+                "uid": str(uuid.uuid4()),
+                "type": "link",
+                "variant": "link",
+                "name": item.name,
+                "navigation_type": "page",
+                "navigate_to_page_id": item.page_id,
+                "target": "self",
+            }
+            for item in self.menu_items
+        ]
+
+
+class HeaderElementCreate(ElementBase, RefCreate):
+    """Header container element displayed at top of pages (multi-page)."""
+
+    type: Literal["header"] = "header"
+    share_type: Literal["all", "only", "except"] = Field(
+        default="all",
+        description="How to share across pages: 'all', 'only' (specific pages), 'except' (all except specific)",
+    )
+    page_ids: list[int] = Field(
+        default_factory=list,
+        description="Page IDs for 'only' or 'except' share types",
+    )
+
+    def to_orm_kwargs(self, user, page) -> dict:
+        kwargs = {
+            "share_type": self.share_type,
+        }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
+
+    def get_page_ids(self) -> list[int]:
+        """Get page IDs for multi-page association."""
+        return self.page_ids
+
+
+class FooterElementCreate(ElementBase, RefCreate):
+    """Footer container element displayed at bottom of pages (multi-page)."""
+
+    type: Literal["footer"] = "footer"
+    share_type: Literal["all", "only", "except"] = Field(
+        default="all",
+        description="How to share across pages: 'all', 'only' (specific pages), 'except' (all except specific)",
+    )
+    page_ids: list[int] = Field(
+        default_factory=list,
+        description="Page IDs for 'only' or 'except' share types",
+    )
+
+    def to_orm_kwargs(self, user, page) -> dict:
+        kwargs = {
+            "share_type": self.share_type,
+        }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
+
+    def get_page_ids(self) -> list[int]:
+        """Get page IDs for multi-page association."""
+        return self.page_ids
+
+
+# =============================================================================
 # Discriminated Union
 # =============================================================================
 
@@ -464,7 +570,10 @@ AnyElementCreate = Annotated[
     | DateTimePickerElementCreate
     | RecordSelectorElementCreate
     | TableElementCreate
-    | RepeatElementCreate,
+    | RepeatElementCreate
+    | HeaderElementCreate
+    | FooterElementCreate
+    | MenuElementCreate,
     Field(discriminator="type"),
 ]
 
@@ -493,6 +602,9 @@ class ElementTypeMapping:
         "record_selector": "record_selector",
         "table": "table",
         "repeat": "repeat",
+        "header": "header",
+        "footer": "footer",
+        "menu": "menu",
     }
 
     @classmethod
@@ -510,6 +622,16 @@ element_type_mapping = ElementTypeMapping()
 # =============================================================================
 
 
+CONTAINER_ELEMENT_TYPES = {
+    "column",
+    "form_container",
+    "simple_container",
+    "repeat",
+    "header",
+    "footer",
+}
+
+
 class ElementItem(BaseModel):
     """Existing element with ID."""
 
@@ -518,15 +640,21 @@ class ElementItem(BaseModel):
     order: str
     parent_element_id: Optional[int] = None
     place_in_container: Optional[str] = None
+    is_container: bool = Field(
+        default=False,
+        description="True if this element can contain child elements (use as parent_element_id)",
+    )
 
     @classmethod
     def from_orm(cls, element) -> "ElementItem":
         """Create ElementItem from ORM Element instance."""
 
+        element_type = element.get_type().type
         return cls(
             id=element.id,
-            type=element.get_type().type,
+            type=element_type,
             order=str(element.order),
             parent_element_id=element.parent_element_id,
             place_in_container=element.place_in_container,
+            is_container=element_type in CONTAINER_ELEMENT_TYPES,
         )

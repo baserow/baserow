@@ -65,31 +65,13 @@ class ColorThemeUpdate(BaseModel):
 # =============================================================================
 
 
-class TextDecorationUpdate(BaseModel):
-    """Text decoration flags."""
-
-    underline: Optional[bool] = None
-    strike: Optional[bool] = None
-    uppercase: Optional[bool] = None
-    italic: Optional[bool] = None
-
-
-class HeadingStyleUpdate(BaseModel):
-    """Style settings for a heading level (1-6)."""
-
-    font_family: Optional[FontFamily] = None
-    font_size: Optional[int] = Field(default=None, ge=8, le=72)
-    font_weight: Optional[FontWeight] = None
-    text_color: Optional[str] = Field(
-        default=None,
-        description="Text color (hex with alpha or 'primary'/'secondary')",
-    )
-    text_alignment: Optional[HorizontalAlignment] = None
-    text_decoration: Optional[TextDecorationUpdate] = None
-
-
 class TypographyThemeUpdate(BaseModel):
-    """Typography theme settings for body text and headings."""
+    """
+    Typography theme settings for body text and headings.
+
+    All heading properties use flat keys (e.g., heading_1_font_family, heading_1_font_size).
+    Text decoration is a list of 4 booleans: [underline, strike, uppercase, italic].
+    """
 
     # Body text
     body_font_family: Optional[FontFamily] = None
@@ -98,13 +80,89 @@ class TypographyThemeUpdate(BaseModel):
     body_text_color: Optional[str] = None
     body_text_alignment: Optional[HorizontalAlignment] = None
 
-    # Headings 1-6
-    heading_1: Optional[HeadingStyleUpdate] = None
-    heading_2: Optional[HeadingStyleUpdate] = None
-    heading_3: Optional[HeadingStyleUpdate] = None
-    heading_4: Optional[HeadingStyleUpdate] = None
-    heading_5: Optional[HeadingStyleUpdate] = None
-    heading_6: Optional[HeadingStyleUpdate] = None
+    # Heading 1
+    heading_1_font_family: Optional[FontFamily] = None
+    heading_1_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_1_font_weight: Optional[FontWeight] = None
+    heading_1_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_1_text_alignment: Optional[HorizontalAlignment] = None
+    heading_1_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+
+    # Heading 2
+    heading_2_font_family: Optional[FontFamily] = None
+    heading_2_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_2_font_weight: Optional[FontWeight] = None
+    heading_2_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_2_text_alignment: Optional[HorizontalAlignment] = None
+    heading_2_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+
+    # Heading 3
+    heading_3_font_family: Optional[FontFamily] = None
+    heading_3_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_3_font_weight: Optional[FontWeight] = None
+    heading_3_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_3_text_alignment: Optional[HorizontalAlignment] = None
+    heading_3_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+
+    # Heading 4
+    heading_4_font_family: Optional[FontFamily] = None
+    heading_4_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_4_font_weight: Optional[FontWeight] = None
+    heading_4_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_4_text_alignment: Optional[HorizontalAlignment] = None
+    heading_4_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+
+    # Heading 5
+    heading_5_font_family: Optional[FontFamily] = None
+    heading_5_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_5_font_weight: Optional[FontWeight] = None
+    heading_5_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_5_text_alignment: Optional[HorizontalAlignment] = None
+    heading_5_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+
+    # Heading 6
+    heading_6_font_family: Optional[FontFamily] = None
+    heading_6_font_size: Optional[int] = Field(default=None, ge=8, le=72)
+    heading_6_font_weight: Optional[FontWeight] = None
+    heading_6_text_color: Optional[str] = Field(
+        default=None,
+        description="Text color (hex with alpha or 'primary'/'secondary')",
+    )
+    heading_6_text_alignment: Optional[HorizontalAlignment] = None
+    heading_6_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
 
 
 # =============================================================================
@@ -154,7 +212,11 @@ class ButtonThemeUpdate(BaseModel):
 
 
 class LinkThemeUpdate(BaseModel):
-    """Link theme settings."""
+    """
+    Link theme settings.
+
+    Text decoration is a list of 4 booleans: [underline, strike, uppercase, italic].
+    """
 
     font_family: Optional[FontFamily] = None
     font_size: Optional[int] = Field(default=None, ge=8, le=72)
@@ -166,9 +228,18 @@ class LinkThemeUpdate(BaseModel):
     )
     hover_text_color: Optional[str] = None
     active_text_color: Optional[str] = None
-    default_text_decoration: Optional[TextDecorationUpdate] = None
-    hover_text_decoration: Optional[TextDecorationUpdate] = None
-    active_text_decoration: Optional[TextDecorationUpdate] = None
+    default_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+    hover_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
+    active_text_decoration: Optional[list[bool]] = Field(
+        default=None,
+        description="List of 4 booleans: [underline, strike, uppercase, italic]",
+    )
 
 
 # =============================================================================

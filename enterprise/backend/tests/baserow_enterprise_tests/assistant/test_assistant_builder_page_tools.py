@@ -5,7 +5,6 @@ from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.builder.pages.models import Page
 from baserow_enterprise.assistant.tools.builder.tools import (
-    get_list_pages_tool,
     get_page_tool_factory,
 )
 from baserow_enterprise.assistant.tools.builder.types import (
@@ -15,61 +14,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
 )
 
 from .utils import fake_tool_helpers
-
-
-@pytest.mark.django_db
-def test_list_pages_empty(data_fixture):
-    """Test listing pages when there are no pages."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(workspace=workspace)
-
-    tool = get_list_pages_tool(user, workspace, fake_tool_helpers)
-    result = tool(application_id=builder.id)
-
-    assert result == {"pages": []}
-
-
-@pytest.mark.django_db
-def test_list_pages_with_pages(data_fixture):
-    """Test listing pages returns all pages."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(workspace=workspace)
-
-    page1 = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-    page2 = data_fixture.create_builder_page(
-        builder=builder, name="Products", path="/products"
-    )
-
-    tool = get_list_pages_tool(user, workspace, fake_tool_helpers)
-    result = tool(application_id=builder.id)
-
-    assert len(result["pages"]) == 2
-    page_names = {p["name"] for p in result["pages"]}
-    assert page_names == {"Home", "Products"}
-
-
-@pytest.mark.django_db
-def test_list_pages_excludes_shared_pages(data_fixture):
-    """Test that shared pages are excluded from listing."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(workspace=workspace)
-
-    data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-    data_fixture.create_builder_page(
-        builder=builder, name="Header", path="/__header__", shared=True
-    )
-
-    tool = get_list_pages_tool(user, workspace, fake_tool_helpers)
-    result = tool(application_id=builder.id)
-
-    assert len(result["pages"]) == 1
-    assert result["pages"][0]["name"] == "Home"
 
 
 @pytest.mark.django_db

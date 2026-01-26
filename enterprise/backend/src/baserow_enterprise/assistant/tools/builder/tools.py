@@ -7,6 +7,7 @@ from django.utils.translation import gettext as _
 import udspy
 
 from baserow.core.models import Workspace
+from baserow_enterprise.assistant.prompts import BUILDER_NAVIGATION_GUIDELINES
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
@@ -28,11 +29,6 @@ __all__ = [
     "PageToolFactoryToolType",
     "PageContentToolFactoryToolType",
     "ThemeToolFactoryToolType",
-    # Backward compatibility wrappers for tests
-    "get_element_tool_factory",
-    "get_list_pages_tool",
-    "get_data_source_tool_factory",
-    "get_workflow_action_tool_factory",
 ]
 
 
@@ -74,6 +70,12 @@ def get_page_tool_factory(
         - Each page needs a unique name and path.
         - Use path parameters like :id for dynamic routes (e.g., '/products/:id').
         - Path params must be defined in path_params array.
+
+        IMPORTANT - Navigation:
+        - After creating pages, ensure they are reachable by users.
+        - If the app has a header with a menu element, add links to new pages in the menu.
+        - Use list_elements to find existing menu elements, then create updated menu items.
+        - Consider which pages should be in main navigation vs. linked from other pages.
         """
 
         nonlocal user, workspace, tool_helpers
@@ -278,19 +280,42 @@ def get_page_content_tool_factory(
         data_source_refs: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         """
-        Create UI elements on a page. Elements can be nested using parent_element_ref.
+        Create UI elements on a page. Elements can be nested inside containers.
 
-        - Use `ref` field to identify elements for linking.
-        - Use `parent_element_ref` to nest elements inside containers.
+        - Use `ref` field to identify elements for linking within this batch.
+        - Use `parent_element_id` to add elements to EXISTING containers (from list_elements).
+        - Use `parent_element_ref` to nest inside containers created in the SAME batch.
         - For columns, `place_in_container` is the 0-indexed column number ("0", "1", etc.).
         - Form inputs should be placed inside form_container elements.
         - Tables and repeaters need a data_source_id or use data_source_refs mapping.
 
+        IMPORTANT - Adding to existing containers:
+        When adding elements to an existing form_container, column, or other container:
+        1. First call list_elements to get the container's ID
+        2. Use parent_element_id (not parent_element_ref) with the container's ID
+        Example: To add an input to form with id=123, set parent_element_id=123
+
+        IMPORTANT - Adding form inputs to existing forms with actions:
+        When adding a new form input (input_text, choice, checkbox, datetime_picker)
+        to an existing form that has a create_row or update_row action:
+        1. First call list_workflow_actions to check if the form has CRUD actions
+        2. If a create_row/update_row action exists, note its current field_mappings
+        3. After creating the new input, you may need to create an updated action
+           that includes the new field mapping: get('form_data.<new_element_id>')
+        This ensures the new input's data is saved when the form is submitted.
+
         Available element types:
         - Layout: column, form_container, simple_container
+        - Navigation: header, footer, menu (header/footer are multi-page containers)
         - Display: heading, text, button, link, image
         - Form inputs: input_text, choice, checkbox, datetime_picker, record_selector
         - Collections: table, repeat
+
+        Header/Footer notes:
+        - Header/footer elements are automatically created on the builder's shared page.
+        - They appear on all pages by default (share_type='all').
+        - Child elements (like menu) placed inside header/footer are also on the shared page.
+        - Use share_type='only'/'except' with page_ids to control visibility.
 
         Returns the mapping of refs to IDs for use in action creation.
         """
@@ -309,12 +334,18 @@ def get_page_content_tool_factory(
 
         ref_to_id_map: dict[str, int] = {}
         data_source_ref_to_id_map = data_source_refs or {}
+        shared_page_refs: set[str] = set()  # Track elements created on shared page
         created_elements = []
 
         with transaction.atomic():
             for element_create in elements:
                 element, element_id = utils.create_element(
-                    user, page, element_create, ref_to_id_map, data_source_ref_to_id_map
+                    user,
+                    page,
+                    element_create,
+                    ref_to_id_map,
+                    data_source_ref_to_id_map,
+                    shared_page_refs,
                 )
 
                 # Track the ref for parent linking
@@ -333,6 +364,39 @@ def get_page_content_tool_factory(
             "ref_to_id_map": ref_to_id_map,
         }
 
+    def list_workflow_actions(page_id: int) -> dict[str, Any]:
+        """
+        List all workflow actions on a page.
+
+        - Use this to discover existing actions before creating or modifying them.
+        - Returns action IDs, types, element attachments, and events.
+        - For create_row/update_row actions, also returns field_mappings showing
+          which form inputs are mapped to which table fields.
+
+        IMPORTANT - Form Input Updates:
+        When adding a new form input (input_text, choice, checkbox, datetime_picker, etc.)
+        to an existing form, you should:
+        1. Check if there's an existing create_row or update_row action on the form
+        2. If yes, the action's field_mappings may need to be updated to include
+           the new form input's mapping to a table field
+        3. Use create_actions to add the new field mapping
+
+        Field mapping formulas:
+        - get('form_data.<element_id>') - References a form input's value
+        - get('page_parameter.<param_name>') - References a page parameter
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        page = utils.get_page(user, page_id)
+
+        tool_helpers.update_status(
+            _("Listing workflow actions on %(page_name)s...") % {"page_name": page.name}
+        )
+
+        actions = utils.list_workflow_actions(page)
+        return {"workflow_actions": [a.model_dump() for a in actions]}
+
     def create_actions(
         page_id: int,
         actions: list[AnyWorkflowActionCreate],
@@ -347,6 +411,12 @@ def get_page_content_tool_factory(
         - Use `element_id` to attach to an existing element (use list_elements to find IDs).
         - For forms, use event='submit' on the form_container.
         - Multiple actions can be attached to the same element/event.
+
+        IMPORTANT - When adding form inputs to existing forms:
+        If you add a new form input and there's an existing create_row/update_row action,
+        you need to update the action to include the new field mapping. The form input's
+        value is accessed via get('form_data.<element_id>') where element_id is the
+        new input's ID.
 
         Available action types:
         - notification: Show a message to the user.
@@ -395,6 +465,39 @@ def get_page_content_tool_factory(
                 )
 
         return {"created_actions": created_actions}
+
+    def add_field_mapping(
+        action_id: int,
+        field_id: int,
+        value_formula: str,
+    ) -> dict[str, Any]:
+        """
+        Add or update a field mapping on an existing create_row or update_row action.
+
+        Use this when adding a new form input to an existing form that already has
+        a create_row/update_row action. This allows you to map the new input to a
+        table field without recreating the entire action.
+
+        - action_id: The workflow action ID (from list_workflow_actions)
+        - field_id: The target table field ID (from list_tables)
+        - value_formula: The formula to get the value, typically:
+          - get('form_data.<element_id>') - For form input values
+          - get('page_parameter.<param_name>') - For page parameters
+          - get('current_record.<field_name>') - For data from a data source
+
+        Example: After creating a deadline datetime_picker with id=456, add it to
+        an existing update_row action (id=789) that updates field_id=10:
+            add_field_mapping(action_id=789, field_id=10, value_formula="get('form_data.456')")
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        tool_helpers.update_status(
+            _("Adding field mapping to action %(action_id)d...") % {"action_id": action_id}
+        )
+
+        result = utils.add_field_mapping_to_action(action_id, field_id, value_formula)
+        return result
 
     def update_elements(
         page_id: int,
@@ -480,16 +583,20 @@ def get_page_content_tool_factory(
         - Add actions to elements (form submit, button click, navigation, etc.)
         - Build interactive page content
         - Style elements (border, padding, margin, background, CSS classes)
+        - Create navigation structures (header, footer, menu)
 
         After calling this loader, you will have access to:
         - list_elements: List existing elements on a page
         - create_elements: Create UI elements with optional styling
         - update_elements: Update element styles, visibility, CSS classes
         - delete_element: Remove an element from a page
+        - list_workflow_actions: List existing actions with field mappings
         - create_actions: Add actions to elements (CRUD, notifications, navigation)
+        - add_field_mapping: Add field mapping to existing create_row/update_row action
 
         Element types available:
         - Layout: column (multi-column), form_container (for forms), simple_container
+        - Navigation: header (multi-page top container), footer (multi-page bottom container), menu (navigation links)
         - Display: heading, text, button, link, image
         - Form inputs: input_text, choice, checkbox, datetime_picker, record_selector
         - Collections: table (data table), repeat (card/list repeater)
@@ -500,6 +607,11 @@ def get_page_content_tool_factory(
         - create_row, update_row, delete_row: CRUD operations
         - refresh_data_source: Reload data
         - logout: Log out user
+
+        IMPORTANT - Adding form inputs to existing forms:
+        When you add a new form input to an existing form that has a create_row or
+        update_row action, you should also update the action to map the new input
+        to a table field. Use list_workflow_actions to see existing field mappings.
         """
 
         @udspy.module_callback
@@ -513,7 +625,9 @@ def get_page_content_tool_factory(
                 udspy.Tool(create_elements),
                 udspy.Tool(update_elements),
                 udspy.Tool(delete_element),
+                udspy.Tool(list_workflow_actions),
                 udspy.Tool(create_actions),
+                udspy.Tool(add_field_mapping),
             ]
             observation.append(
                 "- Use `list_elements` to list existing elements on a page."
@@ -528,9 +642,19 @@ def get_page_content_tool_factory(
                 "- Use `delete_element` to remove an element from a page."
             )
             observation.append(
+                "- Use `list_workflow_actions` to list existing actions and their field mappings."
+            )
+            observation.append(
                 "- Use `create_actions` to add actions to elements "
                 "(create/update/delete rows in tables, notifications, navigation)."
             )
+            observation.append(
+                "- Use `add_field_mapping` to add a field mapping to an existing "
+                "create_row/update_row action (useful when adding form inputs)."
+            )
+
+            # Add context-specific guidelines
+            observation.append(BUILDER_NAVIGATION_GUIDELINES)
 
             context.module.init_module(tools=context.module._tools + new_tools)
             return "\n".join(observation)
@@ -614,20 +738,36 @@ def get_theme_tool_factory(
         - Font weights: 'regular', 'medium', 'semi_bold', 'bold'.
         - Alignments: 'left', 'center', 'right'.
 
-        IMPORTANT - Color Contrast:
-        When updating colors (especially primary_color, secondary_color, or page background),
-        ensure proper contrast with text and UI elements. Consider updating these together:
-        - typography: body_text_color and heading text colors
-        - buttons: text_color, background_color, hover/active states
-        - inputs: label_text_color, input_text_color, input_background_color
-        - tables: header_text_color, header_background_color, cell_background_color
-        - links: text_color, hover_text_color
+        CRITICAL - Color Contrast Rules:
+        You MUST ensure proper contrast between backgrounds and text colors. Common mistakes:
+        - Setting a dark background without updating text colors to light colors
+        - Setting a light text color without updating the background to a dark color
+        - Forgetting to update page.background_color when changing typography colors
 
-        Categories:
+        When changing colors, ALWAYS update these properties together to maintain readability:
+
+        For DARK backgrounds (page.background_color is dark):
+        - typography.body_text_color → light color (e.g., '#ffffffff' or '#f0f0f0ff')
+        - typography.heading_1_text_color through heading_6_text_color → light color
+        - inputs.label_text_color → light color
+        - inputs.input_text_color → dark color (inputs usually have light backgrounds)
+        - tables.header_text_color → ensure contrast with header_background_color
+
+        For LIGHT backgrounds (page.background_color is light):
+        - typography.body_text_color → dark color (e.g., '#000000ff' or '#333333ff')
+        - typography.heading_1_text_color through heading_6_text_color → dark color
+        - inputs.label_text_color → dark color
+
+        Button and link colors should contrast with their own backgrounds, not the page background.
+
+        Categories (all use flat keys):
         - colors: primary_color, secondary_color, border_color, success/warning/error colors
-        - typography: body_* props, heading_1 through heading_6 (including colors, fonts, sizes)
-        - buttons: font, colors, border, padding, hover/active states
-        - links: font, colors, hover/active states
+        - typography: body_font_family, body_text_color, heading_1_font_family,
+          heading_1_font_size, heading_1_text_color, heading_1_text_decoration, etc.
+          (text_decoration is a list: [underline, strike, uppercase, italic])
+        - buttons: font_family, text_color, background_color, hover/active states
+        - links: font_family, text_color, default_text_decoration, hover_text_decoration
+          (text_decoration is a list: [underline, strike, uppercase, italic])
         - images: alignment, max_width, max_height, border_radius, constraint
         - page: background_color, background_mode
         - inputs: label_* and input_* properties
@@ -654,14 +794,53 @@ def get_theme_tool_factory(
             tables=tables,
         )
 
+        result: dict[str, Any] = {"updated": False}
+
         if flat_kwargs:
+            from baserow.contrib.builder.api.theme.serializers import (
+                serialize_builder_theme,
+            )
             from baserow.contrib.builder.theme.service import ThemeService
 
             ThemeService().update_theme(user, builder, **flat_kwargs)
+            result["updated"] = True
+
+            # Verify which properties were actually applied
+            builder.refresh_from_db()
+            actual_theme_flat = serialize_builder_theme(builder)
+            verification = utils.verify_theme_properties_applied(
+                flat_kwargs, actual_theme_flat
+            )
+
+            # Add warnings if any properties weren't applied correctly
+            warnings = []
+            if verification["not_found"]:
+                for issue in verification["not_found"]:
+                    warnings.append(
+                        f"Property '{issue['property']}' was not recognized. "
+                        f"Value '{issue['requested_value']}' was ignored."
+                    )
+            if verification["mismatched"]:
+                for issue in verification["mismatched"]:
+                    warnings.append(
+                        f"Property '{issue['property']}' was not applied as expected. "
+                        f"Requested: '{issue['requested_value']}', "
+                        f"Actual: '{issue['actual_value']}'. "
+                        "Check if the value format is correct."
+                    )
+
+            if warnings:
+                result["warnings"] = warnings
+                result["observation"] = (
+                    "Some theme properties were not applied correctly. "
+                    "Review the warnings above and verify the property names and value formats. "
+                    "Use get_theme to inspect the current theme structure."
+                )
 
         # Return the updated theme
         theme = utils.get_builder_theme(builder)
-        return {"updated": True, "theme": theme}
+        result["theme"] = theme
+        return result
 
     def load_theme_tools():
         """
@@ -720,138 +899,3 @@ class ThemeToolFactoryToolType(AssistantToolType):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_theme_tool_factory(user, workspace, tool_helpers)
-
-
-# =============================================================================
-# Backward Compatibility Wrappers (DEPRECATED - for tests only)
-# =============================================================================
-
-
-def get_list_pages_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable:
-    """
-    DEPRECATED: Use PageToolFactoryToolType instead.
-
-    Returns a standalone list_pages function for backward compatibility with tests.
-    """
-
-    def list_pages(application_id: int) -> dict[str, Any]:
-        """List all pages in an application builder."""
-
-        builder = utils.get_builder(user, workspace, application_id)
-
-        tool_helpers.update_status(
-            _("Listing pages in %(app_name)s...") % {"app_name": builder.name}
-        )
-
-        pages = utils.list_pages(builder)
-        return {"pages": [p.model_dump() for p in pages]}
-
-    return list_pages
-
-
-def get_element_tool_factory(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[], Any]:
-    """
-    DEPRECATED: Use PageContentToolFactoryToolType instead.
-
-    Returns a tool factory that provides element tools for backward compatibility.
-    """
-
-    return get_page_content_tool_factory(user, workspace, tool_helpers)
-
-
-def get_data_source_tool_factory(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[], Any]:
-    """
-    DEPRECATED: Use PageToolFactoryToolType instead.
-
-    Returns a tool factory that provides data source tools for backward compatibility.
-    """
-
-    return get_page_tool_factory(user, workspace, tool_helpers)
-
-
-def get_workflow_action_tool_factory(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[], Any]:
-    """
-    DEPRECATED: Use PageContentToolFactoryToolType instead.
-
-    Returns a tool factory that provides workflow action tools for backward compatibility.
-    This is an alias for get_page_content_tool_factory but the tests expect
-    create_workflow_actions instead of create_actions.
-    """
-
-    def load_workflow_action_tools():
-        """
-        TOOL LOADER: Loads tools to manage workflow actions on pages.
-        """
-
-        @udspy.module_callback
-        def _load_workflow_action_tools(context):
-            nonlocal user, workspace, tool_helpers
-
-            observation = ["New tools are now available.\n"]
-
-            def create_workflow_actions(
-                page_id: int,
-                workflow_actions: list[AnyWorkflowActionCreate],
-                element_refs: dict[str, int] | None = None,
-                data_source_refs: dict[str, int] | None = None,
-            ) -> dict[str, Any]:
-                """Create workflow actions attached to elements."""
-
-                if not workflow_actions:
-                    return {"created_workflow_actions": []}
-
-                page = utils.get_page(user, page_id)
-                integration = utils.get_local_baserow_integration(page.builder)
-
-                tool_helpers.update_status(
-                    _("Creating %(count)d actions...")
-                    % {"count": len(workflow_actions)}
-                )
-
-                element_ref_to_id_map = element_refs or {}
-                data_source_ref_to_id_map = data_source_refs or {}
-                created_actions = []
-
-                with transaction.atomic():
-                    for action_create in workflow_actions:
-                        _action, action_id = utils.create_workflow_action(
-                            user,
-                            page,
-                            action_create,
-                            element_ref_to_id_map,
-                            data_source_ref_to_id_map,
-                            integration,
-                        )
-
-                        created_actions.append(
-                            {
-                                "id": action_id,
-                                "type": action_create.type,
-                                "element_ref": action_create.element_ref,
-                                "event": action_create.event,
-                            }
-                        )
-
-                return {"created_workflow_actions": created_actions}
-
-            new_tools = [
-                udspy.Tool(create_workflow_actions),
-            ]
-            observation.append(
-                "- Use `create_workflow_actions` to add actions to elements."
-            )
-
-            context.module.init_module(tools=context.module._tools + new_tools)
-            return "\n".join(observation)
-
-        return _load_workflow_action_tools
-
-    return load_workflow_action_tools

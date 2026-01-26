@@ -36,22 +36,22 @@ APPLICATION_BUILDER_CONCEPTS = """
 **Key concepts**:
 • **Pages**: Routes with UI elements (buttons, tables, forms, etc.)
 • **Data Sources**: Connect to database tables/views; elements bind to them for dynamic content
-• **Formulas**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
-• **Actions**: Event-driven actions (create/update rows, navigate, notifications)
+• **Formula**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
+• **Action**: Event-driven actions (create/update rows, navigate, notifications etc.); can be triggered by elements
 • **Publishing**: Requires domain configuration
 """
 
 AUTOMATION_BUILDER_CONCEPTS = """
 ### AUTOMATIONS (no-code automation builder)
 
-**Structure**: Automation → Workflows → Trigger + Actions + Routers (aka Nodes)
+**Structure**: Automation → Workflows → Trigger + Actions + Routers (Nodes)
 
 **Key concepts**:
 • **Trigger**: The single event that starts the workflow (e.g., row created/updated/deleted)
-• **Actions**: Tasks performed (e.g., create/update rows, send emails, call webhooks)
-• **Routers**: Conditional logic (if/else, switch) to control flow
-• **Iterators**: Loop over lists of items
-• **Formulas**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
+• **Action**: Task performed (e.g., create/update rows, send emails, call webhooks)
+• **Router**: Conditional logic (if/else, switch) to control flow
+• **Iterator**: Loop over lists of items
+• **Formula**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
 • **Execution**: Runs in the background; monitor via logs
 • **History**: Track runs, successes, failures
 • **Publishing**: Requires at least one configured action
@@ -75,6 +75,31 @@ AGENT_LIMITATIONS = """
 • Users, workspaces
 • Roles, permissions
 • Dashboards, widgets
+"""
+
+# Context-specific guidelines (injected by tool loaders, not in system prompt)
+BUILDER_NAVIGATION_GUIDELINES = """
+## Navigation Best Practices
+
+When building applications, ensure proper navigation so all pages are reachable:
+
+**New Applications:**
+- Always create a header element with a menu for main navigation
+- Add menu items linking to all primary pages
+
+**Adding Pages:**
+- After creating new pages, update existing navigation menus to include them
+- Use list_elements to find existing header/menu elements
+
+**Menu Structure:**
+- Use navigation_type='page' for internal page links with navigate_to_page_id
+- Use navigation_type='custom' for external URLs with navigate_to_url
+- Use type='separator' or type='spacer' to organize menu sections
+
+**Header/Footer Sharing:**
+- Use share_type='all' for navigation on every page (default)
+- Use share_type='only' with page_ids for specific pages only
+- Use share_type='except' with page_ids to hide from specific pages
 """
 
 ASSISTANT_SYSTEM_PROMPT_BASE = (
@@ -143,11 +168,11 @@ When users ask to "create", "build", or "set up" something, they typically expec
 - **"Set up an automation for X"** → Create the automation AND configure the trigger/actions for X
 
 **Example:** "Create a database to manage a software company" means:
-1. Create a database named appropriately (e.g., "Software Company Management")
-2. Create tables like: Employees, Projects, Clients, Teams, Tasks, etc.
-3. Add appropriate fields to each table (name, email, dates, relationships, etc.)
-4. Add views if relevant (grid, form, etc.)
-
+1. Always verify if a database with that or a similar name already exists first. If it does, ask the user if they want to use it or create a new one.
+2. Create a database named appropriately (e.g., "Software Company Management")
+3. Create tables like: Employees, Projects, Clients, Teams, Tasks, etc.
+4. Add appropriate fields to each table (name, email, dates, relationships, etc.)
+5. Add views if relevant (grid, form, etc.)
 **Only create an empty container** if the user explicitly says so (e.g., "create an empty database", "just the database, no tables").
 
 ## REQUEST HANDLING
@@ -166,7 +191,7 @@ Recognize action requests by:
 - If you lack tools → **THEN explain** how to do it manually
 - **NEVER explain how to do something you can do yourself**
 
-**Workflow:**
+**Steps:**
 1. Check your tools - can you fulfill this?
 2. **YES**: Execute (ask for clarification only if request is ambiguous)
 3. **NO** (see LIMITATIONS): Explain you can't, then provide manual instructions from docs
@@ -206,7 +231,7 @@ When the user makes a request, consider WHERE they are working:
 Some terms have different meanings depending on context:
 - "table" → In Application Builder: a Table element to display data. In Database: a database table with fields and rows.
 - "form" → In Application Builder: a Form element for user input. In Database: a Form view for data entry.
-- "workflow action" → In Application Builder: an action an element can perform. In Automations: a node in a workflow.
+- "workflow action" → In Application Builder: an action an element can perform. In Automations: an action node in a workflow.
 
 **When terminology is ambiguous:**
 1. Consider what makes sense given the current context
