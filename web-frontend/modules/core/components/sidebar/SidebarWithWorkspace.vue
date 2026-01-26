@@ -24,8 +24,8 @@
                 {{ applicationGroup.name }}
               </div>
               <a
-                :ref="'createApplicationToggle' + applicationGroup.type"
-                v-if="canCreateCreateApplication"
+                :ref="'createApplicationModalToggle' + applicationGroup.type"
+                v-if="canCreateApplication"
                 class="tree__heading-add"
                 @click="openCreateApplicationModal(applicationGroup.type)"
               >
@@ -169,7 +169,7 @@ export default {
       })
       return grouped
     },
-    canCreateCreateApplication() {
+    canCreateApplication() {
       return this.$hasPermission(
         'workspace.create_application',
         this.selectedWorkspace,
@@ -198,7 +198,7 @@ export default {
       }
     },
     openCreateApplicationModal(type) {
-      if (!this.canCreateCreateApplication) {
+      if (!this.canCreateApplication) {
         return
       }
 
