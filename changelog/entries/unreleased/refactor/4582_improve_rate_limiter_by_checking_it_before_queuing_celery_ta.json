@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Improved workflow rate limiter performance by checking limits before queuing tasks.",
+    "issue_origin": "github",
+    "issue_number": 4582,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-01-26"
+}
