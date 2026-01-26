@@ -685,6 +685,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # If we don't come from an event, we need to reset the states
         self.reset_workflow_temporary_states(workflow)
+
         self._check_too_many_errors(workflow)
 
     def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
@@ -693,7 +694,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
     def _get_workflow_history_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
 
-    def _should_create_workflow_history(self, workflow_id: int) -> bool:
+    def _should_create_rate_limited_workflow_history(self, workflow_id: int) -> bool:
+        """
+        Checks if the workflow history should be created when rate limited.
+
+        Returns True if the history should be created, False otherwise.
+        """
+
         cache_key = self._get_workflow_history_rate_limit_cache_key(workflow_id)
 
         should_create_history = False
@@ -865,15 +872,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :param event_payload: The payload from the action.
         """
 
-        history_handler = AutomationHistoryHandler()
-
         try:
             self._check_is_rate_limited(workflow.id)
         except AutomationWorkflowRateLimited as e:
-            if self._should_create_workflow_history(workflow.id):
+            if self._should_create_rate_limited_workflow_history(workflow.id):
                 original_workflow = self.get_original_workflow(workflow)
                 now = timezone.now()
-                history_handler.create_workflow_history(
+                AutomationHistoryHandler().create_workflow_history(
                     original_workflow,
                     is_test_run=original_workflow == workflow,
                     started_on=now,
