@@ -192,6 +192,7 @@ services:
     logging:
       driver: "none" # disable saving logs
     ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:1025:1025" # smtp
       - "8025:8025" # web ui
     networks:
       local:

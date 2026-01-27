@@ -57,8 +57,9 @@ snoop.install()
 
 CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_USE_TLS = False
-EMAIL_HOST = "mailhog"
-EMAIL_PORT = 1025
+# Use localhost for local dev (just dev up), mailhog for docker dev (just dc-dev up)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailhog")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
 
 BASEROW_MAX_ROW_REPORT_ERROR_COUNT = 10  # To trigger this exception easily
 
