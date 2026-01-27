@@ -6748,6 +6748,7 @@ class MultipleCollaboratorsFieldType(
             CollaboratorRequestSerializer,
         )
 
+        kwargs.setdefault("required", False)
         return CollaboratorRequestSerializer(**kwargs)
 
     def get_search_expression(
