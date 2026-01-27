@@ -49,7 +49,7 @@
           </div>
         </a>
       </li>
-      <li class="select__item">
+      <li v-if="$hasPermission('create_workspace')" class="select__item">
         <a class="select__item-link" @click="$refs.createWorkspaceModal.show()">
           <div class="select__item-name">
             <ButtonIcon
