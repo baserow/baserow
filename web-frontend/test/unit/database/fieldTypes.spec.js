@@ -765,7 +765,6 @@ describe('FieldType tests', () => {
   test.each(datePrepareValueForPaste)(
     'Verify that prepareValueForPaste for DateFieldType for value $fieldValue returns $expectedValue',
     (value) => {
-      console.log(value.field, value.expectedValue)
       const result = new DateFieldType().prepareValueForPaste(
         value.field,
         value.fieldValue

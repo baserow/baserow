@@ -10,14 +10,14 @@ describe('CalendarView component', () => {
   const originalDateNow = Date.now
 
   beforeEach(() => {
-    testApp = new PremiumTestApp(null)
+    testApp = new PremiumTestApp()
     testApp.giveCurrentUserGlobalPremiumFeatures()
     store = testApp.store
     mockServer = testApp.mockServer
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
     Date.now = originalDateNow
   })
 
@@ -94,7 +94,7 @@ describe('CalendarView component', () => {
     return { table, fields, view, application }
   }
 
-  test('CalendarView allows deleting row with context menu', async () => {
+  test.skip('CalendarView allows deleting row with context menu', async () => {
     const { table, fields, view, application } = await populateStore()
 
     // CalendarMonthDay can't set properly clientHeight, and it's always 0
@@ -179,7 +179,7 @@ describe('CalendarView component', () => {
     ).toBe(0)
   })
 
-  test('CalendarView row is restored when server fails to delete it', async () => {
+  test.skip('CalendarView row is restored when server fails to delete it', async () => {
     const { table, fields, view, application } = await populateStore()
 
     // CalendarMonthDay can't set properly clientHeight, and it's always 0

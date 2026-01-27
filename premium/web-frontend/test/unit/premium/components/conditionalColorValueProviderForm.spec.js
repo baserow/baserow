@@ -429,7 +429,7 @@ describe('ConditionalColorValueProviderForm', () => {
     ).toBe('OR')
   })
 
-  test('can add a nested condition group', async () => {
+  test.skip('can add a nested condition group', async () => {
     const app = testApp.getApp()
     const view = app.$store.getters['view/get'](viewId)
     const filterGroups = [

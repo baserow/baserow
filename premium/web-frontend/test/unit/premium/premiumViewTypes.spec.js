@@ -9,7 +9,7 @@ async function openViewContextAndClickOnCreateKanbanView(
   { userWorkspaceId = 1 } = {}
 ) {
   const viewsContext = await testApp.mount(ViewsContext, {
-    propsData: {
+    props: {
       database: { workspace: { id: userWorkspaceId } },
       views: [],
       table: {},

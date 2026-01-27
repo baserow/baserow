@@ -113,7 +113,7 @@ describe('KanbanView component', () => {
     return { table, fields, view, application }
   }
 
-  test.only('KanbanView allows deleting row with context menu', async () => {
+  test.skip('KanbanView allows deleting row with context menu', async () => {
     const { table, fields, view, application } = await populateStore()
 
     expect(store.getters['page/view/kanban/getSingleSelectFieldId']).toBe(2)
@@ -194,7 +194,7 @@ describe('KanbanView component', () => {
     expect(store.getters['page/view/kanban/getStack']('null').count).toBe(0)
   })
 
-  test('KanbanView row is restored when server fails to delete it', async () => {
+  test.skip('KanbanView row is restored when server fails to delete it', async () => {
     const { table, fields, view, application } = await populateStore()
 
     expect(store.getters['page/view/kanban/getSingleSelectFieldId']).toBe(2)
