@@ -1,15 +1,5 @@
 import { defineNuxtModule, addPlugin, createResolver } from 'nuxt/kit'
-
-const locales = [
-  { code: 'en', name: 'English', file: 'en.json' },
-  { code: 'fr', name: 'Français', file: 'fr.json' },
-  { code: 'nl', name: 'Nederlands', file: 'nl.json' },
-  { code: 'de', name: 'Deutsch', file: 'de.json' },
-  { code: 'es', name: 'Español', file: 'es.json' },
-  { code: 'it', name: 'Italiano', file: 'it.json' },
-  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
-  { code: 'ko', name: '한국어', file: 'ko.json' },
-]
+import { locales } from '../../config/locales.js'
 
 export default defineNuxtModule({
   meta: {
