@@ -220,4 +220,15 @@ export const registerRealtimeEvents = (realtime) => {
       workflowActionId: data.workflow_action_id,
     })
   })
+
+  // Theme events
+  realtime.registerEvent('theme_updated', ({ store }, data) => {
+    const builder = store.getters['application/get'](data.builder_id)
+    if (!builder) return
+
+    store.dispatch('theme/forceUpdate', {
+      builder,
+      values: data.properties,
+    })
+  })
 }

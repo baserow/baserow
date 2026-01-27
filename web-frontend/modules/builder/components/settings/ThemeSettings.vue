@@ -50,7 +50,6 @@ export default {
   methods: {
     ...mapActions({
       setThemeProperty: 'theme/setProperty',
-      forceSetThemeProperty: 'theme/forceSetProperty',
     }),
     async update(newValues) {
       const differences = Object.fromEntries(
