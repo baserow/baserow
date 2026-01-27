@@ -43,14 +43,14 @@
             icon="iconoir-magic-wand"
             :disabled="!modelAvailable || generating"
             :loading="generating"
-            @mousedown.prevent.stop="generate()"
+            @click.prevent.stop="generate()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
           <ButtonText
             v-else
             icon="iconoir-lock"
-            @mousedown.prevent.stop="$refs.clickModal.show()"
+            @click.prevent.stop="$refs.clickModal.show()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
@@ -123,10 +123,7 @@ export default {
       document.body.removeEventListener('keydown', this.keydownEventListener)
     },
     canKeyDown() {
-      if (
-        this.$refs.cell &&
-        typeof this.$refs.cell.canKeyDown === 'function'
-      ) {
+      if (this.$refs.cell && typeof this.$refs.cell.canKeyDown === 'function') {
         return this.$refs.cell.canKeyDown()
       }
       return true
