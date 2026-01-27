@@ -338,15 +338,17 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListBuildersToolType())
         assistant_tool_registry.register(CreateBuildersToolType())
 
-        # Database tools (4 tools instead of 8)
+        # database
         assistant_tool_registry.register(ListTablesToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
         assistant_tool_registry.register(SchemaToolFactoryType())
         assistant_tool_registry.register(RowsToolFactoryToolType())
 
+        # automation
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
+        # application
         assistant_tool_registry.register(PageToolFactoryToolType())
         assistant_tool_registry.register(PageContentToolFactoryToolType())
         assistant_tool_registry.register(ThemeToolFactoryToolType())

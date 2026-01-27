@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Annotated, Literal, Optional
 
@@ -11,6 +12,190 @@ from baserow.core.formula.types import (
 from baserow_enterprise.assistant.types import BaseModel
 
 from .style import ElementStyleConfig, ElementThemeOverrides
+
+
+def escape_for_formula_string(text: str) -> str:
+    """
+    Escape text for use in a double-quoted Baserow formula string literal.
+
+    IMPORTANT: Baserow's formula parser does NOT interpret escape sequences like
+    \\n as newlines - only quote escaping is supported. So we:
+    - Escape backslashes and double quotes
+    - Leave actual newlines/tabs as-is (JSON encoding handles them when stored)
+
+    Args:
+        text: Plain text to escape
+
+    Returns:
+        Escaped text wrapped in double quotes, ready for use in a formula
+    """
+    if not text:
+        return '""'
+    escaped = text.replace("\\", "\\\\")  # Backslashes first
+    escaped = escaped.replace('"', '\\"')  # Double quotes
+    # DO NOT escape newlines/tabs - Baserow formulas don't interpret \n \t etc.
+    # Actual newlines are preserved; JSON encoding handles them when stored
+    return f'"{escaped}"'
+
+
+def _validate_js_syntax(js_code: str) -> None:
+    """
+    Validate JavaScript syntax using esprima parser.
+
+    Args:
+        js_code: JavaScript code to validate (without script tags).
+
+    Raises:
+        ValueError: If JavaScript has syntax errors.
+    """
+    try:
+        import esprima
+    except ImportError:
+        # esprima not available, skip JS validation
+        return
+
+    try:
+        esprima.parseScript(js_code, tolerant=True)
+    except esprima.Error as e:
+        raise ValueError(f"JavaScript syntax error: {e}")
+
+
+def _validate_script_tag(script: str) -> str:
+    """
+    Validate a script tag entry. Each entry MUST be a complete <script> tag.
+
+    Accepts:
+    - External scripts: <script src="..."></script>
+    - Inline scripts: <script>...</script>
+
+    Returns:
+        The validated script tag string.
+
+    Raises:
+        ValueError: If not a valid complete script tag or JS has syntax errors.
+    """
+    script = script.strip()
+    if not script:
+        return ""
+
+    # Must start with <script
+    if not script.startswith("<script"):
+        raise ValueError(
+            f"Each embed_js entry must be a complete <script> tag. "
+            f"Got plain code instead: '{script[:60]}{'...' if len(script) > 60 else ''}'. "
+            f"Wrap your code in <script>...</script> tags."
+        )
+
+    # Must end with </script>
+    if not script.endswith("</script>"):
+        raise ValueError(
+            f"Malformed script tag: starts with <script but doesn't end with </script>. "
+            f"Got: {script[:50]}...{script[-20:] if len(script) > 70 else ''}"
+        )
+
+    # Validate basic structure: <script...>...</script>
+    # Match opening tag: <script> or <script src="..."> or <script type="...">
+    opening_match = re.match(r"<script(\s+[^>]*)?>", script)
+    if not opening_match:
+        raise ValueError(f"Malformed script opening tag: {script[:50]}...")
+
+    # Check if it's an external script (has src attribute) - no JS to validate
+    if re.match(r"<script\s+[^>]*src\s*=", script):
+        return script
+
+    # Extract and validate inline JavaScript
+    closing_tag_pos = script.rfind("</script>")
+    opening_tag_end = opening_match.end()
+    js_code = script[opening_tag_end:closing_tag_pos].strip()
+
+    if js_code:
+        _validate_js_syntax(js_code)
+
+    return script
+
+
+def build_iframe_embed_formula(
+    css: Optional[str] = None,
+    html: Optional[str] = None,
+    js: Optional[list[str]] = None,
+    data_source_mapping: Optional[dict[str, str]] = None,
+) -> str:
+    """
+    Build a Baserow formula for iframe embed content from separate CSS, HTML, JS parts.
+
+    Returns a formula (simple string or concat()) that evaluates to:
+    <style>css</style>
+    html
+    <script src="..."></script>
+    <script>...</script>
+
+    Args:
+        css: Plain CSS rules (no <style> tags)
+        html: Plain HTML elements
+        js: List of script tags. Each entry can be:
+            - External script: '<script src="https://example.com/lib.js"></script>'
+            - Inline script: '<script>console.log("hello");</script>'
+            - Plain JS code (will be auto-wrapped in <script> tags)
+        data_source_mapping: Dict mapping JS variable names to data source formulas.
+            Example: {'userName': "get('data_source.5.Name')"}
+            These are injected into a separate <script> block before the js scripts.
+
+    Returns:
+        A Baserow formula string that evaluates to complete HTML
+    """
+    parts = []
+
+    # Add CSS section
+    if css and css.strip():
+        parts.append(escape_for_formula_string(f"<style>\n{css.strip()}\n</style>\n"))
+
+    # Add HTML section
+    if html and html.strip():
+        parts.append(escape_for_formula_string(f"{html.strip()}\n"))
+
+    # Add data source injection script if needed
+    if data_source_mapping:
+        script_parts = ["<script>\n"]
+        for var_name, ds_formula in data_source_mapping.items():
+            # Build: const varName = "value"; where value comes from get()
+            script_parts.append(f'const {var_name} = "')
+            parts.append(escape_for_formula_string("".join(script_parts)))
+            parts.append(ds_formula)  # Raw formula like get('data_source.5.Name')
+            script_parts = ['";\n']
+        script_parts.append("</script>\n")
+        parts.append(escape_for_formula_string("".join(script_parts)))
+
+    # Add JavaScript scripts
+    if js:
+        for script in js:
+            validated = _validate_script_tag(script)
+            if validated:
+                parts.append(escape_for_formula_string(f"{validated}\n"))
+
+    if not parts:
+        return '""'
+
+    if len(parts) == 1:
+        return parts[0]
+
+    return f"concat({', '.join(parts)})"
+
+
+def convert_html_to_embed_formula(html_code: str) -> str:
+    """
+    DEPRECATED: Use build_iframe_embed_formula() with separate css/html/js fields instead.
+
+    Convert HTML/CSS/JS code to Baserow concat formula format.
+    Kept for backwards compatibility with the legacy 'embed' field.
+
+    Input: Normal HTML/CSS/JS (multiline string)
+    Output: A properly escaped formula string
+    """
+    if not html_code or not html_code.strip():
+        return '""'
+
+    # Use the new escaping function which handles backslashes correctly
+    return escape_for_formula_string(html_code)
 
 
 class ElementBase(BaseModel):
@@ -235,6 +420,93 @@ class ImageElementCreate(ElementBase, RefCreate):
             if self.alt_text
             else BaserowFormulaObject.create("''"),
         }
+        kwargs.update(self.get_style_kwargs())
+        return kwargs
+
+
+class IFrameElementCreate(ElementBase, RefCreate):
+    """
+    IFrame element for embedding external content or custom HTML/CSS/JS.
+
+    Use source_type='url' to embed external pages via URL.
+    Use source_type='embed' to inject custom HTML, CSS, and JavaScript directly.
+
+    For embed mode, prefer the separate embed_css, embed_html, embed_js fields
+    which allow writing plain code without escaping. The system handles all
+    formula conversion automatically.
+    """
+
+    type: Literal["iframe"] = "iframe"
+    source_type: Literal["url", "embed"] = Field(
+        default="url",
+        description="'url' to embed external page, 'embed' to inject custom HTML/CSS/JS",
+    )
+    url: str = Field(
+        default="",
+        description="URL formula for the page to embed (when source_type='url')",
+    )
+
+    # New structured embed fields - LLM writes plain code, system handles escaping
+    embed_css: Optional[str] = Field(
+        default=None,
+        description="Plain CSS rules (no <style> tags). Write normal CSS. "
+        "Example: '.container { display: flex; gap: 10px; }'",
+    )
+    embed_html: Optional[str] = Field(
+        default=None,
+        description="Plain HTML elements (no <html>/<body> tags). Write normal HTML. "
+        "Example: '<div class=\"box\"><h1>Title</h1></div>'",
+    )
+    embed_js: Optional[list[str]] = Field(
+        default=None,
+        description="List of complete script blocks. Each string is ONE complete <script> tag. "
+        "Use for external libraries: '<script src=\"https://cdn.example.com/lib.js\"></script>' "
+        "or inline code: '<script>const x = 1; console.log(x);</script>'. "
+        "IMPORTANT: Put ALL your JavaScript code inside ONE <script> tag, not one line per string.",
+    )
+    data_source_mapping: Optional[dict[str, str]] = Field(
+        default=None,
+        description="Map JS variable names to data source formulas for injection. "
+        "Example: {'userName': \"get('data_source.5.Name')\"}. "
+        "Creates 'const userName = \"value\";' at script start.",
+    )
+
+    height: int = Field(
+        default=300,
+        ge=1,
+        le=2000,
+        description="Height of the iframe in pixels",
+    )
+
+    def to_orm_kwargs(self, user, page) -> dict:
+        kwargs = {
+            "source_type": self.source_type,
+            "url": BaserowFormulaObject.create(self.url)
+            if self.url
+            else BaserowFormulaObject.create("''"),
+            "height": self.height,
+        }
+
+        # Prefer new split fields if any are provided
+        has_new_fields = any([self.embed_css, self.embed_html, self.embed_js])
+
+        if has_new_fields:
+            # Use the new structured approach
+            embed_formula = build_iframe_embed_formula(
+                css=self.embed_css,
+                html=self.embed_html,
+                js=self.embed_js,
+                data_source_mapping=self.data_source_mapping,
+            )
+            kwargs["embed"] = BaserowFormulaObject.create(embed_formula)
+        elif self.embed:
+            # Legacy path - use existing conversion for backwards compatibility
+            kwargs["embed"] = BaserowFormulaObject.create(
+                convert_html_to_embed_formula(self.embed)
+            )
+        else:
+            kwargs["embed"] = BaserowFormulaObject.create("''")
+
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
@@ -564,6 +836,7 @@ AnyElementCreate = Annotated[
     | ButtonElementCreate
     | LinkElementCreate
     | ImageElementCreate
+    | IFrameElementCreate
     | InputTextElementCreate
     | ChoiceElementCreate
     | CheckboxElementCreate
@@ -595,6 +868,7 @@ class ElementTypeMapping:
         "button": "button",
         "link": "link",
         "image": "image",
+        "iframe": "iframe",
         "input_text": "input_text",
         "choice": "choice",
         "checkbox": "checkbox",

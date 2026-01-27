@@ -7,7 +7,7 @@ from django.utils.translation import gettext as _
 import udspy
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.prompts import BUILDER_NAVIGATION_GUIDELINES
+from baserow_enterprise.assistant.prompts import BUILDER_SPECIFIC_GUIDELINES
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
@@ -493,7 +493,8 @@ def get_page_content_tool_factory(
         nonlocal user, workspace, tool_helpers
 
         tool_helpers.update_status(
-            _("Adding field mapping to action %(action_id)d...") % {"action_id": action_id}
+            _("Adding field mapping to action %(action_id)d...")
+            % {"action_id": action_id}
         )
 
         result = utils.add_field_mapping_to_action(action_id, field_id, value_formula)
@@ -654,7 +655,7 @@ def get_page_content_tool_factory(
             )
 
             # Add context-specific guidelines
-            observation.append(BUILDER_NAVIGATION_GUIDELINES)
+            observation.append(BUILDER_SPECIFIC_GUIDELINES)
 
             context.module.init_module(tools=context.module._tools + new_tools)
             return "\n".join(observation)

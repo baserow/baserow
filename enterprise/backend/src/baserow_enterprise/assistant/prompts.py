@@ -35,6 +35,8 @@ APPLICATION_BUILDER_CONCEPTS = """
 
 **Key concepts**:
 • **Pages**: Routes with UI elements (buttons, tables, forms, etc.)
+• **Elements**: UI components (table, form, chart, button, iframe, etc.); can trigger actions
+• **Custom Elements**: IFrame elements with custom HTML/CSS/JS for bespoke functionality in the embed field
 • **Data Sources**: Connect to database tables/views; elements bind to them for dynamic content
 • **Formula**: Reference data from previous nodes and compute values using functions/operators in nodes attributes
 • **Action**: Event-driven actions (create/update rows, navigate, notifications etc.); can be triggered by elements
@@ -78,7 +80,7 @@ AGENT_LIMITATIONS = """
 """
 
 # Context-specific guidelines (injected by tool loaders, not in system prompt)
-BUILDER_NAVIGATION_GUIDELINES = """
+BUILDER_SPECIFIC_GUIDELINES = """
 ## Navigation Best Practices
 
 When building applications, ensure proper navigation so all pages are reachable:
@@ -100,6 +102,54 @@ When building applications, ensure proper navigation so all pages are reachable:
 - Use share_type='all' for navigation on every page (default)
 - Use share_type='only' with page_ids for specific pages only
 - Use share_type='except' with page_ids to hide from specific pages
+
+## IFrame Elements with Custom Code
+
+When users need custom HTML/CSS/JS functionality (charts, widgets, visualizations, etc.), create IFrame elements with source_type='embed'.
+
+**Use separate fields for code (NOT the legacy 'embed' field):**
+- `embed_css`: Plain CSS rules (no <style> tags)
+- `embed_html`: Plain HTML elements (no <html>/<body> tags)
+- `embed_js`: Plain JavaScript code (no <script> tags)
+
+**CRITICAL: Write PLAIN, UNESCAPED code!**
+- Write normal code exactly as you would in any code editor
+- Do NOT escape quotes (\\" or \\')
+- Do NOT escape newlines (\\n)
+- Do NOT use single-line comments (//) - use /* */ instead
+- The system handles all escaping and formula conversion automatically
+
+**Using Data from Data Sources:**
+Use `data_source_mapping` to inject data source values as JavaScript variables:
+```json
+{
+  "embed_js": "document.getElementById('name').textContent = userName;",
+  "data_source_mapping": {
+    "userName": "get('data_source.5.Name')",
+    "userId": "get('data_source.5.id')"
+  }
+}
+```
+This creates `const userName = "actual value";` at script start.
+
+**Complete Example - Interactive Widget:**
+```
+{
+  "type": "iframe",
+  "ref": "greeting_widget",
+  "source_type": "embed",
+  "height": 200,
+  "embed_css": ".box { padding: 20px; background: #667eea; border-radius: 12px; } .greeting { color: white; font-size: 24px; }",
+  "embed_html": "<div class='box'><p class='greeting' id='msg'>Loading...</p></div>",
+  "embed_js": "document.getElementById('msg').textContent = 'Hello, ' + userName + '!';",
+  "data_source_mapping": {
+    "userName": "get('data_source.5.Name')"
+  }
+}
+```
+
+**DO:** Create complete, working IFrame elements for custom UI needs
+**DON'T:** Just explain what they could do or provide incomplete snippets
 """
 
 ASSISTANT_SYSTEM_PROMPT_BASE = (
