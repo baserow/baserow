@@ -104,6 +104,10 @@ export default defineNuxtConfig({
     server: {
       sourcemapIgnoreList: (sourcePath) => sourcePath.includes('node_modules'),
     },
+    optimizeDeps: {
+      // Pre-bundle moment-guess to avoid missing source map warning
+      include: ['moment-guess'],
+    },
   },
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   build: {
