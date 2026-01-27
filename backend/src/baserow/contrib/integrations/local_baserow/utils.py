@@ -195,27 +195,6 @@ def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
     return result
 
 
-def ensure_collaborator_value(value: Any) -> List[dict]:
-    """
-    Transforms the value into an object that the CollaboratorSerializer can use.
-
-    :param value: The value from the request.
-    """
-
-    value = ensure_array(value)
-    result = []
-
-    for item in value:
-        if isinstance(item, dict) and "id" in item:
-            result.append(item)
-        elif isinstance(item, int):
-            result.append({"id": item})
-        if isinstance(item, str):
-            result.append({"id": int(item.strip())})
-
-    return result
-
-
 def guess_cast_function_from_response_serializer_field(
     serializer_field: Union[Field, Serializer], service: LocalBaserowUpsertRow
 ) -> Optional[Callable]:
@@ -227,7 +206,6 @@ def guess_cast_function_from_response_serializer_field(
     """
 
     from baserow.contrib.database.api.fields.serializers import (
-        CollaboratorSerializer,
         FileFieldRequestSerializer,
     )
 
@@ -238,13 +216,6 @@ def guess_cast_function_from_response_serializer_field(
         return lambda value: prepare_files_for_db(
             value, service.integration.authorized_user
         )
-
-    if isinstance(serializer_field, ListSerializer) and isinstance(
-        serializer_field.child, CollaboratorSerializer
-    ):
-        # Special case for collaborator serializer. We need to convert the value
-        # to a list of dicts that contains the row ID.
-        return ensure_collaborator_value
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
 

@@ -6744,17 +6744,11 @@ class MultipleCollaboratorsFieldType(
         return True
 
     def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.pop("required", False)
-        field_serializer = CollaboratorSerializer(
-            **{
-                "required": required,
-                "allow_null": False,
-                **kwargs,
-            }
+        from baserow.contrib.database.api.fields.serializers import (
+            CollaboratorRequestSerializer,
         )
-        return serializers.ListSerializer(
-            child=field_serializer, required=required, **kwargs
-        )
+
+        return CollaboratorRequestSerializer(**kwargs)
 
     def get_search_expression(
         self, field: MultipleCollaboratorsField, queryset: QuerySet
