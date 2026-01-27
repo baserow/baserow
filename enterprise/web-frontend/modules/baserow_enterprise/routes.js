@@ -19,7 +19,7 @@ export const rootChildRoutes = [
   },
 ]
 
-// Routes at the top level (login pages, etc.)
+// Login pages (children of login-pages route, inherit login layout)
 export const routes = [
   {
     name: 'login-saml',

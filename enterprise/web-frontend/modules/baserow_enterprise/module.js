@@ -65,8 +65,15 @@ export default defineNuxtModule({
         }
       })
 
-      // Add top-level routes (login pages, etc.)
-      pages.push(...routes)
+      // Add login pages as children of login-pages (inherit login layout)
+      const loginPagesRoute = pages.find((route) => route.name === 'login-pages')
+      if (loginPagesRoute) {
+        routes.forEach((route) => {
+          if (!loginPagesRoute.children.find(({ name }) => name === route.name)) {
+            loginPagesRoute.children.push(route)
+          }
+        })
+      }
     })
 
     nuxt.hook('i18n:registerModule', (register) => {
