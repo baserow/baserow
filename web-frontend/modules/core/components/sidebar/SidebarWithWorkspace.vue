@@ -24,8 +24,8 @@
                 {{ applicationGroup.name }}
               </div>
               <a
-                :ref="'createApplicationModalToggle' + applicationGroup.type"
                 v-if="canCreateApplication"
+                :ref="'createApplicationModalToggle' + applicationGroup.type"
                 class="tree__heading-add"
                 @click="openCreateApplicationModal(applicationGroup.type)"
               >
