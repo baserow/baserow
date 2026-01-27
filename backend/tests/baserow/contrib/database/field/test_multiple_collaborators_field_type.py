@@ -52,6 +52,29 @@ def test_multiple_collaborators_field_type_create(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_create_with_int(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    row_handler = RowHandler()
+
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name="Collaborator 1"
+    )
+    field_id = collaborator_field.db_column
+
+    assert MultipleCollaboratorsField.objects.all().first().id == collaborator_field.id
+
+    row = row_handler.create_row(user=user, table=table, values={field_id: [user.id]})
+    assert row.id
+    collaborator_field_list = getattr(row, field_id).all()
+    assert len(collaborator_field_list) == 1
+    assert collaborator_field_list[0].id == user.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
 def test_multiple_collaborators_field_type_update(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)
