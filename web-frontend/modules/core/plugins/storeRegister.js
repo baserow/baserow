@@ -1,6 +1,6 @@
 export default defineNuxtPlugin({
   name: 'store',
-  dependsOn: ['create-store', 'client-handler', 'core', 'i18n', 'bus'],
+  dependsOn: ['create-store', 'vuex-state', 'client-handler', 'core', 'i18n', 'bus'],
   async setup(nuxtApp) {
     const {
       $store,
