@@ -113,7 +113,12 @@ export default {
       default: true,
     },
   },
-  emits: ['email-not-verified', 'success', 'two-factor-auth', 'invitation-accepted'],
+  emits: [
+    'email-not-verified',
+    'success',
+    'two-factor-auth',
+    'invitation-accepted',
+  ],
   setup() {
     const values = reactive({
       values: {
