@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 
 from baserow.core.formula import BaserowFormula, BaserowFormulaVisitor
-from baserow.core.formula.parser.exceptions import FieldByIdReferencesAreDeprecated
+from baserow.core.formula.parser.exceptions import (
+    BaserowFormulaSyntaxError,
+    FieldByIdReferencesAreDeprecated,
+)
 from baserow.core.utils import to_path
 
 
@@ -66,7 +69,7 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
         return f"{function_name}({','.join(args)})"
 
     def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
-        args = [expr.accept(self) for expr in (ctx.expr())]
+        args = [expr.accept(self) for expr in ctx.expr()]
         return f" {ctx.op.text} ".join(args)
 
     def visitFunc_name(self, ctx: BaserowFormula.Func_nameContext):
@@ -77,6 +80,14 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
 
     def visitIntegerLiteral(self, ctx: BaserowFormula.IntegerLiteralContext):
         return ctx.getText()
+
+    def visitFieldReference(self, ctx: BaserowFormula.FieldReferenceContext):
+        """
+        Handle field('name') syntax. There is no native support for this function
+        in services, so we raise an error.
+        """
+
+        raise BaserowFormulaSyntaxError("'field' is not a a supported function")
 
     def visitFieldByIdReference(self, ctx: BaserowFormula.FieldByIdReferenceContext):
         raise FieldByIdReferencesAreDeprecated()

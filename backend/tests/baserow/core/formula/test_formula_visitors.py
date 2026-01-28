@@ -6,13 +6,15 @@ import pytest
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.parser.exceptions import InvalidNumberOfArguments
+from baserow.core.formula.parser.formula_validation_visitor import (
+    BaserowFormulaValidationVisitor,
+)
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import (
     DataProviderType,
     DataProviderTypeRegistry,
     formula_runtime_function_registry,
 )
-from baserow.core.formula.visitors import BaserowFormulaArgumentVisitor
 from baserow.core.services.dispatch_context import DispatchContext
 
 
@@ -35,7 +37,7 @@ def mock_registry():
 
 def parse_and_visit_formula(formula: str, registry=None):
     tree = get_parse_tree_for_formula(formula)
-    visitor = BaserowFormulaArgumentVisitor(
+    visitor = BaserowFormulaValidationVisitor(
         formula_runtime_function_registry, data_provider_type_registry=registry
     )
     return visitor.visit(tree)

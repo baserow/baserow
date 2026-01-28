@@ -71,42 +71,56 @@
         {
             "formula": "unknownfunction()",
             "context": {},
-            "error": null
+            "frontendError": "Unsupported function 'unknownfunction'.",
+            "backend_error": "Unsupported function 'unknownfunction'."
+        },
+        {
+          "formula": "field('field_123')",
+          "context": {},
+          "frontendError": "Unsupported function 'field'.",
+          "backend_error": "'field' is not a a supported function"
         },
         {
             "formula": "get()",
             "context": {},
-            "error": "The 'get' function expects exactly 1 arguments."
+            "frontendError": "The 'get' function expects exactly 1 arguments.",
+            "backend_error": "0 arguments were given to the 'get' function, it must instead be given 1"
         },
         {
             "formula": "get('a', 'b')",
             "context": {},
-            "error": "The 'get' function expects exactly 1 arguments."
+            "frontendError": "The 'get' function expects exactly 1 arguments.",
+            "backend_error": "2 arguments were given to the 'get' function, it must instead be given 1"
         },
         {
             "formula": "get('jeff')",
             "context": {},
-            "error": "runtimeGetErrors.invalidPath"
+            "frontendError": "runtimeGetErrors.invalidPath",
+            "backend_error": "The formula provider 'jeff' used in 'jeff' does not exist in the core module."
         },
         {
             "formula": "get('.1')",
             "context": {},
-            "error": "runtimeGetErrors.missingProvider"
+            "frontendError": "runtimeGetErrors.missingProvider",
+            "backend_error": "The 'get' function arguments must start with a formula provider name."
         },
         {
             "formula": "get('foo.1')",
             "context": {},
-            "error": "runtimeGetErrors.unknownProvider"
+            "frontendError": "runtimeGetErrors.unknownProvider",
+            "backend_error": "The formula provider 'foo' used in 'foo.1' does not exist in the core module."
         },
         {
             "formula": "concat()",
             "context": {},
-            "error": null
+            "frontendError": null,
+            "backend_error": "0 arguments were given to the 'concat' function, it must instead be given None"
         },
         {
             "formula": "concat('a')",
             "context": {},
-            "error": null
+            "frontendError": null,
+            "backend_error": null
         }
     ]
 }

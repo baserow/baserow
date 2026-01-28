@@ -13,7 +13,7 @@ class TestDataProviderType extends DataProviderType {
   }
 }
 
-describe('BaserowFormulaArgumentVisitor', () => {
+describe('BaserowFormulaValidationVisitor', () => {
   let testApp = null
   let validationContext = null
   let functions = null
@@ -40,15 +40,15 @@ describe('BaserowFormulaArgumentVisitor', () => {
 
   test.each(INVALID_FORMULA_VALIDATION_TESTS)(
     'should be flagged as an invalid formula: %s',
-    ({ formula, error }) => {
+    ({ formula, frontendError }) => {
       const result = isFormulaValid(
         formula,
         functions,
         false,
         validationContext
       )
-      if (error) {
-        expect(result).toMatchObject({ valid: false, errors: [error] })
+      if (frontendError) {
+        expect(result).toMatchObject({ valid: false, errors: [frontendError] })
       } else {
         expect(result.valid).toBe(false)
       }

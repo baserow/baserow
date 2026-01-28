@@ -12,7 +12,10 @@
         @data-node-clicked="dataNodeClicked"
       />
     </div>
-    <Alert v-if="formulaErrorContext.scope === 'argument'" type="error">
+    <Alert
+      v-if="formulaErrorContext.scope && formulaErrorContext.scope !== 'syntax'"
+      type="error"
+    >
       <template #title>{{ formulaErrorContext.title }}</template>
       <p>{{ formulaErrorContext.message }}</p>
     </Alert>
@@ -483,7 +486,7 @@ export default {
       if (this.isFormulaInvalid) {
         this.formulaErrorContext = {
           scope: validationResult.scope,
-          title: this.$t('formulaInputField.invalidFunctionArgumentsTitle'),
+          title: this.$t('formulaInputField.invalidFormulaTitle'),
           message: validationResult.errors[0],
         }
       } else {

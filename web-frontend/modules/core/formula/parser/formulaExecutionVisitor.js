@@ -11,7 +11,7 @@ export class FunctionCollection {
   }
 }
 
-export default class JavascriptExecutor extends BaserowFormulaVisitor {
+export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisitor {
   constructor(functions, formulaContext = {}) {
     super()
     this.functions = functions

@@ -1,12 +1,12 @@
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
-import JavascriptExecutor from '@baserow/modules/core/formula/parser/javascriptExecutor'
+import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser/formulaExecutionVisitor.js'
 import {
   VALID_FORMULA_EXECUTION_TESTS,
   INVALID_FORMULA_EXECUTION_TESTS,
 } from '@baserow_test_cases/formula_visitor_cases'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
-describe('JavascriptExecutor', () => {
+describe('BaserowFormulaExecutionVisitor', () => {
   let testApp = null
   beforeEach(() => {
     testApp = new TestApp()
@@ -17,7 +17,7 @@ describe('JavascriptExecutor', () => {
     ({ formula, result, context }) => {
       const tree = parseBaserowFormula(formula)
       expect(
-        new JavascriptExecutor(
+        new BaserowFormulaExecutionVisitor(
           {
             get(name) {
               return testApp.store.$registry.get('runtimeFormulaFunction', name)
@@ -34,7 +34,7 @@ describe('JavascriptExecutor', () => {
     ({ formula, context }) => {
       const tree = parseBaserowFormula(formula)
       expect(() =>
-        new JavascriptExecutor(
+        new BaserowFormulaExecutionVisitor(
           {
             get(name) {
               return testApp.store.$registry.get('runtimeFormulaFunction', name)

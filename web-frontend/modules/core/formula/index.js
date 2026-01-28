@@ -1,6 +1,6 @@
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
-import JavascriptExecutor from '@baserow/modules/core/formula/parser/javascriptExecutor'
-import BaserowFormulaArgumentVisitor from '@baserow/modules/core/formula/parser/functionArgumentVisitor'
+import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser/formulaExecutionVisitor.js'
+import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
 /**
@@ -28,7 +28,10 @@ export const resolveFormula = (
 
   try {
     const tree = parseBaserowFormula(formulaCtx.formula)
-    return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
+    return new BaserowFormulaExecutionVisitor(
+      functions,
+      RuntimeFormulaContext
+    ).visit(tree)
   } catch (err) {
     console.debug(`FORMULA DEBUG: ${err}`)
     return null
@@ -41,7 +44,8 @@ export const resolveFormula = (
  *
  * @param {string} formula - The formula string to validate
  * @param {FunctionCollection} functions - The collection of available formula functions
- * @param {boolean} syntaxOnly - If true, only syntax is validated; if false, arguments are also validated.
+ * @param {boolean} syntaxOnly - If true, only syntax is validated; if false, functions
+ *  and their arguments are also validated.
  * @param validationContext - Context needed for validation (e.g., { dataProviderRegistry })
  * @returns {Object} - Object with { scope: string, valid: boolean, errors: Array<string> }
  */
@@ -57,15 +61,11 @@ export const isFormulaValid = (
   try {
     const tree = parseBaserowFormula(formula)
     if (!syntaxOnly) {
-      new BaserowFormulaArgumentVisitor(functions, validationContext).visit(
+      new BaserowFormulaValidationVisitor(functions, validationContext).visit(
         tree
       )
     }
-    return {
-      errors: [],
-      valid: true,
-      scope: syntaxOnly ? 'syntax' : 'arguments',
-    }
+    return { errors: [], valid: true, scope: null }
   } catch (err) {
     return { scope: err.scope, valid: false, errors: [err.message] }
   }

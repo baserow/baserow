@@ -12,7 +12,7 @@ from baserow.core.formula.types import (
 )
 
 
-class BaserowPythonExecutor(BaserowFormulaVisitor):
+class BaserowFormulaExecutionVisitor(BaserowFormulaVisitor):
     def __init__(
         self,
         functions: FunctionCollection,

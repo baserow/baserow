@@ -1,13 +1,14 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
+import { InvalidFormulaType } from '@baserow/modules/core/formula/parser/errors.js'
 
 /**
- * A visitor that validates formula function arguments during parsing.
+ * A visitor that validates formula functions and their arguments during parsing.
  * Each function can define custom validation logic via validateArguments().
  *
  * This is used to validate formulas before execution, catching errors early
  * and providing better user feedback.
  */
-export default class BaserowFormulaArgumentVisitor extends BaserowFormulaVisitor {
+export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisitor {
   /**
    * @param {FunctionCollection} functions - The collection of available formula functions
    * @param {Object} validationContext - Context needed for validation (e.g., dataProviderRegistry)
@@ -20,6 +21,10 @@ export default class BaserowFormulaArgumentVisitor extends BaserowFormulaVisitor
 
   visitRoot(ctx) {
     return ctx.expr().accept(this)
+  }
+
+  visitFieldReference(ctx) {
+    throw new InvalidFormulaType("Unsupported function 'field'.")
   }
 
   visitStringLiteral(ctx) {
@@ -71,7 +76,12 @@ export default class BaserowFormulaArgumentVisitor extends BaserowFormulaVisitor
   visitFunctionCall(ctx) {
     const functionName = ctx.func_name().getText().toLowerCase()
     const functionArgumentExpressions = ctx.expr()
-    const formulaFunctionType = this.functions.get(functionName)
+    let formulaFunctionType = null
+    try {
+      formulaFunctionType = this.functions.get(functionName)
+    } catch(e) {
+      throw new InvalidFormulaType(`Unsupported function '${functionName}'.`)
+    }
 
     // Accept the argument expressions, then before parsing them,
     // confirm that we have the valid number of arguments.

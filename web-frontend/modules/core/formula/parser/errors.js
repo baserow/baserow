@@ -25,6 +25,14 @@ export class InvalidNumberOfArguments extends Error {
   }
 }
 
+export class InvalidFormulaType extends Error {
+  constructor(message) {
+    super()
+    this.scope = 'function'
+    this.message = message
+  }
+}
+
 export class InvalidFormulaArgumentType extends Error {
   constructor(formulaFunctionType, arg) {
     super()
@@ -42,3 +50,4 @@ export class InvalidFormulaArgument extends Error {
     this.message = message
   }
 }
+

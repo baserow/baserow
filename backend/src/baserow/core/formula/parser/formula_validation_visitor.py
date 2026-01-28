@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import (
     FieldByIdReferencesAreDeprecated,
+    FormulaFunctionTypeDoesNotExist,
     InvalidNumberOfArguments,
 )
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
@@ -14,10 +16,10 @@ if TYPE_CHECKING:
     from baserow.core.formula.registries import DataProviderTypeRegistry
 
 
-class BaserowFormulaArgumentVisitor(BaserowFormulaVisitor):
+class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
     """
     A Baserow formula visitor which is responsible for validating a formula's
-    function arguments.
+    function and its arguments.
     """
 
     def __init__(
@@ -71,6 +73,14 @@ class BaserowFormulaArgumentVisitor(BaserowFormulaVisitor):
     ):
         return ctx.expr().accept(self)
 
+    def visitFieldReference(self, ctx: BaserowFormula.FieldReferenceContext):
+        """
+        Handle field('name') syntax. There is no native support for this function
+        in non-database formulas, so we raise an error.
+        """
+
+        raise InvalidRuntimeFormula("'field' is not a a supported function")
+
     def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
         """
         Visits a function call node in the parse tree. For each function we encounter,
@@ -85,7 +95,10 @@ class BaserowFormulaArgumentVisitor(BaserowFormulaVisitor):
 
         accepted_args = [expr.accept(self) for expr in ctx.expr()]
         function_name = ctx.func_name().getText().lower()
-        formula_function_type = self.functions.get(function_name)
+        try:
+            formula_function_type = self.functions.get(function_name)
+        except FormulaFunctionTypeDoesNotExist:
+            raise InvalidRuntimeFormula(f"Unsupported function '{function_name}'.")
         if not formula_function_type.validate_number_of_args(accepted_args):
             raise InvalidNumberOfArguments(formula_function_type, len(accepted_args))
         args_parsed = formula_function_type.parse_args(accepted_args)

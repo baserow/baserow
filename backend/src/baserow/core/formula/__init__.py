@@ -24,8 +24,10 @@ __all__ = [
     BaserowFormulaSyntaxError,
 ]
 
+from baserow.core.formula.parser.formula_execution_visitor import (
+    BaserowFormulaExecutionVisitor,
+)
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
-from baserow.core.formula.parser.python_executor import BaserowPythonExecutor
 
 
 def resolve_formula(
@@ -51,4 +53,4 @@ def resolve_formula(
         return formula["formula"]
 
     tree = get_parse_tree_for_formula(formula["formula"])
-    return BaserowPythonExecutor(functions, formula_context).visit(tree)
+    return BaserowFormulaExecutionVisitor(functions, formula_context).visit(tree)
