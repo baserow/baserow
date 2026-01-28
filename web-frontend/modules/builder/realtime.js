@@ -152,7 +152,7 @@ export const registerRealtimeEvents = (realtime) => {
 
   // Data source events
   realtime.registerEvent('data_source_created', ({ store }, data) => {
-    const ctx = getPageContext(store, data.page_id)
+    const ctx = getPageContext(store, data.data_source.page_id)
     if (!ctx) return
 
     store.dispatch('dataSource/forceCreate', {
@@ -163,7 +163,7 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('data_source_updated', ({ store }, data) => {
-    const ctx = getPageContext(store, data.page_id)
+    const ctx = getPageContext(store, data.data_source.page_id)
     if (!ctx) return
 
     const dataSource = store.getters['dataSource/getPagesDataSourceById'](
