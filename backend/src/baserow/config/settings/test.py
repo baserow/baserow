@@ -29,9 +29,6 @@ else:
 ALLOWED_ENV_PREFIXES = ("DATABASE_",)
 
 
-original_getenv = os.getenv
-
-
 def getenv_for_tests(key: str, default: str = "") -> str:
     """
     Get env var for tests:

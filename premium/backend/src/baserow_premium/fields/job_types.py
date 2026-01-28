@@ -5,7 +5,7 @@ from queue import Empty, Queue
 from typing import Any, NamedTuple, Type
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Exists, OuterRef, QuerySet
+from django.db.models import Exists, OuterRef, Q, QuerySet
 
 from loguru import logger
 from rest_framework import serializers
@@ -192,8 +192,8 @@ class GenerateAIValuesJobType(JobType):
         """
 
         return queryset.filter(
-            **{f"{ai_field.db_column}__isnull": True}
-        ) | queryset.filter(**{ai_field.db_column: ""})
+            Q(**{f"{ai_field.db_column}__isnull": True}) | Q(**{ai_field.db_column: ""})
+        )
 
     def _get_field(self, field_id: int) -> AIField:
         """
