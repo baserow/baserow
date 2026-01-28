@@ -1,732 +1,831 @@
 {
     "webhookModal": {
-        "title": "",
-        "createWebhook": "",
-        "backToList": ""
+        "title": "Вебхуки {name}",
+        "createWebhook": "Створити вебхук",
+        "backToList": "Повернутися до списку"
     },
     "deleteWebhookModal": {
-        "title": "",
-        "deleteButton": "",
-        "body": ""
+        "title": "Видалити {webhookName}",
+        "deleteButton": "Видалити вебхук",
+        "body": "Ви впевнені, що хочете видалити цей вебхук? Ви не зможете відновити його пізніше."
     },
     "webhookList": {
-        "noWebhooksMessage": ""
+        "noWebhooksMessage": "Ви ще не створили жодного вебхука. Вебхуки можна використовувати для інформування сторонніх систем, коли рядок у Baserow було створено, оновлено або видалено."
     },
     "testWebhookModal": {
-        "title": "",
-        "unreachable": ""
+        "title": "Тестувати вебхук",
+        "unreachable": "Сервер недоступний"
     },
     "webhookForm": {
         "inputLabels": {
-            "name": "",
-            "value": "",
-            "requestMethod": "",
-            "url": "",
-            "userFieldNames": "",
-            "events": "",
-            "headers": "",
-            "example": ""
+            "name": "Назва",
+            "value": "Значення",
+            "requestMethod": "Метод",
+            "url": "URL",
+            "userFieldNames": "Назви полів користувача",
+            "events": "Які події мають викликати цей вебхук?",
+            "headers": "Додаткові заголовки",
+            "example": "Приклад даних"
         },
         "errors": {
-            "urlField": "",
-            "invalidHeaders": ""
+            "urlField": "Має бути дійсною URL-адресою, що починається з «https://» або «http://».",
+            "invalidHeaders": "Один із заголовків недійсний."
         },
         "checkbox": {
-            "sendUserFieldNames": ""
+            "sendUserFieldNames": "Використовувати назву поля замість id"
         },
         "radio": {
-            "allEvents": "",
-            "customEvents": ""
+            "allEvents": "Надсилати все",
+            "customEvents": "Дозвольте вибрати окремі події"
         },
-        "triggerButton": "",
+        "triggerButton": "Запустити тестовий вебхук",
         "deactivated": {
-            "title": "",
-            "content": "",
-            "activate": ""
+            "title": "Вебхук деактивовано",
+            "content": "Цей вебхук було деактивовано через занадто багато послідовних помилок. Перевірте журнал викликів для отримання додаткової інформації. Натисніть кнопку нижче, щоб активувати його знову. Не забудьте зберегти вебхук після активації.",
+            "activate": "Активувати"
         },
         "deprecatedEventType": {
             "title": "",
             "description": "",
             "convert": ""
-        }
+        },
+        "triggerWhenFieldsHaveChanged": "Викликати при зміні полів",
+        "helpTriggerWhenFieldsHaveChanged": "Буде викликано лише якщо значення комірки вибраних полів зміниться."
     },
     "webhook": {
-        "details": "",
-        "lastCall": "",
-        "noCalls": "",
-        "callLog": "",
-        "triggerDescription": ""
+        "details": "деталі",
+        "lastCall": "Останній виклик: {lastCallTime}",
+        "noCalls": "Викликів не було",
+        "callLog": "Журнал викликів",
+        "triggerDescription": "Викликається на кожну подію | Викликається на {count} подію | Викликається на {count} подій"
     },
     "createWebhook": {
-        "errorTableWebhookMaxLimitExceededTitle": "",
-        "errorTableWebhookMaxLimitExceededDescription": ""
+        "errorTableWebhookMaxLimitExceededTitle": "Перевищено максимальну кількість вебхуків",
+        "errorTableWebhookMaxLimitExceededDescription": "Неможливо створити вебхук, оскільки перевищено максимальну кількість вебхуків на таблицю."
     },
     "sidebar": {
-        "viewAPI": "",
-        "createTable": ""
+        "viewAPI": "Переглянути документацію API",
+        "createTable": "Нова таблиця"
     },
     "sidebarItem": {
-        "exportTable": ""
+        "exportTable": "Експортувати таблицю",
+        "webhooks": "Вебхуки",
+        "lastSynced": "Остання синхронізація",
+        "notSynced": "не синхронізовано",
+        "sync": "Синхронізувати таблицю",
+        "updateSyncConfig": "Оновити конфігурацію синхронізації"
     },
     "duplicateTableJobType": {
-        "duplicating": "",
-        "duplicatedTitle": ""
+        "duplicating": "Дублювання",
+        "duplicatedTitle": "Таблицю продубльовано",
+        "name": "Дублювати таблицю"
     },
     "apiToken": {
-        "create": "",
-        "read": "",
-        "update": "",
-        "delete": "",
-        "tokenPrefix": "",
-        "viewAPIDocs": "",
-        "generateNewToken": "",
-        "showOrHide": "",
-        "copyToClipboard": "",
-        "showDatabases": ""
+        "create": "створити",
+        "read": "читати",
+        "update": "оновити",
+        "delete": "видалити",
+        "tokenPrefix": "Токен:",
+        "viewAPIDocs": "Переглянути документацію API",
+        "generateNewToken": "Згенерувати новий токен",
+        "showOrHide": "Показати або приховати токен",
+        "copyToClipboard": "Копіювати до буфера обміну",
+        "showDatabases": "показати бази даних"
     },
     "apiTokenSettings": {
-        "title": "",
-        "createToken": "",
-        "noTokensMessage": "",
-        "hasFullPermissions": "",
-        "hasOnlySelectedPermissions": "",
-        "noPermissions": "",
-        "createNewTitle": "",
-        "backToOverview": ""
+        "title": "Токени бази даних",
+        "createToken": "Створити токен",
+        "noTokensMessage": "Ви ще не створили токен бази даних. Ви можете використовувати токени бази даних для автентифікації в кінцевих точках REST API, де можна створювати, читати, оновлювати та видаляти рядки. Можна встановити дозволи на рівні таблиці.",
+        "hasFullPermissions": "Має повні дозволи, також для всіх дочірніх елементів.",
+        "hasOnlySelectedPermissions": "Має дозволи лише для вибраних дочірніх елементів.",
+        "noPermissions": "Не має дозволів.",
+        "createNewTitle": "Створити новий токен бази даних",
+        "backToOverview": "Повернутися до огляду"
     },
     "apiTokenForm": {
-        "nameLabel": "",
-        "workspaceLabel": ""
+        "nameLabel": "Назва",
+        "workspaceLabel": "Робочий простір"
     },
     "apiDocsSelectDatabase": {
-        "needOneDatabase": ""
+        "needOneDatabase": "Вам потрібно мати принаймні одну базу даних, щоб переглянути документацію API."
     },
     "apiDocsExample": {
-        "requestSample": "",
-        "responseSample": "",
-        "userFieldNames": ""
+        "requestSample": "Приклад запиту",
+        "responseSample": "Приклад відповіді",
+        "userFieldNames": "Назви полів користувача"
     },
     "apiDocsParameter": {
-        "optional": "",
-        "defaultValue": ""
+        "optional": "необов'язково",
+        "defaultValue": "За замовчуванням: {value}"
     },
     "apiDocsTableGetRow": {
-        "description": "",
-        "rowId": ""
+        "description": "Отримати один рядок {name}.",
+        "rowId": "Унікальний ідентифікатор рядка, який запитується."
     },
     "apiDocsErrors": {
-        "errorCode": "",
-        "name": "",
-        "description": "",
-        "okDescription": "",
-        "badRequestDescription": "",
-        "unauthorizedDescription": "",
-        "notFoundDescription": "",
-        "requestEntityTooLargeDescription": "",
-        "internalErrorDescription": "",
-        "badGatewayDescription": "",
-        "unavailableDescription": ""
+        "errorCode": "Код помилки",
+        "name": "Назва",
+        "description": "Опис",
+        "okDescription": "Запит успішно виконано.",
+        "badRequestDescription": "Запит містить недійсні значення або JSON не вдалося розібрати.",
+        "unauthorizedDescription": "Коли ви намагаєтесь отримати доступ до кінцевої точки без дійсного токена бази даних.",
+        "notFoundDescription": "Рядок або таблицю не знайдено.",
+        "requestEntityTooLargeDescription": "Запит перевищив максимально допустимий розмір даних.",
+        "internalErrorDescription": "Сервер зіткнувся з неочікуваною помилкою.",
+        "badGatewayDescription": "Baserow перезапускається або відбувається неочікуваний збій.",
+        "unavailableDescription": "Сервер не зміг обробити ваш запит вчасно."
     },
     "apiDocsTableFields": {
-        "tableTitle": "",
-        "tableId": "",
-        "description": "",
-        "id": "",
-        "name": "",
-        "type": "",
-        "compatibleFilters": ""
+        "tableTitle": "Таблиця {name}",
+        "tableId": "ID цієї таблиці:",
+        "description": "Кожен рядок у таблиці {name} містить наступні поля.",
+        "id": "ID",
+        "name": "Назва",
+        "type": "Тип",
+        "compatibleFilters": "Сумісні фільтри"
     },
     "apiDocsTableListRows": {
-        "description": "",
-        "page": "",
-        "size": "",
-        "userFieldNames": "",
-        "search": "",
-        "orderBy": "",
-        "filter": "",
-        "filterLink": "",
-        "filterType": "",
-        "include": "",
-        "exclude": "",
-        "viewId": ""
+        "description": "Щоб отримати список рядків у таблиці *{name}*, потрібно зробити `GET` запит до кінцевої точки *{name}*. Відповідь розбита на сторінки, і за замовчуванням повертається перша сторінка. Потрібну сторінку можна отримати, вказавши параметри запиту `page` та `size`.",
+        "page": "Визначає, яку сторінку рядків слід повернути.",
+        "size": "Визначає, скільки рядків має повертатися на сторінку.",
+        "userFieldNames": "Коли параметр GET `user_field_names` надано і його значення є одним з наступних: `y`, `yes`, `true`, `t`, `on`, `1` або порожній рядок, назви полів, що повертаються цією кінцевою точкою, будуть фактичними назвами полів.\n\nЯкщо параметр GET `user_field_names` не надано або він не відповідає жодному з вищезазначених значень, усі повернуті назви полів будуть `field_`, за яким слідує id поля. Наприклад, `field_1` посилається на поле з id `1`.\n\n Крім того, коли встановлено `user_field_names`, змінюється поведінка інших параметрів GET `order_by`, `include` та `exclude`. Вони натомість очікують списки фактичних назв полів, розділених комами.",
+        "search": "Якщо надано, будуть повернуті лише рядки з даними, що відповідають пошуковому запиту.",
+        "orderBy": "За бажанням рядки можна впорядкувати за полями, розділеними комою. За замовчуванням або якщо перед полем стоїть '+', поле впорядковується за зростанням (A-Z), але якщо перед полем стоїть '-', його можна впорядкувати за спаданням (Z-A).\n\n #### З `user_field_names`:\n\n `order_by` має бути списком назв полів для сортування, розділених комами. Наприклад, якщо ви надасте такий параметр GET `order_by=My Field,-My Field 2`, рядки будуть відсортовані за полем `My Field` за зростанням. Якщо деякі поля мають однакове значення, ця підмножина буде відсортована за полем `My Field 2` за спаданням.\n\n Переконайтеся, що поля з назвами, що починаються з `+` або `-`, явно мають перед собою ще один `+` або `-`. Наприклад, `+-Name`.\n\n Назви полів, що містять коми, мають бути взяті в лапки: `\"Name ,\"`. Якщо назви полів містять лапки, їх потрібно екранувати символом `\\`. Наприклад: `Name \\\"`. \n\n#### Без `user_field_names`:\n\n `order_by` має бути списком `field_`, за яким слідує id поля для сортування, розділених комами. Наприклад, якщо ви надасте такий параметр GET `order_by=field_1,-field_2`, рядки будуть відсортовані за `field_1` за зростанням. Якщо деякі поля мають однакове значення, ця підмножина буде відсортована за `field_2` за спаданням.",
+        "filter": "Рядки можна необов'язково фільтрувати, використовуючи ті ж фільтри перегляду, що доступні для переглядів. Можна застосувати кілька фільтрів, якщо вони відповідають тому ж формату. Змінні `field` та `filter` вказують, як і де застосовувати фільтр відповідно.\n\n#### З `user_field_names`:\n\nНаприклад, якщо ви надасте такий параметр GET: `filter__Name__equal=test`, будуть повернуті лише рядки, де значення `Name` дорівнює 'test'. Цей метод зворотно сумісний і перевірятиме за `field_id`, якщо не вдасться знайти за назвою.\n\n#### Без `user_field_names`:\n\nНаприклад, якщо ви надасте такий параметр GET: `filter__field_1__equal=test`, будуть повернуті лише рядки, де значення `field_1` дорівнює 'test'.\n\nЗверніть увагу, що якщо надано параметр filters, цей параметр буде проігноровано. ",
+        "filterLink": "Список усіх фільтрів можна знайти тут.",
+        "filterType": "- `AND`: Вказує, що рядки повинні відповідати всім наданим фільтрам.\n- `OR`: Вказує, що рядки повинні відповідати лише одному з фільтрів.\n\n Це працює лише якщо надано два або більше фільтрів.",
+        "include": "За замовчуванням усі поля включені у відповідь. Ви можете вибрати підмножину полів для включення, надавши параметр запиту include.\n\n #### З `user_field_names`:\n\n `include` має бути списком назв полів для включення в результати, розділених комами. Наприклад, якщо ви надасте такий параметр GET: `include=My Field,-My Field 2`, то лише ці поля будуть включені (якщо вони явно не виключені).\n\n Назви полів, що містять коми, мають бути взяті в лапки: `\"Name ,\"`. Якщо назви полів містять лапки, їх потрібно екранувати символом `\\`. Наприклад: `Name \\\"`.\n\n #### Без `user_field_names`:\n\n `include` має бути списком `field_`, за яким слідує id поля для включення в результати, розділених комами. Наприклад: якщо ви надасте такий параметр GET `include=field_1,field_2`, то лише поля з id `1` та id `2` будуть включені (якщо вони явно не виключені).",
+        "exclude": "За замовчуванням усі поля включені у відповідь. Ви можете вибрати підмножину полів для виключення, надавши параметр запиту exclude.\n\n #### З `user_field_names`:\n\n `exclude` має бути списком назв полів для виключення з результатів, розділених комами. Наприклад, якщо ви надасте такий параметр GET: `exclude=My Field,-My Field 2`, то ці поля будуть виключені.\n\n Назви полів, що містять коми, мають бути взяті в лапки: `\"Name ,\"`. Якщо назви полів містять лапки, їх потрібно екранувати символом `\\`. Наприклад: `Name \\\"`.\n\n #### Без `user_field_names`:\n\n `exclude` має бути списком `field_`, за яким слідує id поля для виключення з результатів, розділених комами. Наприклад: якщо ви надасте такий параметр GET `exclude=field_1,field_2`, то поля з id `1` та id `2` будуть виключені.",
+        "viewId": "За замовчуванням жодні фільтри та сортування, крім тих, що визначені в параметрах запиту, не застосовуються. Ви можете додати фільтри та сортування перегляду, надавши його `id` у параметрі GET `view_id`. Наприклад, якщо ви надасте такий параметр GET `view_id=1`, то будуть застосовані фільтри та сортування, визначені в перегляді з id `1`. Ви можете знайти `view_id` у контекстному меню будь-якого перегляду. Це число в дужках за назвою перегляду. \n\n #### З `filter__{field}__{filter}` \n\n Будуть застосовані як фільтр, наданий у параметрі запиту, так і фільтри, визначені в перегляді.\n\n #### З `order_by` \n\n Якщо надано `order_by`, то сортування, визначене в перегляді, буде проігноровано.",
+        "filters": "Рядки можна необов'язково фільтрувати, використовуючи ті ж фільтри перегляду, що доступні для переглядів. Цей параметр приймає серіалізований JSON рядок, що містить дерево фільтрів для застосування до цього перегляду. Дерево фільтрів — це вкладена структура, що містить фільтри, які потрібно застосувати. \n\n#### З `user_field_names`:\n\nПриклад дійсного дерева фільтрів: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"}]}`.\n\n#### Без `user_field_names`:\n\nНаприклад, якщо ви надасте такий параметр GET: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`\n\nЗверніть увагу, що якщо цей параметр надано, всі інші `filter__{field}__{filter}` будуть проігноровані, так само як і параметр filter_type.",
+        "filtersBuilder": "Відкрити конструктор параметрів фільтрів",
+        "join": "Дозволяє запитувати пошук значень полів з цільової таблиці через існуючі поля зв'язаних рядків. Назва параметра має бути назвою існуючого поля зв'язаного рядка, за якою слідує __join. Значенням має бути список назв полів, для яких ми хочемо отримати додаткові значення. Ви можете надати одне або кілька цільових полів. Неможливо отримати значення поля зв'язаного рядка в цільовій таблиці.\n\n #### З `user_field_names`:\n\n `join` має бути списком назв полів для включення в результати, розділених комами. Наприклад: якщо ви надасте такий параметр GET `LinkRowField__join=MyField,MyField2`, то значення `MyField` та `My Field2` у таблиці, зв'язаній через `LinkRowField`, будуть включені у відповідь.\n\n#### Без `user_field_names`:\n\n `join` має бути списком `field_`, за яким слідує id поля для включення в результати, розділених комами. Наприклад: якщо ви надасте такий параметр GET `field_1__join=field_2,field_3`, то значення `field_2` та `field_3` у таблиці, зв'язаній через `field_1`, будуть включені у відповідь."
     },
     "apiDocsIntro": {
-        "intro": "",
-        "autoDocDescription": "",
-        "databaseId": "",
-        "jsClient": "",
-        "pythonClient": ""
+        "intro": "База даних {name} надає простий спосіб інтегрувати дані з будь-якою зовнішньою системою. API дотримується семантики REST, використовує JSON для кодування об'єктів та покладається на стандартні HTTP-коди, машинно- та людино-зрозумілі помилки для сигналізації про результати операцій.",
+        "autoDocDescription": "Ця документація генерується автоматично на основі таблиць та полів у вашій базі даних. Якщо ви вносите зміни до бази даних, таблиці або полів, інтерфейс API також може змінитися. Тому переконайтеся, що ви оновлюєте свою реалізацію API відповідно.",
+        "databaseId": "ID цієї бази даних:",
+        "jsClient": "Приклад JavaScript клієнта API:",
+        "pythonClient": "Приклад Python клієнта API:"
     },
     "apiDocsTableListFields": {
-        "description": "",
-        "resultFieldProperties": "",
-        "id": "",
-        "name": "",
-        "tableId": "",
-        "order": "",
-        "primary": "",
-        "type": "",
-        "extraProps": "",
-        "readOnly": ""
+        "description": "Щоб отримати список полів таблиці {name}, потрібно зробити `GET` запит до кінцевої точки полів {name}. Перелік полів можливий лише якщо токен бази даних має дозволи на читання, створення або оновлення.",
+        "resultFieldProperties": "Властивості полів результату",
+        "id": "Первинний ключ поля. Може використовуватися для генерації назви стовпця бази даних шляхом додавання префікса `field_`.",
+        "name": "Назва поля.",
+        "tableId": "ID пов'язаної таблиці.",
+        "order": "Порядок поля в таблиці. 0 для першого поля.",
+        "primary": "Вказує, чи є поле первинним. Якщо `true`, поле не можна видалити, і значення має представляти весь рядок.",
+        "type": "Тип, визначений для цього поля.",
+        "extraProps": "Деякі додаткові властивості тут не описані, оскільки вони специфічні для типу.",
+        "readOnly": "Вказує, чи є поле полем лише для читання. Якщо true, неможливо оновити значення комірки.",
+        "descriptionField": "Опис поля"
     },
     "apiDocsTableDeleteRow": {
-        "description": "",
-        "rowId": ""
+        "description": "Видаляє існуючий рядок {name}.",
+        "rowId": "Унікальний ідентифікатор рядка, який потрібно видалити."
     },
     "apiDocsTableDeleteRows": {
-        "description": "",
-        "items": ""
+        "description": "Видаляє існуючі рядки {name}.",
+        "items": "Масив id рядків, які потрібно видалити."
     },
     "apiDocsTableMoveRow": {
-        "description": "",
-        "rowId": "",
-        "before": ""
+        "description": "Переміщує існуючий рядок {name} перед іншим рядком. Якщо `before_id` не надано, рядок буде переміщено в кінець таблиці.",
+        "rowId": "Переміщує рядок, пов'язаний зі значенням.",
+        "before": "Переміщує рядок, пов'язаний із заданим `row_id`, перед рядком, пов'язаним із наданим значенням. Якщо не надано, рядок буде переміщено в кінець."
     },
     "apiDocsUploadFile": {
-        "description": "",
-        "file": ""
+        "description": "Завантажує файл до Baserow шляхом прямого завантаження вмісту файлу. Очікується `file` multipart, що містить вміст файлу. Відповідь потім можна використати для [завантаження файлу до рядка]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
+        "file": "`file` multipart, що містить вміст файлу."
     },
     "apiDocsUploadFileViaURL": {
-        "description": "",
-        "url": ""
+        "description": "Завантажує файл до Baserow, завантаживши його з наданої URL-адреси. Відповідь потім можна використати для [завантаження файлу до рядка]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
+        "url": "URL-адреса, яку ви хочете, щоб Baserow завантажив від вашого імені."
     },
     "apiDocsTableUpdateRow": {
-        "description": "",
-        "rowId": "",
-        "before": ""
+        "description": "Оновлює існуючий рядок {name}.",
+        "rowId": "Унікальний ідентифікатор рядка, який потрібно оновити.",
+        "before": "Якщо надано, новостворений рядок буде розміщено перед рядком із наданим id."
     },
     "apiDocsTableUpdateRows": {
-        "description": "",
-        "id": ""
+        "description": "Оновлює існуючі рядки {name}.",
+        "id": "ID рядка."
     },
     "apiDocsTableCreateRow": {
-        "description": "",
-        "before": ""
+        "description": "Створити новий рядок {name}.",
+        "before": "Якщо надано, новостворений рядок буде розміщено перед рядком із наданим id."
     },
     "apiDocsTableCreateRows": {
-        "description": "",
-        "before": ""
+        "description": "Створити нові рядки {name}.",
+        "before": "Якщо надано, новостворені рядки будуть розміщені перед рядком із наданим id."
     },
     "apiDocsAuth": {
-        "description": "",
-        "settingsLink": ""
+        "description": "Baserow використовує просту автентифікацію на основі токенів. Вам потрібно згенерувати принаймні один токен бази даних у ваших {settingsLink}, щоб використовувати описані нижче кінцеві точки. Можна надати дозволи на створення, читання, оновлення та видалення на рівні таблиці для кожного токена. Ви можете автентифікуватися в API, надавши свій токен у заголовку HTTP authorization bearer token. Усі запити API повинні бути автентифіковані та виконуватися через HTTPS.",
+        "settingsLink": "налаштуваннях"
     },
     "apiDocsFilters": {
-        "filter": "",
-        "exampleValue": "",
-        "example": "",
-        "field": ""
+        "filter": "Фільтр",
+        "exampleValue": "Приклад значення",
+        "example": "Повний приклад",
+        "field": "поле {name}",
+        "deprecated": "застаріло"
     },
     "fieldTextSubForm": {
-        "placeholder": ""
+        "placeholder": "Текст за замовчуванням"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": ""
+        "optionsLabel": "Параметри",
+        "defaultOptionLabel": "Параметр за замовчуванням"
     },
     "fieldSingleSelectDropdown": {
-        "notFound": ""
+        "notFound": "Параметр не знайдено"
     },
     "fieldmultipleCollaboratorsDropdown": {
-        "notFound": ""
+        "notFound": "Співавтора не знайдено"
     },
     "fieldDateSubForm": {
-        "dateFormatLabel": "",
-        "dateFormatEuropean": "",
-        "dateFormatUS": "",
-        "dateFormatISO": "",
-        "includeTimeLabel": "",
-        "timeFormatLabel": "",
-        "24Hour": "",
-        "12Hour": ""
+        "dateFormatLabel": "Формат дати",
+        "dateFormatEuropean": "Європейський",
+        "dateFormatUS": "Американський",
+        "dateFormatISO": "ISO",
+        "includeTimeLabel": "Включити час",
+        "timeFormatLabel": "Формат часу",
+        "24Hour": "24 години",
+        "12Hour": "12 годин",
+        "showTimezoneLabel": "Показати часовий пояс",
+        "forceTimezoneLabel": "Встановити часовий пояс для всіх співавторів",
+        "forceTimezoneValue": "Часовий пояс",
+        "addTimezoneOffsetLabel": "Конвертувати значення (додати {utcOffsetDiff} хвилин)",
+        "subTimezoneOffsetLabel": "Конвертувати значення (відняти {utcOffsetDiff} хвилин)"
     },
     "fieldLinkRowSubForm": {
-        "noTable": "",
-        "selectTableLabel": "",
-        "hasRelatedFieldLabel": ""
+        "noTable": "Вам потрібна принаймні одна інша таблиця в тій же базі даних для зв'язку.",
+        "selectTableLabel": "Виберіть таблицю для зв'язку",
+        "hasRelatedFieldLabel": "Створити пов'язане поле в зв'язаній таблиці",
+        "limitToView": "Обмежити вибір переглядом",
+        "limitToViewDescription": "Зверніть увагу, що це лише візуально. Все ще можливо створювати зв'язки поза переглядом через пов'язану таблицю або API.",
+        "allowMultipleRelations": "Дозволити кілька зв'язків"
     },
     "fieldSelectOptions": {
-        "add": ""
+        "add": "Додати параметр"
     },
     "fieldNumberSubForm": {
-        "typeLabel": "",
-        "integer": "",
-        "decimal": "",
-        "decimalPlacesLabel": "",
-        "allowNegative": ""
+        "typeLabel": "Тип числа",
+        "integer": "Ціле",
+        "decimal": "Десяткове",
+        "decimalPlacesLabel": "Десяткові знаки",
+        "allowNegative": "Дозволити від'ємні",
+        "separatorLabel": "Роздільник тисяч та десяткових",
+        "prefixPlaceholder": "Префікс",
+        "suffixPlaceholder": "Суфікс",
+        "prefixAndSuffixLabel": "Префікс / суфікс",
+        "spaceComma": "Пробіл, кома (1 000 000,00)",
+        "spacePeriod": "Пробіл, крапка (1 000 000.00)",
+        "commaPeriod": "Кома, крапка (1,000,000.00)",
+        "periodComma": "Крапка, кома (1.000.000,00)",
+        "noFormatting": "Без форматування",
+        "defaultValueLabel": "Значення за замовчуванням",
+        "defaultValuePlaceholder": "Введіть значення за замовчуванням"
     },
     "fieldContext": {
-        "editField": "",
-        "deleteField": "",
-        "hideField": "",
-        "showField": ""
+        "editField": "Редагувати поле",
+        "deleteField": "Видалити поле",
+        "hideField": "Приховати поле",
+        "showField": "Показати поле",
+        "changePrimaryField": "Змінити первинне поле"
     },
     "fieldForm": {
-        "name": "",
-        "fieldAlreadyExists": "",
-        "nameNotAllowed": "",
-        "nameTooLong": ""
+        "name": "Назва",
+        "fieldAlreadyExists": "Поле з такою назвою вже існує.",
+        "nameNotAllowed": "Ця назва поля не дозволена.",
+        "nameTooLong": "Ця назва поля занадто довга.",
+        "description": "Опис",
+        "addDescription": "Додати опис",
+        "dbIndex": "Індекс",
+        "dbIndexError": "Цей тип поля не може мати індекс. Будь ласка, видаліть його перед збереженням або змініть тип поля.",
+        "dbIndexDescription": "Індексування може значно покращити продуктивність фільтрації, але сповільнює операції створення, оновлення та видалення.",
+        "defaultValueDisabledByConstraint": "Неможливо встановити значення за замовчуванням з обмеженням унікальності",
+        "dbIndexDisabledTooltip": "Індексування недоступне для цього типу поля."
     },
     "fieldLookupSubForm": {
         "noTable": "",
         "selectThroughFieldLabel": "",
-        "selectTargetFieldLabel": ""
+        "selectTargetFieldLabel": "Виберіть поле для пошуку"
     },
     "fieldFormulaNumberSubForm": {
-        "typeLabel": "",
-        "integer": "",
-        "decimal": "",
-        "decimalPlacesLabel": "",
-        "allowNegative": ""
+        "typeLabel": "Тип числа",
+        "integer": "Ціле число",
+        "decimal": "Десяткове",
+        "decimalPlacesLabel": "Знаки після коми",
+        "allowNegative": "Дозволити від'ємні"
     },
     "fieldRatingSubForm": {
-        "maxValue": "",
-        "color": "",
-        "style": ""
+        "maxValue": "Макс",
+        "color": "Колір",
+        "style": "Стиль"
     },
     "rowCreateModal": {
-        "addField": ""
+        "addField": "Додати поле"
     },
     "selectRowContent": {
-        "search": ""
+        "search": "Пошук рядків",
+        "hideFields": "Приховати поля"
     },
     "rowEditModal": {
-        "addField": "",
-        "showHiddenFields": "",
-        "hideHiddenFields": ""
+        "addField": "Додати поле",
+        "showHiddenFields": "Показати приховані поля",
+        "hideHiddenFields": "Приховати приховані поля"
     },
     "rowEditFieldMultipleSelect": {
-        "addOption": ""
+        "addOption": "Виберіть опцію"
     },
     "rowEditFieldMultipleCollaborators": {
-        "addCollaborator": ""
+        "addCollaborator": "Виберіть співробітника"
     },
     "rowEditFieldFile": {
-        "addFile": "",
+        "addFile": "Додати файл",
         "sizes": {
-            "0": "",
-            "1": "",
-            "2": "",
-            "3": "",
-            "4": "",
-            "5": ""
+            "0": "Байт",
+            "1": "КБ",
+            "2": "МБ",
+            "3": "ГБ",
+            "4": "ТБ",
+            "5": "ПБ"
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": ""
+        "addLink": "Виберіть посилання",
+        "keepOnlyOneValue": "Залишити лише одне значення. Це поле підтримує лише один зв'язок. Значення зберігається, якщо залишається лише один зв'язок."
     },
     "tableCSVImporter": {
-        "chooseFileLabel": "",
-        "chooseFileDescription": "",
-        "chooseFile": "",
-        "columnSeparator": "",
-        "recordSeparator": "",
-        "unitSeparator": "",
-        "encoding": "",
-        "firstRowHeader": "",
-        "limitFileSize": "",
-        "limitError": "",
-        "emptyCSV": ""
+        "chooseFileLabel": "Виберіть CSV файл",
+        "chooseFileDescription": "Ви можете імпортувати існуючий CSV, завантаживши файл .CSV з табличними даними. Більшість табличних програм дозволяють експортувати таблицю як файл .CSV.",
+        "chooseFile": "Виберіть CSV файл",
+        "columnSeparator": "Роздільник стовпців",
+        "recordSeparator": "роздільник записів",
+        "unitSeparator": "роздільник одиниць",
+        "encoding": "Кодування",
+        "firstRowHeader": "Перший рядок — заголовок",
+        "limitFileSize": "Максимальний розмір файлу — {limit} МБ.",
+        "limitError": "Неможливо імпортувати більше ніж {limit} рядків.",
+        "emptyCSV": "Цей CSV файл порожній."
     },
     "importer": {
-        "fieldDefaultName": "",
-        "loading": "",
-        "decoding": "",
-        "parsing": "",
-        "preparing": "",
-        "inProgress": ""
+        "fieldDefaultName": "Поле {count}",
+        "loading": "Завантаження файлу",
+        "decoding": "Декодування даних",
+        "parsing": "Аналіз даних",
+        "preparing": "Підготовка даних",
+        "inProgress": "Виконується..."
     },
     "tableForm": {
-        "name": ""
+        "name": "Назва"
     },
     "tableXMLImporter": {
-        "fileLabel": "",
-        "fileDescription": "",
-        "chooseButton": "",
-        "processingError": "",
-        "emptyError": "",
-        "limitFileSize": "",
-        "limitError": ""
+        "fileLabel": "Виберіть XML файл",
+        "fileDescription": "Ви можете імпортувати існуючий XML, завантаживши файл .XML з табличними даними, наприклад:",
+        "chooseButton": "Виберіть XML файл",
+        "processingError": "Помилка при обробці XML: {errors}",
+        "emptyError": "Цей XML файл порожній.",
+        "limitFileSize": "Максимальний розмір файлу — {limit} МБ.",
+        "limitError": "Неможливо імпортувати більше ніж {limit} рядків."
     },
     "tableJSONImporter": {
-        "fileLabel": "",
-        "fileDescription": "",
-        "chooseButton": "",
-        "encodingLabel": "",
-        "processingError": "",
-        "arrayError": "",
-        "emptyError": "",
-        "limitFileSize": "",
-        "limitError": ""
+        "fileLabel": "Виберіть JSON файл",
+        "fileDescription": "Ви можете імпортувати існуючий JSON файл, завантаживши файл .json з табличними даними, наприклад:",
+        "chooseButton": "Виберіть JSON файл",
+        "encodingLabel": "Кодування",
+        "processingError": "Помилка при аналізі JSON: {error}",
+        "arrayError": "JSON файл не є масивом.",
+        "emptyError": "Цей JSON файл порожній.",
+        "limitFileSize": "Максимальний розмір файлу — {limit} МБ.",
+        "limitError": "Неможливо імпортувати більше ніж {limit} рядків."
     },
     "tablePasteImporter": {
-        "pasteLabel": "",
-        "pasteDescription": "",
-        "firstRowHeader": "",
-        "limitError": ""
+        "pasteLabel": "Вставте дані таблиці",
+        "pasteDescription": "Ви можете скопіювати клітинки з таблиці та вставити їх нижче.",
+        "firstRowHeader": "Перший рядок — заголовок",
+        "limitError": "Неможливо імпортувати більше ніж {limit} рядків."
     },
     "importFileModal": {
         "title": "",
-        "defaultName": "",
+        "defaultName": "Таблиця",
         "changeImporterType": "",
-        "additionalImportTitle": "",
-        "importLabel": "",
-        "newTable": "",
+        "additionalImportTitle": "Імпортувати до {table}",
+        "importLabel": "Бажаєте імпортувати існуючі дані?",
+        "newTable": "Почати з нової таблиці",
         "addButton": "",
-        "showTable": "",
-        "importButton": "",
-        "uploading": "",
-        "preparing": "",
-        "importError": "",
+        "showTable": "показати таблицю",
+        "importButton": "Імпорт",
+        "uploading": "Завантаження...",
+        "preparing": "Підготовка даних...",
+        "importError": "Щось пішло не так під час імпорту файлу",
         "openCreatedTable": "",
         "showReport": "",
         "reportTitleFailure": "",
         "reportTitleSuccess": "",
         "reportMessage": "",
-        "stateRowCreation": "",
-        "statePreValidation": "",
-        "stateCreateTable": "",
-        "fieldMappingTitle": "",
-        "fieldMappingDescription": "",
-        "selectImportMessage": "",
-        "filePreview": "",
-        "importPreview": ""
+        "stateRowCreation": "Імпорт...",
+        "statePreValidation": "Перевірка даних...",
+        "stateCreateTable": "Створення таблиці...",
+        "fieldMappingTitle": "Зіставлення полів",
+        "fieldMappingDescription": "Ми автоматично зіставили стовпці з полями Baserow у вашій таблиці. Ви можете змінити їх нижче. Будь-яка несумісна клітинка залишиться порожньою після імпорту.",
+        "selectImportMessage": "Виберіть дані для імпорту.",
+        "filePreview": "Попередній перегляд вмісту файлу",
+        "importPreview": "Попередній перегляд імпорту",
+        "useUpsertField": "Оновлювати рядки, якщо вони вже існують",
+        "upsertTooltip": "Зіставляйте існуючі рядки за унікальним полем для перезапису даних імпортованими значеннями."
     },
     "formulaAdvancedEditContext": {
-        "textAreaFormulaInputPlaceholder": "",
-        "fields": "",
-        "functions": "",
-        "operators": "",
-        "fieldType": ""
+        "textAreaFormulaInputPlaceholder": "Натисніть для редагування формули",
+        "fields": "Поля",
+        "functions": "Функції",
+        "operators": "Оператори",
+        "fieldType": "Поле типу {type}"
     },
     "fieldFormulaInitialSubForm": {
-        "formulaInputPlaceholder": "",
-        "refreshFormulaOptions": ""
+        "formulaInputPlaceholder": "Натисніть для редагування формули",
+        "refreshFormulaOptions": "Оновити параметри формули"
     },
     "formulaFieldItemDescription": {
-        "syntax": "",
-        "examples": ""
+        "syntax": "Синтаксис",
+        "examples": "Приклади"
     },
     "viewSearchContext": {
-        "searchInRows": "",
-        "hideNotMatching": ""
+        "searchInRows": "Пошук у всіх рядках",
+        "hideNotMatching": "приховати рядки, що не відповідають"
     },
     "viewsContext": {
-        "searchView": "",
-        "noViews": "",
-        "collaborative": ""
+        "searchView": "Пошук представлень",
+        "noViews": "Представлень не знайдено",
+        "collaborative": "Спільні"
     },
     "viewFilterTypeLinkRow": {
-        "unnamed": "",
-        "choose": ""
+        "unnamed": "безіменний рядок {value}",
+        "choose": "Виберіть рядок"
     },
     "viewFilterContext": {
-        "addFilter": "",
-        "disableAllFilters": "",
-        "noFilterTitle": "",
-        "noFilterText": "",
-        "where": "",
-        "and": "",
-        "or": "",
-        "relatedFieldNotFound": "",
-        "filterTypeNotFound": "",
-        "noCompatibleFilterTypesErrorTitle": "",
-        "noCompatibleFilterTypesErrorMessage": ""
+        "addFilter": "Додати фільтр",
+        "disableAllFilters": "всі вимкнено",
+        "noFilterTitle": "Ви ще не створили фільтр",
+        "noFilterText": "Фільтри дозволяють показувати рядки, що відповідають вашим умовам.",
+        "where": "Де",
+        "and": "І",
+        "or": "Або",
+        "relatedFieldNotFound": "Пов'язане поле не знайдено.",
+        "filterTypeNotFound": "Тип фільтра несумісний.",
+        "noCompatibleFilterTypesErrorTitle": "Немає сумісних типів фільтрів",
+        "noCompatibleFilterTypesErrorMessage": "Жодне з ваших полів не має сумісних типів фільтрів",
+        "addFilterGroup": "Додати групу фільтрів"
     },
     "viewFilterTypeFileTypeDropdown": {
-        "image": "",
-        "document": ""
+        "image": "зображення",
+        "document": "документ"
     },
     "createViewModal": {
-        "createNew": "",
-        "add": ""
+        "createNew": "Створити нове {view}",
+        "add": "Додати {view}"
     },
     "shareViewLink": {
-        "shareView": "",
-        "shareViewTitle": "",
-        "sharedViewTitle": "",
-        "sharedViewDescription": "",
-        "disableLink": "",
-        "generateNewUrl": "",
-        "copyURL": "",
-        "EnablePassword": "",
-        "DisablePassword": "",
-        "ChangePassword": ""
+        "shareView": "Поділитися {viewTypeSharingLinkName}",
+        "shareViewTitle": "Ви ще не поділилися представленням",
+        "sharedViewTitle": "Це {viewTypeSharingLinkName} наразі доступне через приватне посилання",
+        "sharedViewDescription": "Люди, які мають посилання, можуть бачити {viewTypeSharingLinkName}.",
+        "disableLink": "Вимкнути спільне посилання",
+        "generateNewUrl": "згенерувати нове посилання",
+        "copyURL": "копіювати URL",
+        "EnablePassword": "Обмежити доступ паролем",
+        "DisablePassword": "Доступ захищений паролем",
+        "ChangePassword": "Змінити",
+        "shareViewText": "Приватне посилання для поширення дозволяє будь-кому переглядати дані в цьому представленні.",
+        "createPrivateLink": "Створити приватне посилання",
+        "notSharedYetText": "Дозвольте будь-кому переглядати дані в цьому представленні або синхронізувати події з вашим зовнішнім календарем."
     },
     "viewSortContext": {
-        "noSortTitle": "",
-        "noSortText": "",
-        "sortBy": "",
-        "thenBy": "",
-        "addSort": ""
+        "noSortTitle": "Ви ще не створили сортування",
+        "noSortText": "Сортування дозволяє впорядковувати рядки за полем.",
+        "sortBy": "Сортувати за",
+        "thenBy": "Потім за",
+        "addSort": "виберіть поле для сортування"
     },
     "viewSort": {
-        "sort": ""
+        "sort": "Сортувати | 1 сортування | {count} сортувань"
     },
     "viewDecorator": {
-        "decorator": ""
+        "decorator": "Колір | 1 колір | {count} кольорів"
     },
     "viewRotateSlugModal": {
-        "title": "",
-        "refreshWarning": "",
-        "generateNewURL": ""
+        "title": "Оновити URL",
+        "refreshWarning": "Ви впевнені, що хочете оновити URL для {viewName}? Після оновлення буде згенеровано новий URL, і доступ до {viewTypeSharingLinkName} за старим URL буде неможливий. Усі, з ким ви поділилися URL, не зможуть отримати доступ до {viewTypeSharingLinkName}.",
+        "generateNewURL": "Згенерувати новий URL"
     },
     "shareViewEnablePasswordModal": {
-        "newPasswordTitle": "",
-        "newPasswordDescription": "",
-        "newPasswordSave": "",
-        "changePasswordTitle": "",
-        "changePasswordDescription": "",
-        "changePasswordSave": ""
+        "newPasswordTitle": "Введіть пароль",
+        "newPasswordDescription": "Публічне посилання буде доступне лише після введення пароля. Цей пароль буде збережено в зашифрованому вигляді.",
+        "newPasswordSave": "Встановити пароль",
+        "changePasswordTitle": "Змінити пароль",
+        "changePasswordDescription": "Після зміни пароля попередній перестане працювати. Цей пароль буде збережено в зашифрованому вигляді.",
+        "changePasswordSave": "Змінити пароль"
     },
     "shareViewDisablePasswordModal": {
-        "title": "",
-        "description": "",
-        "disable": ""
+        "title": "Вимкнути захист паролем",
+        "description": "Ви впевнені, що хочете вимкнути захист паролем для цього публічного посилання? Після вимкнення пароль буде видалено, і його неможливо буде відновити",
+        "disable": "Вимкнути"
     },
     "publicViewAuthLogin": {
-        "title": "",
-        "description": "",
-        "enter": "",
+        "title": "Ця сторінка захищена паролем",
+        "description": "Введіть правильний пароль для доступу до сторінки.",
+        "enter": "Увійти",
         "error": {
-            "incorrectPasswordTitle": "",
-            "incorrectPasswordText": ""
+            "incorrectPasswordTitle": "Неправильний пароль",
+            "incorrectPasswordText": "Наданий пароль неправильний."
         }
     },
     "viewFieldsContext": {
-        "coverField": "",
-        "noCover": "",
-        "search": "",
-        "hideAll": "",
-        "showAll": ""
+        "coverField": "Поле обкладинки",
+        "noCover": "Без обкладинки",
+        "search": "Пошук полів",
+        "hideAll": "Приховати всі",
+        "showAll": "Показати всі"
     },
     "viewFilterTypeBoolean": {
-        "selected": ""
+        "selected": "Вибрано"
     },
     "viewFilter": {
-        "filter": ""
+        "filter": "Фільтр | 1 фільтр | {count} фільтрів",
+        "hasAllValuesEqual": "всі значення рівні",
+        "hasValueHigherThan": "має значення більше ніж",
+        "hasValueHigherThanOrEqual": "має значення більше або рівне",
+        "hasValueLowerThan": "має значення менше ніж",
+        "hasValueLowerThanOrEqual": "має значення менше або рівне",
+        "hasNotValueHigherThan": "не має значення більше ніж",
+        "hasNotValueHigherThanOrEqual": "не має значення більше або рівне",
+        "hasNotValueLowerThan": "не має значення менше ніж",
+        "hasNotValueLowerThanOrEqual": "не має значення менше або рівне"
     },
     "viewContext": {
-        "exportView": "",
-        "duplicateView": "",
-        "renameView": "",
-        "webhooks": "",
-        "importFile": "",
-        "deleteView": ""
+        "exportView": "Експортувати представлення",
+        "duplicateView": "Дублювати представлення",
+        "renameView": "Перейменувати представлення",
+        "webhooks": "Вебхуки",
+        "importFile": "Імпортувати файл",
+        "deleteView": "Видалити представлення",
+        "toPersonal": "Зробити особистим",
+        "toCollaborative": "Зробити спільним"
     },
     "deleteViewModal": {
-        "title": "",
-        "description": "",
-        "delete": ""
+        "title": "Видалити {name}",
+        "description": "Ви впевнені, що хочете видалити представлення {name}? Дані таблиці буде збережено, але фільтри, сортування та ширину полів, пов'язані з представленням, буде видалено.",
+        "delete": "Видалити представлення"
     },
     "viewForm": {
-        "name": "",
-        "whoCanEdit": ""
+        "name": "Назва",
+        "whoCanEdit": "Хто може редагувати"
     },
     "viewOwnershipType": {
-        "collaborative": "",
-        "personal": ""
+        "collaborative": "Спільний",
+        "personal": "Особистий"
     },
     "galleryViewHeader": {
-        "customizeCards": ""
+        "customizeCards": "Налаштувати картки"
     },
     "gridViewHide": {
-        "hideField": ""
+        "hideField": "Приховати поля | 1 приховане поле | {count} прихованих полів"
     },
     "gridViewFieldType": {
-        "insertLeft": "",
-        "insertRight": "",
-        "createFilter": "",
-        "duplicate": "",
-        "sortField": "",
-        "hideField": ""
+        "insertLeft": "Вставити зліва",
+        "insertRight": "Вставити справа",
+        "createFilter": "Створити фільтр",
+        "duplicate": "Дублювати поле",
+        "sortField": "Сортувати",
+        "hideField": "Приховати поле",
+        "dataSyncField": "Поле доступне лише для читання та є частиною синхронізації даних таблиці.",
+        "dataSyncFieldTwoWaySync": "Поле синхронізовано із синхронізацією даних таблиці.",
+        "noWriteValues": "Зміни цього поля обмежені."
     },
     "gridViewRow": {
-        "rowNotMatchingFilters": "",
-        "rowNotMatchingSearch": "",
-        "rowHasMoved": ""
+        "rowNotMatchingFilters": "Рядок не відповідає фільтрам",
+        "rowNotMatchingSearch": "Рядок не відповідає пошуку",
+        "rowHasMoved": "Рядок переміщено"
     },
     "gridView": {
-        "selectRow": "",
-        "insertRowAbove": "",
-        "insertRowBelow": "",
-        "duplicateRow": "",
-        "enlargeRow": "",
-        "deleteRow": "",
-        "deleteRows": "",
-        "copyCells": "",
-        "rowCount": "",
-        "hiddenRowsInsertedTitle": "",
-        "hiddenRowsInsertedMessage": ""
+        "selectRow": "Вибрати рядок",
+        "insertRowAbove": "Вставити рядок вище",
+        "insertRowBelow": "Вставити рядок нижче",
+        "duplicateRow": "Дублювати рядок",
+        "enlargeRow": "Розгорнути рядок",
+        "deleteRow": "Видалити рядок",
+        "deleteRows": "Видалити рядки",
+        "copyCells": "Копіювати клітинки",
+        "rowCount": "Немає рядків | 1 рядок | {count} рядків",
+        "hiddenRowsInsertedTitle": "Рядки додано",
+        "hiddenRowsInsertedMessage": "{number} нових рядків було додано, але вони не відображаються через активні фільтри.",
+        "copyRowURL": "Копіювати URL рядка",
+        "copiedRowURL": "URL рядка скопійовано",
+        "copiedRowURLMessage": "URL рядка {id} скопійовано до буфера обміну.",
+        "copyCellsWithHeader": "Копіювати клітинки із заголовком",
+        "generateCellsValues": "Згенерувати значення за допомогою ШІ",
+        "generateAllAiValues": "Згенерувати всі значення ШІ",
+        "tooManyItemsTitle": "Забагато елементів",
+        "tooManyItemsDescription": "Неможливо оновити більше ніж {limit} рядків одночасно, тому оновлено лише перші.",
+        "AIValuesGenerationErrorTitle": "Не вдалося згенерувати значення ШІ",
+        "AIValuesGenerationErrorMessage": "Перевірте свій API_KEY та обрану модель."
     },
     "gridViewFieldFile": {
-        "dropHere": "",
-        "dropFileHere": ""
+        "dropHere": "Перетягніть сюди",
+        "dropFileHere": "Перетягніть файли сюди"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": ""
+        "unnamed": "безіменний рядок {value}",
+        "keepOnlyOneValue": "Залишити лише одне значення"
     },
     "gridViewIdentifierOptions": {
-        "id": "",
-        "count": ""
+        "id": "Ідентифікатор рядка",
+        "count": "Кількість"
     },
     "gridViewRowsAddContext": {
-        "title": "",
-        "choice": ""
+        "title": "Створити кілька рядків",
+        "choice": "Додати {rowAmountChoice} рядків"
     },
     "formViewMeta": {
-        "includeRowId": ""
+        "includeRowId": "Використовуйте {row_id}, щоб включити ідентифікатор новоствореного рядка в URL."
     },
     "previewAny": {
-        "externalWarning": ""
+        "externalWarning": "Відкриття файлу через зовнішній сервіс передає ваш файл на їхні сервери."
     },
     "exportTableModal": {
-        "failedTitle": "",
-        "failedDescription": "",
-        "cancelledTitle": "",
-        "cancelledDescription": ""
+        "failedTitle": "Помилка експорту",
+        "failedDescription": "Експорт не вдався через помилку сервера.",
+        "cancelledTitle": "Експорт скасовано",
+        "cancelledDescription": "Експорт було скасовано.",
+        "title": "Експорт {name}"
     },
     "exporterTypeChoices": {
-        "formatLabel": ""
+        "formatLabel": "У який формат ви хочете експортувати?"
     },
     "exportTableForm": {
-        "viewLabel": "",
-        "typeError": ""
+        "viewLabel": "Виберіть представлення для експорту:",
+        "typeError": "Тип експорту недоступний, виберіть інше представлення або всю таблицю."
     },
     "exportTableLoadingBar": {
-        "export": "",
-        "download": ""
+        "export": "Експорт",
+        "download": "Завантажити"
     },
     "exportTableDropdown": {
-        "exportEntireTable": ""
+        "exportEntireTable": "Експортувати всю таблицю"
     },
     "tableCSVExporter": {
-        "columnSeparatorLabel": "",
-        "recordSeparator": "",
-        "unitSeparator": "",
-        "encodingLabel": "",
-        "firstRowIsHeaderLabel": ""
+        "columnSeparatorLabel": "Роздільник стовпців",
+        "recordSeparator": "роздільник записів",
+        "unitSeparator": "роздільник одиниць",
+        "encodingLabel": "Кодування",
+        "firstRowIsHeaderLabel": "",
+        "includeHeader": "Включити назви полів як заголовок"
     },
     "apiDocsDatabase": {
-        "pageTitle": "",
-        "back": "",
-        "openDatabase": ""
+        "pageTitle": "Документація API бази даних {name}",
+        "back": "Назад до панелі керування",
+        "openDatabase": "відкрити базу даних"
     },
     "apiDocsComponent": {
-        "title": "",
-        "intro": "",
-        "settings": "",
-        "selectApplicationTitle": "",
-        "signIn": "",
-        "back": ""
+        "title": "REST API",
+        "intro": "Після створення схеми бази даних та API ключа в {settingsLink} ваша база даних Baserow надає власні REST API ендпоінти для створення, читання, оновлення та видалення рядків.",
+        "settings": "налаштуваннях",
+        "selectApplicationTitle": "Для якої бази даних ви хочете переглянути документацію?",
+        "signIn": "Увійдіть, щоб почати",
+        "back": "Назад до панелі керування"
     },
     "viewAggregationType": {
-        "emptyCount": "",
-        "notEmptyCount": "",
-        "emptyPercentage": "",
-        "notEmptyPercentage": "",
-        "checkedCount": "",
-        "notCheckedCount": "",
-        "checkedPercentage": "",
-        "notCheckedPercentage": "",
-        "min": "",
-        "max": "",
-        "earliestDate": "",
-        "earliestDateShort": "",
-        "latestDate": "",
-        "latestDateShort": "",
-        "uniqueCount": "",
-        "sum": "",
-        "average": "",
-        "median": "",
-        "stdDev": "",
-        "stdDevShort": "",
-        "variance": ""
+        "emptyCount": "(Порожньо)",
+        "notEmptyCount": "Заповнено",
+        "emptyPercentage": "Відсоток порожніх",
+        "notEmptyPercentage": "Відсоток заповнених",
+        "checkedCount": "Позначено",
+        "notCheckedCount": "Не позначено",
+        "checkedPercentage": "Відсоток позначених",
+        "notCheckedPercentage": "Відсоток не позначених",
+        "min": "Мін",
+        "max": "Макс",
+        "earliestDate": "Найраніша дата",
+        "earliestDateShort": "Найраніша",
+        "latestDate": "Найпізніша дата",
+        "latestDateShort": "Найпізніша",
+        "uniqueCount": "Унікальні",
+        "sum": "Сума",
+        "average": "Середнє",
+        "median": "Медіана",
+        "stdDev": "Стандартне відхилення",
+        "stdDevShort": "Станд. відх.",
+        "variance": "Дисперсія",
+        "count": "Кількість",
+        "distribution": "Розподіл",
+        "othersCount": "Інші"
     },
     "databaseForm": {
-        "importLabel": "",
-        "emptyLabel": "",
-        "airtableLabel": ""
+        "importLabel": "Бажаєте імпортувати існуючі дані?",
+        "emptyLabel": "Почати з нуля",
+        "airtableLabel": "Імпорт з Airtable"
     },
     "importFromAirtable": {
-        "airtableShareLinkTitle": "",
+        "airtableShareLinkTitle": "Поділіться посиланням на вашу базу",
         "airtableShareLinkDescription": "",
-        "airtableShareLinkBeta": "",
-        "airtableShareLinkPaste": "",
-        "importButtonLabel": "",
-        "openButtonLabel": "",
-        "importError": "",
-        "statePending": "",
-        "stateFailed": "",
-        "stateFinished": "",
-        "stateDownloadingBase": "",
-        "stateConverting": "",
-        "stateDownloadingFiles": "",
-        "stateImporting": "",
-        "stateImportingTable": "",
-        "errorJobAlreadyRunningTitle": "",
-        "errorJobAlreadyRunningDescription": "",
-        "linkError": ""
+        "airtableShareLinkBeta": "Ця функція імпортує більшість даних, але є несумісності. Тому буде додано таблицю «Звіт імпорту Airtable», що містить перелік елементів, які не були імпортовані або імпортовані частково.",
+        "airtableShareLinkPaste": "Вставте посилання тут",
+        "importButtonLabel": "Імпорт з Airtable",
+        "openButtonLabel": "Відкрити імпортовану базу даних",
+        "importError": "Щось пішло не так",
+        "statePending": "Очікування початку",
+        "stateFailed": "Не вдалося",
+        "stateFinished": "Завершено",
+        "stateDownloadingBase": "Завантаження схеми бази",
+        "stateConverting": "Конвертація в Baserow",
+        "stateDownloadingFiles": "Завантаження файлів",
+        "stateImporting": "Імпорт",
+        "stateImportingTable": "Імпорт таблиці {table}",
+        "errorJobAlreadyRunningTitle": "Вже виконується",
+        "errorJobAlreadyRunningDescription": "Інше завдання імпорту вже виконується. Потрібно дочекатися його завершення перед запуском нового.",
+        "linkError": "Посилання має виглядати так: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFiles": "Пропустити імпорт файлів",
+        "skipFilesHelper": "База Airtable з великою кількістю файлів може сповільнити імпорт. Увімкнення цієї опції пропускає імпорт файлів.",
+        "useSession": "Автентифікація сесії",
+        "useSessionHelper": "Використовуйте це, якщо публічно поширена база вимагає автентифікації.",
+        "sessionDescription": "Якщо імпорт відповідає «База Airtable вимагає автентифікації», то можливо, що налаштування організації в Airtable забороняють доступ до бази без попередньої автентифікації. Для цього потрібно вручну отримати сесію та підпис. Відвідайте URL публічно поширеної бази у браузері та увійдіть, якщо потрібно. Натисніть на меню програми у верхньому правому куті -> «Інші інструменти» -> «Інструменти розробника». Відкрийте вкладку «Application» (у Firefox «Storage») та натисніть на «https://airtable.com». Тепер знайдіть значення cookie «__Host-airtable-session» та «__Host-airtable-session.sig» і вставте їх у поля нижче.",
+        "sessionLabel": "Cookie сесії (__Host-airtable-session)",
+        "sessionSignatureLabel": "Cookie підпису сесії (__Host-airtable-session.sig)"
     },
     "chooseSingleSelectField": {
-        "addSelectField": ""
+        "addSelectField": "Додати поле одиничного вибору",
+        "warningWhenNothingToChooseOrCreate": "Немає полів одиничного вибору для вибору, і у вас немає дозволу на створення нового."
     },
     "viewDecoratorContext": {
-        "addDecorator": ""
+        "addDecorator": "Додати декоратор"
     },
     "databaseDashboardSidebarLinks": {
         "apiDocumentation": ""
     },
     "formViewField": {
-        "required": "",
-        "descriptionPlaceholder": "",
-        "showWhenMatchingConditions": "",
-        "addCondition": ""
+        "required": "обов'язкове",
+        "descriptionPlaceholder": "Опис",
+        "showWhenMatchingConditions": "показувати, коли умови виконані",
+        "addCondition": "Додати умову",
+        "includeAllSelectOptions": "включити всі варіанти вибору",
+        "includeAllSelectOptionsHelper": "Виберіть варіанти вибору, які потрібно включити у форму, використовуючи цей спадний список",
+        "addConditionGroup": "Додати групу умов",
+        "showFieldAs": "Показувати поле як",
+        "noSelectOptions": "Немає доступних варіантів вибору.",
+        "noCollaboratorsAvailable": "Немає доступних співробітників.",
+        "cannotSumitValues": "Це поле доступне лише для читання і не відображатиметься у формі."
     },
     "duplicateFieldContext": {
-        "duplicate": "",
-        "cloneData": "",
-        "readOnlyField": ""
+        "duplicate": "Дублювати поле",
+        "cloneData": "Копіювати дані",
+        "readOnlyField": "Значення клітинок будуть заповнені автоматично."
     },
     "snapshotsModal": {
-        "title": "",
-        "description": "",
-        "descriptionLimits": "",
-        "createLabel": "",
-        "create": "",
-        "snapshotRestoredErrorTitle": "",
-        "snapshotRestoredErrorMessage": "",
-        "snapshotDeletedErrorTitle": "",
-        "snapshotDeletedErrorMessage": "",
-        "limitReached": "",
-        "snapshot": "",
-        "importingState": "",
-        "reset": ""
+        "title": "знімки",
+        "description": "Знімки — це повна копія вашого {applicationTypeName} на момент їх створення. При відновленні буде створено дублікат цих даних. Знімки автоматично видаляються через рік.",
+        "descriptionLimits": "Ви можете мати максимум {n} знімків на робочу область. | Ви можете мати максимум {n} знімок на робочу область. | Ви можете мати максимум {n} знімків на робочу область.",
+        "createLabel": "Створити новий знімок",
+        "create": "Створити знімок",
+        "snapshotRestoredErrorTitle": "Сталася помилка",
+        "snapshotRestoredErrorMessage": "Не вдалося відновити знімок. Спробуйте пізніше.",
+        "snapshotDeletedErrorTitle": "Сталася помилка",
+        "snapshotDeletedErrorMessage": "Не вдалося видалити знімок. Спробуйте пізніше.",
+        "limitReached": "Досягнуто ліміт максимальної кількості знімків.",
+        "snapshot": "Знімок",
+        "importingState": "Створення",
+        "reset": "Створити ще один",
+        "cancel": "Скасувати",
+        "noSnapshots": "Знімків для цього застосунку ще немає.",
+        "nameAlreadyExists": "Знімок з такою назвою вже існує."
     },
     "deleteSnapshotModal": {
-        "title": "",
-        "content": "",
-        "confirm": ""
+        "title": "Видалити знімок",
+        "content": "Ви впевнені, що хочете назавжди видалити знімок {name}?",
+        "confirm": "Видалити"
     },
     "snapshotListItem": {
-        "restore": "",
-        "delete": "",
-        "created": ""
+        "restore": "відновити",
+        "delete": "видалити",
+        "created": "створено"
     },
     "formViewModeType": {
-        "form": "",
-        "formDescription": ""
+        "form": "Форма",
+        "formDescription": "Усі поля видимі та розташовані вертикально."
     },
     "formViewHeader": {
-        "mode": "",
-        "preview": "",
-        "fields": ""
+        "mode": "Режим",
+        "preview": "Попередній перегляд",
+        "fields": "Поля"
     },
     "formViewModePreviewForm": {
-        "addCoverImage": "",
-        "addLogo": "",
-        "titlePlaceholder": "",
-        "descriptionPlaceholder": "",
-        "noFields": ""
+        "addCoverImage": "Додати обкладинку",
+        "addLogo": "Додати логотип",
+        "titlePlaceholder": "Заголовок",
+        "descriptionPlaceholder": "Опис",
+        "noFields": "",
+        "noFieldsTitle": "Ця форма не має полів",
+        "noFieldsContent": "Натисніть на поле в лівій бічній панелі, щоб додати його."
     },
     "table": {
         "adjacentRow": {
@@ -745,12 +844,345 @@
                     "title": "",
                     "message": ""
                 }
+            },
+            "toast": {
+                "notFound": {
+                    "next": {
+                        "title": "Більше немає рядків",
+                        "message": "Наступного рядка немає"
+                    },
+                    "previous": {
+                        "title": "Більше немає рядків",
+                        "message": "Попереднього рядка немає"
+                    }
+                },
+                "error": {
+                    "title": "Сталася помилка",
+                    "message": "Сталася помилка під час отримання сусіднього рядка"
+                }
             }
         },
-        "chooseView": ""
+        "chooseView": "Виберіть представлення"
     },
     "fileField": {
-        "errorEmptyFileNameTitle": "",
-        "errorEmptyFileNameMessage": ""
+        "errorEmptyFileNameTitle": "Недійсна назва файлу",
+        "errorEmptyFileNameMessage": "Не можна встановити порожню назву для файлу."
+    },
+    "apiDocsFiltersBuilderModal": {
+        "title": "Конструктор параметрів фільтрів",
+        "userFieldNames": "Назви полів користувача",
+        "json": "JSON",
+        "queryParameter": "Параметр запиту"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "Автентифікація {name}",
+        "description": "Перевіряє, чи відповідають наданий пароль та рядок тому, що зберігається в комірці.",
+        "fieldId": "ID поля, де потрібно перевірити пароль.",
+        "rowId": "ID рядка, де потрібно перевірити пароль.",
+        "password": "Пароль, який потрібно перевірити на правильність."
+    },
+    "apiDocsListTables": {
+        "listTables": "Список усіх таблиць",
+        "listTablesDescription": "Ця кінцева точка працює лише в поєднанні з автентифікацією токеном. Вона перераховує всі таблиці, до яких токен має доступ на створення, читання, оновлення або видалення."
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Параметри",
+        "defaultOptionsLabel": "Параметри за замовчуванням"
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "За замовчуванням"
+    },
+    "fieldDurationSubForm": {
+        "durationFormatLabel": "Формат тривалості"
+    },
+    "fieldSelectThroughFieldSubForm": {
+        "noTable": "Для створення цього поля вам потрібне принаймні одне поле посилання на таблицю.",
+        "selectThroughFieldLabel": "Виберіть поле посилання на таблицю"
+    },
+    "fieldRollupSubForm": {
+        "label": "Функція зведення",
+        "selectTargetFieldLabel": "Виберіть поле для зведення"
+    },
+    "createTableModal": {
+        "title": "Створити нову таблицю",
+        "defaultName": "Таблиця",
+        "importLabel": "Бажаєте імпортувати існуючі дані?",
+        "newTable": "Почати з нової таблиці"
+    },
+    "createTable": {
+        "showTable": "показати таблицю",
+        "addButton": "Додати таблицю",
+        "uploading": "Завантаження...",
+        "preparing": "Підготовка даних...",
+        "importError": "Щось пішло не так під час імпорту файлу",
+        "stateRowCreation": "Імпорт...",
+        "statePreValidation": "Перевірка даних...",
+        "stateCreateTable": "Створення таблиці..."
+    },
+    "importErrorReport": {
+        "reportTitleFailure": "Рядки з помилками",
+        "reportTitleSuccess": "Імпорт успішний, але...",
+        "reportMessage": "Наступні індекси рядків не вдалося імпортувати:"
+    },
+    "fieldLongTextSubForm": {
+        "enableRichTextFormatting": "Увімкнути форматування тексту"
+    },
+    "viewFieldConditionsForm": {
+        "addCondition": "Додати умову",
+        "addConditionGroup": "Додати групу умов"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "Поле, з яким пов'язаний цей фільтр, було видалено."
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "Цей тип представлення несумісний з таблицею синхронізації даних."
+    },
+    "viewGroupByContext": {
+        "noGroupByTitle": "Ви ще не створили жодних групувань",
+        "noGroupByText": "Групуйте рядки разом за полем.",
+        "groupBy": "Групувати за",
+        "thenBy": "Потім за",
+        "addGroupBy": "виберіть поле для групування"
+    },
+    "viewGroupBy": {
+        "groupBy": "Групувати | Групувати за 1 полем | Групувати за {count} полями"
+    },
+    "formViewMetaControls": {
+        "whenSubmittedLabel": "Коли форму надіслано",
+        "showMessage": "Показати повідомлення",
+        "urlRedirect": "Перенаправити на URL",
+        "theMessage": "Повідомлення",
+        "theURL": "URL"
+    },
+    "databaseDashboardResourceLinks": {
+        "title": "Документація API",
+        "description": "Дізнайтеся більше про наш код"
+    },
+    "changePrimaryFieldModal": {
+        "title": "Змінити основне поле",
+        "change": "Змінити",
+        "primaryFieldLabel": "Основне поле",
+        "existingPrimary": "\"{name}\" наразі є основним полем."
+    },
+    "fieldCollaboratorSubForm": {
+        "notifyUserWhenAdded": "Сповіщати користувача при додаванні"
+    },
+    "collaboratorAddedToRowNotification": {
+        "title": "{sender} призначив вас до {fieldName} у рядку {rowId} у {tableName}",
+        "unknownUser": "Невідомий користувач"
+    },
+    "formSubmittedNotification": {
+        "title": "{formName} було надіслано в таблиці {tableName}:",
+        "moreValues": "0 | та ще 1 поле. | та ще {count} полів."
+    },
+    "rowHistorySidebar": {
+        "name": "Історія",
+        "empty": "Змін ще немає. Тут ви зможете відстежувати будь-які зміни цього рядка.",
+        "you": "Ви",
+        "created": "створив цей рядок",
+        "updated": "оновив цей рядок",
+        "submitted": "надіслав цей рядок",
+        "deleted": "видалив цей рядок",
+        "restored": "відновив цей рядок",
+        "createdUndo": "скасувати створення рядка",
+        "updatedUndo": "скасувати оновлення рядка",
+        "deletedUndo": "скасувати видалення рядка"
+    },
+    "fieldPasswordSubForm": {
+        "allowEndpointAuthentication": "Дозволити автентифікацію через API ендпоінт",
+        "allowEndpointAuthenticationHelp": "Це відкриває ендпоінт, де можна перевірити ID рядка та пароль на коректність. Це дозволяє використовувати Baserow як бекенд автентифікації.",
+        "description": "Поле пароля також може використовуватися для автентифікації користувачів у конструкторі застосунків."
+    },
+    "rowEditFieldPassword": {
+        "setPassword": "Встановити пароль"
+    },
+    "rowHistoryFieldPassword": {
+        "passwordSet": "Пароль встановлено",
+        "passwordUpdated": "Пароль оновлено",
+        "passwordDeleted": "Пароль видалено"
+    },
+    "dataProviderTypes": {
+        "fieldsName": "Поля"
+    },
+    "userMentionInRichTextFieldNotification": {
+        "title": "{sender} згадав вас у полі {fieldName} рядка {rowId} у {tableName}",
+        "deletedUser": "Видалений користувач"
+    },
+    "databaseImportStep": {
+        "title": "Імпортуйте ваші дані",
+        "description": "Перенесіть ваші дані до Baserow за кілька кліків.",
+        "tableNameLabel": "Назва таблиці"
+    },
+    "databaseScratchTrackFieldsStep": {
+        "title": "Виберіть поля для кожного рядка",
+        "description": "Виберіть до {selectedFieldsLimitCount} полів. Ви зможете додати більше пізніше.",
+        "fieldName": "Назва",
+        "fieldType": "Тип поля",
+        "fieldDescription": "Опис",
+        "fieldDetails": "Деталі",
+        "fieldNumber": "Число",
+        "fieldDate": "Дата",
+        "fieldBoolean": "Завершено",
+        "fieldDuration": "Тривалість",
+        "fieldUrl": "URL",
+        "fieldEmail": "Email",
+        "fieldRating": "Рейтинг",
+        "fieldCategory": "Категорія",
+        "fieldKickoffDate": "Дата початку",
+        "fieldDueDate": "Дата завершення",
+        "fieldBudget": "Бюджет",
+        "fieldCompleted": "Завершено",
+        "fieldNotes": "Нотатки",
+        "fieldRole": "Роль",
+        "fieldPhone": "Телефон",
+        "fieldActive": "Активний",
+        "fieldEstimatedDays": "Орієнтовна кількість днів",
+        "fieldStartDate": "Дата початку",
+        "fieldEndDate": "Дата завершення",
+        "projectsCategoryDesign": "Дизайн",
+        "projectsCategoryDevelopment": "Розробка",
+        "projectsCategoryMarketing": "Маркетинг",
+        "projectsNotesRow1": "Acme шукає повний ребрендинг свого веб-сайту з наступними рекомендаціями.",
+        "projectsNotesRow2": "Дослідити, чи зацікавлені поточні користувачі Soylent у новому користувацькому порталі.",
+        "projectsNotesRow3": "Чи варто це робити після бойкоту реклами Facebook. Дослідження показують, що платні рекламні кампанії стають все менш ефективними.",
+        "teamsRoleDesigner": "Дизайнер",
+        "teamsRoleDeveloper": "Розробник",
+        "teamsRoleMarketer": "Маркетолог",
+        "tasksDetailsRow1": "Логотип потрібно покращити, щоб зробити заклик до дії зрозумілішим.",
+        "tasksDetailsRow2": "Структура трохи невірна, тому нам, можливо, також потрібно скоригувати карту сайту.",
+        "tasksDetailsRow3": "Новий футер повинен містити нашу контактну інформацію та невеликий (але чіткий) заклик до дії.",
+        "campaignsDetailsRow1": "Розігрійте свої заощадження з нашим гарячим літнім розпродажем, що пропонує неперевершені знижки на всі ваші улюблені товари!",
+        "campaignsDetailsRow2": "Підвищте утримання та залученість клієнтів за допомогою нашої привабливої програми лояльності, розробленої для винагородження ваших найвідданіших клієнтів.",
+        "campaignsDetailsRow3": "Оживіть свій бізнес та захопіть аудиторію динамічним перезапуском бренду, який ідеально відповідає сучасним ринковим тенденціям та бажанням клієнтів.",
+        "customFieldsDescriptionRow1": "Turpis massa tincidunt dui ut ornare lectus sit amet est.",
+        "customFieldsDescriptionRow2": "Vitae justo eget magna fermentum iaculis eu non diam.",
+        "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt."
+    },
+    "databaseScratchTrackStep": {
+        "title": "Що ви хочете відстежувати?",
+        "description": "Виберіть із популярних варіантів використання або створіть власний.",
+        "addYourOwn": "Додати власний",
+        "tableName": "Назва таблиці",
+        "rowName": "Назва рядка",
+        "thisIncludes": "Це включає:",
+        "projects": "Проєкти",
+        "productsRow1": "Ребрендинг веб-сайту",
+        "productsRow2": "Дослідження клієнтів",
+        "productsRow3": "Платна рекламна кампанія",
+        "teams": "Команди",
+        "teamsRow1": "Продажі",
+        "teamsRow2": "HR",
+        "teamsRow3": "Маркетинг",
+        "tasks": "Завдання",
+        "tasksRow1": "Редизайн логотипу",
+        "tasksRow2": "Надіслати email",
+        "tasksRow3": "Написати статтю для блогу",
+        "campaigns": "Кампанії",
+        "campaignsRow1": "Літній розпродаж",
+        "campaignsRow2": "Програма лояльності",
+        "campaignsRow3": "Перезапуск бренду"
+    },
+    "databaseStep": {
+        "title": "Створіть свою першу базу даних",
+        "description": "Виберіть, з чого почати:",
+        "databaseNameLabel": "Назва бази даних",
+        "scratch": "З нуля",
+        "import": "Файл",
+        "airtable": "Airtable",
+        "template": "Шаблон"
+    },
+    "ViewFilterTypeDateUpgradeToMultiStep": {
+        "migrateButtonText": "Перейти на багатокроковий фільтр дати",
+        "migrateButtonTooltip": "Доступний новий фільтр. Натисніть для оновлення. Працює так само."
+    },
+    "dataSyncType": {
+        "syncError": "Помилка синхронізації",
+        "icalCalendar": "Синхронізація iCal каналу",
+        "postgresql": "Синхронізація таблиці PostgreSQL"
+    },
+    "iCalCalendarDataSync": {
+        "name": "iCal URL",
+        "description": "Синхронізація календаря iCal автоматично синхронізується із записами у файлі календаря за URL. Підтримується лише формат файлу ICS (Internet Calendar and Scheduling)."
+    },
+    "postgreSQLDataSync": {
+        "description": "Синхронізує таблицю PostgreSQL з таблицею Baserow відповідно до наданих нижче даних. Зверніть увагу, що при початку синхронізації будуть обрані всі рядки в наданій таблиці. Хоча Baserow лише читає дані, ми наполегливо рекомендуємо обмежити користувача підключенням лише для читання.",
+        "host": "Хост",
+        "username": "Ім'я користувача",
+        "password": "Пароль",
+        "database": "База даних",
+        "schema": "Схема",
+        "table": "Таблиця",
+        "port": "Порт",
+        "sslMode": "Режим SSL"
+    },
+    "createDataSync": {
+        "next": "Далі",
+        "fields": "Виберіть поля, які ви хочете синхронізувати",
+        "create": "Створити та синхронізувати таблицю",
+        "error": "Щось пішло не так під час синхронізації",
+        "autoAddLabel": "Автоматично додавати нові властивості",
+        "autoAddHelper": "Автоматично додає та синхронізує нові доступні властивості з джерела даних до таблиці Baserow. Зверніть увагу, що для роботи цієї функції всі властивості мають бути синхронізовані.",
+        "twoWaySyncLabel": "Двостороння синхронізація"
+    },
+    "syncTableModal": {
+        "title": "Синхронізувати {name}",
+        "description": "Ця таблиця пов'язана з синхронізацією даних. Коли ви натиснете кнопку синхронізації, дані будуть синхронізовані з джерелом. Під час цього процесу на оновлені рядки накладається блокування, що може тимчасово сповільнити API запити або зміни таблиці.",
+        "sync": "Синхронізувати таблицю",
+        "hide": "Приховати"
+    },
+    "gridViewRowHeight": {
+        "name": "Висота",
+        "small": "Малий",
+        "medium": "Середній",
+        "large": "Великий"
+    },
+    "configureDataSyncModal": {
+        "title": "Синхронізація даних",
+        "syncedFields": "Синхронізовані поля",
+        "syncSettings": "Налаштування синхронізації"
+    },
+    "configureDataSyncVisibleFields": {
+        "title": "Змінити синхронізовані поля",
+        "fields": "Синхронізовані поля",
+        "syncTable": "Синхронізувати при збереженні"
+    },
+    "configureDataSyncSettings": {
+        "title": "Змінити синхронізацію даних",
+        "syncTable": "Синхронізувати при збереженні"
+    },
+    "webhookDeactivatedNotification": {
+        "body": "Вебхук {name} було деактивовано через занадто багато послідовних невдач."
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "Корисне навантаження для вебхука {name} з ID події {event_id} було занадто великим. Вміст було розділено на кілька пакетів, але дані, що перевищують ліміт пакета {batch_limit}, було відкинуто."
+    },
+    "tablesGuidedTourStep": {
+        "title": "Налаштування таблиць",
+        "content": "Таблиці зберігають вашу інформацію впорядковано. Створіть нову таблицю в базі даних, щоб почати структурувати дані."
+    },
+    "filterSortGroupGuidedTourStep": {
+        "title": "Знаходьте та організовуйте дані",
+        "content": "Швидко знаходьте інформацію за допомогою фільтрації та сортування рядків. Миттєво групуйте за будь-якими полями для чіткої візуалізації закономірностей та спрощення робочих процесів."
+    },
+    "addFieldGuidedTourStep": {
+        "title": "Налаштуйте свої дані"
+    },
+    "createViewGuidedTourStep": {
+        "title": "Персоналізуйте свої представлення",
+        "content": "Створюйте власні представлення, як-от сітка, календар, канбан або галерея, щоб візуалізувати дані саме так, як вам потрібно."
+    },
+    "createFormViewGuidedTourStep": {
+        "title": "Створіть форму",
+        "content": "Швидко створюйте форми з ваших таблиць для збору відповідей безпосередньо в таблицю, спрощуючи збір даних."
+    },
+    "viewOptionsGuidedTourStep": {
+        "title": "Параметри представлення",
+        "content": "Натисніть на три крапки поруч із представленням, щоб експортувати, імпортувати, дублювати та налаштувати вебхук."
+    },
+    "fieldRules": {
+        "errorTitle": "Помилка під час обробки правила поля",
+        "ruleDoesNotExist": "Правило не існує",
+        "ruleTypeDoesNotExist": "Тип правила не існує",
+        "ruleAlreadyExists": "Правило вже існує"
     }
 }
