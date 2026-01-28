@@ -138,6 +138,7 @@
         @add-row-after="$emit('add-row-after', $event)"
         @edit-modal="$emit('edit-modal', row)"
         @select-cell="selectCell"
+        @set-state="setState"
       ></GridViewCell>
     </div>
   </RecursiveWrapper>

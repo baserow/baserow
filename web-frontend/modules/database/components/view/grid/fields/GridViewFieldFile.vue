@@ -26,7 +26,7 @@
           @click.prevent="showFileModal(index)"
         >
           <img
-            v-if="file.is_image"
+            v-if="file.is_image && file.thumbnails?.tiny?.url"
             class="grid-field-file__image"
             :src="file.thumbnails.tiny.url"
           />

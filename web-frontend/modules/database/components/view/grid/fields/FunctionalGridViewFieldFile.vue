@@ -23,7 +23,7 @@
       >
         <a class="grid-field-file__link">
           <img
-            v-if="file.is_image"
+            v-if="file.is_image && file.thumbnails?.tiny?.url"
             class="grid-field-file__image"
             :src="file.thumbnails.tiny.url"
           />
@@ -70,11 +70,18 @@ export default {
         return
       }
 
+      // Extract files synchronously before the event data is cleared
+      // The dataTransfer.items collection becomes empty after the event handler completes
+      const files = [...event.dataTransfer.items]
+        .map((item) => item.getAsFile())
+        .filter((file) => file !== null)
+
       const parent = this.$parent
       parent?.selectCell(this.field.id)
       parent?.setState({})
       parent?.$nextTick(() => {
-        parent?.$refs.selectedField.onDrop(event)
+        // Pass the extracted files directly instead of the stale event
+        parent?.$refs.selectedField.uploadFiles(files)
       })
     },
     onDragEnter(event) {

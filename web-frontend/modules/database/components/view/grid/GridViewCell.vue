@@ -43,6 +43,7 @@
       @paste="paste"
       @edit="edit"
       @refresh-row="refreshRow"
+      @select="$emit('select', $event)"
       @unselect="unselect"
       @selected="selected"
       @unselected="unselected"
@@ -51,8 +52,8 @@
       @select-above="() => selectNext('above')"
       @select-below="() => selectNext('below')"
       @add-row-after="addRowAfter"
-      @add-keep-alive="addKeepAlive"
-      @remove-keep-alive="removeKeepAlive"
+      @add-keep-alive="addKeepAlive(field.id)"
+      @remove-keep-alive="removeKeepAlive(field.id)"
       @edit-modal="editModal"
     />
   </div>
@@ -108,6 +109,14 @@ export default {
       required: false,
       default: false,
     },
+    addKeepAlive: {
+      type: Function,
+      required: true,
+    },
+    removeKeepAlive: {
+      type: Function,
+      required: true,
+    },
   },
   emits: [
     'update',
@@ -117,6 +126,7 @@ export default {
     'cell-mouseover',
     'cell-mouseup-left',
     'cell-shift-click',
+    'select',
     'selected',
     'unselected',
     'select-cell',
@@ -124,6 +134,7 @@ export default {
     'add-row-after',
     'edit-modal',
     'refresh-row',
+    'set-state',
   ],
   computed: {
     cellKey() {
@@ -157,6 +168,20 @@ export default {
       return this.$registry
         .get('field', this.field.type)
         .getGridViewFieldComponent(this.field)
+    },
+    /**
+     * Called by functional field components to select this cell.
+     * This method forwards the call to the parent GridViewRow component.
+     */
+    selectCell(fieldId) {
+      this.$emit('select-cell', fieldId)
+    },
+    /**
+     * Called by functional field components to update the drag state.
+     * This method forwards the call to the parent GridViewRow component.
+     */
+    setState(value) {
+      this.$emit('set-state', value)
     },
     update(value, oldValue) {
       this.$emit('update', {
@@ -231,18 +256,6 @@ export default {
     },
     refreshRow() {
       this.$emit('refresh-row', this.row)
-    },
-    addKeepAlive() {
-      this.addKeepAlive(this.field.id)
-      /*if (this.parent) {
-        this.parent.addKeepAlive(this.field.id)
-      }*/
-    },
-    removeKeepAlive() {
-      this.removeKeepAlive(this.field.id)
-      /*if (this.parent) {
-        this.parent.removeKeepAlive(this.field.id)
-      }*/
     },
   },
 }
