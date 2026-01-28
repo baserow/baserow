@@ -11,6 +11,7 @@ import pytest
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
@@ -19,6 +20,7 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
+from baserow_premium.fields.ai_field_output_types import ChoiceAIFieldOutputType
 from baserow_premium.fields.models import GenerateAIValuesJob
 
 
@@ -180,6 +182,48 @@ def test_create_job_with_only_empty_flag_table_mode(premium_data_fixture):
 
     assert job.only_empty is True
     assert job.mode == GenerateAIValuesJob.MODES.TABLE
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_job_with_only_empty_choice_output_type(premium_data_fixture):
+    """Test job creation with only_empty=True and single select output."""
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table, ai_prompt="'test'", ai_output_type=ChoiceAIFieldOutputType.type
+    )
+    option_1 = SelectOption.objects.create(field=field, value="A", order=1)
+    SelectOption.objects.create(field=field, value="B", order=2)
+    model = table.get_model()
+
+    rows = (
+        RowHandler()
+        .create_rows(
+            user, table, rows_values=[{f"field_{field.id}": option_1.value}, {}, {}]
+        )
+        .created_rows
+    )
+    row_ids = [row.id for row in rows]
+
+    job = JobHandler().create_and_start_job(
+        user,
+        "generate_ai_values",
+        field_id=field.id,
+        row_ids=row_ids,
+        only_empty=True,
+        sync=True,
+    )
+
+    assert job.only_empty is True
+    assert job.mode == GenerateAIValuesJob.MODES.ROWS
+
+    choice_values = model.objects.all().values_list(f"field_{field.id}", flat=True)
+    assert choice_values[0] == option_1.id
+    assert all(x is not None for x in choice_values), choice_values
 
 
 @pytest.mark.django_db
