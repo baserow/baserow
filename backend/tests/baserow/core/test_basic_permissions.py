@@ -243,7 +243,7 @@ def test_workspace_member_permission_manager(data_fixture, django_assert_num_que
         perm_manager.check_permissions(
             user, ListApplicationsWorkspaceOperationType.type, workspace_2, workspace_2
         )
-    except Exception:  # noqa:W0718
+    except Exception:  # noqa
         ...
 
     with django_assert_num_queries(0):

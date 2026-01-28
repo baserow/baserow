@@ -3,11 +3,11 @@ from unittest.mock import patch
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.fields.models import AIFieldScheduledUpdate
-from baserow_premium.fields.tasks import schedule_ai_field_generation
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow_premium.fields.models import AIFieldScheduledUpdate
+from baserow_premium.fields.tasks import schedule_ai_field_generation
 
 
 @pytest.mark.django_db(transaction=True)

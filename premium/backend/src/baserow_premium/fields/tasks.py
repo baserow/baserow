@@ -3,15 +3,15 @@ from datetime import datetime, timedelta, timezone
 from django.conf import settings
 from django.db.models import Exists, OuterRef, Q
 
-from baserow_premium.fields.job_types import GenerateAIValuesJobType
-from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 from celery_singleton import DuplicateTaskError, Singleton
 
 from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.core.jobs.handler import JobHandler
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
+from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 PERIODIC_CHECK_MINUTES = 5
 PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES
