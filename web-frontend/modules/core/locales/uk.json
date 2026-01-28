@@ -1,52 +1,60 @@
 {
     "paginator": {
-        "page": "",
-        "of": ""
+        "page": "Сторінка",
+        "of": "з {pages}"
     },
     "copied": {
-        "label": ""
+        "label": "Скопійовано!"
     },
     "sidebarApplication": {
-        "rename": "",
-        "duplicate": "",
-        "viewTrash": "",
-        "delete": "",
-        "snapshots": ""
+        "rename": "Перейменувати",
+        "duplicate": "Дублювати",
+        "viewTrash": "Переглянути кошик",
+        "delete": "Видалити",
+        "snapshots": "Знімки"
     },
     "duplicateApplicationJobType": {
-        "duplicating": "",
-        "duplicatedTitle": ""
+        "duplicating": "Дублювання",
+        "duplicatedTitle": "Застосунок дубльовано"
     },
     "InstallTemplateJobType": {
-        "installing": "",
-        "installedTitle": ""
+        "installing": "Встановлення",
+        "installedTitle": "Шаблон встановлено"
     },
     "sidebar": {
-        "createWorkspace": "",
-        "inviteOthers": "",
-        "members": "",
-        "logoff": "",
+        "createWorkspace": "Створити робочий простір",
+        "inviteOthers": "Запросити інших",
+        "members": "Учасники",
+        "logoff": "Вийти",
         "errorNoWorkspace": "",
         "admin": "",
-        "dashboard": "",
-        "trash": "",
-        "settings": ""
+        "dashboard": "Панель керування",
+        "trash": "Кошик",
+        "settings": "Мої налаштування",
+        "addNewWorkspace": "Додати новий робочий простір",
+        "adminTools": "Інструменти адміністратора",
+        "home": "Головна",
+        "notifications": "Сповіщення",
+        "adminSettings": "Налаштування адміністратора",
+        "general": "Загальні",
+        "people": "Люди",
+        "licenses": "Ліцензії"
     },
     "accountForm": {
-        "nameLabel": "",
-        "languageLabel": ""
+        "nameLabel": "Ваше ім'я",
+        "languageLabel": "Мова інтерфейсу"
     },
     "accountSettings": {
-        "title": "",
-        "changedTitle": "",
-        "changedDescription": "",
-        "submitButton": ""
+        "title": "Обліковий запис",
+        "changedTitle": "Змінено",
+        "changedDescription": "Інформацію вашого облікового запису змінено.",
+        "submitButton": "Оновити обліковий запис"
     },
     "settingsModal": {
-        "title": ""
+        "title": "Мої налаштування"
     },
     "passwordSettings": {
-        "title": "",
+        "title": "Змінити пароль",
         "changedTitle": "",
         "changedDescription": "",
         "oldPasswordLabel": "",
@@ -82,7 +90,7 @@
         "alreadyExistsTitle": "",
         "alreadyExistsMessage": "",
         "passwordRequired": "",
-        "invalidEmail": "",
+        "invalidEmail": "Будь ласка, введіть дійсну адресу електронної пошти.",
         "disabledAccountTitle": "",
         "disabledAccountMessage": "",
         "incorrectCredentialTitle": "",
@@ -93,7 +101,7 @@
     },
     "field": {
         "language": "",
-        "emailAddress": "",
+        "emailAddress": "Адреса електронної пошти",
         "name": "",
         "password": "",
         "passwordRepeat": ""
@@ -506,5 +514,93 @@
     },
     "editRoleContext": {
         "billableRolesLink": ""
+    },
+    "workspaceSearch": {
+        "title": "Пошук",
+        "searchEverything": "Пошук...",
+        "searching": "Пошук...",
+        "noResults": "Результатів не знайдено",
+        "noResultsSubtitle": "Не знайдено нічого, що відповідає \"{searchTerm}\"",
+        "welcome": "Шукайте все у вашому робочому просторі",
+        "welcomeSubtitle": "Використовуйте поле пошуку вище, щоб знайти застосунки, таблиці, поля та інше",
+        "navigate": "Перейти",
+        "select": "Вибрати",
+        "close": "Закрити",
+        "types": {
+            "applications": "Застосунки",
+            "tables": "Таблиці",
+            "fields": "Поля",
+            "rows": "Рядки"
+        }
+    },
+    "action": {
+        "cancel": "Скасувати",
+        "submit": "Надіслати"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Двофакторна автентифікація",
+        "loadingError": "Не вдалося завантажити конфігурацію двофакторної автентифікації."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Ви впевнені, що хочете вимкнути 2FA?",
+        "description": "Ваш обліковий запис втратить додатковий рівень захисту. Якщо хтось дізнається ваш пароль, він може увійти до вашого облікового запису.",
+        "cancel": "Залишити увімкненим",
+        "disable": "Вимкнути",
+        "successTitle": "Двофакторну автентифікацію вимкнено",
+        "errorWrongPasswordTitle": "Неправильний пароль",
+        "errorWrongPasswordMessage": "Введений пароль не відповідає вашому паролю."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Скасувати",
+        "continue": "Продовжити"
+    },
+    "saveBackupCode": {
+        "backupCodes": "Резервні коди",
+        "copy": "Копіювати",
+        "continue": "Продовжити",
+        "backupCodesCopiedTitle": "Скопійовано!",
+        "backupCodesCopiedMessage": "Резервні коди скопійовано до буфера обміну."
+    },
+    "totpAuthType": {
+        "name": "Застосунок автентифікації",
+        "description": "Використовуйте застосунок для отримання кодів двофакторної автентифікації. Ми рекомендуємо використовувати такі застосунки, як Google Authenticator, Authy та Microsoft Authenticator.",
+        "enabledDescription": "Ви отримуватимете коди підтвердження через застосунок автентифікації. Щоб налаштувати інший застосунок або метод, просто вимкніть 2FA та налаштуйте знову.",
+        "sideLabel": "Рекомендовано"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Увімкнено",
+        "disable": "Вимкнути 2FA"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Введіть резервний код",
+        "backupCodesDescription": "Увійдіть за допомогою одноразового резервного коду.",
+        "authenticate": "Автентифікуватися",
+        "goBack": "Повернутися",
+        "totpTitle": "Двофакторна автентифікація",
+        "totpDescription": "Введіть код із застосунку автентифікації.",
+        "verify": "Перевірити",
+        "useBackupCode": "Використати резервний код",
+        "verificationFailed": "Помилка перевірки",
+        "verificationFailedDescription": "Введений код неправильний.",
+        "loginExpired": "Сеанс входу закінчився",
+        "loginExpiredDescription": "Будь ласка, введіть пароль ще раз.",
+        "rateLimit": "Забагато спроб."
+    },
+    "notificationPanel": {
+        "title": "Сповіщення",
+        "markAllAsRead": "Позначити все як прочитане",
+        "clearAll": "Очистити все",
+        "noNotificationTitle": "У вас немає сповіщень",
+        "noNotification": "Ми повідомлятимемо вас про важливі оновлення та кожного разу, коли вас згадують у Baserow.",
+        "newNotificationsAvailable": "Доступні нові сповіщення",
+        "refresh": "Оновити"
+    },
+    "clearAllNotificationsConfirmModal": {
+        "title": "Ви впевнені, що хочете очистити всі сповіщення?",
+        "message": "Усі сповіщення будуть остаточно видалені, і ви більше не зможете їх переглянути."
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Використовувати звичайний ввід",
+        "useAdvancedInput": "Використовувати розширений ввід"
     }
 }
