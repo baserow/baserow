@@ -61,10 +61,7 @@ import {
   BaserowVersionUpgradeNotificationType,
 } from '@baserow/modules/core/notificationTypes'
 import {
-  TeamOnboardingType,
   MoreOnboardingType,
-  WorkspaceOnboardingType,
-  InviteOnboardingType,
 } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
@@ -363,10 +360,7 @@ export default defineNuxtPlugin({
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))
 
-    registry.register('onboarding', new TeamOnboardingType(context))
     registry.register('onboarding', new MoreOnboardingType(context))
-    registry.register('onboarding', new WorkspaceOnboardingType(context))
-    registry.register('onboarding', new InviteOnboardingType(context))
 
     registry.register('guidedTour', new SidebarGuidedTourType(context))
   },

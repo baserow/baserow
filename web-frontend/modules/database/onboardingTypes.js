@@ -1,7 +1,4 @@
-import {
-  OnboardingType,
-  WorkspaceOnboardingType,
-} from '@baserow/modules/core/onboardingTypes'
+import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 
 import DatabaseStep from '@baserow/modules/database/components/onboarding/DatabaseStep'
 import DatabaseScratchTrackStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackStep'
@@ -27,7 +24,7 @@ const databaseTypeCondition = (data, type) => {
 }
 
 const createDatabase = async (data, responses, $client) => {
-  const workspace = responses[WorkspaceOnboardingType.getType()]
+  const workspace = responses[DatabaseOnboardingType.getType()].workspace
   const databaseName = data[DatabaseOnboardingType.getType()].name
 
   const { data: database } = await ApplicationService($client).create(
@@ -47,7 +44,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2000
+    return 5000
   }
 
   getFormComponent() {
@@ -69,7 +66,12 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   async complete(data, responses) {
-    const workspace = responses[WorkspaceOnboardingType.getType()]
+    const { $i18n: i18n } = this.app
+    const name = this.app.$store.getters['auth/getName']
+    const workspace = await this.app.$store.dispatch('workspace/create', {
+      name: i18n.t('databaseStep.workspaceName', { name }),
+    })
+    const returnValue = { workspace }
     const stepData = data[this.getType()]
     const fromType = stepData.type
     if (fromType === 'airtable') {
@@ -88,7 +90,7 @@ export class DatabaseOnboardingType extends OnboardingType {
 
       // Responds with the newly created job, so that the `getJobForPolling` can use
       // the response to mark the onboarding as an async job.
-      return job
+      returnValue.job = job
     } else if (fromType === 'template') {
       const template = stepData.template
       const { data: job } = await TemplateService(
@@ -97,24 +99,25 @@ export class DatabaseOnboardingType extends OnboardingType {
 
       // Responds with the newly created job, so that the `getJobForPolling` can use
       // the response to mark the onboarding as an async job.
-      return job
+      returnValue.job = job
     }
+    return returnValue
   }
 
   getJobForPolling(data, responses) {
     const type = data[this.getType()].type
     if (type === 'airtable' || type === 'template') {
-      return responses[this.getType()]
+      return responses[this.getType()].job
     }
   }
 
   getCompletedRoute(data, responses) {
-    const type = data[this.getType()].type
+    const type = data[this.getType()]?.job?.type
     let database = null
     if (type === 'airtable') {
-      database = responses[this.getType()].database
+      database = responses[this.getType()].job.database
     } else if (type === 'template') {
-      database = responses[this.getType()].installed_applications.find(
+      database = responses[this.getType()].job.installed_applications.find(
         (application) => application.type === DatabaseApplicationType.getType()
       )
     }
@@ -141,7 +144,7 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2100
+    return 5100
   }
 
   getFormComponent() {
@@ -191,7 +194,7 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2200
+    return 5200
   }
 
   getFormComponent() {
@@ -265,7 +268,7 @@ export class DatabaseImportOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2200
+    return 5200
   }
 
   getFormComponent() {

@@ -900,20 +900,23 @@
     "failedTryAgain": "Try again",
     "failedSkip": "Skip onboarding"
   },
-  "inviteStep": {
-    "title": "Invite collaborators",
-    "description": "You can always add more later.",
-    "collaboratorsLabel": "Collaborators"
-  },
   "moreStep": {
     "title": "Tell us a bit more",
-    "roleOrJob": "Role or job title...",
-    "people": "How many people are in your team?",
+    "how": "How did you hear about us?",
+    "howSearchEngine": "Search engine (Google/Bing)",
+    "howSocialMedia": "Social media",
+    "howOnlineAds": "Online ads",
+    "howContent": "Content (blog/newsletter/video)",
+    "howReviewSite": "Review site / marketplace",
+    "howFriend": "From a friend",
+    "howColleague": "From a colleague",
+    "howEvent": "Event or webinar",
+    "howSales": "Sales outreach",
+    "howOther": "Other",
     "country": "Country",
     "share": "I'm okay with sharing this with the Baserow team"
   },
   "teamStep": {
-    "title": "Let's build your first workspace together!",
     "description": "Which team are you on?",
     "marketingTeam": "Marketing",
     "productAndDesignTeam": "Product & Design",
@@ -927,10 +930,6 @@
     "customerServiceTeam": "Customer Service",
     "manufacturingTeam": "Manufacturing",
     "otherPersonalTeam": "Other / Personal"
-  },
-  "workspaceStep": {
-    "title": "Create your workspace",
-    "workspaceLabel": "Workspace name"
   },
   "colorInput": {
     "default": "Default"

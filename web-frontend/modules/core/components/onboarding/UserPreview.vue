@@ -11,12 +11,6 @@
         <div class="onboarding-user-preview__box">
           <div class="onboarding-user-preview__head">
             <div class="onboarding-user-preview__name">{{ name }}</div>
-            <div
-              class="onboarding-user-preview__role"
-              :class="{ 'onboarding-user-preview__role--empty': !role }"
-            >
-              {{ role }}
-            </div>
           </div>
           <div class="onboarding-user-preview__body">
             <div
@@ -42,10 +36,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import {
-  TeamOnboardingType,
-  MoreOnboardingType,
-} from '@baserow/modules/core/onboardingTypes'
+import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 
 export default {
   name: 'UserPreview',
@@ -63,7 +54,7 @@ export default {
       return this.data[MoreOnboardingType.getType()]?.role
     },
     team() {
-      return this.data[TeamOnboardingType.getType()]?.team
+      return this.data[MoreOnboardingType.getType()]?.team
     },
   },
 }

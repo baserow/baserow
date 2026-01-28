@@ -105,14 +105,27 @@ import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 export default {
   components: { Toasts, CircleProgressBar },
   mixins: [error, jobProgress],
-  middleware: ['settings', 'authenticated'],
-  asyncData({ store, redirect }) {
-    // If the user has completed the onboarding, then redirect to the on-boarding page
-    // so that the user can create their first one.
-    const user = store.getters['auth/getUserObject']
-    if (user.completed_onboarding) {
-      return redirect({ name: 'dashboard' })
-    }
+  setup() {
+    const { t } = useI18n()
+    useHead({
+      title: t('onboarding.title'),
+    })
+
+    definePageMeta({
+      middleware: [
+        'settings',
+        'authenticated',
+        () => {
+          const { $store } = useNuxtApp()
+          // If the user has completed the onboarding, then redirect to the on-boarding page
+          // so that the user can create their first one.
+          const user = $store.getters['auth/getUserObject']
+          if (user.completed_onboarding) {
+            return navigateTo({ name: 'dashboard' })
+          }
+        },
+      ],
+    })
   },
   data() {
     return {
@@ -122,11 +135,6 @@ export default {
       creatingFailed: false,
       cancelling: false,
       reloading: false,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('onboarding.title'),
     }
   },
   computed: {

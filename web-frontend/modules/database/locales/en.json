@@ -976,7 +976,8 @@
   "databaseImportStep": {
     "title": "Import your data",
     "description": "Move your data to Baserow, in just a few clicks.",
-    "tableNameLabel": "Table name"
+    "tableNameLabel": "Table name",
+    "tableNamePrefill": "{name}'s table"
   },
   "databaseScratchTrackFieldsStep": {
     "title": "Choose fields for every row",
@@ -1051,10 +1052,12 @@
     "title": "Create your first database",
     "description": "Select where you'd like to start from:",
     "databaseNameLabel": "Database name",
+    "databaseNamePrefill": "{name}'s database",
     "scratch": "Scratch",
     "import": "File",
     "airtable": "Airtable",
-    "template": "Template"
+    "template": "Template",
+    "workspaceName": "{name}'s workspace"
   },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",

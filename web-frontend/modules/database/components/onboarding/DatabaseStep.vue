@@ -15,13 +15,13 @@
     <template v-if="hasName">
       <FormGroup :error="v$.name.$error">
         <FormInput
+          ref="nameInput"
           v-model="name"
           :placeholder="$t('databaseStep.databaseNameLabel')"
           :label="$t('databaseStep.databaseNameLabel')"
           size="large"
           :error="v$.name.$error"
           @input=";[v$.name.$touch(), updateValue()]"
-          @blur="v$.name.$touch"
         />
         <template #error>{{ v$.name.$errors[0].$message }}</template>
       </FormGroup>
@@ -41,6 +41,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
+import { useI18n } from 'vue-i18n'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
@@ -59,6 +60,9 @@ export default {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
+    const { t } = useI18n()
+    const name = this.$store.getters['auth/getName']
+
     return {
       types: [
         {
@@ -79,10 +83,9 @@ export default {
         },
       ],
       selectedTypeIndex: 0,
-      name: '',
+      name: t('databaseStep.databaseNamePrefill', { name }),
     }
   },
-
   computed: {
     selectedType() {
       return this.types[this.selectedTypeIndex].type
@@ -93,6 +96,10 @@ export default {
   },
   mounted() {
     this.updateValue()
+    this.$nextTick(() => {
+      this.$refs.nameInput.focus()
+      this.v$.name.$touch()
+    })
   },
   methods: {
     isValid() {
@@ -107,16 +114,20 @@ export default {
       }
     },
     updateValue(airtable = {}) {
-      this.$emit('update-data', {
-        name: this.name,
-        type: this.selectedType,
-        ...airtable,
+      this.$nextTick(() => {
+        this.$emit('update-data', {
+          name: this.name,
+          type: this.selectedType,
+          ...airtable,
+        })
       })
     },
     selectedTemplate(template) {
-      this.$emit('update-data', {
-        type: this.selectedType,
-        template,
+      this.$nextTick(() => {
+        this.$emit('update-data', {
+          type: this.selectedType,
+          template,
+        })
       })
     },
   },

@@ -16,7 +16,6 @@
         size="large"
         :error="v$.tableName.$error"
         @input="updateValue"
-        @blur="v$.tableName.$touch"
       />
 
       <template #error>
@@ -75,10 +74,12 @@ export default {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
+    const { t } = useI18n()
+    const name = this.$store.getters['auth/getName']
     const importers = Object.values(this.$registry.getAll('importer'))
     return {
       importer: importers[0].getType(),
-      tableName: '',
+      tableName: t('databaseImportStep.tableNamePrefill', { name }),
       header: [],
       previewData: [],
       getData: null,
@@ -117,6 +118,7 @@ export default {
   },
   mounted() {
     this.updateValue()
+    this.v$.tableName.$touch()
   },
   methods: {
     isValid() {
@@ -128,10 +130,12 @@ export default {
       )
     },
     updateValue() {
-      const tableName = this.tableName
-      const getData = this.getData
-      const header = this.header
-      this.$emit('update-data', { tableName, getData, header })
+      this.$nextTick(() => {
+        const tableName = this.tableName
+        const getData = this.getData
+        const header = this.header
+        this.$emit('update-data', { tableName, getData, header })
+      })
     },
     onData({ header, previewData }) {
       this.header = header

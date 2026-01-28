@@ -46,6 +46,12 @@ export default {
     }
   },
   computed: {
+    scratchTrack() {
+      return {
+        track: this.data.database_scratch_track,
+        fields: this.data.database_scratch_track_fields,
+      }
+    },
     database() {
       return this.applications[0]
     },
@@ -117,19 +123,41 @@ export default {
     },
   },
   watch: {
-    'data.database_scratch_track': {
-      handler(value) {
+    scratchTrack: {
+      handler({ track, fields }) {
         const commit = (name, value) => {
           return this.$store.commit(`page/view/grid/${name}`, value)
         }
 
-        const rows = value.rows.map((name, index) => {
+        if (!track || !track.rows) {
+          return
+        }
+
+        const rows = track.rows.map((name, index) => {
           return populateRow({
             id: index + 1,
             field_0: name,
             order: `${index + 1}.00000000000000000000`,
           })
         })
+
+        this.nameRows = rows
+
+        const fieldsDefs = []
+        if (fields && fields.fields) {
+          Object.values(fields.fields).forEach((field, fieldIndex) => {
+            fieldsDefs.push({
+              primary: false,
+              ...field.props,
+            })
+
+            field.rows.forEach((rowValue, index) => {
+              if (rows[index]) {
+                rows[index][`field_${fieldIndex + 1}`] = rowValue
+              }
+            })
+          })
+        }
 
         commit('CLEAR_ROWS')
         commit('ADD_ROWS', {
@@ -145,48 +173,8 @@ export default {
           endIndex: rows.length,
           top: 0,
         })
-        this.nameRows = rows
-      },
-      immediate: true,
-      deep: true,
-    },
-    'data.database_scratch_track_fields': {
-      handler(value) {
-        const fieldsDefs = []
 
-        const commit = (name, value) => {
-          return this.$store.commit(`page/view/grid/${name}`, value)
-        }
-
-        const rows = JSON.parse(JSON.stringify(this.nameRows))
-
-        Object.values(value.fields).forEach((field, fieldIndex) => {
-          fieldsDefs.push({
-            primary: false,
-            ...field.props,
-          })
-
-          field.rows.forEach((rowValue, index) => {
-            rows[index][`field_${fieldIndex + 1}`] = rowValue
-          })
-
-          commit('CLEAR_ROWS')
-          commit('ADD_ROWS', {
-            rows,
-            prependToRows: 0,
-            appendToRows: rows.length,
-            count: rows.length,
-            bufferStartIndex: 0,
-            bufferLimit: rows.length,
-          })
-          commit('SET_ROWS_INDEX', {
-            startIndex: 0,
-            endIndex: rows.length,
-            top: 0,
-          })
-        })
         this.fieldsDefs = fieldsDefs
-
         for (let idx = 0; idx <= this.fieldsDefs.length; idx++) {
           commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
             fieldId: idx + 1,
@@ -200,10 +188,15 @@ export default {
           })
         }
 
-        this.$emit('focusOnTable', fieldsDefs.length > 0)
+        if (fields && fields.fields) {
+          this.$emit('focusOnTable', fieldsDefs.length > 0)
+        }
       },
+      immediate: true,
       deep: true,
+      flush: 'post',
     },
-  },
+  }
+
 }
 </script>

@@ -1,5 +1,37 @@
+<template>
+  <div
+    :class="{
+      'onboarding-tool-preview': true,
+      'onboarding-tool-preview__focus-table': focusOnTable,
+    }"
+  >
+    <div ref="inner" class="onboarding-tool-preview__inner">
+      <Highlight ref="highlight"></Highlight>
+      <div class="layout">
+        <div class="layout__col-1">
+          <Sidebar
+            ref="sidebar"
+            :workspaces="workspaces"
+            :selected-workspace="selectedWorkspace"
+            :applications="applications"
+          ></Sidebar>
+        </div>
+        <div class="layout__col-2">
+          <component
+            :is="col2Component"
+            v-if="col2Component"
+            :data="data"
+            :selected-workspace="selectedWorkspace"
+            :applications="applications"
+            @focus-on-table="handleFocusOnTable"
+          ></component>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script>
-import AppLayoutPreview from '@baserow/modules/core/components/onboarding/AppLayoutPreview'
 import {
   DatabaseOnboardingType,
   DatabaseImportOnboardingType,
@@ -8,11 +40,41 @@ import {
 import DatabaseTablePreview from '@baserow/modules/database/components/onboarding/DatabaseTablePreview.vue'
 import { populateTable } from '@baserow/modules/database/store/table'
 import { clone } from '@baserow/modules/core/utils/object'
+import Sidebar from '~/modules/core/components/sidebar/Sidebar.vue'
+import Highlight from '~/modules/core/components/Highlight.vue'
+import {populateWorkspace} from '~/modules/core/store/workspace.js'
+import {populateApplication} from '~/modules/core/store/application.js'
+import {DatabaseApplicationType} from '~/modules/database/applicationTypes.js'
 
 export default {
   name: 'DatabaseAppLayoutPreview',
-  extends: AppLayoutPreview,
+  components: { Sidebar, Highlight },
+  props: {
+    data: {
+      type: Object,
+      required: true,
+    },
+    highlightDataName: {
+      type: String,
+      required: false,
+      default: '',
+    },
+  },
+  data() {
+    return {
+      focusOnTable: false,
+    }
+  },
   computed: {
+    selectedWorkspace() {
+      const workspace = populateWorkspace({
+        id: 0,
+        name: this.$store.getters['auth/getName'] + "'s workspace",
+        users: [],
+      })
+      workspace._.is_onboarding = true
+      return workspace
+    },
     trackTableName() {
       return this.data[DatabaseScratchTrackOnboardingType.getType()]?.tableName
     },
@@ -23,9 +85,25 @@ export default {
       return this.trackTableName || this.importTableName
     },
     applications() {
-      const applications = AppLayoutPreview.computed.applications.call(this)
-      applications[0].name =
-        this.data[DatabaseOnboardingType.getType()]?.name || ''
+      const baseApplication = populateApplication(
+        {
+          id: 0,
+          name: '',
+          order: 1,
+          type: DatabaseApplicationType.getType(),
+          workspace: this.selectedWorkspace,
+          tables: [],
+        },
+
+        this.$registry
+      )
+      const application = clone(baseApplication)
+      application.name = this.data[DatabaseOnboardingType.getType()]?.name || ''
+      const application2 = clone(baseApplication)
+      application2.id = -1
+      const application3 = clone(baseApplication)
+      application3.id = -2
+      const applications = [application, application2, application3]
 
       if (this.tableName) {
         applications[0]._.selected = true
@@ -55,11 +133,35 @@ export default {
         : null
     },
   },
+  watch: {
+    highlightDataName: {
+      immediate: true,
+      handler(value) {
+        this.updateHighlightedElement(value)
+      },
+    },
+  },
   mounted() {
     // Add a new selected object to the store, so that it works with the sidebar, but
     // doesn't have influence over the actual selected state of the application.
     const application = { id: this.applications[0].id, _: {} }
     this.$store.commit('application/SET_SELECTED', application)
+  },
+  methods: {
+    updateHighlightedElement(value) {
+      this.$nextTick(() => {
+        if (value) {
+          this.$refs.highlight.show(
+            `[data-highlight='${this.highlightDataName}']`
+          )
+        } else {
+          this.$refs.highlight.hide()
+        }
+      })
+    },
+    handleFocusOnTable(focusOnTable) {
+      this.focusOnTable = focusOnTable
+    },
   },
 }
 </script>
