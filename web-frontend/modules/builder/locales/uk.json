@@ -1,1 +1,1078 @@
-{}
+{
+    "common": {
+        "dateFormatTitle": "Формат дати",
+        "dateFormatEU": "Європейський",
+        "dateFormatUS": "Американський",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Формат часу",
+        "timeFormat24Hour": "24-годинний",
+        "timeFormat12Hour": "12-годинний"
+    },
+    "builderToast": {
+        "details": "Деталі",
+        "defaultTitle": "Неочікувана помилка",
+        "defaultMessage": "Сталася неочікувана помилка. Будь ласка, спробуйте пізніше.",
+        "invalidContextTitle": "Недійсний запит",
+        "invalidContextMessage": "Запит недійсний.",
+        "InvalidContentTitle": "Недійсна форма",
+        "invalidContentMessage": "Одне або кілька полів містять недійсні значення.",
+        "serviceMisconfiguredTitle": "Неповна конфігурація",
+        "serviceMisconfiguredMessage": "Будь ласка, перевірте конфігурацію.",
+        "errorWorkflowActionDispatch": "Дія \"{name}\" не вдалася: ",
+        "errorDataSourceDispatch": "Не вдалося завантажити дані \"{name}\": "
+    },
+    "dataProviderType": {
+        "dataSource": "Записи даних",
+        "dataSourceContext": "Доступні опції",
+        "pageParameter": "Параметр",
+        "currentRecord": "Джерело даних",
+        "formData": "Дані форми",
+        "previousAction": "Попередня дія",
+        "user": "Користувач"
+    },
+    "formDataProviderType": {
+        "nodeMissing": "Відсутній"
+    },
+    "builderForm": {
+        "submit": "Додати застосунок"
+    },
+    "sidebarComponentBuilder": {
+        "settings": "Налаштування",
+        "createPage": "Нова сторінка"
+    },
+    "builderSettingsModal": {
+        "title": "Застосунок"
+    },
+    "builderSettingTypes": {
+        "generalName": "Загальні",
+        "integrationsName": "Інтеграції",
+        "themeName": "Тема",
+        "domainsName": "Домени",
+        "userSourcesName": "Користувачі"
+    },
+    "createPageModal": {
+        "header": "Створити сторінку",
+        "submit": "Додати сторінку"
+    },
+    "pageErrors": {
+        "errorNameNotUnique": "Сторінка з такою назвою вже існує",
+        "errorPathNotUnique": "Шлях з такою назвою вже існує",
+        "errorStartingSlash": "Шлях повинен починатися з '/'",
+        "errorValidPathCharacters": "Шлях містить недійсні символи",
+        "errorUniquePathParams": "Параметри шляху мають бути унікальними.",
+        "errorUniqueValidQueryParams": "Назви параметрів запиту мають бути унікальними та дійсними."
+    },
+    "pageHeaderItemTypes": {
+        "labelElements": "Елементи",
+        "labelDataSource": "Дані",
+        "labelVariables": "Змінні",
+        "labelSettings": "Налаштування сторінки"
+    },
+    "pageActionTypes": {
+        "preview": "Попередній перегляд",
+        "publish": "Опублікувати"
+    },
+    "publishActionModal": {
+        "title": "Публікація",
+        "description": "Запустіть ваш застосунок, опублікувавши його на одному з доменів. Зверніть увагу, що ваш застосунок може мати кілька доменів, кожен з яких працює з різною версією застосунку.",
+        "publish": "Опублікувати",
+        "publishSucceedTitle": "Сайт опубліковано",
+        "publishSucceedDescription": "Сайт успішно опубліковано.",
+        "publishSucceedLink": "Переглянути сайт",
+        "publishFailedTitle": "Помилка публікації сайту",
+        "publishFailedDescription": "Публікація сайту не вдалася. Будь ласка, спробуйте пізніше.",
+        "openInNewTab": "Відкрити в новій вкладці",
+        "importingState": "Імпортування",
+        "noDomain": "Вам потрібно мати принаймні один домен, щоб опублікувати ваш застосунок.",
+        "addDomain": "Додати домен"
+    },
+    "lastPublishedDomainDate": {
+        "neverPublished": "ніколи",
+        "lastPublished": "Останнє опублікування:"
+    },
+    "elementsContext": {
+        "searchPlaceholder": "Пошук елементів",
+        "noPageElements": "Елементи для цієї сторінки не знайдено",
+        "noElements": "Елементи не знайдено"
+    },
+    "elementType": {
+        "heading": "Заголовок",
+        "headingDescription": "Заголовок сторінки",
+        "text": "Текст",
+        "textDescription": "Багаторядковий текст",
+        "link": "Посилання",
+        "linkDescription": "Посилання на сторінку/URL",
+        "image": "Зображення",
+        "imageDescription": "Відображає зображення",
+        "inputText": "Поле введення",
+        "inputTextDescription": "Поле введення даних",
+        "column": "Колонки",
+        "columnDescription": "Контейнер колонок",
+        "button": "Кнопка",
+        "buttonDescription": "Елемент кнопки",
+        "table": "Таблиця",
+        "tableDescription": "Елемент таблиці",
+        "formContainer": "Форма",
+        "formContainerDescription": "Елемент форми",
+        "choice": "Вибір",
+        "choiceDescription": "Для вибору одного/кількох значень",
+        "checkbox": "Прапорець",
+        "checkboxDescription": "Елемент прапорця",
+        "iframe": "IFrame",
+        "iframeDescription": "Вбудований фрейм",
+        "authForm": "Форма входу",
+        "authFormDescription": "Форма входу користувача",
+        "repeat": "Повторення",
+        "repeatDescription": "Набір елементів, що повторюється",
+        "recordSelector": "Вибір записів",
+        "recordSelectorDescription": "Вибір пов'язаних записів",
+        "dateTimePicker": "Вибір дати та часу",
+        "dateTimePickerDescription": "Поле введення дати та часу",
+        "header": "Багатосторінковий заголовок",
+        "headerDescription": "Контейнер, спільний для кількох сторінок",
+        "footer": "Багатосторінковий підвал",
+        "footerDescription": "Контейнер, спільний для кількох сторінок",
+        "notAllowedUnlessTop": "Цей елемент дозволений лише у верхній частині сторінки",
+        "notAllowedUnlessBottom": "Цей елемент дозволений лише у нижній частині сторінки",
+        "notAllowedUnlessHeader": "Цей елемент дозволений лише всередині заголовка сторінки",
+        "notAllowedUnlessFooter": "Цей елемент дозволений лише всередині підвалу сторінки",
+        "notAllowedInsideContainer": "Цей елемент не дозволений всередині контейнера",
+        "notAllowedInsideSameType": "Цей елемент не дозволений у контейнері того ж типу",
+        "ratingInput": "Поле рейтингу",
+        "ratingInputDescription": "Елемент поля рейтингу",
+        "rating": "Рейтинг",
+        "ratingDescription": "Елемент рейтингу",
+        "invalidElementValue": "Недійсне значення елемента: {value}",
+        "notAllowedLocation": "Цей елемент не дозволений у цьому місці",
+        "menu": "Меню",
+        "menuDescription": "Елемент меню",
+        "simpleContainer": "Контейнер",
+        "simpleContainerDescription": "Контейнер для інших елементів",
+        "fileInput": "Поле файлу",
+        "fileInputDescription": "Поле для завантаження файлів",
+        "errorValueMissing": "Відсутня властивість значення",
+        "errorEmptyContainer": "Цей контейнер порожній",
+        "errorParentWithDataSourceMissing": "Не вибрано джерело даних на елементі або батьківському контейнері",
+        "errorDataSourceMissing": "Джерело даних не вибрано",
+        "errorSchemaPropertyMissing": "Властивість схеми не вибрано",
+        "errorWorkflowActionInError": "Принаймні одна дія налаштована неправильно",
+        "errorCollectionFieldInError": "Принаймні одне поле налаштовано неправильно",
+        "errorNavigateToPageMissing": "Відсутня властивість \"Перейти до\"",
+        "errorPageParameterInError": "Принаймні один параметр сторінки налаштовано неправильно",
+        "errorNavigationUrlMissing": "Відсутня властивість URL навігації",
+        "errorImageFileMissing": "Відсутній файл зображення",
+        "errorImageUrlMissing": "Відсутня властивість URL зображення",
+        "errorNoWorkflowAction": "Дія робочого процесу не налаштована",
+        "errorOptionsMissing": "Опції не налаштовано",
+        "errorIframeUrlMissing": "Відсутня властивість URL IFrame",
+        "errorIframeContentMissing": "Відсутній вміст IFrame",
+        "errorNoMenuItem": "Елемент меню не налаштовано",
+        "errorMenuItemInError": "Принаймні одне меню налаштовано неправильно",
+        "errorSubMenuItemInError": "Принаймні одне підменю налаштовано неправильно"
+    },
+    "addElementButton": {
+        "label": "Елемент"
+    },
+    "addElementModal": {
+        "title": "Додати новий елемент",
+        "searchPlaceholder": "Пошук елементів",
+        "elementInProgress": "Додавання елемента..."
+    },
+    "addElementCategory": {
+        "suggestedElement": "Рекомендовані елементи",
+        "baseElement": "Базові елементи",
+        "layoutElement": "Елементи макету",
+        "formElement": "Елементи форми"
+    },
+    "elementMenu": {
+        "moveUp": "Перемістити вгору",
+        "moveDown": "Перемістити вниз",
+        "moveLeft": "Перемістити ліворуч",
+        "moveRight": "Перемістити праворуч",
+        "selectParent": "Вибрати батьківський"
+    },
+    "duplicatePageJobType": {
+        "name": "Дублювати сторінку",
+        "duplicating": "Дублювання",
+        "duplicatedTitle": "Сторінку дубльовано"
+    },
+    "pageSidePanelType": {
+        "general": "Загальні",
+        "style": "Стиль",
+        "visibility": "Видимість",
+        "events": "Події",
+        "eventsTabDeactivatedNoEvents": "Цей елемент не підтримує жодних подій",
+        "eventsTabInError": "Одна або кілька дій налаштовані неправильно."
+    },
+    "emptySidePanelState": {
+        "message": "Клацніть на один з елементів, щоб побачити більше деталей"
+    },
+    "pagePreview": {
+        "emptyMessage": "Клацніть, щоб створити елемент",
+        "header": "ЗАГОЛОВОК",
+        "footer": "ПІДВАЛ"
+    },
+    "elementForms": {
+        "textInputPlaceholder": "Введіть текст...",
+        "urlInputPlaceholder": "Введіть URL...",
+        "invalidFormula": "Формула недійсна"
+    },
+    "headingElement": {
+        "missingValue": "Відсутній заголовок...",
+        "emptyValue": "Порожній заголовок..."
+    },
+    "headingElementForm": {
+        "levelTitle": "Рівень",
+        "textTitle": "Текст",
+        "textPlaceholder": "Введіть текст...",
+        "headingName": "Заголовок {level} <h{level}>",
+        "textError": "Значення недійсне."
+    },
+    "textElement": {
+        "missingValue": "Відсутній текст...",
+        "emptyValue": "Порожній текст..."
+    },
+    "textElementForm": {
+        "textTitle": "Текст",
+        "textPlaceholder": "Введіть текст...",
+        "textError": "Значення недійсне.",
+        "textFormatTypeLabel": "Формат",
+        "textFormatTypePlain": "Звичайний текст",
+        "textFormatTypeMarkdown": "Markdown"
+    },
+    "orientations": {
+        "label": "Орієнтація",
+        "horizontal": "Горизонтальна",
+        "vertical": "Вертикальна"
+    },
+    "menuElement": {
+        "missingValue": "Відсутній елемент меню",
+        "separator": "Роздільник",
+        "spacer": "Відступ",
+        "missingLinkValue": "Відсутня назва посилання...",
+        "emptyLinkValue": "Порожня назва посилання...",
+        "missingButtonValue": "Відсутня назва кнопки...",
+        "emptyButtonValue": "Порожня назва кнопки..."
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Елементи меню",
+        "addMenuItemLink": "Додати...",
+        "alignment": "Вирівнювання",
+        "menuItemDefaultName": "Сторінка",
+        "menuItemLabelLabel": "Мітка",
+        "menuItemTypeLabel": "Тип",
+        "menuItemTypeSeparator": "Роздільник",
+        "menuItemVariantLabel": "Варіант",
+        "menuItemVariantLink": "Посилання",
+        "menuItemVariantButton": "Кнопка",
+        "namePlaceholder": "Сторінка",
+        "addSubLink": "Додати підпосилання",
+        "menuItemSubLinkDefaultName": "Підпосилання",
+        "menuItemAddLink": "Посилання",
+        "menuItemAddButton": "Кнопка",
+        "menuItemAddSeparator": "Роздільник",
+        "menuItemAddSpacer": "Відступ",
+        "eventDescription": "Щоб налаштувати дії для цієї кнопки, відкрийте вкладку \"Події\" цього елемента.",
+        "noMenuItemsMessage": "Клацніть \"Додати\", щоб додати перший елемент меню."
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "Елемент контейнера не має жодних параметрів конфігурації."
+    },
+    "imageElement": {
+        "missingValue": "Відсутній альтернативний текст...",
+        "emptyValue": "Порожній альтернативний текст..."
+    },
+    "generalForm": {
+        "labelTitle": "Мітка",
+        "labelPlaceholder": "Введіть мітку",
+        "valueTitle": "Значення",
+        "defaultValueTitle": "Значення за замовчуванням",
+        "defaultValuePlaceholder": "Введіть значення за замовчуванням",
+        "valuePlaceholder": "Введіть значення",
+        "placeholderTitle": "Заповнювач",
+        "placeholderPlaceholder": "Введіть заповнювач",
+        "requiredTitle": "Обов'язкове",
+        "validationTitle": "Перевірка"
+    },
+    "inputTextElementForm": {
+        "multilineTitle": "Багаторядковий",
+        "rowsTitle": "Кількість рядків",
+        "rowsPlaceholder": "Введіть кількість рядків для цього поля",
+        "validationTypeAnyLabel": "Будь-яке",
+        "validationTypeAnyDescription": "Дозволити будь-яке значення в цьому полі.",
+        "validationTypeIntegerLabel": "Число",
+        "validationTypeIntegerDescription": "Вимагати числове значення в цьому полі (приймає цілі та десяткові числа).",
+        "validationTypeEmailLabel": "Електронна пошта",
+        "validationTypeEmailDescription": "Вимагати адресу електронної пошти в цьому полі.",
+        "inputType": "Тип поля",
+        "inputTypeTextLabel": "Текст",
+        "inputTypePasswordLabel": "Пароль",
+        "passwordTypeWarning": "Паролі є конфіденційними даними. Будь ласка, будьте обережні з тим, як ви обробляєте та зберігаєте паролі у вашому застосунку."
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Включити час",
+        "invalidDateError": "Недійсна дата. Переконайтеся, що введена дата відповідає заданому формату."
+    },
+    "imageElementForm": {
+        "fileLabel": "Зображення",
+        "invalidUrlError": "URL недійсний",
+        "altTextTitle": "Альтернативний текст",
+        "altTextDescription": "Використовується програмами читання з екрану та відображається, якщо зображення не може завантажитися",
+        "fileSourceTypeUpload": "Завантажити",
+        "fileSourceTypeURL": "URL",
+        "urlWarning": "Примітка: переконайтеся, що ви контролюєте або довіряєте введеному URL.",
+        "uploadFileButton": "Завантажити файл"
+    },
+    "iframeElementForm": {
+        "missingValue": "Відсутнє джерело IFrame...",
+        "emptyValue": "Порожнє джерело IFrame...",
+        "sourceTypeLabel": "Тип джерела",
+        "urlLabel": "URL",
+        "urlPlaceholder": "Посилання на зовнішній ресурс для вбудовування",
+        "urlHelp": "Примітка: переконайтеся, що ви контролюєте або довіряєте введеному URL.",
+        "embedLabel": "Вбудувати",
+        "embedPlaceholder": "Необроблений HTML-вміст для вбудовування",
+        "heightLabel": "Висота (px)",
+        "heightPlaceholder": "Висота в пікселях"
+    },
+    "columnElementForm": {
+        "columnAmountTitle": "Макет",
+        "verticalAlignment": "Вертикальне вирівнювання",
+        "columnAmountName": "немає колонок | 1 колонка | {columnAmount} колонок",
+        "columnGapTitle": "Відстань між колонками",
+        "columnGapPlaceholder": "Введіть відстань між колонками..."
+    },
+    "domainSettings": {
+        "titleOverview": "Домени",
+        "titleAddDomain": "Додати домен",
+        "addDomain": "Додати домен",
+        "noDomainMessage": "Ви ще не пов'язали домен з цим застосунком. Ви повинні додати домен, щоб мати можливість опублікувати ваш застосунок. Ви можете публікувати різні версії вашого застосунку для кожного домену, вказаного тут."
+    },
+    "userSourceSettings": {
+        "titleAddUserSource": "Нове джерело користувачів",
+        "titleUpdateUserSource": "Редагувати джерело користувачів",
+        "noUserSourceMessage": "Ви ще не додали джерело користувачів до цього застосунку. Ви повинні додати джерело користувачів, якщо хочете, щоб користувачі могли автентифікуватися у вашому застосунку.",
+        "titleOverview": "Джерела користувачів",
+        "addUserSource": "Додати джерело користувачів"
+    },
+    "themeSettings": {
+        "titleOverview": "Тема"
+    },
+    "generalSettings": {
+        "titleOverview": "Загальні",
+        "labelForm": "Favicon",
+        "labelDescription": "Виберіть ICO, PNG, GIF або JPEG розміром 128x128px.",
+        "labelButton": "Завантажити favicon",
+        "cantUploadFaviconTitle": "Не вдалося завантажити файл favicon",
+        "cantUploadFaviconDescription": "На жаль, не вдалося завантажити зображення favicon. Переконайтеся, що файл зображення унікальний і має підтримуваний формат.",
+        "cantUpdateApplicationTitle": "Не вдалося оновити застосунок",
+        "cantUpdateApplicationDescription": "На жаль, не вдалося оновити застосунок."
+    },
+    "dnsStatus": {
+        "description": "Перейдіть до налаштувань DNS вашого домену та внесіть наступні зміни",
+        "typeHeader": "Тип",
+        "hostHeader": "Хост",
+        "valueHeader": "Значення"
+    },
+    "domainForm": {
+        "invalidDomain": "Вказане ім'я домену недійсне",
+        "notUniqueDomain": "Вказаний домен вже використовується"
+    },
+    "customDomainForm": {
+        "domainNameLabel": "Ім'я домену"
+    },
+    "subDomainForm": {
+        "domainNameLabel": "Ім'я домену"
+    },
+    "subDomainDetails": {
+        "text": "Налаштування DNS домену вже налаштовані та перевірені. Все працює без додаткових змін."
+    },
+    "domainCard": {
+        "refresh": "Оновити налаштування",
+        "detailLabel": "Показати деталі",
+        "unpublishedDomainWarning": "Будь ласка, опублікуйте застосунок, щоб зробити його доступним на цьому домені."
+    },
+    "domainTypes": {
+        "customName": "Власний домен",
+        "subDomainName": "Піддомен",
+        "subDomain": "Піддомен {domain}"
+    },
+    "linkElement": {
+        "missingValue": "Відсутній текст посилання...",
+        "emptyValue": "Порожній текст посилання..."
+    },
+    "linkNavigationSelection": {
+        "navigateTo": "Перейти до",
+        "navigateToCustom": "Власний URL",
+        "paramPlaceholder": "Введіть значення...",
+        "urlPlaceholder": "Введіть URL...",
+        "url": "URL призначення",
+        "paramsInErrorDescription": "Збережені параметри не відповідають параметрам сторінки. Сторінку, ймовірно, було видалено або оновлено.",
+        "paramsInErrorButton": "Оновити параметри",
+        "target": "Відкрити в...",
+        "targetSelf": "Тій самій вкладці",
+        "targetNewTab": "Новій вкладці"
+    },
+    "linkElementForm": {
+        "text": "Текст",
+        "textPlaceholder": "Введіть текст...",
+        "variant": "Варіант",
+        "variantLink": "Посилання",
+        "variantButton": "Кнопка",
+        "buttonColor": "Колір кнопки"
+    },
+    "widthSelector": {
+        "width": "Ширина",
+        "widthAuto": "Авто",
+        "widthFull": "Повна ширина"
+    },
+    "backgroundTypes": {
+        "none": "Немає",
+        "color": "Колір"
+    },
+    "widthTypes": {
+        "fullBleed": "На всю ширину",
+        "fullWidth": "Повна ширина",
+        "normal": "Звичайна",
+        "medium": "Середня",
+        "small": "Мала"
+    },
+    "horizontalAlignmentSelector": {
+        "alignmentLeft": "Ліворуч",
+        "alignmentCenter": "По центру",
+        "alignmentRight": "Праворуч"
+    },
+    "verticalAlignmentSelector": {
+        "alignmentTop": "Вгорі",
+        "alignmentCenter": "Посередині",
+        "alignmentBottom": "Внизу"
+    },
+    "pageSettingsTypes": {
+        "pageName": "Сторінка"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Видимість",
+        "logInPageWarningTitle": "Сторінку входу не встановлено",
+        "logInPagewarningMessage": "Коли анонімний користувач спробує отримати доступ до цієї сторінки, його буде перенаправлено на сторінку входу. Будь ласка, встановіть сторінку входу в загальних налаштуваннях застосунку.",
+        "logInPageInfoTitle": "Анонімних користувачів буде перенаправлено",
+        "logInPageInfoMessage": "Анонімні користувачі, які намагаються отримати доступ до цієї сторінки, будуть перенаправлені на сторінку {logInPageName}."
+    },
+    "pageSettings": {
+        "title": "Сторінка",
+        "pageUpdatedTitle": "Змінено",
+        "pageUpdatedDescription": "Налаштування сторінки оновлено."
+    },
+    "pageVisibilitySettings": {
+        "title": "Видимість",
+        "allVisitors": "Усі відвідувачі",
+        "loggedInVisitors": "Авторизовані відвідувачі",
+        "description": "Хто може бачити цю сторінку"
+    },
+    "pageForm": {
+        "defaultName": "Сторінка",
+        "nameTitle": "Назва",
+        "nameSubtitle": "Унікальна назва сторінки",
+        "namePlaceholder": "Введіть назву...",
+        "pathTitle": "Шлях",
+        "addAnotherParameter": "Додати ще один параметр запиту",
+        "addParameter": "Додати параметр запиту",
+        "queryParamsSubtitleTutorial": "Параметри запиту можна використовувати для динамічного завантаження даних залежно від наданого параметра.",
+        "pathSubtitle": "Параметр можна додати через :parameter",
+        "pathPlaceholder": "Введіть шлях...",
+        "pathParamsTitle": "Параметри шляху",
+        "queryParamsTitle": "Параметри рядка запиту",
+        "pathParamsSubtitle": "Визначаються через :parameter у шляху",
+        "pathParamsSubtitleTutorial": "Параметри шляху можна використовувати для динамічного завантаження даних залежно від наданого параметра. Додайте :parameter до шляху, щоб додати один."
+    },
+    "pathParamTypes": {
+        "textName": "Текст",
+        "numericName": "Числовий"
+    },
+    "queryParamTypes": {
+        "textName": "Текст",
+        "numericName": "Числовий"
+    },
+    "pageEditor": {
+        "pageNotFound": "Сторінку не знайдено"
+    },
+    "publicPage": {
+        "siteNotFound": "Сайт не знайдено",
+        "pageNotFound": "Сторінку не знайдено",
+        "loginToastTitle": "Автентифікацію виконано успішно",
+        "loginToastMessage": "Ви успішно увійшли в систему.",
+        "authorizedToastTitle": "Потрібна автентифікація",
+        "authorizedToastMessage": "Ви повинні увійти в систему, щоб отримати доступ до цієї сторінки. Будь ласка, увійдіть, щоб продовжити."
+    },
+    "integrationSettings": {
+        "title": "Інтеграції",
+        "noIntegrationMessage": "Ви ще не створили жодних інтеграцій. Їх можна створити, додавши джерело даних, дію або автентифікацію користувачів.",
+        "integrationMessage": "Ви можете створити нові інтеграції, додавши джерело даних, дію або автентифікацію користувачів."
+    },
+    "dataSourceForm": {
+        "namePlaceholder": "Назва джерела",
+        "nameLabel": "Назва",
+        "actionLabel": "Дія",
+        "integrationLabel": "Інтеграція",
+        "servicePlaceholder": "Виберіть сервіс",
+        "integrationPlaceholder": "Виберіть інтеграцію",
+        "errorUniqueName": "Назва джерела даних має бути унікальною."
+    },
+    "dataSourceContext": {
+        "addDataSource": "Додати нове джерело даних",
+        "noDataSourceTitle": "Ви ще не додали джерело даних.",
+        "noDataSourceMessage": "Джерела даних можна використовувати для отримання даних із внутрішніх або зовнішніх джерел та відображення їх на сторінці.",
+        "sharedDataSourceTitle": "Спільне для сторінок",
+        "pageDataSourceTitle": "Для цієї сторінки",
+        "sharedDataSourceDescription": "Доступне на кожній сторінці та завантажується один раз при першому завантаженні сторінки.",
+        "pageDataSourceDescription": "Завантажується, коли користувач переходить на цю сторінку."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Не налаштовано"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Поділитися між сторінками",
+        "unshareBetweenPages": "Скасувати спільний доступ"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Редагувати джерело даних",
+        "createTitle": "Створити джерело даних",
+        "sharedWarning": "Це джерело даних є спільним, тому ваші зміни можуть вплинути на кілька сторінок."
+    },
+    "defaultStyleForm": {
+        "boxTop": "Верх",
+        "boxBottom": "Низ",
+        "boxLeft": "Ліворуч",
+        "boxRight": "Праворуч",
+        "backgroundLabel": "Фон",
+        "backgroundColor": "Колір фону",
+        "widthLabel": "Ширина",
+        "backgroundImage": "Зображення",
+        "backgroundImageMode": "Режим заповнення",
+        "cssClasses": "CSS-класи",
+        "cssClassesHelp": "Встановіть розділений пробілами список класів для цього елемента, який з'явиться в згенерованому HTML.",
+        "cssClassesPlaceholder": "Введіть CSS-класи..."
+    },
+    "styleBoxForm": {
+        "borderColor": "Колір рамки",
+        "borderLabel": "Розмір",
+        "paddingLabel": "Внутрішній відступ",
+        "marginLabel": "Зовнішній відступ"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Радіус кута",
+        "backgroundRadiusLabel": "Фон",
+        "borderRadiusLabel": "Рамка"
+    },
+    "themeConfigBlockType": {
+        "color": "Кольори",
+        "page": "Сторінка",
+        "typography": "Типографіка",
+        "button": "Кнопка",
+        "link": "Посилання",
+        "image": "Зображення",
+        "input": "Поле введення",
+        "table": "Таблиця"
+    },
+    "colorThemeConfigBlock": {
+        "transparent": "Прозорий",
+        "primaryColor": "Основний",
+        "secondaryColor": "Вторинний",
+        "borderColor": "Рамка",
+        "successColor": "Успіх",
+        "warningColor": "Попередження",
+        "errorColor": "Помилка",
+        "customColors": "Власні кольори",
+        "addCustomColor": "Додати власний колір",
+        "customColorPrefix": "Власний"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundColor": "Колір фону",
+        "backgroundImage": "Фонове зображення",
+        "backgroundMode": "Режим фону"
+    },
+    "colorThemeConfigBlockType": {
+        "transparent": "Прозорий",
+        "primary": "Основний",
+        "secondary": "Вторинний",
+        "border": "Рамка",
+        "success": "Успіх",
+        "warning": "Попередження",
+        "error": "Помилка"
+    },
+    "typographyThemeConfigBlock": {
+        "headingLabel": "Заголовок {i} (h{i})",
+        "headingValue": "Заголовок <h{i}>",
+        "color": "Колір",
+        "size": "Розмір",
+        "weight": "Товщина",
+        "textAlignment": "Вирівнювання",
+        "bodyLabel": "Основний текст",
+        "decoration": "Оформлення тексту",
+        "fontFamily": "Шрифт"
+    },
+    "fontWeightType": {
+        "thin": "Тонкий",
+        "extraLight": "Надлегкий",
+        "light": "Легкий",
+        "regular": "Звичайний",
+        "medium": "Середній",
+        "semiBold": "Напівжирний",
+        "bold": "Жирний",
+        "extraBold": "Наджирний",
+        "black": "Чорний",
+        "extraBlack": "Надчорний"
+    },
+    "buttonThemeConfigBlock": {
+        "backgroundColor": "Колір фону",
+        "button": "Кнопка",
+        "defaultState": "Стан за замовчуванням",
+        "hoverState": "Стан при наведенні",
+        "activeState": "Активний стан",
+        "textAlignment": "Вирівнювання тексту",
+        "alignment": "Вирівнювання",
+        "width": "Ширина",
+        "textColor": "Колір тексту",
+        "borderColor": "Колір рамки",
+        "borderSize": "Товщина рамки",
+        "borderRadius": "Радіус рамки",
+        "padding": "Внутрішній відступ",
+        "fontFamily": "Шрифт",
+        "size": "Розмір шрифту",
+        "weight": "Товщина шрифту"
+    },
+    "linkThemeConfigBlock": {
+        "color": "Колір",
+        "link": "Посилання",
+        "defaultState": "Стан за замовчуванням",
+        "hoverState": "Стан при наведенні",
+        "activeState": "Активний стан",
+        "alignment": "Вирівнювання",
+        "fontFamily": "Шрифт",
+        "size": "Розмір шрифту",
+        "weight": "Товщина шрифту",
+        "decoration": "Оформлення тексту"
+    },
+    "inputThemeConfigBlock": {
+        "label": "Мітка",
+        "input": "Поле введення",
+        "backgroundColor": "Колір фону",
+        "textColor": "Колір тексту",
+        "borderColor": "Колір рамки",
+        "borderSize": "Товщина рамки",
+        "borderRadius": "Радіус рамки",
+        "padding": "Внутрішній відступ",
+        "fontFamily": "Шрифт",
+        "size": "Розмір шрифту",
+        "weight": "Товщина шрифту"
+    },
+    "imageThemeConfigBlock": {
+        "alignment": "Вирівнювання",
+        "maxWidthLabel": "Макс. ширина",
+        "maxHeightLabel": "Макс. висота",
+        "maxHeightPlaceholder": "Введіть макс. висоту",
+        "maxWidthPlaceholder": "Введіть макс. ширину",
+        "imageConstraintsLabel": "Обмеження",
+        "imageConstraintFullWidth": "Розтягнути до макс. ширини",
+        "imageConstraintCover": "Покрити",
+        "imageConstraintCoverDisabled": "Недоступно без макс. висоти.",
+        "imageConstraintContain": "Вмістити",
+        "imageConstraintContainDisabled": "Недоступно з макс. висотою.",
+        "imageBorderRadiusLabel": "Радіус рамки",
+        "imageBorderRadiusPlaceholder": "Введіть радіус рамки зображення."
+    },
+    "tableThemeConfigBlock": {
+        "borderColor": "Колір рамки",
+        "backgroundAlternateColor": "Колір парних рядків",
+        "backgroundColor": "Колір фону",
+        "textColor": "Колір тексту",
+        "borderSize": "Товщина рамки",
+        "borderRadius": "Радіус рамки",
+        "padding": "Внутрішній відступ",
+        "fontFamily": "Шрифт",
+        "size": "Розмір",
+        "fontSize": "Розмір шрифту",
+        "fontWeight": "Товщина шрифту",
+        "table": "Таблиця",
+        "header": "Заголовок",
+        "alignment": "Вирівнювання",
+        "cells": "Комірки",
+        "separators": "Роздільники",
+        "verticalSeparatorColor": "Вертикальний колір",
+        "verticalSeparatorSize": "Вертикальний розмір",
+        "horizontalSeparatorColor": "Горизонтальний колір",
+        "horizontalSeparatorSize": "Горизонтальний розмір"
+    },
+    "buttonElementForm": {
+        "valueLabel": "Текст кнопки",
+        "valuePlaceholder": "Введіть текст..."
+    },
+    "buttonElement": {
+        "missingValue": "Відсутній текст кнопки...",
+        "emptyValue": "Порожній текст кнопки..."
+    },
+    "eventTypes": {
+        "clickLabel": "При натисканні",
+        "submitLabel": "При відправленні",
+        "afterLoginLabel": "Після входу"
+    },
+    "getFormulaComponent": {
+        "errorTooltip": "Недійсне посилання"
+    },
+    "fontSidePanelForm": {
+        "label": "Колір шрифту"
+    },
+    "choiceElementForm": {
+        "multiple": "Дозволити кілька значень",
+        "display": "Відображення",
+        "dropdown": "Випадаючий список",
+        "checkbox": "Прапорець",
+        "radio": "Перемикач"
+    },
+    "dropdown": {
+        "empty": "Немає доступних опцій"
+    },
+    "tableElementForm": {
+        "dataSource": "Джерело даних",
+        "fields": "Поля",
+        "fieldValueLabel": "Значення",
+        "addField": "додати поле",
+        "fieldValuePlaceholder": "Введіть значення...",
+        "itemsPerPage": "Елементів на сторінку",
+        "fieldDefaultName": "Колонка",
+        "name": "Назва",
+        "noName": "Без назви",
+        "fieldType": "Тип",
+        "itemsPerPagePlaceholder": "Введіть значення...",
+        "selectSourceFirst": "Виберіть джерело даних та/або властивість, щоб почати налаштування полів.",
+        "buttonColor": "Колір кнопки",
+        "refreshFieldsFromDataSource": "оновити поля з джерела даних",
+        "buttonLoadMoreLabel": "Мітка \"Показати більше\"",
+        "propertySelectorMissingArrays": "Не знайдено полів з кількома значеннями для використання як рядків."
+    },
+    "tableElement": {
+        "showMore": "Показати більше"
+    },
+    "abTable": {
+        "loading": "Завантаження...",
+        "empty": "Елементи не знайдено."
+    },
+    "repeatElement": {
+        "empty": "Елементи не знайдено.",
+        "showMore": "Показати більше",
+        "missingDataSourceTooltip": "Виберіть джерело даних, щоб почати додавання елементів.",
+        "missingSchemaPropertyTooltip": "Виберіть властивість, щоб почати додавання елементів.",
+        "emptyState": "Записи не знайдено."
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "Виберіть джерело даних з кількома рядками для відображення всіх результатів, або джерело даних з одним рядком, щоб вибрати властивість всередині цього рядка.",
+        "noSchemaPropertyMessage": "Виберіть властивість всередині джерела даних для використання як даних списку вашого елемента.",
+        "propertyOptionLabel": "Дії користувача"
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "Поле",
+        "filterHeading": "Фільтр",
+        "sortHeading": "Сортування",
+        "searchHeading": "Пошук",
+        "optionUnavailable": "Недоступно",
+        "noPropertiesAvailable": "Немає доступних полів.",
+        "formDescription": "Виберіть, які властивості джерела даних цього елемента відвідувачі сторінки можуть фільтрувати, сортувати та шукати."
+    },
+    "repeatElementForm": {
+        "dataSource": "Джерело даних",
+        "itemsPerPage": "Елементів на сторінку",
+        "itemsPerPagePlaceholder": "Введіть значення...",
+        "itemsPerRowLabel": "Елементів у рядку",
+        "itemsPerRowDescription": "Кількість колонок у рядку та тип пристрою.",
+        "buttonLoadMoreLabel": "Мітка \"Показати більше\"",
+        "toggleEditorRepetitionsLabel": "Тимчасово вимкнути повторення",
+        "propertySelectorMissingArrays": "Не знайдено полів з кількома значеннями для повторення.",
+        "gapLabel": "Відстань між повтореннями",
+        "gapVerticalLabel": "Вертикальна",
+        "gapHorizontalLabel": "Горизонтальна"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Записи, що відповідають '{query}', не знайдено.",
+        "emptyState": "Записи не знайдено."
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "Вибрати записи з",
+        "noDataSourceMessage": "Виберіть джерело даних з кількома рядками для відображення всіх результатів.",
+        "optionNameSuffix": "Суфікс назви опції",
+        "optionNameSuffixPlaceholder": "Введіть суфікс...",
+        "optionNameSuffixHelper": "Цей суфікс додається до кожної назви опції при відкритті випадаючого списку і допомагає їх розрізняти.",
+        "itemsPerPage": "Елементів на сторінку",
+        "itemsPerPagePlaceholder": "Введіть значення...",
+        "multipleLabel": "Дозволити кілька значень",
+        "record": "Запис {id}"
+    },
+    "currentRecordDataProviderType": {
+        "index": "Індекс",
+        "firstPartName": "Джерело даних: {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
+    },
+    "workflowActionTypes": {
+        "notificationLabel": "Показати сповіщення",
+        "openPageLabel": "Відкрити сторінку",
+        "logoutLabel": "Вийти",
+        "refreshDataSourceLabel": "Оновити джерело даних",
+        "httpRequest": "Надіслати HTTP-запит",
+        "errorNavigateToPageMissing": "Відсутня властивість \"Перейти до\"",
+        "errorPageParameterInError": "Принаймні один параметр сторінки налаштований неправильно",
+        "errorNavigationUrlMissing": "Відсутня властивість URL-адреси навігації",
+        "errorDataSourceMissing": "Джерело даних не вибрано"
+    },
+    "notificationWorkflowActionForm": {
+        "titleLabel": "Заголовок",
+        "titlePlaceholder": "Введіть текст...",
+        "descriptionLabel": "Опис",
+        "descriptionPlaceholder": "Введіть текст..."
+    },
+    "event": {
+        "addAction": "додати дію"
+    },
+    "collectionFieldType": {
+        "boolean": "Логічне",
+        "button": "Кнопка",
+        "text": "Текст",
+        "link": "Посилання",
+        "tags": "Теги",
+        "image": "Зображення",
+        "rating": "Рейтинг",
+        "errorValueMissing": "Відсутня властивість значення"
+    },
+    "textFieldForm": {
+        "fieldValueLabel": "Значення",
+        "fieldValuePlaceholder": "Введіть значення..."
+    },
+    "linkFieldForm": {
+        "fieldValueLabel": "URL",
+        "fieldValuePlaceholder": "Введіть значення...",
+        "fieldLinkNameLabel": "Текст посилання",
+        "fieldLinkNamePlaceholder": "Введіть значення...",
+        "buttonColor": "Колір кнопки"
+    },
+    "tagsFieldForm": {
+        "fieldValuesLabel": "Значення",
+        "fieldValuesPlaceholder": "Введіть значення...",
+        "fieldColorsLabel": "Кольори",
+        "fieldColorsPlaceholder": "Введіть кольори..."
+    },
+    "linkField": {
+        "details": "Деталі"
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "Джерело зображення",
+        "fieldSrcPlaceholder": "Введіть значення",
+        "fieldAltLabel": "Альтернативний текст",
+        "fieldAltPlaceholder": "Введіть значення...",
+        "fieldAltHelp": "Використовується програмами для читання з екрана та відображається, якщо зображення не завантажується"
+    },
+    "createUserSourceForm": {
+        "userSourceType": "Тип",
+        "userSourceIntegration": "Інтеграція",
+        "userSourceName": "Назва"
+    },
+    "updateUserSourceForm": {
+        "nameFieldLabel": "Назва",
+        "nameFieldPlaceholder": "Введіть назву...",
+        "authTitle": "Автентифікація",
+        "integrationFieldLabel": "Інтеграція",
+        "addProvider": "Додати провайдера"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Сторінка входу",
+        "pageDropdownPlaceholder": "Виберіть сторінку",
+        "pageDropdownDescription": "Виберіть сторінку входу, на яку будуть перенаправлені неавторизовані користувачі при спробі доступу до обмеженої сторінки."
+    },
+    "formContainerElement": {
+        "submitDeactivatedText": "Заповніть усі обов'язкові поля для надсилання",
+        "defaultSubmitButtonLabel": "Надіслати"
+    },
+    "formContainerElementForm": {
+        "submitButtonLabel": "Кнопка надсилання",
+        "submitButtonPlaceholder": "Введіть значення...",
+        "buttonColor": "Колір кнопки",
+        "resetToInitialValuesTitle": "Скинути до значень за замовчуванням після надсилання",
+        "resetToInitialValuesDescription": "Якщо позначено, значення форми за замовчуванням будуть використані для скидання форми після успішного надсилання. Якщо не позначено, значення користувача залишаться."
+    },
+    "choiceOptionSelector": {
+        "label": "Параметри",
+        "value": "Значення параметрів",
+        "valuePlaceholder": "Введіть значення",
+        "name": "Назви параметрів",
+        "namePlaceholder": "Введіть назву",
+        "addOption": "додати параметр",
+        "addOptionDescription": "Натисніть \"додати параметр\", щоб додати параметри до випадаючого списку",
+        "optionType": "Тип параметрів",
+        "manual": "Вручну",
+        "dataSource": "Джерело даних",
+        "formulas": "Формули"
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Інтеграція",
+        "rowIdLabel": "ID рядка",
+        "rowIdPlaceholder": "Виберіть ID рядка"
+    },
+    "upsertRowWorkflowActionForm": {
+        "fieldMappingPlaceholder": "Виберіть значення поля",
+        "noTableSelectedMessage": "Виберіть таблицю, щоб почати налаштування полів."
+    },
+    "fieldMappingContext": {
+        "enableField": "Увімкнути поле",
+        "disableField": "Вимкнути поле"
+    },
+    "checkboxElementForm": {
+        "labelTitle": "Назва параметра",
+        "valueTitle": "Значення за замовчуванням",
+        "requiredTitle": "Обов'язкове"
+    },
+    "choiceElement": {
+        "addOptions": "Додайте параметри, щоб почати використовувати цей елемент..."
+    },
+    "userSourceUsersContext": {
+        "searchPlaceholder": "Пошук користувача",
+        "anonymous": "Анонімний",
+        "unnamed": "Без імені",
+        "noEmail": "Без електронної пошти"
+    },
+    "userSelector": {
+        "viewAs": "Переглянути як: {user}",
+        "anonymous": "Анонімний",
+        "member": "{prefix} учасник"
+    },
+    "visibilityForm": {
+        "allVisitors": "Усі відвідувачі",
+        "loggedInVisitors": "Авторизовані відвідувачі",
+        "notLoggedInVisitors": "Неавторизовані відвідувачі",
+        "warningTitle": "Це функція безпеки",
+        "excludedRolesLabel": "усі ролі, окрім",
+        "switchAllowLabel": "Дозволити",
+        "switchDisallowLabel": "Заборонити",
+        "rolesSelectAll": "Вибрати всі",
+        "rolesDeselectAll": "Скасувати вибір",
+        "rolesSelectHint": "Виберіть одну або кілька ролей",
+        "roleTypesHint": "Виберіть тип ролі",
+        "roleTypeAllowAllRoles": "Усі ролі",
+        "roleTypeAllowAllRolesExcept": "Заборонити ролі...",
+        "roleTypeDisallowAllRolesExcept": "Дозволити ролі...",
+        "rolesAllMembersOf": "Усі учасники {name}",
+        "noRole": "Без ролі",
+        "errorFetchingRolesTitle": "Не вдалося отримати ролі користувачів",
+        "errorFetchingRolesMessage": "Виникла проблема під час отримання ролей користувачів.",
+        "visibilityCondition": "Умова видимості",
+        "visibilityConditionPlaceholder": "Умова..."
+    },
+    "userDataProviderType": {
+        "isAuthenticated": "Автентифікований",
+        "id": "ID",
+        "email": "Електронна пошта",
+        "username": "Ім'я користувача",
+        "role": "Роль"
+    },
+    "buttonField": {
+        "noLabel": "Без назви..."
+    },
+    "buttonFieldForm": {
+        "infoMessage": "Щоб налаштувати дії для цієї кнопки, відкрийте вкладку \"Події\" поточного елемента.",
+        "labelPlaceholder": "Введіть мітку..."
+    },
+    "resetButton": {
+        "reset": "Скинути до значення теми за замовчуванням"
+    },
+    "backgroundModes": {
+        "fill": "Заповнення",
+        "tile": "Плитка",
+        "fit": "Вписати"
+    },
+    "customStyle": {
+        "themeOverrides": "Перевизначення теми",
+        "configureThemeOverrides": "Налаштуйте перевизначення теми для цього елемента"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "Властивість",
+        "noProperties": "Немає доступних властивостей"
+    },
+    "userSourceDropdown": {
+        "label": "Джерело користувачів",
+        "addUserSource": "Додати нове джерело користувачів",
+        "noUserSources": "Немає доступних джерел користувачів"
+    },
+    "dataSourceDropdown": {
+        "label": "Джерело даних",
+        "noDataSources": "Немає доступних джерел даних",
+        "noSharedDataSources": "Немає доступних спільних джерел даних",
+        "shared": "спільне",
+        "pageOnly": "ця сторінка"
+    },
+    "multiPageContainerElementForm": {
+        "pagePosition": "Позиція",
+        "behaviour": "Поведінка",
+        "display": "Відображення",
+        "selectAll": "Вибрати всі",
+        "deselectAll": "Скасувати вибір"
+    },
+    "pageShareType": {
+        "all": "На всіх сторінках",
+        "only": "Тільки на вибраних сторінках",
+        "except": "Виключити вибрані сторінки"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "Відредагуйте цього провайдера, щоб виправити помилку.",
+        "title": "Редагувати провайдера: {name}"
+    },
+    "textDecorationSelector": {
+        "underline": "Підкреслення",
+        "stroke": "Закреслення",
+        "italic": "Курсив",
+        "uppercase": "Великі літери"
+    },
+    "ratingFieldForm": {
+        "maxValue": "Максимальне значення",
+        "color": "Колір",
+        "style": "Стиль",
+        "star": "Зірка",
+        "heart": "Серце",
+        "thumbsUp": "Палець вгору",
+        "flag": "Прапорець",
+        "value": "Значення"
+    },
+    "ratingElementForm": {
+        "maxValue": "Максимум",
+        "color": "Колір",
+        "ratingStyle": "Стиль",
+        "star": "Зірка",
+        "heart": "Серце",
+        "smile": "Посмішка",
+        "thumbsUp": "Палець вгору",
+        "flag": "Прапорець"
+    },
+    "automationSettingsModal": {
+        "title": "Робочий процес"
+    },
+    "abFileInput": {
+        "delete": "Видалити"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Додайте елементи на вашу сторінку",
+        "content": "Кожному застосунку потрібні компоненти! Додайте елементи, такі як таблиці, форми, кнопки та інше, щоб оживити ваш застосунок."
+    },
+    "dataGuidedTourStep": {
+        "title": "Підключіть ваші дані",
+        "content": "Зв'яжіть ваші таблиці Baserow тут, щоб відображати, фільтрувати та оновлювати дані динамічно в різних елементах."
+    },
+    "previewGuidedTourStep": {
+        "title": "Ваш центр керування"
+    },
+    "devicesGuidedTourStep": {
+        "title": "Попередній перегляд на різних пристроях",
+        "content": "Перемикайтеся між переглядом для комп'ютера, планшета та мобільного, щоб побачити, як виглядає ваш застосунок на різних розмірах екрану. Переконайтеся, що ваш дизайн ідеально працює на всіх пристроях!"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Бічна панель: Налаштування елементів",
+        "content": "**Вкладка \"Загальні\"** – Налаштування вибраного елемента.\n\n**Вкладка \"Стиль\"** – Налаштування відступів, полів, меж та іншого.\n\n**Вкладка \"Видимість\"** – Контроль того, хто може бачити цей елемент: авторизовані користувачі, неавторизовані користувачі або конкретні ролі.\n\n**Вкладка \"Події\"** – Якщо елемент підтримує дії, налаштуйте їх тут для динамічної інтерактивності."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Попередній перегляд та публікація застосунку",
+        "content": "Натисніть **Попередній перегляд**, щоб протестувати застосунок приватно. Коли все готово, натисніть **Опублікувати**, щоб поділитися ним публічно через домен."
+    }
+}
