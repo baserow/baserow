@@ -1,5 +1,17 @@
 # Changelog
 
+## Released 2.0.6
+
+### New features
+* [Core] Added more advanced formulas. [#4318](https://github.com/baserow/baserow/-/issues/4318)
+* [Core] Allow array properties to be selected in the formula context when expert mode is selected. [#4485](https://github.com/baserow/baserow/-/issues/4485)
+
+### Bug fixes
+* [Builder] Resolve an issue with styling button fields in table elements. [#4494](https://github.com/baserow/baserow/-/issues/4494)
+* [Database] Ensure m2m field indexes are all set.
+* [Database] Prevent creating a new constraint when the enter key of the default value is pressed.
+
+
 ## Released 2.0.5
 
 ### Bug fixes

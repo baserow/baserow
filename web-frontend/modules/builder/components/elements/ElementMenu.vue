@@ -115,6 +115,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['delete', 'duplicate', 'move', 'select-parent'],
   computed: {
     DIRECTIONS: () => DIRECTIONS,
   },

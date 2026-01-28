@@ -1,14 +1,3 @@
-from baserow_premium.api.views.timeline.errors import (
-    ERROR_TIMELINE_VIEW_HAS_INVALID_DATE_SETTINGS,
-)
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
-from baserow_premium.views.handler import (
-    get_public_timeline_view_filtered_queryset,
-    get_timeline_view_filtered_queryset,
-)
-from baserow_premium.views.models import TimelineView
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -81,6 +70,17 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow_premium.api.views.timeline.errors import (
+    ERROR_TIMELINE_VIEW_HAS_INVALID_DATE_SETTINGS,
+)
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
+from baserow_premium.views.handler import (
+    get_public_timeline_view_filtered_queryset,
+    get_timeline_view_filtered_queryset,
+)
+from baserow_premium.views.models import TimelineView
 
 from .errors import ERROR_TIMELINE_DOES_NOT_EXIST
 from .serializers import TimelineViewFieldOptionsSerializer

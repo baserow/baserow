@@ -9,7 +9,7 @@
 
   &:hover {
     visibility: visible;
-    r: 6px
+    r: 6px;
   }
 
   &--handle {
@@ -24,29 +24,25 @@
   }
 }
 
-
 .date-dependency__drop-zone {
   pointer-events: none;
   display: none;
-  fill:transparent;
+  fill: transparent;
 
-    &--droppable {
-      display: block;
-      visibility: visible;
-      pointer-events: all;
-    }
+  &--droppable {
+    display: block;
+    visibility: visible;
+    pointer-events: all;
+  }
 }
-
 
 .date-dependency__container {
   padding-top: 16px;
 }
 
-
 .date-dependency__help-icon {
   padding-right: 2px;
 }
-
 
 .date-dependency__path {
   fill: none;
@@ -70,7 +66,6 @@
   &:hover {
     stroke-width: 3px;
   }
-
 }
 
 .date-dependency__text {
@@ -119,5 +114,4 @@
   &--draggable {
     pointer-events: all;
   }
-
 }

@@ -1,23 +1,11 @@
-<template functional>
-  <div class="grid-view__group" :style="[data.staticStyle, data.style]">
-    <div
-      class="grid-view__group-cell"
-      :set="
-        (field = $options.methods.getField(
-          props.allFieldsInTable,
-          props.groupBy
-        ))
-      "
-    >
+<template>
+  <div class="grid-view__group" v-bind="$attrs">
+    <div class="grid-view__group-cell">
       <div class="grid-view__group-value">
-        <component
-          :is="$options.methods.getGroupByComponent(field, parent)"
-          :field="field"
-          :value="props.value"
-        />
+        <component :is="groupByComponent" :field="field" :value="value" />
       </div>
-      <div v-if="props.count > 0" class="grid-view__group-count">
-        {{ props.count }}
+      <div v-if="count > 0" class="grid-view__group-count">
+        {{ count }}
       </div>
     </div>
   </div>
@@ -36,12 +24,20 @@ export default {
       required: true,
     },
     value: {
-      validator: () => true,
+      type: null,
       required: true,
     },
     count: {
       type: Number,
       required: true,
+    },
+  },
+  computed: {
+    field() {
+      return this.getField(this.allFieldsInTable, this.groupBy)
+    },
+    groupByComponent() {
+      return this.getGroupByComponent(this.field, this)
     },
   },
   methods: {

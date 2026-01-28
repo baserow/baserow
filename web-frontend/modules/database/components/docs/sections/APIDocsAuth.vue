@@ -4,24 +4,28 @@
       <h2 id="section-authentication" class="api-docs__heading-2">
         {{ $t('apiDocs.authent') }}
       </h2>
-      <i18n path="apiDocsAuth.description" tag="p" class="api-docs__content">
+      <i18n-t
+        keypath="apiDocsAuth.description"
+        tag="p"
+        class="api-docs__content"
+      >
         <template #settingsLink>
           <a @click.prevent="$refs.settingsModal.show('tokens')">{{
             $t('apiDocsAuth.settingsLink')
           }}</a>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
     <div class="api-docs__right">
       <APIDocsExample
         :value="value"
-        :url="$config.PUBLIC_BACKEND_URL"
+        :url="$config.public.publicBackendUrl"
         :include-user-fields-checkbox="false"
         type=""
         @input="$emit('input', $event)"
       ></APIDocsExample>
     </div>
-    <SettingsModal ref="settingsModal"></SettingsModal>
+    <SettingsModal ref="settingsModal" />
   </div>
 </template>
 
@@ -41,5 +45,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

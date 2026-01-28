@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="timeline-date-settings-form">
       <TimelineDateSettingsForm
         ref="datesSettingsForm"
@@ -25,6 +25,7 @@ import TimelineDateSettingsForm from '@baserow_premium/components/views/timeline
 
 export default {
   name: 'TimelineDateSettingsHeaderContext',
+  emits: ['refresh'],
   components: {
     TimelineDateSettingsForm,
   },

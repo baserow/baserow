@@ -123,5 +123,4 @@ class AutomationDispatchContext(DispatchContext):
 
     def validate_filter_search_sort_fields(
         self, fields: List[str], refinement: ServiceAdhocRefinements
-    ):
-        ...
+    ): ...

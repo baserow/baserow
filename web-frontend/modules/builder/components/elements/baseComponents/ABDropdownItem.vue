@@ -44,5 +44,6 @@ import dropdownItem from '@baserow/modules/core/mixins/dropdownItem'
 export default {
   name: 'ABDropdownItem',
   mixins: [dropdownItem],
+  emits: ['click'],
 }
 </script>

@@ -7,7 +7,17 @@ describe('rowModal store', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    //store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        test: {
+          ...rowModal,
+          state: () => ({
+            rows: [],
+          }),
+        },
+      },
+    })
   })
 
   afterEach(() => {
@@ -15,11 +25,6 @@ describe('rowModal store', () => {
   })
 
   test('get not existing component id', () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
-
     const values = store.getters['test/get'](-1)
     expect(values).toMatchObject({
       id: -1,
@@ -30,10 +35,6 @@ describe('rowModal store', () => {
   })
 
   test('open row', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,
@@ -64,11 +65,7 @@ describe('rowModal store', () => {
     })
   })
 
-  test('open row', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+  test('open rows', async () => {
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,
@@ -100,10 +97,6 @@ describe('rowModal store', () => {
   })
 
   test('clear row', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,
@@ -128,10 +121,6 @@ describe('rowModal store', () => {
   })
 
   test('row does not exist', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,
@@ -147,10 +136,6 @@ describe('rowModal store', () => {
   })
 
   test('row exists', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,
@@ -170,11 +155,7 @@ describe('rowModal store', () => {
     expect(valuesOfComponent1.row.field_1).toBe('Test 2')
   })
 
-  test('row exists', async () => {
-    const testStore = rowModal
-    const state = Object.assign(testStore.state(), {})
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+  test('rows exist', async () => {
     await store.dispatch('test/open', {
       componentId: 1,
       tableId: 10,

@@ -9,12 +9,20 @@ export default {
   name: 'SwitchInput',
   props: {
     /**
+     * The model value of the textarea in Vue 3 style.
+     */
+    modelValue: {
+      type: [Boolean, Number],
+      required: false,
+      default: undefined,
+    },
+    /**
      * The value of the switch.
      */
     value: {
       type: [Boolean, Number],
       required: false,
-      default: false,
+      default: undefined,
     },
     /**
      * The size of the switch.
@@ -41,29 +49,38 @@ export default {
       default: 'green',
     },
   },
+  emits: ['input', 'update:modelValue', 'click'],
   computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
     hasSlot() {
-      return !!this.$slots.default
+      const slot = this.$slots.default
+      return !!(slot && slot().length)
     },
     classNames() {
       return {
         'switch--small': this.small,
         'switch--disabled': this.disabled,
-        'switch--active': this.value,
-        'switch--indeterminate': this.value !== true && this.value !== false,
+        'switch--active': this.currentValue,
+        'switch--indeterminate':
+          this.currentValue !== true && this.currentValue !== false,
         [`switch--color-${this.color}`]: true,
       }
     },
   },
   methods: {
     click($event) {
-      this.toggle(this.value)
+      this.toggle(this.currentValue)
       this.$emit('click', $event)
     },
     toggle(value) {
       if (this.disabled) {
         return
       }
+      // emitting the updated value Vue 3 style.
+      this.$emit('update:modelValue', !value)
+      // emitting the updated value Vue 2 style.
       this.$emit('input', !value)
     },
   },

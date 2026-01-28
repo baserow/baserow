@@ -7,13 +7,13 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
 import pytest
-from baserow_premium.views.exceptions import KanbanViewFieldDoesNotBelongToSameTable
-from baserow_premium.views.models import KanbanViewFieldOptions
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.registries import ImportExportConfig
+from baserow_premium.views.exceptions import KanbanViewFieldDoesNotBelongToSameTable
+from baserow_premium.views.models import KanbanViewFieldOptions
 
 
 @pytest.mark.django_db

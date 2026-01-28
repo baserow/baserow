@@ -4,6 +4,8 @@ import { useVuelidate } from '@vuelidate/core'
  * example for the text and number fields. It depends on the rowEditField mixin.
  */
 export default {
+  emits: ['update'],
+
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

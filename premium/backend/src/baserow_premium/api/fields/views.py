@@ -1,13 +1,7 @@
 from django.db import transaction
 
-from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
-from baserow_premium.fields.job_types import GenerateAIValuesJobType
-from baserow_premium.fields.models import AIField
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from langchain_core.exceptions import OutputParserException
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -49,6 +43,12 @@ from baserow.core.generative_ai.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
+from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
+from baserow_premium.fields.exceptions import AiFieldOutputParserException
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
+from baserow_premium.fields.models import AIField
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 from .serializers import (
     GenerateAIFieldValueViewSerializer,
@@ -187,7 +187,7 @@ class GenerateFormulaWithAIView(APIView):
             ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             GenerativeAIPromptError: ERROR_GENERATIVE_AI_PROMPT,
-            OutputParserException: ERROR_OUTPUT_PARSER,
+            AiFieldOutputParserException: ERROR_OUTPUT_PARSER,
         }
     )
     @validate_body(GenerateFormulaWithAIRequestSerializer)

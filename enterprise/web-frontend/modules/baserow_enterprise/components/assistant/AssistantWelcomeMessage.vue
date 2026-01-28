@@ -11,7 +11,7 @@
         :poster="image"
         controlslist="nodownload nofullscreen noplaybackrate noremoteplayback"
         disablepictureinpicture
-        oncontextmenu="return false;"
+        oncontextmenu="return false"
         aria-hidden="true"
         role="presentation"
         class="assistant__welcome-video"
@@ -54,11 +54,12 @@
 </template>
 
 <script>
-import video from '@baserow_enterprise/assets/videos/kuma.mp4'
-import image from '@baserow_enterprise/assets/images/kuma.svg'
+import video from '@baserow_enterprise/assets/videos/kuma.mp4?url'
+import image from '@baserow_enterprise/assets/images/kuma.svg?url'
 
 export default {
   name: 'AssistantWelcomeMessage',
+  emits: ['prompt'],
   props: {
     name: {
       type: String,

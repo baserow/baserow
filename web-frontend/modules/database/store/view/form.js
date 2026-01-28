@@ -31,7 +31,8 @@ export const mutations = {
 
 export const actions = {
   async fetchInitial({ dispatch, commit, getters }, { formId }) {
-    const { data } = await ViewService(this.$client).fetchFieldOptions(formId)
+    const { $client } = this
+    const { data } = await ViewService($client).fetchFieldOptions(formId)
     commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
   },
   /**
@@ -52,11 +53,12 @@ export const actions = {
     { dispatch, getters },
     { form, newFieldOptions, oldFieldOptions }
   ) {
+    const { $client } = this
     dispatch('forceUpdateAllFieldOptions', newFieldOptions)
     const updateValues = { field_options: newFieldOptions }
 
     try {
-      await ViewService(this.$client).updateFieldOptions({
+      await ViewService($client).updateFieldOptions({
         viewId: form.id,
         values: updateValues,
       })
@@ -119,6 +121,7 @@ export const actions = {
     { commit, getters },
     { form, field, values }
   ) {
+    const { $client } = this
     const oldValues = clone(getters.getAllFieldOptions[field.id])
     commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
       fieldId: field.id,
@@ -128,7 +131,7 @@ export const actions = {
     updateValues.field_options[field.id] = values
 
     try {
-      const { data } = await ViewService(this.$client).updateFieldOptions({
+      const { data } = await ViewService($client).updateFieldOptions({
         viewId: form.id,
         values: updateValues,
       })

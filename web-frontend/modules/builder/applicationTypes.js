@@ -7,6 +7,8 @@ import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTe
 import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -18,22 +20,22 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builder')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builders')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builderDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builderDefaultName')
   }
 
@@ -91,11 +93,11 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getFrontendUrls(application) {
-    const domains = this.app.store.getters['domain/getDomains']
+    const domains = this.app.$store.getters['domain/getDomains']
 
     return [
       ...domains.map((domain) => {
-        const url = new URL(this.app.$config.PUBLIC_WEB_FRONTEND_URL)
+        const url = new URL(this.app.$config.public.publicWebFrontendUrl)
         return `${url.protocol}//${domain.domain_name}${
           url.port ? `:${url.port}` : ''
         }`
@@ -104,36 +106,36 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   delete(application) {
-    const { store, router } = this.app
-    const pageSelected = store.getters['page/getVisiblePages'](
+    const { $store, $router } = this.app
+    const pageSelected = $store.getters['page/getVisiblePages'](
       application
     ).some((page) => page._.selected)
 
     if (pageSelected) {
-      router.push({ name: 'dashboard' })
+      $router.push({ name: 'dashboard' })
     }
   }
 
   async loadExtraData(builder, mode) {
-    const { store, $registry } = this.app
+    const { $store, $registry } = this.app
     if (!builder._loadedOnce) {
-      const sharedPage = store.getters['page/getSharedPage'](builder)
+      const sharedPage = $store.getters['page/getSharedPage'](builder)
       await Promise.all([
-        store.dispatch('userSource/fetch', {
+        $store.dispatch('userSource/fetch', {
           application: builder,
         }),
-        store.dispatch('integration/fetch', {
+        $store.dispatch('integration/fetch', {
           application: builder,
         }),
         // Fetch shared data sources
-        store.dispatch('dataSource/fetch', {
+        $store.dispatch('dataSource/fetch', {
           page: sharedPage,
         }),
-        store.dispatch('element/fetch', {
+        $store.dispatch('element/fetch', {
           builder,
           page: sharedPage,
         }),
-        store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
+        $store.dispatch('builderWorkflowAction/fetch', { page: sharedPage }),
       ])
 
       // Initialize application shared stuff like data sources
@@ -145,7 +147,7 @@ export class BuilderApplicationType extends ApplicationType {
         }
       )
 
-      await store.dispatch('application/forceUpdate', {
+      await $store.dispatch('application/forceUpdate', {
         application: builder,
         data: { _loadedOnce: true },
       })
@@ -153,23 +155,25 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   async select(application) {
-    const { router, store, i18n } = this.app
+    const { $router, $store, $i18n } = this.app
 
-    const pages = store.getters['page/getVisiblePages'](application)
+    const pages = $store.getters['page/getVisiblePages'](application)
 
     if (pages.length > 0) {
-      await router.push({
+      await $router.push({
         name: 'builder-page',
         params: {
           builderId: application.id,
           pageId: pages[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
-      store.dispatch('toast/error', {
-        title: i18n.t('applicationType.cantSelectPageTitle'),
-        message: i18n.t('applicationType.cantSelectPageDescription'),
+      $store.dispatch('toast/error', {
+        title: $i18n.t('applicationType.cantSelectPageTitle'),
+        message: $i18n.t('applicationType.cantSelectPageDescription'),
       })
       return false
     }

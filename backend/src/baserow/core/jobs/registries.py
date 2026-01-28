@@ -36,7 +36,6 @@ class JobType(
     Instance,
     metaclass=baserow_trace_methods(tracer, only="do"),
 ):
-
     """
     This abstract class represents a custom job type that can be added to the
     job type registry. It must be extended so customization can be done. Each job

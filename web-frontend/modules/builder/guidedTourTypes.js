@@ -5,11 +5,11 @@ import {
 
 class ElementsGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('elementsGuidedTourStep.title')
+    return this.app.$i18n.t('elementsGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('elementsGuidedTourStep.content')
+    return this.app.$i18n.t('elementsGuidedTourStep.content')
   }
 
   get selectors() {
@@ -23,11 +23,11 @@ class ElementsGuidedTourStep extends GuidedTourStep {
 
 class DataGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('dataGuidedTourStep.title')
+    return this.app.$i18n.t('dataGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('dataGuidedTourStep.content')
+    return this.app.$i18n.t('dataGuidedTourStep.content')
   }
 
   get selectors() {
@@ -41,11 +41,11 @@ class DataGuidedTourStep extends GuidedTourStep {
 
 class PreviewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('previewGuidedTourStep.title')
+    return this.app.$i18n.t('previewGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('previewGuidedTourStep.content')
+    return this.app.$i18n.t('previewGuidedTourStep.content')
   }
 
   get selectors() {
@@ -59,11 +59,11 @@ class PreviewGuidedTourStep extends GuidedTourStep {
 
 class DevicesGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('devicesGuidedTourStep.title')
+    return this.app.$i18n.t('devicesGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('devicesGuidedTourStep.content')
+    return this.app.$i18n.t('devicesGuidedTourStep.content')
   }
 
   get selectors() {
@@ -77,11 +77,11 @@ class DevicesGuidedTourStep extends GuidedTourStep {
 
 class SidePanelPublishGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('sidePanelGuidedTourStep.title')
+    return this.app.$i18n.t('sidePanelGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('sidePanelGuidedTourStep.content')
+    return this.app.$i18n.t('sidePanelGuidedTourStep.content')
   }
 
   get selectors() {
@@ -100,11 +100,11 @@ class SidePanelPublishGuidedTourStep extends GuidedTourStep {
 
 class PreviewPublishGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('previewPublishGuidedTourStep.title')
+    return this.app.$i18n.t('previewPublishGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('previewPublishGuidedTourStep.content')
+    return this.app.$i18n.t('previewPublishGuidedTourStep.content')
   }
 
   get selectors() {
@@ -143,7 +143,7 @@ export class BuilderGuidedTourType extends GuidedTourType {
     return (
       // Use the `routeMounted` because that gives us the route that's actually
       // mounted, making sure that the selector elements have been rendered.
-      this.app.store.getters['routeMounted/routeMounted']?.name ===
+      this.app.$store.getters['routeMounted/routeMounted']?.name ===
       'builder-page'
     )
   }

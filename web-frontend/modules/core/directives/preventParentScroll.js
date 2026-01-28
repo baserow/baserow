@@ -23,13 +23,13 @@ const removeEventListeners = (el) => {
 }
 
 export default {
-  bind(el, binding) {
+  beforeMount(el, binding) {
     const active = binding.value !== undefined ? binding.value : true
     if (active) {
       addEventListeners(el)
     }
   },
-  update(el, binding) {
+  updated(el, binding) {
     if (binding.value !== binding.oldValue) {
       if (binding.value) {
         addEventListeners(el)
@@ -38,7 +38,7 @@ export default {
       }
     }
   },
-  unbind(el) {
+  unmounted(el) {
     removeEventListeners(el)
   },
 }

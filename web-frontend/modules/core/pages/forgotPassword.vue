@@ -40,12 +40,11 @@
             class="mb-32"
           >
             <FormInput
-              ref="email"
-              v-model="values.email"
+              v-model="formData.email"
               :error="fieldHasErrors('email')"
               :disabled="success"
               size="large"
-              @blur="v$.values.email.$touch"
+              @blur="v$.email.$touch"
             >
             </FormInput>
             <template #error>
@@ -82,7 +81,7 @@
         {{ $t('forgotPassword.confirmationTitle') }}
       </h2>
       <p>
-        {{ $t('forgotPassword.confirmation', { email: values.email }) }}
+        {{ $t('forgotPassword.confirmation', { email: formData.email }) }}
       </p>
       <Button
         tag="nuxt-link"
@@ -96,83 +95,109 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, computed } from 'vue'
 import { required, email } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive } from 'vue'
+import { useStore } from 'vuex'
+import { useI18n } from 'vue-i18n'
+import { useRuntimeConfig, useRouter, useHead } from '#app'
 
-import error from '@baserow/modules/core/mixins/error'
-import form from '@baserow/modules/core/mixins/form'
 import AuthService from '@baserow/modules/core/services/auth'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
-import { mapGetters } from 'vuex'
 
-export default {
-  components: { LangPicker },
-  mixins: [error, form],
+definePageMeta({
   layout: 'login',
-  setup() {
-    const values = reactive({
-      values: {
-        email: '',
-      },
-    })
+})
 
-    const rules = {
-      values: {
-        email: { required, email },
-      },
-    }
-    return {
-      v$: useVuelidate(rules, values, { $lazy: true }),
-      values: values.values,
-    }
-  },
-  data() {
-    return {
-      loading: false,
-      success: false,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('forgotPassword.title'),
-      link: [
-        {
-          rel: 'canonical',
-          href:
-            this.$config.PUBLIC_WEB_FRONTEND_URL +
-            this.$router.resolve({ name: 'forgot-password' }).href,
-        },
-      ],
-    }
-  },
-  computed: {
-    ...mapGetters({
-      settings: 'settings/get',
-    }),
-  },
-  methods: {
-    async sendLink() {
-      const isFormCorrect = await this.v$.$validate()
-      if (!isFormCorrect) return
+const { t } = useI18n()
+const store = useStore()
+const config = useRuntimeConfig()
+const router = useRouter()
+const client = useNuxtApp().$client
 
-      this.loading = true
-      this.hideError()
+// Data
+const loading = ref(false)
+const success = ref(false)
+const error = ref({
+  visible: false,
+  title: '',
+  message: '',
+})
 
-      try {
-        const resetUrl = `${this.$config.BASEROW_EMBEDDED_SHARE_URL}/reset-password`
-        await AuthService(this.$client).sendResetPasswordEmail(
-          this.values.email,
-          resetUrl
-        )
-        this.success = true
-        this.loading = false
-      } catch (error) {
-        this.loading = false
-        this.handleError(error, 'passwordReset')
-      }
-    },
-  },
+const formData = reactive({
+  email: '',
+})
+
+// Vuelidate
+const rules = {
+  email: { required, email },
 }
+
+const v$ = useVuelidate(rules, formData, { $lazy: true })
+
+// Computed
+const settings = computed(() => store.getters['settings/get'])
+
+// Methods
+const hideError = () => {
+  error.value.visible = false
+}
+
+const showError = (title, message = null) => {
+  error.value.visible = true
+
+  if (message === null) {
+    error.value.title = title.title
+    error.value.message = title.message
+  } else {
+    error.value.title = title
+    error.value.message = message
+  }
+}
+
+const handleError = (err, name = 'application') => {
+  if (err.handler) {
+    const message = err.handler.getMessage(name)
+    showError(message)
+    err.handler.handled()
+  } else {
+    throw err
+  }
+}
+
+const fieldHasErrors = (field) => {
+  return v$.value[field].$error
+}
+
+const sendLink = async () => {
+  const isFormCorrect = await v$.value.$validate()
+  if (!isFormCorrect) return
+
+  loading.value = true
+  hideError()
+
+  try {
+    const resetUrl = `${config.public.baserowEmbeddedShareUrl}/reset-password`
+    await AuthService(client).sendResetPasswordEmail(formData.email, resetUrl)
+    success.value = true
+    loading.value = false
+  } catch (err) {
+    loading.value = false
+    handleError(err, 'passwordReset')
+  }
+}
+
+// Head
+useHead({
+  title: t('forgotPassword.title'),
+  link: [
+    {
+      rel: 'canonical',
+      href:
+        config.public.publicWebFrontendUrl +
+        router.resolve({ name: 'forgot-password' }).href,
+    },
+  ],
+})
 </script>

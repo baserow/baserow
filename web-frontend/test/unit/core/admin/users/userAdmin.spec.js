@@ -5,21 +5,22 @@ import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
 import { MockServer } from '@baserow/test/fixtures/mockServer'
+import { DOMWrapper } from '@vue/test-utils'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
+vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
 
 describe('User Admin Component Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = new MockServer(testApp.mock)
   })
 
-  afterEach(() => testApp.afterEach())
+  afterEach(async () => await testApp.afterEach())
 
   test('A users attributes will be displayed', async () => {
     const userSetup = {
@@ -42,7 +43,10 @@ describe('User Admin Component Tests', () => {
       isActive: true,
       isStaff: true,
     }
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin(userSetup)
+    const { ui, userAdmin } =
+      await whenThereIsAUserAndYouOpenUserAdmin(userSetup)
+
+    expect(userAdmin.html()).toMatchSnapshot()
 
     const cells = ui.findCells()
     expect(cells.length).toBe(7)
@@ -168,6 +172,7 @@ describe('User Admin Component Tests', () => {
     expect(isActiveCell.text()).toContain('user.active')
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('A users password can be changed', async () => {
     const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
@@ -225,6 +230,7 @@ describe('User Admin Component Tests', () => {
     expect(error.$validator).toMatch('maxLength')
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('users password can be changed to 256 characters', async () => {
     const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
@@ -358,26 +364,31 @@ describe('User Admin Component Tests', () => {
 
     const usernameEnteredButNotSaved = 'invalid'
 
-    const editUserModal = await ui.changeEmail(usernameEnteredButNotSaved, {
+    await ui.changeEmail(usernameEnteredButNotSaved, {
       clickSave: false,
       exit: true,
     })
 
-    const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.username.$model).toBe(initialUsername)
+    const userEditInputs = await ui.getUserEditModalEmailField()
+
+    expect(userEditInputs.element.value).toBe(initialUsername)
   })
-  test('a user can be set as staff ', async () => {
+  // eslint-disable-next-line vitest/expect-expect
+  test('a user can be set as staff', async () => {
     await testToggleStaff(false)
   })
 
-  test('a user can be unset as staff ', async () => {
+  // eslint-disable-next-line vitest/expect-expect
+  test('a user can be unset as staff', async () => {
     await testToggleStaff(true)
   })
 
-  test('a user can be set as active ', async () => {
+  // eslint-disable-next-line vitest/expect-expect
+  test('a user can be set as active', async () => {
     await testToggleActive(false)
   })
 
+  // eslint-disable-next-line vitest/expect-expect
   test('a user can be unset as active', async () => {
     await testToggleActive(true)
   })
@@ -528,6 +539,8 @@ describe('User Admin Component Tests', () => {
 
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
+
+    expect(userAdmin.html()).toMatchSnapshot()
 
     let usernameCellsText = ui.findUsernameColumnCellsText()
     expect(usernameCellsText).toStrictEqual([first, second, third])

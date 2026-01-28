@@ -3,15 +3,15 @@ from unittest.mock import patch
 from django.test.utils import override_settings
 
 import pytest
+from freezegun import freeze_time
+
+from baserow.core.db import transaction_atomic
+from baserow.core.trash.handler import TrashHandler
 from baserow_premium.row_comments.handler import (
     RowCommentHandler,
     RowCommentsNotificationModes,
 )
 from baserow_premium.row_comments.trash_types import RowCommentTrashableItemType
-from freezegun import freeze_time
-
-from baserow.core.db import transaction_atomic
-from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db(transaction=True)

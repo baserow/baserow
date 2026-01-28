@@ -29,7 +29,8 @@ async function updateRowMetadataInViews(
   rowMetadataKey,
   updateMetadataValueFunc
 ) {
-  for (const viewType of Object.values(store.$registry.getAll('view'))) {
+  const { $registry } = useNuxtApp()
+  for (const viewType of Object.values($registry.getAll('view'))) {
     await viewType.rowMetadataUpdated(
       { store },
       tableId,
@@ -147,10 +148,11 @@ export const actions = {
    * existing comments entirely.
    */
   async fetchRowComments({ commit }, { tableId, rowId }) {
+    const { $client } = this
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
     try {
-      const { data } = await RowCommentService(this.$client).fetchAll(
+      const { data } = await RowCommentService($client).fetchAll(
         tableId,
         rowId,
         {}
@@ -168,11 +170,12 @@ export const actions = {
    * Fetches the next 10 comments from the server and adds them to the comments list.
    */
   async fetchNextSetOfComments({ commit, state }, { tableId, rowId }) {
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
       // We have to use offset based paging here as new comments can be added by the
       // user or come in via realtime events.
-      const { data } = await RowCommentService(this.$client).fetchAll(
+      const { data } = await RowCommentService($client).fetchAll(
         tableId,
         rowId,
         { offset: state.currentCount }
@@ -192,6 +195,7 @@ export const actions = {
 
     { tableId, rowId, message }
   ) {
+    const { $client } = this
     const temporaryId = state.nextTemporaryCommentId
     commit('SET_NEXT_TEMPORARY_COMMENT_ID', temporaryId - 1)
     try {
@@ -212,7 +216,7 @@ export const actions = {
         comments: [temporaryComment],
         loading: true,
       })
-      const { data } = await RowCommentService(this.$client).create(
+      const { data } = await RowCommentService($client).create(
         tableId,
         rowId,
         message
@@ -239,6 +243,7 @@ export const actions = {
    * Update a comment content.
    */
   async updateComment({ commit, getters }, { tableId, commentId, message }) {
+    const { $client } = this
     const comment = getters.getCommentById(commentId)
     const originalMessage = comment.message
     const originalUpdatedOn = comment.updated_on
@@ -250,7 +255,7 @@ export const actions = {
       edited: true,
     })
     try {
-      await RowCommentService(this.$client).update(tableId, commentId, message)
+      await RowCommentService($client).update(tableId, commentId, message)
     } catch (e) {
       // Make sure we revert the comment if the update call failed.
       commit('UPDATE_ROW_COMMENT', {
@@ -280,13 +285,14 @@ export const actions = {
    * Delete a row comment.
    */
   async deleteComment({ commit }, { tableId, commentId }) {
+    const { $client } = this
     commit('SET_ROW_COMMENT_DELETED', {
       commentId,
       deleted: true,
       clearContent: false,
     })
     try {
-      const { data: rowComment } = await RowCommentService(this.$client).delete(
+      const { data: rowComment } = await RowCommentService($client).delete(
         tableId,
         commentId
       )
@@ -301,6 +307,7 @@ export const actions = {
    * Update the notification mode for comments on a row.
    */
   async updateNotificationMode({ dispatch }, { table, row, mode }) {
+    const { $client } = this
     const originalMode = row._.metadata.row_comments_notification_mode
 
     try {
@@ -309,7 +316,7 @@ export const actions = {
         rowId: row.id,
         mode,
       })
-      await RowCommentService(this.$client).updateNotificationMode(
+      await RowCommentService($client).updateNotificationMode(
         table.id,
         row.id,
         mode

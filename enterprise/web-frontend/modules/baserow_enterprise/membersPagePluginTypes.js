@@ -25,20 +25,20 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
     )
     const highestRoleColumn = new CrudTableColumn(
       'highest_role_uid',
-      this.app.i18n.t('membersSettings.membersTable.columns.highestRole'),
+      this.app.$i18n.t('membersSettings.membersTable.columns.highestRole'),
       HighestPaidRoleField,
       false,
       false,
       false,
       { workspaceId: context.workspace.id },
       20,
-      this.app.i18n.t(
+      this.app.$i18n.t(
         'membersSettings.membersTable.columns.highestRoleHelpText'
       )
     )
     const teamsColumn = new CrudTableColumn(
       'teams',
-      this.app.i18n.t('membersSettings.membersTable.columns.teams'),
+      this.app.$i18n.t('membersSettings.membersTable.columns.teams'),
       UserTeamsField,
       false,
       false,
@@ -64,14 +64,14 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
   mutateAdminUsersTableColumns(columns, context) {
     const highestRoleColumn = new CrudTableColumn(
       'highest_role_uid',
-      this.app.i18n.t('membersSettings.membersTable.columns.highestRole'),
+      this.app.$i18n.t('membersSettings.membersTable.columns.highestRole'),
       AdminHighestPaidRoleField,
       false,
       false,
       false,
       {},
       20,
-      this.app.i18n.t(
+      this.app.$i18n.t(
         'membersSettings.membersTable.columns.highestRoleInstanceHelpText'
       )
     )
@@ -93,7 +93,7 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
         1,
         new CrudTableColumn(
           key,
-          this.app.i18n.t('membersSettings.membersTable.columns.role'),
+          this.app.$i18n.t('membersSettings.membersTable.columns.role'),
           FieldComponent,
           true,
           false,
@@ -101,7 +101,7 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
           {
             workspaceId: workspace.id,
           },
-          this.app.i18n.t('membersPagePlugin.roleHelpText')
+          this.app.$i18n.t('membersPagePlugin.roleHelpText')
         )
       )
     }

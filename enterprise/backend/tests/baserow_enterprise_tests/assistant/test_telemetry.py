@@ -18,9 +18,10 @@ def assistant_chat_fixture(enterprise_data_fixture):
 
 @pytest.fixture(autouse=True)
 def mock_posthog_openai():
-    with udspy.settings.context(lm=udspy.LM(model="fake-model")), patch(
-        "posthog.ai.openai.AsyncOpenAI"
-    ) as mock:
+    with (
+        udspy.settings.context(lm=udspy.LM(model="fake-model")),
+        patch("posthog.ai.openai.AsyncOpenAI") as mock,
+    ):
         # Configure the mock if needed
         mock.return_value = MagicMock()
         mock.return_value.model = "test-model"
@@ -29,9 +30,14 @@ def mock_posthog_openai():
 
 @pytest.mark.django_db
 class TestPosthogTracingCallback:
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_trace_context_manager_success(self, mock_posthog, assistant_chat_fixture):
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_context_manager_success(
+        self, mock_get_client, assistant_chat_fixture
+    ):
         """Test the trace context manager in a successful execution flow."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
 
@@ -61,11 +67,14 @@ class TestPosthogTracingCallback:
         assert props["$ai_input_state"] == {"user_message": "Hello"}
         assert props["$ai_output_state"] is None
 
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_context_manager_exception(
-        self, mock_posthog, assistant_chat_fixture
+        self, mock_get_client, assistant_chat_fixture
     ):
         """Test the trace context manager when an exception occurs."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
 
@@ -79,9 +88,12 @@ class TestPosthogTracingCallback:
         assert call_args.kwargs["event"] == "$ai_trace"
         assert call_args.kwargs["properties"]["$ai_is_error"] is True
 
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_on_module_start_end(self, mock_posthog, assistant_chat_fixture):
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_on_module_start_end(self, mock_get_client, assistant_chat_fixture):
         """Test module execution tracing."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
         # Initialize context manually
@@ -165,9 +177,12 @@ class TestPosthogTracingCallback:
         assert inputs["kwargs"]["posthog_trace_id"] == "trace-1"
         assert inputs["kwargs"]["posthog_properties"]["$ai_provider"] == "openai"
 
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_on_tool_start_end(self, mock_posthog, assistant_chat_fixture):
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_on_tool_start_end(self, mock_get_client, assistant_chat_fixture):
         """Test tool execution tracing."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
         callback.chat = assistant_chat_fixture
@@ -199,9 +214,14 @@ class TestPosthogTracingCallback:
         assert props["$ai_input_state"] == {"arg": "val"}
         assert props["$ai_output_state"] == "result"
 
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_on_module_end_with_exception(self, mock_posthog, assistant_chat_fixture):
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_on_module_end_with_exception(
+        self, mock_get_client, assistant_chat_fixture
+    ):
         """Test that exception string is captured in $ai_output_state."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
         callback.chat = assistant_chat_fixture
@@ -239,9 +259,12 @@ class TestPosthogTracingCallback:
         assert props["$ai_is_error"] is True
         assert props["$ai_output_state"] == "Test error message"
 
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_on_tool_end_with_exception(self, mock_posthog, assistant_chat_fixture):
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_on_tool_end_with_exception(self, mock_get_client, assistant_chat_fixture):
         """Test that exception string is captured in $ai_output_state for tools."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
 
         callback = PosthogTracingCallback()
         callback.chat = assistant_chat_fixture

@@ -10,15 +10,15 @@ describe('KanbanView component', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp(null)
     testApp.giveCurrentUserGlobalPremiumFeatures()
     store = testApp.store
     mockServer = testApp.mockServer
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (props, slots = {}) => {
@@ -120,7 +120,7 @@ describe('KanbanView component', () => {
 
     // InfiniteScroll can't set properly clientHeight, and it's always 0
     // so this mock will overwrite clientHeight
-    InfiniteScroll.methods.clientHeight = jest.fn().mockReturnValue(5000)
+    InfiniteScroll.methods.clientHeight = vi.fn().mockReturnValue(5000)
 
     const wrapper = await mountComponent({
       view,
@@ -153,12 +153,12 @@ describe('KanbanView component', () => {
       storePrefix: 'page/',
     })
     expect(wrapper.element).toMatchSnapshot()
-    const mockEventHandler = jest.spyOn(wrapper.vm, 'showRowContext')
-    const mockDeleteRowHandler = jest.spyOn(wrapper.vm, 'deleteRow')
+    const mockEventHandler = vi.spyOn(wrapper.vm, 'showRowContext')
+    const mockDeleteRowHandler = vi.spyOn(wrapper.vm, 'deleteRow')
 
     const kanbanStackWrapper = wrapper.findComponent(KanbanViewStack)
     const rowCardWrapper = kanbanStackWrapper.findComponent(RowCard)
-    const mockEvent = { preventDefault: jest.fn() }
+    const mockEvent = { preventDefault: vi.fn() }
     rowCardWrapper.trigger('contextmenu', { row: rows[0], event: mockEvent })
 
     await wrapper.vm.$nextTick()
@@ -198,7 +198,7 @@ describe('KanbanView component', () => {
 
     // InfiniteScroll can't set properly clientHeight, and it's always 0
     // so this mock will overwrite clientHeight
-    InfiniteScroll.methods.clientHeight = jest.fn().mockReturnValue(5000)
+    InfiniteScroll.methods.clientHeight = vi.fn().mockReturnValue(5000)
 
     const wrapper = await mountComponent({
       view,
@@ -230,12 +230,12 @@ describe('KanbanView component', () => {
       readOnly: false,
       storePrefix: 'page/',
     })
-    const mockEventHandler = jest.spyOn(wrapper.vm, 'showRowContext')
-    const mockDeleteRowHandler = jest.spyOn(wrapper.vm, 'deleteRow')
+    const mockEventHandler = vi.spyOn(wrapper.vm, 'showRowContext')
+    const mockDeleteRowHandler = vi.spyOn(wrapper.vm, 'deleteRow')
 
     const kanbanStackWrapper = wrapper.findComponent(KanbanViewStack)
     const rowCardWrapper = kanbanStackWrapper.findComponent(RowCard)
-    const mockEvent = { preventDefault: jest.fn() }
+    const mockEvent = { preventDefault: vi.fn() }
     rowCardWrapper.trigger('contextmenu', { row: rows[0], event: mockEvent })
 
     await wrapper.vm.$nextTick()

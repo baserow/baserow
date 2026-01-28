@@ -45,12 +45,15 @@
 import context from '@baserow/modules/core/mixins/context'
 import Context from '@baserow/modules/core/components/Context'
 
+import { defineAsyncComponent } from 'vue'
+
 export default {
   name: 'NodeHelpTooltip',
   components: {
     Context,
-    FormulaInputField: () =>
-      import('@baserow/modules/core/components/formula/FormulaInputField'), // Lazy load the component to avoid circular dependency issue
+    FormulaInputField: defineAsyncComponent(
+      () => import('@baserow/modules/core/components/formula/FormulaInputField')
+    ), // Lazy load the component to avoid circular dependency issue
   },
   mixins: [context],
   inject: ['nodesHierarchy'],

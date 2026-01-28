@@ -47,9 +47,9 @@ def get_sampler_overrides_from_str(overrides: str) -> Dict[str, Sampler]:
     for override in overrides:
         module_and_sampler = _try_get_sampler_and_module_from_str(override)
         if module_and_sampler is not None:
-            per_module_sampler_overrides[
-                module_and_sampler.module
-            ] = module_and_sampler.sampler
+            per_module_sampler_overrides[module_and_sampler.module] = (
+                module_and_sampler.sampler
+            )
 
     return per_module_sampler_overrides
 
@@ -115,8 +115,7 @@ def _generate_sampler_from_string_args(
             return None
 
         logger.info(
-            "Instrumentation from module: {} overriden to use sampler {} with "
-            "param {}",
+            "Instrumentation from module: {} overriden to use sampler {} with param {}",
             module,
             trace_sampler,
             rate,

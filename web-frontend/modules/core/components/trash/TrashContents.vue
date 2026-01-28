@@ -106,6 +106,7 @@ export default {
       required: true,
     },
   },
+  emits: ['empty', 'load-next-page', 'restore'],
   computed: {
     parentIsTrashed() {
       return (
@@ -144,7 +145,7 @@ export default {
       }
     },
     trashDuration() {
-      const hours = this.$config.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
+      const hours = this.$config.public.hoursUntilTrashPermanentlyDeleted
       return moment().subtract(hours, 'hours').fromNow(true)
     },
   },

@@ -96,6 +96,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'ConfigureDataSyncPeriodicInterval',
+  emits: ['hide'],
   components: { PaidFeaturesModal, DataSyncPeriodicIntervalForm },
   mixins: [error],
   props: {

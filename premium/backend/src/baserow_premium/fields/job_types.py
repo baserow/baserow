@@ -7,7 +7,6 @@ from typing import Any, NamedTuple, Type
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Exists, OuterRef, QuerySet
 
-from baserow_premium.generative_ai.managers import AIFileManager
 from loguru import logger
 from rest_framework import serializers
 
@@ -42,6 +41,7 @@ from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
+from baserow_premium.generative_ai.managers import AIFileManager
 
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .registries import ai_field_output_registry

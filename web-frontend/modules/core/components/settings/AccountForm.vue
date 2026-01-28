@@ -27,7 +27,7 @@
         size="large"
       >
         <DropdownItem
-          v-for="locale in $i18n.locales"
+          v-for="locale in locales"
           :key="locale.code"
           :name="locale.name"
           :value="locale.code"
@@ -42,6 +42,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
+import { useI18n } from 'vue-i18n'
 
 import form from '@baserow/modules/core/mixins/form'
 
@@ -49,7 +50,11 @@ export default {
   name: 'AccountForm',
   mixins: [form],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const { locales } = useI18n()
+    return {
+      v$: useVuelidate({ $lazy: true }),
+      locales,
+    }
   },
   data() {
     return {

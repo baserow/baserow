@@ -215,12 +215,26 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'field-updated',
+    'field-deleted',
+    'order-fields',
+    'hidden',
+    'update',
+    'navigate-previous',
+    'navigate-next',
+    'toggle-field-visibility',
+    'toggle-hidden-fields-visibility',
+    'refresh-row',
+    'field-created',
+    'field-created-callback-done',
+  ],
   computed: {
     ...mapGetters({
       navigationLoading: 'rowModalNavigation/getLoading',
     }),
     modalRow() {
-      return this.$store.getters['rowModal/get'](this._uid)
+      return this.$store.getters['rowModal/get'](this.$.uid)
     },
     rowId() {
       return this.modalRow.id
@@ -302,18 +316,18 @@ export default {
       const row = value.find((r) => r !== null && r.id === this.rowId)
       if (row === undefined && this.rowExists) {
         this.$store.dispatch('rowModal/doesNotExist', {
-          componentId: this._uid,
+          componentId: this.$.uid,
         })
       } else if (row !== undefined && !this.rowExists) {
         this.$store.dispatch('rowModal/doesExist', {
-          componentId: this._uid,
+          componentId: this.$.uid,
           row,
         })
       } else if (row !== undefined) {
         // If the row already exists and it has changed, we need to replace it,
         // otherwise we might loose reactivity.
         this.$store.dispatch('rowModal/replace', {
-          componentId: this._uid,
+          componentId: this.$.uid,
           row,
         })
       }
@@ -340,7 +354,7 @@ export default {
       const row = this.rows.find((r) => r !== null && r.id === rowId)
       this.$store.dispatch('rowModal/open', {
         tableId: this.table.id,
-        componentId: this._uid,
+        componentId: this.$.uid,
         id: rowId,
         row: row || rowFallback,
         exists: !!row,
@@ -360,7 +374,7 @@ export default {
           row_id: this.rowId,
         })
       }
-      this.$store.dispatch('rowModal/clear', { componentId: this._uid })
+      this.$store.dispatch('rowModal/clear', { componentId: this.$.uid })
       this.$emit('hidden', { row: this.row })
     },
     /**

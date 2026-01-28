@@ -51,16 +51,10 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 
 export default {
   name: 'ABFileInput',
-  model: {
-    prop: 'value',
-    event: 'input',
-  },
   props: {
-    value: {
+    modelValue: {
       type: [Array, Object, null],
-      default() {
-        return this.multiple ? [] : null
-      },
+      default: null,
     },
     multiple: {
       type: Boolean,
@@ -79,9 +73,10 @@ export default {
       default: () => [],
     },
   },
+  emits: ['input', 'update:modelValue'],
   data() {
     return {
-      files: this.normalizeValue(this.value),
+      files: this.normalizeValue(this.modelValue),
       isDragOver: false,
     }
   },
@@ -97,16 +92,16 @@ export default {
     },
   },
   watch: {
-    value(newVal) {
+    modelValue(newVal) {
       this.files = this.normalizeValue(newVal)
     },
     multiple(newVal) {
-      if (newVal && this.value && !Array.isArray(this.value)) {
-        this.files = [this.value]
-        this.$emit('input', [this.value])
-      } else if (!newVal && Array.isArray(this.value)) {
-        this.files = this.value.length ? [this.value[0]] : []
-        this.$emit('input', this.files[0] || null)
+      if (newVal && this.modelValue && !Array.isArray(this.modelValue)) {
+        this.files = [this.modelValue]
+        this.$emit('update:modelValue', [this.modelValue])
+      } else if (!newVal && Array.isArray(this.modelValue)) {
+        this.files = this.modelValue.length ? [this.modelValue[0]] : []
+        this.$emit('update:modelValue', this.files[0] || null)
       }
     },
   },
@@ -166,7 +161,9 @@ export default {
       } else {
         this.files = newFiles.slice(0, 1)
       }
-      this.$emit('input', this.toValueFormat(this.files))
+      const value = this.toValueFormat(this.files)
+      this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
     onDragOver() {
       this.isDragOver = true
@@ -179,7 +176,9 @@ export default {
     },
     removeFile(index) {
       this.files.splice(index, 1)
-      this.$emit('input', this.toValueFormat(this.files))
+      const value = this.toValueFormat(this.files)
+      this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
     formatSize(bytes) {
       const sizes = ['Bytes', 'KB', 'MB', 'GB']

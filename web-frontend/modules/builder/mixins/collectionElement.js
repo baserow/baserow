@@ -117,11 +117,12 @@ export default {
       },
     },
   },
-  async fetch() {
+  mounted() {
     if (this.elementType.fetchAtLoad) {
-      await this.fetchContent([0, this.element.items_per_page])
+      this.fetchContent([0, this.element.items_per_page])
     }
   },
+
   methods: {
     ...mapActions({
       fetchElementContent: 'elementContent/fetchElementContent',

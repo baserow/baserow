@@ -5,8 +5,6 @@ from typing import Dict, List, Literal, Optional, TypedDict
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Exists, OuterRef, QuerySet
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import (
     SubmitAnonymousFieldValuesOperationType,
@@ -27,6 +25,7 @@ from baserow_enterprise.role.constants import (
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import FieldPermissions, FieldPermissionsRoleEnum
 
@@ -225,7 +224,7 @@ class FieldPermissionManagerType(PermissionManagerType):
 
         if workspace is None or not self.is_enabled(workspace):
             # Permissions granted if RBAC is not enabled.
-            return {check: True for check in field_checks}
+            return dict.fromkeys(field_checks, True)
 
         return self.check_field_permissions(
             field_checks, workspace, include_trash=include_trash

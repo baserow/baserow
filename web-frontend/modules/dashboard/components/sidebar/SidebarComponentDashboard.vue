@@ -16,6 +16,8 @@
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarComponentDashboard',
@@ -47,6 +49,8 @@ export default {
             dashboardId: this.application.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } catch (error) {
         if (error.name !== 'NavigationDuplicated') {
           notifyIf(error, 'workspace')

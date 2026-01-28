@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     class="select user-source-users-context"
     :class="{ 'context--loading-overlay': state === 'loading' }"
     max-height-if-outside-viewport
@@ -24,7 +25,9 @@
               :title="$t('userSourceUsersContext.anonymous')"
               size="medium"
               :initials="
-                $t('userSourceUsersContext.anonymous') | nameAbbreviation
+                $filters.nameAbbreviation(
+                  $t('userSourceUsersContext.anonymous')
+                )
               "
               @click="selectUser()"
             />
@@ -55,7 +58,9 @@
                   size="medium"
                   :initials="
                     user.username ||
-                    $t('userSourceUsersContext.unnamed') | nameAbbreviation
+                    $filters.nameAbbreviation(
+                      $t('userSourceUsersContext.unnamed')
+                    )
                   "
                   @click="selectUser(user)"
                 />

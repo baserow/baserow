@@ -7,7 +7,7 @@ from time import sleep
 from baserow.config.helpers import ConcurrencyLimiterASGI, dummy_context
 
 
-def test_asgi_concurrency_no_limit(event_loop, test_thread):
+def test_asgi_concurrency_no_limit(async_event_loop, test_thread):
     """
     This test ensures that ConcurrencyLimiterASGI will process all requests
     if not limited
@@ -29,7 +29,18 @@ def test_asgi_concurrency_no_limit(event_loop, test_thread):
     async def close_el():
         while True:
             if should_stop.is_set():
-                event_loop.stop()
+                pending = [
+                    task
+                    for task in asyncio.all_tasks(async_event_loop)
+                    if task is not asyncio.current_task()
+                ]
+                for task in pending:
+                    task.cancel()
+                # Wait for all tasks to complete their cancellation
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
+                async_event_loop.stop()
+                return
             await asleep(0.001)
 
     def make_app(qevents):
@@ -59,14 +70,14 @@ def test_asgi_concurrency_no_limit(event_loop, test_thread):
     async def send(out):
         processed.append(out)
 
-    with test_thread(event_loop.run_forever) as t:
+    with test_thread(async_event_loop.run_forever) as t:
         t.start()
         for _ in events:
             task = asyncio.run_coroutine_threadsafe(
-                app(scope, receive, send), event_loop
+                app(scope, receive, send), async_event_loop
             )
             tasks.append(task)
-        asyncio.run_coroutine_threadsafe(close_el(), event_loop)
+        asyncio.run_coroutine_threadsafe(close_el(), async_event_loop)
         # give it a moment to spin up
         sleep(0.05)
         for waitevent, setevent in events:
@@ -81,7 +92,7 @@ def test_asgi_concurrency_no_limit(event_loop, test_thread):
         assert len(processed) == len(events)
 
 
-def test_asgi_concurrency_limit(event_loop, test_thread):
+def test_asgi_concurrency_limit(async_event_loop, test_thread):
     """
     This test checks if ConcurrencyLimiterASGI will pass x first requests
     when under limitation
@@ -105,7 +116,18 @@ def test_asgi_concurrency_limit(event_loop, test_thread):
     async def close_el():
         while True:
             if should_stop.is_set():
-                event_loop.stop()
+                pending = [
+                    task
+                    for task in asyncio.all_tasks(async_event_loop)
+                    if task is not asyncio.current_task()
+                ]
+                for task in pending:
+                    task.cancel()
+                # Wait for all tasks to complete their cancellation
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
+                async_event_loop.stop()
+                return
             await asleep(0.001)
 
     def make_app(qevents):
@@ -132,14 +154,14 @@ def test_asgi_concurrency_limit(event_loop, test_thread):
     async def send(out):
         processed.append(out)
 
-    with test_thread(event_loop.run_forever) as t:
+    with test_thread(async_event_loop.run_forever) as t:
         t.start()
         for _ in events:
             task = asyncio.run_coroutine_threadsafe(
-                app(scope, receive, send), event_loop
+                app(scope, receive, send), async_event_loop
             )
             tasks.append(task)
-        asyncio.run_coroutine_threadsafe(close_el(), event_loop)
+        asyncio.run_coroutine_threadsafe(close_el(), async_event_loop)
         # give it a moment to spin up
         sleep(0.05)
         for idx, _events in enumerate(events):

@@ -38,6 +38,7 @@ export default {
       default: () => VERTICAL_ALIGNMENTS,
     },
   },
+  emits: ['input'],
   computed: {
     alignmentValues() {
       return Object.values(this.alignments)

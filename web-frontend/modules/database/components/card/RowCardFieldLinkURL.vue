@@ -1,17 +1,17 @@
-<template functional>
+<template>
   <div class="card-text">
     <a
-      v-if="$options.methods.isValid(props.value)"
-      :href="props.value && props.value.url"
+      v-if="isValid(value)"
+      :href="value && value.url"
       target="_blank"
       rel="nofollow noopener noreferrer"
       class="forced-pointer-events-auto"
       @mousedown.stop
     >
-      {{ $options.methods.getLabelOrURL(props.value) }}
+      {{ getLabelOrURL(value) }}
     </a>
     <template v-else>
-      {{ $options.methods.getLabelOrURL(props.value) }}
+      {{ getLabelOrURL(value) }}
     </template>
   </div>
 </template>
@@ -21,6 +21,12 @@ import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 export default {
   name: 'RowCardFieldLink',
   mixins: [linkURLField],
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
   height: 16,
 }
 </script>

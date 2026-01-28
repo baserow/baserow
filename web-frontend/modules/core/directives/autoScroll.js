@@ -21,8 +21,8 @@
  * }"
  */
 export default {
-  bind(el, binding) {
-    binding.def.update(el, binding)
+  beforeMount(el, binding) {
+    binding.dir.updated(el, binding)
 
     el.autoScrollTimeout = null
     el.autoScrollLastMoveEvent = null
@@ -97,7 +97,7 @@ export default {
     }
     el.addEventListener('mousemove', el.autoScrollMouseMoveEvent)
   },
-  update(el, binding) {
+  updated(el, binding) {
     const defaultEnabled = () => true
     const defaultScrollElement = () => el
     const defaultOnScroll = () => true
@@ -110,7 +110,7 @@ export default {
       onScroll: binding.value.onScroll || defaultOnScroll,
     }
   },
-  unbind(el) {
+  unmounted(el) {
     el.removeEventListener('mousemove', el.autoScrollMouseMoveEvent)
   },
 }

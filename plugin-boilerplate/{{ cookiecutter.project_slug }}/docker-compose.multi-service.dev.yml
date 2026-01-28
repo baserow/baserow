@@ -6,7 +6,7 @@
 services:
   # A caddy http server just used for serving media in dev.
   caddy:
-    image: caddy:2
+    image: caddy:2.10.2
     env_file:
       - .env
     ports:
@@ -36,7 +36,7 @@ services:
       - PUBLIC_WEB_FRONTEND_URL=http://localhost:3000
       - MEDIA_URL=http://localhost:4000/
       - BASEROW_PUBLIC_URL=
-      - BASEROW_BACKEND_DEBUGGER_ENABLED=${BASEROW_BACKEND_DEBUGGER_ENABLED:-True}
+      - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -156,7 +156,7 @@ services:
   db:
     # Please ensure the postgres-client's major version in the backend image is kept in
     # sync with this major version so pg_dump remains compatible.
-    image: postgres:${POSTGRES_IMAGE_VERSION:-13}
+    image: postgres:${POSTGRES_IMAGE_VERSION:-14}
     env_file:
       - .env
     environment:

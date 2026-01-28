@@ -6,7 +6,9 @@
           v-if="values.authorized_user"
           :title="values.authorized_user.first_name"
           :subtitle="values.authorized_user.username"
-          :initials="values.authorized_user.first_name | nameAbbreviation"
+          :initials="
+            $filters.nameAbbreviation(values.authorized_user.first_name)
+          "
           avatar-color="blue"
         />
         <div>{{ $t('localBaserowForm.userMessage') }}</div>

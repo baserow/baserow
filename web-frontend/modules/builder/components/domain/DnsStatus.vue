@@ -5,16 +5,18 @@
     </div>
     <table class="dns-status__table">
       <thead class="dns-status__table-head">
-        <td class="dns-status__table-cell">
-          {{ $t('dnsStatus.typeHeader') }}
-        </td>
-        <td class="dns-status__table-cell">
-          {{ $t('dnsStatus.hostHeader') }}
-        </td>
-        <td class="dns-status__table-cell">
-          {{ $t('dnsStatus.valueHeader') }}
-        </td>
-        <td class="dns-status__table-cell" />
+        <tr>
+          <th class="dns-status__table-cell">
+            {{ $t('dnsStatus.typeHeader') }}
+          </th>
+          <th class="dns-status__table-cell">
+            {{ $t('dnsStatus.hostHeader') }}
+          </th>
+          <th class="dns-status__table-cell">
+            {{ $t('dnsStatus.valueHeader') }}
+          </th>
+          <th class="dns-status__table-cell" />
+        </tr>
       </thead>
       <tbody>
         <tr v-if="isRootDomain" class="dns-status__table-row">
@@ -56,7 +58,7 @@ export default {
       return this.domain.domain_name.split('.').length === 2
     },
     webFrontendHostname() {
-      const url = new URL(this.$config.PUBLIC_WEB_FRONTEND_URL)
+      const url = new URL(this.$config.public.publicWebFrontendUrl)
       return url.hostname
     },
   },

@@ -23,8 +23,8 @@ export class LocalBaserowTableDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseDataSyncType.localBaserowTable')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseDataSyncType.localBaserowTable')
   }
 
   getFormComponent() {
@@ -53,8 +53,8 @@ export class JiraIssuesDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseDataSyncType.jiraIssues')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseDataSyncType.jiraIssues')
   }
 
   getFormComponent() {
@@ -83,8 +83,8 @@ export class GitHubIssuesDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseDataSyncType.githubIssues')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseDataSyncType.githubIssues')
   }
 
   getFormComponent() {
@@ -113,8 +113,8 @@ export class GitLabIssuesDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseDataSyncType.gitlabIssues')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseDataSyncType.gitlabIssues')
   }
 
   getFormComponent() {
@@ -143,8 +143,8 @@ export class HubspotContactsDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseDataSyncType.hubspotContacts')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseDataSyncType.hubspotContacts')
   }
 
   getFormComponent() {

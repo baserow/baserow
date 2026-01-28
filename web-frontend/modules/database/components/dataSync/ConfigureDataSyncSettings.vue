@@ -78,6 +78,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       fetchLoading: false,

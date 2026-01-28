@@ -1,17 +1,9 @@
-import en from '@baserow/modules/automation/locales/en.json'
-import fr from '@baserow/modules/automation/locales/fr.json'
-import nl from '@baserow/modules/automation/locales/nl.json'
-import de from '@baserow/modules/automation/locales/de.json'
-import es from '@baserow/modules/automation/locales/es.json'
-import it from '@baserow/modules/automation/locales/it.json'
-import pl from '@baserow/modules/automation/locales/pl.json'
-import ko from '@baserow/modules/automation/locales/ko.json'
+import { defineNuxtPlugin } from '#app'
 import {
   GeneralAutomationSettingsType,
   IntegrationsAutomationSettingsType,
 } from '@baserow/modules/automation/automationSettingTypes'
 
-import { registerRealtimeEvents } from '@baserow/modules/automation/realtime'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
@@ -52,121 +44,101 @@ import {
   CurrentIterationDataProviderType,
 } from '@baserow/modules/automation/dataProviderTypes'
 
-export default (context) => {
-  const { app, isDev, store } = context
+export default defineNuxtPlugin({
+  dependsOn: ['core', 'store'],
+  setup(nuxtApp) {
+    const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
 
-  // Allow locale file hot reloading in dev
-  if (isDev && app.i18n) {
-    const { i18n } = app
-    i18n.mergeLocaleMessage('en', en)
-    i18n.mergeLocaleMessage('fr', fr)
-    i18n.mergeLocaleMessage('nl', nl)
-    i18n.mergeLocaleMessage('de', de)
-    i18n.mergeLocaleMessage('es', es)
-    i18n.mergeLocaleMessage('it', it)
-    i18n.mergeLocaleMessage('pl', pl)
-    i18n.mergeLocaleMessage('ko', ko)
-  }
+    const context = { app: nuxtApp }
 
-  registerRealtimeEvents(app.$realtime)
+    $clientErrorMap.setError(
+      'ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE',
+      $i18n.t('automationWorkflowErrors.errorNameNotUnique'),
+      $i18n.t('automationWorkflowErrors.errorNameNotUniqueDescription')
+    )
 
-  app.$clientErrorMap.setError(
-    'ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE',
-    app.i18n.t('automationWorkflowErrors.errorNameNotUnique'),
-    app.i18n.t('automationWorkflowErrors.errorNameNotUniqueDescription')
-  )
+    // Register stores
+    $store.registerModule('automationApplication', automationApplicationStore)
+    $store.registerModule('automationWorkflow', automationWorkflowStore)
+    $store.registerModule('automationWorkflowNode', automationWorkflowNodeStore)
+    $store.registerModule('automationHistory', automationHistoryStore)
+    $store.registerModule(
+      'template/automationApplication',
+      automationApplicationStore
+    )
 
-  store.registerModule('automationApplication', automationApplicationStore)
-  store.registerModule('automationWorkflow', automationWorkflowStore)
-  store.registerModule('automationWorkflowNode', automationWorkflowNodeStore)
-  store.registerModule('automationHistory', automationHistoryStore)
-  store.registerModule(
-    'template/automationApplication',
-    automationApplicationStore
-  )
+    $registry.registerNamespace('automationDataProvider')
+    $registry.registerNamespace('node')
+    $registry.registerNamespace('editorSidePanel')
 
-  // Automation data providers.
-  app.$registry.register('application', new AutomationApplicationType(context))
-  app.$registry.register(
-    'automationDataProvider',
-    new PreviousNodeDataProviderType(context)
-  )
-  app.$registry.register(
-    'automationDataProvider',
-    new CurrentIterationDataProviderType(context)
-  )
+    // Automation data providers
+    $registry.register('application', new AutomationApplicationType(context))
+    $registry.register(
+      'automationDataProvider',
+      new PreviousNodeDataProviderType(context)
+    )
+    $registry.register(
+      'automationDataProvider',
+      new CurrentIterationDataProviderType(context)
+    )
 
-  // Automation node types.
-  app.$registry.register(
-    'node',
-    new LocalBaserowRowsCreatedTriggerNodeType(context)
-  )
-  app.$registry.register(
-    'node',
-    new LocalBaserowRowsUpdatedTriggerNodeType(context)
-  )
-  app.$registry.register(
-    'node',
-    new LocalBaserowRowsDeletedTriggerNodeType(context)
-  )
-  app.$registry.register('node', new CoreHTTPTriggerNodeType(context))
-  app.$registry.register(
-    'node',
-    new LocalBaserowCreateRowActionNodeType(context)
-  )
-  app.$registry.register(
-    'node',
-    new LocalBaserowUpdateRowActionNodeType(context)
-  )
-  app.$registry.register('node', new CoreHttpRequestNodeType(context))
-  app.$registry.register('node', new CoreSMTPEmailNodeType(context))
-  app.$registry.register('node', new CoreRouterNodeType(context))
-  app.$registry.register('node', new CoreIteratorNodeType(context))
-  app.$registry.register('node', new SlackWriteMessageNodeType(context))
-  app.$registry.register(
-    'node',
-    new LocalBaserowDeleteRowActionNodeType(context)
-  )
-  app.$registry.register('node', new LocalBaserowGetRowActionNodeType(context))
-  app.$registry.register(
-    'node',
-    new LocalBaserowListRowsActionNodeType(context)
-  )
-  app.$registry.register(
-    'node',
-    new LocalBaserowAggregateRowsActionNodeType(context)
-  )
-  app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
-  app.$registry.register('node', new AIAgentActionNodeType(context))
+    // Automation node types
+    $registry.register(
+      'node',
+      new LocalBaserowRowsCreatedTriggerNodeType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowRowsUpdatedTriggerNodeType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowRowsDeletedTriggerNodeType(context)
+    )
+    $registry.register('node', new CoreHTTPTriggerNodeType(context))
+    $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
+    $registry.register('node', new LocalBaserowUpdateRowActionNodeType(context))
+    $registry.register('node', new CoreHttpRequestNodeType(context))
+    $registry.register('node', new CoreSMTPEmailNodeType(context))
+    $registry.register('node', new CoreRouterNodeType(context))
+    $registry.register('node', new CoreIteratorNodeType(context))
+    $registry.register('node', new SlackWriteMessageNodeType(context))
+    $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
+    $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
+    $registry.register('node', new LocalBaserowListRowsActionNodeType(context))
+    $registry.register(
+      'node',
+      new LocalBaserowAggregateRowsActionNodeType(context)
+    )
+    $registry.register('node', new CorePeriodicTriggerNodeType(context))
+    $registry.register('node', new AIAgentActionNodeType(context))
 
-  // Automation job types.
-  app.$registry.register('job', new DuplicateAutomationWorkflowJobType(context))
-  app.$registry.register('job', new PublishAutomationWorkflowJobType(context))
+    // Automation job types
+    $registry.register('job', new DuplicateAutomationWorkflowJobType(context))
+    $registry.register('job', new PublishAutomationWorkflowJobType(context))
 
-  // Automation settings.
-  app.$registry.registerNamespace('automationSettings')
-  app.$registry.register(
-    'automationSettings',
-    new GeneralAutomationSettingsType(context)
-  )
-  app.$registry.register(
-    'automationSettings',
-    new IntegrationsAutomationSettingsType(context)
-  )
+    // Automation settings
+    $registry.registerNamespace('automationSettings')
+    $registry.register(
+      'automationSettings',
+      new GeneralAutomationSettingsType(context)
+    )
+    $registry.register(
+      'automationSettings',
+      new IntegrationsAutomationSettingsType(context)
+    )
 
-  // Automation editor side panels.
-  app.$registry.register(
-    'editorSidePanel',
-    new NodeEditorSidePanelType(context)
-  )
-  app.$registry.register(
-    'editorSidePanel',
-    new HistoryEditorSidePanelType(context)
-  )
+    // Automation editor side panels
+    $registry.register('editorSidePanel', new NodeEditorSidePanelType(context))
+    $registry.register(
+      'editorSidePanel',
+      new HistoryEditorSidePanelType(context)
+    )
 
-  // Automation search type
-  searchTypeRegistry.register(new AutomationSearchType())
+    // Automation search type
+    searchTypeRegistry.register(new AutomationSearchType(context))
 
-  // Automation guided tour.
-  app.$registry.register('guidedTour', new AutomationGuidedTourType(context))
-}
+    // Automation guided tour
+    $registry.register('guidedTour', new AutomationGuidedTourType(context))
+  },
+})

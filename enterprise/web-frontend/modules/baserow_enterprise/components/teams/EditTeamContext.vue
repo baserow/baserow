@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <template v-if="Object.keys(team).length > 0">
       <ul class="context__menu">
         <li
@@ -50,6 +50,7 @@ import TeamService from '@baserow_enterprise/services/team'
 
 export default {
   name: 'EditTeamContext',
+  emits: ['deleted', 'edit'],
   mixins: [context],
   props: {
     workspace: {

@@ -9,7 +9,7 @@ export class CommentsRowModalSidebarType extends RowModalSidebarType {
   }
 
   getName() {
-    return this.app.i18n.t('rowCommentSidebar.name')
+    return this.app.$i18n.t('rowCommentSidebar.name')
   }
 
   getComponent() {

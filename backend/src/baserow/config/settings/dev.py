@@ -20,6 +20,11 @@ BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
+# daphne imports numpy via autobahn -> flatbuffers, so we exclude it from the
+# lazy-load check in dev mode. In production, numpy should still be lazy-loaded.
+if "numpy" in BASEROW_LAZY_LOADED_LIBRARIES:  # noqa: F405
+    BASEROW_LAZY_LOADED_LIBRARIES.remove("numpy")  # noqa: F405
+
 BASEROW_ENABLE_SILK = str_to_bool(os.getenv("BASEROW_ENABLE_SILK", "on"))
 if BASEROW_ENABLE_SILK:
     INSTALLED_APPS += ["silk"]  # noqa: F405
@@ -52,8 +57,9 @@ snoop.install()
 
 CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_USE_TLS = False
-EMAIL_HOST = "mailhog"
-EMAIL_PORT = 1025
+# Use localhost for local dev (just dev up), mailhog for docker dev (just dc-dev up)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailhog")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
 
 BASEROW_MAX_ROW_REPORT_ERROR_COUNT = 10  # To trigger this exception easily
 

@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hideError">
+  <Modal ref="modal" @hidden="hideError">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('generateAIValuesModal.title', { name: field.name }) }}
@@ -177,7 +177,7 @@ export default {
         const { data: viewsData } = await ViewService(this.$client).fetchAll(
           this.table.id
         )
-        viewsData.forEach((v) => populateView(v, this.$registry))
+        viewsData.forEach((v) => populateView(v))
         this.views = viewsData
       } catch (error) {
         this.handleError(error, 'views')
@@ -207,19 +207,19 @@ export default {
         this.handleError(error)
       }
     },
-    // eslint-disable-next-line require-await
+
     async onJobFinished() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+
     async onJobFailed() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+
     async onJobCancelled() {
       this.previousJobs.unshift(this.job)
       this.job = null

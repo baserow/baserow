@@ -1,0 +1,7 @@
+@use '@baserow/modules/core/assets/scss/colors.scss' as colors;
+
+:export {
+  @each $color, $value in colors.$colors {
+    #{unquote($color)}: $value;
+  }
+}

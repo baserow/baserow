@@ -1,1208 +1,1208 @@
 {
-    "paginator": {
-        "page": "pagina",
-        "of": "van {pages}"
+  "paginator": {
+    "page": "pagina",
+    "of": "van {pages}"
+  },
+  "copied": {
+    "label": "Gekopieerd!"
+  },
+  "sidebarApplication": {
+    "renameApplication": "Hernoem {type}",
+    "viewTrash": "Bekijk Prullenbak",
+    "deleteApplication": "Verwijder {type}",
+    "duplicateApplication": "Dupliceer {type}",
+    "snapshots": "Snapshots",
+    "rename": "Hernoemen",
+    "duplicate": "Dupliceer",
+    "delete": "Verwijder"
+  },
+  "sidebar": {
+    "createWorkspace": "Werkruimte aanmaken",
+    "inviteOthers": "Nodig anderen uit",
+    "logoff": "Afmelden",
+    "errorNoWorkspace": "Je hebt geen werkruimtes.",
+    "admin": "Beheerder",
+    "dashboard": "Dashboard",
+    "trash": "Prullenbak",
+    "settings": "Instellingen",
+    "members": "Leden",
+    "notifications": "Meldingen",
+    "general": "Algemeen",
+    "home": "Home",
+    "people": "Gebruikers",
+    "addNewWorkspace": "Nieuwe werkruimte toevoegen",
+    "adminTools": "Beheerprogramma's",
+    "adminSettings": "Beheerdersinstellingen",
+    "licenses": "Licenties"
+  },
+  "accountForm": {
+    "nameLabel": "Je naam",
+    "languageLabel": "Taal van de interface"
+  },
+  "accountSettings": {
+    "title": "Account",
+    "changedTitle": "Gewijzigd",
+    "changedDescription": "Je accountgegevens zijn gewijzigd.",
+    "submitButton": "Account bijwerken"
+  },
+  "settingsModal": {
+    "title": "Instellingen"
+  },
+  "passwordSettings": {
+    "title": "Wachtwoord wijzigen",
+    "changedTitle": "Wachtwoord gewijzigd",
+    "changedDescription": "Je wachtwoord is gewijzigd. De volgende keer dat je wilt inloggen, moet je het nieuwe wachtwoord gebruiken.",
+    "oldPasswordLabel": "Oud wachtwoord",
+    "oldPasswordRequiredError": "Oud wachtwoord is een verplicht veld.",
+    "newPasswordLabel": "Nieuw wachtwoord",
+    "repeatNewPasswordLabel": "Herhaal nieuw wachtwoord",
+    "repeatNewPasswordMatchError": "Dit veld moet overeenkomen met je nieuwe wachtwoordveld.",
+    "submitButton": "Wachtwoord wijzigen",
+    "errorInvalidOldPasswordTitle": "Ongeldig wachtwoord",
+    "errorInvalidOldPasswordMessage": "Wachtwoord kon niet veranderd worden omdat je oude wachtwoord ongeldig is."
+  },
+  "error": {
+    "alreadyExistsTitle": "Gebruiker bestaat al",
+    "alreadyExistsMessage": "Er bestaat al een gebruiker met het opgegeven e-mailadres.",
+    "passwordRequired": "Wachtwoord is een verplicht veld.",
+    "invalidEmail": "Voer een geldig e-mail adres in.",
+    "disabledAccountTitle": "Account uitgeschakeld",
+    "disabledAccountMessage": "Dit gebruikersaccount is uitgeschakeld.",
+    "incorrectCredentialTitle": "Inloggegevens zijn niet correct",
+    "incorrectCredentialMessage": "Het opgegeven e-mailadres of wachtwoord is niet correct.",
+    "inputRequired": "Dit is een verplicht veld.",
+    "disabledPasswordProviderTitle": "Wachtwoordverificatie is uitgeschakeld.",
+    "disabledPasswordProviderMessage": "Gebruik een andere authenticatie provider."
+  },
+  "field": {
+    "language": "Taal",
+    "emailAddress": "E-mailadres",
+    "name": "Je naam",
+    "password": "Wachtwoord",
+    "passwordRepeat": "Herhaal wachtwoord"
+  },
+  "invitationTitle": "Uitnodiging",
+  "invitationMessage": "{invitedBy} heeft je uitgenodigd om lid te worden van {workspace}.",
+  "workspaceForm": {
+    "nameLabel": "Naam"
+  },
+  "leaveWorkspaceModal": {
+    "title": "Verlaat {workspace}",
+    "message": "Weet je zeker dat je de werkruimte {workspace} wilt verlaten? Je hebt dan geen toegang meer tot de relevante applicaties. Als je opnieuw toegang wilt krijgen, moet een van de beheerders je opnieuw uitnodigen. Als je de werkruimte verlaat, zal de werkruimte niet worden verwijderd. Alle andere leden zullen er nog steeds toegang toe hebben. Het is niet mogelijk om een werkruimte te verlaten als je de laatste beheerder bent, omdat deze dan niet meer wordt onderhouden.",
+    "leave": "Verlaat werkruimte"
+  },
+  "dashboardWorkspace": {
+    "showMembers": "Leden",
+    "createApplication": "Nieuwe aanmaken"
+  },
+  "workspaceInvitation": {
+    "title": "Uitnodiging",
+    "message": "{by} heeft je uitgenodigd om lid te worden van {workspace}.",
+    "reject": "Weigeren",
+    "accept": "Accepteren"
+  },
+  "workspaceMemberModal": {
+    "membersModalTitle": "Leden van {workspace}",
+    "userDescription": "{user} - lid geworden {since} geleden",
+    "invitationDescription": "uitgenodigd {since} geleden",
+    "sendInvite": "Uitnodiging versturen",
+    "userAlreadyInWorkspaceTitle": "Gebruiker zit al in de werkruimte.",
+    "userAlreadyInWorkspaceText": "Het is niet mogelijk een uitnodiging te versturen als de gebruiker al lid is van de werkruimte.",
+    "userDescriptionPendingDeletion": "{user} - in afwachting van verwijdering"
+  },
+  "workspaceInviteForm": {
+    "invitationFormTitle": "Uitnodigen per e-mail",
+    "optionalMessagePlaceholder": "Optioneel bericht",
+    "errorInvalidEmail": "Voer een geldig e-mail adres in.",
+    "errorTooLongMessage": "Berichten zijn beperkt tot {amount} tekens.",
+    "additionalRoles": "Extra rollen"
+  },
+  "workspacesContext": {
+    "search": "Zoek werkruimtes",
+    "noResults": "Geen resultaten gevonden",
+    "createWorkspace": "Werkruimte aanmaken"
+  },
+  "workspaceContext": {
+    "renameWorkspace": "Hernoem werkruimte",
+    "members": "Leden",
+    "viewTrash": "Bekijk Prullenbak",
+    "leaveWorkspace": "Verlaat werkruimte",
+    "deleteWorkspace": "werkruimte verwijderen",
+    "auditLog": "Audit log",
+    "settings": "Instellingen",
+    "importWorkspace": "Data importeren",
+    "exportWorkspace": "Data exporteren"
+  },
+  "createWorkspaceModal": {
+    "createNew": "Nieuwe werkruimte aanmaken",
+    "add": "werkruimte toevoegen",
+    "defaultName": "Naamloze werkruimte",
+    "permissionDeniedTitle": "Toestemming geweigerd",
+    "permissionDeniedBody": "U heeft niet de vereiste rechten om een nieuwe werkruimte te maken."
+  },
+  "templateCategories": {
+    "search": "Zoek sjablonen",
+    "title": "Sjablonen"
+  },
+  "templateHeader": {
+    "use": "Gebruik deze sjabloon"
+  },
+  "trashSidebar": {
+    "title": "Prullenbak",
+    "unnamedWorkspace": "Naamloze werkruimte {id}",
+    "workspaces": "Werkruimtes"
+  },
+  "trashContents": {
+    "message": "Herstel items verwijderd in de afgelopen {duration}",
+    "empty": "Er is niets verwijderd in de afgelopen drie dagen.",
+    "emptyButtonTrashed": "Verwijder {type} permanent",
+    "emptyButtonNotTrashed": "Leeg de Prullenbak van dit {type}",
+    "unnamed": "Naamloos {type} {id}"
+  },
+  "trashEmptyModal": {
+    "titleIsTrashed": "Weet je zeker dat je {name} permanent wilt verwijderen?",
+    "titleIsNotTrashed": "Weet je zeker dat je de Prullenbak van {name} wilt legen?",
+    "messageIsTrashed": "De gehele inhoud van de prullenbak wordt permanent gewist. Dit kan niet ongedaan gemaakt of opgehaald worden.",
+    "messageIsNotTrashed": "Dit zal de items lijst permanent verwijderen. Herstel of ophalen is dan niet meer mogelijk.",
+    "buttonIsTrashed": "Permanent verwijderen",
+    "buttonIsNotTrashed": "Legen"
+  },
+  "trashEntry": {
+    "deletedUser": "Een verwijderde gebruiker",
+    "fromParent": "van {parent}",
+    "name": "{user} heeft {type} {title} {parent} verwijderd",
+    "restore": "Herstel",
+    "unnamed": "Naamloos {type} {id}",
+    "andMore": "... en {count} meer"
+  },
+  "trashModal": {
+    "emptyTitle": "Geen werkruimtes gevonden",
+    "emptyMessage": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om die aan te maken moet je eerst een werkruimte maken.",
+    "emptyMessageWithoutCreatePermission": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om ze aan te maken moet je eerst door een beheerder bij een werkruimte worden uitgenodigd."
+  },
+  "uploadViaURLUserFileUpload": {
+    "title": "Uploaden vanaf een URL",
+    "urlLabel": "URL",
+    "urlError": "Een geldige URL is een verplicht veld."
+  },
+  "userFilesModal": {
+    "title": "Uploaden van"
+  },
+  "uploadFileUserFileUpload": {
+    "title": "Uploaden vanaf mijn apparaat",
+    "drop": "Naar hier slepen",
+    "clickOrDrop": "Klik of sleep je bestanden naar hier",
+    "retry": "Opnieuw proberen"
+  },
+  "createApplicationContext": {
+    "fromTemplate": "Van sjabloon",
+    "table": "Tabel",
+    "tableDesc": "Maak een nieuwe plaats om gegevens in je database te beheren.",
+    "fromTemplateDesc": "Begin snel met een van onze aanbevolen templates",
+    "importWorkspace": "Data importeren",
+    "importWorkspaceDesc": "Bestaande gegevens van een Baserow instantie toevoegen."
+  },
+  "applicationForm": {
+    "nameLabel": "Naam",
+    "namePlaceholder": "Voer de naam in..."
+  },
+  "connectingNotification": {
+    "title": "Opnieuw verbinden",
+    "content": "Opnieuw verbinding maken met de server."
+  },
+  "failedConnectingNotification": {
+    "title": "Mislukt",
+    "content": "Verbinding met de server is mislukt. Vernieuw de pagina.",
+    "action": "Pagina vernieuwen"
+  },
+  "restoreNotification": {
+    "restore": "Herstel verwijderd {type}"
+  },
+  "errorLayout": {
+    "notFound": "We kunnen de pagina die je zoekt niet vinden. Misschien is de URL niet correct, of misschien heb je geen autorisatie om deze pagina te bekijken.",
+    "error": "Er is iets misgegaan tijdens het laden van de pagina. Onze ontwikkelaars zijn op de hoogte gebracht van het probleem. Probeer Vernieuwen of ga terug naar het dashboard.",
+    "backDashboard": "Terug naar dashboard",
+    "backLogin": "Terug naar inloggen",
+    "wrong": "Er is iets misgegaan",
+    "refresh": "Pagina vernieuwen"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "alertTitle": "We hebben je hulp nodig!",
+    "alertText": "Als je Baserow nuttig vindt, dan waarderen we het zeer als je ons wilt sponsoren, sterren wilt geven of ons met anderen wilt delen. Door ons te sponsoren op GitHub krijg je vroegtijdige toegang tot de premium functies!",
+    "tweetContent": "Check {'@'}baserow, een open source no-code database tool en Airtable alternatief!",
+    "redditTitle": "'Baserow - Een open source no-code database",
+    "noWorkspaceTitle": "Geen werkruimtes gevonden",
+    "noWorkspaceText": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om die te maken moet je eerst een werkruimte aanmaken.",
+    "createWorkspace": "Werkruimte aanmaken",
+    "becomeGithubSponsor": "Word een GitHub sponsor",
+    "starOnGitlab": "Geef ons een ster op Gitlab",
+    "shareOnTwitter": "Tweet over Baserow",
+    "shareOnReddit": "Deel op Reddit",
+    "shareOnFacebook": "Deel op Facebook",
+    "shareOnLinkedIn": "Deel op LinkedIn",
+    "noWorkspaceTextWithoutCreatePermission": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om ze aan te maken moet je eerst door een beheerder bij een werkruimte worden uitgenodigd.",
+    "apiDocumentation": "API-documentatie",
+    "apiDocumentationMessage": "Meer informatie over onze code",
+    "emptyWorkspace": "Deze werkruimte is leeg",
+    "noWorkspaceDescription": "Begin met het maken van een nieuwe werkruimte",
+    "suggestedTemplates": "Voorgestelde templates",
+    "resources": "Bronnen",
+    "knowledgeBase": "Kennisbank",
+    "knowledgeBaseMessage": "Vind antwoorden op al je vragen",
+    "tutorials": "Tutorials",
+    "tutorialsMessage": "Ontdek het potentieel van Baserow",
+    "emptyWorkspaceMessage": "Begin met het maken van een nieuwe database of applicatie.",
+    "addNew": "Nieuwe toevoegen...",
+    "noWorkspace": "Geen werkruimte",
+    "starOnGitHub": "Geef een ster op GitHub"
+  },
+  "login": {
+    "title": "Inloggen",
+    "forgotPassword": "Wachtwoord vergeten",
+    "emailPlaceholder": "Voer je e-mailadres in..",
+    "passwordPlaceholder": "Voer je wachtwoord in.",
+    "signUpText": "Heb je geen account?",
+    "signUp": "Aanmelden",
+    "displayPasswordLogin": "Inloggen met e-mail en wachtwoord",
+    "redirecting": "Doorsturen naar authenticatie provider..."
+  },
+  "resetPassword": {
+    "title": "Wachtwoord resetten",
+    "newPassword": "Nieuw wachtwoord",
+    "repeatNewPassword": "Herhaal nieuw wachtwoord",
+    "submit": "Wachtwoord wijzigen",
+    "changed": "Wachtwoord gewijzigd",
+    "errorInvalidLinkTitle": "Ongeldige link",
+    "errorInvalidLinkMessage": "Kon het wachtwoord niet resetten omdat de link ongeldig is.",
+    "errorLinkExpiredTitle": "Link verlopen",
+    "errorLinkExpiredMessage": "De link voor het resetten van je wachtwoord is verlopen. Vraag een nieuwe link aan.",
+    "disabled": "Wachtwoord opnieuw instellen is uitgeschakeld",
+    "disabledMessage": "Het is niet mogelijk om het wachtwoord te resetten omdat het is uitgeschakeld.",
+    "message": "Je kunt nu inloggen op Baserow met je nieuwe wachtwoord."
+  },
+  "signup": {
+    "headTitle": "Nieuw account aanmaken",
+    "title": "Aanmelden",
+    "disabled": "Aanmelden is uitgeschakeld",
+    "disabledMessage": "Het is niet mogelijk om een account aan te maken omdat het is uitgeschakeld.",
+    "requireFirstUser": "Welkom bij Baserow!",
+    "requireFirstUserMessage": "Vul het onderstaande formulier in om de admin gebruiker aan te maken.",
+    "passwordPlaceholder": "Voer je wachtwoord in.",
+    "namePlaceholder": "Voer je naam in..",
+    "passwordRepeatPlaceholder": "Bevestig je wachtwoord.",
+    "loginText": "Heb je al een account?",
+    "emailPlaceholder": "Voer je e-mailadres in..",
+    "login": "Inloggen",
+    "privacyPolicy": "Privacybeleid",
+    "agreeTerms": "Door een account aan te maken, gaat u akkoord met de {0} {1} {2}",
+    "terms": "Servicevoorwaarden"
+  },
+  "forgotPassword": {
+    "title": "Wachtwoord vergeten",
+    "message": "Vul je e-mailadres in op het formulier. Als we een account vinden, sturen we een e-mail met een link om je wachtwoord te resetten.",
+    "submit": "Stuur link",
+    "confirmation": "Als je e-mailadres in onze database voorkomt, ontvangt je binnen enkele minuten op je e-mailadres een link om je wachtwoord opnieuw in te stellen.",
+    "disabled": "Wachtwoord resetten is uitgeschakeld",
+    "disabledMessage": "Het is niet mogelijk om een wachtwoord opnieuw in te stellen omdat het is uitgeschakeld.",
+    "loginText": "Heb je al een account en wachtwoord?",
+    "confirmationTitle": "Controleer je e-mail",
+    "goBack": "Ga terug"
+  },
+  "settings": {
+    "settingsTitle": "Beheerdersinstellingen",
+    "baserowInstanceId": "Installatie-ID",
+    "instanceIdDescription": "De installatie-ID is de unieke identificatiecode van je Baserow instantie.",
+    "accountRestrictions": "Accountbeperkingen",
+    "settingAllowResetPasswordName": "Wachtwoord opnieuw instellen toestaan",
+    "settingAllowResetPasswordDescription": "Standaard kunnen gebruikers een link aanvragen om hun wachtwoord te resetten.",
+    "settingAllowResetPasswordWarning": "Houd er rekening mee dat u zichzelf van het systeem kunt uitsluiten en dat de toegang niet kan worden hersteld als u uw wachtwoord vergeet.",
+    "settingAllowNewAccountsName": "Toestaan aanmaken van nieuwe accounts",
+    "settingAllowNewAccountsDescription": "Standaard kan elke gebruiker die je Baserow-domein bezoekt zich aanmelden voor een nieuw account.",
+    "enabled": "ingeschakeld",
+    "settingAllowSignupsViaWorkspaceInvitationsName": "Aanmeldingen via werkruimte uitnodigingen toestaan",
+    "settingAllowSignupsViaWorkspaceInvitationDescription": "Zelfs als het aanmaken van nieuwe accounts is uitgeschakeld, kunnen direct uitgenodigde gebruikers met deze optie toch een account aanmaken.",
+    "userDeletionGraceDelay": "Gebruiker verwijderen",
+    "settingUserDeletionGraceDelay": "Respijtperiode",
+    "settingUserDeletionGraceDelayDescription": "Dit is het aantal dagen zonder login waarna een voor verwijdering geplande account permanent wordt verwijderd.",
+    "invalidAccountDeletionGraceDelay": "Deze waarde is vereist en moet een positief geheel getal zijn kleiner dan 32000",
+    "settingAllowNonStaffCreateWorkspaceOperation": "Laat iedereen nieuwe werkruimtes maken",
+    "settingAllowNonStaffCreateWorkspaceOperationDescription": "Standaard kan iedereen nieuwe werkruimtes aanmaken. Schakel dit uit om alleen staff toe te staan nieuwe werkruimtes aan te maken.",
+    "settingAllowNonStaffCreateWorkspaceOperationWarning": "Als deze instelling is ingeschakeld, wordt voor nieuwe gebruikers automatisch een werkruimte aangemaakt waarin ze een beheerder zijn, zodat ze voor de facturering als beheerder worden gerapporteerd. Om dit te voorkomen, schakelt u deze instelling uit en nieuw uitgenodigde gebruikers beginnen alleen met de rol waarmee ze zijn uitgenodigd.",
+    "maintenance": "Onderhoud",
+    "settingTrackWorkspaceUsage": "Werkruimte gebruik bijhouden",
+    "settingTrackWorkspaceUsageDescription": "Schakelt een nachtelijke taak in die het rij- en bestandsgebruik per werkruimte telt, weergegeven op de beheerpagina van de premium werkruimte.",
+    "userSettings": "Gebruiker",
+    "emailVerification": "E-mail verificatie",
+    "emailVerificationDescription": "Bepaalt of e-mailadressen moeten worden geverifieerd.",
+    "emailVerificationNoVerification": "Geen verificatie",
+    "emailVerificationRecommended": "Aanbevolen",
+    "emailVerificationEnforced": "Afgedwongen",
+    "baserowVersionDescription": "Het versienummer van deze instantie.",
+    "baserowVersion": "Baserow versie",
+    "settingsVerifyImportSignatureDescription": "Indien ingeschakeld, wordt de handtekening van de geïmporteerde gegevens geverifieerd om er zeker van te zijn dat er niet met de gegevens geknoeid is.",
+    "settingsVerifyImportSignature": "Verifieer import handtekening"
+  },
+  "copyingNotification": {
+    "title": "Kopiëren...",
+    "content": "Uw gegevens voorbereiden"
+  },
+  "undoRedoNotification": {
+    "undoingTitle": "Ongedaan maken...",
+    "undoingText": "Je actie ongedaan maken",
+    "redoneTitle": "Opnieuw gedaan",
+    "skippingRedoDueToError": "Opnieuw uitvoeren mislukt vanwege onbekende fout, overslaan.",
+    "redoingTitle": "Opnieuw doen...",
+    "redoingText": "Je actie overnieuw doen",
+    "redoneText": "Actie wordt opnieuw gedaan",
+    "noMoreRedo": "Geen acties meer om opnieuw te doen",
+    "skippingUndoDueToError": "Ongedaan maken mislukt door onbekende fout, overslaan.",
+    "failed": "Mislukt",
+    "undoneText": "Actie is ongedaan gemaakt",
+    "undoneTitle": "Ongedaan gemaakt",
+    "noMoreUndo": "Geen acties meer om ongedaan te maken"
+  },
+  "AuthorizationErrorNotification": {
+    "title": "Autorisatiefout",
+    "content": "Het lijkt erop dat je niet de rechten hebt om deze bron te zien.",
+    "action": "Pagina vernieuwen"
+  },
+  "formSidebar": {
+    "actions": {
+      "addAll": "Alles toevoegen",
+      "removeAll": "Alles verwijderen",
+      "addField": "Veld toevoegen"
     },
-    "copied": {
-        "label": "Gekopieerd!"
+    "fieldsDescription": "Alle velden staan in het formulier.",
+    "prefillInfoLink": "Waarden dynamisch vooraf invullen",
+    "modal": {
+      "title": "Waarden dynamisch vooraf invullen",
+      "descriptionPartOne": "Formulieren kunnen vooraf worden ingevuld om de gebruiker te helpen het formulier sneller in te vullen.",
+      "descriptionPartTwo": "Alle velden die in het formulier beschikbaar zijn, kunnen vooraf worden ingevuld.",
+      "howToPrefill": {
+        "title": "Een formulier vooraf invullen",
+        "description": "Als u een formulier vooraf met gegevens wilt invullen, kunt u dit doen via queryparameters die zijn toegevoegd aan de openbare formulier-URL. Deze queryparameters worden voorafgegaan door 'prefill' om elke botsing met mogelijke toekomstige queryparameters te voorkomen."
+      },
+      "format": {
+        "title": "Format",
+        "description": "Het formaat van de queryparameters is als volgt:",
+        "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
+      },
+      "example": {
+        "title": "Voorbeeld",
+        "description": "In het onderstaande voorbeeld willen we een veld genaamd `Naam` vullen met de waarde `Mike`",
+        "codeSnippet": "?prefill_Name=Mike"
+      },
+      "spaces": {
+        "title": "Ruimtes",
+        "description": "Spaties in de veldnaam worden vervangen door `+` om problemen met de query parameter te voorkomen.",
+        "codeSnippet": "?prefill_my+field=Mike"
+      },
+      "multipleValues": {
+        "title": "Meerdere waarden",
+        "description": "Als u meerdere velden wilt vullen, kunt u dat doen door een `,` tussen de waarden te plaatsen.",
+        "codeSnippet": "?prefill_multi+select=Mike,John"
+      },
+      "specialFieldTypes": {
+        "title": "Speciale veldtypes",
+        "description": "Over het algemeen is de prefill-waarde gelijk aan de waarde van het veld. Maar er zijn enkele uitzonderingen waarbij de waarde wordt vertaald naar een andere waarde.",
+        "ratingField": {
+          "title": "Beoordelingsveld",
+          "description": "Een beoordelingsveld accepteert een getal om aan te geven hoeveel sterren er moeten worden ingevuld.",
+          "codeSnippet": "?prefill_rating=3"
+        },
+        "linkRowField": {
+          "title": "Link naar tabel veld",
+          "description": "Een link naar tabel kan de waarde aannemen die in het keuzemenu wordt getoond.",
+          "codeSnippet": "?prefill_link+row=Mike"
+        },
+        "selectField": {
+          "title": "Enkel selectie / meervoudig selectieveld",
+          "description": "Een enkelvoudig keuzeveld kan de waarde accepteren die in de keuzelijst wordt getoond. Dat geldt ook voor het veld Meervoudige selectie, maar dat kan ook meerdere waarden accepteren.",
+          "codeSnippet": "?prefill_single+select=Mike"
+        },
+        "dateField": {
+          "title": "Datumveld",
+          "description": "Een datumveld kan een datum in de volgende notaties accepteren en gebruikt de datumnotatie van het veld om de datum te parseren.",
+          "codeSnippet": "\n// Standards\nISO_8601\n\n// General formats\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
+        }
+      },
+      "howToHide": {
+        "title": "Hoe een veld verbergen",
+        "description": "Als u een veld dynamisch wilt verbergen, kunt u dat doen via query parameters die worden toegevoegd aan de public from url. Deze query parameters worden voorafgegaan door `hide_` om botsing met mogelijke toekomstige query parameters te voorkomen."
+      }
     },
-    "sidebarApplication": {
-        "renameApplication": "Hernoem {type}",
-        "viewTrash": "Bekijk Prullenbak",
-        "deleteApplication": "Verwijder {type}",
-        "duplicateApplication": "Dupliceer {type}",
-        "snapshots": "Snapshots",
-        "rename": "Hernoemen",
-        "duplicate": "Dupliceer",
-        "delete": "Verwijder"
+    "prefillOrHideInfoLink": "Dynamisch invullen of verbergen",
+    "notifyUserOnSubmit": "Notificatie ontvangen bij verzenden"
+  },
+  "deleteAccountSettings": {
+    "orphanWorkspaces": "Zal ook permanent worden verwijderd na de respijtperiode",
+    "passwordConfirm": "Herhaal wachtwoord",
+    "repeatPasswordMatchError": "Dit veld moet overeenkomen met het eerste wachtwoordveld.",
+    "submitButton": "Account verwijderen",
+    "errorUserIsLastAdminTitle": "Laatste beheerder",
+    "workspaceLoadingError": "Werkruimtes controle is mislukt",
+    "workspaceLoadingErrorDescription": "Het controleren van de te verwijderen werkruimtes is mislukt, vernieuw de pagina.",
+    "description": "U kunt de verwijdering van uw account plannen door uw huidige wachtwoord in te voeren en op de knop te klikken. Uw account zal permanent worden verwijderd na {days} dagen. In de tussentijd, als u opnieuw inlogt, zal de verwijdering van uw account worden geannuleerd.",
+    "workspaceNotice": "Wees werkruimtes worden verwijderd",
+    "orphanWorkspaceMemberCount": "gedeeld met niemand|gedeeld met één gebruiker|gedeeld met {count} gebruikers",
+    "title": "Account verwijderen",
+    "workspaceNoticeDescription": "Wanneer uw account permanent wordt verwijderd, worden alle werkruimtes en bijbehorende gegevens waarvoor u de laatste actieve gebruiker met beheerdersrechten bent ook verwijderd. De hieronder getoonde werkruimtes worden verwijderd omdat u de enige beheerder bent. Om te voorkomen dat ze worden verwijderd moet u eerst een andere gebruiker adminrechten geven voordat u uw account verwijdert.",
+    "password": "Wachtwoord",
+    "errorInvalidPasswordTitle": "Ongeldig wachtwoord",
+    "errorInvalidPasswordMessage": "Uw account kan niet worden verwijderd omdat uw wachtwoord ongeldig is.",
+    "errorUserIsLastAdminMessage": "Kan uw account niet verwijderen omdat u de laatste beheerder van deze Baserow instance bent.",
+    "accountDeletedSuccessTitle": "Verwijdering van account gepland",
+    "accountDeletedSuccessMessage": "Uw account staat op de planning om verwijderd te worden."
+  },
+  "clearingNotification": {
+    "title": "Wissen...",
+    "content": "Voorbereiding van uw gegevens"
+  },
+  "dashboardSidebar": {
+    "workspaces": "Werkruimtes",
+    "links": "Links",
+    "knowledgeBase": "Kennisbank",
+    "tutorials": "Tutorials",
+    "userSettings": "Gebruikersinstellingen",
+    "trash": "Prullenbak",
+    "logoff": "Uitloggen"
+  },
+  "job": {
+    "statePending": "Wachten om te beginnen...",
+    "stateStarted": "Begonnen...",
+    "stateFinished": "Afgerond",
+    "stateFailed": "Mislukt",
+    "errorJobAlreadyRunningTitle": "Al aan de gang",
+    "errorJobAlreadyRunningDescription": "Er loopt al een andere importjob. U moet wachten tot die klaar is voordat u een andere start.",
+    "errorJobCannotBeCancelledTitle": "Kan niet annuleren",
+    "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen.",
+    "stateCanceled": "Geannuleerd"
+  },
+  "pastingNotification": {
+    "title": "Plakken...",
+    "content": "Voorbereiding van uw gegevens"
+  },
+  "datetime": {
+    "yearsAgo": "0 jaar geleden | 1 jaar geleden | {n} jaar geleden",
+    "daysAgo": "0 dagen geleden | 1 dag geleden | {n} dagen geleden",
+    "monthsAgo": "0 maanden geleden | 1 maand geleden | {n} maanden geleden",
+    "secondsAgo": "Zojuist | 1 seconde geleden | {n} seconden geleden",
+    "minutesAgo": "0 minuten geleden | 1 minuut geleden | {n} minuten geleden",
+    "hoursAgo": "0 uur geleden | 1 uur geleden | {n} uur geleden",
+    "lessThanMinuteAgo": "minder dan een minuut geleden",
+    "justNow": "zojuist"
+  },
+  "duplicateApplicationJobType": {
+    "duplicatedTitle": "Applicatie gedupliceerd",
+    "duplicating": "Dupliceren"
+  },
+  "InstallTemplateJobType": {
+    "installedTitle": "Template geïnstalleerd",
+    "installing": "Installeren"
+  },
+  "membersSettings": {
+    "membersTable": {
+      "columns": {
+        "email": "E-mail",
+        "role": "Rol",
+        "name": "Naam",
+        "teams": "Teams",
+        "highestRole": "Hoogste rol",
+        "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte",
+        "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie",
+        "2fa": "2FA"
+      },
+      "actions": {
+        "copyEmail": "E-mail kopiëren",
+        "remove": "Verwijderen uit werkruimte"
+      },
+      "title": "{userAmount} Leden in {groupName}",
+      "inviteMember": "Lid uitnodigen"
     },
-    "sidebar": {
-        "createWorkspace": "Werkruimte aanmaken",
-        "inviteOthers": "Nodig anderen uit",
-        "logoff": "Afmelden",
-        "errorNoWorkspace": "Je hebt geen werkruimtes.",
-        "admin": "Beheerder",
-        "dashboard": "Dashboard",
-        "trash": "Prullenbak",
-        "settings": "Instellingen",
-        "members": "Leden",
-        "notifications": "Meldingen",
-        "general": "Algemeen",
-        "home": "Home",
-        "people": "Gebruikers",
-        "addNewWorkspace": "Nieuwe werkruimte toevoegen",
-        "adminTools": "Beheerprogramma's",
-        "adminSettings": "Beheerdersinstellingen",
-        "licenses": "Licenties"
+    "membersTabTitle": "Leden",
+    "invitesTable": {
+      "columns": {
+        "email": "E-mail",
+        "message": "Bericht",
+        "role": "Role"
+      },
+      "title": "{invitesAmount} Uitnodigingen in behandeling in {groupName}",
+      "actions": {
+        "copyEmail": "E-mail kopiëren",
+        "remove": "Uitnodiging annuleren"
+      }
     },
-    "accountForm": {
-        "nameLabel": "Je naam",
-        "languageLabel": "Taal van de interface"
+    "membersInviteModal": {
+      "errors": {
+        "userAlreadyInWorkspace": {
+          "title": "Gebruiker zit al in de werkruimtes.",
+          "text": "Het is niet mogelijk een uitnodiging te sturen wanneer de gebruiker al lid is van de werkruimtes."
+        }
+      },
+      "submit": "Stuur uitnodiging",
+      "title": "Werkruimte leden uitnodigen",
+      "helpIconText": "De geselecteerde rol wordt de standaard rol van de gebruiker in deze werkruimte."
     },
-    "accountSettings": {
-        "title": "Account",
-        "changedTitle": "Gewijzigd",
-        "changedDescription": "Je accountgegevens zijn gewijzigd.",
-        "submitButton": "Account bijwerken"
-    },
-    "settingsModal": {
-        "title": "Instellingen"
-    },
-    "passwordSettings": {
-        "title": "Wachtwoord wijzigen",
-        "changedTitle": "Wachtwoord gewijzigd",
-        "changedDescription": "Je wachtwoord is gewijzigd. De volgende keer dat je wilt inloggen, moet je het nieuwe wachtwoord gebruiken.",
-        "oldPasswordLabel": "Oud wachtwoord",
-        "oldPasswordRequiredError": "Oud wachtwoord is een verplicht veld.",
-        "newPasswordLabel": "Nieuw wachtwoord",
-        "repeatNewPasswordLabel": "Herhaal nieuw wachtwoord",
-        "repeatNewPasswordMatchError": "Dit veld moet overeenkomen met je nieuwe wachtwoordveld.",
-        "submitButton": "Wachtwoord wijzigen",
-        "errorInvalidOldPasswordTitle": "Ongeldig wachtwoord",
-        "errorInvalidOldPasswordMessage": "Wachtwoord kon niet veranderd worden omdat je oude wachtwoord ongeldig is."
+    "invitesTabTitle": "Uitnodigingen"
+  },
+  "crudTableSearch": {
+    "search": "Zoeken"
+  },
+  "removeFromWorkspaceModal": {
+    "title": "Bevestig verwijdering uit de werkruimte",
+    "remove": "Verwijderen",
+    "confirmation": "Weet u zeker dat u {naam} wilt verwijderen uit {workspaceName}? Deze actie kan niet ongedaan worden gemaakt."
+  },
+  "UserSessionExpiredNotification": {
+    "title": "Sessie verlopen",
+    "content": "U bent uitgelogd omdat uw authenticatietoken is verlopen. Log opnieuw in."
+  },
+  "memberSelectionList": {
+    "searchPlaceholder": "Zoek ...",
+    "selectedAmountLabel": "{count} geselecteerd"
+  },
+  "memberAssignmentModalFooter": {
+    "invite": "Uitnodigen {count}",
+    "deselectAll": "Deselecteer alles",
+    "selectAll": "Selecteer alles"
+  },
+  "permissionsUpdatedNotification": {
+    "title": "Machtigingen bijgewerkt",
+    "action": "Herladen",
+    "content": "Dit kan invloed hebben op waar u toegang toe heeft, gelieve de pagina opnieuw te laden."
+  },
+  "editRoleContext": {
+    "billableRolesLink": "Documentatie voor factureerbare rollen",
+    "additionalRoles": "Extra rollen"
+  },
+  "highestPaidRoleField": {
+    "billable": "Factureerbaar"
+  },
+  "clearAllNotificationsConfirmModal": {
+    "message": "Alle meldingen worden permanent verwijderd en u kunt ze niet meer zien.",
+    "title": "Weet je zeker dat je alle meldingen wilt wissen?"
+  },
+  "notificationPanel": {
+    "title": "Meldingen",
+    "markAllAsRead": "Alles markeren als gelezen",
+    "clearAll": "Alles wissen",
+    "noNotification": "We zullen u op de hoogte brengen van belangrijke updates en wanneer u op Baserow wordt vermeld.",
+    "noNotificationTitle": "Je hebt geen meldingen",
+    "newNotificationsAvailable": "Nieuwe meldingen beschikbaar",
+    "refresh": "Vernieuwen"
+  },
+  "uploadFileDropzone": {
+    "drop": "Laat hier los",
+    "clickOrDrop": "Klik of sleep je bestanden naar hier",
+    "errorTooManyFilesMessage": "Je kunt slechts één bestand uploaden",
+    "errorWrongFileTypeTitle": "Verkeerd bestandstype",
+    "errorWrongFileTypeMessage": "Je kunt geen bestand van het type {type} uploaden",
+    "errorTooManyFilesTitle": "Te veel bestanden"
+  },
+  "connectingToast": {
+    "title": "Opnieuw verbinden",
+    "content": "Opnieuw verbinding maken met de server."
+  },
+  "failedConnectingToast": {
+    "title": "Mislukt",
+    "content": "Verbinding met de server is mislukt. Vernieuw de pagina.",
+    "action": "Pagina vernieuwen"
+  },
+  "authorizationErrorToast": {
+    "content": "Het lijkt erop dat je niet de rechten hebt om deze bron te zien.",
+    "title": "Autorisatiefout",
+    "action": "Pagina vernieuwen"
+  },
+  "copyingToast": {
+    "title": "Kopiëren...",
+    "content": "Voorbereiding van uw gegevens"
+  },
+  "PastingToast": {
+    "title": "Plakken...",
+    "content": "Voorbereiding van uw gegevens"
+  },
+  "clearingToast": {
+    "title": "Wissen...",
+    "content": "Voorbereiding van uw gegevens"
+  },
+  "undoRedoToast": {
+    "noMoreUndo": "Geen acties meer om ongedaan te maken",
+    "skippingUndoDueToError": "Ongedaan maken mislukt door onbekende fout, overslaan.",
+    "redoingTitle": "Opnieuw doen...",
+    "redoingText": "Je actie overnieuw doen",
+    "redoneTitle": "Opnieuw gedaan",
+    "redoneText": "Actie is opnieuw gedaan",
+    "noMoreRedo": "Geen acties meer om opnieuw te doen",
+    "failed": "Mislukt",
+    "skippingRedoDueToError": "Opnieuw uitvoeren mislukt vanwege onbekende fout, overslaan.",
+    "undoingText": "Je actie ongedaan maken",
+    "undoneText": "Actie is ongedaan gemaakt",
+    "undoingTitle": "Ongedaan maken...",
+    "undoneTitle": "Ongedaan gemaakt"
+  },
+  "permissionsUpdatedToast": {
+    "title": "Machtigingen bijgewerkt",
+    "content": "Dit kan invloed hebben op waar u toegang toe heeft, gelieve de pagina opnieuw te laden.",
+    "action": "Herladen"
+  },
+  "integrationCreateEditModal": {
+    "editTitle": "Integratie bewerken",
+    "warningTitle": "Waarschuwing",
+    "createTitle": "Nieuwe integratie"
+  },
+  "integrationEditForm": {
+    "name": "Naam integratie",
+    "namePlaceholder": "Voer de integratie naam in..."
+  },
+  "styleSidePanel": {
+    "paddingTop": "Opvulling bovenkant",
+    "paddingBottom": "Opvulling onderkant"
+  },
+  "userSessionExpiredToast": {
+    "title": "Sessie verlopen",
+    "content": "Je bent uitgelogd omdat uw authenticatie token is verlopen. Log opnieuw in."
+  },
+  "restoreToast": {
+    "restore": "Herstel verwijderd {type}"
+  },
+  "workspaceInvitationRejectedNotification": {
+    "title": "{sender} heeft uw uitnodiging om lid te worden van {workspaceName} afgewezen",
+    "deletedUser": "Een verwijderde gebruiker"
+  },
+  "workspaceInvitationCreatedNotification": {
+    "title": "{sender} heeft je uitgenodigd om lid te worden van {workspaceName}",
+    "deletedUser": "Een verwijderde gebruiker"
+  },
+  "dropdown": {
+    "empty": "Geen items beschikbaar"
+  },
+  "styleBoxForm": {
+    "paddingError": "De waarde moet een geheel getal zijn tussen 0 en 200."
+  },
+  "workspaceInvitationAcceptedNotification": {
+    "title": "{sender} heeft uw uitnodiging om lid te worden van {workspaceName} geaccepteerd",
+    "deletedUser": "Een verwijderde gebruiker"
+  },
+  "richTextEditorMentionsList": {
+    "notFound": "Geen gebruikers gevonden"
+  },
+  "versionUpgradeNotification": {
+    "title": "{version} is hier! Bekijk wat er nieuw is."
+  },
+  "emailNotifications": {
+    "submitButton": "Frequentie bijwerken",
+    "label": "Vermeldingen, commentaar en andere berichten",
+    "daily": "Dagelijks",
+    "title": "E-mail notificaties",
+    "never": "Nooit",
+    "weekly": "Wekelijks",
+    "description": "Configureer de frequentie waarmee e-mails naar uw Postvak IN worden verzonden.",
+    "instant": "Direct"
+  },
+  "dataExplorer": {
+    "emptyText": "Geen data gevonden",
+    "noProvidersText": "Er zijn geen gegevensverstrekkers gevonden. Om te beginnen kun je bijvoorbeeld een gegevensbron of paginaparameter toevoegen.",
+    "noMatchingNodesText": "Er zijn geen overeenkomende gegevensverstrekkers gevonden."
+  },
+  "formulaInputField": {
+    "errorInvalidFormula": "De formule is ongeldig.",
+    "advancedFormulaMode": "Geavanceerde formule-modus"
+  },
+  "userPasswordChangedToast": {
+    "title": "Wachtwoord veranderd",
+    "content": "Je wachtwoord is gewijzigd. Log alsjeblieft nogmaals in."
+  },
+  "integrationDropdown": {
+    "noIntegrations": "Geen integraties gevonden.",
+    "addIntegration": "Nieuwe integratie toevoegen",
+    "integrationPlaceholder": "Selecteer een integratie",
+    "selectTypeFirst": "Kies het type eerst"
+  },
+  "richTextEditorBubbleMenu": {
+    "underline": "Onderstreep",
+    "bold": "Vet",
+    "italic": "Cursief",
+    "strikethrough": "Doorstreept",
+    "link": "Link",
+    "linkEditPlaceholder": "Link URL...",
+    "linkEditDone": "Klaar"
+  },
+  "richTextEditorFloatingMenu": {
+    "hierarchy": "Hiërarchie",
+    "heading1": "Kop 1",
+    "heading2": "Kop 2",
+    "heading3": "Kop 3",
+    "orderedList": "Genummerde lijst",
+    "unorderedList": "Bullet lijst",
+    "code": "Code",
+    "taskList": "Takenlijst",
+    "lists": "Lijsten",
+    "paragraph": "Paragraaf"
+  },
+  "workspaceSettingType": {
+    "generativeAI": "Generatieve AI"
+  },
+  "generativeAIModelType": {
+    "openai": "OpenAI",
+    "openaiOrganization": "Organisatie (optioneel)",
+    "openaiModelsLabel": "Ingeschakelde modellen",
+    "openaiModelsDescription": "Geef een lijst met door komma's gescheiden [OpenAI-modellen] (https://platform.openai.com/docs/models/continuous-model-upgrades) die kunnen worden gebruikt in Baserow. (bijv. `gpt-3.5-turbo,gpt-4`)",
+    "ollamaHostLabel": "Host",
+    "ollamaModelsLabel": "Ingeschakelde modellen",
+    "openaiApiKeyLabel": "API-sleutel",
+    "openaiApiKeyDescription": "Geef een OpenAI API-sleutel op als je de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+    "ollamaHostDescription": "Geef de hostnaam van je [Ollama](https://ollama.com/) server. Deze draait meestal lokaal op je eigen apparaat.",
+    "ollama": "Ollama",
+    "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)",
+    "mistral": "Mistral",
+    "mistralModelsLabel": "Ingeschakelde modellen",
+    "anthropic": "Anthropic",
+    "anthropicApiKeyLabel": "API-sleutel",
+    "anthropicApiKeyDescription": "Geef een Anthropic API-sleutel op als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
+    "anthropicModelsLabel": "Ingeschakelde modellen",
+    "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+    "mistralApiKeyLabel": "API-sleutel",
+    "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
+    "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
+    "openRouterApiKeyLabel": "API-sleutel",
+    "openRouterOrganization": "Organisatie (optioneel)",
+    "openRouter": "OpenRouter",
+    "openRouterModelsLabel": "Ingeschakelde modellen",
+    "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
+    "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
+    "openaiBaseUrl": "Basis URL",
+    "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://&lt;uw-bronnaam&gt;.openai.azure.com, of een andere OpenAI-compatibele API."
+  },
+  "generativeAIWorkspaceSettings": {
+    "title": "Generatieve AI-instellingen",
+    "submitButton": "Instellingen bijwerken",
+    "description": "Deze instellingen kunnen worden gebruikt om optioneel generatieve AI-configuratie in te stellen op werkruimte-niveau. Functies zoals het AI-veld kunnen worden uitgeschakeld omdat ze geen API-sleutel hebben voor een van de ondersteunde modellen. Door de instellingen hier op te geven, kun je die functies inschakelen. Als je een waarde leeg laat, wordt deze standaard teruggezet naar de globale instance-instellingen. Let op dat iedereen in de werkruimte deze instellingen deelt.",
+    "changedTitle": "Instellingen correct bijgewerkt",
+    "changedDescription": "De instellingen zijn bijgewerkt en worden nu gebruikt in deze werkruimte.",
+    "openSettings": "Instellingen openen",
+    "hideSettings": "Instellingen verbergen"
+  },
+  "workspaceSettingsModal": {
+    "title": "Werkruimte-instellingen"
+  },
+  "selectAIModelForm": {
+    "AIModel": "AI-model",
+    "AIType": "AI-type",
+    "fileField": "Bestandsveld",
+    "temperatureLabel": "Temperatuur",
+    "temperatureDescription": "De temperatuur van een LLM, een parameter die ingesteld kan worden tussen 0 en {max}, past de willekeurigheid van reacties aan - lagere waarden leveren gerichte antwoorden op, terwijl hogere waarden de creativiteit verhogen."
+  },
+  "onboarding": {
+    "title": "Onboarding",
+    "creating": "Je eerste workspace maken",
+    "skip": "Voorlopig overslaan",
+    "failedSkip": "Onboarding overslaan",
+    "continue": "Ga verder",
+    "cancel": "Ik wil geen hulp bij het opzetten",
+    "failedTitle": "Er is iets misgegaan",
+    "failedDescription": "De onboarding is niet volledig voltooid, hoewel sommige onderdelen misschien wel zijn voltooid.",
+    "failedTryAgain": "Probeer het nog eens"
+  },
+  "inviteStep": {
+    "title": "Medewerkers uitnodigen",
+    "collaboratorsLabel": "Medewerkers",
+    "description": "Je kunt later altijd meer toevoegen."
+  },
+  "moreStep": {
+    "people": "Hoeveel mensen zitten er in je team?",
+    "share": "Ik wil dit graag delen met het Baserow team",
+    "title": "Vertel ons wat meer",
+    "roleOrJob": "Rol of functie...",
+    "country": "Land"
+  },
+  "dashboardVerifyEmail": {
+    "title": "Controleer je mailbox en klik op de link om je e-mail te verifiëren.",
+    "resendConfirmationEmail": "Bevestigingsmail opnieuw verzenden"
+  },
+  "verifyEmailAddress": {
+    "invalidToken": "Geen geldig bevestigingstoken.",
+    "emailMismatchWarning": "Houd er rekening mee dat het geverifieerde e-mailadres niet hoort bij de account die je momenteel gebruikt.",
+    "disabledPasswordProvider": "De wachtwoord authenticatie provider is uitgeschakeld.",
+    "confirmation": "Je e-mailadres is geverifieerd.",
+    "goToDashboard": "Ga naar het Dashboard"
+  },
+  "emailNotVerified": {
+    "title": "Verificatie per e-mail vereist",
+    "description": "Controleer je mailbox en klik op de link om te verifiëren. Na verificatie wordt je account geactiveerd.",
+    "resend": "Bevestigingsmail opnieuw verzenden"
+  },
+  "resendEmailVerification": {
+    "confirmationEmailSentTitle": "Bevestigings e-mail verzonden",
+    "confirmationEmailSentDescription": "De bevestigingsmail is verzonden."
+  },
+  "teamStep": {
+    "title": "Laten we samen je eerste workspace bouwen!",
+    "marketingTeam": "Marketing",
+    "salesAndAccountManagementTeam": "Verkoop & Account Management",
+    "description": "In welk team zit je?",
+    "engineeringTeam": "Engineering",
+    "productAndDesignTeam": "Product & Ontwerp",
+    "operationsTeam": "Activiteiten",
+    "hrAndLegalTeam": "HR & Juridisch",
+    "itAndSupportTeam": "IT & Ondersteuning",
+    "financeTeam": "Financiën",
+    "creativeProductionTeam": "Creatieve productie",
+    "otherPersonalTeam": "Anders / Persoonlijk",
+    "customerServiceTeam": "Klantenservice",
+    "manufacturingTeam": "Productie"
+  },
+  "workspaceStep": {
+    "title": "Creëer je workspace",
+    "workspaceLabel": "Workspace naam"
+  },
+  "imageInput": {
+    "labelButton": "Uploaden",
+    "labelDescription": "Selecteer een afbeelding om te uploaden..."
+  },
+  "colorInput": {
+    "default": "Standaard"
+  },
+  "dashboardApplication": {
+    "createdAt": "gemaakt"
+  },
+  "templateCard": {
+    "viewMore": "Meer bekijken"
+  },
+  "dataExplorerNode": {
+    "showMore": "Meer herhalingen tonen",
+    "selectNode": "Selecteer"
+  },
+  "exportWorkspaceModal": {
+    "exportSettings": "Export instellingen",
+    "reset": "Begin opnieuw",
+    "created": "gemaakt",
+    "cancel": "Annuleren",
+    "title": "Exporteren",
+    "description": "Je gegevens worden geëxporteerd als een ZIP-bestand, dat je kunt importeren in een andere Baserow-instantie.",
+    "export": "Data exporteren",
+    "download": "Downloaden",
+    "importingState": "Importeren",
+    "noExports": "Nog geen exports voor deze werkruimte.",
+    "exportingState": "Exporteren",
+    "exportingCreateArchiveState": "Archief aanmaken",
+    "exportingTableState": "Tabel exporteren: {table}"
+  },
+  "exportWorkspaceForm": {
+    "exportSettingsLabel": "Export instellingen",
+    "onlyStructureDescription": "Als ingeschakeld, wordt alleen de structuur van de applicaties geëxporteerd. De data wordt niet meegenomen.",
+    "onlyStructureLabel": "Alleen structuur exporteren",
+    "selectDataToExport": "Gegevens selecteren om te exporteren",
+    "selectAll": "Selecteer alles",
+    "deselectAll": "Deselecteer alles"
+  },
+  "importWorkspaceModal": {
+    "title": "Baserow data importeren",
+    "description": "Je kunt bestaand Baserow data importeren door het .zip-bestand van een andere Baserow instantie te uploaden.",
+    "upload": "Uploaden",
+    "cancel": "Annuleren",
+    "chooseFile": "Kies bestand",
+    "selectApplications": "Selecteer data om te importeren",
+    "deselectAll": "Deselecteer alles",
+    "selectAll": "Selecteer alles",
+    "databases": "Databases",
+    "applications": "Applicaties",
+    "successTitle": "De Baserow data is succesvol geïmporteerd",
+    "successMessage": "{count} applicaties geïmporteerd",
+    "signatureVerificationNote": "Het is niet mogelijk om een zipbestand van een onbetrouwbare bron te importeren.",
+    "import": "Data importeren",
+    "uploading": "uploaden...",
+    "done": "Klaar",
+    "close": "Sluit",
+    "retry": "Opnieuw proberen",
+    "invalidResourceTitle": "Ongeldige bron",
+    "invalidResourceMessage": "Het geleverde bestand is geen geldige Baserow export.",
+    "untrustedPublicKeyTitle": "Onbetrouwbare handtekening",
+    "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
+    "importingState": "Importeren",
+    "importingTableStructure": "Aanmaken: {table}",
+    "importingTableData": "Gegevens importeren: {tabel}",
+    "uploadAndImport": "Uploaden en importeren"
+  },
+  "user": {
+    "isStaff": "Is personeel",
+    "isWorkspaceAdmin": "Is werkruimte beheerder",
+    "active": "Ingeschakeld",
+    "deactivated": "Uitgeschakeld"
+  },
+  "adminType": {
+    "dashboard": "Dashboard",
+    "users": "Gebruikers",
+    "workspaces": "Werkruimtes",
+    "licenses": "Licenties"
+  },
+  "workspacesAdminTable": {
+    "allWorkspaces": "Alle werkruimtes",
+    "id": "ID",
+    "name": "Naam",
+    "members": "Leden",
+    "applications": "Applicaties",
+    "created": "Aangemaakt",
+    "seatsTaken": "Plekken bezet",
+    "usageHelpText": "Wordt 's nachts berekend wanneer de instelling voor het gebruik van werkruimtes is ingeschakeld",
+    "rowCount": "Aantal rijen",
+    "freeUsers": "Gratis gebruikers",
+    "storageUsage": "Opslag gebruikt (MB)"
+  },
+  "editWorkspaceContext": {
+    "delete": "Permanent verwijderen"
+  },
+  "deleteWorkspaceModal": {
+    "title": "Verwijder {name}",
+    "confirmation": "Weet je zeker dat je de werkruimte: {name} wilt verwijderen?",
+    "comment": "De werkruimte wordt permanent verwijderd, inclusief de bijbehorende applicaties. Het is niet mogelijk deze actie ongedaan te maken.",
+    "delete": "Werkruimte {name} verwijderen"
+  },
+  "activeUsers": {
+    "newUsers": "Nieuwe gebruikers",
+    "activeUsers": "Actieve gebruikers"
+  },
+  "usersAdminTable": {
+    "allUsers": "Alle gebruikers",
+    "id": "ID",
+    "username": "Gebruikersnaam",
+    "name": "Naam",
+    "workspaces": "Werkruimtes",
+    "lastLogin": "Laatste login",
+    "dateJoined": "Ingeschreven",
+    "active": "Ingeschakeld"
+  },
+  "editUserContext": {
+    "changePassword": "Wachtwoord wijzigen",
+    "delete": "Permanent verwijderen",
+    "impersonate": "Imiteer"
+  },
+  "changePasswordForm": {
+    "newPassword": "Nieuw wachtwoord",
+    "repeatPassword": "Herhaal wachtwoord",
+    "changePassword": "Wachtwoord wijzigen",
+    "error": {
+      "doesntMatch": "Dit veld moet overeenkomen met je wachtwoordveld."
+    }
+  },
+  "userForm": {
+    "fullName": "Volledige naam",
+    "email": "E-mail",
+    "isActive": "Is actief",
+    "warning": {
+      "changeEmail": "Als het e-mailadres van deze gebruiker wordt gewijzigd, moet hij/zij dit nieuwe e-mailadres gebruiken wanneer hij/zij zich aanmeldt. Dit moet aan de gebruiker worden gecommuniceerd.",
+      "inactiveUser": "Wanneer een gebruiker als inactief wordt gemarkeerd, kan deze zich niet meer aanmelden.",
+      "userStaff": "Door de gebruiker personeel te maken, krijgt deze beheerderstoegang tot alle gebruikers en alle werkruimtes, met de mogelijkheid om de eigen personeelsrechten in te trekken."
     },
     "error": {
-        "alreadyExistsTitle": "Gebruiker bestaat al",
-        "alreadyExistsMessage": "Er bestaat al een gebruiker met het opgegeven e-mailadres.",
-        "passwordRequired": "Wachtwoord is een verplicht veld.",
-        "invalidEmail": "Voer een geldig e-mail adres in.",
-        "disabledAccountTitle": "Account uitgeschakeld",
-        "disabledAccountMessage": "Dit gebruikersaccount is uitgeschakeld.",
-        "incorrectCredentialTitle": "Inloggegevens zijn niet correct",
-        "incorrectCredentialMessage": "Het opgegeven e-mailadres of wachtwoord is niet correct.",
-        "inputRequired": "Dit is een verplicht veld.",
-        "disabledPasswordProviderTitle": "Wachtwoordverificatie is uitgeschakeld.",
-        "disabledPasswordProviderMessage": "Gebruik een andere authenticatie provider."
-    },
-    "field": {
-        "language": "Taal",
-        "emailAddress": "E-mailadres",
-        "name": "Je naam",
-        "password": "Wachtwoord",
-        "passwordRepeat": "Herhaal wachtwoord"
-    },
-    "invitationTitle": "Uitnodiging",
-    "invitationMessage": "{invitedBy} heeft je uitgenodigd om lid te worden van {workspace}.",
-    "workspaceForm": {
-        "nameLabel": "Naam"
-    },
-    "leaveWorkspaceModal": {
-        "title": "Verlaat {workspace}",
-        "message": "Weet je zeker dat je de werkruimte {workspace} wilt verlaten? Je hebt dan geen toegang meer tot de relevante applicaties. Als je opnieuw toegang wilt krijgen, moet een van de beheerders je opnieuw uitnodigen. Als je de werkruimte verlaat, zal de werkruimte niet worden verwijderd. Alle andere leden zullen er nog steeds toegang toe hebben. Het is niet mogelijk om een werkruimte te verlaten als je de laatste beheerder bent, omdat deze dan niet meer wordt onderhouden.",
-        "leave": "Verlaat werkruimte"
-    },
-    "dashboardWorkspace": {
-        "showMembers": "Leden",
-        "createApplication": "Nieuwe aanmaken"
-    },
-    "workspaceInvitation": {
-        "title": "Uitnodiging",
-        "message": "{by} heeft je uitgenodigd om lid te worden van {workspace}.",
-        "reject": "Weigeren",
-        "accept": "Accepteren"
-    },
-    "workspaceMemberModal": {
-        "membersModalTitle": "Leden van {workspace}",
-        "userDescription": "{user} - lid geworden {since} geleden",
-        "invitationDescription": "uitgenodigd {since} geleden",
-        "sendInvite": "Uitnodiging versturen",
-        "userAlreadyInWorkspaceTitle": "Gebruiker zit al in de werkruimte.",
-        "userAlreadyInWorkspaceText": "Het is niet mogelijk een uitnodiging te versturen als de gebruiker al lid is van de werkruimte.",
-        "userDescriptionPendingDeletion": "{user} - in afwachting van verwijdering"
-    },
-    "workspaceInviteForm": {
-        "invitationFormTitle": "Uitnodigen per e-mail",
-        "optionalMessagePlaceholder": "Optioneel bericht",
-        "errorInvalidEmail": "Voer een geldig e-mail adres in.",
-        "errorTooLongMessage": "Berichten zijn beperkt tot {amount} tekens.",
-        "additionalRoles": "Extra rollen"
-    },
-    "workspacesContext": {
-        "search": "Zoek werkruimtes",
-        "noResults": "Geen resultaten gevonden",
-        "createWorkspace": "Werkruimte aanmaken"
-    },
-    "workspaceContext": {
-        "renameWorkspace": "Hernoem werkruimte",
-        "members": "Leden",
-        "viewTrash": "Bekijk Prullenbak",
-        "leaveWorkspace": "Verlaat werkruimte",
-        "deleteWorkspace": "werkruimte verwijderen",
-        "auditLog": "Audit log",
-        "settings": "Instellingen",
-        "importWorkspace": "Data importeren",
-        "exportWorkspace": "Data exporteren"
-    },
-    "createWorkspaceModal": {
-        "createNew": "Nieuwe werkruimte aanmaken",
-        "add": "werkruimte toevoegen",
-        "defaultName": "Naamloze werkruimte",
-        "permissionDeniedTitle": "Toestemming geweigerd",
-        "permissionDeniedBody": "U heeft niet de vereiste rechten om een nieuwe werkruimte te maken."
-    },
-    "templateCategories": {
-        "search": "Zoek sjablonen",
-        "title": "Sjablonen"
-    },
-    "templateHeader": {
-        "use": "Gebruik deze sjabloon"
-    },
-    "trashSidebar": {
-        "title": "Prullenbak",
-        "unnamedWorkspace": "Naamloze werkruimte {id}",
-        "workspaces": "Werkruimtes"
-    },
-    "trashContents": {
-        "message": "Herstel items verwijderd in de afgelopen {duration}",
-        "empty": "Er is niets verwijderd in de afgelopen drie dagen.",
-        "emptyButtonTrashed": "Verwijder {type} permanent",
-        "emptyButtonNotTrashed": "Leeg de Prullenbak van dit {type}",
-        "unnamed": "Naamloos {type} {id}"
-    },
-    "trashEmptyModal": {
-        "titleIsTrashed": "Weet je zeker dat je {name} permanent wilt verwijderen?",
-        "titleIsNotTrashed": "Weet je zeker dat je de Prullenbak van {name} wilt legen?",
-        "messageIsTrashed": "De gehele inhoud van de prullenbak wordt permanent gewist. Dit kan niet ongedaan gemaakt of opgehaald worden.",
-        "messageIsNotTrashed": "Dit zal de items lijst permanent verwijderen. Herstel of ophalen is dan niet meer mogelijk.",
-        "buttonIsTrashed": "Permanent verwijderen",
-        "buttonIsNotTrashed": "Legen"
-    },
-    "trashEntry": {
-        "deletedUser": "Een verwijderde gebruiker",
-        "fromParent": "van {parent}",
-        "name": "{user} heeft {type} {title} {parent} verwijderd",
-        "restore": "Herstel",
-        "unnamed": "Naamloos {type} {id}",
-        "andMore": "... en {count} meer"
-    },
-    "trashModal": {
-        "emptyTitle": "Geen werkruimtes gevonden",
-        "emptyMessage": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om die aan te maken moet je eerst een werkruimte maken.",
-        "emptyMessageWithoutCreatePermission": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om ze aan te maken moet je eerst door een beheerder bij een werkruimte worden uitgenodigd."
-    },
-    "uploadViaURLUserFileUpload": {
-        "title": "Uploaden vanaf een URL",
-        "urlLabel": "URL",
-        "urlError": "Een geldige URL is een verplicht veld."
-    },
-    "userFilesModal": {
-        "title": "Uploaden van"
-    },
-    "uploadFileUserFileUpload": {
-        "title": "Uploaden vanaf mijn apparaat",
-        "drop": "Naar hier slepen",
-        "clickOrDrop": "Klik of sleep je bestanden naar hier",
-        "retry": "Opnieuw proberen"
-    },
-    "createApplicationContext": {
-        "fromTemplate": "Van sjabloon",
-        "table": "Tabel",
-        "tableDesc": "Maak een nieuwe plaats om gegevens in je database te beheren.",
-        "fromTemplateDesc": "Begin snel met een van onze aanbevolen templates",
-        "importWorkspace": "Data importeren",
-        "importWorkspaceDesc": "Bestaande gegevens van een Baserow instantie toevoegen."
-    },
-    "applicationForm": {
-        "nameLabel": "Naam",
-        "namePlaceholder": "Voer de naam in..."
-    },
-    "connectingNotification": {
-        "title": "Opnieuw verbinden",
-        "content": "Opnieuw verbinding maken met de server."
-    },
-    "failedConnectingNotification": {
-        "title": "Mislukt",
-        "content": "Verbinding met de server is mislukt. Vernieuw de pagina.",
-        "action": "Pagina vernieuwen"
-    },
-    "restoreNotification": {
-        "restore": "Herstel verwijderd {type}"
-    },
-    "errorLayout": {
-        "notFound": "We kunnen de pagina die je zoekt niet vinden. Misschien is de URL niet correct, of misschien heb je geen autorisatie om deze pagina te bekijken.",
-        "error": "Er is iets misgegaan tijdens het laden van de pagina. Onze ontwikkelaars zijn op de hoogte gebracht van het probleem. Probeer Vernieuwen of ga terug naar het dashboard.",
-        "backDashboard": "Terug naar dashboard",
-        "backLogin": "Terug naar inloggen",
-        "wrong": "Er is iets misgegaan",
-        "refresh": "Pagina vernieuwen"
-    },
-    "dashboard": {
-        "title": "Dashboard",
-        "alertTitle": "We hebben je hulp nodig!",
-        "alertText": "Als je Baserow nuttig vindt, dan waarderen we het zeer als je ons wilt sponsoren, sterren wilt geven of ons met anderen wilt delen. Door ons te sponsoren op GitHub krijg je vroegtijdige toegang tot de premium functies!",
-        "tweetContent": "Check @baserow, een open source no-code database tool en Airtable alternatief!",
-        "redditTitle": "'Baserow - Een open source no-code database",
-        "noWorkspaceTitle": "Geen werkruimtes gevonden",
-        "noWorkspaceText": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om die te maken moet je eerst een werkruimte aanmaken.",
-        "createWorkspace": "Werkruimte aanmaken",
-        "becomeGithubSponsor": "Word een GitHub sponsor",
-        "starOnGitlab": "Geef ons een ster op Gitlab",
-        "shareOnTwitter": "Tweet over Baserow",
-        "shareOnReddit": "Deel op Reddit",
-        "shareOnFacebook": "Deel op Facebook",
-        "shareOnLinkedIn": "Deel op LinkedIn",
-        "noWorkspaceTextWithoutCreatePermission": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om ze aan te maken moet je eerst door een beheerder bij een werkruimte worden uitgenodigd.",
-        "apiDocumentation": "API-documentatie",
-        "apiDocumentationMessage": "Meer informatie over onze code",
-        "emptyWorkspace": "Deze werkruimte is leeg",
-        "noWorkspaceDescription": "Begin met het maken van een nieuwe werkruimte",
-        "suggestedTemplates": "Voorgestelde templates",
-        "resources": "Bronnen",
-        "knowledgeBase": "Kennisbank",
-        "knowledgeBaseMessage": "Vind antwoorden op al je vragen",
-        "tutorials": "Tutorials",
-        "tutorialsMessage": "Ontdek het potentieel van Baserow",
-        "emptyWorkspaceMessage": "Begin met het maken van een nieuwe database of applicatie.",
-        "addNew": "Nieuwe toevoegen...",
-        "noWorkspace": "Geen werkruimte",
-        "starOnGitHub": "Geef een ster op GitHub"
-    },
-    "login": {
-        "title": "Inloggen",
-        "forgotPassword": "Wachtwoord vergeten",
-        "emailPlaceholder": "Voer je e-mailadres in..",
-        "passwordPlaceholder": "Voer je wachtwoord in.",
-        "signUpText": "Heb je geen account?",
-        "signUp": "Aanmelden",
-        "displayPasswordLogin": "Inloggen met e-mail en wachtwoord",
-        "redirecting": "Doorsturen naar authenticatie provider..."
-    },
-    "resetPassword": {
-        "title": "Wachtwoord resetten",
-        "newPassword": "Nieuw wachtwoord",
-        "repeatNewPassword": "Herhaal nieuw wachtwoord",
-        "submit": "Wachtwoord wijzigen",
-        "changed": "Wachtwoord gewijzigd",
-        "errorInvalidLinkTitle": "Ongeldige link",
-        "errorInvalidLinkMessage": "Kon het wachtwoord niet resetten omdat de link ongeldig is.",
-        "errorLinkExpiredTitle": "Link verlopen",
-        "errorLinkExpiredMessage": "De link voor het resetten van je wachtwoord is verlopen. Vraag een nieuwe link aan.",
-        "disabled": "Wachtwoord opnieuw instellen is uitgeschakeld",
-        "disabledMessage": "Het is niet mogelijk om het wachtwoord te resetten omdat het is uitgeschakeld.",
-        "message": "Je kunt nu inloggen op Baserow met je nieuwe wachtwoord."
-    },
-    "signup": {
-        "headTitle": "Nieuw account aanmaken",
-        "title": "Aanmelden",
-        "disabled": "Aanmelden is uitgeschakeld",
-        "disabledMessage": "Het is niet mogelijk om een account aan te maken omdat het is uitgeschakeld.",
-        "requireFirstUser": "Welkom bij Baserow!",
-        "requireFirstUserMessage": "Vul het onderstaande formulier in om de admin gebruiker aan te maken.",
-        "passwordPlaceholder": "Voer je wachtwoord in.",
-        "namePlaceholder": "Voer je naam in..",
-        "passwordRepeatPlaceholder": "Bevestig je wachtwoord.",
-        "loginText": "Heb je al een account?",
-        "emailPlaceholder": "Voer je e-mailadres in..",
-        "login": "Inloggen",
-        "privacyPolicy": "Privacybeleid",
-        "agreeTerms": "Door een account aan te maken, gaat u akkoord met de {0} {1} {2}",
-        "terms": "Servicevoorwaarden"
-    },
-    "forgotPassword": {
-        "title": "Wachtwoord vergeten",
-        "message": "Vul je e-mailadres in op het formulier. Als we een account vinden, sturen we een e-mail met een link om je wachtwoord te resetten.",
-        "submit": "Stuur link",
-        "confirmation": "Als je e-mailadres in onze database voorkomt, ontvangt je binnen enkele minuten op je e-mailadres een link om je wachtwoord opnieuw in te stellen.",
-        "disabled": "Wachtwoord resetten is uitgeschakeld",
-        "disabledMessage": "Het is niet mogelijk om een wachtwoord opnieuw in te stellen omdat het is uitgeschakeld.",
-        "loginText": "Heb je al een account en wachtwoord?",
-        "confirmationTitle": "Controleer je e-mail",
-        "goBack": "Ga terug"
-    },
-    "settings": {
-        "settingsTitle": "Beheerdersinstellingen",
-        "baserowInstanceId": "Installatie-ID",
-        "instanceIdDescription": "De installatie-ID is de unieke identificatiecode van je Baserow instantie.",
-        "accountRestrictions": "Accountbeperkingen",
-        "settingAllowResetPasswordName": "Wachtwoord opnieuw instellen toestaan",
-        "settingAllowResetPasswordDescription": "Standaard kunnen gebruikers een link aanvragen om hun wachtwoord te resetten.",
-        "settingAllowResetPasswordWarning": "Houd er rekening mee dat u zichzelf van het systeem kunt uitsluiten en dat de toegang niet kan worden hersteld als u uw wachtwoord vergeet.",
-        "settingAllowNewAccountsName": "Toestaan aanmaken van nieuwe accounts",
-        "settingAllowNewAccountsDescription": "Standaard kan elke gebruiker die je Baserow-domein bezoekt zich aanmelden voor een nieuw account.",
-        "enabled": "ingeschakeld",
-        "settingAllowSignupsViaWorkspaceInvitationsName": "Aanmeldingen via werkruimte uitnodigingen toestaan",
-        "settingAllowSignupsViaWorkspaceInvitationDescription": "Zelfs als het aanmaken van nieuwe accounts is uitgeschakeld, kunnen direct uitgenodigde gebruikers met deze optie toch een account aanmaken.",
-        "userDeletionGraceDelay": "Gebruiker verwijderen",
-        "settingUserDeletionGraceDelay": "Respijtperiode",
-        "settingUserDeletionGraceDelayDescription": "Dit is het aantal dagen zonder login waarna een voor verwijdering geplande account permanent wordt verwijderd.",
-        "invalidAccountDeletionGraceDelay": "Deze waarde is vereist en moet een positief geheel getal zijn kleiner dan 32000",
-        "settingAllowNonStaffCreateWorkspaceOperation": "Laat iedereen nieuwe werkruimtes maken",
-        "settingAllowNonStaffCreateWorkspaceOperationDescription": "Standaard kan iedereen nieuwe werkruimtes aanmaken. Schakel dit uit om alleen staff toe te staan nieuwe werkruimtes aan te maken.",
-        "settingAllowNonStaffCreateWorkspaceOperationWarning": "Als deze instelling is ingeschakeld, wordt voor nieuwe gebruikers automatisch een werkruimte aangemaakt waarin ze een beheerder zijn, zodat ze voor de facturering als beheerder worden gerapporteerd. Om dit te voorkomen, schakelt u deze instelling uit en nieuw uitgenodigde gebruikers beginnen alleen met de rol waarmee ze zijn uitgenodigd.",
-        "maintenance": "Onderhoud",
-        "settingTrackWorkspaceUsage": "Werkruimte gebruik bijhouden",
-        "settingTrackWorkspaceUsageDescription": "Schakelt een nachtelijke taak in die het rij- en bestandsgebruik per werkruimte telt, weergegeven op de beheerpagina van de premium werkruimte.",
-        "userSettings": "Gebruiker",
-        "emailVerification": "E-mail verificatie",
-        "emailVerificationDescription": "Bepaalt of e-mailadressen moeten worden geverifieerd.",
-        "emailVerificationNoVerification": "Geen verificatie",
-        "emailVerificationRecommended": "Aanbevolen",
-        "emailVerificationEnforced": "Afgedwongen",
-        "baserowVersionDescription": "Het versienummer van deze instantie.",
-        "baserowVersion": "Baserow versie",
-        "settingsVerifyImportSignatureDescription": "Indien ingeschakeld, wordt de handtekening van de geïmporteerde gegevens geverifieerd om er zeker van te zijn dat er niet met de gegevens geknoeid is.",
-        "settingsVerifyImportSignature": "Verifieer import handtekening"
-    },
-    "copyingNotification": {
-        "title": "Kopiëren...",
-        "content": "Uw gegevens voorbereiden"
-    },
-    "undoRedoNotification": {
-        "undoingTitle": "Ongedaan maken...",
-        "undoingText": "Je actie ongedaan maken",
-        "redoneTitle": "Opnieuw gedaan",
-        "skippingRedoDueToError": "Opnieuw uitvoeren mislukt vanwege onbekende fout, overslaan.",
-        "redoingTitle": "Opnieuw doen...",
-        "redoingText": "Je actie overnieuw doen",
-        "redoneText": "Actie wordt opnieuw gedaan",
-        "noMoreRedo": "Geen acties meer om opnieuw te doen",
-        "skippingUndoDueToError": "Ongedaan maken mislukt door onbekende fout, overslaan.",
-        "failed": "Mislukt",
-        "undoneText": "Actie is ongedaan gemaakt",
-        "undoneTitle": "Ongedaan gemaakt",
-        "noMoreUndo": "Geen acties meer om ongedaan te maken"
-    },
-    "AuthorizationErrorNotification": {
-        "title": "Autorisatiefout",
-        "content": "Het lijkt erop dat je niet de rechten hebt om deze bron te zien.",
-        "action": "Pagina vernieuwen"
-    },
-    "formSidebar": {
-        "actions": {
-            "addAll": "Alles toevoegen",
-            "removeAll": "Alles verwijderen",
-            "addField": "Veld toevoegen"
-        },
-        "fieldsDescription": "Alle velden staan in het formulier.",
-        "prefillInfoLink": "Waarden dynamisch vooraf invullen",
-        "modal": {
-            "title": "Waarden dynamisch vooraf invullen",
-            "descriptionPartOne": "Formulieren kunnen vooraf worden ingevuld om de gebruiker te helpen het formulier sneller in te vullen.",
-            "descriptionPartTwo": "Alle velden die in het formulier beschikbaar zijn, kunnen vooraf worden ingevuld.",
-            "howToPrefill": {
-                "title": "Een formulier vooraf invullen",
-                "description": "Als u een formulier vooraf met gegevens wilt invullen, kunt u dit doen via queryparameters die zijn toegevoegd aan de openbare formulier-URL. Deze queryparameters worden voorafgegaan door 'prefill' om elke botsing met mogelijke toekomstige queryparameters te voorkomen."
-            },
-            "format": {
-                "title": "Format",
-                "description": "Het formaat van de queryparameters is als volgt:",
-                "codeSnippet": "?prefill_<field_name>=<value>"
-            },
-            "example": {
-                "title": "Voorbeeld",
-                "description": "In het onderstaande voorbeeld willen we een veld genaamd `Naam` vullen met de waarde `Mike`",
-                "codeSnippet": "?prefill_Name=Mike"
-            },
-            "spaces": {
-                "title": "Ruimtes",
-                "description": "Spaties in de veldnaam worden vervangen door `+` om problemen met de query parameter te voorkomen.",
-                "codeSnippet": "?prefill_my+field=Mike"
-            },
-            "multipleValues": {
-                "title": "Meerdere waarden",
-                "description": "Als u meerdere velden wilt vullen, kunt u dat doen door een `,` tussen de waarden te plaatsen.",
-                "codeSnippet": "?prefill_multi+select=Mike,John"
-            },
-            "specialFieldTypes": {
-                "title": "Speciale veldtypes",
-                "description": "Over het algemeen is de prefill-waarde gelijk aan de waarde van het veld. Maar er zijn enkele uitzonderingen waarbij de waarde wordt vertaald naar een andere waarde.",
-                "ratingField": {
-                    "title": "Beoordelingsveld",
-                    "description": "Een beoordelingsveld accepteert een getal om aan te geven hoeveel sterren er moeten worden ingevuld.",
-                    "codeSnippet": "?prefill_rating=3"
-                },
-                "linkRowField": {
-                    "title": "Link naar tabel veld",
-                    "description": "Een link naar tabel kan de waarde aannemen die in het keuzemenu wordt getoond.",
-                    "codeSnippet": "?prefill_link+row=Mike"
-                },
-                "selectField": {
-                    "title": "Enkel selectie / meervoudig selectieveld",
-                    "description": "Een enkelvoudig keuzeveld kan de waarde accepteren die in de keuzelijst wordt getoond. Dat geldt ook voor het veld Meervoudige selectie, maar dat kan ook meerdere waarden accepteren.",
-                    "codeSnippet": "?prefill_single+select=Mike"
-                },
-                "dateField": {
-                    "title": "Datumveld",
-                    "description": "Een datumveld kan een datum in de volgende notaties accepteren en gebruikt de datumnotatie van het veld om de datum te parseren.",
-                    "codeSnippet": "\n// Standards\nISO_8601\n\n// General formats\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
-                }
-            },
-            "howToHide": {
-                "title": "Hoe een veld verbergen",
-                "description": "Als u een veld dynamisch wilt verbergen, kunt u dat doen via query parameters die worden toegevoegd aan de public from url. Deze query parameters worden voorafgegaan door `hide_` om botsing met mogelijke toekomstige query parameters te voorkomen."
-            }
-        },
-        "prefillOrHideInfoLink": "Dynamisch invullen of verbergen",
-        "notifyUserOnSubmit": "Notificatie ontvangen bij verzenden"
-    },
-    "deleteAccountSettings": {
-        "orphanWorkspaces": "Zal ook permanent worden verwijderd na de respijtperiode",
-        "passwordConfirm": "Herhaal wachtwoord",
-        "repeatPasswordMatchError": "Dit veld moet overeenkomen met het eerste wachtwoordveld.",
-        "submitButton": "Account verwijderen",
-        "errorUserIsLastAdminTitle": "Laatste beheerder",
-        "workspaceLoadingError": "Werkruimtes controle is mislukt",
-        "workspaceLoadingErrorDescription": "Het controleren van de te verwijderen werkruimtes is mislukt, vernieuw de pagina.",
-        "description": "U kunt de verwijdering van uw account plannen door uw huidige wachtwoord in te voeren en op de knop te klikken. Uw account zal permanent worden verwijderd na {days} dagen. In de tussentijd, als u opnieuw inlogt, zal de verwijdering van uw account worden geannuleerd.",
-        "workspaceNotice": "Wees werkruimtes worden verwijderd",
-        "orphanWorkspaceMemberCount": "gedeeld met niemand|gedeeld met één gebruiker|gedeeld met {count} gebruikers",
-        "title": "Account verwijderen",
-        "workspaceNoticeDescription": "Wanneer uw account permanent wordt verwijderd, worden alle werkruimtes en bijbehorende gegevens waarvoor u de laatste actieve gebruiker met beheerdersrechten bent ook verwijderd. De hieronder getoonde werkruimtes worden verwijderd omdat u de enige beheerder bent. Om te voorkomen dat ze worden verwijderd moet u eerst een andere gebruiker adminrechten geven voordat u uw account verwijdert.",
-        "password": "Wachtwoord",
-        "errorInvalidPasswordTitle": "Ongeldig wachtwoord",
-        "errorInvalidPasswordMessage": "Uw account kan niet worden verwijderd omdat uw wachtwoord ongeldig is.",
-        "errorUserIsLastAdminMessage": "Kan uw account niet verwijderen omdat u de laatste beheerder van deze Baserow instance bent.",
-        "accountDeletedSuccessTitle": "Verwijdering van account gepland",
-        "accountDeletedSuccessMessage": "Uw account staat op de planning om verwijderd te worden."
-    },
-    "clearingNotification": {
-        "title": "Wissen...",
-        "content": "Voorbereiding van uw gegevens"
-    },
-    "dashboardSidebar": {
-        "workspaces": "Werkruimtes",
-        "links": "Links",
-        "knowledgeBase": "Kennisbank",
-        "tutorials": "Tutorials",
-        "userSettings": "Gebruikersinstellingen",
-        "trash": "Prullenbak",
-        "logoff": "Uitloggen"
-    },
-    "job": {
-        "statePending": "Wachten om te beginnen...",
-        "stateStarted": "Begonnen...",
-        "stateFinished": "Afgerond",
-        "stateFailed": "Mislukt",
-        "errorJobAlreadyRunningTitle": "Al aan de gang",
-        "errorJobAlreadyRunningDescription": "Er loopt al een andere importjob. U moet wachten tot die klaar is voordat u een andere start.",
-        "errorJobCannotBeCancelledTitle": "Kan niet annuleren",
-        "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen.",
-        "stateCanceled": "Geannuleerd"
-    },
-    "pastingNotification": {
-        "title": "Plakken...",
-        "content": "Voorbereiding van uw gegevens"
-    },
-    "datetime": {
-        "yearsAgo": "0 jaar geleden | 1 jaar geleden | {n} jaar geleden",
-        "daysAgo": "0 dagen geleden | 1 dag geleden | {n} dagen geleden",
-        "monthsAgo": "0 maanden geleden | 1 maand geleden | {n} maanden geleden",
-        "secondsAgo": "Zojuist | 1 seconde geleden | {n} seconden geleden",
-        "minutesAgo": "0 minuten geleden | 1 minuut geleden | {n} minuten geleden",
-        "hoursAgo": "0 uur geleden | 1 uur geleden | {n} uur geleden",
-        "lessThanMinuteAgo": "minder dan een minuut geleden",
-        "justNow": "zojuist"
-    },
-    "duplicateApplicationJobType": {
-        "duplicatedTitle": "Applicatie gedupliceerd",
-        "duplicating": "Dupliceren"
-    },
-    "InstallTemplateJobType": {
-        "installedTitle": "Template geïnstalleerd",
-        "installing": "Installeren"
-    },
-    "membersSettings": {
-        "membersTable": {
-            "columns": {
-                "email": "E-mail",
-                "role": "Rol",
-                "name": "Naam",
-                "teams": "Teams",
-                "highestRole": "Hoogste rol",
-                "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte",
-                "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie",
-                "2fa": "2FA"
-            },
-            "actions": {
-                "copyEmail": "E-mail kopiëren",
-                "remove": "Verwijderen uit werkruimte"
-            },
-            "title": "{userAmount} Leden in {groupName}",
-            "inviteMember": "Lid uitnodigen"
-        },
-        "membersTabTitle": "Leden",
-        "invitesTable": {
-            "columns": {
-                "email": "E-mail",
-                "message": "Bericht",
-                "role": "Role"
-            },
-            "title": "{invitesAmount} Uitnodigingen in behandeling in {groupName}",
-            "actions": {
-                "copyEmail": "E-mail kopiëren",
-                "remove": "Uitnodiging annuleren"
-            }
-        },
-        "membersInviteModal": {
-            "errors": {
-                "userAlreadyInWorkspace": {
-                    "title": "Gebruiker zit al in de werkruimtes.",
-                    "text": "Het is niet mogelijk een uitnodiging te sturen wanneer de gebruiker al lid is van de werkruimtes."
-                }
-            },
-            "submit": "Stuur uitnodiging",
-            "title": "Werkruimte leden uitnodigen",
-            "helpIconText": "De geselecteerde rol wordt de standaard rol van de gebruiker in deze werkruimte."
-        },
-        "invitesTabTitle": "Uitnodigingen"
-    },
-    "crudTableSearch": {
-        "search": "Zoeken"
-    },
-    "removeFromWorkspaceModal": {
-        "title": "Bevestig verwijdering uit de werkruimte",
-        "remove": "Verwijderen",
-        "confirmation": "Weet u zeker dat u {naam} wilt verwijderen uit {workspaceName}? Deze actie kan niet ongedaan worden gemaakt."
-    },
-    "UserSessionExpiredNotification": {
-        "title": "Sessie verlopen",
-        "content": "U bent uitgelogd omdat uw authenticatietoken is verlopen. Log opnieuw in."
-    },
-    "memberSelectionList": {
-        "searchPlaceholder": "Zoek ...",
-        "selectedAmountLabel": "{count} geselecteerd"
-    },
-    "memberAssignmentModalFooter": {
-        "invite": "Uitnodigen {count}",
-        "deselectAll": "Deselecteer alles",
-        "selectAll": "Selecteer alles"
-    },
-    "permissionsUpdatedNotification": {
-        "title": "Machtigingen bijgewerkt",
-        "action": "Herladen",
-        "content": "Dit kan invloed hebben op waar u toegang toe heeft, gelieve de pagina opnieuw te laden."
-    },
-    "editRoleContext": {
-        "billableRolesLink": "Documentatie voor factureerbare rollen",
-        "additionalRoles": "Extra rollen"
-    },
-    "highestPaidRoleField": {
-        "billable": "Factureerbaar"
-    },
-    "clearAllNotificationsConfirmModal": {
-        "message": "Alle meldingen worden permanent verwijderd en u kunt ze niet meer zien.",
-        "title": "Weet je zeker dat je alle meldingen wilt wissen?"
-    },
-    "notificationPanel": {
-        "title": "Meldingen",
-        "markAllAsRead": "Alles markeren als gelezen",
-        "clearAll": "Alles wissen",
-        "noNotification": "We zullen u op de hoogte brengen van belangrijke updates en wanneer u op Baserow wordt vermeld.",
-        "noNotificationTitle": "Je hebt geen meldingen",
-        "newNotificationsAvailable": "Nieuwe meldingen beschikbaar",
-        "refresh": "Vernieuwen"
-    },
-    "uploadFileDropzone": {
-        "drop": "Laat hier los",
-        "clickOrDrop": "Klik of sleep je bestanden naar hier",
-        "errorTooManyFilesMessage": "Je kunt slechts één bestand uploaden",
-        "errorWrongFileTypeTitle": "Verkeerd bestandstype",
-        "errorWrongFileTypeMessage": "Je kunt geen bestand van het type {type} uploaden",
-        "errorTooManyFilesTitle": "Te veel bestanden"
-    },
-    "connectingToast": {
-        "title": "Opnieuw verbinden",
-        "content": "Opnieuw verbinding maken met de server."
-    },
-    "failedConnectingToast": {
-        "title": "Mislukt",
-        "content": "Verbinding met de server is mislukt. Vernieuw de pagina.",
-        "action": "Pagina vernieuwen"
-    },
-    "authorizationErrorToast": {
-        "content": "Het lijkt erop dat je niet de rechten hebt om deze bron te zien.",
-        "title": "Autorisatiefout",
-        "action": "Pagina vernieuwen"
-    },
-    "copyingToast": {
-        "title": "Kopiëren...",
-        "content": "Voorbereiding van uw gegevens"
-    },
-    "PastingToast": {
-        "title": "Plakken...",
-        "content": "Voorbereiding van uw gegevens"
-    },
-    "clearingToast": {
-        "title": "Wissen...",
-        "content": "Voorbereiding van uw gegevens"
-    },
-    "undoRedoToast": {
-        "noMoreUndo": "Geen acties meer om ongedaan te maken",
-        "skippingUndoDueToError": "Ongedaan maken mislukt door onbekende fout, overslaan.",
-        "redoingTitle": "Opnieuw doen...",
-        "redoingText": "Je actie overnieuw doen",
-        "redoneTitle": "Opnieuw gedaan",
-        "redoneText": "Actie is opnieuw gedaan",
-        "noMoreRedo": "Geen acties meer om opnieuw te doen",
-        "failed": "Mislukt",
-        "skippingRedoDueToError": "Opnieuw uitvoeren mislukt vanwege onbekende fout, overslaan.",
-        "undoingText": "Je actie ongedaan maken",
-        "undoneText": "Actie is ongedaan gemaakt",
-        "undoingTitle": "Ongedaan maken...",
-        "undoneTitle": "Ongedaan gemaakt"
-    },
-    "permissionsUpdatedToast": {
-        "title": "Machtigingen bijgewerkt",
-        "content": "Dit kan invloed hebben op waar u toegang toe heeft, gelieve de pagina opnieuw te laden.",
-        "action": "Herladen"
-    },
-    "integrationCreateEditModal": {
-        "editTitle": "Integratie bewerken",
-        "warningTitle": "Waarschuwing",
-        "createTitle": "Nieuwe integratie"
-    },
-    "integrationEditForm": {
-        "name": "Naam integratie",
-        "namePlaceholder": "Voer de integratie naam in..."
-    },
-    "styleSidePanel": {
-        "paddingTop": "Opvulling bovenkant",
-        "paddingBottom": "Opvulling onderkant"
-    },
-    "userSessionExpiredToast": {
-        "title": "Sessie verlopen",
-        "content": "Je bent uitgelogd omdat uw authenticatie token is verlopen. Log opnieuw in."
-    },
-    "restoreToast": {
-        "restore": "Herstel verwijderd {type}"
-    },
-    "workspaceInvitationRejectedNotification": {
-        "title": "{sender} heeft uw uitnodiging om lid te worden van {workspaceName} afgewezen",
-        "deletedUser": "Een verwijderde gebruiker"
-    },
-    "workspaceInvitationCreatedNotification": {
-        "title": "{sender} heeft je uitgenodigd om lid te worden van {workspaceName}",
-        "deletedUser": "Een verwijderde gebruiker"
-    },
-    "dropdown": {
-        "empty": "Geen items beschikbaar"
-    },
-    "styleBoxForm": {
-        "paddingError": "De waarde moet een geheel getal zijn tussen 0 en 200."
-    },
-    "workspaceInvitationAcceptedNotification": {
-        "title": "{sender} heeft uw uitnodiging om lid te worden van {workspaceName} geaccepteerd",
-        "deletedUser": "Een verwijderde gebruiker"
-    },
-    "richTextEditorMentionsList": {
-        "notFound": "Geen gebruikers gevonden"
-    },
-    "versionUpgradeNotification": {
-        "title": "{version} is hier! Bekijk wat er nieuw is."
-    },
-    "emailNotifications": {
-        "submitButton": "Frequentie bijwerken",
-        "label": "Vermeldingen, commentaar en andere berichten",
-        "daily": "Dagelijks",
-        "title": "E-mail notificaties",
-        "never": "Nooit",
-        "weekly": "Wekelijks",
-        "description": "Configureer de frequentie waarmee e-mails naar uw Postvak IN worden verzonden.",
-        "instant": "Direct"
-    },
-    "dataExplorer": {
-        "emptyText": "Geen data gevonden",
-        "noProvidersText": "Er zijn geen gegevensverstrekkers gevonden. Om te beginnen kun je bijvoorbeeld een gegevensbron of paginaparameter toevoegen.",
-        "noMatchingNodesText": "Er zijn geen overeenkomende gegevensverstrekkers gevonden."
-    },
-    "formulaInputField": {
-        "errorInvalidFormula": "De formule is ongeldig.",
-        "advancedFormulaMode": "Geavanceerde formule-modus"
-    },
-    "userPasswordChangedToast": {
-        "title": "Wachtwoord veranderd",
-        "content": "Je wachtwoord is gewijzigd. Log alsjeblieft nogmaals in."
-    },
-    "integrationDropdown": {
-        "noIntegrations": "Geen integraties gevonden.",
-        "addIntegration": "Nieuwe integratie toevoegen",
-        "integrationPlaceholder": "Selecteer een integratie",
-        "selectTypeFirst": "Kies het type eerst"
-    },
-    "richTextEditorBubbleMenu": {
-        "underline": "Onderstreep",
-        "bold": "Vet",
-        "italic": "Cursief",
-        "strikethrough": "Doorstreept",
-        "link": "Link",
-        "linkEditPlaceholder": "Link URL...",
-        "linkEditDone": "Klaar"
-    },
-    "richTextEditorFloatingMenu": {
-        "hierarchy": "Hiërarchie",
-        "heading1": "Kop 1",
-        "heading2": "Kop 2",
-        "heading3": "Kop 3",
-        "orderedList": "Genummerde lijst",
-        "unorderedList": "Bullet lijst",
-        "code": "Code",
-        "taskList": "Takenlijst",
-        "lists": "Lijsten",
-        "paragraph": "Paragraaf"
-    },
-    "workspaceSettingType": {
-        "generativeAI": "Generatieve AI"
-    },
-    "generativeAIModelType": {
-        "openai": "OpenAI",
-        "openaiOrganization": "Organisatie (optioneel)",
-        "openaiModelsLabel": "Ingeschakelde modellen",
-        "openaiModelsDescription": "Geef een lijst met door komma's gescheiden [OpenAI-modellen] (https://platform.openai.com/docs/models/continuous-model-upgrades) die kunnen worden gebruikt in Baserow. (bijv. `gpt-3.5-turbo,gpt-4`)",
-        "ollamaHostLabel": "Host",
-        "ollamaModelsLabel": "Ingeschakelde modellen",
-        "openaiApiKeyLabel": "API-sleutel",
-        "openaiApiKeyDescription": "Geef een OpenAI API-sleutel op als je de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
-        "ollamaHostDescription": "Geef de hostnaam van je [Ollama](https://ollama.com/) server. Deze draait meestal lokaal op je eigen apparaat.",
-        "ollama": "Ollama",
-        "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)",
-        "mistral": "Mistral",
-        "mistralModelsLabel": "Ingeschakelde modellen",
-        "anthropic": "Anthropic",
-        "anthropicApiKeyLabel": "API-sleutel",
-        "anthropicApiKeyDescription": "Geef een Anthropic API-sleutel op als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
-        "anthropicModelsLabel": "Ingeschakelde modellen",
-        "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
-        "mistralApiKeyLabel": "API-sleutel",
-        "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
-        "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
-        "openRouterApiKeyLabel": "API-sleutel",
-        "openRouterOrganization": "Organisatie (optioneel)",
-        "openRouter": "OpenRouter",
-        "openRouterModelsLabel": "Ingeschakelde modellen",
-        "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
-        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
-        "openaiBaseUrl": "Basis URL",
-        "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://<uw-bronnaam>.openai.azure.com, of een andere OpenAI-compatibele API."
-    },
-    "generativeAIWorkspaceSettings": {
-        "title": "Generatieve AI-instellingen",
-        "submitButton": "Instellingen bijwerken",
-        "description": "Deze instellingen kunnen worden gebruikt om optioneel generatieve AI-configuratie in te stellen op werkruimte-niveau. Functies zoals het AI-veld kunnen worden uitgeschakeld omdat ze geen API-sleutel hebben voor een van de ondersteunde modellen. Door de instellingen hier op te geven, kun je die functies inschakelen. Als je een waarde leeg laat, wordt deze standaard teruggezet naar de globale instance-instellingen. Let op dat iedereen in de werkruimte deze instellingen deelt.",
-        "changedTitle": "Instellingen correct bijgewerkt",
-        "changedDescription": "De instellingen zijn bijgewerkt en worden nu gebruikt in deze werkruimte.",
-        "openSettings": "Instellingen openen",
-        "hideSettings": "Instellingen verbergen"
-    },
-    "workspaceSettingsModal": {
-        "title": "Werkruimte-instellingen"
-    },
-    "selectAIModelForm": {
-        "AIModel": "AI-model",
-        "AIType": "AI-type",
-        "fileField": "Bestandsveld",
-        "temperatureLabel": "Temperatuur",
-        "temperatureDescription": "De temperatuur van een LLM, een parameter die ingesteld kan worden tussen 0 en {max}, past de willekeurigheid van reacties aan - lagere waarden leveren gerichte antwoorden op, terwijl hogere waarden de creativiteit verhogen."
-    },
-    "onboarding": {
-        "title": "Onboarding",
-        "creating": "Je eerste workspace maken",
-        "skip": "Voorlopig overslaan",
-        "failedSkip": "Onboarding overslaan",
-        "continue": "Ga verder",
-        "cancel": "Ik wil geen hulp bij het opzetten",
-        "failedTitle": "Er is iets misgegaan",
-        "failedDescription": "De onboarding is niet volledig voltooid, hoewel sommige onderdelen misschien wel zijn voltooid.",
-        "failedTryAgain": "Probeer het nog eens"
-    },
-    "inviteStep": {
-        "title": "Medewerkers uitnodigen",
-        "collaboratorsLabel": "Medewerkers",
-        "description": "Je kunt later altijd meer toevoegen."
-    },
-    "moreStep": {
-        "people": "Hoeveel mensen zitten er in je team?",
-        "share": "Ik wil dit graag delen met het Baserow team",
-        "title": "Vertel ons wat meer",
-        "roleOrJob": "Rol of functie...",
-        "country": "Land"
-    },
-    "dashboardVerifyEmail": {
-        "title": "Controleer je mailbox en klik op de link om je e-mail te verifiëren.",
-        "resendConfirmationEmail": "Bevestigingsmail opnieuw verzenden"
-    },
-    "verifyEmailAddress": {
-        "invalidToken": "Geen geldig bevestigingstoken.",
-        "emailMismatchWarning": "Houd er rekening mee dat het geverifieerde e-mailadres niet hoort bij de account die je momenteel gebruikt.",
-        "disabledPasswordProvider": "De wachtwoord authenticatie provider is uitgeschakeld.",
-        "confirmation": "Je e-mailadres is geverifieerd.",
-        "goToDashboard": "Ga naar het Dashboard"
-    },
-    "emailNotVerified": {
-        "title": "Verificatie per e-mail vereist",
-        "description": "Controleer je mailbox en klik op de link om te verifiëren. Na verificatie wordt je account geactiveerd.",
-        "resend": "Bevestigingsmail opnieuw verzenden"
-    },
-    "resendEmailVerification": {
-        "confirmationEmailSentTitle": "Bevestigings e-mail verzonden",
-        "confirmationEmailSentDescription": "De bevestigingsmail is verzonden."
-    },
-    "teamStep": {
-        "title": "Laten we samen je eerste workspace bouwen!",
-        "marketingTeam": "Marketing",
-        "salesAndAccountManagementTeam": "Verkoop & Account Management",
-        "description": "In welk team zit je?",
-        "engineeringTeam": "Engineering",
-        "productAndDesignTeam": "Product & Ontwerp",
-        "operationsTeam": "Activiteiten",
-        "hrAndLegalTeam": "HR & Juridisch",
-        "itAndSupportTeam": "IT & Ondersteuning",
-        "financeTeam": "Financiën",
-        "creativeProductionTeam": "Creatieve productie",
-        "otherPersonalTeam": "Anders / Persoonlijk",
-        "customerServiceTeam": "Klantenservice",
-        "manufacturingTeam": "Productie"
-    },
-    "workspaceStep": {
-        "title": "Creëer je workspace",
-        "workspaceLabel": "Workspace naam"
-    },
-    "imageInput": {
-        "labelButton": "Uploaden",
-        "labelDescription": "Selecteer een afbeelding om te uploaden..."
-    },
-    "colorInput": {
-        "default": "Standaard"
-    },
-    "dashboardApplication": {
-        "createdAt": "gemaakt"
-    },
-    "templateCard": {
-        "viewMore": "Meer bekijken"
-    },
-    "dataExplorerNode": {
-        "showMore": "Meer herhalingen tonen",
-        "selectNode": "Selecteer"
-    },
-    "exportWorkspaceModal": {
-        "exportSettings": "Export instellingen",
-        "reset": "Begin opnieuw",
-        "created": "gemaakt",
-        "cancel": "Annuleren",
-        "title": "Exporteren",
-        "description": "Je gegevens worden geëxporteerd als een ZIP-bestand, dat je kunt importeren in een andere Baserow-instantie.",
-        "export": "Data exporteren",
-        "download": "Downloaden",
-        "importingState": "Importeren",
-        "noExports": "Nog geen exports voor deze werkruimte.",
-        "exportingState": "Exporteren",
-        "exportingCreateArchiveState": "Archief aanmaken",
-        "exportingTableState": "Tabel exporteren: {table}"
-    },
-    "exportWorkspaceForm": {
-        "exportSettingsLabel": "Export instellingen",
-        "onlyStructureDescription": "Als ingeschakeld, wordt alleen de structuur van de applicaties geëxporteerd. De data wordt niet meegenomen.",
-        "onlyStructureLabel": "Alleen structuur exporteren",
-        "selectDataToExport": "Gegevens selecteren om te exporteren",
-        "selectAll": "Selecteer alles",
-        "deselectAll": "Deselecteer alles"
-    },
-    "importWorkspaceModal": {
-        "title": "Baserow data importeren",
-        "description": "Je kunt bestaand Baserow data importeren door het .zip-bestand van een andere Baserow instantie te uploaden.",
-        "upload": "Uploaden",
-        "cancel": "Annuleren",
-        "chooseFile": "Kies bestand",
-        "selectApplications": "Selecteer data om te importeren",
-        "deselectAll": "Deselecteer alles",
-        "selectAll": "Selecteer alles",
-        "databases": "Databases",
-        "applications": "Applicaties",
-        "successTitle": "De Baserow data is succesvol geïmporteerd",
-        "successMessage": "{count} applicaties geïmporteerd",
-        "signatureVerificationNote": "Het is niet mogelijk om een zipbestand van een onbetrouwbare bron te importeren.",
-        "import": "Data importeren",
-        "uploading": "uploaden...",
-        "done": "Klaar",
-        "close": "Sluit",
-        "retry": "Opnieuw proberen",
-        "invalidResourceTitle": "Ongeldige bron",
-        "invalidResourceMessage": "Het geleverde bestand is geen geldige Baserow export.",
-        "untrustedPublicKeyTitle": "Onbetrouwbare handtekening",
-        "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
-        "importingState": "Importeren",
-        "importingTableStructure": "Aanmaken: {table}",
-        "importingTableData": "Gegevens importeren: {tabel}",
-        "uploadAndImport": "Uploaden en importeren"
-    },
-    "user": {
-        "isStaff": "Is personeel",
-        "isWorkspaceAdmin": "Is werkruimte beheerder",
-        "active": "Ingeschakeld",
-        "deactivated": "Uitgeschakeld"
-    },
-    "adminType": {
-        "dashboard": "Dashboard",
-        "users": "Gebruikers",
-        "workspaces": "Werkruimtes",
-        "licenses": "Licenties"
-    },
-    "workspacesAdminTable": {
-        "allWorkspaces": "Alle werkruimtes",
-        "id": "ID",
-        "name": "Naam",
-        "members": "Leden",
-        "applications": "Applicaties",
-        "created": "Aangemaakt",
-        "seatsTaken": "Plekken bezet",
-        "usageHelpText": "Wordt 's nachts berekend wanneer de instelling voor het gebruik van werkruimtes is ingeschakeld",
-        "rowCount": "Aantal rijen",
-        "freeUsers": "Gratis gebruikers",
-        "storageUsage": "Opslag gebruikt (MB)"
-    },
-    "editWorkspaceContext": {
-        "delete": "Permanent verwijderen"
-    },
-    "deleteWorkspaceModal": {
-        "title": "Verwijder {name}",
-        "confirmation": "Weet je zeker dat je de werkruimte: {name} wilt verwijderen?",
-        "comment": "De werkruimte wordt permanent verwijderd, inclusief de bijbehorende applicaties. Het is niet mogelijk deze actie ongedaan te maken.",
-        "delete": "Werkruimte {name} verwijderen"
-    },
-    "activeUsers": {
-        "newUsers": "Nieuwe gebruikers",
-        "activeUsers": "Actieve gebruikers"
-    },
-    "usersAdminTable": {
-        "allUsers": "Alle gebruikers",
-        "id": "ID",
-        "username": "Gebruikersnaam",
-        "name": "Naam",
-        "workspaces": "Werkruimtes",
-        "lastLogin": "Laatste login",
-        "dateJoined": "Ingeschreven",
-        "active": "Ingeschakeld"
-    },
-    "editUserContext": {
-        "changePassword": "Wachtwoord wijzigen",
-        "delete": "Permanent verwijderen",
-        "impersonate": "Imiteer"
-    },
-    "changePasswordForm": {
-        "newPassword": "Nieuw wachtwoord",
-        "repeatPassword": "Herhaal wachtwoord",
-        "changePassword": "Wachtwoord wijzigen",
-        "error": {
-            "doesntMatch": "Dit veld moet overeenkomen met je wachtwoordveld."
-        }
-    },
-    "userForm": {
-        "fullName": "Volledige naam",
-        "email": "E-mail",
-        "isActive": "Is actief",
-        "warning": {
-            "changeEmail": "Als het e-mailadres van deze gebruiker wordt gewijzigd, moet hij/zij dit nieuwe e-mailadres gebruiken wanneer hij/zij zich aanmeldt. Dit moet aan de gebruiker worden gecommuniceerd.",
-            "inactiveUser": "Wanneer een gebruiker als inactief wordt gemarkeerd, kan deze zich niet meer aanmelden.",
-            "userStaff": "Door de gebruiker personeel te maken, krijgt deze beheerderstoegang tot alle gebruikers en alle werkruimtes, met de mogelijkheid om de eigen personeelsrechten in te trekken."
-        },
-        "error": {
-            "invalidName": "Voer een geldige volledige naam in. De naam moet langer zijn dan 2 letters en minder dan 150.",
-            "invalidEmail": "Voer een geldig e-mail adres in."
-        }
-    },
-    "changeUserPasswordModal": {
-        "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
-    },
-    "deleteUserModal": {
-        "title": "Verwijder {gebruikersnaam}",
-        "confirmation": "Weet je zeker dat je de gebruiker: {name} wilt verwijderen?",
-        "comment1": "De gebruikersaccount wordt verwijderd, maar de werkruimtes waar die gebruiker lid van is blijven bestaan. De gebruikers werkruimte wordt niet verwijderd, zelfs als deze gebruiker de laatste gebruiker in de werkruimtes is. Door de laatste gebruiker in een werkruimte te verwijderen kan niemand meer toegang krijgen tot die werkruimte.",
-        "comment2": "Na het verwijderen van een gebruiker is het mogelijk dat een nieuwe gebruiker zich opnieuw aanmeldt met het e-mailadres van de verwijderde gebruiker. Om ervoor te zorgen dat ze zich niet opnieuw kunnen aanmelden, deactiveer de gebruiker in plaats van deze te verwijderen.",
-        "delete": "Verwijder gebruiker {gebruikersnaam}"
-    },
-    "editUserModal": {
-        "delete": "Gebruiker verwijderen",
-        "edit": "Bewerk { gebruikersnaam }"
-    },
-    "adminDashboard": {
-        "title": "Dashboard",
-        "totals": "Totalen",
-        "totalUsers": "Totaal gebruikers",
-        "totalWorkspaces": "Totaal werkruimte",
-        "totalApplications": "Totaal aanvragen",
-        "newUsers": "Nieuwe gebruikers",
-        "newUsers24h": "Nieuwe gebruikers laatste 24 uur",
-        "newUsers7days": "Nieuwe gebruikers laatste 7 dagen",
-        "newUsers30days": "Nieuwe gebruikers laatste 30 dagen",
-        "activeUsers": "Actieve gebruikers",
-        "activeUsers24h": "Actieve gebruikers laatste 24 uur",
-        "activeUsers7days": "Actieve gebruikers laatste 7 dagen",
-        "activeUsers30days": "Actieve gebruikers laatste 30 dagen",
-        "viewAll": "Alles bekijken"
-    },
-    "formGroup": {
-        "protectedField": "Dit veld is beveiligd. Klik om te wijzigen.",
-        "cancelProtectedField": "Annuleer verandering"
-    },
-    "userSourceType": {
-        "userCountSummary": "{count} gebruikers ({lastUpdated})"
-    },
-    "colorPickerContext": {
-        "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
-    },
-    "guidedTourStep": {
-        "step": "{step} van {totalSteps}",
-        "gotIt": "Ik snap het",
-        "next": "Volgende",
-        "back": "Terug"
-    },
-    "welcomeGuidedTourStep": {
-        "title": "Welkom bij Baserow",
-        "content": "We geven je een korte rondleiding om je vertrouwd te maken met de basisprincipes. In slechts een paar klikken leer je hoe je je gegevens moeiteloos kunt organiseren en visualiseren",
-        "buttonText": "Start de rondleiding"
-    },
-    "createNewGuidedTourStep": {
-        "content": "Klik op \"Nieuw toevoegen...\" om een nieuwe database, applicatie of dashboard in te stellen voor je project, afdeling of team.",
-        "title": "Een nieuwe database of applicatie maken"
-    },
-    "controlCenterGuidedTourStep": {
-        "content": "In de linkerzijbalk kun je je werkruimte beheren:\n\n- Home - Toegang tot je hoofddashboard.\n- Meldingen - Blijf op de hoogte van wijzigingen en vermeldingen.\n- Nodig anderen uit - Werk samen door teamleden toe te voegen.\n- Prullenbak - Al je verwijderde items weergeven en herstellen.",
-        "title": "Jouw Baserow Controle Centrum"
-    },
-    "mcpEndpointSettings": {
-        "title": "MCP server",
-        "backToOverview": "Terug",
-        "noEndpointsMessage": "Er zijn geen MCP (Model Context Protocol) server eindpunten toegevoegd. Deze kunnen worden gebruikt om direct te integreren met een LLM zoals Claude, en de LLM direct acties te laten uitvoeren in Baserow. Maak een server eindpunt om te beginnen.",
-        "createEndpoint": "Eindpunt maken",
-        "createNewTitle": "MCP-server eindpunt maken"
-    },
-    "mcpEndpointForm": {
-        "workspaceLabel": "Werkruimte",
-        "nameLabel": "Naam"
-    },
-    "mcpEndpoint": {
-        "reveal": "Volledige URL weergeven",
-        "warning": "Behandel je MCP URL als een wachtwoord, omdat je hiermee gegevens in Baserow kunt wijzigen.",
-        "detailLabel": "Meer details",
-        "claudeInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Claude Desktop en de Baserow MCP.\n\n1. Open de instellingen van Claude Desktop in de navigatiebalk (⌘+,)\n1. Ga naar het tabblad \"Ontwikkelen\" en klik op \"Edit Config\".\n1. Neem de volgende JSON-configuratie op in `claude_desktop_config.json`.",
-        "windsurfInstructions": "Twee eenvoudige stappen om MCP in te stellen met Cascase in Windsurf.\n\n1. Navigeer naar Windsurf - Settings -> Advanced Settings of Command Palette -> Open Windsurf settings page.\n1. Scroll naar beneden naar de Cascade sectie en je zult de optie vinden om een nieuwe server toe te voegen, bestaande servers te bekijken en een knop om het ruwe JSON config bestand `mcp_config.json` te bekijken. Voeg daar het volgende aan toe:",
-        "endpointURLIntro": "De MCP (Model Context Protocol) server URL kan worden toegevoegd aan elke client die MCP-servers ondersteunt. Het is een uniek eindpunt dat de LLM directe toegang geeft om namens jou acties uit te voeren in de werkruimte.",
-        "cursorInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Cursor en het Baserow MCP.\n\n1. Cursorinstellingen openen (⇧+⌘+J)\n1. Navigeer naar het tabblad \"MCP\" en klik op \"Add MCP Server\" (MCP-server toevoegen)\n1. Voeg de volgende JSON-configuratie toe."
-    },
-    "importWorkspaceForm": {
-        "selectApplicationsToImport": "Applicaties selecteren om te importeren"
-    },
-    "workspaceSearch": {
-        "title": "Zoek",
-        "searchEverything": "Zoek...",
-        "searching": "Zoeken...",
-        "noResults": "Geen resultaten gevonden",
-        "noResultsSubtitle": "We konden niets vinden dat overeenkomt met \"{searchTerm}\"",
-        "welcome": "Doorzoek alles in je werkruimte",
-        "welcomeSubtitle": "Gebruik het zoekvak hierboven om toepassingen, tabellen, velden en meer te vinden",
-        "navigate": "Navigatie",
-        "select": "Selecteer",
-        "close": "Sluit",
-        "types": {
-            "applications": "Applicaties",
-            "tables": "Tabellen",
-            "fields": "Velden",
-            "rows": "Rijen"
-        }
-    },
-    "action": {
-        "cancel": "Annuleren",
-        "submit": "Verstuur"
-    },
-    "twoFactorAuthSettings": {
-        "title": "Tweefactorauthenticatie",
-        "loadingError": "Kon tweefactorconfiguratie niet laden."
-    },
-    "disableTwoFactorAuth": {
-        "title": "Weet je zeker dat je 2FA wilt uitschakelen?",
-        "description": "Je account verliest een extra beveiligingslaag. Als iemand achter je wachtwoord komt, kan hij of zij misschien inloggen op je account.",
-        "cancel": "Laat het aan",
-        "disable": "Uitschakelen",
-        "successTitle": "Tweefactorauthenticatie is uitgeschakeld",
-        "errorWrongPasswordTitle": "Verkeerd wachtwoord",
-        "errorWrongPasswordMessage": "Het ingevoerde wachtwoord komt niet overeen met uw wachtwoord."
-    },
-    "enableTwoFactorOptions": {
-        "cancel": "Annuleren",
-        "continue": "Ga verder"
-    },
-    "saveBackupCode": {
-        "description": "Als je de toegang tot de authenticator-app of telefoon verliest en geen verificatiecodes kunt ontvangen of genereren, kun je deze back-up gebruiken. Je kunt het maar één keer gebruiken. Zorg ervoor dat je het opschrijft of kopieert naar een veilige plek zodat je het kunt openen zonder in te loggen.",
-        "backupCodes": "Back-up codes",
-        "copy": "Kopiëren",
-        "continue": "Ga verder",
-        "backupCodesCopiedTitle": "Gekopieerd!",
-        "backupCodesCopiedMessage": "Back-upcodes gekopieerd naar klembord."
-    },
-    "totpAuthType": {
-        "name": "Authenticator-app",
-        "description": "Gebruik een app om tweefactorauthenticatiecodes te krijgen. We raden aan apps te gebruiken zoals Google Authenticator, Authy en Microsoft Authenticator.",
-        "enabledDescription": "Je ontvangt verificatiecodes via een authenticatie-app. Om een andere app of methode in te stellen, schakel je gewoon 2FA uit en stel je opnieuw in.",
-        "sideLabel": "Aanbevolen"
-    },
-    "twoFactorEnabled": {
-        "enabled": "Ingeschakeld",
-        "disable": "2FA uitschakelen"
-    },
-    "totpLogin": {
-        "backupCodesTitle": "Back-upcode invoeren",
-        "backupCodesDescription": "Log in met je eenmalige back-upcode.",
-        "authenticate": "Authenticeren",
-        "goBack": "Ga terug",
-        "totpTitle": "Tweefacturauthenticatie",
-        "totpDescription": "Voer de code van je authenticator-app in.",
-        "verify": "Controleer",
-        "useBackupCode": "Gebruik back-upcode",
-        "verificationFailed": "Verificatie mislukt",
-        "verificationFailedDescription": "De ingevoerde code is niet correct.",
-        "loginExpired": "Inloggen verlopen",
-        "loginExpiredDescription": "Geef je wachtwoord opnieuw op.",
-        "rateLimit": "Te veel pogingen."
-    },
-    "formulaInputContext": {
-        "variables": "Variables",
-        "functions": "Functies",
-        "operators": "Operators",
-        "search": "Zoeken",
-        "useRegularInputModalTitle": "Normale invoer gebruiken voor dit veld?",
-        "useRegularInput": "Gebruik regelmatige invoer",
-        "useAdvancedInput": "Geavanceerde invoer gebruiken",
-        "useAdvancedInputModalTitle": "Geavanceerde invoer gebruiken voor dit veld?",
-        "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen."
-    },
-    "coreHTTPTriggerServiceForm": {
-        "title": "Webhook URL",
-        "urlVersion": "Versie",
-        "urlVersionPublished": "Gepubliceerd",
-        "urlVersionTest": "Test",
-        "copyUrl": "URL webhook kopiëren",
-        "urlCopied": "Webhook URL gekopieerd naar klembord",
-        "description": "Deze webhook zal HTP verzoeken ontvangen en de workflow starten met de verzoekgegevens als de lading.",
-        "methodsOptionLabel": "Toegestane HTTP-methoden",
-        "methodsOptionDescription": "Bepaalt welke HTTP-methodes zijn toegestaan voor deze webhook. Het uitsluiten van GET vermindert de kans dat de webhook per ongeluk wordt geactiveerd.",
-        "methodsOptionAll": "Alle",
-        "methodsOptionExcludeGet": "GET uitsluiten"
-    },
-    "twoFactorAuthEmpty": {
-        "title": "Je hebt 2FA nog niet ingeschakeld",
-        "description": "Voeg een extra beveiligingslaag toe aan je account.",
-        "enable": "2FA inschakelen",
-        "notAllowedTitle": "2FA niet ingeschakeld",
-        "notAllowedDescription": "Het toevoegen van 2FA is alleen mogelijk voor accounts met een wachtwoord."
-    },
-    "nodeHelpTooltip": {
-        "exampleLabel": "Voorbeeld",
-        "result": "Resultaat: {result}"
-    },
-    "enableWithQRCode": {
-        "scanQRCode": "QR-code scannen",
-        "scanQRCodeDescription": "Scan de code met een app zoals Google Authenticator, Authy of Microsoft Authenticator.",
-        "clickToCopy": "Je kunt ook hier klikken om de code te kopiëren.",
-        "secretCopiedTitle": "Geheim gekopieerd",
-        "secretCopiedMessage": "TOTP geheim gekopieerd naar klembord.",
-        "enterCode": "Voer de getoonde code in",
-        "enterCodeDescription": "Voer een 6-cijferige code in die door de app wordt getoond om te bevestigen dat je de app correct hebt ingesteld.",
-        "verificationFailed": "Verificatie mislukt",
-        "verificationFailedDescription": "De ingevoerde code is ongeldig.",
-        "provisioningFailed": "Voorziening mislukt",
-        "checkSuccess": "Tweefactorauthenticatie succesvol ingeschakeld"
-    },
-    "twoFactorAuthField": {
-        "enabled": "Ingeschakeld",
-        "disabled": "Uitgeschakeld"
+      "invalidName": "Voer een geldige volledige naam in. De naam moet langer zijn dan 2 letters en minder dan 150.",
+      "invalidEmail": "Voer een geldig e-mail adres in."
     }
+  },
+  "changeUserPasswordModal": {
+    "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
+  },
+  "deleteUserModal": {
+    "title": "Verwijder {gebruikersnaam}",
+    "confirmation": "Weet je zeker dat je de gebruiker: {name} wilt verwijderen?",
+    "comment1": "De gebruikersaccount wordt verwijderd, maar de werkruimtes waar die gebruiker lid van is blijven bestaan. De gebruikers werkruimte wordt niet verwijderd, zelfs als deze gebruiker de laatste gebruiker in de werkruimtes is. Door de laatste gebruiker in een werkruimte te verwijderen kan niemand meer toegang krijgen tot die werkruimte.",
+    "comment2": "Na het verwijderen van een gebruiker is het mogelijk dat een nieuwe gebruiker zich opnieuw aanmeldt met het e-mailadres van de verwijderde gebruiker. Om ervoor te zorgen dat ze zich niet opnieuw kunnen aanmelden, deactiveer de gebruiker in plaats van deze te verwijderen.",
+    "delete": "Verwijder gebruiker {gebruikersnaam}"
+  },
+  "editUserModal": {
+    "delete": "Gebruiker verwijderen",
+    "edit": "Bewerk { gebruikersnaam }"
+  },
+  "adminDashboard": {
+    "title": "Dashboard",
+    "totals": "Totalen",
+    "totalUsers": "Totaal gebruikers",
+    "totalWorkspaces": "Totaal werkruimte",
+    "totalApplications": "Totaal aanvragen",
+    "newUsers": "Nieuwe gebruikers",
+    "newUsers24h": "Nieuwe gebruikers laatste 24 uur",
+    "newUsers7days": "Nieuwe gebruikers laatste 7 dagen",
+    "newUsers30days": "Nieuwe gebruikers laatste 30 dagen",
+    "activeUsers": "Actieve gebruikers",
+    "activeUsers24h": "Actieve gebruikers laatste 24 uur",
+    "activeUsers7days": "Actieve gebruikers laatste 7 dagen",
+    "activeUsers30days": "Actieve gebruikers laatste 30 dagen",
+    "viewAll": "Alles bekijken"
+  },
+  "formGroup": {
+    "protectedField": "Dit veld is beveiligd. Klik om te wijzigen.",
+    "cancelProtectedField": "Annuleer verandering"
+  },
+  "userSourceType": {
+    "userCountSummary": "{count} gebruikers ({lastUpdated})"
+  },
+  "colorPickerContext": {
+    "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
+  },
+  "guidedTourStep": {
+    "step": "{step} van {totalSteps}",
+    "gotIt": "Ik snap het",
+    "next": "Volgende",
+    "back": "Terug"
+  },
+  "welcomeGuidedTourStep": {
+    "title": "Welkom bij Baserow",
+    "content": "We geven je een korte rondleiding om je vertrouwd te maken met de basisprincipes. In slechts een paar klikken leer je hoe je je gegevens moeiteloos kunt organiseren en visualiseren",
+    "buttonText": "Start de rondleiding"
+  },
+  "createNewGuidedTourStep": {
+    "content": "Klik op \"Nieuw toevoegen...\" om een nieuwe database, applicatie of dashboard in te stellen voor je project, afdeling of team.",
+    "title": "Een nieuwe database of applicatie maken"
+  },
+  "controlCenterGuidedTourStep": {
+    "content": "In de linkerzijbalk kun je je werkruimte beheren:\n\n- Home - Toegang tot je hoofddashboard.\n- Meldingen - Blijf op de hoogte van wijzigingen en vermeldingen.\n- Nodig anderen uit - Werk samen door teamleden toe te voegen.\n- Prullenbak - Al je verwijderde items weergeven en herstellen.",
+    "title": "Jouw Baserow Controle Centrum"
+  },
+  "mcpEndpointSettings": {
+    "title": "MCP server",
+    "backToOverview": "Terug",
+    "noEndpointsMessage": "Er zijn geen MCP (Model Context Protocol) server eindpunten toegevoegd. Deze kunnen worden gebruikt om direct te integreren met een LLM zoals Claude, en de LLM direct acties te laten uitvoeren in Baserow. Maak een server eindpunt om te beginnen.",
+    "createEndpoint": "Eindpunt maken",
+    "createNewTitle": "MCP-server eindpunt maken"
+  },
+  "mcpEndpointForm": {
+    "workspaceLabel": "Werkruimte",
+    "nameLabel": "Naam"
+  },
+  "mcpEndpoint": {
+    "reveal": "Volledige URL weergeven",
+    "warning": "Behandel je MCP URL als een wachtwoord, omdat je hiermee gegevens in Baserow kunt wijzigen.",
+    "detailLabel": "Meer details",
+    "claudeInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Claude Desktop en de Baserow MCP.\n\n1. Open de instellingen van Claude Desktop in de navigatiebalk (⌘+,)\n1. Ga naar het tabblad \"Ontwikkelen\" en klik op \"Edit Config\".\n1. Neem de volgende JSON-configuratie op in `claude_desktop_config.json`.",
+    "windsurfInstructions": "Twee eenvoudige stappen om MCP in te stellen met Cascase in Windsurf.\n\n1. Navigeer naar Windsurf - Settings -> Advanced Settings of Command Palette -> Open Windsurf settings page.\n1. Scroll naar beneden naar de Cascade sectie en je zult de optie vinden om een nieuwe server toe te voegen, bestaande servers te bekijken en een knop om het ruwe JSON config bestand `mcp_config.json` te bekijken. Voeg daar het volgende aan toe:",
+    "endpointURLIntro": "De MCP (Model Context Protocol) server URL kan worden toegevoegd aan elke client die MCP-servers ondersteunt. Het is een uniek eindpunt dat de LLM directe toegang geeft om namens jou acties uit te voeren in de werkruimte.",
+    "cursorInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Cursor en het Baserow MCP.\n\n1. Cursorinstellingen openen (⇧+⌘+J)\n1. Navigeer naar het tabblad \"MCP\" en klik op \"Add MCP Server\" (MCP-server toevoegen)\n1. Voeg de volgende JSON-configuratie toe."
+  },
+  "importWorkspaceForm": {
+    "selectApplicationsToImport": "Applicaties selecteren om te importeren"
+  },
+  "workspaceSearch": {
+    "title": "Zoek",
+    "searchEverything": "Zoek...",
+    "searching": "Zoeken...",
+    "noResults": "Geen resultaten gevonden",
+    "noResultsSubtitle": "We konden niets vinden dat overeenkomt met \"{searchTerm}\"",
+    "welcome": "Doorzoek alles in je werkruimte",
+    "welcomeSubtitle": "Gebruik het zoekvak hierboven om toepassingen, tabellen, velden en meer te vinden",
+    "navigate": "Navigatie",
+    "select": "Selecteer",
+    "close": "Sluit",
+    "types": {
+      "applications": "Applicaties",
+      "tables": "Tabellen",
+      "fields": "Velden",
+      "rows": "Rijen"
+    }
+  },
+  "action": {
+    "cancel": "Annuleren",
+    "submit": "Verstuur"
+  },
+  "twoFactorAuthSettings": {
+    "title": "Tweefactorauthenticatie",
+    "loadingError": "Kon tweefactorconfiguratie niet laden."
+  },
+  "disableTwoFactorAuth": {
+    "title": "Weet je zeker dat je 2FA wilt uitschakelen?",
+    "description": "Je account verliest een extra beveiligingslaag. Als iemand achter je wachtwoord komt, kan hij of zij misschien inloggen op je account.",
+    "cancel": "Laat het aan",
+    "disable": "Uitschakelen",
+    "successTitle": "Tweefactorauthenticatie is uitgeschakeld",
+    "errorWrongPasswordTitle": "Verkeerd wachtwoord",
+    "errorWrongPasswordMessage": "Het ingevoerde wachtwoord komt niet overeen met uw wachtwoord."
+  },
+  "enableTwoFactorOptions": {
+    "cancel": "Annuleren",
+    "continue": "Ga verder"
+  },
+  "saveBackupCode": {
+    "description": "Als je de toegang tot de authenticator-app of telefoon verliest en geen verificatiecodes kunt ontvangen of genereren, kun je deze back-up gebruiken. Je kunt het maar één keer gebruiken. Zorg ervoor dat je het opschrijft of kopieert naar een veilige plek zodat je het kunt openen zonder in te loggen.",
+    "backupCodes": "Back-up codes",
+    "copy": "Kopiëren",
+    "continue": "Ga verder",
+    "backupCodesCopiedTitle": "Gekopieerd!",
+    "backupCodesCopiedMessage": "Back-upcodes gekopieerd naar klembord."
+  },
+  "totpAuthType": {
+    "name": "Authenticator-app",
+    "description": "Gebruik een app om tweefactorauthenticatiecodes te krijgen. We raden aan apps te gebruiken zoals Google Authenticator, Authy en Microsoft Authenticator.",
+    "enabledDescription": "Je ontvangt verificatiecodes via een authenticatie-app. Om een andere app of methode in te stellen, schakel je gewoon 2FA uit en stel je opnieuw in.",
+    "sideLabel": "Aanbevolen"
+  },
+  "twoFactorEnabled": {
+    "enabled": "Ingeschakeld",
+    "disable": "2FA uitschakelen"
+  },
+  "totpLogin": {
+    "backupCodesTitle": "Back-upcode invoeren",
+    "backupCodesDescription": "Log in met je eenmalige back-upcode.",
+    "authenticate": "Authenticeren",
+    "goBack": "Ga terug",
+    "totpTitle": "Tweefacturauthenticatie",
+    "totpDescription": "Voer de code van je authenticator-app in.",
+    "verify": "Controleer",
+    "useBackupCode": "Gebruik back-upcode",
+    "verificationFailed": "Verificatie mislukt",
+    "verificationFailedDescription": "De ingevoerde code is niet correct.",
+    "loginExpired": "Inloggen verlopen",
+    "loginExpiredDescription": "Geef je wachtwoord opnieuw op.",
+    "rateLimit": "Te veel pogingen."
+  },
+  "formulaInputContext": {
+    "variables": "Variables",
+    "functions": "Functies",
+    "operators": "Operators",
+    "search": "Zoeken",
+    "useRegularInputModalTitle": "Normale invoer gebruiken voor dit veld?",
+    "useRegularInput": "Gebruik regelmatige invoer",
+    "useAdvancedInput": "Geavanceerde invoer gebruiken",
+    "useAdvancedInputModalTitle": "Geavanceerde invoer gebruiken voor dit veld?",
+    "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen."
+  },
+  "coreHTTPTriggerServiceForm": {
+    "title": "Webhook URL",
+    "urlVersion": "Versie",
+    "urlVersionPublished": "Gepubliceerd",
+    "urlVersionTest": "Test",
+    "copyUrl": "URL webhook kopiëren",
+    "urlCopied": "Webhook URL gekopieerd naar klembord",
+    "description": "Deze webhook zal HTP verzoeken ontvangen en de workflow starten met de verzoekgegevens als de lading.",
+    "methodsOptionLabel": "Toegestane HTTP-methoden",
+    "methodsOptionDescription": "Bepaalt welke HTTP-methodes zijn toegestaan voor deze webhook. Het uitsluiten van GET vermindert de kans dat de webhook per ongeluk wordt geactiveerd.",
+    "methodsOptionAll": "Alle",
+    "methodsOptionExcludeGet": "GET uitsluiten"
+  },
+  "twoFactorAuthEmpty": {
+    "title": "Je hebt 2FA nog niet ingeschakeld",
+    "description": "Voeg een extra beveiligingslaag toe aan je account.",
+    "enable": "2FA inschakelen",
+    "notAllowedTitle": "2FA niet ingeschakeld",
+    "notAllowedDescription": "Het toevoegen van 2FA is alleen mogelijk voor accounts met een wachtwoord."
+  },
+  "nodeHelpTooltip": {
+    "exampleLabel": "Voorbeeld",
+    "result": "Resultaat: {result}"
+  },
+  "enableWithQRCode": {
+    "scanQRCode": "QR-code scannen",
+    "scanQRCodeDescription": "Scan de code met een app zoals Google Authenticator, Authy of Microsoft Authenticator.",
+    "clickToCopy": "Je kunt ook hier klikken om de code te kopiëren.",
+    "secretCopiedTitle": "Geheim gekopieerd",
+    "secretCopiedMessage": "TOTP geheim gekopieerd naar klembord.",
+    "enterCode": "Voer de getoonde code in",
+    "enterCodeDescription": "Voer een 6-cijferige code in die door de app wordt getoond om te bevestigen dat je de app correct hebt ingesteld.",
+    "verificationFailed": "Verificatie mislukt",
+    "verificationFailedDescription": "De ingevoerde code is ongeldig.",
+    "provisioningFailed": "Voorziening mislukt",
+    "checkSuccess": "Tweefactorauthenticatie succesvol ingeschakeld"
+  },
+  "twoFactorAuthField": {
+    "enabled": "Ingeschakeld",
+    "disabled": "Uitgeschakeld"
+  }
 }

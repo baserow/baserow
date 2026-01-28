@@ -1,22 +1,26 @@
 <template>
-  <component
-    :is="tag === 'a' || href ? 'a' : 'button'"
+  <a
+    v-if="tag === 'a' || href"
     class="button-text"
     :class="classes"
-    :disabled="disabled || loading"
-    v-bind.prop="customBind"
-    v-on="$listeners"
+    v-bind="customBind"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />
-
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
-  </component>
+  </a>
+  <button v-else class="button-text" :class="classes" v-bind="customBind">
+    <i v-if="icon && !loading" class="button-text__icon" :class="icon" />
+    <img v-else-if="image" alt="" :src="image" class="button-text__image" />
+    <i v-if="loading" class="button-text__spinner"></i>
+    <span v-if="$slots.default" class="button-text__label"><slot /></span>
+  </button>
 </template>
 
 <script>
 export default {
+  name: 'ButtonText',
   props: {
     /**
      * The tag to use for the root element.
@@ -117,17 +121,41 @@ export default {
       },
     },
   },
+  setup(props, { attrs }) {
+    const listeners = computed(() =>
+      Object.fromEntries(
+        Object.entries(attrs).filter(
+          ([key, value]) =>
+            // keep only real listeners: onClick, onUpdate:modelValue, etc.
+            key.startsWith('on') && typeof value === 'function'
+        )
+      )
+    )
+
+    return { listeners, attrs }
+  },
   computed: {
     classes() {
       const classObj = {
         [`button-text--${this.size}`]: this.size !== 'regular',
         [`button-text--${this.type}`]: this.type !== 'primary',
         'button-text--loading': this.loading,
+        'button-text--disabled': this.disabled && !this.loading,
       }
       return classObj
     },
     customBind() {
       const attr = {}
+
+      // Only add disabled attribute for button elements, not for links
+      // And only add it if it's actually true (not false)
+      if (
+        (this.tag === 'button' || !this.href) &&
+        (this.disabled || this.loading)
+      ) {
+        attr.disabled = true
+      }
+
       if (this.tag === 'a') {
         attr.href = this.href
         attr.target = this.target

@@ -86,12 +86,12 @@ export default {
       isAuthenticated: 'auth/isAuthenticated',
     }),
   },
-  created() {
+  async created() {
     const showSessionExpiredToast =
       this.$store.getters['auth/isUserSessionExpired']
     if (showSessionExpiredToast) {
       this.redirecting = true
-      logoutAndRedirectToLogin(
+      await logoutAndRedirectToLogin(
         this.$router,
         this.$store,
         showSessionExpiredToast

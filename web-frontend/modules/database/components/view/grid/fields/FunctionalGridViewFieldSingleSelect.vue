@@ -1,17 +1,25 @@
-<template functional>
-  <div
-    ref="cell"
-    class="grid-view__cell grid-field-single-select__cell"
-    :class="data.staticClass || ''"
-  >
+<template>
+  <div ref="cell" class="grid-view__cell grid-field-single-select__cell">
     <div class="grid-field-single-select">
       <div
-        v-if="props.value"
+        v-if="value"
         class="grid-field-single-select__option"
-        :class="'background-color--' + props.value.color"
+        :class="'background-color--' + value.color"
       >
-        {{ props.value.value }}
+        {{ value.value }}
       </div>
     </div>
   </div>
 </template>
+
+<script>
+export default {
+  name: 'FunctionalGridViewFieldSingleSelect',
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
+}
+</script>

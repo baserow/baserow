@@ -1,10 +1,9 @@
 from django.db import models
 
+from baserow.contrib.dashboard.widgets.models import Widget
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationSeries,
 )
-
-from baserow.contrib.dashboard.widgets.models import Widget
 
 
 class ChartSeriesChartType(models.TextChoices):

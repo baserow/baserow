@@ -3,15 +3,15 @@ from django.db.models.deletion import ProtectedError
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-)
 
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.contrib.dashboard.widgets.trash_types import WidgetTrashableItemType
 from baserow.core.trash.handler import TrashHandler
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+)
 
 
 @pytest.mark.django_db

@@ -11,13 +11,14 @@
         {{ $t('licenses.noLicensesDescription') }}
       </p>
       <div class="licenses__features margin-bottom-2">
-        <div
-          v-for="(features, planName) in paidFeaturePlans"
-          :key="planName"
-        >
+        <div v-for="(features, planName) in paidFeaturePlans" :key="planName">
           <h2>{{ planName }}</h2>
           <ul class="premium-features margin-bottom-2">
-            <li v-for="feature in features" class="premium-features__feature">
+            <li
+              v-for="feature in features"
+              :key="feature"
+              class="premium-features__feature"
+            >
               <i class="iconoir-check premium-features__feature-icon"></i>
               {{ feature.getName() }}
             </li>
@@ -29,26 +30,19 @@
           type="primary"
           size="large"
           icon="iconoir-plus"
-          @click="$refs.registerModal.show()"
+          @click="showRegisterModal"
         >
           {{ $t('licenses.registerLicense') }}
         </Button>
-        <RedirectToBaserowModal
-          :href="getLicenseURL"
-          target="_blank"
-          >{{ $t('licenses.getLicense') }}</RedirectToBaserowModal
-        >
+        <RedirectToBaserowModal :href="getLicenseURL" target="_blank">
+          {{ $t('licenses.getLicense') }}
+        </RedirectToBaserowModal>
       </div>
       <p>
         {{ $t('licenses.baserowInstanceId') }}
         <br />
         <span class="licenses__instance-id">{{ instanceId }}</span>
-        <a
-          class="licenses__instance-id-copy"
-          @click.prevent="
-            ;[copyToClipboard(instanceId), $refs.instanceIdCopied.show()]
-          "
-        >
+        <a class="licenses__instance-id-copy" @click.prevent="onCopyInstanceId">
           {{ $t('action.copy') }}
           <Copied ref="instanceIdCopied"></Copied>
         </a>
@@ -60,30 +54,22 @@
           {{ $t('licenses.titleLicenses') }}
         </h1>
         <div>
-          <Button
-            type="primary"
-            icon="iconoir-plus"
-            @click="$refs.registerModal.show()"
-          >
+          <Button type="primary" icon="iconoir-plus" @click="showRegisterModal">
             {{ $t('licenses.registerLicense') }}
           </Button>
           <RedirectToBaserowModal
             :href="getLicenseURL"
             target="_blank"
             size="regular"
-            >{{ $t('licenses.getLicense') }}</RedirectToBaserowModal
           >
+            {{ $t('licenses.getLicense') }}
+          </RedirectToBaserowModal>
         </div>
       </div>
       <div class="margin-bottom-3">
         {{ $t('licenses.baserowInstanceId') }}
         <span class="licenses__instance-id">{{ instanceId }}</span>
-        <a
-          class="licenses__instance-id-copy"
-          @click.prevent="
-            ;[copyToClipboard(instanceId), $refs.instanceIdCopied.show()]
-          "
-        >
+        <a class="licenses__instance-id-copy" @click.prevent="onCopyInstanceId">
           {{ $t('action.copy') }}
           <Copied ref="instanceIdCopied"></Copied>
         </a>
@@ -101,20 +87,20 @@
           <div class="licenses__item-head">
             <div class="licenses__item-title">
               {{ $t('licenses.licenceId') }}
-              <span class="licenses__item-title-license">{{
-                license.license_id
-              }}</span>
+              <span class="licenses__item-title-license">
+                {{ license.license_id }}
+              </span>
             </div>
             <Badge
               :color="getLicenseType(license).getLicenseBadgeColor()"
               bold
               class="margin-right-1"
             >
-              {{ getLicenseType(license).getName() }}</Badge
-            >
-            <Badge v-if="!license.is_active" color="red">{{
-              $t('licenses.expired')
-            }}</Badge>
+              {{ getLicenseType(license).getName() }}
+            </Badge>
+            <Badge v-if="!license.is_active" color="red">
+              {{ $t('licenses.expired') }}
+            </Badge>
           </div>
           <div class="licenses__item-validity">
             {{
@@ -140,9 +126,9 @@
           </ul>
           <ul class="licenses__item-details">
             <li
-              class="licenses__item-detail-item"
               v-for="(feature, index) in licenseFeatureDescription(license)"
               :key="index"
+              class="licenses__item-detail-item"
             >
               {{ feature.name }}
               <i
@@ -157,84 +143,109 @@
         </nuxt-link>
       </div>
     </div>
-    <RegisterLicenseModal :instance-id="instanceId" ref="registerModal"></RegisterLicenseModal>
+    <RegisterLicenseModal
+      ref="registerModal"
+      :instance-id="instanceId"
+    ></RegisterLicenseModal>
   </div>
 </template>
 
-<script>
+<script setup>
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
 import moment from '@baserow/modules/core/moment'
 import SettingsService from '@baserow/modules/core/services/settings'
-import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { copyToClipboard as copyToClipboardUtil } from '@baserow/modules/database/utils/clipboard'
 import { getPricingURL } from '@baserow_premium/utils/pricing'
 
-export default {
-  components: {
-    RedirectToBaserowModal,
-    RegisterLicenseModal,
-  },
+definePageMeta({
   layout: 'app',
   middleware: 'staff',
-  async asyncData({ app, error }) {
-    try {
-      const { data: instanceData } = await SettingsService(
-        app.$client
-      ).getInstanceID()
-      const { data } = await LicenseService(app.$client).fetchAll()
-      return {
-        licenses: data,
-        instanceId: instanceData.instance_id,
-      }
-    } catch {
-      return error({
-        statusCode: 400,
-        message: 'Something went wrong while fetching the licenses.',
-      })
+})
+
+const { $client, $registry, $i18n } = useNuxtApp()
+
+useHead({ title: $i18n.t('licenses.titleLicenses') })
+
+// Fetch data using useAsyncData and return the values from the callback
+const { data } = await useAsyncData('licensesPage', async () => {
+  try {
+    const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
+      SettingsService($client).getInstanceID(),
+      LicenseService($client).fetchAll(),
+    ])
+
+    return {
+      licenses: licensesData,
+      instanceId: instanceData.instance_id,
     }
-  },
-  computed: {
-    getLicenseURL() {
-      return getPricingURL(this.instanceId)
-    },
-    paidFeaturePlans() {
-      const plans = {}
-      Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {
-        const plan = feature.getPlan()
-        if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
-          plans[plan] = []
-        }
-        plans[plan].push(feature)
-      })
-      return plans
-    },
-    orderedLicenses() {
-      return this.licenses
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime()
-        )
-        .sort((a, b) =>
-          a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1
-        )
-        .sort((a, b) => a.application_users - b.application_users)
-    },
-  },
-  methods: {
-    localDate(date) {
-      return moment.utc(date).local().format('ll')
-    },
-    copyToClipboard(value) {
-      copyToClipboard(value)
-    },
-    getLicenseType(license) {
-      return this.$registry.get('license', license.product_code)
-    },
-    licenseFeatureDescription(license) {
-      return this.getLicenseType(license).getFeaturesDescription()
-    },
-  },
+  } catch (e) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Something went wrong while fetching the licenses.',
+    })
+  }
+})
+
+const licenses = computed(() => data.value?.licenses || [])
+const instanceId = computed(() => data.value?.instanceId || '')
+
+const getLicenseURL = computed(() => getPricingURL(instanceId.value))
+
+const paidFeaturePlans = computed(() => {
+  const plans = {}
+  Object.values($registry.getAll('paidFeature')).forEach((feature) => {
+    const plan = feature.getPlan()
+    if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
+      plans[plan] = []
+    }
+    plans[plan].push(feature)
+  })
+  return plans
+})
+
+const orderedLicenses = computed(() => {
+  return licenses.value
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.valid_from).getTime() - new Date(b.valid_from).getTime()
+    )
+    .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+    .sort((a, b) => a.application_users - b.application_users)
+})
+
+function localDate(date) {
+  return moment.utc(date).local().format('ll')
+}
+
+function getLicenseType(license) {
+  return $registry.get('license', license.product_code)
+}
+
+function licenseFeatureDescription(license) {
+  return getLicenseType(license).getFeaturesDescription()
+}
+
+// Template refs for modals / copied indicator
+const registerModal = ref(null)
+const instanceIdCopied = ref(null)
+
+function showRegisterModal() {
+  if (registerModal.value && typeof registerModal.value.show === 'function') {
+    registerModal.value.show()
+  }
+}
+
+function onCopyInstanceId() {
+  if (!instanceId.value) return
+  copyToClipboardUtil(instanceId.value)
+  if (
+    instanceIdCopied.value &&
+    typeof instanceIdCopied.value.show === 'function'
+  ) {
+    instanceIdCopied.value.show()
+  }
 }
 </script>

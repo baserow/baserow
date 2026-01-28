@@ -1,7 +1,11 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
 import ViewDecoratorContext from '@baserow/modules/database/components/view/ViewDecoratorContext'
 import { DecoratorValueProviderType } from '@baserow/modules/database/decoratorValueProviders'
 import { ViewDecoratorType } from '@baserow/modules/database/viewDecorators'
+
+import { MockServer } from '@baserow/test/fixtures/mockServer'
+import MockAdapter from 'axios-mock-adapter'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { h } from 'vue'
 
 export class FakeDecoratorType extends ViewDecoratorType {
   static getType() {
@@ -33,14 +37,7 @@ export class FakeDecoratorType extends ViewDecoratorType {
   }
 
   getComponent() {
-    const component = {
-      functional: true,
-
-      render(h, ctx) {
-        return h('div', `fake_decoration: ${ctx.props.value}`)
-      },
-    }
-    return component
+    return (props) => h('div', `fake_decoration: ${props.value}`)
   }
 
   canAdd({ view }) {
@@ -70,14 +67,7 @@ export class FakeValueProviderType extends DecoratorValueProviderType {
   }
 
   getFormComponent() {
-    const component = {
-      functional: true,
-
-      render(h) {
-        return h('div', 'fake_value_provider_form')
-      },
-    }
-    return component
+    return (props) => h('div', `fake_value_provider_form`)
   }
 }
 
@@ -116,31 +106,37 @@ describe('GridViewRows component with decoration', () => {
   let mockServer = null
   let store = null
   let wrapperToDestroy = null
+  let mock = null
 
-  beforeAll(() => {
-    testApp = new TestApp()
-    store = testApp.store
-    mockServer = testApp.mockServer
-    store.$registry.registerNamespace('viewDecorator')
-    store.$registry.registerNamespace('decoratorValueProvider')
+  beforeEach(() => {
+    testApp = useNuxtApp()
+    const { $store, $client, $registry } = useNuxtApp()
+    store = $store
+    mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    mockServer = new MockServer(mock, $store)
   })
 
   afterEach((done) => {
     // Clean up potentially registered stuff
     try {
       store.$registry.unregister('viewDecorator', 'fake_decorator')
-    } catch {}
+    } catch {
+      /* empty */
+    }
     try {
       store.$registry.unregister(
         'decoratorValueProvider',
         'fake_value_provider_type'
       )
-    } catch {}
+    } catch {
+      /* empty */
+    }
     if (wrapperToDestroy) {
-      wrapperToDestroy.destroy()
+      wrapperToDestroy.unmount()
       wrapperToDestroy = null
     }
-    testApp.afterEach().then(done)
+    mock.restore()
+    //testApp.afterEach().then(done)
   })
 
   const populateStore = async ({ viewId = 1, decorations } = {}) => {
@@ -167,9 +163,7 @@ describe('GridViewRows component with decoration', () => {
   }
 
   const mountComponent = async (props) => {
-    const wrapper = await testApp.mount(ViewDecoratorContext, {
-      propsData: props,
-    })
+    const wrapper = await mountSuspended(ViewDecoratorContext, { props })
 
     await wrapper.vm.show(document.body)
     await wrapper.vm.$nextTick()

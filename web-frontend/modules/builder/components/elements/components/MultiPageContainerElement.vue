@@ -65,6 +65,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   computed: {
     submitButtonLabelResolved() {
       return ensureString(this.resolveFormula(this.element.submit_button_label))

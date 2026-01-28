@@ -55,6 +55,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close-modals', 'refresh'],
   data: () => {
     return {
       headerSearchTerm: '',
@@ -79,7 +80,7 @@ export default {
       this.searchStarted
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {

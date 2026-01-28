@@ -121,7 +121,7 @@ export default {
       this.hideError()
 
       const dest = `${
-        this.$config.PUBLIC_BACKEND_URL
+        this.$config.public.publicBackendUrl
       }/api/user-source/${encodeURIComponent(
         this.userSource.uid
       )}/sso/saml/login/`

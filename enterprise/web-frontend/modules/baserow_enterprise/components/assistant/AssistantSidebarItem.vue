@@ -20,6 +20,7 @@
 <script>
 export default {
   name: 'AssistantSidebarItem',
+  emits: ['toggle-right-sidebar'],
   props: {
     workspace: {
       type: Object,
@@ -40,7 +41,7 @@ export default {
       )
     },
     isConfigured() {
-      return this.$config.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL !== null
+      return this.$config.public.baserowEnterpriseAssistantLLMModel !== null
     },
   },
   mounted() {

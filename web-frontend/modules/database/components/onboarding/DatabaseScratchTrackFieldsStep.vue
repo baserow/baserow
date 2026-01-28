@@ -87,6 +87,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

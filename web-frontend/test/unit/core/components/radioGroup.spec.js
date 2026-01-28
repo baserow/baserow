@@ -1,15 +1,16 @@
-import { shallowMount } from '@vue/test-utils'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+
 import RadioGroup from '@baserow/modules/core/components/RadioGroup'
 
 describe('RadioGroup.vue', () => {
-  it('renders the correct number of radio options', () => {
+  it('renders the correct number of radio options', async () => {
     const options = [
       { value: 'one', label: 'One' },
       { value: 'two', label: 'Two' },
       { value: 'three', label: 'Three' },
     ]
-    const wrapper = shallowMount(RadioGroup, {
-      propsData: {
+    const wrapper = await mountSuspended(RadioGroup, {
+      props: {
         options,
       },
       global: {
@@ -21,15 +22,15 @@ describe('RadioGroup.vue', () => {
     expect(radios.length).toBe(options.length)
   })
 
-  it('sets the correct radio option as selected based on the modelValue prop', () => {
+  it('sets the correct radio option as selected based on the modelValue prop', async () => {
     const options = [
       { value: 'one', label: 'One' },
       { value: 'two', label: 'Two' },
       { value: 'three', label: 'Three' },
     ]
     const modelValue = 'two'
-    const wrapper = shallowMount(RadioGroup, {
-      propsData: {
+    const wrapper = await mountSuspended(RadioGroup, {
+      props: {
         options,
         modelValue,
       },
@@ -48,8 +49,8 @@ describe('RadioGroup.vue', () => {
       { value: 'two', label: 'Two' },
       { value: 'three', label: 'Three' },
     ]
-    const wrapper = shallowMount(RadioGroup, {
-      propsData: {
+    const wrapper = await mountSuspended(RadioGroup, {
+      props: {
         options,
       },
     })
@@ -69,8 +70,8 @@ describe('RadioGroup.vue', () => {
       { value: 'two', label: 'Two' },
       { value: 'three', label: 'Three' },
     ]
-    const wrapper = shallowMount(RadioGroup, {
-      propsData: {
+    const wrapper = await mountSuspended(RadioGroup, {
+      props: {
         options,
         modelValue: 'one',
       },

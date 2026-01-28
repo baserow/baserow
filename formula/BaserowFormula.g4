@@ -39,9 +39,10 @@ expr
     | OPEN_PAREN expr CLOSE_PAREN # Brackets
     | expr op=(SLASH | STAR) expr # BinaryOp
     | expr op=(PLUS | MINUS) expr # BinaryOp
-    | expr op=(AMP_AMP | PIPE_PIPE) expr # BinaryOp
     | expr op=(GT | LT | GTE | LTE) expr # BinaryOp
     | expr op=(EQUAL | BANG_EQUAL) expr # BinaryOp
+    | expr op=AMP_AMP expr # BinaryOp
+    | expr op=PIPE_PIPE expr # BinaryOp
     | FIELD OPEN_PAREN field_reference CLOSE_PAREN # FieldReference
     // FIELDBYID has been deprecated and should not be used, it is only included here
     // for backwards compatability.

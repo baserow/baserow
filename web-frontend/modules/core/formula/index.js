@@ -73,11 +73,6 @@ export const getFormulaFunctionsByCategory = (app, i18n = null) => {
 
   // Group functions by category
   for (const [functionName, registryItem] of Object.entries(functions)) {
-    // Filter out the 'get' function
-    if (functionName === 'get') {
-      continue
-    }
-
     try {
       // The registry might return instances instead of classes
       let instance = null
@@ -198,9 +193,9 @@ export const getFormulaFunctionsByCategory = (app, i18n = null) => {
  * @param {Object} i18n The i18n instance (optional, will be extracted from app if not provided)
  * @returns {Array} Array of function nodes ready for FormulaInputField
  */
-export const buildFormulaFunctionNodes = (app, i18n = null) => {
+export const buildFormulaFunctionNodes = (app) => {
   // Support both Option API (this.$t) and Composition API (app.i18n)
-  const i18nInstance = i18n || app.i18n || app
+  const i18nInstance = app.$i18n
   const { functionNodes, operatorNodes } = getFormulaFunctionsByCategory(
     app,
     i18nInstance
@@ -208,8 +203,7 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
   const nodes = []
 
   // Get translation methods once at the beginning
-  const tcMethod = i18nInstance.tc || i18nInstance.$tc
-  const tMethod = i18nInstance.t || i18nInstance.$t
+  const tMethod = app.$t?.bind(app) || i18nInstance?.t?.bind(i18nInstance)
 
   // Process regular functions
   if (functionNodes.length > 0) {
@@ -283,7 +277,7 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
             minArgs,
             maxArgs: isVariadic
               ? null
-              : instance.numArgs ?? instance.args.length,
+              : (instance.numArgs ?? instance.args.length),
           }
         } else {
           signature = {
@@ -342,15 +336,9 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
 
     // Add functions as a top-level section
     nodes.push({
-      name: tcMethod
-        ? tcMethod.call(
-            i18nInstance,
-            'runtimeFormulaTypes.formulaTypeFormula',
-            {
-              count: functionNodes.length,
-            }
-          )
-        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeFormula'),
+      name: tMethod('runtimeFormulaTypes.formulaTypeFormula', {
+        count: functionNodes.length,
+      }),
       type: 'function',
       identifier: null,
       order: null,
@@ -458,15 +446,9 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
 
     // Add operators as a top-level section
     nodes.push({
-      name: tcMethod
-        ? tcMethod.call(
-            i18nInstance,
-            'runtimeFormulaTypes.formulaTypeOperator',
-            {
-              count: operatorNodes.length,
-            }
-          )
-        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeOperator'),
+      name: tMethod('runtimeFormulaTypes.formulaTypeOperator', {
+        count: operatorNodes.length,
+      }),
       type: 'operator',
       nodes: operatorCategories,
     })

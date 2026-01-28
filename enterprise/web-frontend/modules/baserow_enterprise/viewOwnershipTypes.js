@@ -9,18 +9,18 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.restricted')
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.restricted')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.restrictedDescription')
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.restrictedDescription')
   }
 
   getFeatureName() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseFeatures.restrictedViews')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseFeatures.restrictedViews')
   }
 
   getIconClass() {

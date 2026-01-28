@@ -1,9 +1,5 @@
-<template functional>
-  <div
-    :class="
-      props.value ? `${data.class || ''} background-color--${props.value}` : ''
-    "
-  >
+<template>
+  <div :class="backgroundClass">
     <slot />
   </div>
 </template>
@@ -15,6 +11,11 @@ export default {
     value: {
       type: String,
       required: true,
+    },
+  },
+  computed: {
+    backgroundClass() {
+      return this.value ? `background-color--${this.value}` : null
     },
   },
 }

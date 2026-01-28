@@ -17,6 +17,8 @@ server.
 
 Set the model you want, restart Baserow, and let migrations run.
 
+**Important:** When running Baserow with Docker Compose or multiple services, `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` must be set in **all services** (both backend and frontend) for the assistant to work properly.
+
 ```dotenv
 # Required
 BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-4o
@@ -77,8 +79,10 @@ OpenAI-compatible client accordingly.
 
 ## 4) Knowledge-base lookup
 
-If your deployment method doesn’t auto-provision embeddings, run the Baserow embeddings
+If your deployment method doesn't auto-provision embeddings, run the Baserow embeddings
 service and point Baserow at it.
+
+**For developers using Docker Compose:** See [embeddings-server.md](../development/embeddings-server.md) for setup instructions.
 
 ### Run the embeddings container
 
@@ -95,3 +99,27 @@ BASEROW_EMBEDDINGS_API_URL=http://your-embedder-service
 ```
 
 After restart and migrations, knowledge-base lookup will be available.
+
+## 5) Troubleshooting
+
+### The assistant doesn't appear or doesn't work
+
+If the assistant is not visible in the sidebar or doesn't work, verify that:
+
+1. `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is set correctly in **both** the backend and frontend services
+2. The required API key for your chosen provider is set (e.g., `OPENAI_API_KEY`, `GROQ_API_KEY`, etc.)
+
+### Verifying environment variables in development
+
+To check if the variables are set correctly in development, from the host run:
+
+```bash
+# Check backend
+just dcd run --rm backend bash -c env | grep LLM_MODEL
+just dcd run --rm backend bash -c env | grep API_KEY
+
+# Check frontend
+just dcd run --rm web-frontend bash -c env | grep LLM_MODEL
+```
+
+Both commands must return the same value for `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`. If either is missing or they differ, update your environment configuration and restart the services.

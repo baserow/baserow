@@ -17,6 +17,10 @@ export default {
       // The reactiveMultiple is an object to deal with the reactivity issue when you
       // use provide inject pattern. Don't change it.
       multiple: this.reactiveMultiple,
+      dropdownProvider: {
+        registerDropdownItem: this.registerDropdownItem,
+        unregisterDropdownItem: this.unregisterDropdownItem,
+      },
     }
   },
   inject: {
@@ -41,7 +45,15 @@ export default {
     value: {
       type: [String, Number, Boolean, Object, Array],
       required: false,
-      default: null,
+      default: undefined,
+    },
+    /**
+     * Vue 3 v-model compatibility (modelValue)
+     */
+    modelValue: {
+      type: [String, Number, Boolean, Object, Array],
+      required: false,
+      default: undefined,
     },
     /**
      * A string that is used to filter the dropdown items.
@@ -153,6 +165,7 @@ export default {
       default: false,
     },
   },
+  emits: ['show', 'hide', 'input', 'update:modelValue', 'change'],
   data() {
     return {
       loaded: false,
@@ -167,17 +180,23 @@ export default {
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
+      registeredDropdownItems: [], // For storing registered dropdown items
+      hideCleanupFunctions: [], // Store cleanup functions to call on hide
     }
   },
   computed: {
+    // Support both Vue 2 (value) and Vue 3 (modelValue)
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
     selectedName() {
-      return this.getSelectedProperty(this.value, 'name')
+      return this.getSelectedProperty(this.currentValue, 'name')
     },
     selectedIcon() {
-      return this.getSelectedProperty(this.value, 'icon')
+      return this.getSelectedProperty(this.currentValue, 'icon')
     },
     selectedImage() {
-      return this.getSelectedProperty(this.value, 'image')
+      return this.getSelectedProperty(this.currentValue, 'image')
     },
     realTabindex() {
       // We don't want to be able focus if the dropdown is disabled or if we have
@@ -190,6 +209,13 @@ export default {
   },
   watch: {
     value() {
+      this.$nextTick(() => {
+        // When the value changes we want to forcefully reload the selectName and
+        // selectedIcon a little bit later because the children might have changed.
+        this.forceRefreshSelectedValue()
+      })
+    },
+    modelValue() {
       this.$nextTick(() => {
         // When the value changes we want to forcefully reload the selectName and
         // selectedIcon a little bit later because the children might have changed.
@@ -226,26 +252,36 @@ export default {
       })
     }
   },
-  beforeDestroy() {
-    this.observer.disconnect()
+  beforeUnmount() {
+    // Clean up any remaining event listeners
+    this.hideCleanupFunctions.forEach((cleanup) => cleanup())
+    this.hideCleanupFunctions = []
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   },
   methods: {
+    // Method to register a dropdown item
+    registerDropdownItem(item) {
+      if (!this.registeredDropdownItems.includes(item)) {
+        this.registeredDropdownItems.push(item)
+        this.hasDropdownItem = true
+      }
+    },
+    // Method to unregister a dropdown item
+    unregisterDropdownItem(item) {
+      const index = this.registeredDropdownItems.indexOf(item)
+      if (index !== -1) {
+        this.registeredDropdownItems.splice(index, 1)
+        this.hasDropdownItem = this.registeredDropdownItems.length > 0
+      }
+    },
     /**
      * Recursively finds all the children of this component that have the flag
      * 'isDropdownItem' set.
      */
     getDropdownItemComponents() {
-      const traverse = (children) =>
-        children.reduce(
-          (items, child) =>
-            child.isDropdownItem
-              ? [...items, ...traverse(child.$children), child]
-              : [...items, ...traverse(child.$children)],
-          []
-        )
-      const components = traverse(this.$children)
-      this.hasDropdownItem = components.length > 0
-      return components
+      return this.registeredDropdownItems
     },
     focusout(event) {
       // Hide only if we loose focus in favor of another element which is not a
@@ -287,7 +323,7 @@ export default {
       const isElementOrigin = isDomElement(target)
 
       this.open = true
-      this.focusedDropdownItem = this.value
+      this.focusedDropdownItem = this.currentValue
       this.opener = isElementOrigin ? target : null
       this.$emit('show')
 
@@ -297,7 +333,7 @@ export default {
 
         // Scroll to the selected child.
         this.getDropdownItemComponents().forEach((child) => {
-          if (child.value === this.value) {
+          if (child.value === this.currentValue) {
             // This is a bit of weird scenario. This $refs.items uses the
             // `v-auto-overflow-scroll` directive. That one uses the resize observer
             // to detect if the element needs a scrollbar. This one has not fired before
@@ -344,7 +380,7 @@ export default {
           this.hide()
         }
       })
-      this.$once('hide', clickOutsideEventCancel)
+      this.hideCleanupFunctions.push(clickOutsideEventCancel)
 
       const keydownEvent = (event) => {
         if (
@@ -376,7 +412,7 @@ export default {
         }
       }
       document.body.addEventListener('keydown', keydownEvent)
-      this.$once('hide', () => {
+      this.hideCleanupFunctions.push(() => {
         document.body.removeEventListener('keydown', keydownEvent)
       })
 
@@ -417,11 +453,7 @@ export default {
 
           window.addEventListener('scroll', updatePosition, true)
           window.addEventListener('resize', updatePosition)
-          this.$once('hide', () => {
-            window.removeEventListener('scroll', updatePosition, true)
-            window.removeEventListener('resize', updatePosition)
-          })
-          this.$once('hook:beforeDestroy', () => {
+          this.hideCleanupFunctions.push(() => {
             window.removeEventListener('scroll', updatePosition, true)
             window.removeEventListener('resize', updatePosition)
           })
@@ -441,6 +473,10 @@ export default {
       this.open = false
       this.$emit('hide')
 
+      // Call all cleanup functions
+      this.hideCleanupFunctions.forEach((cleanup) => cleanup())
+      this.hideCleanupFunctions = []
+
       // Make sure that all the items are visible the next time we open the dropdown.
       this.query = ''
       this.search(this.query)
@@ -450,17 +486,23 @@ export default {
      */
     select(value) {
       if (this.multiple) {
-        const newValue = clone(this.value)
+        const newValue = clone(this.currentValue)
         const index = newValue.indexOf(value)
         if (index === -1) {
           newValue.push(value)
         } else {
           newValue.splice(index, 1)
         }
+        // emitting the updated value Vue 2 style.
         this.$emit('input', newValue)
+        // emitting the updated value Vue 3 style.
+        this.$emit('update:modelValue', newValue) // Vue 3 compatibility
         this.$emit('change', newValue)
       } else {
+        // emitting the updated value Vue 2 style.
         this.$emit('input', value)
+        // emitting the updated value Vue 3 style.
+        this.$emit('update:modelValue', value) // Vue 3 compatibility
         this.$emit('change', value)
         this.hide()
       }
@@ -504,12 +546,12 @@ export default {
     hasValue() {
       for (const item of this.getDropdownItemComponents()) {
         if (this.multiple) {
-          for (const value of this.value) {
+          for (const value of this.currentValue) {
             if (_.isEqual(item.value, value)) {
               return true
             }
           }
-        } else if (_.isEqual(item.value, this.value)) {
+        } else if (_.isEqual(item.value, this.currentValue)) {
           return true
         }
       }
@@ -523,8 +565,8 @@ export default {
      * when the component is mounted. At this moment the dropdownItemComponents have been added.
      */
     forceRefreshSelectedValue() {
-      this._computedWatchers.selectedName.run()
-      this._computedWatchers.selectedIcon.run()
+      // TODO MIG this._computedWatchers.selectedName.run()
+      // TODO MIG this._computedWatchers.selectedIcon.run()
       this.$forceUpdate()
     },
     /**

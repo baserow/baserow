@@ -23,7 +23,7 @@
             :data="data"
             :selected-workspace="selectedWorkspace"
             :applications="applications"
-            @focusOnTable="handleFocusOnTable"
+            @focus-on-table="handleFocusOnTable"
           ></component>
         </div>
       </div>

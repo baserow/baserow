@@ -2,10 +2,10 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="url"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="userMentionInRichTextFieldNotification.title" tag="span">
+      <i18n-t keypath="userMentionInRichTextFieldNotification.title" tag="span">
         <template #sender>
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else
@@ -25,7 +25,7 @@
         <template #tableName>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -42,6 +42,7 @@ export default {
       required: true,
     },
   },
+  emits: ['close-panel'],
   computed: {
     params() {
       return {

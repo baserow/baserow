@@ -140,6 +140,7 @@ export default {
       required: true,
     },
   },
+  emits: ['delete', 'update'],
   data() {
     return {
       deleteLoading: false,

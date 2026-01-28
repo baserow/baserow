@@ -60,7 +60,7 @@ export class CSVImporterType extends ImporterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('importerType.csv')
   }
 
@@ -79,7 +79,7 @@ export class PasteImporterType extends ImporterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('importerType.paste')
   }
 
@@ -98,7 +98,7 @@ export class XMLImporterType extends ImporterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('importerType.xml')
   }
 
@@ -117,7 +117,7 @@ export class JSONImporterType extends ImporterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('importerType.json')
   }
 

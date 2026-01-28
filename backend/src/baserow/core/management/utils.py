@@ -31,7 +31,7 @@ def run_command_concurrently(
 
     for i in range(concurrency):
         # Only used by management commands so safe to Popen
-        p = subprocess.Popen(  # nosec
+        p = subprocess.Popen(  # noqa: S603
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -60,10 +60,7 @@ def run_command_concurrently(
         curses.endwin()
 
     if error_processes:
-        print(
-            f"Errors from subprocesses were (they will be mixed due to "
-            f"concurrency):"
-        )
+        print(f"Errors from subprocesses were (they will be mixed due to concurrency):")
         for error_process in error_processes:
             print(error_process.stderr.read(), file=sys.stderr)
         raise CommandError(

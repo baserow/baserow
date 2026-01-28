@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     :right-sidebar="true"
     :right-sidebar-scrollable="true"
     :close-button="false"
@@ -54,7 +55,7 @@
           @changed="reset()"
           @header="onHeader($event)"
           @data="onData($event)"
-          @getData="onGetData($event)"
+          @get-data="onGetData($event)"
         >
           <template #upsertMapping>
             <div class="control margin-top-1">
@@ -204,6 +205,8 @@ import _ from 'lodash'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'ImportFileModal',
@@ -225,6 +228,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['table-refresh'],
   data() {
     return {
       importer: '',
@@ -407,7 +411,7 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -614,13 +618,15 @@ export default {
     },
     async openTable() {
       // Redirect to the newly created table.
-      await this.$nuxt.$router.push({
+      await this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.database.id,
           tableId: this.job.table_id,
         },
       })
+      await pageFinished()
+      await nextTick()
       this.hide()
     },
     onJobDone() {
@@ -643,9 +649,11 @@ export default {
     },
     stopPollAndHandleError(error, specificErrorMap = null) {
       this.stopPollIfRunning()
-      error.handler
-        ? this.handleError(error, 'application', specificErrorMap)
-        : this.showError(error)
+      if (error.handler) {
+        this.handleError(error, 'application', specificErrorMap)
+      } else {
+        this.showError(error)
+      }
     },
   },
 }

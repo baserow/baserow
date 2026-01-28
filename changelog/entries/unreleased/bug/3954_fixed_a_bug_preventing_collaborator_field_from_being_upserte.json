@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug preventing Collaborator field from being upserted by user ID.",
+    "issue_origin": "github",
+    "issue_number": 3954,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-28"
+}

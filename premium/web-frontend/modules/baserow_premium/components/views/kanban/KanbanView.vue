@@ -143,8 +143,7 @@
       @field-updated="$emit('refresh', $event)"
       @field-deleted="$emit('refresh')"
       @field-created="
-        fieldCreated($event)
-        showHiddenFieldsInRowModal = true
+        (fieldCreated($event), (showHiddenFieldsInRowModal = true))
       "
       @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
       @navigate-previous="$emit('navigate-previous', $event)"
@@ -206,6 +205,7 @@ import KanbanViewCreateStackContext from '@baserow_premium/components/views/kanb
 
 export default {
   name: 'KanbanView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     RowCreateModal,
     RowEditModal,
@@ -277,9 +277,27 @@ export default {
     existingSelectOption() {
       return this.singleSelectField.select_options.filter((option) => {
         return this.$store.getters[
-          this.$options.propsData.storePrefix + 'view/kanban/stackExists'
+          `${this.storePrefix}view/kanban/stackExists`
         ](option.id)
       })
+    },
+    singleSelectFieldId() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getSingleSelectFieldId`
+      ]
+    },
+    allRows() {
+      return this.$store.getters[`${this.storePrefix}view/kanban/getAllRows`]
+    },
+    draggingRow() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getDraggingRow`
+      ]
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getAllFieldOptions`
+      ]
     },
   },
   watch: {
@@ -301,19 +319,6 @@ export default {
         }
       },
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        singleSelectFieldId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getSingleSelectFieldId',
-        allRows: this.$options.propsData.storePrefix + 'view/kanban/getAllRows',
-        draggingRow:
-          this.$options.propsData.storePrefix + 'view/kanban/getDraggingRow',
-      }),
-    }
   },
   mounted() {
     if (this.row !== null) {

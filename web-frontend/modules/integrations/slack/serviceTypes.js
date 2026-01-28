@@ -3,7 +3,7 @@ import {
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
 export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -13,7 +13,7 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.slackWriteMessage')
+    return this.app.$i18n.t('serviceType.slackWriteMessage')
   }
 
   get icon() {
@@ -25,7 +25,7 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.slackWriteMessageDescription')
+    return this.app.$i18n.t('serviceType.slackWriteMessageDescription')
   }
 
   getErrorMessage({ service }) {
@@ -33,13 +33,13 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
       return null
     }
     if (!service.integration_id) {
-      return this.app.i18n.t('serviceType.slackWriteMessageMissingIntegration')
+      return this.app.$i18n.t('serviceType.slackWriteMessageMissingIntegration')
     }
     if (!service.channel.length) {
-      return this.app.i18n.t('serviceType.slackWriteMessageMissingChannel')
+      return this.app.$i18n.t('serviceType.slackWriteMessageMissingChannel')
     }
     if (!service.text?.formula.length) {
-      return this.app.i18n.t('serviceType.slackWriteMessageMissingMessage')
+      return this.app.$i18n.t('serviceType.slackWriteMessageMissingMessage')
     }
     return super.getErrorMessage({ service })
   }

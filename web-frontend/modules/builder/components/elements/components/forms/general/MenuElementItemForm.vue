@@ -191,6 +191,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-item'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

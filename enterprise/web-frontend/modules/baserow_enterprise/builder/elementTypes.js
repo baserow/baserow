@@ -16,8 +16,8 @@ import { BuilderFileInputElementPaidFeature } from '@baserow_enterprise/paidFeat
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
-import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg'
-import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg'
+import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg?url'
+import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg?url'
 
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
@@ -27,11 +27,11 @@ export class AuthFormElementType extends ElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.authForm')
+    return this.app.$i18n.t('elementType.authForm')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.authFormDescription')
+    return this.app.$i18n.t('elementType.authFormDescription')
   }
 
   get iconClass() {
@@ -60,7 +60,7 @@ export class AuthFormElementType extends ElementType {
     if (!element.user_source_id) {
       return this.$t('elementType.errorUserSourceMissing')
     }
-    const userSource = this.app.store.getters['userSource/getUserSourceById'](
+    const userSource = this.app.$store.getters['userSource/getUserSourceById'](
       builder,
       element.user_source_id
     )
@@ -73,7 +73,7 @@ export class AuthFormElementType extends ElementType {
     const hasLoginOptions = Object.keys(loginOptions).length !== 0
 
     if (!hasLoginOptions) {
-      return this.app.i18n.t('elementType.errorUserSourceHasNoLoginOption')
+      return this.app.$i18n.t('elementType.errorUserSourceHasNoLoginOption')
     }
 
     return super.getErrorMessage(element, applicationContext)
@@ -113,11 +113,11 @@ export class FileInputElementType extends FormElementType {
   }
 
   get name() {
-    return this.app.i18n.t('elementType.fileInput')
+    return this.app.$i18n.t('elementType.fileInput')
   }
 
   get description() {
-    return this.app.i18n.t('elementType.fileInputDescription')
+    return this.app.$i18n.t('elementType.fileInputDescription')
   }
 
   get iconClass() {
@@ -231,7 +231,7 @@ export class FileInputElementType extends FormElementType {
         workspace.id
       )
     ) {
-      return this.app.i18n.t('enterprise.deactivated')
+      return this.app.$i18n.t('enterprise.deactivated')
     }
     return super.isDeactivatedReason({ workspace })
   }

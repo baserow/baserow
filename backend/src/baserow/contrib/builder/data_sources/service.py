@@ -322,12 +322,12 @@ class DataSourceService:
                 "external", {}
             ).get(data_source.service.id, [])
 
-            new_results[
-                data_source.id
-            ] = data_source.service.get_type().sanitize_result(
-                data_source.service.specific,
-                results[data_source.id],
-                allowed_field_names,
+            new_results[data_source.id] = (
+                data_source.service.get_type().sanitize_result(
+                    data_source.service.specific,
+                    results[data_source.id],
+                    allowed_field_names,
+                )
             )
 
         return new_results

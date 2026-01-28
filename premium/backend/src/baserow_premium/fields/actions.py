@@ -4,14 +4,13 @@ from typing import Optional
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow_premium.fields.handler import AIFieldHandler
-
 from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
 )
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.registries import ActionType, ActionTypeDescription
+from baserow_premium.fields.handler import AIFieldHandler
 
 
 class GenerateFormulaWithAIActionType(ActionType):

@@ -3,7 +3,6 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.views.handler import ViewHandler
@@ -15,6 +14,7 @@ from baserow.core.apps import sync_operations_after_migrate
 from baserow_enterprise.apps import sync_default_roles_after_migrate
 from baserow_enterprise.role.default_roles import default_roles
 from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 
 @pytest.fixture(autouse=True)

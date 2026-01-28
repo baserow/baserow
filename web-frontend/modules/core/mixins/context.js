@@ -5,27 +5,32 @@
 export default {
   methods: {
     getRootContext() {
-      if (
-        this.$children.length > 0 &&
-        this.$children[0].$options.name === 'Context'
-      ) {
-        return this.$children[0]
+      // Search in the refs
+      if (this.$refs.context) {
+        return this.$refs.context
       }
+
+      throw new Error('Missing context ref in this component')
     },
     toggle(...args) {
-      this.getRootContext().toggle(...args)
+      const context = this.getRootContext()
+      context && context.toggle(...args)
     },
     toggleNextToMouse(...args) {
-      this.getRootContext().toggleNextToMouse(...args)
+      const context = this.getRootContext()
+      context && context.toggleNextToMouse(...args)
     },
     show(...args) {
-      this.getRootContext().show(...args)
+      const context = this.getRootContext()
+      context && context.show(...args)
     },
     showNextToMouse(...args) {
-      this.getRootContext().showNextToMouse(...args)
+      const context = this.getRootContext()
+      context && context.showNextToMouse(...args)
     },
     hide(...args) {
-      this.getRootContext().hide(...args)
+      const context = this.getRootContext()
+      context && context.hide(...args)
     },
   },
 }

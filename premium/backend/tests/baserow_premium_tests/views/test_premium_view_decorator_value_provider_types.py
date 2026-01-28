@@ -2,10 +2,6 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.views.decorator_value_provider_types import (
-    ConditionalColorValueProviderType,
-)
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -14,6 +10,10 @@ from baserow.contrib.database.views.models import ViewDecoration
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyStr
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.views.decorator_value_provider_types import (
+    ConditionalColorValueProviderType,
+)
 
 
 @pytest.mark.django_db

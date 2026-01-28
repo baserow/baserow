@@ -6,7 +6,7 @@ import {
 } from '@baserow/modules/core/utils/object'
 
 describe('test utils object', () => {
-  test('test clone', () => {
+  test('clone', () => {
     const o = {
       a: '1',
       b: '2',
@@ -23,7 +23,7 @@ describe('test utils object', () => {
     expect(cloned.c.d).toBe('3')
   })
 
-  test('test mappingToStringifiedJSONLines', () => {
+  test('mappingToStringifiedJSONLines', () => {
     expect(
       mappingToStringifiedJSONLines(
         {
@@ -62,7 +62,7 @@ describe('test utils object', () => {
     })
   })
 
-  test('test isPromise', () => {
+  test('isPromise', () => {
     expect(isPromise(new Promise(() => null))).toBeTruthy()
     expect(isPromise('string')).toBeFalsy()
 
@@ -101,7 +101,7 @@ describe('test utils object', () => {
     ['b', ['1', '2', '3']],
     ['b.*', ['1', '2', '3']],
     ['b.0', '1'],
-  ])('test getValueAtPath', (path, result) => {
+  ])('getValueAtPath', (path, result) => {
     const obj = {
       a: { b: { c: 123 } },
       list: [{ d: 456 }, { d: 789, e: 111 }],

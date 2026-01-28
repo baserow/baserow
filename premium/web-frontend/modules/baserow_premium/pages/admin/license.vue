@@ -1,6 +1,6 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div class="license-detail">
+    <div v-if="license" class="license-detail">
       <h1>
         {{ $t('license.title', { name: licenseType.getName() }) }}
       </h1>
@@ -176,15 +176,15 @@
               </div>
               {{ $t('license.disconnectLicense') }}
             </div>
-            <i18n path="license.disconnectDescription" tag="p">
+            <i18n-t keypath="license.disconnectDescription" tag="p">
               <template #contact>
                 <a href="https://baserow.io/contact" target="_blank"
                   >baserow.io/contact</a
                 >
               </template>
-            </i18n>
+            </i18n-t>
 
-            <Button type="danger" @click="$refs.disconnectModal.show()">
+            <Button type="danger" @click="disconnectModal?.show()">
               {{ $t('license.disconnectLicense') }}
             </Button>
             <DisconnectLicenseModal
@@ -198,7 +198,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import LicenseService from '@baserow_premium/services/license'
@@ -206,65 +206,68 @@ import DisconnectLicenseModal from '@baserow_premium/components/license/Disconne
 import ManualLicenseSeatsForm from '@baserow_premium/components/license/ManualLicenseSeatForm'
 import AutomaticLicenseSeats from '@baserow_premium/components/license/AutomaticLicenseSeats'
 
-export default {
-  components: {
-    DisconnectLicenseModal,
-    ManualLicenseSeatsForm,
-    AutomaticLicenseSeats,
-  },
+definePageMeta({
   layout: 'app',
   middleware: 'staff',
-  async asyncData({ params, app, error }) {
-    try {
-      const { data } = await LicenseService(app.$client).fetch(params.id)
-      return { license: data }
-    } catch {
-      return error({
-        statusCode: 404,
-        message: 'The license was not found.',
-      })
+})
+
+const route = useRoute()
+const router = useRouter()
+const { $client, $registry } = useNuxtApp()
+
+// Fetch license data
+const { data } = await useAsyncData(`license-${route.params.id}`, async () => {
+  try {
+    const { data: licenseData } = await LicenseService($client).fetch(
+      route.params.id
+    )
+    return licenseData
+  } catch {
+    throw createError({
+      statusCode: 404,
+      message: 'The license was not found.',
+    })
+  }
+})
+
+const license = computed(() => data.value)
+
+const checkLoading = ref(false)
+const disconnectModal = ref(null)
+
+const licenseType = computed(() => {
+  if (!license.value) return null
+  return $registry.get('license', license.value.product_code)
+})
+
+const licenseFeatureDescription = computed(() => {
+  if (!licenseType.value) return []
+  return licenseType.value.getFeaturesDescription()
+})
+
+function localDateTime(timestamp) {
+  if (timestamp === null) {
+    return ''
+  }
+  return moment.utc(timestamp).local().format('ll LT')
+}
+
+async function check() {
+  checkLoading.value = true
+
+  try {
+    const { data: responseData, status } = await LicenseService($client).check(
+      license.value.id
+    )
+    if (status === 204) {
+      router.push({ name: 'admin-licenses' })
+    } else {
+      data.value = responseData
     }
-  },
-  data() {
-    return {
-      user: null,
-      checkLoading: false,
-    }
-  },
-  computed: {
-    licenseType() {
-      return this.$registry.get('license', this.license.product_code)
-    },
-    licenseFeatureDescription() {
-      return this.licenseType.getFeaturesDescription()
-    },
-  },
-  methods: {
-    localDateTime(timestamp) {
-      if (timestamp === null) {
-        return ''
-      }
+  } catch (error) {
+    notifyIf(error)
+  }
 
-      return moment.utc(timestamp).local().format('ll LT')
-    },
-    async check() {
-      this.checkLoading = true
-
-      try {
-        const { data, status } = await LicenseService(this.$client).check(
-          this.license.id
-        )
-        if (status === 204) {
-          this.$router.push({ name: 'admin-licenses' })
-        } else {
-          this.license = data
-        }
-      } catch (error) {
-        notifyIf(error)
-      }
-
-      this.checkLoading = false
-    },
-  },
+  checkLoading.value = false
 }
 </script>

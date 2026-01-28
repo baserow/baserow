@@ -13,7 +13,7 @@
         :disabled="loading"
       >
         {{ $t('action.add') }}
-        {{ automationApplicationType.getName() | lowercase }}
+        {{ $filters.lowercase(automationApplicationType.getName()) }}
       </Button>
     </div>
   </ApplicationForm>
@@ -40,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted'],
   computed: {
     automationApplicationType() {
       return this.$registry.get('application', 'automation')

@@ -4,11 +4,11 @@
     ref="textarea"
     class="ab-input"
     style="resize: none"
-    :value="fromValue(value)"
+    :value="fromValue(currentValue)"
     :placeholder="placeholder"
     :rows="rows"
     @blur="$emit('blur', $event)"
-    @input="$emit('input', toValue($event.target.value))"
+    @input="input(toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
     @keydown="$emit('keydown', $event)"
@@ -18,10 +18,10 @@
     ref="input"
     :type="type"
     class="ab-input"
-    :value="fromValue(value)"
+    :value="fromValue(currentValue)"
     :placeholder="placeholder"
     @blur="$emit('blur', $event)"
-    @input="$emit('input', toValue($event.target.value))"
+    @input="input(toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
     @keydown="$emit('keydown', $event)"
@@ -31,18 +31,17 @@
 <script>
 export default {
   name: 'ABInput',
-  model: {
-    prop: 'value',
-    event: 'input',
-  },
   props: {
     /**
      * @type {string} - The value of the input.
      */
     value: {
       type: [String, Number],
-      required: false,
-      default: '',
+      default: undefined,
+    },
+    modelValue: {
+      type: [String, Number],
+      default: undefined,
     },
     /**
      * @type {string} - The placeholder value of the input.
@@ -96,6 +95,12 @@ export default {
       },
     },
   },
+  emits: ['input', 'update:modelValue', 'blur', 'click', 'keydown', 'focus'],
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+  },
   watch: {
     value: {
       async handler(value) {
@@ -127,6 +132,12 @@ export default {
       } else {
         this.$refs.input.focus()
       }
+    },
+    input(value) {
+      // emitting the updated value Vue 3 style.
+      this.$emit('update:modelValue', value)
+      // emitting the updated value Vue 2 style.
+      this.$emit('input', value)
     },
   },
 }

@@ -258,11 +258,13 @@ export default {
       default: false,
     },
   },
+  emits: ['add-row', 'row-click', 'update-field-width'],
   data() {
     return {
       addRowHover: false,
       currentHoveredRow: null,
       fieldWidthOverride: {},
+      keydownEvent: null,
     }
   },
   computed: {
@@ -283,7 +285,7 @@ export default {
     },
   },
   mounted() {
-    const keydownEvent = (event) => {
+    this.keydownEvent = (event) => {
       if (
         // If we allow row hovering, we also want to allow keyboard navigation.
         this.showHoveredRow &&
@@ -311,10 +313,12 @@ export default {
         }
       }
     }
-    document.body.addEventListener('keydown', keydownEvent)
-    this.$once('hide', () => {
-      document.body.removeEventListener('keydown', keydownEvent)
-    })
+    document.body.addEventListener('keydown', this.keydownEvent)
+  },
+  beforeUnmount() {
+    if (this.keydownEvent) {
+      document.body.removeEventListener('keydown', this.keydownEvent)
+    }
   },
   methods: {
     getHorizontalScrollbarElement() {
@@ -359,7 +363,7 @@ export default {
     },
     moveFieldWidth(field, width) {
       // Temporarily set the field width override for the visual resize animation.
-      this.$set(this.fieldWidthOverride, field.id, width)
+      this.fieldWidthOverride[field.id] = width
     },
     updateFieldWidth(field, { width, oldWidth }) {
       this.fieldWidthOverride = {}

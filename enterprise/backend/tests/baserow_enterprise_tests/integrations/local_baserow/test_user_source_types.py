@@ -1534,9 +1534,9 @@ def test_local_baserow_user_source_authentication_is_configured(
     ]:
         prev_field = getattr(user_source, field)
         setattr(user_source, field, None)
-        assert (
-            user_source_type.is_configured(user_source) is False
-        ), f"Failed for {field}"
+        assert user_source_type.is_configured(user_source) is False, (
+            f"Failed for {field}"
+        )
         setattr(user_source, field, prev_field)
 
 

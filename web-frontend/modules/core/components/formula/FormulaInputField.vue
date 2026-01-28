@@ -27,7 +27,7 @@
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown.native="onDataExplorerMouseDown"
+      @mousedown="onDataExplorerMouseDown"
     />
 
     <NodeHelpTooltip
@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { Editor, EditorContent, Node } from '@tiptap/vue-2'
+import { Editor, EditorContent, Node } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
@@ -162,6 +162,7 @@ export default {
       default: () => BASEROW_FORMULA_MODES,
     },
   },
+  emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
     return {
       editor: null,
@@ -368,7 +369,10 @@ export default {
     },
 
     value(value) {
-      if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
+      // Use editor.getJSON() directly instead of this.wrapperContent to avoid stale cached data
+      const editorContent = this.editor?.getJSON()
+      const currentFormula = this.toFormula(editorContent)
+      if (!_.isEqual(value, currentFormula)) {
         const content = this.toContent(value)
 
         if (!this.isFormulaInvalid) {
@@ -392,7 +396,7 @@ export default {
     this.createEditor()
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },
@@ -457,17 +461,21 @@ export default {
     },
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      const formula = this.toFormula(this.wrapperContent)
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {
-        this.$emit('input', this.toFormula(this.wrapperContent))
+        this.$emit('input', formula)
       }
     },
     onUpdate() {
       this.emitChange()
     },
-    handleNodeSelected({ path, node }) {
+    handleNodeSelected(data) {
+      const { path, node } = data
       switch (node.type) {
         case 'data':
           this.editor.commands.insertDataComponent(path)

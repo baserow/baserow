@@ -40,6 +40,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'TimelineTimescaleContext',
+  emits: ['select'],
   mixins: [context],
   props: {
     timescale: {

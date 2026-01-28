@@ -1,5 +1,5 @@
 <template>
-  <Context class="color-picker-context" @shown="onShown">
+  <Context ref="context" class="color-picker-context" @shown="onShown">
     <ColorPicker
       :value="hexColorIncludingAlpha"
       :allow-opacity="allowOpacity"
@@ -129,6 +129,7 @@ export default {
       default: true,
     },
   },
+  emits: ['input'],
   data() {
     return {
       hexColorIncludingAlpha: '',

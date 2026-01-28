@@ -68,6 +68,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   created() {
     if (this.value.length === 0 && this.required) {
       this.add()

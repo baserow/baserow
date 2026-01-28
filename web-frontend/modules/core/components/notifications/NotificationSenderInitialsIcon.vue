@@ -1,12 +1,17 @@
-<template functional>
+<template>
   <div class="notification-panel__notification-user-initials">
-    {{ props.notification.sender?.first_name | nameAbbreviation }}
+    {{ $filters.nameAbbreviation(notification.sender?.first_name) }}
   </div>
 </template>
 
 <script>
 export default {
   name: 'NotificationSenderInitialsIcon',
-  functional: true,
+  props: {
+    notification: {
+      type: Object,
+      required: true,
+    },
+  },
 }
 </script>

@@ -2,6 +2,7 @@ import form from '@baserow/modules/core/mixins/form'
 
 export default {
   mixins: [form],
+  emits: ['error'],
   props: {
     domain: {
       type: String,

@@ -40,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['select'],
   computed: {
     viewDecoratorTypes() {
       return this.$registry

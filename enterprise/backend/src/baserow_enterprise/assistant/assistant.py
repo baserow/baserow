@@ -5,7 +5,6 @@ from typing import Any, AsyncGenerator, Callable, Tuple, TypedDict
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
-from django.utils.translation import gettext as _
 
 import udspy
 from udspy.callback import BaseCallback
@@ -21,7 +20,7 @@ from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .signatures import ChatSignature, RequestRouter
+from .signatures import ChatSignature
 from .types import (
     AiMessage,
     AiMessageChunk,
@@ -200,32 +199,9 @@ class Assistant:
             "temperature": settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE,
             "response_format": {"type": "json_object"},
         }
-        self.search_user_docs_tool = self._get_search_user_docs_tool(tools)
-        self.agent_tools = tools
-        self._request_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
         self._assistant = udspy.ReAct(
-            ChatSignature, tools=self.agent_tools, max_iters=20, **module_kwargs
+            ChatSignature, tools=tools, max_iters=20, **module_kwargs
         )
-
-    def _get_search_user_docs_tool(
-        self, tools: list[udspy.Tool | Callable]
-    ) -> udspy.Tool | None:
-        """
-        Retrieves the search_user_docs tool from the list of tools if available.
-
-        :param tools: The list of tools to search through.
-        :return: The search_user_docs as udspy.Tool or None if not found.
-        """
-
-        search_user_docs_tool = next(
-            (tool for tool in tools if tool.name == "search_user_docs"), None
-        )
-        if search_user_docs_tool is None or isinstance(
-            search_user_docs_tool, udspy.Tool
-        ):
-            return search_user_docs_tool
-
-        return udspy.Tool(search_user_docs_tool)
 
     async def acreate_chat_message(
         self,
@@ -300,14 +276,14 @@ class Assistant:
                 )
         return list(reversed(messages))
 
-    async def afetch_chat_history(self, limit=30):
+    async def afetch_chat_history(self, limit: int = 50) -> udspy.History:
         """
         Loads the chat history into a udspy.History object. It only loads complete
         message pairs (human + AI). The history will be in chronological order and must
         respect the module signature (question, answer).
 
         :param limit: The maximum number of message pairs to load.
-        :return: None
+        :return: A udspy.History instance containing the chat history.
         """
 
         history = udspy.History()
@@ -425,82 +401,6 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def get_router_stream(
-        self, message: HumanMessage
-    ) -> AsyncGenerator[Any, None]:
-        """
-        Returns an async generator that streams the router's response to a user
-
-        :param message: The current user message that needs context from history.
-        :return: An async generator that yields stream events.
-        """
-
-        self.history = await self.afetch_chat_history()
-
-        return self._request_router.astream(
-            question=message.content,
-            conversation_history=RequestRouter.format_conversation_history(
-                self.history
-            ),
-        )
-
-    async def _process_router_stream(
-        self,
-        event: Any,
-        human_msg: AssistantChatMessage,
-    ) -> Tuple[list[AssistantMessageUnion], bool, udspy.Prediction | None]:
-        """
-        Process a single event from the smart router output stream.
-
-        :param event: The event to process.
-        :param human_msg: The human message instance.
-        :return: a tuple of (messages_to_yield, prediction).
-        """
-
-        messages = []
-        prediction = None
-
-        if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
-            messages.append(event)
-            return messages, prediction
-
-        # Stream the final answer
-        if isinstance(event, udspy.OutputStreamChunk):
-            if event.field_name == "answer" and event.content.strip():
-                messages.append(
-                    AiMessageChunk(
-                        content=event.content,
-                        sources=self._assistant_callbacks.sources,
-                    )
-                )
-
-        elif isinstance(event, udspy.Prediction):
-            if hasattr(event, "routing_decision"):
-                prediction = event
-
-            if getattr(event, "routing_decision", None) == "delegate_to_agent":
-                messages.append(AiThinkingMessage(content=_("Thinking...")))
-            elif getattr(event, "routing_decision", None) == "search_user_docs":
-                if self.search_user_docs_tool is not None:
-                    await self.search_user_docs_tool(question=event.search_query)
-                else:
-                    messages.append(
-                        AiMessage(
-                            content=_(
-                                "I wanted to search the documentation for you, "
-                                "but the search tool isn't currently available.\n\n"
-                                "To enable documentation search, you'll need to set up "
-                                "the local knowledge base. \n\n"
-                                "You can find setup instructions at: https://baserow.io/user-docs"
-                            ),
-                        )
-                    )
-            elif getattr(event, "answer", None):
-                ai_msg = await self._acreate_ai_message_response(human_msg, event)
-                messages.append(ai_msg)
-
-        return messages, prediction
-
     async def _process_agent_stream(
         self,
         event: Any,
@@ -547,7 +447,7 @@ class Assistant:
         return messages, prediction
 
     def get_agent_stream(
-        self, message: HumanMessage, extracted_context: str
+        self, message: HumanMessage, conversation_history: udspy.History | None = None
     ) -> AsyncGenerator[Any, None]:
         """
         Returns an async generator that streams the ReAct agent's response to a user
@@ -557,12 +457,19 @@ class Assistant:
         :return: An async generator that yields stream events.
         """
 
-        ui_context = message.ui_context.format() if message.ui_context else None
+        formatted_history = (
+            ChatSignature.format_conversation_history(conversation_history)
+            if conversation_history
+            else []
+        )
+        formatted_ui_context = (
+            message.ui_context.format() if message.ui_context else None
+        )
 
         return self._assistant.astream(
             question=message.content,
-            context=extracted_context,
-            ui_context=ui_context,
+            conversation_history=formatted_history,
+            ui_context=formatted_ui_context,
         )
 
     async def _process_stream(
@@ -608,38 +515,28 @@ class Assistant:
         )
         default_callbacks = udspy.settings.callbacks
 
-        with udspy.settings.context(
-            lm=self._lm_client,
-            callbacks=[*default_callbacks, *self._callbacks],
-        ), self._telemetry_callbacks.trace(self._chat, human_msg.content):
+        with (
+            udspy.settings.context(
+                lm=self._lm_client,
+                callbacks=[*default_callbacks, *self._callbacks],
+            ),
+            self._telemetry_callbacks.trace(self._chat, human_msg.content),
+        ):
             message_id = str(human_msg.id)
             yield AiStartedMessage(message_id=message_id)
 
-            router_stream = await self.get_router_stream(message)
-            routing_decision, extracted_context = None, ""
+            history = await self.afetch_chat_history(limit=30)
 
-            async for msg, prediction in self._process_stream(
-                human_msg, router_stream, self._process_router_stream
+            agent_stream = self.get_agent_stream(message, history)
+
+            async for msg, __ in self._process_stream(
+                human_msg, agent_stream, self._process_agent_stream
             ):
-                if prediction is not None:
-                    routing_decision = prediction.routing_decision
-                    extracted_context = prediction.extracted_context
                 yield msg
 
-            if routing_decision == "delegate_to_agent":
-                agent_stream = self.get_agent_stream(
-                    message,
-                    extracted_context=extracted_context,
-                )
-
-                async for msg, __ in self._process_stream(
-                    human_msg, agent_stream, self._process_agent_stream
-                ):
-                    yield msg
-
-                # Generate chat title if needed
-                if not self._chat.title:
-                    chat_title = await self._generate_chat_title(human_msg.content)
-                    self._chat.title = chat_title
-                    await self._chat.asave(update_fields=["title", "updated_on"])
-                    yield ChatTitleMessage(content=chat_title)
+            # Generate chat title if needed
+            if not self._chat.title:
+                chat_title = await self._generate_chat_title(human_msg.content)
+                self._chat.title = chat_title
+                await self._chat.asave(update_fields=["title", "updated_on"])
+                yield ChatTitleMessage(content=chat_title)

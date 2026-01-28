@@ -1,11 +1,11 @@
-import { shallowMount } from '@vue/test-utils'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 import FormGroup from '@baserow/modules/core/components/FormGroup.vue'
 
 describe('FormGroup.vue', () => {
-  it('renders the helper text when provided', () => {
-    const wrapper = shallowMount(FormGroup, {
-      propsData: {
+  it('renders the helper text when provided', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
+      props: {
         helperText: 'This is helper text',
       },
     })
@@ -15,9 +15,9 @@ describe('FormGroup.vue', () => {
     )
   })
 
-  it('renders the error slot when error prop is true', () => {
-    const wrapper = shallowMount(FormGroup, {
-      propsData: {
+  it('renders the error slot when error prop is true', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
+      props: {
         error: true,
       },
       slots: {
@@ -31,9 +31,9 @@ describe('FormGroup.vue', () => {
     )
   })
 
-  it('does not render the error slot when error prop is false', () => {
-    const wrapper = shallowMount(FormGroup, {
-      propsData: {
+  it('does not render the error slot when error prop is false', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
+      props: {
         error: false,
       },
       slots: {
@@ -43,8 +43,8 @@ describe('FormGroup.vue', () => {
 
     expect(wrapper.find('.control__messages--error').exists()).toBe(false)
   })
-  it('renders the warning slot when provided', () => {
-    const wrapper = shallowMount(FormGroup, {
+  it('renders the warning slot when provided', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
       slots: {
         warning: '<div>This is a warning message</div>',
       },
@@ -56,8 +56,8 @@ describe('FormGroup.vue', () => {
     )
   })
 
-  it('renders the helper slot when provided', () => {
-    const wrapper = shallowMount(FormGroup, {
+  it('renders the helper slot when provided', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
       slots: {
         helper: '<div>This is helper slot content</div>',
       },
@@ -69,8 +69,8 @@ describe('FormGroup.vue', () => {
     )
   })
 
-  it('renders the default slot content', () => {
-    const wrapper = shallowMount(FormGroup, {
+  it('renders the default slot content', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
       slots: {
         default: '<div>This is default slot content</div>',
       },

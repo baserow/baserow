@@ -168,7 +168,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.color')
+    return this.app.$i18n.t('themeConfigBlockType.color')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -204,7 +204,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   getColorVariables(theme) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const customColors = theme.custom_colors ? [...theme.custom_colors] : []
     return [
       {
@@ -261,7 +261,7 @@ export class TypographyThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.typography')
+    return this.app.$i18n.t('themeConfigBlockType.typography')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -357,7 +357,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.button')
+    return this.app.$i18n.t('themeConfigBlockType.button')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -388,7 +388,7 @@ export class ButtonThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addFontFamilyIfExists(theme, `button_font_family`)
     style.addFontWeightIfExists(theme, `button_font_weight`)
@@ -415,7 +415,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.link')
+    return this.app.$i18n.t('themeConfigBlockType.link')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -435,7 +435,7 @@ export class LinkThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addIfExists(theme, `link_font_family`, `--link-font-family`, (v) => {
       const fontFamilyType = this.app.$registry.get('fontFamily', v)
@@ -551,7 +551,7 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.image')
+    return this.app.$i18n.t('themeConfigBlockType.image')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -568,7 +568,7 @@ export class ImageThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
 
     const imageMaxWidth = get(
@@ -651,7 +651,7 @@ export class PageThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.page')
+    return this.app.$i18n.t('themeConfigBlockType.page')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -706,7 +706,7 @@ export class InputThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.input')
+    return this.app.$i18n.t('themeConfigBlockType.input')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -764,7 +764,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   get label() {
-    return this.app.i18n.t('themeConfigBlockType.table')
+    return this.app.$i18n.t('themeConfigBlockType.table')
   }
 
   getCSS(theme, colorVariables, baseTheme = null) {
@@ -807,7 +807,7 @@ export class TableThemeConfigBlockType extends ThemeConfigBlockType {
           [HORIZONTAL_ALIGNMENTS.LEFT]: 'flex-start',
           [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
           [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
-        }[v])
+        })[v]
     )
     style.addPixelValueIfExists(theme, `table_cell_vertical_padding`)
     style.addPixelValueIfExists(theme, `table_cell_horizontal_padding`)

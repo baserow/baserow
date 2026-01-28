@@ -104,7 +104,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
     }
 
     response = api_client.get(
-        f'{reverse("api:admin:workspaces:list")}?search={workspace_1.name}',
+        f"{reverse('api:admin:workspaces:list')}?search={workspace_1.name}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {staff_token}",
     )
@@ -136,7 +136,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
     }
 
     response = api_client.get(
-        f'{reverse("api:admin:workspaces:list")}?sorts=-name',
+        f"{reverse('api:admin:workspaces:list')}?sorts=-name",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {staff_token}",
     )

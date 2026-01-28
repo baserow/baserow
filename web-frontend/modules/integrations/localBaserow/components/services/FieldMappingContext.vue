@@ -1,5 +1,9 @@
 <template>
-  <Context :overflow-scroll="true" :max-height-if-outside-viewport="true">
+  <Context
+    ref="context"
+    :overflow-scroll="true"
+    :max-height-if-outside-viewport="true"
+  >
     <ul class="context__menu">
       <li class="context__menu-item">
         <a class="context__menu-item-link" @click.prevent="handleEditClick()">
@@ -23,6 +27,7 @@ export default {
       required: true,
     },
   },
+  emits: ['edit'],
   computed: {
     enabledClass() {
       return this.fieldMapping.enabled ? 'iconoir-eye-off' : 'iconoir-eye-empty'

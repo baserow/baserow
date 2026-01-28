@@ -1,13 +1,81 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`GridViewRows component with decoration Default component 1`] = `
+exports[`GridViewRows component with decoration > Default component 1`] = `
 <div
   class="context"
-  style="top: auto; right: auto; bottom: auto; left: auto; max-height: none;"
+  style="top: auto; right: auto; bottom: auto; left: auto;"
 >
+  
   <div
     class="decorator-list"
   >
+    
+    <div
+      class="decorator-list__item"
+    >
+      <div
+        class="decorator-item"
+      >
+        <img
+          class="decorator-item__image"
+          src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='43.16'%20height='43'%20viewBox='0%200%2043.16%2043'%3e%3cg%20id='Group_987'%20data-name='Group%20987'%20transform='translate(-1019.5%20-766)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='43.16'%20transform='translate(1019.5%20787.5)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_791'%20data-name='Path%20791'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1026%20779)'%20fill='%239fa4ab'/%3e%3cpath%20id='Path_792'%20data-name='Path%20792'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1026%20806)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1581'%20data-name='Rectangle%201581'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20793)'%20fill='%23b4bac2'/%3e%3crect%20id='Rectangle_1582'%20data-name='Rectangle%201582'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20766)'%20fill='%23d9dbde'/%3e%3c/g%3e%3c/svg%3e"
+        />
+        <div
+          class="decorator-item__content"
+        >
+          <div
+            class="decorator-item__title"
+          >
+            viewDecoratorType.leftBorderColor 
+            <div
+              class="deactivated-label"
+            >
+              <i
+                class="iconoir-lock"
+              />
+            </div>
+          </div>
+          <div
+            class="decorator-item__description"
+          >
+            viewDecoratorType.leftBorderColorDescription
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="decorator-list__item"
+    >
+      <div
+        class="decorator-item"
+      >
+        <img
+          class="decorator-item__image"
+          src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='44'%20height='41'%20viewBox='0%200%2044%2041'%3e%3cg%20id='Group_988'%20data-name='Group%20988'%20transform='translate(-1463%20-854.25)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='44'%20transform='translate(1463%20874.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cline%20id='Line_684'%20data-name='Line%20684'%20x2='44'%20transform='translate(1463%20894.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_793'%20data-name='Path%20793'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1469.84%20870.25)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1584'%20data-name='Rectangle%201584'%20width='44'%20height='20'%20transform='translate(1463%20875)'%20fill='rgba(217,219,222,0.38)'/%3e%3cpath%20id='Path_794'%20data-name='Path%20794'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1469.84%20889.25)'%20fill='%239fa4ab'/%3e%3cline%20id='Line_685'%20data-name='Line%20685'%20x2='44'%20transform='translate(1463%20854.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3c/g%3e%3c/svg%3e"
+        />
+        <div
+          class="decorator-item__content"
+        >
+          <div
+            class="decorator-item__title"
+          >
+            viewDecoratorType.backgroundColor 
+            <div
+              class="deactivated-label"
+            >
+              <i
+                class="iconoir-lock"
+              />
+            </div>
+          </div>
+          <div
+            class="decorator-item__description"
+          >
+            viewDecoratorType.backgroundColorDescription
+          </div>
+        </div>
+      </div>
+    </div>
     <div
       class="decorator-list__item"
     >
@@ -18,36 +86,31 @@ exports[`GridViewRows component with decoration Default component 1`] = `
           class="decorator-item__image"
           src="fake/url.png"
         />
-         
         <div
           class="decorator-item__content"
         >
           <div
             class="decorator-item__title"
           >
-            
-      Fake decorator
-      
-            <!---->
+            Fake decorator 
+            <!--v-if-->
           </div>
-           
           <div
             class="decorator-item__description"
           >
-            
-      Fake decorator description
-    
+            Fake decorator description
           </div>
         </div>
       </div>
-       
-      <!---->
+      <!--v-if-->
     </div>
+    
   </div>
+  
 </div>
 `;
 
-exports[`GridViewRows component with decoration Should show cant add decorator tooltip 1`] = `
+exports[`GridViewRows component with decoration > Should show cant add decorator tooltip 1`] = `
 <body>
   <div
     class="tooltip tooltip--body tooltip--center"
@@ -56,16 +119,84 @@ exports[`GridViewRows component with decoration Should show cant add decorator t
     <div
       class="tooltip__content"
     >
-      can't be added reason
+      viewDecoratorType.onlyForPremium
     </div>
   </div>
   <div
     class="context"
-    style="top: auto; right: auto; bottom: auto; left: auto; max-height: none;"
+    style="top: auto; right: auto; bottom: auto; left: auto;"
   >
+    
     <div
       class="decorator-list"
     >
+      
+      <div
+        class="decorator-list__item"
+      >
+        <div
+          class="decorator-item"
+        >
+          <img
+            class="decorator-item__image"
+            src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='43.16'%20height='43'%20viewBox='0%200%2043.16%2043'%3e%3cg%20id='Group_987'%20data-name='Group%20987'%20transform='translate(-1019.5%20-766)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='43.16'%20transform='translate(1019.5%20787.5)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_791'%20data-name='Path%20791'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1026%20779)'%20fill='%239fa4ab'/%3e%3cpath%20id='Path_792'%20data-name='Path%20792'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1026%20806)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1581'%20data-name='Rectangle%201581'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20793)'%20fill='%23b4bac2'/%3e%3crect%20id='Rectangle_1582'%20data-name='Rectangle%201582'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20766)'%20fill='%23d9dbde'/%3e%3c/g%3e%3c/svg%3e"
+          />
+          <div
+            class="decorator-item__content"
+          >
+            <div
+              class="decorator-item__title"
+            >
+              viewDecoratorType.leftBorderColor 
+              <div
+                class="deactivated-label"
+              >
+                <i
+                  class="iconoir-lock"
+                />
+              </div>
+            </div>
+            <div
+              class="decorator-item__description"
+            >
+              viewDecoratorType.leftBorderColorDescription
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="decorator-list__item"
+      >
+        <div
+          class="decorator-item"
+        >
+          <img
+            class="decorator-item__image"
+            src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='44'%20height='41'%20viewBox='0%200%2044%2041'%3e%3cg%20id='Group_988'%20data-name='Group%20988'%20transform='translate(-1463%20-854.25)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='44'%20transform='translate(1463%20874.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cline%20id='Line_684'%20data-name='Line%20684'%20x2='44'%20transform='translate(1463%20894.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_793'%20data-name='Path%20793'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1469.84%20870.25)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1584'%20data-name='Rectangle%201584'%20width='44'%20height='20'%20transform='translate(1463%20875)'%20fill='rgba(217,219,222,0.38)'/%3e%3cpath%20id='Path_794'%20data-name='Path%20794'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1469.84%20889.25)'%20fill='%239fa4ab'/%3e%3cline%20id='Line_685'%20data-name='Line%20685'%20x2='44'%20transform='translate(1463%20854.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3c/g%3e%3c/svg%3e"
+          />
+          <div
+            class="decorator-item__content"
+          >
+            <div
+              class="decorator-item__title"
+            >
+              viewDecoratorType.backgroundColor 
+              <div
+                class="deactivated-label"
+              >
+                <i
+                  class="iconoir-lock"
+                />
+              </div>
+            </div>
+            <div
+              class="decorator-item__description"
+            >
+              viewDecoratorType.backgroundColorDescription
+            </div>
+          </div>
+        </div>
+      </div>
       <div
         class="decorator-list__item decorator-list__item--disabled"
       >
@@ -76,37 +207,40 @@ exports[`GridViewRows component with decoration Should show cant add decorator t
             class="decorator-item__image"
             src="fake/url.png"
           />
-           
           <div
             class="decorator-item__content"
           >
             <div
               class="decorator-item__title"
             >
-              
-      Fake decorator
-      
-              <!---->
+              Fake decorator 
+              <!--v-if-->
             </div>
-             
             <div
               class="decorator-item__description"
             >
-              
-      Fake decorator description
-    
+              Fake decorator description
             </div>
           </div>
         </div>
-         
-        <!---->
+        <!--v-if-->
       </div>
+      
     </div>
+    
+  </div>
+  <!--v-if-->
+  <!--v-if-->
+  <div
+    data-v-app=""
+    id="__nuxt"
+  >
+    <!---->
   </div>
 </body>
 `;
 
-exports[`GridViewRows component with decoration Should show unavailable decorator tooltip 1`] = `
+exports[`GridViewRows component with decoration > Should show unavailable decorator tooltip 1`] = `
 <body>
   <div
     class="tooltip tooltip--body tooltip--center"
@@ -115,16 +249,84 @@ exports[`GridViewRows component with decoration Should show unavailable decorato
     <div
       class="tooltip__content"
     >
-      unavailability reason
+      viewDecoratorType.onlyForPremium
     </div>
   </div>
   <div
     class="context"
-    style="top: auto; right: auto; bottom: auto; left: auto; max-height: none;"
+    style="top: auto; right: auto; bottom: auto; left: auto;"
   >
+    
     <div
       class="decorator-list"
     >
+      
+      <div
+        class="decorator-list__item"
+      >
+        <div
+          class="decorator-item"
+        >
+          <img
+            class="decorator-item__image"
+            src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='43.16'%20height='43'%20viewBox='0%200%2043.16%2043'%3e%3cg%20id='Group_987'%20data-name='Group%20987'%20transform='translate(-1019.5%20-766)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='43.16'%20transform='translate(1019.5%20787.5)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_791'%20data-name='Path%20791'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1026%20779)'%20fill='%239fa4ab'/%3e%3cpath%20id='Path_792'%20data-name='Path%20792'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1026%20806)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1581'%20data-name='Rectangle%201581'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20793)'%20fill='%23b4bac2'/%3e%3crect%20id='Rectangle_1582'%20data-name='Rectangle%201582'%20width='6'%20height='16'%20rx='3'%20transform='translate(1043%20766)'%20fill='%23d9dbde'/%3e%3c/g%3e%3c/svg%3e"
+          />
+          <div
+            class="decorator-item__content"
+          >
+            <div
+              class="decorator-item__title"
+            >
+              viewDecoratorType.leftBorderColor 
+              <div
+                class="deactivated-label"
+              >
+                <i
+                  class="iconoir-lock"
+                />
+              </div>
+            </div>
+            <div
+              class="decorator-item__description"
+            >
+              viewDecoratorType.leftBorderColorDescription
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="decorator-list__item"
+      >
+        <div
+          class="decorator-item"
+        >
+          <img
+            class="decorator-item__image"
+            src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='44'%20height='41'%20viewBox='0%200%2044%2041'%3e%3cg%20id='Group_988'%20data-name='Group%20988'%20transform='translate(-1463%20-854.25)'%3e%3cline%20id='Line_682'%20data-name='Line%20682'%20x2='44'%20transform='translate(1463%20874.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cline%20id='Line_684'%20data-name='Line%20684'%20x2='44'%20transform='translate(1463%20894.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3cpath%20id='Path_793'%20data-name='Path%20793'%20d='M4.189,0H3.24V-6.105q0-.762.047-1.441-.123.123-.275.258T1.617-6.146L1.1-6.814,3.369-8.566h.82Z'%20transform='translate(1469.84%20870.25)'%20fill='%239fa4ab'/%3e%3crect%20id='Rectangle_1584'%20data-name='Rectangle%201584'%20width='44'%20height='20'%20transform='translate(1463%20875)'%20fill='rgba(217,219,222,0.38)'/%3e%3cpath%20id='Path_794'%20data-name='Path%20794'%20d='M6.217,0H.586V-.838L2.842-3.105A16.612,16.612,0,0,0,4.2-4.594a3.8,3.8,0,0,0,.492-.867,2.484,2.484,0,0,0,.164-.908,1.44,1.44,0,0,0-.416-1.087,1.593,1.593,0,0,0-1.154-.4,2.9,2.9,0,0,0-1.011.176,4.029,4.029,0,0,0-1.063.639L.7-7.705a3.949,3.949,0,0,1,2.578-.984,2.724,2.724,0,0,1,1.893.618A2.126,2.126,0,0,1,5.854-6.41,3.208,3.208,0,0,1,5.4-4.8,10.23,10.23,0,0,1,3.686-2.783L1.811-.949V-.9H6.217Z'%20transform='translate(1469.84%20889.25)'%20fill='%239fa4ab'/%3e%3cline%20id='Line_685'%20data-name='Line%20685'%20x2='44'%20transform='translate(1463%20854.75)'%20fill='none'%20stroke='%23d9dbde'%20stroke-width='1'/%3e%3c/g%3e%3c/svg%3e"
+          />
+          <div
+            class="decorator-item__content"
+          >
+            <div
+              class="decorator-item__title"
+            >
+              viewDecoratorType.backgroundColor 
+              <div
+                class="deactivated-label"
+              >
+                <i
+                  class="iconoir-lock"
+                />
+              </div>
+            </div>
+            <div
+              class="decorator-item__description"
+            >
+              viewDecoratorType.backgroundColorDescription
+            </div>
+          </div>
+        </div>
+      </div>
       <div
         class="decorator-list__item"
       >
@@ -135,16 +337,13 @@ exports[`GridViewRows component with decoration Should show unavailable decorato
             class="decorator-item__image"
             src="fake/url.png"
           />
-           
           <div
             class="decorator-item__content"
           >
             <div
               class="decorator-item__title"
             >
-              
-      Fake decorator
-      
+              Fake decorator 
               <div
                 class="deactivated-label"
               >
@@ -153,35 +352,43 @@ exports[`GridViewRows component with decoration Should show unavailable decorato
                 />
               </div>
             </div>
-             
             <div
               class="decorator-item__description"
             >
-              
-      Fake decorator description
-    
+              Fake decorator description
             </div>
           </div>
         </div>
-         
-        <!---->
+        <!--v-if-->
       </div>
+      
     </div>
+    
+  </div>
+  <!--v-if-->
+  <!--v-if-->
+  <div
+    data-v-app=""
+    id="__nuxt"
+  >
+    <!---->
   </div>
 </body>
 `;
 
-exports[`GridViewRows component with decoration View with decoration configured 1`] = `
+exports[`GridViewRows component with decoration > View with decoration configured 1`] = `
 <div
   class="context"
-  style="top: auto; right: auto; bottom: auto; left: auto; max-height: none;"
+  style="top: auto; right: auto; bottom: auto; left: auto;"
 >
+  
   <div
     class="decorator-context"
   >
     <div
       class="decorator-context__list"
     >
+      
       <div
         class="decorator-context__decorator"
       >
@@ -198,30 +405,23 @@ exports[`GridViewRows component with decoration View with decoration configured 
                 class="decorator-item__image"
                 src="fake/url.png"
               />
-               
               <div
                 class="decorator-item__content"
               >
                 <div
                   class="decorator-item__title"
                 >
-                  
-      Fake decorator
-      
-                  <!---->
+                  Fake decorator 
+                  <!--v-if-->
                 </div>
-                 
                 <div
                   class="decorator-item__description"
                 >
-                  
-      Fake decorator description
-    
+                  Fake decorator description
                 </div>
               </div>
             </div>
           </div>
-           
           <div
             class="decorator-context__decorator-header-select"
           >
@@ -234,21 +434,17 @@ exports[`GridViewRows component with decoration View with decoration configured 
                 <i
                   class="dropdown__selected-icon iconoir-filter"
                 />
-                 
                 <span
                   class="dropdown__selected-text"
                 >
                   Fake value provider
                 </span>
-                 
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
             </div>
           </div>
-           
           <div
             class="decorator-context__decorator-header-trash"
           >
@@ -261,7 +457,6 @@ exports[`GridViewRows component with decoration View with decoration configured 
             </button>
           </div>
         </div>
-         
         <div>
           fake_value_provider_form
         </div>
@@ -282,37 +477,29 @@ exports[`GridViewRows component with decoration View with decoration configured 
                 class="decorator-item__image"
                 src="fake/url.png"
               />
-               
               <div
                 class="decorator-item__content"
               >
                 <div
                   class="decorator-item__title"
                 >
-                  
-      Fake decorator
-      
-                  <!---->
+                  Fake decorator 
+                  <!--v-if-->
                 </div>
-                 
                 <div
                   class="decorator-item__description"
                 >
-                  
-      Fake decorator description
-    
+                  Fake decorator description
                 </div>
               </div>
             </div>
           </div>
-           
           <div
             class="decorator-context__decorator-header-select"
             style="display: none;"
           >
-            <!---->
+            <!--v-if-->
           </div>
-           
           <div
             class="decorator-context__decorator-header-trash"
           >
@@ -325,10 +512,10 @@ exports[`GridViewRows component with decoration View with decoration configured 
             </button>
           </div>
         </div>
-         
         <div
           class="value-provider-list value-provider-list--row"
         >
+          
           <div
             class="value-provider-list__item"
           >
@@ -341,29 +528,25 @@ exports[`GridViewRows component with decoration View with decoration configured 
                 <i
                   class="iconoir-filter value-provider-item__icon"
                 />
-                 
                 <span
                   class="value-provider-item__title-text"
                 >
                   Fake value provider
                 </span>
               </div>
-               
               <div
                 class="value-provider-item__description"
               >
-                
-    Fake value provider description.
-  
+                Fake value provider description.
               </div>
             </div>
-             
-            <!---->
+            <!--v-if-->
           </div>
+          
         </div>
       </div>
+      
     </div>
-     
     <div
       class="context__footer"
     >
@@ -373,19 +556,17 @@ exports[`GridViewRows component with decoration View with decoration configured 
         <i
           class="button-text__icon iconoir-plus"
         />
-         
-        <!---->
-         
+        <!--v-if-->
         <span
           class="button-text__label"
         >
           
-        viewDecoratorContext.addDecorator
-      
+          viewDecoratorContext.addDecorator
+          
         </span>
       </button>
-       
     </div>
   </div>
+  
 </div>
 `;

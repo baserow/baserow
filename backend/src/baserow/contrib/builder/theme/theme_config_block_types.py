@@ -79,10 +79,10 @@ class TypographyThemeConfigBlockType(ThemeConfigBlockType):
     ):
         # Translate from old color property names to new names for compat with templates
         for level in range(3):
-            if f"heading_{level+1}_color" in serialized_values:
-                serialized_values[
-                    f"heading_{level+1}_text_color"
-                ] = serialized_values.pop(f"heading_{level+1}_color")
+            if f"heading_{level + 1}_color" in serialized_values:
+                serialized_values[f"heading_{level + 1}_text_color"] = (
+                    serialized_values.pop(f"heading_{level + 1}_color")
+                )
 
         return super().import_serialized(
             parent, serialized_values, id_mapping, files_zip, storage, cache

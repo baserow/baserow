@@ -287,6 +287,7 @@ export default {
     SidebarExpandable,
   },
   mixins: [collectionElementForm],
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

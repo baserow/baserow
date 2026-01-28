@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="margin-bottom-1">
       {{ $t('updateTeamModal.title', { teamName: team.name }) }}
     </h2>
@@ -37,6 +37,7 @@ export {}
 
 export default {
   name: 'UpdateTeamModal',
+  emits: ['updated'],
   components: { ManageTeamForm, MemberAssignmentModal },
   mixins: [modal, error],
   props: {

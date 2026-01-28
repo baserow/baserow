@@ -6,7 +6,7 @@ export class FieldsDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderTypes.fieldsName')
+    return this.app.$i18n.t('dataProviderTypes.fieldsName')
   }
 
   getDataContent(applicationContext) {

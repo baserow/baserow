@@ -1,5 +1,9 @@
 <template>
-  <Context :overflow-scroll="true" :max-height-if-outside-viewport="true">
+  <Context
+    ref="context"
+    :overflow-scroll="true"
+    :max-height-if-outside-viewport="true"
+  >
     <ul class="context__menu">
       <li class="context__menu-item">
         <a class="context__menu-item-link" @click="handleShareClick">
@@ -32,6 +36,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'share'],
   methods: {
     handleDeleteClick() {
       this.$emit('delete')

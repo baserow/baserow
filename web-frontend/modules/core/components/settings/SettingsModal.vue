@@ -1,10 +1,10 @@
 <template>
-  <Modal :left-sidebar="true" :left-sidebar-scrollable="true">
+  <Modal ref="modal" :left-sidebar="true" :left-sidebar-scrollable="true">
     <template #sidebar>
       <div class="modal-sidebar__head">
         <Avatar
           rounded
-          :initials="name | nameAbbreviation"
+          :initials="$filters.nameAbbreviation(name)"
           size="medium"
         ></Avatar>
         <div class="modal-sidebar__head-name">

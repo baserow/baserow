@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`HeadingElement Default HeadingElement component 1`] = `
+exports[`HeadingElement > Default HeadingElement component 1`] = `
 <div
   class="heading-element element--no-value"
 >
@@ -9,12 +9,12 @@ exports[`HeadingElement Default HeadingElement component 1`] = `
   >
     
      
-  
+    
   </h2>
 </div>
 `;
 
-exports[`HeadingElement Default HeadingElement component v2 1`] = `
+exports[`HeadingElement > Default HeadingElement component v2 1`] = `
 <div
   class="heading-element"
 >
@@ -23,7 +23,7 @@ exports[`HeadingElement Default HeadingElement component v2 1`] = `
   >
     
     hello
-  
+    
   </h3>
 </div>
 `;

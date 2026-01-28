@@ -1,13 +1,10 @@
 import enum
 
-from langchain_core.exceptions import OutputParserException
-from langchain_core.prompts import PromptTemplate
-
 from baserow.contrib.database.fields.field_types import (
     LongTextFieldType,
     SingleSelectFieldType,
 )
-from baserow.core.output_parsers import StrictEnumOutputParser
+from baserow.core.output_parsers import get_strict_enum_output_parser
 
 from .registries import AIFieldOutputType
 
@@ -29,9 +26,11 @@ class ChoiceAIFieldOutputType(AIFieldOutputType):
                 for option in ai_field.select_options.all()
             },
         )
-        return StrictEnumOutputParser(enum=choices)
+        return get_strict_enum_output_parser(enum=choices)
 
     def format_prompt(self, prompt, ai_field):
+        from langchain_core.prompts import PromptTemplate
+
         output_parser = self.get_output_parser(ai_field)
         format_instructions = output_parser.get_format_instructions()
         prompt = PromptTemplate(
@@ -43,6 +42,8 @@ class ChoiceAIFieldOutputType(AIFieldOutputType):
         return message
 
     def parse_output(self, output, ai_field):
+        from langchain_core.exceptions import OutputParserException
+
         if not output:
             return None
 

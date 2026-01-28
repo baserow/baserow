@@ -3,7 +3,7 @@
     class="button-floating"
     :class="classes"
     :disabled="disabled || loading"
-    v-on="$listeners"
+    v-bind="$attrs"
   >
     <i v-if="!loading" class="button-floating__icon" :class="icon" />
   </button>
@@ -38,7 +38,6 @@ export default {
      * The icon that must be shown inside the button.
      */
     icon: {
-      required: true,
       type: String,
       default: '',
     },
@@ -51,6 +50,11 @@ export default {
       default: false,
     },
     disabled: {
+      required: false,
+      type: Boolean,
+      default: false,
+    },
+    active: {
       required: false,
       type: Boolean,
       default: false,

@@ -1,6 +1,12 @@
 import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils/events'
 
 export default {
+  data() {
+    return {
+      // Event handler reference for cleanup
+      keydownEvent: null,
+    }
+  },
   methods: {
     toggleDropdown(value, query) {
       if (this.readOnly) {
@@ -13,7 +19,7 @@ export default {
       this.$refs.dropdown.hide()
     },
     select() {
-      this.$el.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         // If the tab or arrow keys are pressed we don't want to do anything because
         // the GridViewField component will select the next field.
         const ignoredKeys = [
@@ -51,10 +57,10 @@ export default {
           this.toggleDropdown()
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
     },
     beforeUnSelect() {
-      document.body.removeEventListener('keydown', this.$el.keydownEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
     },
     canSelectNext() {
       return !this.editing

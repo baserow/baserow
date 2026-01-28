@@ -81,7 +81,7 @@ class TimezoneExpr(BinaryOpExpr):
 
 class BaserowStringAgg(OrderableAggMixin, Aggregate):
     function = "STRING_AGG"
-    template = "%(function)s(%(distinct)s%(expressions)s %(ordering)s)"
+    template = "%(function)s(%(distinct)s%(expressions)s %(order_by)s)"
     allow_distinct = True
 
     def __init__(self, expression, delimiter, **extra):
@@ -187,7 +187,7 @@ class FileNameContainsExpr(BaserowFilterExpression):
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as attached_files
             WHERE UPPER(attached_files ->> 'visible_name') LIKE UPPER(%(value)s)
         )
-        """  # nosec B608
+        """  # noqa: S608
     )
     # fmt: on
 
@@ -201,7 +201,7 @@ class JSONArrayContainsValueLengthLowerThanExpr(BaserowFilterExpression):
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
             WHERE LENGTH(filtered_field ->> 'value') < %(value)s
         )
-        """  # nosec B608 %(value)s
+        """  # noqa: S608
     )
     # fmt: on
 
@@ -214,7 +214,7 @@ class JSONArrayAllAreExpr(BaserowFilterExpression):
             SELECT upper(filtered_field ->> 'value')
             FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
         ) AND JSONB_ARRAY_LENGTH(%(field_name)s) > 0
-        """  # nosec B608 %(value)s
+        """  # noqa: S608
     )
     # fmt: on
 
@@ -261,7 +261,7 @@ class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
                 FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
                 WHERE (filtered_field ->> 'value')::numeric %(comparison_op)s %(value)s::numeric
             )
-            """  # nosec B608 %(value)s %(comparison_op)s
+            """  # noqa: S608
     )
     # fmt: on
 
@@ -300,7 +300,7 @@ class JSONArrayCompareIntervalValueExpr(BaserowFilterExpression):
                 FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
                 WHERE (filtered_field ->> 'value')::interval %(comparison_op)s make_interval(secs=>%(value)s)
             )
-            """  # nosec B608 %(value)s %(comparison_op)s
+            """  # noqa: S608
     )
     # fmt: on
 

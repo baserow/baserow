@@ -463,8 +463,7 @@ class PublicDispatchDataSourceView(APIView):
         tags=["Builder data sources"],
         operation_id="dispatch_public_builder_page_data_source",
         description=(
-            "Dispatches the service of the related data_source and returns "
-            "the result."
+            "Dispatches the service of the related data_source and returns the result."
         ),
         request=DispatchDataSourceRequestSerializer,
         responses={

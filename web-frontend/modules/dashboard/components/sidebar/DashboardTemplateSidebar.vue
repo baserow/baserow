@@ -32,6 +32,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected', 'selected-page'],
   methods: {
     selectDashboard(application) {
       this.$emit('selected', application)

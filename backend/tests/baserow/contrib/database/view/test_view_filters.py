@@ -6850,9 +6850,9 @@ def test_date_equal_multi_step_operator_view_filter_type(
         mnem_keys = list(MNEMONIC_VALUES.keys())
         mnem_res_pos = [mnem_keys[v] for v in res_pos]
         mnem_exp_res = [mnem_keys[v] for v in expected_results]
-        assert res_pos == unordered(
-            expected_results
-        ), f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        assert res_pos == unordered(expected_results), (
+            f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        )
 
     # with date
     view_filter = data_fixture.create_view_filter(

@@ -1,6 +1,5 @@
 from django.http import HttpResponse
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
@@ -15,6 +14,7 @@ from baserow_enterprise.api.authentication import (
     AuthenticateFromUserSessionAuthentication,
 )
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
+from baserow_premium.license.handler import LicenseHandler
 
 
 class PublicCustomCodeView(APIView):

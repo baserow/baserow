@@ -2,7 +2,7 @@
 # Bash strict mode: http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
-export BASEROW_VERSION="2.0.5"
+export BASEROW_VERSION="2.0.6"
 BASEROW_WEBFRONTEND_PORT="${BASEROW_WEBFRONTEND_PORT:-3000}"
 
 show_help() {
@@ -10,12 +10,14 @@ show_help() {
 The available Baserow web-frontend related commands and services are shown below:
 
 COMMANDS:
-nuxt-dev     : Start a normal nuxt development server
-nuxt         : Start a non-dev prod ready nuxt server
-nuxt-local   : Start a non-dev prod ready nuxt server using the preset local config
-storybook-dev: Start a storybook dev server
-bash         : Start a bash shell
-build-local  : Triggers a nuxt re-build of Baserow's web-frontend.
+nuxt-dev                : Start a normal nuxt development server
+nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
+nuxt                    : Start a non-dev prod ready nuxt server
+nuxt-local              : Start a non-dev prod ready nuxt server using the preset local config
+nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
+storybook-dev           : Start a storybook dev server
+bash                    : Start a bash shell
+build-local             : Triggers a nuxt re-build of Baserow's web-frontend.
 
 DEV COMMANDS:
 lint            : Run all the linting
@@ -78,12 +80,12 @@ case "$1" in
       startup_plugin_setup
       setup_additional_modules
       # Retry the command over and over to work around heap crash.
-      attachable_exec_retry yarn run dev
+      attachable_exec_retry yarn dev
     ;;
     nuxt-dev-no-attach)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn run dev
+      exec yarn dev
     ;;
     nuxt)
       startup_plugin_setup
@@ -93,37 +95,43 @@ case "$1" in
     nuxt-local)
       startup_plugin_setup
       setup_additional_modules
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.js "${@:2}"
+      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.ts "${@:2}"
     ;;
-    storybook-dev)
+    nuxt-prepare)
+      setup_additional_modules
+      exec ./node_modules/.bin/nuxt prepare "${@:2}"
+    ;;
+    nuxt-dev-with-storybook)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn run storybook
+      # Start Storybook in background and Nuxt in foreground
+      yarn storybook &
+      attachable_exec_retry yarn dev
     ;;
     lint)
-      exec make lint-javascript
+      exec yarn lint
     ;;
     lint-fix)
-      attachable_exec yarn run eslint --fix
+      attachable_exec yarn eslint --fix
     ;;
     eslint)
-      exec make eslint
+      exec yarn eslint
     ;;
     stylelint)
-      exec make eslint
+      exec yarn stylelint
     ;;
     test)
-      exec make jest
+      exec yarn test
     ;;
     ci-test)
-      exec make ci-test-javascript
+      exec yarn test-coverage
     ;;
     bash)
       exec /bin/bash -c "${@:2}"
     ;;
     build-local)
       setup_additional_modules
-      exec yarn run build-local
+      exec yarn build-local
     ;;
     install-plugin)
       exec /baserow/plugins/install_plugin.sh "${@:2}"

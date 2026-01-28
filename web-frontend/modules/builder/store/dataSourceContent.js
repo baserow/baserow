@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import Vue from 'vue'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 
@@ -10,7 +9,8 @@ const fetchTimeoutPerPage = {}
 const mutations = {
   SET_CONTENT(state, { page, dataSourceId, value }) {
     if (!page.contents) {
-      Vue.set(page, 'contents', {})
+      // In Vue 3, direct assignment is reactive
+      page.contents = {}
     }
 
     if (!_.isEqual(page.contents[dataSourceId], value)) {
@@ -24,13 +24,13 @@ const mutations = {
     }
   },
   CLEAR_CONTENTS(state, { page }) {
-    Vue.set(page, 'contents', {})
+    page.contents = {}
   },
   // Clear only the contents for the specified data source.
   CLEAR_CONTENT(state, { page, dataSourceId }) {
     const contents = Object.assign({}, page.contents)
     delete contents[dataSourceId]
-    Vue.set(page, 'contents', contents)
+    page.contents = contents
   },
   SET_LOADING(state, { page, value }) {
     page._.dataSourceContentLoading = value
@@ -45,6 +45,7 @@ const actions = {
     { commit },
     { page, data: queryData, mode }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService
@@ -54,10 +55,7 @@ const actions = {
 
     const failedDataSources = []
     try {
-      const { data } = await service(this.app.$client).dispatchAll(
-        page.id,
-        queryData
-      )
+      const { data } = await service($client).dispatchAll(page.id, queryData)
 
       Object.entries(data).forEach(([dataSourceIdStr, dataContent]) => {
         const dataSourceId = parseInt(dataSourceIdStr, 10)
@@ -83,6 +81,7 @@ const actions = {
     { commit },
     { page, dataSourceId, dispatchContext, mode, replace = false }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
 
     let service = DataSourceService
@@ -91,7 +90,7 @@ const actions = {
     }
 
     try {
-      const { data } = await service(this.app.$client).dispatch(
+      const { data } = await service($client).dispatch(
         dataSourceId,
         dispatchContext,
         { range: null }

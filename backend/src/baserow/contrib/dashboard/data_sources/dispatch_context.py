@@ -51,5 +51,4 @@ class DashboardDispatchContext(DispatchContext):
     def public_allowed_properties(self):
         return None
 
-    def validate_filter_search_sort_fields(self):
-        ...
+    def validate_filter_search_sort_fields(self): ...

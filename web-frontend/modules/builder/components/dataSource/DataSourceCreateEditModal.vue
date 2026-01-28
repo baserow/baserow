@@ -1,5 +1,5 @@
 <template>
-  <Modal wide v-on="$listeners">
+  <Modal ref="modal" wide v-on="$attrs">
     <h2 class="box__title">
       {{
         create
@@ -77,6 +77,7 @@ export default {
   props: {
     dataSourceId: { type: Number, required: false, default: null },
   },
+  emits: ['updated'],
   data() {
     return {
       loading: false,

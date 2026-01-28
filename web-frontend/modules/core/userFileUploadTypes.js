@@ -71,7 +71,7 @@ export class UploadFileUserFileUploadType extends UserFileUploadType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('userFileUploadType.file')
   }
 
@@ -90,7 +90,7 @@ export class UploadViaURLUserFileUploadType extends UserFileUploadType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('userFileUploadType.url')
   }
 

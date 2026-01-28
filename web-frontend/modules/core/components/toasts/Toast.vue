@@ -68,6 +68,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close'],
   computed: {
     hasTitleSlot() {
       return !!this.$slots.title

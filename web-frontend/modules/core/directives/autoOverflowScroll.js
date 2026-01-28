@@ -17,23 +17,23 @@ import ResizeObserver from 'resize-observer-polyfill'
  * default, the value is `true`, so then it's enabled.
  */
 export default {
-  bind(el, binding) {
+  beforeMount(el, binding) {
     const value = binding.value === undefined ? true : binding.value
     if (!value) {
-      binding.def.removeListeners(el)
+      binding.dir.removeListeners(el)
     } else if (value) {
-      binding.def.addListeners(el)
+      binding.dir.addListeners(el)
     }
   },
-  unbind(el, binding) {
-    binding.def.removeListeners(el)
+  unmounted(el, binding) {
+    binding.dir.removeListeners(el)
   },
-  update(el, binding) {
+  updated(el, binding) {
     const value = binding.value === undefined ? true : binding.value
     if (el.autoOverflowScrollHeightObserverBinded && !value) {
-      binding.def.removeListeners(el)
+      binding.dir.removeListeners(el)
     } else if (!el.autoOverflowScrollHeightObserverBinded && value) {
-      binding.def.addListeners(el)
+      binding.dir.addListeners(el)
     }
   },
   addListeners(el) {

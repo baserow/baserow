@@ -15,7 +15,7 @@
         size="large"
       ></FormInput>
       <template #error>
-        {{ v$.values.name.$errors[0].$message }}
+        {{ v$.values.name.$errors[0]?.$message }}
       </template>
     </FormGroup>
 
@@ -37,19 +37,11 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import {
-  reactive,
-  getCurrentInstance,
-  defineComponent,
-  toRefs,
-  watch,
-} from 'vue'
-import { useStore, useContext } from '@nuxtjs/composition-api'
 import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import { isSubObject } from '@baserow/modules/core/utils/object'
 
-export default defineComponent({
+export default {
   name: 'GeneralSettings',
   mixins: [form],
   props: {
@@ -58,68 +50,53 @@ export default defineComponent({
       required: true,
     },
   },
-
-  setup(props) {
-    const instance = getCurrentInstance()
-    const { app } = useContext()
-    const i18n = app.i18n
-    const store = useStore()
-    const { automation } = toRefs(props)
-
-    const values = reactive({
+  setup() {
+    return { v$: useVuelidate({ $lazy: true }) }
+  },
+  data() {
+    return {
       values: {
         name: '',
         notification: false,
       },
-    })
-
-    const rules = {
+    }
+  },
+  validations() {
+    return {
       values: {
         name: {
           required: helpers.withMessage(
-            i18n.t('error.requiredField'),
+            this.$t('error.requiredField'),
             required
           ),
         },
         notification: {},
       },
     }
-
-    const v$ = useVuelidate(rules, values, { $lazy: true })
-
-    const updateAutomation = async (updatedValues) => {
-      if (isSubObject(automation.value, updatedValues)) {
+  },
+  methods: {
+    emitChange(newValues) {
+      this.updateAutomation(newValues)
+    },
+    async updateAutomation(updatedValues) {
+      if (isSubObject(this.automation, updatedValues)) {
         return
       }
 
       try {
-        await store.dispatch('application/update', {
-          automation: automation.value,
+        await this.$store.dispatch('application/update', {
+          application: this.automation,
           values: updatedValues,
         })
       } catch (error) {
-        const title = i18n.t('generalSettings.cantUpdateAutomationTitle')
-        const message = i18n.t(
+        const title = this.$t('generalSettings.cantUpdateAutomationTitle')
+        const message = this.$t(
           'generalSettings.cantUpdateAutomationDescription'
         )
-        store.dispatch('toast/error', { title, message })
-        instance.proxy.reset()
+        this.$store.dispatch('toast/error', { title, message })
+        this.reset()
       }
-    }
-
-    watch(
-      () => values.values,
-      (newValues) => {
-        updateAutomation(newValues)
-      },
-      { deep: true }
-    )
-
-    return {
-      values: values.values,
-      v$,
-      updateAutomation,
-    }
+    },
   },
-})
+}
 </script>

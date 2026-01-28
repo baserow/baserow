@@ -50,6 +50,7 @@ export default {
       required: true,
     },
   },
+  emits: ['values-changed', 'hide'],
   computed: {
     themeConfigBlocks() {
       return this.customStylesContext.configBlockTypes.map((confType) =>

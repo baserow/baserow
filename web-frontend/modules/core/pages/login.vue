@@ -5,46 +5,72 @@
       :redirect-on-success="true"
       :invitation="invitation"
       :redirect-by-default="redirectByDefault"
-    ></Login>
+    />
   </div>
 </template>
 
-<script>
+<script setup>
 import Login from '@baserow/modules/core/components/auth/Login'
-import workspaceInvitationToken from '@baserow/modules/core/mixins/workspaceInvitationToken'
+import WorkspaceService from '@baserow/modules/core/services/workspace'
 
-export default {
-  components: { Login },
+definePageMeta({
+  name: 'login',
   layout: 'login',
-  async asyncData({ app, route, store, redirect }) {
-    if (store.getters['settings/get'].show_admin_signup_page === true) {
-      return redirect({ name: 'signup' })
-    } else if (store.getters['auth/isAuthenticated']) {
-      return redirect({ name: 'dashboard' })
-    }
-    await store.dispatch('authProvider/fetchLoginOptions')
-    return await workspaceInvitationToken.asyncData({ route, app })
-  },
-  head() {
-    return {
-      title: this.$t('login.title'),
-      link: [
-        {
-          rel: 'canonical',
-          href:
-            this.$config.PUBLIC_WEB_FRONTEND_URL +
-            this.$router.resolve({ name: 'login' }).href,
-        },
-      ],
-    }
-  },
-  computed: {
-    redirectByDefault() {
-      if (this.$route.query.noredirect === null) {
-        return false
-      }
-      return true
-    },
-  },
+  middleware: ['settings'],
+})
+
+const { $store: store, $client } = useNuxtApp()
+
+const route = useRoute()
+const app = useNuxtApp()
+const i18n = useI18n()
+const config = useRuntimeConfig()
+const router = useRouter()
+
+// Redirect logic
+if (store.getters['settings/get'].show_admin_signup_page === true) {
+  await navigateTo({ name: 'signup' })
+} else if (store.getters['auth/isAuthenticated']) {
+  await navigateTo({ name: 'dashboard' })
 }
+
+// Data fetching - use token in key to avoid caching issues
+const invitationToken = route.query.workspaceInvitationToken
+const { data } = await useAsyncData(
+  `loginData-${invitationToken || 'none'}`,
+  async () => {
+    // Fetch login options (will populate Vuex store)
+    await store.dispatch('authProvider/fetchLoginOptions')
+    // Logic from workspaceInvitationToken mixin
+    let invitation = null
+    if (invitationToken) {
+      try {
+        const { data } = await WorkspaceService(
+          app.$client
+        ).fetchInvitationByToken(invitationToken)
+        invitation = data
+      } catch {}
+    }
+    return { invitation }
+  }
+)
+
+// Head
+useHead({
+  title: i18n.t('login.title'),
+  link: [
+    {
+      rel: 'canonical',
+      href:
+        config.public.publicWebFrontendUrl +
+        router.resolve({ name: 'login' }).href,
+    },
+  ],
+})
+
+const redirectByDefault = computed(() => {
+  return !(route.query.noredirect === null)
+})
+
+const invitation = computed(() => data.value?.invitation || null)
 </script>

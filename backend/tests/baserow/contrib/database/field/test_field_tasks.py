@@ -73,9 +73,12 @@ def test_run_periodic_fields_updates_if_necessary(data_fixture, settings):
         workspace_3.save()
 
     # less than 5 minutes after
-    with patch(
-        "baserow.contrib.database.fields.tasks._run_periodic_field_type_update_per_workspace"
-    ) as run_field_type_update, freeze_time("2020-01-01 00:04"):
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._run_periodic_field_type_update_per_workspace"
+        ) as run_field_type_update,
+        freeze_time("2020-01-01 00:04"),
+    ):
         run_periodic_fields_updates(workspace_id=workspace.id)
         run_field_type_update.assert_called_once_with(
             field_type_instance, workspace, True

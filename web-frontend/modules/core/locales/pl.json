@@ -282,7 +282,7 @@
         "title": "Pulpit",
         "alertTitle": "Potrzebujemy Twojej pomocy!",
         "alertText": "Udostępniając Baserow, pomagasz nam ulepszać produkt i czynić go bardziej użytecznym dla Ciebie.",
-        "tweetContent": "Sprawdź @baserow, narzędzie open source do bazy danych typu no-code i alternatywę dla Airtable!",
+        "tweetContent": "Sprawdź {'@'}baserow, narzędzie open source do bazy danych typu no-code i alternatywę dla Airtable!",
         "redditTitle": "'Baserow - Baza danych open source bez kodu",
         "noWorkspaceTitle": "Nie znaleziono grup",
         "noWorkspaceText": "Nie jesteś członkiem żadnej grupy. Aplikacje takie jak bazy danych należą do grupy, więc aby je stworzyć musisz stworzyć grupę.",
@@ -419,7 +419,7 @@
             "format": {
                 "title": "Format",
                 "description": "Format parametrów zapytania jest następujący:",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "Przykład",

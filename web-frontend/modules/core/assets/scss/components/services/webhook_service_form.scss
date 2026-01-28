@@ -18,7 +18,7 @@
   background-color: $color-neutral-100;
   line-height: 140%;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
 
   @include rounded($rounded);
 }

@@ -32,7 +32,7 @@
         v-if="canBeDeleted(authProvider.type)"
         ref="deleteModal"
         :auth-provider="authProvider"
-        @deleteConfirmed="onDeleteConfirmed"
+        @delete-confirmed="onDeleteConfirmed"
         @cancel="$refs.deleteModal.hide()"
       />
     </div>

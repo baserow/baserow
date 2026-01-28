@@ -192,6 +192,24 @@ export default {
     mustHaveUniqueName(param) {
       return !this.existingNames.includes(param.trim())
     },
+    getFormValues(deep = false) {
+      const values = Object.assign(
+        {},
+        this.values,
+        this.getChildFormsValues(deep)
+      )
+      if (this.$refs.subForm?.getFormValues) {
+        return { ...values, ...this.$refs.subForm.getFormValues(deep) }
+      }
+      return values
+    },
+    isFormValid(deep = false) {
+      const thisFormInvalid = 'v$' in this && this.v$.$invalid
+      const subFormValid = this.$refs.subForm?.isFormValid
+        ? this.$refs.subForm.isFormValid(deep)
+        : true
+      return !thisFormInvalid && this.areChildFormsValid(deep) && subFormValid
+    },
   },
   validations() {
     return {

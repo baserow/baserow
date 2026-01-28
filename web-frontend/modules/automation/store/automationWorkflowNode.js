@@ -1,3 +1,4 @@
+import { useNuxtApp } from '#app'
 import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
@@ -57,6 +58,9 @@ const mutations = {
     updateCachedValues(workflow)
   },
   SELECT_ITEM(state, { workflow, node }) {
+    if (!workflow) {
+      return
+    }
     workflow.selectedNodeId = node?.id || null
   },
   SET_LOADING(state, { node, value }) {
@@ -78,7 +82,7 @@ const actions = {
     if (!workflow) return []
 
     const { data: nodes } = await AutomationWorkflowNodeService(
-      this.$client
+      useNuxtApp().$client
     ).get(workflow.id)
 
     if (!workflow.nodes) {
@@ -180,7 +184,7 @@ const actions = {
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
-        this.$client
+        useNuxtApp().$client
       ).create(workflow.id, type, referenceNode, position, output)
 
       commit('ADD_ITEM', { workflow, node })
@@ -238,8 +242,8 @@ const actions = {
       ) {
         oldValues[name] = node[name]
         // Accumulate the changed values to send all the ongoing changes with the
-        // final request.
-        updateContext.valuesToUpdate[name] = structuredClone(values[name])
+        // final request. Use clone() to handle Vue 3 reactive objects safely.
+        updateContext.valuesToUpdate[name] = clone(values[name])
       }
     })
 
@@ -256,7 +260,7 @@ const actions = {
         updateContext.valuesToUpdate = {}
         try {
           const { data } = await AutomationWorkflowNodeService(
-            this.$client
+            useNuxtApp().$client
           ).update(node.id, toUpdate)
           updateContext.lastUpdatedValues = null
 
@@ -327,7 +331,7 @@ const actions = {
 
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
-      await AutomationWorkflowNodeService(this.$client).delete(nodeId)
+      await AutomationWorkflowNodeService(useNuxtApp().$client).delete(nodeId)
     } catch (error) {
       // We restore the removed node
       commit('ADD_ITEM', { workflow, node: originalNode })
@@ -349,7 +353,7 @@ const actions = {
     const nodeToReplace = getters.findById(workflow, nodeId)
 
     const { data: newNode } = await AutomationWorkflowNodeService(
-      this.$client
+      useNuxtApp().$client
     ).replace(nodeId, {
       new_type: newType,
     })
@@ -395,11 +399,14 @@ const actions = {
 
     try {
       // Perform the backend update.
-      await AutomationWorkflowNodeService(this.$client).move(movedNodeId, {
-        reference_node_id: referenceNodeId,
-        position,
-        output,
-      })
+      await AutomationWorkflowNodeService(useNuxtApp().$client).move(
+        movedNodeId,
+        {
+          reference_node_id: referenceNodeId,
+          position,
+          output,
+        }
+      )
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -444,7 +451,7 @@ const actions = {
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
-        this.$client
+        useNuxtApp().$client
       ).duplicate(nodeId)
 
       commit('ADD_ITEM', { workflow, node })
@@ -479,6 +486,9 @@ const actions = {
     }
   },
   select({ commit, dispatch }, { workflow, node }) {
+    if (!workflow) {
+      return
+    }
     commit('SELECT_ITEM', { workflow, node })
     dispatch(
       'automationWorkflow/setActiveSidePanel',
@@ -490,7 +500,9 @@ const actions = {
     commit('SET_DRAGGING_NODE_ID', nodeId)
   },
   async simulateDispatch({ commit, dispatch }, { nodeId }) {
-    await AutomationWorkflowNodeService(this.$client).simulateDispatch(nodeId)
+    await AutomationWorkflowNodeService(useNuxtApp().$client).simulateDispatch(
+      nodeId
+    )
   },
   /**
    * Updates all the next nodes of a given node with the provided values.
@@ -546,6 +558,7 @@ const actions = {
 
 const getters = {
   getNodes: (state) => (workflow) => {
+    if (!workflow) return []
     return workflow.nodes
   },
   findById: (state) => (workflow, nodeId) => {

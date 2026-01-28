@@ -3,6 +3,7 @@ import availableCollaborators from '@baserow/modules/database/mixins/availableCo
 
 export default {
   mixins: [selectDropdown, availableCollaborators],
+  emits: ['update'],
   methods: {
     /**
      * Removes the provided ID from the current values list and emits an update

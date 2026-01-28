@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
-from baserow_premium.license.handler import LicenseHandler
 from requests.exceptions import JSONDecodeError, RequestException
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
@@ -17,6 +16,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import GitHubIssuesDataSync
 

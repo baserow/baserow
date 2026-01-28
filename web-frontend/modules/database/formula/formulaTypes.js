@@ -838,6 +838,10 @@ export class BaserowFormulaArrayType extends mix(
 
   toHumanReadableString(field, value) {
     const subType = this.getSubType(field)
+    if (!Array.isArray(value)) {
+      return ''
+    }
+
     return value
       .map((v) => {
         return subType.toHumanReadableString(

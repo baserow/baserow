@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <ul class="context__menu">
       <li
         v-if="
@@ -111,6 +111,7 @@ import KanbanViewUpdateStackContext from '@baserow_premium/components/views/kanb
 
 export default {
   name: 'KanbanViewStackContext',
+  emits: ['create-row', 'refresh'],
   components: { KanbanViewUpdateStackContext },
   mixins: [context, error],
   props: {

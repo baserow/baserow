@@ -49,6 +49,7 @@ export default {
       required: true,
     },
   },
+  emits: ['focussed', 'input'],
   computed: {
     selectedFieldComponent() {
       const components = this.$registry

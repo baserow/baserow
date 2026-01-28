@@ -1,5 +1,5 @@
 .paid-features__image {
-  background-color:  $palette-neutral-200;
+  background-color: $palette-neutral-200;
   padding: 16px 0 0 16px;
 
   @include rounded($rounded-md);
@@ -23,18 +23,18 @@
   border: solid 1px;
 
   &--red {
-    background-color: #EE6A5F;
-    border-color: #D15E53;
+    background-color: #ee6a5f;
+    border-color: #d15e53;
   }
 
   &--orange {
-    background-color: #F5BE4F;
-    border-color: #D6A243;
+    background-color: #f5be4f;
+    border-color: #d6a243;
   }
 
   &--green {
-    background-color: #61C454;
-    border-color: #58A942;
+    background-color: #61c454;
+    border-color: #58a942;
   }
 }
 

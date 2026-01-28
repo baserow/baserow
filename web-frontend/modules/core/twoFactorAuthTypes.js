@@ -55,19 +55,19 @@ export class TOTPAuthType extends TwoFactorAuthType {
   }
 
   get name() {
-    return this.app.i18n.t('totpAuthType.name')
+    return this.app.$i18n.t('totpAuthType.name')
   }
 
   get description() {
-    return this.app.i18n.t('totpAuthType.description')
+    return this.app.$i18n.t('totpAuthType.description')
   }
 
   get enabledDescription() {
-    return this.app.i18n.t('totpAuthType.enabledDescription')
+    return this.app.$i18n.t('totpAuthType.enabledDescription')
   }
 
   get sideLabel() {
-    return this.app.i18n.t('totpAuthType.sideLabel')
+    return this.app.$i18n.t('totpAuthType.sideLabel')
   }
 
   get settingsComponent() {

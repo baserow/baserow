@@ -45,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['field-created', 'move-field'],
   data() {
     return {
       position: 'left', // left or right

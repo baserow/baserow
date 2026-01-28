@@ -7,12 +7,12 @@ export class DuplicatePageJobType extends JobType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicatePageJobType.name')
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicatePageJobType.duplicating') + '...'
   }
 
@@ -25,7 +25,7 @@ export class DuplicatePageJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     store.dispatch(
       'toast/error',
@@ -39,7 +39,7 @@ export class DuplicatePageJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedPage = job.duplicated_page
     const builder = store.getters['application/get'](duplicatedPage.builder_id)

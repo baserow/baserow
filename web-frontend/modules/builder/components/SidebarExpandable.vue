@@ -1,6 +1,10 @@
 <template>
   <div class="sidebar-expandable__wrapper">
-    <Expandable class="sidebar-expandable" v-bind="$attrs" v-on="$listeners">
+    <Expandable
+      class="sidebar-expandable"
+      v-bind="$attrs"
+      @toggle="$emit('toggle')"
+    >
       <template #header="{ expanded }">
         <div class="sidebar-expandable__header">
           <div class="sidebar-expandable__handle" data-sortable-handle />
@@ -30,6 +34,7 @@
 <script>
 export default {
   name: 'SidebarExpandable',
+  emits: ['toggle'],
   computed: {
     hasFooterSlot() {
       return Boolean(this.$slots.footer)

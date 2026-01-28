@@ -1,9 +1,5 @@
 <template>
-  <UpsertRowWorkflowActionForm
-    enable-row-id
-    v-bind="$attrs"
-    v-on="$listeners"
-  />
+  <UpsertRowWorkflowActionForm enable-row-id v-bind="$attrs" />
 </template>
 
 <script>

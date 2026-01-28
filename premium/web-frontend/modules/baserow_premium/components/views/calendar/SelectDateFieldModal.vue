@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('selectDateFieldModal.chooseDateField') }}
     </h2>
@@ -34,6 +34,7 @@ import DateFieldSelectForm from '@baserow_premium/components/views/calendar/Date
 
 export default {
   name: 'SelectDateFieldModal',
+  emits: ['refresh'],
   components: {
     DateFieldSelectForm,
   },

@@ -1,5 +1,5 @@
 <template>
-  <Modal :full-screen="false" :close-button="true">
+  <Modal ref="modal" :full-screen="false" :close-button="true">
     <h2 class="box__title">
       {{ $t('importWorkspaceModal.title') }}
     </h2>
@@ -334,8 +334,8 @@ export default {
           await this.$store.dispatch('application/forceCreate', application)
         }
         this.$store.dispatch('toast/info', {
-          title: this.$i18n.t('importWorkspaceModal.successTitle'),
-          message: this.$i18n.t('importWorkspaceModal.successMessage', {
+          title: this.$t('importWorkspaceModal.successTitle'),
+          message: this.$t('importWorkspaceModal.successMessage', {
             count: installedApplications.length,
           }),
         })
@@ -346,7 +346,6 @@ export default {
       }
     },
 
-    // eslint-disable-next-line require-await
     async onJobFailed() {
       this.importing = false
       this.showError(

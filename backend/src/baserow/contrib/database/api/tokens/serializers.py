@@ -171,7 +171,7 @@ class TokenPermissionsField(serializers.Field):
 
 class TokenPermissionsFieldFix(OpenApiSerializerFieldExtension):
     target_class = (
-        "baserow.contrib.database.api.tokens.serializers." "TokenPermissionsField"
+        "baserow.contrib.database.api.tokens.serializers.TokenPermissionsField"
     )
 
     def map_serializer_field(self, auto_schema, direction):

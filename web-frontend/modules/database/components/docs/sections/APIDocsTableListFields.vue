@@ -72,9 +72,10 @@ export default {
     table: { type: Object, required: true },
     fields: { type: Object, required: true },
   },
+  emits: ['input'],
   methods: {
     getFieldsURL(table) {
-      return `${this.$config.PUBLIC_BACKEND_URL}/api/database/fields/table/${table.id}/`
+      return `${this.$config.public.publicBackendUrl}/api/database/fields/table/${table.id}/`
     },
     /**
      * Generates a sample field list response based on the available fields of the table.

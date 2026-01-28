@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`GridView component with decoration Default component with first_cell decoration 1`] = `
+exports[`GridView component with decoration > Default component with first_cell decoration 1`] = `
 <div
   class="grid-view grid-view--row-height-small"
 >
@@ -8,16 +8,17 @@ exports[`GridView component with decoration Default component with first_cell de
     class="scrollbars"
     style="left: 72px;"
   >
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
-   
   <div
     class="grid-view__left"
     style="width: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 72px;"
@@ -25,7 +26,8 @@ exports[`GridView component with decoration Default component with first_cell de
       <div
         class="grid-view__head"
       >
-         
+        
+        
         <div
           class="grid-view__column grid-view__column--no-border-right"
           style="width: 72px;"
@@ -36,13 +38,12 @@ exports[`GridView component with decoration Default component with first_cell de
             <i
               class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"
             />
-             
           </div>
         </div>
-          
-        <!---->
+        
+        
+        <!--v-if-->
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -57,20 +58,21 @@ exports[`GridView component with decoration Default component with first_cell de
               class="grid-view__placeholder-groups"
               style="width: 0px;"
             />
-             
+            
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
+            
             <div
               class="grid-view__row"
             >
-              <!---->
-               
+              
+              <!--v-if-->
               <div
                 class="grid-view__column grid-view__column--no-border-right"
                 style="width: 72px;"
@@ -85,36 +87,42 @@ exports[`GridView component with decoration Default component with first_cell de
                     <div
                       class="grid-view__row-count-content"
                     >
-                      
-              2
-            
+                      2
                     </div>
                   </div>
-                   
                   <div
                     class="grid-view__row-drag"
                   />
-                   
                   <a
                     class="grid-view__row-more"
+                    row="[object Object]"
                   >
                     <i
                       class="baserow-icon-enlarge-row"
                     />
                   </a>
-                   
+                  
                   <div>
                     fake_decoration: fake_value
                   </div>
                   <div>
                     fake_decoration: fake_value
                   </div>
+                  
                 </div>
               </div>
-               
+              
+              <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+              
+              
             </div>
+            
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 72px; height: 33px;"
@@ -134,21 +142,18 @@ exports[`GridView component with decoration Default component with first_cell de
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
         <div
           class="grid-view__foot-info"
         >
-          
-        gridView.rowCount - 2
-      
+          gridView.rowCount - 2
         </div>
-         
+        
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -156,27 +161,25 @@ exports[`GridView component with decoration Default component with first_cell de
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
-   
   <div
     class="grid-view__divider"
     style="left: 72px;"
   />
-   
-  <!---->
-   
+  <!--v-if-->
   <div
     class="grid-view__right"
     style="left: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 800px;"
@@ -184,9 +187,10 @@ exports[`GridView component with decoration Default component with first_cell de
       <div
         class="grid-view__head"
       >
-         
-        <!---->
-         
+        
+        
+        <!--v-if-->
+        
         <div
           class="grid-view__column"
           filters=""
@@ -201,29 +205,24 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Name"
             >
               <span>
-                
-        Name
-      
+                Name
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -232,8 +231,6 @@ exports[`GridView component with decoration Default component with first_cell de
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -253,29 +250,24 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Surname"
             >
               <span>
-                
-        Surname
-      
+                Surname
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -284,8 +276,6 @@ exports[`GridView component with decoration Default component with first_cell de
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -305,29 +295,24 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Address"
             >
               <span>
-                
-        Address
-      
+                Address
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -336,14 +321,12 @@ exports[`GridView component with decoration Default component with first_cell de
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
           </div>
         </div>
-         
+        
         <div
           class="grid-view__column"
           style="width: 100px;"
@@ -356,10 +339,8 @@ exports[`GridView component with decoration Default component with first_cell de
               class="grid-view__add-column-icon iconoir-plus"
             />
           </a>
-           
         </div>
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -370,8 +351,8 @@ exports[`GridView component with decoration Default component with first_cell de
             class="grid-view__placeholder"
             style="height: 66px; width: 600px;"
           >
-            <!---->
-             
+            <!--v-if-->
+            
             <div
               class="grid-view__placeholder-column"
               style="left: 199px;"
@@ -384,25 +365,44 @@ exports[`GridView component with decoration Default component with first_cell de
               class="grid-view__placeholder-column"
               style="left: 599px;"
             />
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
+            
             <div
               class="grid-view__row"
             >
-              <!---->
-               
+              <!--v-if-->
+              <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+              
+              
+              <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
               <div
+                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
+                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
                   class="grid-view__cell"
+                  field="[object Object]"
+                  read-only="false"
+                  row="[object Object]"
+                  state="[object Object]"
+                  store-prefix="page/"
+                  workspace-id="1"
                 >
                   <div
                     class="grid-field-text"
@@ -411,12 +411,26 @@ exports[`GridView component with decoration Default component with first_cell de
                   </div>
                 </div>
               </div>
+              
+              
+              <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
               <div
+                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
+                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
                   class="grid-view__cell"
+                  field="[object Object]"
+                  read-only="false"
+                  row="[object Object]"
+                  state="[object Object]"
+                  store-prefix="page/"
+                  workspace-id="1"
                 >
                   <div
                     class="grid-field-text"
@@ -425,9 +439,12 @@ exports[`GridView component with decoration Default component with first_cell de
                   </div>
                 </div>
               </div>
+              
+              
             </div>
+            
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 600px; height: 33px;"
@@ -439,18 +456,17 @@ exports[`GridView component with decoration Default component with first_cell de
               <a
                 class="grid-view__add-row"
               >
-                <!---->
+                <!--v-if-->
               </a>
             </div>
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
-        <!---->
-         
+        <!--v-if-->
+        
         <div
           style="width: 200px;"
         >
@@ -463,11 +479,8 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -482,11 +495,8 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -501,16 +511,13 @@ exports[`GridView component with decoration Default component with first_cell de
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -518,14 +525,12 @@ exports[`GridView component with decoration Default component with first_cell de
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"
@@ -534,18 +539,15 @@ exports[`GridView component with decoration Default component with first_cell de
       class="grid-view__row-dragging"
       style="width: 672px; top: 0px;"
     />
-     
     <div
       class="grid-view__row-target"
       style="width: 672px; top: 0px;"
     />
   </div>
-   
-   
 </div>
 `;
 
-exports[`GridView component with decoration Default component with row wrapper decoration 1`] = `
+exports[`GridView component with decoration > Default component with row wrapper decoration 1`] = `
 <div
   class="grid-view grid-view--row-height-small"
 >
@@ -553,16 +555,17 @@ exports[`GridView component with decoration Default component with row wrapper d
     class="scrollbars"
     style="left: 72px;"
   >
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
-   
   <div
     class="grid-view__left"
     style="width: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 72px;"
@@ -570,7 +573,8 @@ exports[`GridView component with decoration Default component with row wrapper d
       <div
         class="grid-view__head"
       >
-         
+        
+        
         <div
           class="grid-view__column grid-view__column--no-border-right"
           style="width: 72px;"
@@ -581,13 +585,12 @@ exports[`GridView component with decoration Default component with row wrapper d
             <i
               class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"
             />
-             
           </div>
         </div>
-          
-        <!---->
+        
+        
+        <!--v-if-->
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -602,20 +605,73 @@ exports[`GridView component with decoration Default component with row wrapper d
               class="grid-view__placeholder-groups"
               style="width: 0px;"
             />
-             
+            
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
             <div
-              class="test-wrapper"
-            />
+              class="test-wrapper grid-view__row-background-wrapper"
+              value="fake_value"
+            >
+              <div
+                class="test-wrapper"
+                value="fake_value"
+              >
+                <div
+                  class="grid-view__row"
+                >
+                  
+                  <!--v-if-->
+                  <div
+                    class="grid-view__column grid-view__column--no-border-right"
+                    style="width: 72px;"
+                  >
+                    <div
+                      class="grid-view__row-info"
+                    >
+                      <div
+                        class="grid-view__row-count grid-view__row-count--hide-on-hover"
+                        title="2"
+                      >
+                        <div
+                          class="grid-view__row-count-content"
+                        >
+                          2
+                        </div>
+                      </div>
+                      <div
+                        class="grid-view__row-drag"
+                      />
+                      <a
+                        class="grid-view__row-more"
+                        row="[object Object]"
+                      >
+                        <i
+                          class="baserow-icon-enlarge-row"
+                        />
+                      </a>
+                      
+                      
+                    </div>
+                  </div>
+                  
+                  <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+                  
+                  
+                </div>
+              </div>
+            </div>
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 72px; height: 33px;"
@@ -635,21 +691,18 @@ exports[`GridView component with decoration Default component with row wrapper d
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
         <div
           class="grid-view__foot-info"
         >
-          
-        gridView.rowCount - 2
-      
+          gridView.rowCount - 2
         </div>
-         
+        
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -657,27 +710,25 @@ exports[`GridView component with decoration Default component with row wrapper d
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
-   
   <div
     class="grid-view__divider"
     style="left: 72px;"
   />
-   
-  <!---->
-   
+  <!--v-if-->
   <div
     class="grid-view__right"
     style="left: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 800px;"
@@ -685,9 +736,10 @@ exports[`GridView component with decoration Default component with row wrapper d
       <div
         class="grid-view__head"
       >
-         
-        <!---->
-         
+        
+        
+        <!--v-if-->
+        
         <div
           class="grid-view__column"
           filters=""
@@ -702,29 +754,24 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Name"
             >
               <span>
-                
-        Name
-      
+                Name
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -733,8 +780,6 @@ exports[`GridView component with decoration Default component with row wrapper d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -754,29 +799,24 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Surname"
             >
               <span>
-                
-        Surname
-      
+                Surname
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -785,8 +825,6 @@ exports[`GridView component with decoration Default component with row wrapper d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -806,29 +844,24 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Address"
             >
               <span>
-                
-        Address
-      
+                Address
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -837,14 +870,12 @@ exports[`GridView component with decoration Default component with row wrapper d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
           </div>
         </div>
-         
+        
         <div
           class="grid-view__column"
           style="width: 100px;"
@@ -857,10 +888,8 @@ exports[`GridView component with decoration Default component with row wrapper d
               class="grid-view__add-column-icon iconoir-plus"
             />
           </a>
-           
         </div>
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -871,8 +900,8 @@ exports[`GridView component with decoration Default component with row wrapper d
             class="grid-view__placeholder"
             style="height: 66px; width: 600px;"
           >
-            <!---->
-             
+            <!--v-if-->
+            
             <div
               class="grid-view__placeholder-column"
               style="left: 199px;"
@@ -885,19 +914,94 @@ exports[`GridView component with decoration Default component with row wrapper d
               class="grid-view__placeholder-column"
               style="left: 599px;"
             />
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
             <div
-              class="test-wrapper"
-            />
+              class="test-wrapper grid-view__row-background-wrapper"
+              value="fake_value"
+            >
+              <div
+                class="test-wrapper"
+                value="fake_value"
+              >
+                <div
+                  class="grid-view__row"
+                >
+                  <!--v-if-->
+                  <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+                  
+                  
+                  <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
+                  <div
+                    add-keep-alive="function () { [native code] }"
+                    class="grid-view__column"
+                    remove-keep-alive="function () { [native code] }"
+                    style="width: 200px;"
+                  >
+                    <div
+                      class="grid-view__cell"
+                      field="[object Object]"
+                      read-only="false"
+                      row="[object Object]"
+                      state="[object Object]"
+                      store-prefix="page/"
+                      workspace-id="1"
+                    >
+                      <div
+                        class="grid-field-text"
+                      >
+                        first
+                      </div>
+                    </div>
+                  </div>
+                  
+                  
+                  <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
+                  <div
+                    add-keep-alive="function () { [native code] }"
+                    class="grid-view__column"
+                    remove-keep-alive="function () { [native code] }"
+                    style="width: 200px;"
+                  >
+                    <div
+                      class="grid-view__cell"
+                      field="[object Object]"
+                      read-only="false"
+                      row="[object Object]"
+                      state="[object Object]"
+                      store-prefix="page/"
+                      workspace-id="1"
+                    >
+                      <div
+                        class="grid-field-text"
+                      >
+                        Bram
+                      </div>
+                    </div>
+                  </div>
+                  
+                  
+                </div>
+              </div>
+            </div>
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 600px; height: 33px;"
@@ -909,18 +1013,17 @@ exports[`GridView component with decoration Default component with row wrapper d
               <a
                 class="grid-view__add-row"
               >
-                <!---->
+                <!--v-if-->
               </a>
             </div>
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
-        <!---->
-         
+        <!--v-if-->
+        
         <div
           style="width: 200px;"
         >
@@ -933,11 +1036,8 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -952,11 +1052,8 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -971,16 +1068,13 @@ exports[`GridView component with decoration Default component with row wrapper d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -988,14 +1082,12 @@ exports[`GridView component with decoration Default component with row wrapper d
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"
@@ -1004,18 +1096,15 @@ exports[`GridView component with decoration Default component with row wrapper d
       class="grid-view__row-dragging"
       style="width: 672px; top: 0px;"
     />
-     
     <div
       class="grid-view__row-target"
       style="width: 672px; top: 0px;"
     />
   </div>
-   
-   
 </div>
 `;
 
-exports[`GridView component with decoration Default component with unavailable decoration 1`] = `
+exports[`GridView component with decoration > Default component with unavailable decoration 1`] = `
 <div
   class="grid-view grid-view--row-height-small"
 >
@@ -1023,16 +1112,17 @@ exports[`GridView component with decoration Default component with unavailable d
     class="scrollbars"
     style="left: 72px;"
   >
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
-   
   <div
     class="grid-view__left"
     style="width: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 72px;"
@@ -1040,7 +1130,8 @@ exports[`GridView component with decoration Default component with unavailable d
       <div
         class="grid-view__head"
       >
-         
+        
+        
         <div
           class="grid-view__column grid-view__column--no-border-right"
           style="width: 72px;"
@@ -1051,13 +1142,12 @@ exports[`GridView component with decoration Default component with unavailable d
             <i
               class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"
             />
-             
           </div>
         </div>
-          
-        <!---->
+        
+        
+        <!--v-if-->
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -1072,20 +1162,21 @@ exports[`GridView component with decoration Default component with unavailable d
               class="grid-view__placeholder-groups"
               style="width: 0px;"
             />
-             
+            
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
+            
             <div
               class="grid-view__row"
             >
-              <!---->
-               
+              
+              <!--v-if-->
               <div
                 class="grid-view__column grid-view__column--no-border-right"
                 style="width: 72px;"
@@ -1100,30 +1191,36 @@ exports[`GridView component with decoration Default component with unavailable d
                     <div
                       class="grid-view__row-count-content"
                     >
-                      
-              2
-            
+                      2
                     </div>
                   </div>
-                   
                   <div
                     class="grid-view__row-drag"
                   />
-                   
                   <a
                     class="grid-view__row-more"
+                    row="[object Object]"
                   >
                     <i
                       class="baserow-icon-enlarge-row"
                     />
                   </a>
-                   
+                  
+                  
                 </div>
               </div>
-               
+              
+              <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+              
+              
             </div>
+            
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 72px; height: 33px;"
@@ -1143,21 +1240,18 @@ exports[`GridView component with decoration Default component with unavailable d
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
         <div
           class="grid-view__foot-info"
         >
-          
-        gridView.rowCount - 2
-      
+          gridView.rowCount - 2
         </div>
-         
+        
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -1165,27 +1259,25 @@ exports[`GridView component with decoration Default component with unavailable d
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
-   
   <div
     class="grid-view__divider"
     style="left: 72px;"
   />
-   
-  <!---->
-   
+  <!--v-if-->
   <div
     class="grid-view__right"
     style="left: 72px;"
   >
-      
+    
+    
+    
+    
     <div
       class="grid-view__inner"
       style="min-width: 800px;"
@@ -1193,9 +1285,10 @@ exports[`GridView component with decoration Default component with unavailable d
       <div
         class="grid-view__head"
       >
-         
-        <!---->
-         
+        
+        
+        <!--v-if-->
+        
         <div
           class="grid-view__column"
           filters=""
@@ -1210,29 +1303,24 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Name"
             >
               <span>
-                
-        Name
-      
+                Name
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -1241,8 +1329,6 @@ exports[`GridView component with decoration Default component with unavailable d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -1262,29 +1348,24 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Surname"
             >
               <span>
-                
-        Surname
-      
+                Surname
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -1293,8 +1374,6 @@ exports[`GridView component with decoration Default component with unavailable d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
@@ -1314,29 +1393,24 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view__description-icon iconoir-text"
               />
-               
-              <!---->
+              <!--v-if-->
             </div>
-             
             <div
               class="grid-view__description-name"
               title="Address"
             >
               <span>
-                
-        Address
-      
+                Address
               </span>
             </div>
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="grid-view__description-options"
             >
-               
-              <!---->
-               
+              
+              <!--v-if-->
+              
+              <!--v-if-->
               <a
                 class="grid-view__description-icon-trigger"
               >
@@ -1345,14 +1419,12 @@ exports[`GridView component with decoration Default component with unavailable d
                 />
               </a>
             </span>
-             
-             
             <div
               class="grid-view__description-width"
             />
           </div>
         </div>
-         
+        
         <div
           class="grid-view__column"
           style="width: 100px;"
@@ -1365,10 +1437,8 @@ exports[`GridView component with decoration Default component with unavailable d
               class="grid-view__add-column-icon iconoir-plus"
             />
           </a>
-           
         </div>
       </div>
-       
       <div
         class="grid-view__body"
       >
@@ -1379,8 +1449,8 @@ exports[`GridView component with decoration Default component with unavailable d
             class="grid-view__placeholder"
             style="height: 66px; width: 600px;"
           >
-            <!---->
-             
+            <!--v-if-->
+            
             <div
               class="grid-view__placeholder-column"
               style="left: 199px;"
@@ -1393,25 +1463,44 @@ exports[`GridView component with decoration Default component with unavailable d
               class="grid-view__placeholder-column"
               style="left: 599px;"
             />
+            
           </div>
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
           >
+            
+            
             <div
               class="grid-view__row"
             >
-              <!---->
-               
+              <!--v-if-->
+              <!--
+      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
+      everything up because the rows don't need to be updated everytime a new one is
+      rendered, which happens a lot when scrolling.
+      -->
+              
+              
+              <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
               <div
+                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
+                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
                   class="grid-view__cell"
+                  field="[object Object]"
+                  read-only="false"
+                  row="[object Object]"
+                  state="[object Object]"
+                  store-prefix="page/"
+                  workspace-id="1"
                 >
                   <div
                     class="grid-field-text"
@@ -1420,12 +1509,26 @@ exports[`GridView component with decoration Default component with unavailable d
                   </div>
                 </div>
               </div>
+              
+              
+              <!--
+    The :key property must be set here because it makes sure that the child components
+    are not re-rendered when functional component changes position in the DOM.
+  -->
               <div
+                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
+                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
                   class="grid-view__cell"
+                  field="[object Object]"
+                  read-only="false"
+                  row="[object Object]"
+                  state="[object Object]"
+                  store-prefix="page/"
+                  workspace-id="1"
                 >
                   <div
                     class="grid-field-text"
@@ -1434,9 +1537,12 @@ exports[`GridView component with decoration Default component with unavailable d
                   </div>
                 </div>
               </div>
+              
+              
             </div>
+            
+            
           </div>
-           
           <div
             class="grid-view__row"
             style="width: 600px; height: 33px;"
@@ -1448,18 +1554,17 @@ exports[`GridView component with decoration Default component with unavailable d
               <a
                 class="grid-view__add-row"
               >
-                <!---->
+                <!--v-if-->
               </a>
             </div>
           </div>
         </div>
       </div>
-       
       <div
         class="grid-view__foot"
       >
-        <!---->
-         
+        <!--v-if-->
+        
         <div
           style="width: 200px;"
         >
@@ -1472,11 +1577,8 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -1491,11 +1593,8 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
         <div
@@ -1510,16 +1609,13 @@ exports[`GridView component with decoration Default component with unavailable d
               <i
                 class="grid-view-aggregation__empty-icon iconoir-plus"
               />
-              
-    common.summarize
-  
+               common.summarize
             </div>
-             
           </div>
         </div>
+        
       </div>
     </div>
-     
     <div
       style="display: none;"
     >
@@ -1527,14 +1623,12 @@ exports[`GridView component with decoration Default component with unavailable d
         class="grid-view__field-dragging"
         style="width: 0px; left: 0px;"
       />
-       
       <div
         class="grid-view__field-target"
         style="left: 0px;"
       />
     </div>
   </div>
-   
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"
@@ -1543,13 +1637,10 @@ exports[`GridView component with decoration Default component with unavailable d
       class="grid-view__row-dragging"
       style="width: 672px; top: 0px;"
     />
-     
     <div
       class="grid-view__row-target"
       style="width: 672px; top: 0px;"
     />
   </div>
-   
-   
 </div>
 `;

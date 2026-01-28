@@ -18,7 +18,7 @@ export default {
   components: { FieldMappingForm },
   inject: ['workspace'],
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -27,10 +27,14 @@ export default {
       required: true,
     },
   },
+  emits: ['update:modelValue'],
   computed: {
     fieldMappingMap() {
       return Object.fromEntries(
-        this.value.map((fieldMapping) => [fieldMapping.field_id, fieldMapping])
+        this.modelValue.map((fieldMapping) => [
+          fieldMapping.field_id,
+          fieldMapping,
+        ])
       )
     },
     filteredFields() {
@@ -46,27 +50,27 @@ export default {
       )
     },
     updateFieldMapping(fieldId, changes) {
-      const existingMapping = this.value.some(
+      const existingMapping = this.modelValue.some(
         ({ field_id: existingId }) => existingId === fieldId
       )
       const existingFieldIds = this.fields.map(({ id }) => id)
 
       // If the field has been removed in the meantime we want to ignore it
-      const filteredValue = this.value.filter(({ field_id: fieldId }) =>
+      const filteredValue = this.modelValue.filter(({ field_id: fieldId }) =>
         existingFieldIds.includes(fieldId)
       )
 
       if (existingMapping) {
         if (changes === undefined) {
           this.$emit(
-            'input',
+            'update:modelValue',
             filteredValue.filter(
               ({ field_id: fieldIdToCheck }) => fieldIdToCheck !== fieldId
             )
           )
         } else {
           this.$emit(
-            'input',
+            'update:modelValue',
             filteredValue.map((fieldMapping) => {
               if (fieldMapping.field_id === fieldId) {
                 return { ...fieldMapping, ...changes }
@@ -76,7 +80,7 @@ export default {
           )
         }
       } else if (changes !== undefined) {
-        this.$emit('input', [
+        this.$emit('update:modelValue', [
           ...filteredValue,
           {
             enabled: true,

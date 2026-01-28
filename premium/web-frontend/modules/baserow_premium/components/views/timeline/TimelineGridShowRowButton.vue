@@ -1,20 +1,10 @@
-<template functional>
+<template>
   <div
-    v-tooltip="
-      $options.methods.getTooltipText(
-        props.label,
-        $options.methods.getDate(props.date, props.timezone)
-      )
-    "
-    :class="[data.staticClass, data.class]"
-    :tooltip-position="props.tooltipPosition"
-    @mousedown="
-      listeners['mousedown'](
-        $options.methods.getDate(props.date, props.timezone)
-      )
-    "
+    v-tooltip="tooltipText"
+    :tooltip-position="tooltipPosition"
+    @mousedown="onMouseDown"
   >
-    <i :class="[props.icon]"></i>
+    <i :class="[icon]"></i>
   </div>
 </template>
 
@@ -23,6 +13,7 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'TimelineGridShowRowButton',
+  emits: ['mousedown'],
   props: {
     label: {
       type: String,
@@ -45,12 +36,23 @@ export default {
       default: 'iconoir-nav-arrow-left',
     },
   },
+  computed: {
+    computedDate() {
+      return this.getDate(this.date, this.timezone)
+    },
+    tooltipText() {
+      return this.getTooltipText(this.label, this.computedDate)
+    },
+  },
   methods: {
     getTooltipText(label, date) {
       return `${label} ${date ? `| ${date.format('ll')}` : ''}`
     },
     getDate(dateStr, tzone) {
       return dateStr ? moment(dateStr).tz(tzone) : null
+    },
+    onMouseDown() {
+      this.$emit('mousedown', this.computedDate)
     },
   },
 }

@@ -42,14 +42,7 @@
 </template>
 
 <script setup>
-import {
-  inject,
-  provide,
-  useStore,
-  useContext,
-  computed,
-  watch,
-} from '@nuxtjs/composition-api'
+import { useStore } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
@@ -62,7 +55,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const store = useStore()
 
-const { app } = useContext()
+const app = useNuxtApp()
 
 provide('formulaComponent', AutomationBuilderFormulaInput)
 provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)
@@ -91,7 +84,7 @@ watch(
 const rules = {
   label: {
     maxLength: helpers.withMessage(
-      app.i18n.t('error.maxLength', { max: 75 }),
+      app.$i18n.t('error.maxLength', { max: 75 }),
       maxLength(75)
     ),
   },

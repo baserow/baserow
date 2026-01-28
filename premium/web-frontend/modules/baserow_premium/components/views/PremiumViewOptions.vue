@@ -12,7 +12,7 @@
         :disabled="!hasPremiumFeatures"
         @input="update('show_logo', !$event)"
       >
-        <img src="@baserow/modules/core/static/img/baserow-icon.svg" />
+        <img src="@baserow/modules/core/static/img/baserow-icon.svg?url" />
         <span>
           {{ $t('shareLinkOptions.baserowLogo.label') }}
         </span>
@@ -59,6 +59,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'PremiumViewOptions',
+  emits: ['update-view'],
   components: { PaidFeaturesModal },
 
   props: {

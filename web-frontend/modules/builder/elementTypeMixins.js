@@ -38,19 +38,19 @@ export const ContainerElementTypeMixin = (Base) =>
     getErrorMessage(element, applicationContext) {
       const { builder } = applicationContext
 
-      const elementPage = this.app.store.getters['page/getById'](
+      const elementPage = this.app.$store.getters['page/getById'](
         builder,
         element.page_id
       )
 
-      const children = this.app.store.getters['element/getChildren'](
+      const children = this.app.$store.getters['element/getChildren'](
         elementPage,
         element
       )
 
       // A container element needs at least one child.
       if (!children.length) {
-        return this.app.i18n.t('elementType.errorEmptyContainer')
+        return this.app.$i18n.t('elementType.errorEmptyContainer')
       }
 
       return super.getErrorMessage(element, applicationContext)
@@ -154,12 +154,13 @@ export const CollectionElementTypeMixin = (Base) =>
     }
 
     hasCollectionAncestor(page, element) {
-      return this.app.store.getters['element/getAncestors'](page, element).some(
-        ({ type }) => {
-          const ancestorType = this.app.$registry.get('element', type)
-          return ancestorType.isCollectionElement
-        }
-      )
+      return this.app.$store.getters['element/getAncestors'](
+        page,
+        element
+      ).some(({ type }) => {
+        const ancestorType = this.app.$registry.get('element', type)
+        return ancestorType.isCollectionElement
+      })
     }
 
     /**
@@ -176,14 +177,14 @@ export const CollectionElementTypeMixin = (Base) =>
 
     getElementContentInStore(element) {
       return (
-        this.app.store.getters['elementContent/getElementContent'](element) ||
+        this.app.$store.getters['elementContent/getElementContent'](element) ||
         []
       )
     }
 
     getDataSourceForElement({ builder, page, element }) {
-      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
-      return this.app.store.getters['dataSource/getPagesDataSourceById'](
+      const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
+      return this.app.$store.getters['dataSource/getPagesDataSourceById'](
         [sharedPage, page],
         element.data_source_id
       )
@@ -207,7 +208,7 @@ export const CollectionElementTypeMixin = (Base) =>
     getDisplayName(element, { page, builder }) {
       let suffix = ''
 
-      const collectionAncestors = this.app.store.getters[
+      const collectionAncestors = this.app.$store.getters[
         'element/getAncestors'
       ](page, element, {
         predicate: (ancestor) =>
@@ -225,8 +226,9 @@ export const CollectionElementTypeMixin = (Base) =>
       // If we find a collection ancestor which has a data source, we'll
       // use the data source's name as part of the display name.
       if (collectionElement?.data_source_id) {
-        const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
-        const dataSource = this.app.store.getters[
+        const sharedPage =
+          this.app.$store.getters['page/getSharedPage'](builder)
+        const dataSource = this.app.$store.getters[
           'dataSource/getPagesDataSourceById'
         ]([page, sharedPage], collectionElement?.data_source_id)
         suffix = dataSource ? dataSource.name : ''
@@ -274,28 +276,28 @@ export const CollectionElementTypeMixin = (Base) =>
      * @param params - Context data which the element type can use.
      */
     async onElementEvent(event, { builder, element, dataSourceId }) {
-      const page = this.app.store.getters['page/getById'](
+      const page = this.app.$store.getters['page/getById'](
         builder,
         element.page_id
       )
       if (event === ELEMENT_EVENTS.DATA_SOURCE_REMOVED) {
         if (element.data_source_id === dataSourceId) {
           // Remove the data_source_id
-          await this.app.store.dispatch('element/forceUpdate', {
+          await this.app.$store.dispatch('element/forceUpdate', {
             builder,
             page,
             element,
             values: { data_source_id: null },
           })
           // Empty the element content
-          await this.app.store.dispatch('elementContent/clearElementContent', {
+          await this.app.$store.dispatch('elementContent/clearElementContent', {
             element,
           })
         }
       }
       if (event === ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE) {
         if (element.data_source_id === dataSourceId) {
-          await this.app.store.dispatch(
+          await this.app.$store.dispatch(
             'elementContent/triggerElementContentReset',
             {
               element,
@@ -319,7 +321,7 @@ export const CollectionElementTypeMixin = (Base) =>
      */
     getDataSourceErrorMessage({ workspace, page, element, builder }) {
       // We get all parents with a valid data_source_id
-      const collectionAncestorsWithDataSource = this.app.store.getters[
+      const collectionAncestorsWithDataSource = this.app.$store.getters[
         'element/getAncestors'
       ](page, element, {
         predicate: (ancestor) =>
@@ -342,27 +344,27 @@ export const CollectionElementTypeMixin = (Base) =>
       const parentWithDataSource = collectionAncestorsWithDataSource[lastIndex]
 
       // We now check if the parent element configuration is correct.
-      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
-      const dataSource = this.app.store.getters[
+      const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
+      const dataSource = this.app.$store.getters[
         'dataSource/getPagesDataSourceById'
       ]([page, sharedPage], parentWithDataSource.data_source_id)
 
       // The data source is missing. May be it has been removed.
       if (!dataSource) {
-        return this.app.i18n.t('elementType.errorDataSourceMissing')
+        return this.app.$i18n.t('elementType.errorDataSourceMissing')
       }
 
       const serviceType = this.app.$registry.get('service', dataSource.type)
 
       // If the data source type doesn't return a list, we should have a schema_property
       if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
-        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+        return this.app.$i18n.t('elementType.errorSchemaPropertyMissing')
       }
 
       // If the current element is not the one with the data source it should have
       // a schema_property
       if (parentWithDataSource.id !== element.id && !element.schema_property) {
-        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+        return this.app.$i18n.t('elementType.errorSchemaPropertyMissing')
       }
       return null
     }
@@ -373,7 +375,7 @@ export const CollectionElementTypeMixin = (Base) =>
     getErrorMessage(element, applicationContext) {
       const { workspace, builder } = applicationContext
 
-      const elementPage = this.app.store.getters['page/getById'](
+      const elementPage = this.app.$store.getters['page/getById'](
         builder,
         element.page_id
       )

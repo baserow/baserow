@@ -2,21 +2,32 @@ import { Locator, Page, expect } from "@playwright/test";
 import { baserowConfig } from "../playwright.config";
 import { User } from "../fixtures/user";
 
+import { GotoOptions } from "@nuxt/test-utils/e2e";
+
+type GotoFn = (url: string, options?: GotoOptions) => Promise<Response | null>;
+
+export type PageConfig = { page: Page; goto: GotoFn };
+
 export class BaserowPage {
   readonly page: Page;
+  readonly _goto: any;
   readonly baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
   pageUrl: string;
 
-  constructor(page: Page) {
+  constructor({ page, goto }: PageConfig) {
     this.page = page;
+    this._goto = goto;
   }
 
   async authenticate(user: User) {
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
   }
 
-  async goto() {
-    await this.page.goto(this.getFullUrl());
+  async goto(params = {}) {
+    await this._goto(this.getFullUrl(), {
+      waitUntil: "hydration",
+      ...params,
+    });
   }
 
   async checkOnPage() {

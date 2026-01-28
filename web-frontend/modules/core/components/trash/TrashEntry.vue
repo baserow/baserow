@@ -5,7 +5,7 @@
     :class="{ 'trash-entry--disabled': disabled }"
   >
     <div class="trash-entry__initials">
-      {{ trashEntry.user_who_trashed | nameAbbreviation }}
+      {{ $filters.nameAbbreviation(trashEntry.user_who_trashed) }}
     </div>
     <div class="trash-entry__content">
       <div class="trash-entry__name">
@@ -64,6 +64,7 @@ export default {
       default: false,
     },
   },
+  emits: ['restore'],
   data() {
     return {}
   },

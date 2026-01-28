@@ -133,9 +133,11 @@ export default {
       default: 'regular',
     },
   },
+  emits: ['create-option'],
   data() {
     return {
       createOptionLoading: false,
+      selectedColorRefreshKey: 0,
     }
   },
   computed: {
@@ -143,12 +145,15 @@ export default {
       return this.allowCreateOption && this.query !== '' && !this.hasItems
     },
     selectedColor() {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      this.selectedColorRefreshKey
+      // Adds a dependency to this variable I guess. Is this the best way???
       return this.getSelectedProperty(this.value, 'color')
     },
   },
   methods: {
     forceRefreshSelectedValue() {
-      this._computedWatchers.selectedColor.run()
+      this.selectedColorRefreshKey++
       dropdown.methods.forceRefreshSelectedValue.call(this)
     },
     createOption(value) {

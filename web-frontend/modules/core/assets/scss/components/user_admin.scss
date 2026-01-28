@@ -11,7 +11,7 @@
 .user-admin-username__name {
   @extend %ellipsis;
 
-  word-wrap: break-word;
+  overflow-wrap: break-word;
   line-height: 24px;
 }
 
@@ -42,7 +42,7 @@
 }
 
 .user-admin-delete__strong {
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .user-admin-edit__delete {

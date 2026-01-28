@@ -10,7 +10,7 @@
     <i class="context__menu-item-icon iconoir-copy"></i>
     {{
       $t('sidebarApplication.duplicate', {
-        type: application._.type.name.toLowerCase(),
+        type: application._?.type?.name?.toLowerCase() || '',
       })
     }}
   </a>
@@ -33,6 +33,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   data() {
     return {
       duplicating: false,

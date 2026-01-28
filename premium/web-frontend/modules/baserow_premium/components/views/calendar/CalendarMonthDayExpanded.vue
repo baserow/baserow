@@ -33,9 +33,9 @@
             :fields="fields"
             :store-prefix="storePrefix"
             :class="{ last: index == rows.length - 1 }"
-            :parent-width="contextWidth"
             :decorations-by-place="decorationsByPlace"
-            v-on="$listeners"
+            @edit-row="$emit('edit-row', $event)"
+            @row-context="$emit('row-context', $event)"
           >
           </CalendarCard>
           <div v-if="error" class="calendar-month-day-expanded__try-again">
@@ -63,6 +63,8 @@ export default {
     InfiniteScroll,
   },
   mixins: [context],
+  inheritAttrs: false,
+  emits: ['edit-row', 'row-context'],
   props: {
     day: {
       type: Object,
@@ -135,9 +137,6 @@ export default {
     },
     maxContextHeight() {
       return this.parentHeight * 2 - 10
-    },
-    contextWidth() {
-      return this.$refs.context.$el.clientWidth
     },
     innerHeight() {
       return this.contextHeight - 48

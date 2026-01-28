@@ -226,7 +226,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
     )
     get_params = [f"filter__field_{text_field.id}__contains=a"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -242,7 +242,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
         f"filter_type=OR",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -253,7 +253,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
     )
     get_params = [f"filter__field_{text_field_hidden.id}__contains=y"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -264,7 +264,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
     )
     get_params = [f"filter__field_{text_field.id}__random=y"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -275,7 +275,7 @@ def test_list_timeline_rows_adhoc_filtering_query_param_filter(
     )
     get_params = [f"filter__field_{text_field.id}__higher_than=1"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -353,7 +353,7 @@ def test_list_timeline_rows_adhoc_filtering_invalid_advanced_filters(
     for filters, error_detail in expected_errors:
         get_params = [f"filters={filters}"]
         response = api_client.get(
-            f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+            f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
         )
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
@@ -408,7 +408,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters_are_preferred_to_ot
         f"filter_type=AND",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -463,7 +463,7 @@ def test_list_timeline_rows_adhoc_filtering_overrides_existing_filters(
         "filters=" + json.dumps(advanced_filters),
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -515,7 +515,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -544,7 +544,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -585,7 +585,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -603,7 +603,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -621,7 +621,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -639,7 +639,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -652,7 +652,7 @@ def test_list_timeline_rows_adhoc_filtering_advanced_filters(
     ]:
         get_params = [f"filters={filters}"]
         response = api_client.get(
-            f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+            f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
         )
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1290,7 +1290,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
         "api:database:views:timeline:public_rows", kwargs={"slug": timeline_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__contains=a"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 1
@@ -1304,7 +1304,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
         f"filter__field_{public_field.id}__contains=b",
         f"filter_type=OR",
     ]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -1313,7 +1313,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
         "api:database:views:timeline:public_rows", kwargs={"slug": timeline_view.slug}
     )
     get_params = [f"filter__field_{hidden_field.id}__contains=y"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
@@ -1322,7 +1322,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
         "api:database:views:timeline:public_rows", kwargs={"slug": timeline_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__random=y"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST"
@@ -1331,7 +1331,7 @@ def test_list_rows_public_with_query_param_filter(api_client, premium_data_fixtu
         "api:database:views:timeline:public_rows", kwargs={"slug": timeline_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__higher_than=1"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD"
@@ -1499,7 +1499,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 1
@@ -1526,7 +1526,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -1565,7 +1565,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -1581,7 +1581,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
@@ -1597,7 +1597,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST"
@@ -1613,7 +1613,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD"
@@ -1624,7 +1624,7 @@ def test_list_rows_public_with_query_param_advanced_filters(
         json.dumps({"filter_type": "OR", "filters": "invalid"}),
     ]:
         get_params = [f"filters={filters}"]
-        response = api_client.get(f'{url}?{"&".join(get_params)}')
+        response = api_client.get(f"{url}?{'&'.join(get_params)}")
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"

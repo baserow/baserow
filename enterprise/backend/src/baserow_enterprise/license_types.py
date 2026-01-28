@@ -1,9 +1,5 @@
 from typing import List, Optional
 
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.models import License
-from baserow_premium.license.registries import LicenseType, SeatUsageSummary
-
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
@@ -25,6 +21,9 @@ from baserow_enterprise.features import (
 from baserow_enterprise.role.seat_usage_calculator import (
     RoleBasedSeatUsageSummaryCalculator,
 )
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.models import License
+from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 
 COMMON_ADVANCED_FEATURES = [
     # core

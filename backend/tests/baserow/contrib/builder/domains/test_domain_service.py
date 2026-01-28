@@ -209,8 +209,9 @@ def test_get_published_builder_by_domain_name_unauthorized(
         builder=builder, published_to=builder_to
     )
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DomainService().get_public_builder_by_domain_name(user, domain1.domain_name)
 
@@ -235,8 +236,9 @@ def test_async_publish_domain_no_permission(data_fixture, stub_check_permissions
     user = data_fixture.create_user()
     domain1 = data_fixture.create_builder_custom_domain()
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DomainService().async_publish(user, domain1)
 
@@ -265,7 +267,8 @@ def test_publish_domain_unauthorized(data_fixture, stub_check_permissions):
 
     progress = Progress(100)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DomainService().publish(user, domain1, progress)

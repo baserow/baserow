@@ -1,7 +1,6 @@
 import enum
 
 import pytest
-from baserow_premium.fields.ai_field_output_types import StrictEnumOutputParser
 from langchain_core.prompts import PromptTemplate
 
 from baserow.core.generative_ai.registries import (
@@ -9,6 +8,7 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.jobs.handler import JobHandler
+from baserow_premium.fields.ai_field_output_types import get_strict_enum_output_parser
 
 
 def test_strict_enum_output_parser():
@@ -21,7 +21,7 @@ def test_strict_enum_output_parser():
             "OPTION_4": "A,B,C",
         },
     )
-    output_parser = StrictEnumOutputParser(enum=choices)
+    output_parser = get_strict_enum_output_parser(enum=choices)
     format_instructions = output_parser.get_format_instructions()
     prompt = "What is a motorcycle?"
     prompt = PromptTemplate(

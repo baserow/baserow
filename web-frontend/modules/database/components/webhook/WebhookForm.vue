@@ -122,8 +122,8 @@
           tooltip-position="bottom-cursor"
           @mousedown="
             webhookEvent.isDeactivated(database.workspace.id) &&
-              !values.events.includes(webhookEvent.type) &&
-              $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
+            !values.events.includes(webhookEvent.type) &&
+            $refs[`${webhookEvent.getName()}DeactivatedClickModal`][0].show()
           "
         >
           <Checkbox
@@ -331,6 +331,7 @@ export default {
       required: true,
     },
   },
+  emits: ['formchange'],
   setup() {
     const values = reactive({
       values: {
@@ -507,7 +508,7 @@ export default {
         })
         return this.setEventView(event, view)
       }
-      this.$set(eventConfig, 'views', [view])
+      eventConfig.views = [view]
     },
     toggleEventType(webhookEvent, event) {
       if (event) {

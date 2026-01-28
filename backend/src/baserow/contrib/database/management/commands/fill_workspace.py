@@ -184,7 +184,7 @@ def fill_workspace_with_data(
 
     with tqdm(
         range(database_count * table_count + token_count),
-        desc=f"Worker" f" {process_id}",
+        desc=f"Worker {process_id}",
     ) as pbar:
         created_databases_and_tables = {}
         for _ in range(database_count):

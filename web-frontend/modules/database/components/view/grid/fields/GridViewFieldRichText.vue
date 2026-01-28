@@ -12,9 +12,11 @@
     <div
       v-if="!opened || isModalOpen()"
       class="grid-field-rich-text__cell-content"
-      :class="{ 'grid-field-rich-text__cell-content--preview': !opened }"
+      :class="{
+        'grid-field-rich-text__cell-content--preview': !opened || isModalOpen(),
+      }"
       v-html="formattedValue"
-    ></div>
+    />
     <RichTextEditor
       v-else
       ref="input"
@@ -26,22 +28,19 @@
       :enable-rich-text-formatting="true"
       :mentionable-users="workspace ? workspace.users : null"
       :thin-scrollbar="true"
-    ></RichTextEditor>
+    />
     <i
       v-if="editing && !isModalOpen()"
       class="baserow-icon-enlarge grid-field-rich-text__textarea-expand-icon"
-      @click="
-        $refs.expandedModal.toggle()
-        resetCellSize()
-      "
-    ></i>
+      @click="($refs.expandedModal.toggle(), resetCellSize())"
+    />
     <FieldRichTextModal
       ref="expandedModal"
       v-model="richCopy"
       :field="field"
       :mentionable-users="workspace ? workspace.users : null"
       @hidden="onExpandedModalHidden"
-    ></FieldRichTextModal>
+    />
   </div>
 </template>
 

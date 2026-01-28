@@ -156,13 +156,12 @@ class BaserowEnterpriseConfig(AppConfig):
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
-        from baserow_premium.license.registries import license_type_registry
-
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,
             EnterpriseLicenseType,
             EnterpriseWithoutSupportLicenseType,
         )
+        from baserow_premium.license.registries import license_type_registry
 
         license_type_registry.register(AdvancedLicenseType())
         license_type_registry.register(EnterpriseWithoutSupportLicenseType())
@@ -379,9 +378,9 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
-        import baserow_enterprise.assistant.tasks  # noqa: F
-        import baserow_enterprise.audit_log.signals  # noqa: F
-        import baserow_enterprise.ws.signals  # noqa: F
+        import baserow_enterprise.assistant.tasks  # noqa: F401
+        import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.ws.signals  # noqa: F401
 
 
 def sync_default_roles_after_migrate(sender, **kwargs):

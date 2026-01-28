@@ -5,7 +5,6 @@ from django.test.utils import override_settings
 
 import pytest
 import responses
-from baserow_premium.license.models import License, LicenseUser
 from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
@@ -14,6 +13,8 @@ from rest_framework.status import (
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
+
+from baserow_premium.license.models import License, LicenseUser
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"

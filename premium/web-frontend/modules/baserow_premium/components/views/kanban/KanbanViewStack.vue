@@ -5,7 +5,7 @@
       enabled: () => draggingRow !== null,
       speed: 3,
       padding: 24,
-      scrollElement: () => $refs.scroll.$el,
+      scrollElement: () => $refs.scroll?.$el,
     }"
     class="kanban-view__stack-wrapper"
     @mouseleave.stop="wrapperMouseLeave"
@@ -93,9 +93,9 @@
               :class="{
                 'kanban-view__stack-card--dragging': slot.row._.dragging,
               }"
+              v-bind="$attrs"
               @mousedown="cardDown($event, slot.row)"
               @mousemove="cardMoveOver($event, slot.row)"
-              v-on="$listeners"
             ></RowCard>
           </div>
           <div v-if="error" class="margin-top-2">
@@ -147,8 +147,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import kanbanViewHelper from '@baserow_premium/mixins/kanbanViewHelper'
 import RowCard from '@baserow/modules/database/components/card/RowCard'
@@ -193,6 +191,7 @@ export default {
       required: true,
     },
   },
+  emits: ['create-row', 'edit-row', 'refresh'],
   data() {
     return {
       error: false,
@@ -237,6 +236,21 @@ export default {
           ))
       )
     },
+    draggingRow() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getDraggingRow'
+      ]
+    },
+    draggingOriginalStackId() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getDraggingOriginalStackId'
+      ]
+    },
+    singleSelectFieldId() {
+      return this.$store.getters[
+        this.$props.storePrefix + 'view/kanban/getSingleSelectFieldId'
+      ]
+    },
     /**
      * In order for the virtual scrolling to work, we need to know what the height of
      * the card is to correctly position it.
@@ -278,14 +292,19 @@ export default {
         this.updateBuffer()
       })
     },
-    'stack.results'() {
-      this.$nextTick(() => {
-        this.updateBuffer()
-      })
+    'stack.results': {
+      handler() {
+        this.$nextTick(() => {
+          this.updateBuffer()
+        })
+      },
+      deep: true,
     },
   },
   mounted() {
-    this.updateBuffer()
+    this.$nextTick(() => {
+      this.updateBuffer()
+    })
 
     this.$el.resizeEvent = () => {
       this.updateBuffer()
@@ -295,25 +314,18 @@ export default {
     }
 
     window.addEventListener('resize', this.$el.resizeEvent)
-    this.$refs.scroll.$el.addEventListener('scroll', this.$el.scrollEvent)
+    this.$nextTick(() => {
+      const scrollEl = this.$refs.scroll?.$el
+      if (scrollEl) {
+        this.$el.scrollElement = scrollEl
+        scrollEl.addEventListener('scroll', this.$el.scrollEvent)
+      }
+    })
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.$el.resizeEvent)
-    this.$refs.scroll.$el.removeEventListener('scroll', this.$el.scrollEvent)
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        draggingRow:
-          this.$options.propsData.storePrefix + 'view/kanban/getDraggingRow',
-        draggingOriginalStackId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getDraggingOriginalStackId',
-        singleSelectFieldId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getSingleSelectFieldId',
-      }),
+    if (this.$el.scrollElement) {
+      this.$el.scrollElement.removeEventListener('scroll', this.$el.scrollEvent)
     }
   },
   methods: {
@@ -512,9 +524,10 @@ export default {
     },
     updateBuffer() {
       const scroll = this.$refs.scroll
+      if (!scroll) return
       const cardHeight = this.cardHeight
       const containerHeight = scroll.clientHeight()
-      const scrollTop = scroll.$el.scrollTop
+      const scrollTop = scroll.$el?.scrollTop || 0
       const min = Math.ceil(containerHeight / cardHeight) + 2
       const rows = this.stack.results.slice(
         Math.floor(scrollTop / cardHeight),

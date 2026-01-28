@@ -126,6 +126,13 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'field-deleted',
+    'field-updated',
+    'refresh-row',
+    'toggle-field-visibility',
+    'update',
+  ],
   methods: {
     isReadOnlyField(field) {
       return !this.$registry.get('field', field.type).canWriteFieldValues(field)

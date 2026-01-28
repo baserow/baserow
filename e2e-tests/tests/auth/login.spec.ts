@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { test } from "../baserowTest";
 import { LoginPage } from "../../pages/loginPage";
 import { WorkspacePage } from "../../pages/workspacePage";
 import { createUser, deleteUser, User } from "../../fixtures/user";
@@ -21,13 +21,13 @@ test.afterEach(async () => {
   }
 });
 
-test("User can log in with email/password @fast", async ({ page }) => {
-  const loginPage = new LoginPage(page);
+test("User can log in with email/password @fast", async ({ page, goto }) => {
+  const loginPage = new LoginPage({ page, goto });
   await loginPage.goto();
   await loginPage.loginWithPassword(user.email, user.password || "");
 
   const workspace = await createWorkspace(user);
-  const workspacePage = new WorkspacePage(page, user, workspace);
+  const workspacePage = new WorkspacePage({ page, goto }, user, workspace);
   await workspacePage.goto();
   await workspacePage.checkOnPage();
 });

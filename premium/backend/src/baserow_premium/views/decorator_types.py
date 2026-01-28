@@ -1,7 +1,6 @@
+from baserow.contrib.database.views.registries import DecoratorType
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
-
-from baserow.contrib.database.views.registries import DecoratorType
 
 
 class PremiumDecoratorType(DecoratorType):

@@ -359,7 +359,7 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         """
 
         email = None
-        resp = requests.get(self.EMAILS_URL, headers=headers)  # nosec B113
+        resp = requests.get(self.EMAILS_URL, headers=headers)  # noqa: S113
         resp.raise_for_status()
         emails = resp.json()
         if resp.status_code == 200 and emails:
@@ -526,9 +526,7 @@ class OpenIdConnectAuthProviderTypeMixin:
 
         try:
             wellknown_url = f"{base_url}/.well-known/openid-configuration"
-            json_response = requests.get(
-                wellknown_url, timeout=120
-            ).json()  # nosec B113
+            json_response = requests.get(wellknown_url, timeout=120).json()  # nosec B113
 
             return WellKnownUrls(
                 authorization_url=json_response["authorization_endpoint"],

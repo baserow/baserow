@@ -26,20 +26,20 @@ export class DataSourceDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.dataSource')
+    return this.app.$i18n.t('dataProviderType.dataSource')
   }
 
   showDataSourceErrors(page, failedDataSources) {
     failedDataSources.forEach(({ id, error }) => {
       const fakeError = { response: { data: error } }
-      const dataSource = this.app.store.getters[
+      const dataSource = this.app.$store.getters[
         'dataSource/getPageDataSourceById'
       ](page, id)
       const dataSourceName = dataSource?.name || `Data Source ${id}`
       handleDispatchError(
         fakeError,
         this.app,
-        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+        this.app.$i18n.t('builderToast.errorDataSourceDispatch', {
           name: dataSourceName,
         })
       )
@@ -51,14 +51,14 @@ export class DataSourceDataProviderType extends DataProviderType {
    * @param {Object} applicationContext
    */
   async initOnce(applicationContext) {
-    const page = this.app.store.getters['page/getSharedPage'](
+    const page = this.app.$store.getters['page/getSharedPage'](
       applicationContext.builder
     )
 
     const dataSources =
-      this.app.store.getters['dataSource/getPageDataSources'](page)
+      this.app.$store.getters['dataSource/getPageDataSources'](page)
 
-    const failedDataSources = await this.app.store.dispatch(
+    const failedDataSources = await this.app.$store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page,
@@ -79,12 +79,12 @@ export class DataSourceDataProviderType extends DataProviderType {
    * @param {Object} applicationContext
    */
   async init(applicationContext) {
-    const dataSources = this.app.store.getters['dataSource/getPageDataSources'](
-      applicationContext.page
-    )
+    const dataSources = this.app.$store.getters[
+      'dataSource/getPageDataSources'
+    ](applicationContext.page)
 
     // Dispatch the data sources
-    const failedDataSources = await this.app.store.dispatch(
+    const failedDataSources = await this.app.$store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page: applicationContext.page,
@@ -113,10 +113,10 @@ export class DataSourceDataProviderType extends DataProviderType {
   getDataChunk(applicationContext, [dataSourceId, ...rest]) {
     const pages = [
       applicationContext.page,
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
     ]
 
-    const dataSource = this.app.store.getters[
+    const dataSource = this.app.$store.getters[
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
 
@@ -153,13 +153,13 @@ export class DataSourceDataProviderType extends DataProviderType {
       return null
     }
 
-    const page = this.app.store.getters['page/getById'](
+    const page = this.app.$store.getters['page/getById'](
       applicationContext.builder,
       dataSource.page_id
     )
 
     const dataSourceContents =
-      this.app.store.getters['dataSourceContent/getDataSourceContents'](page)
+      this.app.$store.getters['dataSourceContent/getDataSourceContents'](page)
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
@@ -181,11 +181,11 @@ export class DataSourceDataProviderType extends DataProviderType {
   getDataContent(applicationContext) {
     const pages = [
       applicationContext.page,
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
     ]
 
     const dataSources =
-      this.app.store.getters['dataSource/getPagesDataSources'](pages)
+      this.app.$store.getters['dataSource/getPagesDataSources'](pages)
 
     return Object.fromEntries(
       dataSources.map((dataSource) => {
@@ -199,12 +199,12 @@ export class DataSourceDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const pages = [
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
       applicationContext.page,
     ]
 
     const allDataSources =
-      this.app.store.getters['dataSource/getPagesDataSources'](pages)
+      this.app.$store.getters['dataSource/getPagesDataSources'](pages)
 
     // If we have a data source id in the application context we keep data sources
     // until this one because we can't use the ones after
@@ -237,11 +237,11 @@ export class DataSourceDataProviderType extends DataProviderType {
       const dataSourceId = parseInt(pathParts[1])
       const pages = [
         applicationContext.page,
-        this.app.store.getters['page/getSharedPage'](
+        this.app.$store.getters['page/getSharedPage'](
           applicationContext.builder
         ),
       ]
-      const dataSource = this.app.store.getters[
+      const dataSource = this.app.$store.getters[
         'dataSource/getPagesDataSourceById'
       ](pages, dataSourceId)
 
@@ -261,7 +261,7 @@ export class DataSourceContextDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.dataSourceContext')
+    return this.app.$i18n.t('dataProviderType.dataSourceContext')
   }
 
   getDataChunk(applicationContext, path) {
@@ -269,10 +269,10 @@ export class DataSourceContextDataProviderType extends DataProviderType {
 
     const pages = [
       applicationContext.page,
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
     ]
 
-    const dataSource = this.app.store.getters[
+    const dataSource = this.app.$store.getters[
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
 
@@ -282,11 +282,11 @@ export class DataSourceContextDataProviderType extends DataProviderType {
   getDataContent(applicationContext) {
     const pages = [
       applicationContext.page,
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
     ]
 
     const dataSources =
-      this.app.store.getters['dataSource/getPagesDataSources'](pages)
+      this.app.$store.getters['dataSource/getPagesDataSources'](pages)
 
     return Object.fromEntries(
       dataSources.map((dataSource) => [dataSource.id, dataSource.context_data])
@@ -295,12 +295,12 @@ export class DataSourceContextDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const pages = [
-      this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
       applicationContext.page,
     ]
 
     const dataSources =
-      this.app.store.getters['dataSource/getPagesDataSources'](pages)
+      this.app.$store.getters['dataSource/getPagesDataSources'](pages)
 
     const contextDataSchema = Object.fromEntries(
       dataSources
@@ -325,13 +325,13 @@ export class DataSourceContextDataProviderType extends DataProviderType {
     if (pathParts.length === 2) {
       const pages = [
         applicationContext.page,
-        this.app.store.getters['page/getSharedPage'](
+        this.app.$store.getters['page/getSharedPage'](
           applicationContext.builder
         ),
       ]
       const dataSourceId = parseInt(pathParts[1])
       return (
-        this.app.store.getters['dataSource/getPagesDataSourceById'](
+        this.app.$store.getters['dataSource/getPagesDataSourceById'](
           pages,
           dataSourceId
         )?.name || `data_source_context_${dataSourceId}`
@@ -347,7 +347,7 @@ export class PageParameterDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.pageParameter')
+    return this.app.$i18n.t('dataProviderType.pageParameter')
   }
 
   async init(applicationContext) {
@@ -361,7 +361,7 @@ export class PageParameterDataProviderType extends DataProviderType {
       await Promise.all(
         pageParams.map(({ name, type }) => {
           const isQuery = queryParamNames.includes(name)
-          return this.app.store.dispatch('pageParameter/setParameter', {
+          return this.app.$store.dispatch('pageParameter/setParameter', {
             page,
             name,
             value: isQuery ? null : defaultValueForParameterType(type),
@@ -382,7 +382,7 @@ export class PageParameterDataProviderType extends DataProviderType {
             // doesn't pass our parameter `type` validation.
             return null
           }
-          return this.app.store.dispatch('pageParameter/setParameter', {
+          return this.app.$store.dispatch('pageParameter/setParameter', {
             page,
             name,
             value,
@@ -406,7 +406,7 @@ export class PageParameterDataProviderType extends DataProviderType {
       // It's probably called at application level
       return null
     }
-    return this.app.store.getters['pageParameter/getParameters'](
+    return this.app.$store.getters['pageParameter/getParameters'](
       applicationContext.page
     )
   }
@@ -440,7 +440,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.currentRecord')
+    return this.app.$i18n.t('dataProviderType.currentRecord')
   }
 
   get indexKey() {
@@ -499,7 +499,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
     allowSameElement,
     followSameElementSchemaProperties
   ) {
-    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
+    const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
 
     const elementType = this.app.$registry.get('element', element.type)
 
@@ -519,7 +519,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
     const firstCollectionElement = collectionAncestors[0]
     const dataSourceId = firstCollectionElement.data_source_id
 
-    const dataSource = this.app.store.getters[
+    const dataSource = this.app.$store.getters[
       'dataSource/getPagesDataSourceById'
     ](pages, dataSourceId)
 
@@ -573,7 +573,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
     const properties = {
       [this.indexKey]: {
         type: 'number',
-        title: this.app.i18n.t('currentRecordDataProviderType.index'),
+        title: this.app.$i18n.t('currentRecordDataProviderType.index'),
         sortable: false,
         filterable: false,
         searchable: false,
@@ -631,13 +631,16 @@ export class CurrentRecordDataProviderType extends DataProviderType {
           prefixName = fieldType.getName()
         }
         const propertyTitle = schemaField.title
-        return this.app.i18n.t('currentRecordDataProviderType.schemaProperty', {
-          prefixName,
-          schemaProperty: propertyTitle,
-        })
+        return this.app.$i18n.t(
+          'currentRecordDataProviderType.schemaProperty',
+          {
+            prefixName,
+            schemaProperty: propertyTitle,
+          }
+        )
       }
 
-      return this.app.i18n.t('currentRecordDataProviderType.firstPartName', {
+      return this.app.$i18n.t('currentRecordDataProviderType.firstPartName', {
         name: dataSource.name,
       })
     }
@@ -652,7 +655,7 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.formData')
+    return this.app.$i18n.t('dataProviderType.formData')
   }
 
   getActionDispatchContext(applicationContext) {
@@ -664,7 +667,7 @@ export class FormDataProviderType extends DataProviderType {
     const updatedValue = Object.fromEntries(
       Object.entries(dataContent)
         .filter(([elementId, value]) => {
-          const element = this.app.store.getters['element/getElementById'](
+          const element = this.app.$store.getters['element/getElementById'](
             page,
             elementId
           )
@@ -674,7 +677,7 @@ export class FormDataProviderType extends DataProviderType {
           })
         })
         .map(([elementId, value]) => {
-          const element = this.app.store.getters['element/getElementById'](
+          const element = this.app.$store.getters['element/getElementById'](
             page,
             elementId
           )
@@ -723,11 +726,11 @@ export class FormDataProviderType extends DataProviderType {
     const { page } = applicationContext
 
     const targetNamespacePath =
-      this.app.store.getters['element/getElementNamespacePath'](
+      this.app.$store.getters['element/getElementNamespacePath'](
         targetElement
       ).join('.')
 
-    const elements = this.app.store.getters['element/getElementsOrdered'](page)
+    const elements = this.app.$store.getters['element/getElementsOrdered'](page)
     return elements.filter((element) => {
       const elementType = this.app.$registry.get('element', element.type)
       if (!elementType.isFormElement) {
@@ -735,9 +738,9 @@ export class FormDataProviderType extends DataProviderType {
         return false
       }
       const elementNamespacePath =
-        this.app.store.getters['element/getElementNamespacePath'](element).join(
-          '.'
-        )
+        this.app.$store.getters['element/getElementNamespacePath'](
+          element
+        ).join('.')
 
       return targetNamespacePath.startsWith(elementNamespacePath)
     })
@@ -750,7 +753,7 @@ export class FormDataProviderType extends DataProviderType {
 
   getDataContent(applicationContext) {
     const { element: targetElement } = applicationContext
-    const formData = this.app.store.getters['formData/getFormData'](
+    const formData = this.app.$store.getters['formData/getFormData'](
       applicationContext.page
     )
 
@@ -783,7 +786,7 @@ export class FormDataProviderType extends DataProviderType {
         accessibleFormElements.map((element) => {
           const elementType = this.app.$registry.get('element', element.type)
           const name = elementType.getDisplayName(element, applicationContext)
-          const order = this.app.store.getters['element/getElementPosition'](
+          const order = this.app.$store.getters['element/getElementPosition'](
             page,
             element
           )
@@ -804,12 +807,12 @@ export class FormDataProviderType extends DataProviderType {
     if (pathParts.length === 2) {
       const elementId = parseInt(pathParts[1], 10)
 
-      const element = this.app.store.getters['element/getElementById'](
+      const element = this.app.$store.getters['element/getElementById'](
         applicationContext.page,
         parseInt(elementId)
       )
       if (!element) {
-        return this.app.i18n.t('formDataProviderType.nodeMissing')
+        return this.app.$i18n.t('formDataProviderType.nodeMissing')
       }
     }
 
@@ -823,7 +826,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.previousAction')
+    return this.app.$i18n.t('dataProviderType.previousAction')
   }
 
   get needBackendContext() {
@@ -842,7 +845,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
 
     const [workflowActionId, ...rest] = path
 
-    const workflowAction = this.app.store.getters[
+    const workflowAction = this.app.$store.getters[
       'builderWorkflowAction/getWorkflowActionById'
     ](applicationContext.page, parseInt(workflowActionId))
 
@@ -879,7 +882,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const page = applicationContext.page
 
-    const previousActions = this.app.store.getters[
+    const previousActions = this.app.$store.getters[
       'builderWorkflowAction/getElementPreviousWorkflowActions'
     ](page, applicationContext.element.id, applicationContext.workflowAction)
 
@@ -913,7 +916,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
       const page = applicationContext?.page
       const workflowActionId = parseInt(pathParts[1])
 
-      const action = this.app.store.getters[
+      const action = this.app.$store.getters[
         'builderWorkflowAction/getWorkflowActionById'
       ](page, workflowActionId)
 
@@ -931,7 +934,7 @@ export class UserDataProviderType extends DataProviderType {
   }
 
   get name() {
-    return this.app.i18n.t('dataProviderType.user')
+    return this.app.$i18n.t('dataProviderType.user')
   }
 
   getDataSourceDispatchContext(applicationContext) {
@@ -959,21 +962,22 @@ export class UserDataProviderType extends DataProviderType {
   }
 
   getDataContent({ builder }) {
-    const loggedUser = this.app.store.getters['userSourceUser/getUser'](builder)
+    const loggedUser =
+      this.app.$store.getters['userSourceUser/getUser'](builder)
 
     const context = {
       is_authenticated:
-        this.app.store.getters['userSourceUser/isAuthenticated'](builder),
+        this.app.$store.getters['userSourceUser/isAuthenticated'](builder),
       ...loggedUser,
     }
 
     if (context.role?.startsWith(DEFAULT_USER_ROLE_PREFIX)) {
-      const userSource = this.app.store.getters[
+      const userSource = this.app.$store.getters[
         'userSource/getUserSourceByUId'
       ](builder, loggedUser.user_source_uid)
 
       if (userSource) {
-        context.role = this.app.i18n.t('visibilityForm.rolesAllMembersOf', {
+        context.role = this.app.$i18n.t('visibilityForm.rolesAllMembersOf', {
           name: userSource.name,
         })
       }
@@ -987,24 +991,24 @@ export class UserDataProviderType extends DataProviderType {
       type: 'object',
       properties: {
         is_authenticated: {
-          title: this.app.i18n.t('userDataProviderType.isAuthenticated'),
+          title: this.app.$i18n.t('userDataProviderType.isAuthenticated'),
           type: 'boolean',
         },
         id: {
           type: 'number',
-          title: this.app.i18n.t('userDataProviderType.id'),
+          title: this.app.$i18n.t('userDataProviderType.id'),
         },
         email: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.email'),
+          title: this.app.$i18n.t('userDataProviderType.email'),
         },
         username: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.username'),
+          title: this.app.$i18n.t('userDataProviderType.username'),
         },
         role: {
           type: 'string',
-          title: this.app.i18n.t('userDataProviderType.role'),
+          title: this.app.$i18n.t('userDataProviderType.role'),
         },
       },
     }

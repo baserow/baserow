@@ -410,7 +410,9 @@ class DispatchBuilderWorkflowActionView(APIView):
         )
 
         response = BuilderWorkflowActionService().dispatch_action(
-            request.user, workflow_action, dispatch_context  # type: ignore
+            request.user,
+            workflow_action,
+            dispatch_context,  # type: ignore
         )
 
         return Response(response.data, status=response.status)

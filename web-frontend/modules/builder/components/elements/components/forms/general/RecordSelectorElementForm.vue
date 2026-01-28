@@ -155,6 +155,7 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [formElementForm, collectionElementForm],
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate() }
   },

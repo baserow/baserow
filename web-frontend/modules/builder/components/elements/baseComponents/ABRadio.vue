@@ -63,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   computed: {
     hasSlot() {
       return !!this.$slots.default

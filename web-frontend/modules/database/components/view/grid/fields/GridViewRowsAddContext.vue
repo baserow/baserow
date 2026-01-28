@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="context__menu-title">
       {{ $t('gridViewRowsAddContext.title') }}
     </div>
@@ -26,6 +26,7 @@ import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'GridViewRowsAddContext',
   mixins: [context],
+  emits: ['add-rows'],
   computed: {
     rowAmountChoices() {
       return [5, 10, 20, 50]

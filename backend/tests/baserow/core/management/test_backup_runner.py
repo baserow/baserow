@@ -87,7 +87,7 @@ def test_backup_baserow_dumps_database_in_batches(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     runner = BaserowBackupRunner(
         host=host,
@@ -162,7 +162,7 @@ def test_can_change_num_jobs_and_insert_extra_args_for_baserow_backup(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     num_jobs = 5
     extra_arg = "--should_appear_in_all_pg_dump_calls"
@@ -247,7 +247,7 @@ def test_backup_baserow_table_batches_includes_all_tables_when_final_batch_small
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
     runner = BaserowBackupRunner(
         host=host,
         database=dbname,
@@ -306,7 +306,7 @@ def test_backup_baserow_includes_all_tables_when_batch_size_matches_num_tables(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
     runner = BaserowBackupRunner(
         host=host,
         database=dbname,
@@ -352,7 +352,7 @@ def test_backup_baserow_does_no_table_batches_when_no_user_tables_found(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
     runner = BaserowBackupRunner(
         host=host,
         database=dbname,
@@ -385,7 +385,7 @@ def test_restore_baserow_restores_contained_dumps_in_batches(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     runner = BaserowBackupRunner(
         host=host,
@@ -448,7 +448,7 @@ def test_restore_baserow_passes_extra_args_to_all_pg_restores_and_can_set_jobs(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     num_jobs = 5
     runner = BaserowBackupRunner(
@@ -514,7 +514,7 @@ def test_restore_baserow_only_does_first_restore_if_no_user_tables(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     runner = BaserowBackupRunner(
         host=host,
@@ -561,7 +561,7 @@ def test_restore_baserow_raises_exception_if_sub_folder_not_found_after_extract(
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     runner = BaserowBackupRunner(
         host=host,
@@ -581,7 +581,7 @@ def a_pg_dump_for_everything_else():
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     return call(
         [
@@ -606,7 +606,7 @@ def a_pg_dump_table_batch(tables, batch_num):
     dbname = connection.settings_dict["NAME"]
     host = connection.settings_dict["HOST"]
     user = connection.settings_dict["USER"]
-    port = connection.settings_dict["PORT"]
+    port = str(connection.settings_dict["PORT"])
 
     return call(
         [

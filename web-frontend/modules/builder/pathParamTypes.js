@@ -20,7 +20,7 @@ export class TextPathParamType extends PathParamType {
   }
 
   get name() {
-    return this.app.i18n.t('pathParamTypes.textName')
+    return this.app.$i18n.t('pathParamTypes.textName')
   }
 
   get icon() {
@@ -38,7 +38,7 @@ export class NumericPathParamType extends PathParamType {
   }
 
   get name() {
-    return this.app.i18n.t('pathParamTypes.numericName')
+    return this.app.$i18n.t('pathParamTypes.numericName')
   }
 
   get icon() {

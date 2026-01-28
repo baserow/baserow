@@ -173,6 +173,7 @@ import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFie
 
 export default {
   name: 'FormViewModePreviewSurvey',
+  emits: ['ordered-fields'],
   components: {
     ViewFieldsContext,
     FormViewPoweredBy,

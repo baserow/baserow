@@ -29,11 +29,12 @@ https://www.django-rest-framework.org/
 We use pytest to easily and automatically test all the python code. Most of the backend
 code is covered with tests and we like to keep it that way! The code is also tested
 in the [continuous integration pipeline](./code-quality.md). It can also be tested
-manually in the development environment. Make sure that you are in the `backend`
-container and execute the following command.
+manually in the development environment:
 
-```
-$ make test
+```bash
+just b test              # Run all tests
+just b test -n=auto      # Run tests in parallel
+just b test tests/path/  # Run specific tests
 ```
 
 https://docs.pytest.org/en/latest/contents.html
@@ -41,13 +42,13 @@ https://docs.pytest.org/en/latest/contents.html
 ### Flake8
 
 Flake8 makes it easy to enforce our python code style. The code is checked in the
-continuous integration pipeline. It can also be checked manually in the development
-environment. Make sure that you are in the `backend` container and execute the
-following command. If all the code meets the standards you should not see any output.
+continuous integration pipeline. It can also be checked manually:
 
+```bash
+just b lint
 ```
-$ make lint
-```
+
+If all the code meets the standards you should not see any output.
 
 https://flake8.pycqa.org/en/latest/
 
@@ -59,8 +60,8 @@ writing and reviewing code.
 
 https://black.readthedocs.io/en/stable/index.html
 
-```
-make format
+```bash
+just b format
 ```
 
 ### Internationalization
@@ -69,13 +70,14 @@ For internationalization (i18n), we leverage Django's built-in support. Django's
 
 To use Django's internationalization features, we wrap our text with a special function called `gettext` or `gettext_lazy`.
 For more information, refer to the [Django Internationalization and Localization documentation](https://docs.djangoproject.com/en/3.2/topics/i18n/).
-Then, we created a Makefile command to collect or update all these strings into a message file.
 
-```
-make translations
+To collect or update all translation strings into a message file:
+
+```bash
+just b make-translations
 ```
 
-This will call the Django's `makemessages` command for the English language of all the installed applications. The creation of the messages for the other languages and the step to compile all these messages, will be automatically handled by `Weblate` before each release.
+This will call Django's `makemessages` command for the English language of all the installed applications. The creation of the messages for the other languages and the step to compile all these messages, will be automatically handled by `Weblate` before each release.
 
 
 ### ItsDangerous
@@ -120,17 +122,21 @@ https://nuxtjs.org/
 
 ### Stylelint
 
-The tool Stylelint is used to make sure all the SCSS code is in the correct format. It
-is used when the `make stylelint` is called and live in the development environment via
-prettier.
+The tool Stylelint is used to make sure all the SCSS code is in the correct format:
+
+```bash
+just f lint
+```
 
 https://stylelint.io/
 
 ### ESLint
 
-ESLint is used to make sure all the JavaScript code is in the correct format. It is
-used when the `make eslint` is called and it runs live in the development environment
-via prettier.
+ESLint is used to make sure all the JavaScript code is in the correct format:
+
+```bash
+just f lint
+```
 
 https://eslint.org/
 
@@ -153,11 +159,10 @@ https://sass-lang.com/
 Because of its simplicity and compatibility with Vue and Nuxt we have chosen to include
 JEST as the framework for the web frontend tests. Almost no code is covered yet so we
 can definitely improve on that. The code is also tested in the continuous integration
-pipeline. It can also be tested manually in the development environment. Make sure
-that you are in the `web-frontend` container and execute the following command.
+pipeline. It can also be tested manually:
 
-```
-$ make jest
+```bash
+just f test
 ```
 
 https://jestjs.io/

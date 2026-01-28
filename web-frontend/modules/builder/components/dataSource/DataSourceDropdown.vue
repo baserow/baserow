@@ -1,13 +1,13 @@
 <template>
   <div>
-    <p v-show="value === null" class="margin-bottom-1">
+    <p v-show="modelValue === null" class="margin-bottom-1">
       <slot name="chooseValueState"></slot>
     </p>
     <Dropdown
-      :value="value"
+      :value="modelValue"
       show-footer
       class="data-source-dropdown"
-      @input="$emit('input', $event)"
+      @input="$emit('update:modelValue', $event)"
     >
       <DropdownItem
         v-for="dataSource in sharedDataSources"
@@ -60,7 +60,7 @@ export default {
   name: 'DataSourceDropdown',
   components: { DataSourceCreateEditModal },
   props: {
-    value: {
+    modelValue: {
       type: Number,
       required: false,
       default: null,
@@ -80,6 +80,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       modalKey: 0,
@@ -126,7 +127,7 @@ export default {
         dataSource.type && this.$registry.get('service', dataSource.type)
       if (serviceType?.getDataSchema(dataSource)) {
         this.modalKey++
-        this.$emit('input', dataSource.id)
+        this.$emit('update:modelValue', dataSource.id)
       }
     },
   },

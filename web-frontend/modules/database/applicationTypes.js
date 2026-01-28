@@ -6,6 +6,8 @@ import { populateTable } from '@baserow/modules/database/store/table'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import DatabaseForm from '@baserow/modules/database/components/form/DatabaseForm'
 import ApplicationContext from '@baserow/modules/database/components/application/ApplicationContext'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class DatabaseApplicationType extends ApplicationType {
   static getType() {
@@ -26,22 +28,22 @@ export class DatabaseApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.database')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databases')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databaseDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databaseDefaultName')
   }
 
@@ -117,6 +119,8 @@ export class DatabaseApplicationType extends ApplicationType {
           tableId: tables[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
       $store.dispatch('toast/error', {
@@ -131,13 +135,14 @@ export class DatabaseApplicationType extends ApplicationType {
    * When another database is selected in the sidebar we have the change the
    * selected state of all the table children.
    */
-  clearChildrenSelected(application) {
+  // TODO MIG see comment in application store to understand why it was removed
+  /*clearChildrenSelected(application) {
     Object.values(application.tables).forEach((table) => {
       if (table._.selected) {
         table._.selected = false
       }
     })
-  }
+  }*/
 
   /**
    * It is not possible to update the tables by updating the application. In fact,

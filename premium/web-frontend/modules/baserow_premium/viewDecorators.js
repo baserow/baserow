@@ -7,8 +7,8 @@ import {
 
 import { CalendarViewType, KanbanViewType, TimelineViewType } from './viewTypes'
 
-import leftBorderDecoratorImage from '@baserow_premium/assets/images/leftBorderDecorator.svg'
-import backgroundDecoratorImage from '@baserow_premium/assets/images/backgroundDecorator.svg'
+import leftBorderDecoratorImage from '@baserow_premium/assets/images/leftBorderDecorator.svg?url'
+import backgroundDecoratorImage from '@baserow_premium/assets/images/backgroundDecorator.svg?url'
 
 import LeftBorderColorViewDecorator from '@baserow_premium/components/views/LeftBorderColorViewDecorator'
 import BackgroundColorViewDecorator from '@baserow_premium/components/views/BackgroundColorViewDecorator'
@@ -22,13 +22,13 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.leftBorderColor')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.leftBorderColor')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.leftBorderColorDescription')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.leftBorderColorDescription')
   }
 
   getImage() {
@@ -40,8 +40,8 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   }
 
   getDeactivatedText() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.onlyForPremium')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.onlyForPremium')
   }
 
   getDeactivatedClickModal() {
@@ -56,10 +56,10 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   }
 
   canAdd({ view }) {
-    const { i18n } = this.app
+    const { $i18n } = this.app
 
     if (view.decorations.some(({ type }) => type === this.getType())) {
-      return [false, i18n.t('viewDecoratorType.onlyOneDecoratorPerView')]
+      return [false, $i18n.t('viewDecoratorType.onlyOneDecoratorPerView')]
     }
     return [true]
   }
@@ -73,7 +73,7 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
   }
 
   isCompatible(view) {
-    const { store } = this.app
+    const { $store } = this.app
 
     return (
       [
@@ -82,7 +82,7 @@ export class LeftBorderColorViewDecoratorType extends ViewDecoratorType {
         KanbanViewType.getType(),
         CalendarViewType.getType(),
         TimelineViewType.getType(),
-      ].includes(view.type) && !store.getters['page/view/public/getIsPublic']
+      ].includes(view.type) && !$store.getters['page/view/public/getIsPublic']
     )
   }
 }
@@ -93,13 +93,13 @@ export class BackgroundColorViewDecoratorType extends ViewDecoratorType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.backgroundColor')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.backgroundColor')
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.backgroundColorDescription')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.backgroundColorDescription')
   }
 
   getImage() {
@@ -119,7 +119,7 @@ export class BackgroundColorViewDecoratorType extends ViewDecoratorType {
   }
 
   isCompatible(view) {
-    const { store } = this.app
+    const { $store } = this.app
 
     return (
       [
@@ -128,13 +128,13 @@ export class BackgroundColorViewDecoratorType extends ViewDecoratorType {
         KanbanViewType.getType(),
         CalendarViewType.getType(),
         TimelineViewType.getType(),
-      ].includes(view.type) && !store.getters['page/view/public/getIsPublic']
+      ].includes(view.type) && !$store.getters['page/view/public/getIsPublic']
     )
   }
 
   getDeactivatedText() {
-    const { i18n } = this.app
-    return i18n.t('viewDecoratorType.onlyForPremium')
+    const { $i18n } = this.app
+    return $i18n.t('viewDecoratorType.onlyForPremium')
   }
 
   getDeactivatedClickModal() {
@@ -149,10 +149,10 @@ export class BackgroundColorViewDecoratorType extends ViewDecoratorType {
   }
 
   canAdd({ view }) {
-    const { i18n } = this.app
+    const { $i18n } = this.app
 
     if (view.decorations.some(({ type }) => type === this.getType())) {
-      return [false, i18n.t('viewDecoratorType.onlyOneDecoratorPerView')]
+      return [false, $i18n.t('viewDecoratorType.onlyOneDecoratorPerView')]
     }
     return [true]
   }

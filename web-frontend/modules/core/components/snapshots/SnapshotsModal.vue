@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ application.name }} {{ $t('snapshotsModal.title') }}
     </h2>
@@ -10,7 +10,7 @@
         })
       }}
       <span v-if="maxSnapshots >= 0">{{
-        $tc('snapshotsModal.descriptionLimits', maxSnapshots)
+        $t('snapshotsModal.descriptionLimits', { count: maxSnapshots })
       }}</span>
     </p>
     <component
@@ -127,7 +127,7 @@ export default {
         .toLowerCase()
     },
     maxSnapshots() {
-      return parseInt(this.$config.BASEROW_MAX_SNAPSHOTS_PER_GROUP)
+      return parseInt(this.$config.public.baserowMaxSnapshotsPerGroup)
     },
     snapshotModalAlertComponents() {
       return Object.values(this.$registry.getAll('plugin'))

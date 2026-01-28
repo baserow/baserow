@@ -12,6 +12,7 @@
         <Button
           type="secondary"
           size="large"
+          class="margin-right-2"
           :loading="reloading"
           @click="refresh()"
           >{{ $t('onboarding.failedTryAgain') }}</Button
@@ -268,7 +269,7 @@ export default {
       this.$router.push({ name: 'dashboard' })
     },
     updateData(data) {
-      this.$set(this.data, this.step.getType(), data)
+      this.data = { ...this.data, [this.step.getType()]: data }
     },
     isValid() {
       const form = this.$refs?.form

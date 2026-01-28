@@ -4,7 +4,7 @@ import PreviewAny from '@baserow/modules/database/components/preview/PreviewAny'
 describe('Preview component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

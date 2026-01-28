@@ -11,10 +11,7 @@ from urllib.parse import urljoin, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
-import sentry_sdk
 from corsheaders.defaults import default_headers
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.config.settings.utils import (
     Setting,
@@ -299,8 +296,7 @@ BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
 )
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     # Default TTL is 5 minutes
-    os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS")
-    or 300
+    os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS") or 300
 )
 
 
@@ -456,7 +452,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.0.5",
+    "VERSION": "2.0.6",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -726,40 +722,15 @@ STORAGES = {
     },
 }
 
-BASEROW_PUBLIC_URL = os.getenv("BASEROW_PUBLIC_URL")
+BASEROW_PUBLIC_URL = os.getenv("BASEROW_PUBLIC_URL", "")
 if BASEROW_PUBLIC_URL:
     PUBLIC_BACKEND_URL = BASEROW_PUBLIC_URL
     PUBLIC_WEB_FRONTEND_URL = BASEROW_PUBLIC_URL
-    if BASEROW_PUBLIC_URL == "http://localhost":
-        print(
-            "WARNING: Baserow is configured to use a BASEROW_PUBLIC_URL of "
-            "http://localhost. If you attempt to access Baserow on any other hostname "
-            "requests to the backend will fail as they will be from an unknown host. "
-            "Please set BASEROW_PUBLIC_URL if you will be accessing Baserow "
-            "from any other URL then http://localhost."
-        )
 else:
     PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
     PUBLIC_WEB_FRONTEND_URL = os.getenv(
         "PUBLIC_WEB_FRONTEND_URL", "http://localhost:3000"
     )
-    if "PUBLIC_BACKEND_URL" not in os.environ:
-        print(
-            "WARNING: Baserow is configured to use a PUBLIC_BACKEND_URL of "
-            "http://localhost:8000. If you attempt to access Baserow on any other "
-            "hostname requests to the backend will fail as they will be from an "
-            "unknown host."
-            "Please ensure you set PUBLIC_BACKEND_URL if you will be accessing "
-            "Baserow from any other URL then http://localhost."
-        )
-    if "PUBLIC_WEB_FRONTEND_URL" not in os.environ:
-        print(
-            "WARNING: Baserow is configured to use a default PUBLIC_WEB_FRONTEND_URL "
-            "of http://localhost:3000. Emails sent by Baserow will use links pointing "
-            "to http://localhost:3000 when telling users how to access your server. If "
-            "this is incorrect please ensure you have set PUBLIC_WEB_FRONTEND_URL to "
-            "the URL where users can access your Baserow server."
-        )
 
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:
@@ -837,6 +808,12 @@ AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
 )
 AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
+)
+AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
+    os.getenv(
+        "BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS",
+        AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS,
+    )
 )
 AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
@@ -1303,11 +1280,33 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
         print(e)
 
 
+# Libraries that should be lazy-loaded (imported inside functions/methods) to reduce
+# memory footprint at startup. If any of these are found in sys.modules during startup,
+# a warning will be shown suggesting to either lazy-load them or remove them from this
+# list if they're legitimately needed at startup.
+BASEROW_LAZY_LOADED_LIBRARIES = [
+    "openai",
+    "anthropic",
+    "mistralai",
+    "ollama",
+    "langchain_core",
+    "jira2markdown",
+    "saml2",
+    "openpyxl",
+    "numpy",
+]
+
+
 SENTRY_BACKEND_DSN = os.getenv("SENTRY_BACKEND_DSN")
 SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
-SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
 
 if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+
+    SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
@@ -1315,6 +1314,8 @@ if SENTRY_DSN:
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
     )
+else:
+    BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None

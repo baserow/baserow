@@ -1,5 +1,5 @@
 import { Locator, Page } from "@playwright/test";
-import { BaserowPage } from "./baserowPage";
+import { BaserowPage, PageConfig } from "./baserowPage";
 
 export class LoginPage extends BaserowPage {
   readonly pageUrl = `login`;
@@ -7,11 +7,11 @@ export class LoginPage extends BaserowPage {
   readonly passwordInput: Locator;
   readonly loginButton: Locator;
 
-  constructor(page: Page) {
-    super(page);
-    this.emailInput = page.locator('input[type="email"]').first();
-    this.passwordInput = page.locator('input[type="password"]').first();
-    this.loginButton = page.locator('button span:text("Login")').first();
+  constructor(pageConfig: PageConfig) {
+    super(pageConfig);
+    this.emailInput = this.page.locator('input[type="email"]').first();
+    this.passwordInput = this.page.locator('input[type="password"]').first();
+    this.loginButton = this.page.locator('button span:text("Login")').first();
   }
 
   async loginWithPassword(email: string, password: string) {

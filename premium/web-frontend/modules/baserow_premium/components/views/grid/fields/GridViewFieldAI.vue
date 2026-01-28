@@ -22,9 +22,15 @@
       :is="outputGridViewFieldComponent"
       v-else
       ref="cell"
+      :workspace-id="workspaceId"
+      :field="field"
+      :value="value"
+      :selected="selected"
+      :store-prefix="storePrefix"
       :read-only="readOnly || generating"
-      v-bind="$props"
-      v-on="$listeners"
+      :row="row"
+      :all-fields-in-table="allFieldsInTable"
+      v-bind="$attrs"
     >
       <template v-if="!readOnly && editing" #default="{ editing }">
         <div style="background-color: #fff; padding: 8px">

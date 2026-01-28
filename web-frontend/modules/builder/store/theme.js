@@ -20,6 +20,7 @@ const actions = {
    * making the request to the backend to update it.
    */
   setProperty({ commit }, { builder, key, value }) {
+    const { $registry, $i18n, $client, $config } = this
     return new Promise((resolve, reject) => {
       // Call the old resolve function because otherwise it can result in a memory leak.
       if (patchRequestResolve) {
@@ -40,7 +41,7 @@ const actions = {
         patchRequestProperties = {}
 
         try {
-          await ThemeService(this.$client).update(builder.id, properties)
+          await ThemeService($client).update(builder.id, properties)
           resolve()
         } catch (error) {
           Object.keys(oldProperties).forEach((key) => {

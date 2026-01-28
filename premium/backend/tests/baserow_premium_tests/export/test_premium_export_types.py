@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from openpyxl import load_workbook
 
 from baserow.contrib.database.export.handler import ExportHandler
@@ -13,6 +12,7 @@ from baserow.contrib.database.export.models import EXPORT_JOB_FINISHED_STATUS
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.storage import get_default_storage
 from baserow.test_utils.helpers import setup_interesting_test_table
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
 @pytest.mark.django_db

@@ -1,7 +1,12 @@
 <template>
   <Modal @show="onShow" @hidden="hideError">
     <Error v-if="error.visible" :error="error"></Error>
-    <Tabs v-else :selected-index.sync="selectedTabIndex" no-padding>
+    <Tabs
+      v-else
+      no-padding
+      :selected-index="selectedTabIndex"
+      @update:selected-index="selectedTabIndex = $event"
+    >
       <Tab
         v-if="canManageDatabase"
         :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"
@@ -294,19 +299,15 @@ export default {
         ({ id }) => roleAssignment.id === id
       )
 
-      let previousRoleAssignement = null
+      let previousRoleAssignment = null
 
       if (roleAssignmentIndex !== -1) {
-        previousRoleAssignement = roleAssignments[roleAssignmentIndex]
+        previousRoleAssignment = roleAssignments[roleAssignmentIndex]
         if (newRole === null) {
           roleAssignments.splice(roleAssignmentIndex, 1)
         } else {
           // Updating the role
-          this.$set(
-            roleAssignments,
-            roleAssignmentIndex,
-            clone(previousRoleAssignement)
-          )
+          roleAssignments[roleAssignmentIndex] = clone(previousRoleAssignment)
           roleAssignments[roleAssignmentIndex].role = newRole
         }
       }
@@ -327,11 +328,11 @@ export default {
             roleAssignments.splice(
               roleAssignmentIndex,
               0,
-              previousRoleAssignement
+              previousRoleAssignment
             )
           } else {
             roleAssignments[roleAssignmentIndex].role =
-              previousRoleAssignement.role
+              previousRoleAssignment.role
           }
         }
         notifyIf(error, 'application')

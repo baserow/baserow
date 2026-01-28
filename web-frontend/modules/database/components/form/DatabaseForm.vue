@@ -73,6 +73,7 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted', 'hidden'],
   data() {
     return {
       importType: 'none',

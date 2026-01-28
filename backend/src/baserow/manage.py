@@ -11,13 +11,8 @@ def enable_debugger():
         import debugpy
 
         debugger_port = int(os.environ.get("BASEROW_BACKEND_DEBUGGER_PORT", 5678))
-        debugpy.listen(("0.0.0.0", debugger_port))  # nosec
+        debugpy.listen(("0.0.0.0", debugger_port))  # noqa: S104
         print(f"Debugger attached! Listening on 0.0.0.0:{debugger_port}")
-    else:
-        print(
-            "Debugger disabled. Set the env variable "
-            "BASEROW_BACKEND_DEBUGGER_ENABLED=True to enable it."
-        )
 
 
 def main():

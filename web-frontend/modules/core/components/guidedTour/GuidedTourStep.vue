@@ -80,6 +80,7 @@ export default {
       default: null,
     },
   },
+  emits: ['next', 'previous'],
   async mounted() {
     const updatePosition = () => {
       const rect = this.$el.getBoundingClientRect()
@@ -96,7 +97,7 @@ export default {
     }
     window.addEventListener('resize', this.$el.updatePositionViaResizeEvent)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener(
       'scroll',
       this.$el.updatePositionViaScrollEvent,

@@ -185,6 +185,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ordered-fields'],
   data() {
     return {
       editingTitle: false,

@@ -1,9 +1,5 @@
 <template>
-  <Dropdown
-    :value="fontWeightValue"
-    fixed-items
-    @input="$emit('input', $event)"
-  >
+  <Dropdown :value="fontWeightValue" fixed-items @input="emit($event)">
     <DropdownItem
       v-for="fontWeight in fontWeights"
       :key="fontWeight.type"
@@ -21,8 +17,11 @@ export default {
   props: {
     value: {
       type: String,
-      required: false,
-      default: 'Regular',
+      default: undefined,
+    },
+    modelValue: {
+      type: String,
+      default: undefined,
     },
     font: {
       type: String,
@@ -30,7 +29,13 @@ export default {
       default: null,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
+    currentValue() {
+      return this.modelValue !== undefined
+        ? this.modelValue
+        : this.value || 'Regular'
+    },
     supportedWeights() {
       return this.font ? this.fontFamilyType.weights : ['regular']
     },
@@ -51,10 +56,10 @@ export default {
     },
     fontWeightValue: {
       get() {
-        return this.value
+        return this.currentValue
       },
       set(newValue) {
-        this.$emit('input', newValue)
+        this.emit(newValue)
       },
     },
   },
@@ -65,7 +70,7 @@ export default {
      * set the font weight to 'regular', which should be supported by all fonts.
      */
     font() {
-      if (!this.supportedWeights.includes(this.value)) {
+      if (!this.supportedWeights.includes(this.currentValue)) {
         this.fontWeightValue = this.fontFamilyType.defaultWeight
       }
     },
@@ -78,7 +83,11 @@ export default {
       const fontTypeKebab = fontType.replace(/-([a-z])/g, (_, char) =>
         char.toUpperCase()
       )
-      return this.$i18n.t(`fontWeightType.${fontTypeKebab}`)
+      return this.$t(`fontWeightType.${fontTypeKebab}`)
+    },
+    emit(newValue) {
+      this.$emit('input', newValue)
+      this.$emit('update:modelValue', newValue)
     },
   },
 }

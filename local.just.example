@@ -1,0 +1,31 @@
+# Personal Justfile Recipes
+# ========================
+# Copy this file to `local.just` to add your own custom recipes.
+# The file is gitignored, so your personal recipes won't be committed.
+#
+# You can also create local.just in backend/ or web-frontend/ for
+# component-specific personal recipes.
+
+# Example: Quick test for a specific module
+my-test:
+    just b test tests/baserow/core/
+
+# Example: Start only what you need (services + backend, no frontend)
+my-dev:
+    #!/usr/bin/env bash
+    just dc-dev up -d redis db mailhog
+    just b run-dev-server
+
+# Example: Custom database reset
+my-db-reset:
+    just dc-dev exec db psql -U baserow -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    just b migrate
+
+# Example: Open shell with custom imports
+my-shell:
+    just b manage shell_plus --print-sql
+
+# Example: Run your favorite linter combination
+my-lint:
+    just b lint
+    just f lint

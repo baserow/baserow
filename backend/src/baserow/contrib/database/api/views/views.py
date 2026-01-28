@@ -1178,8 +1178,7 @@ class ViewDecorationsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description=(
-                    "Returns only decoration of the view given to the provided "
-                    "value."
+                    "Returns only decoration of the view given to the provided value."
                 ),
             )
         ],
@@ -2085,14 +2084,13 @@ class PublicViewInfoView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.STR,
                 required=True,
-                description="The slug of the view to get public information " "about.",
+                description="The slug of the view to get public information about.",
             )
         ],
         tags=["Database table views"],
         operation_id="get_public_view_info",
         description=(
-            "Returns the required public information to display a single "
-            "shared view."
+            "Returns the required public information to display a single shared view."
         ),
         request=None,
         responses={

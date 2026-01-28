@@ -124,11 +124,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import containerElement from '@baserow/modules/builder/mixins/containerElement'
-import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
@@ -136,6 +132,7 @@ import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
+import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
 
 export default {
   name: 'RepeatElement',
@@ -146,7 +143,6 @@ export default {
     AddElementModal,
     AddElementZone,
   },
-  mixins: [containerElement, collectionElement],
   props: {
     /**
      * @type {Object}
@@ -165,8 +161,62 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
+  async setup(props) {
+    const refProps = toRefs(props)
+
+    const {
+      elementPage,
+      elementType,
+      mode,
+      adhocFilters,
+      adhocSortings,
+      adhocSearch,
+      contentFetchEnabled,
+      elementContent,
+      hasMorePage,
+      contentLoading,
+      loadMore,
+      getPerRecordApplicationContextAddition,
+      applicationContext,
+      resolveFormula,
+      getStyleOverride,
+      elementIsInError,
+      elementHasSourceOfData,
+      isEditMode,
+    } = useCollectionElement(refProps)
+
+    return {
+      elementPage,
+      elementType,
+      mode,
+      elementContent,
+      contentLoading,
+      contentFetchEnabled,
+      hasMorePage,
+      loadMore,
+      resolveFormula,
+      applicationContext,
+      getStyleOverride,
+      getPerRecordApplicationContextAddition,
+      adhocSearch,
+      adhocFilters,
+      adhocSortings,
+      elementIsInError,
+      elementHasSourceOfData,
+      isEditMode,
+    }
+  },
   computed: {
-    ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
+    deviceTypeSelected() {
+      return this.$store.getters['page/getDeviceTypeSelected']
+    },
+    children() {
+      return this.$store.getters['element/getChildren'](
+        this.elementPage,
+        this.element
+      )
+    },
     isCollapsed() {
       return this.$store.getters['element/getRepeatElementCollapsed'](
         this.element

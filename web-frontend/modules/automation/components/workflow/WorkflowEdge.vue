@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { useStore, inject, computed, ref } from '@nuxtjs/composition-api'
+import { useStore } from 'vuex'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'

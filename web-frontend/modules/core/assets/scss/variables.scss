@@ -68,16 +68,21 @@ $dashboard-breakpoint: 900px;
 
 $builder-page-max-width: 1280px;
 
+// Datepicker variables
+$datepicker-cell-font-size: 13px;
+$datepicker-month-year-cell-height: 40px;
+
 // Baserow icons variables
 $baserow-icon-prefix: 'baserow-icon-';
 
 // This list must contain all the svg icons in the `modules/core/assets/icons` that must
 // automatically become under `baserow-icon-$icon`. All the icons must be designed on a
 // 24px by 24px grid.
-$baserow-icons: 'circle-empty', 'circle-checked', 'check-square', 'formula',
-  'hashtag', 'more-horizontal', 'more-vertical', 'reddit', 'single-select',
-  'twitter', 'lock-open', 'flag', 'heart', 'star', 'thumbs-up', 'history',
-  'facebook', 'linkedin', 'gitlab', 'file', 'file-csv', 'file-pdf', 'file-image',
+$baserow-icons:
+  'circle-empty', 'circle-checked', 'check-square', 'formula', 'hashtag',
+  'more-horizontal', 'more-vertical', 'reddit', 'single-select', 'twitter',
+  'lock-open', 'flag', 'heart', 'star', 'thumbs-up', 'history', 'facebook',
+  'linkedin', 'gitlab', 'file', 'file-csv', 'file-pdf', 'file-image',
   'file-audio', 'file-video', 'file-code', 'tablet', 'form', 'file-excel',
   'kanban', 'file-word', 'file-archive', 'gallery', 'file-powerpoint',
   'calendar', 'smile', 'smartphone', 'plus', 'heading-1', 'heading-2',

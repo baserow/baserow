@@ -1,3 +1,5 @@
+@use 'sass:string';
+
 $white: #fff;
 $black: #000;
 
@@ -240,13 +242,3 @@ $colors: (
   'deep-dark-green': $color-success-500,
   'deep-dark-orange': $color-warning-500,
 );
-
-/* stylelint-disable */
-// Allows using the color values in Javascript modules, e.g:
-//    import styles from '~/modules/core/assets/scss/colors.scss'
-//    const color = styles["darker-gray"]
-:export {
-  @each $color, $value in $colors {
-    #{unquote($color)}: $value;
-  }
-}

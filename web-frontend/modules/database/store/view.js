@@ -1,6 +1,5 @@
-import { v1 as uuidv1 } from 'uuid'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
-import { uuid } from '@baserow/modules/core/utils/string'
+import { ulid } from 'ulid'
 import {
   createFiltersTree,
   readDefaultViewIdFromCookie,
@@ -53,8 +52,9 @@ export function populateDecoration(decoration) {
   return decoration
 }
 
-export function populateView(view, registry) {
-  const type = registry.get('view', view.type)
+export function populateView(view) {
+  const { $registry } = useNuxtApp()
+  const type = $registry.get('view', view.type)
 
   view._ = view._ || {
     type: type.serialize(),
@@ -88,14 +88,6 @@ export function populateView(view, registry) {
   } else {
     view.sortings = []
   }
-  if (Object.prototype.hasOwnProperty.call(view, 'group_bys')) {
-    view.group_bys.forEach((groupBy) => {
-      populateGroupBy(groupBy)
-    })
-  } else {
-    view.group_bys = []
-  }
-
   if (Object.prototype.hasOwnProperty.call(view, 'group_bys')) {
     view.group_bys.forEach((groupBy) => {
       populateGroupBy(groupBy)
@@ -145,7 +137,7 @@ export const mutations = {
       const index = state.items.findIndex((item) => item.id === id)
       Object.assign(state.items[index], state.items[index], values)
       if (repopulate === true) {
-        populateView(state.items[index], this.$registry)
+        populateView(state.items[index])
       }
     } else {
       Object.assign(view, view, values)
@@ -342,11 +334,12 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
+    const { $client } = this
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
 
     try {
-      const { data } = await ViewService(this.$client).fetchAll(
+      const { data } = await ViewService($client).fetchAll(
         table.id,
         true,
         true,
@@ -354,17 +347,18 @@ export const actions = {
         true
       )
       data.forEach((part, index, d) => {
-        populateView(data[index], this.$registry)
+        populateView(data[index])
       })
       commit('SET_ITEMS', data)
       commit('SET_LOADING', false)
 
       // Get the default view for the table.
-      const defaultViewId = readDefaultViewIdFromCookie(this.$cookies, table.id)
+      const defaultViewId = readDefaultViewIdFromCookie(table.id)
       if (defaultViewId !== null) {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
     } catch (error) {
+      console.log('view err', error)
       commit('SET_ITEMS', [])
       commit('SET_LOADING', false)
 
@@ -378,6 +372,8 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { type, table, values }
   ) {
+    const { $registry, $client } = this
+
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
       throw new Error(
         'The key "type" is a reserved, but is already set on the ' +
@@ -385,21 +381,21 @@ export const actions = {
       )
     }
 
-    if (!this.$registry.exists('view', type)) {
+    if (!$registry.exists('view', type)) {
       throw new Error(`A view with type "${type}" doesn't exist.`)
     }
 
     const postData = clone(values)
     postData.type = type
 
-    const { data } = await ViewService(this.$client).create(table.id, postData)
+    const { data } = await ViewService($client).create(table.id, postData)
     return await dispatch('forceCreate', { data })
   },
   /**
    * Forcefully create a new view without making a request to the server.
    */
   forceCreate({ commit }, { data }) {
-    populateView(data, this.$registry)
+    populateView(data)
     commit('ADD_ITEM', data)
     return { view: data }
   },
@@ -416,6 +412,7 @@ export const actions = {
       optimisticUpdate = true,
     }
   ) {
+    const { $client } = this
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
     const newValues = {}
@@ -461,9 +458,8 @@ export const actions = {
           }
         )
         // in some cases view may return extra data that were not present in values
-        const newValues = (
-          await ViewService(this.$client).update(view.id, values)
-        ).data
+        const newValues = (await ViewService($client).update(view.id, values))
+          .data
         if (refreshFromFetch || !optimisticUpdate) {
           dispatch('forceUpdate', { view, values: newValues, repopulate: true })
         }
@@ -481,10 +477,11 @@ export const actions = {
    * Updates the order of all the views in a table.
    */
   async order({ commit, getters }, { table, ownershipType, order, oldOrder }) {
+    const { $registry, $client } = this
     commit('ORDER_ITEMS', { ownershipType, order })
 
     try {
-      await ViewService(this.$client).order(table.id, ownershipType, order)
+      await ViewService($client).order(table.id, ownershipType, order)
     } catch (error) {
       commit('ORDER_ITEMS', { ownershipType, order: oldOrder })
       throw error
@@ -509,7 +506,8 @@ export const actions = {
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {
-    const { data } = await ViewService(this.$client).duplicate(view.id)
+    const { $registry, $client } = this
+    const { data } = await ViewService($client).duplicate(view.id)
     await dispatch('forceCreate', { data })
     return data
   },
@@ -518,8 +516,9 @@ export const actions = {
    * made and after that it will be deleted from the store.
    */
   async delete({ commit, dispatch }, view) {
+    const { $registry, $client } = this
     try {
-      await ViewService(this.$client).delete(view.id)
+      await ViewService($client).delete(view.id)
       dispatch('forceDelete', view)
     } catch (error) {
       // If the view to delete wasn't found we can just delete it from the
@@ -535,11 +534,13 @@ export const actions = {
    * Removes the view from the this store without making a delete request to the server.
    */
   forceDelete({ commit, dispatch, getters, rootGetters }, view) {
+    const { $registry, $client } = this
+    const router = useRouter()
+    const route = useRoute()
     // If the currently selected view is selected.
     if (view._.selected && view.id === getters.getSelectedId) {
       commit('UNSELECT')
 
-      const route = this.$router.history.current
       const tableId = view.table.id
 
       // If the current route is the same table as the deleting view.
@@ -556,17 +557,17 @@ export const actions = {
 
         if (nextView !== null) {
           // If there is a next view, we can redirect to that page.
-          this.$router.replace({ params: { viewId: nextView.id } })
+          router.replace({ params: { viewId: nextView.id } })
         } else if (route.params.viewId) {
           // If there isn't a next view and the user was already viewing a view, we
           // need to redirect to the empty table page.
-          this.$router.replace({ params: { viewId: null } })
+          router.replace({ params: { viewId: null } })
         } else {
           // If there isn't a next view and the user wasn't looking at a view, we need
           // to refresh to show an empty table page. Changing the view id to 0,
           // which never exists forces the table page to show empty. We have
           // to do it this way because we can't navigate to the page without view.
-          this.$router.replace({ params: { viewId: '0' } })
+          router.replace({ params: { viewId: '0' } })
         }
       }
     }
@@ -579,11 +580,12 @@ export const actions = {
    * possible you need to select the table first.
    */
   select({ commit, dispatch }, view) {
+    const { $config } = this
     commit('SET_SELECTED', view)
     commit('SET_DEFAULT_VIEW_ID', view.id)
 
     // Set the default view for the table.
-    saveDefaultViewIdInCookie(this.$cookies, view, this.$config)
+    saveDefaultViewIdInCookie(view, $config)
 
     dispatch(
       'undoRedo/updateCurrentScopeSet',
@@ -649,9 +651,11 @@ export const actions = {
       parentGroupId = null,
     }
   ) {
+    const { $client, $registry, $bus } = this
+
     // If the type is not provided we are going to choose the first available type.
     if (!Object.prototype.hasOwnProperty.call(values, 'type')) {
-      const viewFilterTypes = this.$registry.getAll('viewFilter')
+      const viewFilterTypes = $registry.getAll('viewFilter')
       const compatibleType = Object.values(viewFilterTypes).find(
         (viewFilterType) => {
           return viewFilterType.fieldIsCompatible(field)
@@ -667,7 +671,7 @@ export const actions = {
 
     // If the value is not provided, then we use the default value related to the type.
     if (!Object.prototype.hasOwnProperty.call(values, 'value')) {
-      const viewFilterType = this.$registry.get('viewFilter', values.type)
+      const viewFilterType = $registry.get('viewFilter', values.type)
       values.value = viewFilterType.getDefaultValue(field)
     }
 
@@ -700,14 +704,14 @@ export const actions = {
 
     const filter = Object.assign({}, values)
     populateFilter(filter)
-    filter.id = uuidv1()
+    filter.id = ulid()
     filter._.loading = !readOnly
     filter.group = filterGroupId
     values.group = filterGroupId
     commit('ADD_FILTER', { view, filter })
 
     if (emitEvent) {
-      this.$bus.$emit('view-filter-created', { view, filter })
+      $bus.$emit('view-filter-created', { view, filter })
     }
     commit('SET_FILTER_FOCUS', { view, filterId: filter.id })
 
@@ -717,7 +721,7 @@ export const actions = {
         // The group needs to be created first before we can create the filter
         // in the case we're trying to create a new filter in a new group.
         try {
-          const { data } = await FilterService(this.$client).createGroup(
+          const { data } = await FilterService($client).createGroup(
             view.id,
             parentGroupId,
             undoRedoActionGroupId
@@ -738,7 +742,7 @@ export const actions = {
       }
 
       try {
-        const { data } = await FilterService(this.$client).create(
+        const { data } = await FilterService($client).create(
           view.id,
           values,
           undoRedoActionGroupId
@@ -758,16 +762,18 @@ export const actions = {
    * removed from the store.
    */
   async createFilterGroup({ commit }, { view, readOnly = false }) {
+    const { $client } = this
+
     const filterGroup = {}
     populateFilterGroup(filterGroup)
-    filterGroup.id = uuidv1()
+    filterGroup.id = ulid()
     filterGroup._.loading = !readOnly
     filterGroup.filter_type = 'AND'
 
     commit('ADD_FILTER_GROUP', { view, filterGroup })
 
     try {
-      const { data } = await FilterService(this.$client).createGroup(view.id)
+      const { data } = await FilterService($client).createGroup(view.id)
       commit('FINALIZE_FILTER_GROUP', {
         view,
         oldId: filterGroup.id,
@@ -804,6 +810,7 @@ export const actions = {
     { dispatch, commit },
     { filter, values, readOnly = false }
   ) {
+    const { $client } = this
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     const oldValues = {}
@@ -823,7 +830,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).update(filter.id, values)
+        await FilterService($client).update(filter.id, values)
       }
       commit('SET_FILTER_LOADING', { filter, value: false })
     } catch (error) {
@@ -839,6 +846,7 @@ export const actions = {
     { dispatch },
     { filterGroup, values, readOnly = false }
   ) {
+    const { $client } = this
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -855,7 +863,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).updateGroup(filterGroup.id, values)
+        await FilterService($client).updateGroup(filterGroup.id, values)
       }
     } catch (error) {
       dispatch('forceUpdateFilterGroup', {
@@ -882,11 +890,12 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteFilter({ dispatch, commit }, { view, filter, readOnly = false }) {
+    const { $client } = this
     commit('SET_FILTER_LOADING', { filter, value: true })
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).delete(filter.id)
+        await FilterService($client).delete(filter.id)
       }
       dispatch('forceDeleteFilter', { view, filter })
     } catch (error) {
@@ -908,6 +917,7 @@ export const actions = {
     { dispatch, commit },
     { view, filterGroup, readOnly = false }
   ) {
+    const { $client } = this
     const filters = view.filters.filter((f) => f.group === filterGroup.id)
     for (const filter of filters) {
       commit('SET_FILTER_LOADING', { filter, value: true })
@@ -915,7 +925,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await FilterService(this.$client).deleteGroup(filterGroup.id)
+        await FilterService($client).deleteGroup(filterGroup.id)
       }
       dispatch('forceDeleteFilterGroup', {
         view,
@@ -970,16 +980,17 @@ export const actions = {
    * the decorator ID will be updatede, but if it fails it will be removed from the store.
    */
   async createDecoration({ commit }, { view, values, readOnly = false }) {
+    const { $client } = this
     const decoration = { ...values }
     populateDecoration(decoration)
-    decoration.id = uuid()
+    decoration.id = ulid()
     decoration._.loading = !readOnly
 
     commit('ADD_DECORATION', { view, decoration })
 
     try {
       if (!readOnly) {
-        const { data } = await DecorationService(this.$client).create(
+        const { data } = await DecorationService($client).create(
           view.id,
           values
         )
@@ -1012,6 +1023,7 @@ export const actions = {
     { dispatch, commit },
     { decoration, values, readOnly = false }
   ) {
+    const { $client } = this
     commit('SET_DECORATION_LOADING', { decoration, value: true })
 
     const oldValues = {}
@@ -1027,7 +1039,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await DecorationService(this.$client).update(decoration.id, values)
+        await DecorationService($client).update(decoration.id, values)
       }
       commit('SET_DECORATION_LOADING', { decoration, value: false })
     } catch (error) {
@@ -1051,12 +1063,13 @@ export const actions = {
     { dispatch, commit },
     { view, decoration, readOnly = false }
   ) {
+    const { $client } = this
     commit('SET_DECORATION_LOADING', { decoration, value: true })
     dispatch('forceDeleteDecoration', { view, decoration })
 
     try {
       if (!readOnly) {
-        await DecorationService(this.$client).delete(decoration.id)
+        await DecorationService($client).delete(decoration.id)
       }
     } catch (error) {
       // Restore decoration in case of error
@@ -1085,6 +1098,8 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createSort({ getters, commit }, { view, values, readOnly = false }) {
+    const { $client } = this
+
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
       values.order = 'ASC'
@@ -1092,14 +1107,14 @@ export const actions = {
 
     const sort = Object.assign({}, values)
     populateSort(sort)
-    sort.id = uuid()
+    sort.id = ulid()
     sort._.loading = !readOnly
 
     commit('ADD_SORT', { view, sort })
 
     if (!readOnly) {
       try {
-        const { data } = await SortService(this.$client).create(view.id, values)
+        const { data } = await SortService($client).create(view.id, values)
         commit('FINALIZE_SORT', { view, oldId: sort.id, id: data.id })
       } catch (error) {
         commit('DELETE_SORT', { view, id: sort.id })
@@ -1122,6 +1137,7 @@ export const actions = {
    * changes will be undone.
    */
   async updateSort({ dispatch, commit }, { sort, values, readOnly = false }) {
+    const { $client } = this
     commit('SET_SORT_LOADING', { sort, value: true })
 
     const oldValues = {}
@@ -1137,7 +1153,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await SortService(this.$client).update(sort.id, values)
+        await SortService($client).update(sort.id, values)
       }
       commit('SET_SORT_LOADING', { sort, value: false })
     } catch (error) {
@@ -1157,11 +1173,12 @@ export const actions = {
    * after that it will be deleted.
    */
   async deleteSort({ dispatch, commit }, { view, sort, readOnly = false }) {
+    const { $client } = this
     commit('SET_SORT_LOADING', { sort, value: true })
 
     try {
       if (!readOnly) {
-        await SortService(this.$client).delete(sort.id)
+        await SortService($client).delete(sort.id)
       }
       dispatch('forceDeleteSort', { view, sort })
     } catch (error) {
@@ -1195,6 +1212,8 @@ export const actions = {
    * the row ID will be added, but if it fails it will be removed from the store.
    */
   async createGroupBy({ getters, commit }, { view, values, readOnly = false }) {
+    const { $client } = this
+
     // If the order is not provided we are going to choose the ascending order.
     if (!Object.prototype.hasOwnProperty.call(values, 'order')) {
       values.order = 'ASC'
@@ -1206,17 +1225,14 @@ export const actions = {
 
     const groupBy = Object.assign({}, values)
     populateGroupBy(groupBy)
-    groupBy.id = uuid()
+    groupBy.id = ulid()
     groupBy._.loading = !readOnly
 
     commit('ADD_GROUP_BY', { view, groupBy })
 
     if (!readOnly) {
       try {
-        const { data } = await GroupByService(this.$client).create(
-          view.id,
-          values
-        )
+        const { data } = await GroupByService($client).create(view.id, values)
         commit('FINALIZE_GROUP_BY', { view, oldId: groupBy.id, id: data.id })
       } catch (error) {
         commit('DELETE_GROUP_BY', { view, id: groupBy.id })
@@ -1242,6 +1258,7 @@ export const actions = {
     { dispatch, commit },
     { groupBy, values, readOnly = false }
   ) {
+    const { $client } = this
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     const oldValues = {}
@@ -1257,7 +1274,7 @@ export const actions = {
 
     try {
       if (!readOnly) {
-        await GroupByService(this.$client).update(groupBy.id, values)
+        await GroupByService($client).update(groupBy.id, values)
       }
       commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
     } catch (error) {
@@ -1280,11 +1297,12 @@ export const actions = {
     { dispatch, commit },
     { view, groupBy, readOnly = false }
   ) {
+    const { $client } = this
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
     try {
       if (!readOnly) {
-        await GroupByService(this.$client).delete(groupBy.id)
+        await GroupByService($client).delete(groupBy.id)
       }
       dispatch('forceDeleteGroupBy', { view, groupBy })
     } catch (error) {
@@ -1353,12 +1371,13 @@ export const actions = {
    * to the delete field.
    */
   fieldUpdated({ dispatch, commit, getters }, { field, fieldType }) {
+    const { $registry } = this
     getters.getAll.forEach((view) => {
       // Remove all filters are not compatible anymore.
       view.filters
         .filter((filter) => filter.field === field.id)
         .forEach((filter) => {
-          const filterType = this.$registry.get('viewFilter', filter.type)
+          const filterType = $registry.get('viewFilter', filter.type)
           const compatible = filterType.fieldIsCompatible(field)
           if (!compatible) {
             commit('DELETE_FILTER', { view, id: filter.id })

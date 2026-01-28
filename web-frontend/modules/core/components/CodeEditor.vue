@@ -5,7 +5,7 @@
 </template>
 
 <script>
-import { Editor, EditorContent } from '@tiptap/vue-2'
+import { Editor, EditorContent } from '@tiptap/vue-3'
 
 import { Document } from '@tiptap/extension-document'
 import { Paragraph } from '@tiptap/extension-paragraph'
@@ -22,18 +22,19 @@ export default {
       default: 'javascript',
       validator: (value) => ['javascript', 'css'].includes(value),
     },
-    value: {
+    modelValue: {
       type: String,
       default: '',
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       editor: null,
     }
   },
   watch: {
-    value(newCode) {
+    modelValue(newCode) {
       if (this.editor && newCode !== this.getCurrentCode()) {
         this.editor.commands.setContent(this.generateCodeBlock(newCode))
       }
@@ -47,18 +48,17 @@ export default {
     },
   },
   async mounted() {
-    const { CodeBlockLowlight } = await import(
-      '@tiptap/extension-code-block-lowlight'
-    )
-    const { lowlight } = await import('lowlight/lib/core')
+    const { CodeBlockLowlight } =
+      await import('@tiptap/extension-code-block-lowlight')
+    const { createLowlight } = await import('lowlight')
+    const lowlight = createLowlight()
 
-    const { default: javascript } = await import(
-      'highlight.js/lib/languages/javascript'
-    )
+    const { default: javascript } =
+      await import('highlight.js/lib/languages/javascript')
     const { default: css } = await import('highlight.js/lib/languages/css')
 
-    lowlight.registerLanguage('javascript', javascript)
-    lowlight.registerLanguage('css', css)
+    lowlight.register('javascript', javascript)
+    lowlight.register('css', css)
 
     this.editor = new Editor({
       extensions: [
@@ -69,13 +69,13 @@ export default {
           lowlight,
         }),
       ],
-      content: this.generateCodeBlock(this.value),
+      content: this.generateCodeBlock(this.modelValue),
       onUpdate: ({ editor }) => {
-        this.$emit('input', this.getCurrentCode())
+        this.$emit('update:modelValue', this.getCurrentCode())
       },
     })
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.editor?.destroy()
   },
   methods: {

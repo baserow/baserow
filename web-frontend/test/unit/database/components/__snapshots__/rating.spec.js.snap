@@ -1,9 +1,10 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Rating component Customized rating component 1`] = `
+exports[`Rating component > Customized rating component 1`] = `
 <div
   class="rating color--dark-blue editing"
 >
+  
   <i
     class="rating__star baserow-icon-star rating__star--selected"
   />
@@ -19,13 +20,15 @@ exports[`Rating component Customized rating component 1`] = `
   <i
     class="rating__star baserow-icon-star"
   />
+  
 </div>
 `;
 
-exports[`Rating component Default rating component 1`] = `
+exports[`Rating component > Default rating component 1`] = `
 <div
   class="rating color--dark-orange"
 >
+  
   <i
     class="rating__star baserow-icon-star rating__star--selected"
   />
@@ -35,5 +38,6 @@ exports[`Rating component Default rating component 1`] = `
   <i
     class="rating__star baserow-icon-star rating__star--selected"
   />
+  
 </div>
 `;

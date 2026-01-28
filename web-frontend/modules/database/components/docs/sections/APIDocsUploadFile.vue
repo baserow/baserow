@@ -14,7 +14,7 @@
         class="api-docs__content"
         :content="
           $t('apiDocsUploadFile.description', {
-            PUBLIC_BACKEND_URL: `${$config.PUBLIC_BACKEND_URL}`,
+            PUBLIC_BACKEND_URL: `${$config.public.publicBackendUrl}`,
           })
         "
       />
@@ -63,5 +63,6 @@ export default {
     getUploadFileExample: { type: Function, required: true },
     getUploadFileResponse: { type: Function, required: true },
   },
+  emits: ['input'],
 }
 </script>

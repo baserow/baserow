@@ -1,4 +1,4 @@
-# Creating A Plugin
+# Creating A Plugin [Outdated]
 
 > Check out our [Plugin community sub-forum](https://community.baserow.io/c/plugins/17)
 > for community made plugins and further discussion.
@@ -122,7 +122,7 @@ containing metadata about your plugin. It should have the following JSON structu
 {
   "name": "TODO",
   "version": "TODO",
-  "supported_baserow_versions": "2.0.5",
+  "supported_baserow_versions": "2.0.6",
   "plugin_api_version": "0.0.1-alpha",
   "description": "TODO",
   "author": "TODO",

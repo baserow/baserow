@@ -27,12 +27,12 @@
       :add-condition-group-string="$t('viewFilterContext.addFilterGroup')"
       scrollable
       class="filters__items--with-padding"
-      @addFilter="addFilter($event)"
-      @addFilterGroup="addFilter($event)"
-      @deleteFilter="deleteFilter($event)"
-      @deleteFilterGroup="deleteFilterGroup($event)"
-      @updateFilter="updateFilter($event)"
-      @updateFilterType="updateFilterType(view, $event)"
+      @add-filter="addFilter($event)"
+      @add-filter-group="addFilter($event)"
+      @delete-filter="deleteFilter($event)"
+      @delete-filter-group="deleteFilterGroup($event)"
+      @update-filter="updateFilter($event)"
+      @update-filter-type="updateFilterType(view, $event)"
     />
     <div v-if="!disableFilter" class="context__footer">
       <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
@@ -41,7 +41,7 @@
 
       <ButtonText
         icon="iconoir-plus"
-        @click.prevent="addFilter({ filterGroupId: uuidv1() })"
+        @click.prevent="addFilter({ filterGroupId: sortableUid() })"
       >
         {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
       >
@@ -60,7 +60,7 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { v1 as uuidv1 } from 'uuid'
+import { ulid } from 'ulid'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import { hasCompatibleFilterTypes } from '@baserow/modules/database/utils/field'
 import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
@@ -94,8 +94,9 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   methods: {
-    uuidv1,
+    sortableUid: ulid,
     async addFilter({ filterGroupId = null, parentGroupId = null } = {}) {
       try {
         const field = this.getFirstCompatibleField(this.fields)

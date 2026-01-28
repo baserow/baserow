@@ -104,5 +104,6 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
 }
 </script>

@@ -19,7 +19,6 @@ module.exports = {
     '^.+\\.(gif|ico|jpg|jpeg|png|svg)$':
       '<rootDir>/test/helpers/stubFileTransformer.js',
   },
-  transformIgnorePatterns: ['/node_modules/(?!@nuxtjs/composition-api)'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   snapshotSerializers: ['<rootDir>/node_modules/jest-serializer-vue'],
   cacheDirectory: '<rootDir>/.cache/jest',

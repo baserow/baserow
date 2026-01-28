@@ -6,7 +6,7 @@ set -euo pipefail
 # ENVIRONMENT VARIABLES USED DIRECTLY BY THIS ENTRYPOINT
 # ======================================================
 
-export BASEROW_VERSION="2.0.5"
+export BASEROW_VERSION="2.0.6"
 
 # Used by docker-entrypoint.sh to start the dev server
 # If not configured you'll receive this: CommandError: "0.0.0.0:" is not a valid port number or address:port pair.
@@ -181,11 +181,10 @@ celery-exportworker-healthcheck : Checks the celery-exportworker health
 DEV COMMANDS (most will only work in the baserow_backend_dev image):
 django-dev      : Start a normal Baserow backend django development server, performs
                   the same checks and setup as the gunicorn command above.
-lint-shell      : Run the linting (only available if using dev target)
+lint-shell      : Run the linting interactively (only available if using dev target)
 lint            : Run the linting and exit (only available if using dev target)
-test:           : Run the tests (only available if using dev target)
-ci-test:        : Run the tests for ci including various reports (dev only)
-ci-check-startup: Start up a single gunicorn and timeout after 10 seconds for ci (dev)
+ci-test         : Run the tests for CI with coverage/splits (dev only)
+ci-check-startup: Start up a single gunicorn and timeout after 10 seconds for CI (dev)
 watch-py CMD    : Auto reruns the provided CMD whenever python files change
 install-plugin  : Installs a baserow plugin.
 """
@@ -350,19 +349,22 @@ case "$1" in
         exec python3 /baserow/backend/src/baserow/manage.py shell
     ;;
     lint-shell)
-        attachable_exec make lint-python
+        attachable_exec just lint
     ;;
     lint)
-        exec make lint-python
+        exec just lint
     ;;
     ci-test)
-        exec make ci-test-python PYTEST_SPLITS="${PYTEST_SPLITS:-1}" PYTEST_SPLIT_GROUP="${PYTEST_SPLIT_GROUP:-1}" PYTEST_EXTRA_ARGS="${*:2}"
+        exec just ci-test --splits "${PYTEST_SPLITS:-1}" --group "${PYTEST_SPLIT_GROUP:-1}" "${@:2}"
     ;;
     ci-check-startup)
-        exec make ci-check-startup-python
+        exec just ci-check-startup
     ;;
     ci-check-startup-oss-only)
-        exec make ci-check-startup-python-oss-only
+        exec just ci-check-startup-oss-only
+    ;;
+    ci-check-migrations)
+        exec just check-migrations
     ;;
     celery-worker)
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
@@ -400,7 +402,11 @@ case "$1" in
            "startup errors."
       sleep "$BASEROW_CELERY_BEAT_STARTUP_DELAY"
       export OTEL_SERVICE_NAME="celery-beat"
-      exec celery -A baserow beat -l "${BASEROW_CELERY_BEAT_DEBUG_LEVEL}" -S redbeat.RedBeatScheduler "${@:2}"
+      exec celery -A baserow beat  --pidfile=/tmp/celerybeat.pid -l "${BASEROW_CELERY_BEAT_DEBUG_LEVEL}" -S redbeat.RedBeatScheduler "${@:2}"
+    ;;
+    celery-beat-healthcheck)
+      echo "Running celery beat healthcheck..."
+      exec test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid) || exit 1
     ;;
     celery-flower)
       exec celery -A baserow flower "$@"

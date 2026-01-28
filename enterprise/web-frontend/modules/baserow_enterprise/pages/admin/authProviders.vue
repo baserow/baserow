@@ -16,8 +16,8 @@
             v-if="authProviderTypeToCreate"
             ref="createModal"
             :auth-provider-type="authProviderTypeToCreate"
-            @created="$refs.createModal.hide()"
-            @cancel="$refs.createModal.hide()"
+            @created="createModal?.hide()"
+            @cancel="createModal?.hide()"
           />
         </a>
       </div>
@@ -38,57 +38,68 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup>
+import { ref, computed, nextTick } from 'vue'
+import { useStore } from 'vuex'
+import { useNuxtApp, definePageMeta, useI18n, useHead } from '#imports'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
-export default {
-  components: { CreateAuthProviderContext, CreateAuthProviderModal },
+// Page meta
+definePageMeta({
   layout: 'app',
   middleware: 'staff',
-  asyncData: async ({ store }) => {
-    await store.dispatch('authProviderAdmin/fetchAll')
-    await store.dispatch('authProviderAdmin/fetchNextProviderId')
-  },
-  data() {
-    return {
-      authProviderTypeToCreate: null,
-    }
-  },
-  computed: {
-    ...mapGetters({
-      authProviderMap: 'authProviderAdmin/getAll',
-      authProviders: 'authProviderAdmin/getAllOrdered',
-    }),
-    authProviderTypesCanBeCreated() {
-      return Object.values(this.$registry.getAll('authProvider')).filter(
-        (authProviderType) =>
-          authProviderType.canCreateNew(this.authProviderMap)
-      )
-    },
-  },
-  methods: {
-    getAdminListComponent(authProvider) {
-      return this.$registry
-        .get('authProvider', authProvider.type)
-        .getAdminListComponent()
-    },
-    showCreateContext() {
-      this.$refs.createContext.toggle(
-        this.$refs.createContextLink,
-        'bottom',
-        'right',
-        4
-      )
-    },
-    async showCreateModal(authProviderType) {
-      this.authProviderTypeToCreate = authProviderType
-      // Wait for the modal to appear in DOM
-      await this.$nextTick()
-      this.$refs.createModal.show()
-      this.$refs.createContext.hide()
-    },
-  },
+})
+
+// Composables
+const store = useStore()
+const { $registry } = useNuxtApp()
+const { t: $t } = useI18n()
+
+useHead({ title: $t('authProviders.title') })
+
+// Template refs
+const createContextLink = ref(null)
+const createContext = ref(null)
+const createModal = ref(null)
+
+// Reactive state
+const authProviderTypeToCreate = ref(null)
+
+// Fetch data on page load
+await store.dispatch('authProviderAdmin/fetchAll')
+await store.dispatch('authProviderAdmin/fetchNextProviderId')
+
+// Computed
+const authProviderMap = computed(
+  () => store.getters['authProviderAdmin/getAll']
+)
+const authProviders = computed(
+  () => store.getters['authProviderAdmin/getAllOrdered']
+)
+
+const authProviderTypesCanBeCreated = computed(() => {
+  return Object.values($registry.getAll('authProvider')).filter(
+    (authProviderType) => authProviderType.canCreateNew(authProviderMap.value)
+  )
+})
+
+// Methods
+function getAdminListComponent(authProvider) {
+  return $registry
+    .get('authProvider', authProvider.type)
+    .getAdminListComponent()
+}
+
+function showCreateContext() {
+  createContext.value?.toggle(createContextLink.value, 'bottom', 'right', 4)
+}
+
+async function showCreateModal(authProviderType) {
+  authProviderTypeToCreate.value = authProviderType
+  // Wait for the modal to appear in DOM
+  await nextTick()
+  createModal.value?.show()
+  createContext.value?.hide()
 }
 </script>

@@ -3,20 +3,18 @@
     <div class="sidebar__section-scrollable">
       <div class="sidebar__section-scrollable-inner">
         <ul class="tree">
-          <template v-for="(category, index) in groupedSortedAdminTypes">
-            <li
-              :key="category.name"
-              class="tree__heading"
-              :class="{ 'margin-top-2': index > 0 }"
-            >
+          <template
+            v-for="(category, index) in groupedSortedAdminTypes"
+            :key="category.name"
+          >
+            <li class="tree__heading" :class="{ 'margin-top-2': index > 0 }">
               {{ category.name }}
             </li>
             <SidebarAdminItem
               v-for="adminType in category.items"
               :key="adminType.type"
               :admin-type="adminType"
-            >
-            </SidebarAdminItem>
+            />
           </template>
         </ul>
       </div>

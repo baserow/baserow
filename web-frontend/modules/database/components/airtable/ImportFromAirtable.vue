@@ -51,12 +51,13 @@ export default {
       required: true,
     },
   },
+  emits: ['hidden'],
   data() {
     return {
       loading: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -89,9 +90,8 @@ export default {
     stopPollAndHandleError(error, specificErrorMap = null) {
       this.loading = false
       this.stopPollIfRunning()
-      error.handler
-        ? this.handleError(error, 'airtable', specificErrorMap)
-        : this.showError(error)
+      if (error.handler) this.handleError(error, 'airtable', specificErrorMap)
+      else this.showError(error)
     },
     getCustomHumanReadableJobState(state) {
       const importingTablePrefix = 'importing-table-'

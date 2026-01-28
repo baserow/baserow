@@ -95,6 +95,7 @@ export default {
       default: null,
     },
   },
+  emits: ['uploaded'],
   data() {
     return {
       uploading: false,

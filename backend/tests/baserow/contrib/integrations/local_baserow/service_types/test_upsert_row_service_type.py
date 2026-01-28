@@ -833,3 +833,43 @@ def test_extract_properties_returns_expected_list(path, expected):
     result = service_type.extract_properties(path)
 
     assert result == expected
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_with_collaborators(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Collaborators", "multiple_collaborators", {}),
+        ],
+    )
+    collaborator_field = table.field_set.get(name="Collaborators")
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service_type = service.get_type()
+    # Simulate a user ID as a string
+    service.field_mappings.create(field=collaborator_field, value=f'"{user.id}"')
+
+    dispatch_context = FakeDispatchContext()
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    collaborators = getattr(dispatch_data["data"], collaborator_field.db_column).all()
+    assert list(collaborators.values_list("id", flat=True)) == [user.id]

@@ -29,7 +29,7 @@ export class AdminType extends Registerable {
    * the category in the left sidebar.
    */
   getCategory() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('sidebar.general')
   }
 
@@ -98,7 +98,7 @@ export class DashboardAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('adminType.dashboard')
   }
 
@@ -121,12 +121,12 @@ export class UsersAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('adminType.users')
   }
 
   getCategory() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('sidebar.people')
   }
 
@@ -149,12 +149,12 @@ export class WorkspacesAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('adminType.workspaces')
   }
 
   getCategory() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('sidebar.people')
   }
 
@@ -177,7 +177,7 @@ export class SettingsAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('adminType.settings')
   }
 
@@ -200,7 +200,7 @@ export class HealthCheckAdminType extends AdminType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('adminType.health')
   }
 

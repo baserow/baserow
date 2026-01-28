@@ -49,5 +49,6 @@ export default {
       required: true,
     },
   },
+  emits: ['updateFilterType'],
 }
 </script>

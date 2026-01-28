@@ -327,7 +327,7 @@ export default {
     this.resizeObserver.observe(this.$el)
     this.onWindowResized()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.resizeObserver.disconnect()
     document.removeEventListener('keydown', this.preventScrollIfFocused)
   },

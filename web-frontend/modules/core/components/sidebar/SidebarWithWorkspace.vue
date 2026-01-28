@@ -15,7 +15,7 @@
           </component>
         </ul>
         <ul v-if="applicationsCount" class="tree">
-          <div
+          <li
             v-for="applicationGroup in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
           >
@@ -60,7 +60,7 @@
                 </component>
               </ul>
             </template>
-          </div>
+          </li>
         </ul>
       </div>
     </div>
@@ -121,24 +121,24 @@ export default {
      * filter on the selected workspace here.
      */
     groupedApplicationsForSelectedWorkspace() {
-      const applicationTypes = Object.values(
-        this.$registry.getAll('application')
-      ).map((applicationType) => {
-        return {
-          name: applicationType.getNamePlural(),
-          type: applicationType.getType(),
-          developmentStage: applicationType.developmentStage,
-          applications: this.applications
-            .filter((application) => {
-              return (
-                application.workspace.id === this.selectedWorkspace.id &&
-                application.type === applicationType.getType() &&
-                applicationType.isVisible(application)
-              )
-            })
-            .sort((a, b) => a.order - b.order),
-        }
-      })
+      const applicationTypes = this.$registry
+        .getOrderedList('application')
+        .map((applicationType) => {
+          return {
+            name: applicationType.getNamePlural(),
+            type: applicationType.getType(),
+            developmentStage: applicationType.developmentStage,
+            applications: this.applications
+              .filter((application) => {
+                return (
+                  application.workspace.id === this.selectedWorkspace.id &&
+                  application.type === applicationType.getType() &&
+                  applicationType.isVisible(application)
+                )
+              })
+              .sort((a, b) => a.order - b.order),
+          }
+        })
       return applicationTypes
     },
     applicationsCount() {

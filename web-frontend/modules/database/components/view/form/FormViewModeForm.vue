@@ -72,5 +72,6 @@ export default {
     FormViewPoweredBy,
   },
   mixins: [baseFormViewMode],
+  emits: ['submit'],
 }
 </script>

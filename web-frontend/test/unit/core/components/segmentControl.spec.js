@@ -4,7 +4,7 @@ import SegmentControl from '@baserow/modules/core/components/SegmentControl.vue'
 describe('SegmentControl.vue', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

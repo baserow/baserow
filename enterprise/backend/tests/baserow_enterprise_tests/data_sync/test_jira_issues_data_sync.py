@@ -7,8 +7,6 @@ from django.urls import reverse
 
 import pytest
 import responses
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.models import License
 from requests.auth import HTTPBasicAuth
 from responses.matchers import header_matcher
 from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
@@ -18,6 +16,8 @@ from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.fields.models import TextField
 from baserow.core.db import specific_iterator
 from baserow_enterprise.data_sync.models import JiraIssuesDataSync
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.models import License
 
 SINGLE_ISSUE = {
     "expand": "operations,versionedRepresentations,editmeta,changelog,customfield_10010.requestTypePractice,renderedFields",
@@ -539,7 +539,7 @@ _Italic_
 
 
 
-<img src="Screenshot 2024-09-12 at 11.21.36.png" width="884" height="213" />
+![Screenshot 2024-09-12 at 11.21.36.png](Screenshot 2024-09-12 at 11.21.36.png){width=884 height=213}
 
 😃
 

@@ -21,7 +21,7 @@ export default {
       ENTERPRISE_ACTION_SCOPES.teams_in_workspace(this.workspace.id)
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$store.dispatch(
       'undoRedo/updateCurrentScopeSet',
       ENTERPRISE_ACTION_SCOPES.teams_in_workspace(null)

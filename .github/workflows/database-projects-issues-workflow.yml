@@ -1,0 +1,163 @@
+name: Update Database Team Project Fields
+
+env:
+  PROJECT_NUMBER: '3'
+  DOMAIN_LABELS: '["domain::database", "domain::core"]'
+  STATUS_FIELD_NAME: 'Status'
+  STATUS_TODO: 'Todo'
+
+on:
+  issues:
+    types: [labeled, opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to process'
+        required: true
+        type: number
+
+jobs:
+  update-project-fields:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Issue to Project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const issueNumber = context.eventName === 'workflow_dispatch'
+              ? ${{ github.event.inputs.issue_number || 0 }}
+              : context.payload.issue.number;
+
+            console.log(`Processing Issue #${issueNumber} (event: ${context.eventName}/${context.payload.action || 'manual'})`);
+
+            // ============================================================
+            // FETCH ALL DATA WITH SINGLE GRAPHQL QUERY
+            // ============================================================
+
+            const data = await github.graphql(`
+              query($owner: String!, $repo: String!, $issue: Int!, $projectNumber: Int!) {
+                organization(login: $owner) {
+                  projectV2(number: $projectNumber) {
+                    id
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id, name }
+                        }
+                      }
+                    }
+                  }
+                }
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issue) {
+                    id
+                    labels(first: 20) {
+                      nodes { name }
+                    }
+                    projectItems(first: 10) {
+                      nodes {
+                        id
+                        project { id }
+                      }
+                    }
+                  }
+                }
+              }
+            `, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue: issueNumber,
+              projectNumber: parseInt('${{ env.PROJECT_NUMBER }}')
+            });
+
+            const project = data.organization.projectV2;
+            const issue = data.repository.issue;
+
+            // ============================================================
+            // CHECK DOMAIN LABELS (early exit if not relevant)
+            // ============================================================
+
+            const labels = issue.labels.nodes.map(l => l.name);
+            const domainLabels = ${{ env.DOMAIN_LABELS }};
+            const hasDomainLabel = labels.some(label =>
+              domainLabels.some(domain => label.startsWith(domain))
+            );
+
+            if (!hasDomainLabel) {
+              console.log(`Issue #${issueNumber} has no domain label (${labels.join(', ') || 'none'}), skipping`);
+              return;
+            }
+
+            console.log(`Issue has domain label: ${labels.filter(l => l.startsWith('domain::')).join(', ')}`);
+
+            // ============================================================
+            // CHECK IF ALREADY IN PROJECT
+            // ============================================================
+
+            const existingItem = issue.projectItems.nodes.find(
+              item => item.project.id === project.id
+            );
+
+            if (existingItem) {
+              console.log('Issue is already in the project');
+              return;
+            }
+
+            // ============================================================
+            // ADD ISSUE TO PROJECT
+            // ============================================================
+
+            const addResult = await github.graphql(`
+              mutation($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: {
+                  projectId: $projectId
+                  contentId: $contentId
+                }) {
+                  item {
+                    id
+                  }
+                }
+              }
+            `, {
+              projectId: project.id,
+              contentId: issue.id
+            });
+
+            const itemId = addResult.addProjectV2ItemById.item.id;
+            console.log(`Issue added to project (item: ${itemId})`);
+
+            // ============================================================
+            // SET STATUS TO TODO
+            // ============================================================
+
+            const statusField = project.fields.nodes.find(f => f.name === '${{ env.STATUS_FIELD_NAME }}');
+            const todoOption = statusField?.options.find(o => o.name === '${{ env.STATUS_TODO }}');
+
+            if (!statusField || !todoOption) {
+              console.log('Warning: Status field or Todo option not found');
+              return;
+            }
+
+            await github.graphql(`
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: $value
+                }) {
+                  projectV2Item { id }
+                }
+              }
+            `, {
+              projectId: project.id,
+              itemId,
+              fieldId: statusField.id,
+              value: { singleSelectOptionId: todoOption.id }
+            });
+
+            console.log(`Status → ${{ env.STATUS_TODO }}`);
+            console.log('Completed!');

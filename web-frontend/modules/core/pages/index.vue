@@ -1,8 +1,9 @@
-<script>
-export default {
-  fetch({ store, redirect }) {
-    const name = store.getters['auth/isAuthenticated'] ? 'dashboard' : 'login'
-    redirect({ name })
-  },
-}
+<template>
+  <div />
+</template>
+
+<script setup>
+const store = useNuxtApp().$store
+const name = store.getters['auth/isAuthenticated'] ? 'dashboard' : 'login'
+await navigateTo({ name })
 </script>

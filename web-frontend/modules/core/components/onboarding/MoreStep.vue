@@ -75,6 +75,7 @@ import { countryList } from '@baserow/modules/core/utils/countries'
 
 export default {
   name: 'MoreStep',
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

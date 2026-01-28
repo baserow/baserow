@@ -1,6 +1,5 @@
-from baserow_premium.license.models import License
-
 from baserow.core.models import Settings
+from baserow_premium.license.models import License
 
 LICENSE = (
     "eyJ2ZXJzaW9uIjogMSwgImlkIjogIjUzODczYmVkLWJlNTQtNDEwZS04N2EzLTE2OTM2"
