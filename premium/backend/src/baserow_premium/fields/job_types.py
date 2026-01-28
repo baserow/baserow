@@ -54,18 +54,6 @@ class AIValueUpdate(NamedTuple):
     end_at: datetime
 
 
-class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
-    """
-    Adds the ability to filter GenerateAIValuesJob by AI field ID.
-    """
-
-    generate_ai_values_field_id = serializers.IntegerField(
-        min_value=1,
-        required=False,
-        help_text="Filter by the AI field ID.",
-    )
-
-
 def get_valid_generative_ai_model_type_or_raise(ai_field: AIField):
     """
     Returns the generative AI model type for the given AI field if the model belongs
@@ -266,6 +254,10 @@ class GenerateAIValuesJobType(JobType):
 
         :return: A serializer class extending JobTypeFiltersSerializer.
         """
+
+        from baserow_premium.api.fields.serializers import (
+            GenerateAIValuesJobFiltersSerializer,
+        )
 
         return GenerateAIValuesJobFiltersSerializer
 
