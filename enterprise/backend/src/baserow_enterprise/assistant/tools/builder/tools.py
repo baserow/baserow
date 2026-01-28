@@ -184,6 +184,10 @@ def get_page_tool_factory(
         """
         TOOL LOADER: Loads tools to manage pages and data sources in an application.
 
+        ⚠️ CALL ONCE: This loader only needs to be called ONCE per conversation.
+        After calling it, the tools are immediately available. Do NOT call this
+        loader again - proceed directly to using the loaded tools.
+
         Call this loader when you need to:
         - List or create pages in an application builder
         - List or create data sources that connect pages to Baserow tables
@@ -278,6 +282,7 @@ def get_page_content_tool_factory(
         page_id: int,
         elements: list[AnyElementCreate],
         data_source_refs: dict[str, int] | None = None,
+        before_element_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Create UI elements on a page. Elements can be nested inside containers.
@@ -288,6 +293,7 @@ def get_page_content_tool_factory(
         - For columns, `place_in_container` is the 0-indexed column number ("0", "1", etc.).
         - Form inputs should be placed inside form_container elements.
         - Tables and repeaters need a data_source_id or use data_source_refs mapping.
+        - Use before_element_id to insert new elements before an existing element.
 
         IMPORTANT - Adding to existing containers:
         When adding elements to an existing form_container, column, or other container:
@@ -333,6 +339,7 @@ def get_page_content_tool_factory(
         )
 
         ref_to_id_map: dict[str, int] = {}
+        element_mapping: dict[str, tuple[Any, AnyElementCreate]] = {}
         data_source_ref_to_id_map = data_source_refs or {}
         shared_page_refs: set[str] = set()  # Track elements created on shared page
         created_elements = []
@@ -346,10 +353,12 @@ def get_page_content_tool_factory(
                     ref_to_id_map,
                     data_source_ref_to_id_map,
                     shared_page_refs,
+                    before_element_id,
                 )
 
-                # Track the ref for parent linking
+                # Track the ref for parent linking and formula generation
                 ref_to_id_map[element_create.ref] = element_id
+                element_mapping[element_create.ref] = (element, element_create)
 
                 created_elements.append(
                     {
@@ -358,6 +367,12 @@ def get_page_content_tool_factory(
                         "type": element_create.type,
                     }
                 )
+
+        # Post-creation formula generation (in separate transactions)
+        # This generates formulas for elements that use $formula: descriptions
+        utils.update_element_formulas(
+            user, page, elements, element_mapping, tool_helpers
+        )
 
         return {
             "created_elements": created_elements,
@@ -579,6 +594,10 @@ def get_page_content_tool_factory(
         """
         TOOL LOADER: Loads tools to manage UI elements and actions on pages.
 
+        ⚠️ CALL ONCE: This loader only needs to be called ONCE per conversation.
+        After calling it, the tools are immediately available. Do NOT call this
+        loader again - proceed directly to using the loaded tools.
+
         Call this loader when you need to:
         - List, create, update, or delete UI elements
         - Add actions to elements (form submit, button click, navigation, etc.)
@@ -795,7 +814,7 @@ def get_theme_tool_factory(
             tables=tables,
         )
 
-        result: dict[str, Any] = {"updated": False}
+        result: dict[str, Any] = {}
 
         if flat_kwargs:
             from baserow.contrib.builder.api.theme.serializers import (
@@ -804,7 +823,7 @@ def get_theme_tool_factory(
             from baserow.contrib.builder.theme.service import ThemeService
 
             ThemeService().update_theme(user, builder, **flat_kwargs)
-            result["updated"] = True
+            result["theme_properties_updated_correctly"] = True
 
             # Verify which properties were actually applied
             builder.refresh_from_db()
@@ -837,10 +856,6 @@ def get_theme_tool_factory(
                     "Review the warnings above and verify the property names and value formats. "
                     "Use get_theme to inspect the current theme structure."
                 )
-
-        # Return the updated theme
-        theme = utils.get_builder_theme(builder)
-        result["theme"] = theme
         return result
 
     def load_theme_tools():

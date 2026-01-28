@@ -371,14 +371,14 @@ class RowActionService:
 
 class RowActionFormulaToCreate(HasFormulasToCreateMixin):
     def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
-        from baserow_enterprise.assistant.tools.automation.utils import (
-            _minimize_json_schema,
+        from baserow_enterprise.assistant.tools.shared.formula_utils import (
+            minimize_json_schema,
         )
 
         service = orm_node.service.specific
         schema = service.get_type().generate_schema(service.specific)
         values = {"row_id": "the row ID to update"}
-        for v in _minimize_json_schema(schema).values():
+        for v in minimize_json_schema(schema).values():
             desc = v["desc"]
             value = self.values.get(int(v["id"]))
             if value:

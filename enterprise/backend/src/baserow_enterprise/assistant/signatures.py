@@ -6,9 +6,17 @@ from .prompts import AGENT_SYSTEM_PROMPT
 class ChatSignature(udspy.Signature):
     __doc__ = AGENT_SYSTEM_PROMPT
 
-    question: str = udspy.InputField()
+    question: str = udspy.InputField(
+        description=(
+            "The user's INITIAL question or request. "
+            "CRITICAL: Track all actions already taken in this session. in the trajectory. "
+            "NEVER repeat a tool call that already succeeded. "
+        )
+    )
     conversation_history: list[str] = udspy.InputField(
-        desc="Previous messages formatted as '[index] (role): content', ordered chronologically"
+        description=(
+            "Previous messages formatted as '[index] (role): content', ordered chronologically. "
+        )
     )
     ui_context: str | None = udspy.InputField(
         default=None,

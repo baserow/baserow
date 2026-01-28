@@ -87,15 +87,18 @@ def get_tables_schema(
     )
 
     table_items = []
+    tables_by_id = {table.id: table for table in tables}
     for table_id, fields_in_table in groupby(fields, lambda f: f.table_id):
         fields_in_table = list(fields_in_table)
-        table = next(t for t in tables if t.id == table_id)
-        primary_field = next(f for f in fields if f.primary)
+        primary_field = next((f for f in fields_in_table if f.primary), None)
+        if primary_field is None:
+            raise ValueError(f"Table {table_id} has no primary field")
         primary_field_item = field_item_registry.from_django_orm(primary_field)
 
+        table = tables_by_id[table_id]
         table_items.append(
             TableItem(
-                id=table.id,
+                id=table_id,
                 name=table.name,
                 primary_field=primary_field_item,
                 fields=[
@@ -111,7 +114,6 @@ def get_tables_schema(
     table_items.sort(
         key=lambda t: tables.index(next(tb for tb in tables if tb.id == t.id))
     )
-
     return table_items
 
 

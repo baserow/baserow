@@ -11,7 +11,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    get_data_source_tool_factory,
+    get_page_content_tool_factory,
 )
 from baserow_enterprise.assistant.tools.builder.types import (
     DataSourceFilter,
@@ -30,7 +30,7 @@ def test_data_source_tool_factory_returns_callback(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     assert callable(factory)
 
     tools_upgrade = factory()
@@ -48,7 +48,7 @@ def test_create_list_rows_data_source(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -104,7 +104,7 @@ def test_create_get_row_data_source(data_fixture):
         path_params=[{"name": "id", "type": "numeric"}],
     )
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -152,7 +152,7 @@ def test_create_data_source_with_filters(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -206,7 +206,7 @@ def test_create_data_source_with_sorting(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -258,7 +258,7 @@ def test_create_data_source_with_search_query(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -302,7 +302,7 @@ def test_create_multiple_data_sources(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -345,7 +345,7 @@ def test_create_data_sources_empty_list(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_data_source_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()

@@ -5,7 +5,7 @@ from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow_enterprise.assistant.tools.builder.tools import (
-    get_workflow_action_tool_factory,
+    get_page_content_tool_factory,
 )
 from baserow_enterprise.assistant.tools.builder.types import (
     CreateRowActionCreate,
@@ -26,7 +26,7 @@ def test_workflow_action_tool_factory_returns_callback(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     assert callable(factory)
 
     tools_upgrade = factory()
@@ -43,7 +43,7 @@ def test_create_notification_action(data_fixture):
     page = data_fixture.create_builder_page(builder=builder)
     button = data_fixture.create_builder_button_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -53,13 +53,13 @@ def test_create_notification_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
     assert create_actions_tool is not None
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             NotificationActionCreate(
                 element_ref="btn1",
                 event="click",
@@ -70,8 +70,8 @@ def test_create_notification_action(data_fixture):
         element_refs={"btn1": button.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "notification"
     assert action["element_ref"] == "btn1"
     assert action["event"] == "click"
@@ -97,7 +97,7 @@ def test_create_open_page_action(data_fixture):
     )
     link = data_fixture.create_builder_link_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -107,12 +107,12 @@ def test_create_open_page_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             OpenPageActionCreate(
                 element_ref="link1",
                 event="click",
@@ -123,8 +123,8 @@ def test_create_open_page_action(data_fixture):
         element_refs={"link1": link.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "open_page"
 
 
@@ -142,7 +142,7 @@ def test_create_row_action(data_fixture):
     page = data_fixture.create_builder_page(builder=builder)
     form = data_fixture.create_builder_form_container_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -152,12 +152,12 @@ def test_create_row_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             CreateRowActionCreate(
                 element_ref="form1",
                 event="submit",
@@ -168,8 +168,8 @@ def test_create_row_action(data_fixture):
         element_refs={"form1": form.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "create_row"
     assert action["event"] == "submit"
 
@@ -188,7 +188,7 @@ def test_update_row_action(data_fixture):
     page = data_fixture.create_builder_page(builder=builder)
     form = data_fixture.create_builder_form_container_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -198,12 +198,12 @@ def test_update_row_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             UpdateRowActionCreate(
                 element_ref="form1",
                 event="submit",
@@ -215,8 +215,8 @@ def test_update_row_action(data_fixture):
         element_refs={"form1": form.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "update_row"
 
 
@@ -233,7 +233,7 @@ def test_delete_row_action(data_fixture):
     page = data_fixture.create_builder_page(builder=builder)
     button = data_fixture.create_builder_button_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -243,12 +243,12 @@ def test_delete_row_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             DeleteRowActionCreate(
                 element_ref="delete_btn",
                 event="click",
@@ -259,8 +259,8 @@ def test_delete_row_action(data_fixture):
         element_refs={"delete_btn": button.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "delete_row"
 
 
@@ -275,7 +275,7 @@ def test_refresh_data_source_action(data_fixture):
     button = data_fixture.create_builder_button_element(page=page)
     ds = data_fixture.create_builder_local_baserow_list_rows_data_source(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -285,12 +285,12 @@ def test_refresh_data_source_action(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             RefreshDataSourceActionCreate(
                 element_ref="refresh_btn",
                 event="click",
@@ -300,8 +300,8 @@ def test_refresh_data_source_action(data_fixture):
         element_refs={"refresh_btn": button.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 1
-    action = result["created_workflow_actions"][0]
+    assert len(result["created_actions"]) == 1
+    action = result["created_actions"][0]
     assert action["type"] == "refresh_data_source"
 
 
@@ -320,7 +320,7 @@ def test_multiple_actions_same_element(data_fixture):
     ds = data_fixture.create_builder_local_baserow_list_rows_data_source(page=page)
     form = data_fixture.create_builder_form_container_element(page=page)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -330,12 +330,12 @@ def test_multiple_actions_same_element(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[
+        actions=[
             CreateRowActionCreate(
                 element_ref="form1",
                 event="submit",
@@ -357,10 +357,10 @@ def test_multiple_actions_same_element(data_fixture):
         element_refs={"form1": form.id},
     )
 
-    assert len(result["created_workflow_actions"]) == 3
+    assert len(result["created_actions"]) == 3
 
     # All actions should be attached to the same element
-    action_element_refs = {a["element_ref"] for a in result["created_workflow_actions"]}
+    action_element_refs = {a["element_ref"] for a in result["created_actions"]}
     assert action_element_refs == {"form1"}
 
 
@@ -373,7 +373,7 @@ def test_element_ref_not_found_error(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -383,13 +383,13 @@ def test_element_ref_not_found_error(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     with pytest.raises(ValueError, match="Element ref 'nonexistent' not found"):
         create_actions_tool.func(
             page_id=page.id,
-            workflow_actions=[
+            actions=[
                 NotificationActionCreate(
                     element_ref="nonexistent",
                     event="click",
@@ -401,7 +401,7 @@ def test_element_ref_not_found_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_workflow_actions_empty_list(data_fixture):
+def test_create_actions_empty_list(data_fixture):
     """Test creating workflow actions with empty list returns empty result."""
 
     user = data_fixture.create_user()
@@ -409,7 +409,7 @@ def test_create_workflow_actions_empty_list(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
 
-    factory = get_workflow_action_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_page_content_tool_factory(user, workspace, fake_tool_helpers)
     tools_upgrade = factory()
 
     mock_module = Mock()
@@ -419,12 +419,12 @@ def test_create_workflow_actions_empty_list(data_fixture):
 
     added_tools = mock_module.init_module.call_args[1]["tools"]
     create_actions_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflow_actions"), None
+        (tool for tool in added_tools if tool.name == "create_actions"), None
     )
 
     result = create_actions_tool.func(
         page_id=page.id,
-        workflow_actions=[],
+        actions=[],
     )
 
-    assert result == {"created_workflow_actions": []}
+    assert result == {"created_actions": []}

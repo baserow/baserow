@@ -1,6 +1,9 @@
 import re
 import uuid
-from typing import Annotated, Literal, Optional
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Annotated, Literal, Optional
+
+from django.contrib.auth.models import AbstractUser
 
 from pydantic import Field
 
@@ -9,9 +12,81 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
+from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    get_formula_description,
+    is_formula_description,
+    wrap_static_string,
+)
 from baserow_enterprise.assistant.types import BaseModel
 
 from .style import ElementStyleConfig, ElementThemeOverrides
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.elements.models import Element
+    from baserow_enterprise.assistant.tools.builder.utils import BuilderFormulaContext
+
+
+# =============================================================================
+# Formula Generation Mixin
+# =============================================================================
+
+
+class HasFormulasToCreateMixin(ABC):
+    """
+    Mixin for element types that need LLM-generated formulas.
+
+    Elements implementing this mixin declare fields that should receive
+    generated formulas based on descriptions/instructions.
+
+    Use the $formula: prefix in field values to indicate that a value
+    is a description for formula generation rather than a static string.
+    """
+
+    @abstractmethod
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        """
+        Returns a mapping of field names to descriptions for LLM formula generation.
+
+        :param orm_element: The created ORM element instance.
+        :param context: Builder formula context with available data sources.
+        :return: Dict mapping field_name -> description for formula generation.
+            Prefix optional fields with "[optional]: ".
+            Return empty dict if no formulas needed.
+        """
+        pass
+
+    def update_element_with_formulas(
+        self,
+        user: AbstractUser,
+        orm_element: "Element",
+        formulas: dict[str, str],
+    ) -> None:
+        """
+        Applies generated formulas to the ORM element.
+
+        Default implementation handles simple element fields.
+        Override for complex fields like data_source_mapping.
+
+        :param user: The user making the update.
+        :param orm_element: The element to update.
+        :param formulas: Dict mapping field_name -> generated formula.
+        """
+        from baserow.contrib.builder.elements.service import ElementService
+
+        kwargs = {}
+        for field_name, formula in formulas.items():
+            # Skip nested fields (e.g., data_source_mapping.userName)
+            if "." in field_name:
+                continue
+            if hasattr(orm_element, field_name):
+                kwargs[field_name] = BaserowFormulaObject.create(formula)
+
+        if kwargs:
+            ElementService().update_element(user, orm_element, **kwargs)
 
 
 def escape_for_formula_string(text: str) -> str:
@@ -23,11 +98,8 @@ def escape_for_formula_string(text: str) -> str:
     - Escape backslashes and double quotes
     - Leave actual newlines/tabs as-is (JSON encoding handles them when stored)
 
-    Args:
-        text: Plain text to escape
-
-    Returns:
-        Escaped text wrapped in double quotes, ready for use in a formula
+    :param text: Plain text to escape.
+    :return: Escaped text wrapped in double quotes, ready for use in a formula.
     """
     if not text:
         return '""'
@@ -42,11 +114,8 @@ def _validate_js_syntax(js_code: str) -> None:
     """
     Validate JavaScript syntax using esprima parser.
 
-    Args:
-        js_code: JavaScript code to validate (without script tags).
-
-    Raises:
-        ValueError: If JavaScript has syntax errors.
+    :param js_code: JavaScript code to validate (without script tags).
+    :raises ValueError: If JavaScript has syntax errors.
     """
     try:
         import esprima
@@ -68,11 +137,9 @@ def _validate_script_tag(script: str) -> str:
     - External scripts: <script src="..."></script>
     - Inline scripts: <script>...</script>
 
-    Returns:
-        The validated script tag string.
-
-    Raises:
-        ValueError: If not a valid complete script tag or JS has syntax errors.
+    :param script: The script tag string to validate.
+    :return: The validated script tag string.
+    :raises ValueError: If not a valid complete script tag or JS has syntax errors.
     """
     script = script.strip()
     if not script:
@@ -129,19 +196,16 @@ def build_iframe_embed_formula(
     <script src="..."></script>
     <script>...</script>
 
-    Args:
-        css: Plain CSS rules (no <style> tags)
-        html: Plain HTML elements
-        js: List of script tags. Each entry can be:
-            - External script: '<script src="https://example.com/lib.js"></script>'
-            - Inline script: '<script>console.log("hello");</script>'
-            - Plain JS code (will be auto-wrapped in <script> tags)
-        data_source_mapping: Dict mapping JS variable names to data source formulas.
-            Example: {'userName': "get('data_source.5.Name')"}
-            These are injected into a separate <script> block before the js scripts.
-
-    Returns:
-        A Baserow formula string that evaluates to complete HTML
+    :param css: Plain CSS rules (no <style> tags).
+    :param html: Plain HTML elements.
+    :param js: List of script tags. Each entry can be:
+        - External script: '<script src="https://example.com/lib.js"></script>'
+        - Inline script: '<script>console.log("hello");</script>'
+        - Plain JS code (will be auto-wrapped in <script> tags)
+    :param data_source_mapping: Dict mapping JS variable names to data source formulas.
+        Example: {'userName': "get('data_source.5.Name')"}
+        These are injected into a separate <script> block before the js scripts.
+    :return: A Baserow formula string that evaluates to complete HTML.
     """
     parts = []
 
@@ -179,23 +243,6 @@ def build_iframe_embed_formula(
         return parts[0]
 
     return f"concat({', '.join(parts)})"
-
-
-def convert_html_to_embed_formula(html_code: str) -> str:
-    """
-    DEPRECATED: Use build_iframe_embed_formula() with separate css/html/js fields instead.
-
-    Convert HTML/CSS/JS code to Baserow concat formula format.
-    Kept for backwards compatibility with the legacy 'embed' field.
-
-    Input: Normal HTML/CSS/JS (multiline string)
-    Output: A properly escaped formula string
-    """
-    if not html_code or not html_code.strip():
-        return '""'
-
-    # Use the new escaping function which handles backslashes correctly
-    return escape_for_formula_string(html_code)
 
 
 class ElementBase(BaseModel):
@@ -285,7 +332,13 @@ class FormContainerElementCreate(ElementBase, RefCreate):
     """Form container that wraps form input elements."""
 
     type: Literal["form_container"] = "form_container"
-    submit_button_label: str = Field(default="Submit")
+    submit_button_label: str = Field(
+        default="Submit",
+        description=(
+            "Label for the already existing submit button. "
+            "Don't create other submit buttons for this form."
+        ),
+    )
     reset_initial_values_post_submission: bool = Field(default=False)
 
     def to_orm_kwargs(self, user, page) -> dict:
@@ -313,77 +366,158 @@ class SimpleContainerElementCreate(ElementBase, RefCreate):
 # =============================================================================
 
 
-class HeadingElementCreate(ElementBase, RefCreate):
+class HeadingElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """Heading text element."""
 
     type: Literal["heading"] = "heading"
     value: str = Field(
-        ..., description="Heading text formula. Wrap simple strings in quotes."
+        ...,
+        description="Static text OR '$formula: description' for dynamic content. "
+        "Example static: 'Welcome' or \"'Welcome'\". "
+        "Example dynamic: '$formula: the product name from the products data source'",
     )
     level: Literal[1, 2, 3, 4, 5] = Field(
         default=1, description="Heading level (h1-h5)"
     )
 
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        if is_formula_description(self.value):
+            return {"value": get_formula_description(self.value)}
+        return {}
+
     def to_orm_kwargs(self, user, page) -> dict:
+        # If formula description, use placeholder (will be updated later)
+        if is_formula_description(self.value):
+            value_formula = "''"
+        else:
+            value_formula = wrap_static_string(self.value)
+
         kwargs = {
-            "value": BaserowFormulaObject.create(self.value),
+            "value": BaserowFormulaObject.create(value_formula),
             "level": self.level,
         }
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
-class TextElementCreate(ElementBase, RefCreate):
+class TextElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """Text/paragraph element."""
 
     type: Literal["text"] = "text"
-    value: str = Field(..., description="Text formula. Wrap simple strings in quotes.")
+    value: str = Field(
+        ...,
+        description="Static text OR '$formula: description' for dynamic content. "
+        "Example static: 'Hello world'. "
+        "Example dynamic: '$formula: a welcome message with the user name'",
+    )
     format: Literal["plain", "markdown"] = Field(default="plain")
 
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        if is_formula_description(self.value):
+            return {"value": get_formula_description(self.value)}
+        return {}
+
     def to_orm_kwargs(self, user, page) -> dict:
+        # If formula description, use placeholder (will be updated later)
+        if is_formula_description(self.value):
+            value_formula = "''"
+        else:
+            value_formula = wrap_static_string(self.value)
+
         kwargs = {
-            "value": BaserowFormulaObject.create(self.value),
+            "value": BaserowFormulaObject.create(value_formula),
             "format": self.format,
         }
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
-class ButtonElementCreate(ElementBase, RefCreate):
+class ButtonElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """Button element that triggers workflow actions."""
 
     type: Literal["button"] = "button"
     value: str = Field(
-        ..., description="Button label formula. Wrap simple strings in quotes."
+        ...,
+        description="Static label OR '$formula: description' for dynamic content. "
+        "Example static: 'Submit'. "
+        "Example dynamic: '$formula: Save with the item name'",
     )
 
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        if is_formula_description(self.value):
+            return {"value": get_formula_description(self.value)}
+        return {}
+
     def to_orm_kwargs(self, user, page) -> dict:
+        # If formula description, use placeholder (will be updated later)
+        if is_formula_description(self.value):
+            value_formula = "''"
+        else:
+            value_formula = wrap_static_string(self.value)
+
         kwargs = {
-            "value": BaserowFormulaObject.create(self.value),
+            "value": BaserowFormulaObject.create(value_formula),
         }
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
-class LinkElementCreate(ElementBase, RefCreate):
+class LinkElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """Link or button-styled link element."""
 
     type: Literal["link"] = "link"
     value: str = Field(
-        ..., description="Link text formula. Wrap simple strings in quotes."
+        ...,
+        description="Static text OR '$formula: description' for dynamic content. "
+        "Example static: 'Click here'. "
+        "Example dynamic: '$formula: View details for the product name'",
     )
     variant: Literal["link", "button"] = Field(default="link")
     navigation_type: Literal["page", "custom"] = Field(default="page")
     navigate_to_page_id: Optional[int] = Field(default=None)
-    navigate_to_url: Optional[str] = Field(default=None)
+    navigate_to_url: Optional[str] = Field(
+        default=None,
+        description="Static URL OR '$formula: description' for dynamic URL. "
+        "Example dynamic: '$formula: the product URL from data source'",
+    )
     page_parameters: list[dict] = Field(
         default_factory=list, description="List of {name, value} for page params"
     )
     target: Literal["self", "blank"] = Field(default="self")
 
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        formulas = {}
+        if is_formula_description(self.value):
+            formulas["value"] = get_formula_description(self.value)
+        if self.navigate_to_url and is_formula_description(self.navigate_to_url):
+            formulas["navigate_to_url"] = get_formula_description(self.navigate_to_url)
+        return formulas
+
     def to_orm_kwargs(self, user, page) -> dict:
+        # Handle value
+        if is_formula_description(self.value):
+            value_formula = "''"
+        else:
+            value_formula = wrap_static_string(self.value)
+
         kwargs = {
-            "value": BaserowFormulaObject.create(self.value),
+            "value": BaserowFormulaObject.create(value_formula),
             "variant": self.variant,
             "navigation_type": self.navigation_type,
             "target": self.target,
@@ -395,36 +529,73 @@ class LinkElementCreate(ElementBase, RefCreate):
                 for p in self.page_parameters
             ]
         elif self.navigation_type == "custom" and self.navigate_to_url:
-            kwargs["navigate_to_url"] = BaserowFormulaObject.create(
-                self.navigate_to_url
-            )
+            # Handle navigate_to_url
+            if is_formula_description(self.navigate_to_url):
+                url_formula = "''"
+            else:
+                url_formula = wrap_static_string(self.navigate_to_url)
+            kwargs["navigate_to_url"] = BaserowFormulaObject.create(url_formula)
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
-class ImageElementCreate(ElementBase, RefCreate):
+class ImageElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """Image display element."""
 
     type: Literal["image"] = "image"
     image_source_type: Literal["upload", "url"] = Field(default="url")
-    image_url: str = Field(default="", description="URL or formula for image source")
-    alt_text: str = Field(default="")
+    image_url: str = Field(
+        default="",
+        description="Static URL OR '$formula: description' for dynamic URL. "
+        "Example dynamic: '$formula: the product image URL from data source'",
+    )
+    alt_text: str = Field(
+        default="",
+        description="Static text OR '$formula: description' for dynamic alt text. "
+        "Example dynamic: '$formula: the product name for accessibility'",
+    )
+
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        formulas = {}
+        if self.image_url and is_formula_description(self.image_url):
+            formulas["image_url"] = get_formula_description(self.image_url)
+        if self.alt_text and is_formula_description(self.alt_text):
+            formulas["alt_text"] = get_formula_description(self.alt_text)
+        return formulas
 
     def to_orm_kwargs(self, user, page) -> dict:
+        # Handle image_url
+        if self.image_url:
+            if is_formula_description(self.image_url):
+                image_url_formula = "''"
+            else:
+                image_url_formula = wrap_static_string(self.image_url)
+        else:
+            image_url_formula = "''"
+
+        # Handle alt_text
+        if self.alt_text:
+            if is_formula_description(self.alt_text):
+                alt_text_formula = "''"
+            else:
+                alt_text_formula = wrap_static_string(self.alt_text)
+        else:
+            alt_text_formula = "''"
+
         kwargs = {
             "image_source_type": self.image_source_type,
-            "image_url": BaserowFormulaObject.create(self.image_url)
-            if self.image_url
-            else BaserowFormulaObject.create("''"),
-            "alt_text": BaserowFormulaObject.create(self.alt_text)
-            if self.alt_text
-            else BaserowFormulaObject.create("''"),
+            "image_url": BaserowFormulaObject.create(image_url_formula),
+            "alt_text": BaserowFormulaObject.create(alt_text_formula),
         }
         kwargs.update(self.get_style_kwargs())
         return kwargs
 
 
-class IFrameElementCreate(ElementBase, RefCreate):
+class IFrameElementCreate(ElementBase, RefCreate, HasFormulasToCreateMixin):
     """
     IFrame element for embedding external content or custom HTML/CSS/JS.
 
@@ -434,6 +605,9 @@ class IFrameElementCreate(ElementBase, RefCreate):
     For embed mode, prefer the separate embed_css, embed_html, embed_js fields
     which allow writing plain code without escaping. The system handles all
     formula conversion automatically.
+
+    Use data_source_mapping_descriptions to describe what data JS variables
+    should contain. The system will generate the actual formulas.
     """
 
     type: Literal["iframe"] = "iframe"
@@ -446,7 +620,7 @@ class IFrameElementCreate(ElementBase, RefCreate):
         description="URL formula for the page to embed (when source_type='url')",
     )
 
-    # New structured embed fields - LLM writes plain code, system handles escaping
+    # Structured embed fields - LLM writes plain code, system handles escaping
     embed_css: Optional[str] = Field(
         default=None,
         description="Plain CSS rules (no <style> tags). Write normal CSS. "
@@ -464,10 +638,12 @@ class IFrameElementCreate(ElementBase, RefCreate):
         "or inline code: '<script>const x = 1; console.log(x);</script>'. "
         "IMPORTANT: Put ALL your JavaScript code inside ONE <script> tag, not one line per string.",
     )
-    data_source_mapping: Optional[dict[str, str]] = Field(
+    data_source_mapping_descriptions: Optional[dict[str, str]] = Field(
         default=None,
-        description="Map JS variable names to data source formulas for injection. "
-        "Example: {'userName': \"get('data_source.5.Name')\"}. "
+        description="Map JS variable names to descriptions of what data they need. "
+        "The system will generate the actual formulas. "
+        "Example: {'userName': 'the full name from the users data source', "
+        "'userEmail': 'the email address from the users data source'}. "
         "Creates 'const userName = \"value\";' at script start.",
     )
 
@@ -478,6 +654,47 @@ class IFrameElementCreate(ElementBase, RefCreate):
         description="Height of the iframe in pixels",
     )
 
+    def get_formulas_to_create(
+        self,
+        orm_element: "Element",
+        context: "BuilderFormulaContext",
+    ) -> dict[str, str]:
+        if not self.data_source_mapping_descriptions:
+            return {}
+        # Return mapping with prefixed keys for identification
+        return {
+            f"data_source_mapping.{var_name}": description
+            for var_name, description in self.data_source_mapping_descriptions.items()
+        }
+
+    def update_element_with_formulas(
+        self,
+        orm_element: "Element",
+        formulas: dict[str, str],
+    ) -> None:
+        """Apply generated data_source_mapping formulas by rebuilding the embed."""
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        # Extract data_source_mapping formulas
+        ds_mapping = {}
+        for key, formula in formulas.items():
+            if key.startswith("data_source_mapping."):
+                var_name = key.replace("data_source_mapping.", "")
+                ds_mapping[var_name] = formula
+
+        if ds_mapping:
+            # Rebuild the embed formula with the generated mapping
+            embed_formula = build_iframe_embed_formula(
+                css=self.embed_css,
+                html=self.embed_html,
+                js=self.embed_js,
+                data_source_mapping=ds_mapping,
+            )
+            ElementHandler().update_element(
+                orm_element,
+                embed=BaserowFormulaObject.create(embed_formula),
+            )
+
     def to_orm_kwargs(self, user, page) -> dict:
         kwargs = {
             "source_type": self.source_type,
@@ -487,23 +704,19 @@ class IFrameElementCreate(ElementBase, RefCreate):
             "height": self.height,
         }
 
-        # Prefer new split fields if any are provided
-        has_new_fields = any([self.embed_css, self.embed_html, self.embed_js])
+        # Build embed formula WITHOUT data_source_mapping
+        # (formulas will be added by update_element_formulas after creation)
+        has_embed_fields = any([self.embed_css, self.embed_html, self.embed_js])
 
-        if has_new_fields:
-            # Use the new structured approach
+        if has_embed_fields:
+            # Build without data_source_mapping - will be added later if needed
             embed_formula = build_iframe_embed_formula(
                 css=self.embed_css,
                 html=self.embed_html,
                 js=self.embed_js,
-                data_source_mapping=self.data_source_mapping,
+                data_source_mapping=None,
             )
             kwargs["embed"] = BaserowFormulaObject.create(embed_formula)
-        elif self.embed:
-            # Legacy path - use existing conversion for backwards compatibility
-            kwargs["embed"] = BaserowFormulaObject.create(
-                convert_html_to_embed_formula(self.embed)
-            )
         else:
             kwargs["embed"] = BaserowFormulaObject.create("''")
 

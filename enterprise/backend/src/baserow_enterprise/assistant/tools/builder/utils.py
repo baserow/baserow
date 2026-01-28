@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
+from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
@@ -41,7 +42,9 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from baserow_enterprise.assistant.assistant import ToolHelpers
+
+    from .types import AnyElementCreate
 
 
 def get_builder(
@@ -136,6 +139,7 @@ def create_element(
     ref_to_id_map: dict[str, int],
     data_source_ref_to_id_map: dict[str, int],
     shared_page_refs: set[str] | None = None,
+    before_id: Optional[int] = None,
 ) -> tuple[Any, int]:
     """
     Create an element on a page, resolving refs to IDs.
@@ -146,6 +150,7 @@ def create_element(
     :param ref_to_id_map: Mapping of element refs to their IDs.
     :param data_source_ref_to_id_map: Mapping of data source refs to their IDs.
     :param shared_page_refs: Set of refs that are on the shared page (for tracking).
+    :param before_id: Optional ID of the element before which this element should be placed.
     :return: Tuple of (created element, element ID).
     """
 
@@ -205,7 +210,16 @@ def create_element(
     if isinstance(element_create, MenuElementCreate) and element_create.menu_items:
         kwargs["menu_items"] = element_create.get_menu_items()
 
-    element = ElementService().create_element(user, element_type, target_page, **kwargs)
+    before = None
+    if before_id is not None:
+        try:
+            before = ElementService().get_element(user, before_id)
+        except ElementDoesNotExist:
+            pass  # Ignore if before element doesn't exist
+
+    element = ElementService().create_element(
+        user, element_type, target_page, before=before, **kwargs
+    )
 
     # Handle choice options separately
     if isinstance(element_create, ChoiceElementCreate) and element_create.options:
@@ -712,6 +726,403 @@ def verify_theme_properties_applied(
                 )
 
     return {"mismatched": mismatched, "not_found": not_found}
+
+
+# =============================================================================
+# Formula Generation Utilities
+# =============================================================================
+
+BUILDER_FORMULA_PROMPT = """
+You are a formula builder for Baserow Application Builder. Generate formulas using these functions:
+
+**get(path)** - Retrieves values from available data sources and context
+- Data source fields: get('data_source.<id>.<field_name>') or get('data_source.<id>.0.<field_name>') for list data sources
+- Data source context: get('data_source_context.<id>.total_count') for list data source metadata
+- Page parameters: get('page_parameter.<param_name>')
+- Current record (inside repeat/table elements): get('current_record.<field_name>')
+- Form data: get('form_data.<element_id>') to access form input values
+- User info: get('user.email'), get('user.id'), get('user.username'), get('user.role'), get('user.is_authenticated')
+
+**concat(...args)** - Joins arguments into a string
+- Example: concat(get('current_record.first_name'), ' ', get('current_record.last_name'))
+
+**if(condition, true_value, false_value)** - Conditional expression
+- Example: if(get('user.is_authenticated'), 'Welcome back!', 'Please log in')
+
+**today()** - Returns the current date
+**now()** - Returns the current date and time
+
+**Rules:**
+1. Use the context_metadata to find the correct data source IDs and field names
+2. For data sources returning lists, access the first item with .0 or use current_record inside collection elements
+3. Skip fields marked with [optional] if you can't find suitable data
+4. Return valid formulas that can be evaluated against the provided context
+5. Field names in paths should match the exact names from context_metadata
+
+**Example:**
+Input:
+fields_to_resolve: {
+    "value": "the product name from the products data source"
+}
+context: {"data_source.5": [{"id": 1, "Name": "Widget A", "Price": 29.99}]}
+context_metadata: {
+    "data_source.5": {
+        "name": "Products",
+        "returns_list": true,
+        "fields": {"Name": {"id": 123, "name": "Name", "type": "text"}, "Price": {"id": 124, "name": "Price", "type": "number"}}
+    }
+}
+Output:
+generated_formulas: {"value": "get('data_source.5.0.Name')"}
+"""
+
+
+class BuilderFormulaContext:
+    """
+    Context for formula generation in builder elements.
+
+    Provides access to:
+    - Data sources on the page (with schemas)
+    - Data source context (metadata like total_count for list sources)
+    - Page parameters
+    - Current record (for elements inside repeat/table)
+    - Form data (form element values)
+    - User data provider
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.context: dict[str, Any] = {}
+        self.context_metadata: dict[str, Any] = {}
+        self._current_record_stack: list[int] = []
+
+    def load_page_context(self) -> None:
+        """Load all available data providers into the formula context."""
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        self._load_data_sources()
+        self._load_data_source_context()
+        self._load_page_parameters()
+        self._load_user_context()
+
+        # Fetch elements once, reuse across methods that need them
+        elements = ElementHandler().get_elements(self.page)
+        self._load_form_data(elements)
+
+    def _load_data_sources(self) -> None:
+        """Load data sources into context with their schemas."""
+        from baserow_enterprise.assistant.tools.shared.formula_utils import (
+            create_example_from_json_schema,
+            minimize_json_schema,
+        )
+
+        data_sources = DataSourceHandler().get_data_sources(self.page, with_shared=True)
+
+        for ds in data_sources:
+            if not ds.service:
+                continue
+
+            service = ds.service.specific
+            service_type = service.get_type()
+
+            # Generate schema from service
+            try:
+                schema = service_type.generate_schema(service)
+            except Exception:
+                continue
+
+            if not schema:
+                continue
+
+            key = f"data_source.{ds.id}"
+
+            try:
+                example = create_example_from_json_schema(schema)
+                fields = minimize_json_schema(schema)
+            except (ValueError, KeyError):
+                continue
+
+            self.context[key] = example
+            self.context_metadata[key] = {
+                "name": ds.name,
+                "returns_list": service_type.returns_list,
+                "fields": fields,
+            }
+
+    def _load_page_parameters(self) -> None:
+        """Load page parameters into context."""
+        params = {}
+        params_meta = {}
+
+        # Path parameters
+        for param in self.page.path_params or []:
+            param_name = param.get("name") if isinstance(param, dict) else param
+            params[param_name] = "example_value"
+            params_meta[param_name] = {
+                "type": param.get("type", "text") if isinstance(param, dict) else "text"
+            }
+
+        # Query parameters
+        for param in self.page.query_params or []:
+            param_name = param.get("name") if isinstance(param, dict) else param
+            params[param_name] = "example_value"
+            params_meta[param_name] = {
+                "type": param.get("type", "text") if isinstance(param, dict) else "text"
+            }
+
+        if params:
+            self.context["page_parameter"] = params
+            self.context_metadata["page_parameter"] = params_meta
+
+    def _load_data_source_context(self) -> None:
+        """Load data source context metadata (e.g. total_count for list sources)."""
+        ds_context = {}
+        ds_context_meta = {}
+
+        for key, meta in self.context_metadata.items():
+            if not key.startswith("data_source."):
+                continue
+            ds_id = key.replace("data_source.", "")
+            if not meta.get("returns_list"):
+                continue
+
+            ds_context[ds_id] = {"total_count": 100}
+            ds_context_meta[ds_id] = {
+                "name": meta.get("name", ""),
+                "fields": {
+                    "total_count": {
+                        "type": "number",
+                        "desc": "Total number of records",
+                    }
+                },
+            }
+
+        if ds_context:
+            self.context["data_source_context"] = ds_context
+            self.context_metadata["data_source_context"] = ds_context_meta
+
+    def _load_form_data(self, elements: list) -> None:
+        """
+        Load form element metadata into context.
+
+        :param elements: Pre-fetched elements for the page (avoids duplicate DB queries).
+        """
+        from baserow.contrib.builder.elements.mixins import FormElementTypeMixin
+
+        form_data = {}
+        form_meta = {}
+
+        for element in elements:
+            element_type = element.get_type()
+            if not isinstance(element_type, FormElementTypeMixin):
+                continue
+
+            el = element.specific
+            label = getattr(el, "label", None)
+            if label:
+                label = str(label)
+
+            type_map = {
+                "input_text": "string",
+                "choice": "string",
+                "checkbox": "boolean",
+                "datetime_picker": "string",
+                "record_selector": "number",
+            }
+            data_type = type_map.get(element_type.type, "string")
+
+            form_data[str(el.id)] = data_type
+            form_meta[str(el.id)] = {
+                "type": element_type.type,
+                "data_type": data_type,
+                "label": label or element_type.type,
+            }
+
+        if form_data:
+            self.context["form_data"] = form_data
+            self.context_metadata["form_data"] = form_meta
+
+    def _load_user_context(self) -> None:
+        """Load user data provider context."""
+        self.context["user"] = {
+            "id": 1,
+            "email": "user@example.com",
+            "username": "user",
+            "role": "member",
+            "is_authenticated": True,
+        }
+        self.context_metadata["user"] = {
+            "id": {"type": "number", "desc": "User ID"},
+            "email": {"type": "text", "desc": "User email address"},
+            "username": {"type": "text", "desc": "Username"},
+            "role": {"type": "text", "desc": "User role"},
+            "is_authenticated": {
+                "type": "boolean",
+                "desc": "Whether user is logged in",
+            },
+        }
+
+    def push_current_record_context(self, data_source_id: int) -> None:
+        """Add current_record context for elements inside collections."""
+        self._current_record_stack.append(data_source_id)
+        ds_key = f"data_source.{data_source_id}"
+
+        if ds_key in self.context_metadata:
+            example = self.context.get(ds_key, {})
+            # If it's a list, get the first item as the example record
+            if isinstance(example, list) and example:
+                example = example[0]
+            self.context["current_record"] = example
+            self.context_metadata["current_record"] = self.context_metadata[ds_key].get(
+                "fields", {}
+            )
+
+    def pop_current_record_context(self) -> None:
+        """Remove current_record context when exiting a collection."""
+        if self._current_record_stack:
+            self._current_record_stack.pop()
+
+        if not self._current_record_stack:
+            self.context.pop("current_record", None)
+            self.context_metadata.pop("current_record", None)
+        else:
+            # Restore the previous current_record context
+            prev_ds_id = self._current_record_stack[-1]
+            self.push_current_record_context(prev_ds_id)
+            # Pop again since push added to stack
+            self._current_record_stack.pop()
+
+    def get_formula_context(self) -> dict[str, Any]:
+        """Get the context dict for formula generation."""
+        return self.context
+
+    def get_context_metadata(self) -> dict[str, Any]:
+        """Get metadata about the context."""
+        return self.context_metadata
+
+    def __getitem__(self, key: str) -> Any:
+        """
+        Resolve a path through the context for formula validation.
+
+        Supports paths like:
+        - data_source.5.0.field_name
+        - data_source_context.5.total_count
+        - page_parameter.id
+        - current_record.field_name
+        - form_data.123
+        - user.email
+        """
+        from datetime import date, datetime
+
+        from baserow.core.utils import to_path
+
+        parts = to_path(key)
+        if not parts:
+            raise KeyError(f"Empty path: {key}")
+
+        # Navigate to the value
+        value = self.context
+        for part in parts:
+            if isinstance(value, dict):
+                if part not in value:
+                    raise KeyError(f"Key '{part}' not found in context at '{key}'")
+                value = value[part]
+            elif isinstance(value, list):
+                try:
+                    idx = int(part)
+                    value = value[idx]
+                except (ValueError, IndexError):
+                    raise KeyError(f"Invalid list index '{part}' at '{key}'")
+            else:
+                raise KeyError(f"Cannot traverse path at '{part}' in '{key}'")
+
+        # Validate the final value type
+        if not isinstance(value, (int, float, str, bool, date, datetime, type(None))):
+            raise ValueError(
+                f"Value for key '{key}' is not a primitive type. "
+                f"Got {type(value).__name__}. "
+                "Make sure to reference primitive types in formulas."
+            )
+
+        return value
+
+
+def update_element_formulas(
+    user: AbstractUser,
+    page: Page,
+    elements: list["AnyElementCreate"],
+    element_mapping: dict[str, tuple[Any, "AnyElementCreate"]],
+    tool_helpers: "ToolHelpers",
+) -> None:
+    """
+    Generate and apply formulas for elements that need them.
+
+    Similar to automation's update_workflow_formulas but for builder elements.
+
+    :param user: The user making the request.
+    :param page: The page containing the elements.
+    :param elements: List of element creation specs (in creation order).
+    :param element_mapping: Mapping of ref -> (orm_element, element_create).
+    :param tool_helpers: Tool helpers for status updates.
+    """
+    from django.db import transaction
+    from django.utils.translation import gettext as _
+
+    from loguru import logger
+
+    from baserow_enterprise.assistant.tools.shared.formula_utils import (
+        get_formula_generator,
+    )
+
+    from .types import HasFormulasToCreateMixin
+
+    # Build the formula context once for all elements
+    context = BuilderFormulaContext(page)
+    context.load_page_context()
+
+    # Get the formula generator with builder-specific prompt
+    generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+
+    for element_create in elements:
+        ref = element_create.ref
+        if ref not in element_mapping:
+            continue
+
+        orm_element, _element_create = element_mapping[ref]
+
+        # Track collection element context (repeat/table)
+        if hasattr(orm_element, "data_source_id") and orm_element.data_source_id:
+            context.push_current_record_context(orm_element.data_source_id)
+
+        try:
+            # Check if this element needs formula generation
+            if isinstance(element_create, HasFormulasToCreateMixin):
+                formulas_to_create = element_create.get_formulas_to_create(
+                    orm_element, context
+                )
+
+                if formulas_to_create:
+                    tool_helpers.update_status(
+                        _("Generating formulas for element '%(ref)s'...") % {"ref": ref}
+                    )
+
+                    with transaction.atomic():
+                        try:
+                            generated = generate_formulas(formulas_to_create, context)
+                            if generated:
+                                element_create.update_element_with_formulas(
+                                    user, orm_element, generated
+                                )
+                        except Exception as exc:
+                            logger.exception(
+                                "Failed to generate formulas for element %s: %s",
+                                orm_element.id,
+                                exc,
+                            )
+        finally:
+            # Pop collection element context if we pushed it
+            if hasattr(orm_element, "data_source_id") and orm_element.data_source_id:
+                context.pop_current_record_context()
 
 
 # =============================================================================
