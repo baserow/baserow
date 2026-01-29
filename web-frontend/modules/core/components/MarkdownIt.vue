@@ -47,21 +47,24 @@ const initMarkdown = async () => {
 // The hash makes sure the data are updated if the content changes.
 const contentHash = computed(() => generateHash(props.content))
 
-const markdownAsync = await useAsyncData(
-  () => `markdown-it:${contentHash.value}`,
-  async () => {
-    const instance = await initMarkdown()
+const htmlContent = ref('')
 
-    // Always start from the base renderer rules then apply overrides.
-    instance.renderer.rules = { ...baseRules, ...props.rules }
+// Render markdown whenever content or rules change
+const renderMarkdown = async () => {
+  const instance = await initMarkdown()
 
-    return instance.render(props.content)
+  // Always start from the base renderer rules then apply overrides.
+  instance.renderer.rules = { ...baseRules, ...props.rules }
+
+  htmlContent.value = instance.render(props.content)
+}
+
+// Watch for changes and render immediately
+watch(
+  [() => props.content, () => props.rules],
+  () => {
+    renderMarkdown()
   },
-  {
-    watch: [() => props.content, () => props.rules],
-    default: () => '',
-  }
+  { immediate: true }
 )
-
-const htmlContent = computed(() => markdownAsync.data.value || '')
 </script>
