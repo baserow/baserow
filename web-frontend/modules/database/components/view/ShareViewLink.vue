@@ -109,7 +109,7 @@
                     @input="toggleShareViewPassword"
                   >
                     <i
-                      class="view-sharing__option-icon"
+                      class="switch__icon view-sharing__option-icon"
                       :class="[
                         view.public_view_has_password
                           ? 'iconoir-lock'

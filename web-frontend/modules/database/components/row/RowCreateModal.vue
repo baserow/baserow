@@ -67,7 +67,6 @@
 </template>
 
 <script>
-// TODO MIG import Vue from 'vue'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
@@ -183,7 +182,6 @@ export default {
       })
       Object.assign(row, defaults)
       this.row = row
-      //Vue.set(this, 'row', row)
       return modal.methods.show.call(this, ...args)
     },
     update(event) {

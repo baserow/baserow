@@ -112,11 +112,6 @@ exports[`GridView component with decoration > Default component with first_cell 
                 </div>
               </div>
               
-              <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
               
               
             </div>
@@ -378,17 +373,7 @@ exports[`GridView component with decoration > Default component with first_cell 
               class="grid-view__row"
             >
               <!--v-if-->
-              <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
               
-              
-              <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
               <div
                 class="grid-view__column"
                 style="width: 200px;"
@@ -409,12 +394,6 @@ exports[`GridView component with decoration > Default component with first_cell 
                   </div>
                 </div>
               </div>
-              
-              
-              <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
               <div
                 class="grid-view__column"
                 style="width: 200px;"
@@ -435,7 +414,6 @@ exports[`GridView component with decoration > Default component with first_cell 
                   </div>
                 </div>
               </div>
-              
               
             </div>
             
@@ -656,11 +634,6 @@ exports[`GridView component with decoration > Default component with row wrapper
                     </div>
                   </div>
                   
-                  <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
                   
                   
                 </div>
@@ -930,17 +903,7 @@ exports[`GridView component with decoration > Default component with row wrapper
                   class="grid-view__row"
                 >
                   <!--v-if-->
-                  <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
                   
-                  
-                  <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                   <div
                     class="grid-view__column"
                     style="width: 200px;"
@@ -961,12 +924,6 @@ exports[`GridView component with decoration > Default component with row wrapper
                       </div>
                     </div>
                   </div>
-                  
-                  
-                  <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                   <div
                     class="grid-view__column"
                     style="width: 200px;"
@@ -987,7 +944,6 @@ exports[`GridView component with decoration > Default component with row wrapper
                       </div>
                     </div>
                   </div>
-                  
                   
                 </div>
               </div>
@@ -1202,11 +1158,6 @@ exports[`GridView component with decoration > Default component with unavailable
                 </div>
               </div>
               
-              <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
               
               
             </div>
@@ -1468,17 +1419,7 @@ exports[`GridView component with decoration > Default component with unavailable
               class="grid-view__row"
             >
               <!--v-if-->
-              <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
               
-              
-              <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
               <div
                 class="grid-view__column"
                 style="width: 200px;"
@@ -1499,12 +1440,6 @@ exports[`GridView component with decoration > Default component with unavailable
                   </div>
                 </div>
               </div>
-              
-              
-              <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
               <div
                 class="grid-view__column"
                 style="width: 200px;"
@@ -1525,7 +1460,6 @@ exports[`GridView component with decoration > Default component with unavailable
                   </div>
                 </div>
               </div>
-              
               
             </div>
             

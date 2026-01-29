@@ -46,7 +46,7 @@ export default {
     },
     roles() {
       // filters out role not for Team subject and not for workspace level
-      return this.workspace ? this.workspace._.roles : []
+      return this.workspace?._.roles || []
     },
     showBillable() {
       return this.$hasPermission(

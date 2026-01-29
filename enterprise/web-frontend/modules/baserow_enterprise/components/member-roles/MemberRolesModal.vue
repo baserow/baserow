@@ -1,5 +1,5 @@
 <template>
-  <Modal @show="onShow" @hidden="hideError">
+  <Modal ref="modal" @show="onShow" @hidden="hideError">
     <Error v-if="error.visible" :error="error"></Error>
     <Tabs
       v-else
@@ -20,7 +20,9 @@
           scope-type="application"
           @invite-members="inviteDatabaseMembers"
           @invite-teams="inviteDatabaseTeams"
-          @role-updated="updateRole(databaseRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(databaseRoleAssignments, ra, role)
+          "
         />
       </Tab>
       <Tab
@@ -36,7 +38,9 @@
           scope-type="database_table"
           @invite-members="inviteTableMembers"
           @invite-teams="inviteTableTeams"
-          @role-updated="updateRole(tableRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(tableRoleAssignments, ra, role)
+          "
         />
       </Tab>
       <Tab
@@ -52,7 +56,9 @@
           scope-type="database_view"
           @invite-members="inviteViewMembers"
           @invite-teams="inviteViewTeams"
-          @role-updated="updateRole(viewRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(viewRoleAssignments, ra, role)
+          "
         />
       </Tab>
     </Tabs>
@@ -60,6 +66,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import error from '@baserow/modules/core/mixins/error'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
@@ -99,6 +106,7 @@ export default {
     }
   },
   computed: {
+    ...mapGetters({ userId: 'auth/getUserId' }),
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
@@ -313,14 +321,35 @@ export default {
       }
 
       try {
+        const subjectId =
+          roleAssignment.subject?.id ?? roleAssignment.subject_id
         await RoleAssignmentsService(this.$client).assignRole(
-          roleAssignment.subject.id,
+          subjectId,
           roleAssignment.subject_type,
           this.workspace.id,
           roleAssignment.scope_id,
           roleAssignment.scope_type,
           newRole
         )
+
+        // Check if the user just removed or downgraded their own access
+        const isOwnUser =
+          roleAssignment.subject_type === 'auth.User' &&
+          subjectId === this.userId
+        if (isOwnUser && (newRole === null || newRole === 'NO_ACCESS')) {
+          // User removed their own access - close modal and redirect to dashboard
+          this.hide()
+          this.$router.push({ name: 'dashboard' })
+          this.$store.dispatch(
+            'toast/info',
+            {
+              title: this.$t('memberRolesModal.accessRemovedTitle'),
+              message: this.$t('memberRolesModal.accessRemovedMessage'),
+            },
+            { root: true }
+          )
+          return
+        }
       } catch (error) {
         // Restore previous role
         if (roleAssignmentIndex !== -1) {

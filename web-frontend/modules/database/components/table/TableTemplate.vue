@@ -97,7 +97,7 @@ export default {
             true
           )
           viewsData.forEach((part, index, d) => {
-            populateView(viewsData[index])
+            populateView(viewsData[index], this.$registry)
           })
           this.views = viewsData
 

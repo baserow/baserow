@@ -19,6 +19,7 @@
     <List
       class="margin-top-2 select-teams-list__items"
       :items="teamsFiltered"
+      :selected-items="teamsSelected"
       :attributes="[]"
       selectable
       @selected="teamSelected"

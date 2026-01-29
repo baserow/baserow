@@ -116,11 +116,9 @@ export default {
       this.loading = true
       this.hideError()
 
-      const { runtimeConfig, $client } = useNuxtApp()
-
       try {
-        const baseUrl = `${runtimeConfig.public.publicWebFrontendUrl}/change-email`
-        await AuthService($client).sendChangeEmailConfirmation(
+        const baseUrl = `${this.$config.public.publicWebFrontendUrl}/change-email`
+        await AuthService(this.$client).sendChangeEmailConfirmation(
           this.emailData.newEmail,
           this.emailData.password,
           baseUrl

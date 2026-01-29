@@ -1,6 +1,6 @@
 <template>
   <div v-if="database && table">
-    <DefaultErrorPage v-if="dataError && !view" :error="dataError" />
+    <DefaultErrorPage v-if="dataError && !view?.id" :error="dataError" />
 
     <Table
       v-else
@@ -95,7 +95,14 @@ const { data, error, pending, status, refresh } = await useAsyncData(
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
 
-    await $store.dispatch('view/fetchAll', currentTable)
+    try {
+      await $store.dispatch('view/fetchAll', currentTable)
+    } catch (e) {
+      if (e.response === undefined && !(e instanceof StoreItemLookupError))
+        throw e
+      result.error = normalizeError(e)
+      return result
+    }
 
     // No viewId → redirect to default view
     if (viewId === null) {
@@ -174,7 +181,11 @@ watch(
     if (newTableId && (newTableId !== oldTableId || newViewId !== oldViewId)) {
       // Set loading state immediately to hide old content before refresh
       $store.dispatch('table/setLoading', true)
-      await refresh()
+      try {
+        await refresh()
+      } finally {
+        $store.dispatch('table/setLoading', false)
+      }
     }
   }
 )
@@ -202,7 +213,8 @@ const dataError = computed(() => data.value?.error)
  */
 useHead(() => ({
   title:
-    (view.value ? view.value.name + ' - ' : '') + (table.value?.name ?? ''),
+    (view.value?.name ? view.value.name + ' - ' : '') +
+    (table.value?.name ?? ''),
 }))
 
 /**

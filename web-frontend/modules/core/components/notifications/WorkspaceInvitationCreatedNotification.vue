@@ -1,7 +1,7 @@
 <template>
   <nuxt-link
     class="notification-panel__notification-link"
-    :to="{ name: 'dashboard' }"
+    :to="route"
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">

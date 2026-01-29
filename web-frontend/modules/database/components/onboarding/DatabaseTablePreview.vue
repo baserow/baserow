@@ -94,28 +94,31 @@ export default {
       return instances
     },
     views() {
-      const gridView1 = populateView({
-        id: 0,
-        table_id: this.table.id,
-        name: 'Grid',
-        order: 1,
-        type: GridViewType.getType(),
-        table: this.table,
-        filter_type: 'AND',
-        filters: [],
-        filter_groups: [],
-        sortings: [],
-        group_bys: [],
-        decorations: [],
-        filters_disabled: false,
-        public_view_has_password: false,
-        show_logo: true,
-        ownership_type: CollaborativeViewOwnershipType.getType(),
-        owned_by_id: null,
-        row_identifier_type: 'id',
-        public: false,
-        slug: '',
-      })
+      const gridView1 = populateView(
+        {
+          id: 0,
+          table_id: this.table.id,
+          name: 'Grid',
+          order: 1,
+          type: GridViewType.getType(),
+          table: this.table,
+          filter_type: 'AND',
+          filters: [],
+          filter_groups: [],
+          sortings: [],
+          group_bys: [],
+          decorations: [],
+          filters_disabled: false,
+          public_view_has_password: false,
+          show_logo: true,
+          ownership_type: CollaborativeViewOwnershipType.getType(),
+          owned_by_id: null,
+          row_identifier_type: 'id',
+          public: false,
+          slug: '',
+        },
+        this.$registry
+      )
       return [gridView1]
     },
     view() {

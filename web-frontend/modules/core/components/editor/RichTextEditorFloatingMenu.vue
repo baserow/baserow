@@ -4,7 +4,8 @@
     v-show="open"
     ref="menu"
     :editor="editor"
-    :should-show="() => visible"
+    plugin-key="floatingBlockMenu"
+    :should-show="shouldShowMenu"
     :options="{
       placement: 'left',
       offset: { mainAxis: 14, crossAxis: 0 },
@@ -186,6 +187,18 @@ export default {
     },
   },
   methods: {
+    shouldShowMenu({ editor }) {
+      if (!this.visible) return false
+      const emptySelection = editor.state.selection.empty
+      if (editor.isActive('image')) return false
+      if (
+        (!emptySelection && !editor.isActive('codeBlock')) ||
+        editor.isActive('link')
+      ) {
+        return false
+      }
+      return true
+    },
     isEventTargetInside(event) {
       return (
         isElement(this.$el, event.target) ||
@@ -198,17 +211,14 @@ export default {
     expand() {
       this.open = true
       this.expanded = true
-      // Trigger position recalculation after DOM updates with expanded menu
-      this.$nextTick(() => {
-        const { tr } = this.editor.state
-        tr.setMeta('bubbleMenu', 'updatePosition')
-        this.editor.view.dispatch(tr)
-      })
+      this.triggerPositionUpdate()
     },
     collapse() {
       this.open = true
       this.expanded = false
-      // Trigger position recalculation after DOM updates with collapsed menu
+      this.triggerPositionUpdate()
+    },
+    triggerPositionUpdate() {
       this.$nextTick(() => {
         const { tr } = this.editor.state
         tr.setMeta('bubbleMenu', 'updatePosition')
@@ -252,32 +262,29 @@ export default {
       chain.run()
       this.open = true
       // Trigger position recalculation after format change (line height may change)
-      this.$nextTick(() => {
-        const { tr } = this.editor.state
-        tr.setMeta('bubbleMenu', 'updatePosition')
-        this.editor.view.dispatch(tr)
-      })
+      this.triggerPositionUpdate()
     },
     getVirtualElement() {
-      const view = this.editor.view
-      const { state } = view
-      const { from } = state.selection
-      const cursorRect = posToDOMRect(view, from, from)
-
-      // Position to the left of the editor
-      const editorRect = view.dom.getBoundingClientRect()
-
+      const editor = this.editor
       return {
-        getBoundingClientRect: () => ({
-          top: cursorRect.top,
-          bottom: cursorRect.bottom,
-          left: editorRect.left,
-          right: editorRect.left,
-          x: editorRect.left,
-          y: cursorRect.top,
-          width: 0,
-          height: cursorRect.height,
-        }),
+        // Compute fresh coordinates on each call so floating-ui's autoUpdate
+        // always gets the current cursor and editor position.
+        getBoundingClientRect: () => {
+          const view = editor.view
+          const { from } = view.state.selection
+          const cursorRect = posToDOMRect(view, from, from)
+          const editorRect = view.dom.getBoundingClientRect()
+          return {
+            top: cursorRect.top,
+            bottom: cursorRect.bottom,
+            left: editorRect.left,
+            right: editorRect.left,
+            x: editorRect.left,
+            y: cursorRect.top,
+            width: 0,
+            height: cursorRect.height,
+          }
+        },
       }
     },
   },

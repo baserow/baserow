@@ -173,7 +173,13 @@ export default {
 
       this.questionIndex++
     },
-    validateAndNext(fieldIndex) {
+    async validateAndNext(fieldIndex) {
+      const activeElement = document.activeElement
+      if (activeElement && activeElement !== document.body) {
+        activeElement.blur()
+      }
+      await this.$nextTick()
+
       const field = this.visibleFieldsWithoutHiddenViaQueryParam[fieldIndex]
       field._.touched = true
 

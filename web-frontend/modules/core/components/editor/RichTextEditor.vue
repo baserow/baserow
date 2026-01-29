@@ -175,8 +175,8 @@ export default {
     return {
       editor: null,
       resizeObserver: null,
-      bubbleMenuVisible: false,
-      floatingMenuVisible: false,
+      bubbleMenuVisible: true,
+      floatingMenuVisible: true,
       loadings: [],
       mousedownEvent: null,
       scrollEvent: null,
@@ -224,8 +224,15 @@ export default {
   },
   methods: {
     registerResizeObserver() {
-      const resizeObserver = new ResizeObserver(() => {
-        this.bubbleMenuVisible = false
+      let lastWidth = null
+      const resizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0]
+        if (!entry) return
+        const newWidth = entry.contentRect.width
+        if (lastWidth !== null && lastWidth !== newWidth) {
+          this.bubbleMenuVisible = false
+        }
+        lastWidth = newWidth
       })
       resizeObserver.observe(this.$refs.root)
       this.resizeObserver = resizeObserver
@@ -310,47 +317,28 @@ export default {
           this.$emit('update:modelValue', clone(this.editor.getJSON()))
         },
         onFocus: ({ editor, event }) => {
-          if (this.editable && !this.bubbleMenuVisible) {
-            this.floatingMenuVisible = true
-          }
+          this.bubbleMenuVisible = true
+          this.floatingMenuVisible = true
           this.$emit('focus')
         },
         onBlur: ({ editor, event }) => {
           if (this.isEventFromMenu(event)) {
             return // Do not emit a blur event if it is coming from one of the editor's menu.
           }
-
-          this.bubbleMenuVisible = false
-          this.floatingMenuVisible = false
           this.$emit('blur')
         },
-        onSelectionUpdate: ({ editor }) => {
+        onSelectionUpdate: () => {
           if (!this.editable || !this.enableRichTextFormatting) {
             return
           }
-
-          const emptySelection = editor.state.selection.empty === true
-          const codeBlockActive = editor.isActive('codeBlock')
-          const linkMarkActive = editor.isActive('link')
-
-          if (editor.isActive('image')) {
-            this.bubbleMenuVisible = false
-            this.floatingMenuVisible = false
-          } else if ((!emptySelection && !codeBlockActive) || linkMarkActive) {
-            this.bubbleMenuVisible = true
-            this.floatingMenuVisible = false
-          } else {
-            this.bubbleMenuVisible = false
-            this.floatingMenuVisible = true
-          }
+          this.bubbleMenuVisible = true
+          this.floatingMenuVisible = true
         },
       })
       this.setupEditor()
     },
     setupEditor() {
       if (this.editable) {
-        this.floatingMenuVisible = true
-
         this.registerResizeObserver()
         this.registerAutoCollapseFloatingMenuHandler()
         this.registerAutoHideBubbleMenuHandler()

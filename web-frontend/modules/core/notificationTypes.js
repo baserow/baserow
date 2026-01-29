@@ -44,6 +44,10 @@ export class WorkspaceInvitationCreatedNotificationType extends NotificationType
   getContentComponent() {
     return WorkspaceInvitationCreatedNotification
   }
+
+  getRoute(notificationData) {
+    return { name: 'dashboard' }
+  }
 }
 
 export class WorkspaceInvitationAcceptedNotificationType extends NotificationType {

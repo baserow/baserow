@@ -180,23 +180,19 @@ export default {
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
-      registeredDropdownItems: [], // For storing registered dropdown items
+      selectedName: '',
+      selectedIcon: null,
+      selectedImage: null,
       hideCleanupFunctions: [], // Store cleanup functions to call on hide
     }
+  },
+  created() {
+    this.registeredDropdownItems = []
   },
   computed: {
     // Support both Vue 2 (value) and Vue 3 (modelValue)
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value
-    },
-    selectedName() {
-      return this.getSelectedProperty(this.currentValue, 'name')
-    },
-    selectedIcon() {
-      return this.getSelectedProperty(this.currentValue, 'icon')
-    },
-    selectedImage() {
-      return this.getSelectedProperty(this.currentValue, 'image')
     },
     realTabindex() {
       // We don't want to be able focus if the dropdown is disabled or if we have
@@ -209,18 +205,12 @@ export default {
   },
   watch: {
     value() {
-      this.$nextTick(() => {
-        // When the value changes we want to forcefully reload the selectName and
-        // selectedIcon a little bit later because the children might have changed.
-        this.forceRefreshSelectedValue()
-      })
+      // Update selected display properties when value changes
+      this.forceRefreshSelectedValue()
     },
     modelValue() {
-      this.$nextTick(() => {
-        // When the value changes we want to forcefully reload the selectName and
-        // selectedIcon a little bit later because the children might have changed.
-        this.forceRefreshSelectedValue()
-      })
+      // Update selected display properties when modelValue changes
+      this.forceRefreshSelectedValue()
     },
     multiple(newValue) {
       this.reactiveMultiple.value = newValue
@@ -540,30 +530,28 @@ export default {
      * @return {boolean}
      */
     hasValue() {
-      for (const item of this.getDropdownItemComponents()) {
-        if (this.multiple) {
-          for (const value of this.currentValue) {
-            if (_.isEqual(item.value, value)) {
-              return true
-            }
-          }
-        } else if (_.isEqual(item.value, this.currentValue)) {
-          return true
-        }
+      if (this.multiple) {
+        return this.selectedName.some((name) => name !== '')
       }
-      return false
+      return (
+        this.selectedName !== '' || !!this.selectedIcon || !!this.selectedImage
+      )
     },
     /**
-     * A nasty hack, but in some cases the dropdownItemComponents have not yet been loaded when the
-     * `selectName` and `selectIcon` are computed. This would result in an empty
-     * initial value of the Dropdown because the correct value can't be extracted from
-     * the DropdownItem. With this hack we force the computed properties to recompute
-     * when the component is mounted. At this moment the dropdownItemComponents have been added.
+     * Updates the selected display properties (name, icon, image) from dropdown items.
+     * Called when value changes or dropdown items are added/removed.
+     */
+    updateSelectedProperties() {
+      this.selectedName = this.getSelectedProperty(this.currentValue, 'name')
+      this.selectedIcon = this.getSelectedProperty(this.currentValue, 'icon')
+      this.selectedImage = this.getSelectedProperty(this.currentValue, 'image')
+    },
+    /**
+     * Force refresh of selected display values. Called by watchers, mounted hook,
+     * and MutationObserver when dropdown items change.
      */
     forceRefreshSelectedValue() {
-      // TODO MIG this._computedWatchers.selectedName.run()
-      // TODO MIG this._computedWatchers.selectedIcon.run()
-      this.$forceUpdate()
+      this.updateSelectedProperties()
     },
     /**
      * Method that is called when the arrow up or arrow down key is pressed. Based on

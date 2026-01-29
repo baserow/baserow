@@ -121,14 +121,8 @@ export default {
     },
   },
   data() {
-    const view = populateView({
-      type: GridViewType.getType(),
-      filters: [this.getNewFilterObject(null)],
-      filter_groups: [],
-      filter_type: 'AND',
-    })
     return {
-      view,
+      view: null,
       mutableUserFieldNames: this.userFieldNames,
     }
   },
@@ -166,6 +160,17 @@ export default {
 
       return params + 'filters=' + encodeURIComponent(this.JSONFilters)
     },
+  },
+  created() {
+    this.view = populateView(
+      {
+        type: GridViewType.getType(),
+        filters: [this.getNewFilterObject(null)],
+        filter_groups: [],
+        filter_type: 'AND',
+      },
+      this.$registry
+    )
   },
   methods: {
     uuid,

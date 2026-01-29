@@ -137,22 +137,17 @@ export default {
   data() {
     return {
       createOptionLoading: false,
-      selectedColorRefreshKey: 0,
+      selectedColor: null,
     }
   },
   computed: {
     canCreateOption() {
       return this.allowCreateOption && this.query !== '' && !this.hasItems
     },
-    selectedColor() {
-      this.selectedColorRefreshKey
-      // Adds a dependency to this variable I guess. Is this the best way???
-      return this.getSelectedProperty(this.value, 'color')
-    },
   },
   methods: {
     forceRefreshSelectedValue() {
-      this.selectedColorRefreshKey++
+      this.selectedColor = this.getSelectedProperty(this.value, 'color')
       dropdown.methods.forceRefreshSelectedValue.call(this)
     },
     createOption(value) {

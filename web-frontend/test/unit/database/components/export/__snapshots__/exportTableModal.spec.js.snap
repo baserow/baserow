@@ -172,7 +172,6 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
             </div>
             
           </div>
-          
           <div
             class="control margin-bottom-2"
             data-form-error="false"
@@ -312,26 +311,6 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
             </div>
             
           </div>
-          <!-- &lt;div v-if="exporterTypes.length &gt; 0" class="control"&gt;
-    &lt;label class="control__label"&gt;{{
-      $t('exporterTypeChoices.formatLabel')
-    }}&lt;/label&gt;
-    &lt;div class="control__elements"&gt;
-      &lt;ul class="choice-items"&gt;
-        &lt;ExporterTypeChoice
-          v-for="exporterType in exporterTypes"
-          :key="exporterType.type"
-          :exporter-type="exporterType"
-          :active="value !== null && value === exporterType.type"
-          :disabled="loading"
-          :database="database"
-          @selected="switchToExporterType(exporterType.type)"
-        &gt;
-        &lt;/ExporterTypeChoice&gt;
-      &lt;/ul&gt;
-    &lt;/div&gt;
-  &lt;/div&gt; -->
-          
           <!--v-if-->
         </div>
       </div>
@@ -1828,18 +1807,11 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                       class="dropdown__selected"
                     >
                       
-                      
-                      <i
-                        class="dropdown__selected-icon iconoir-menu"
-                      />
-                      <!--v-if-->
                       <span
-                        class="dropdown__selected-text"
-                        title="mock_view_1"
+                        class="dropdown__selected-placeholder"
                       >
-                        mock_view_1
+                        action.makeChoice
                       </span>
-                      
                       
                       <i
                         class="dropdown__toggle-icon iconoir-nav-arrow-down"
@@ -1942,7 +1914,6 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
             </div>
             
           </div>
-          
           <div
             class="control margin-bottom-2"
             data-form-error="false"
@@ -2082,26 +2053,6 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
             </div>
             
           </div>
-          <!-- &lt;div v-if="exporterTypes.length &gt; 0" class="control"&gt;
-    &lt;label class="control__label"&gt;{{
-      $t('exporterTypeChoices.formatLabel')
-    }}&lt;/label&gt;
-    &lt;div class="control__elements"&gt;
-      &lt;ul class="choice-items"&gt;
-        &lt;ExporterTypeChoice
-          v-for="exporterType in exporterTypes"
-          :key="exporterType.type"
-          :exporter-type="exporterType"
-          :active="value !== null && value === exporterType.type"
-          :disabled="loading"
-          :database="database"
-          @selected="switchToExporterType(exporterType.type)"
-        &gt;
-        &lt;/ExporterTypeChoice&gt;
-      &lt;/ul&gt;
-    &lt;/div&gt;
-  &lt;/div&gt; -->
-          
           <!--v-if-->
         </div>
       </div>

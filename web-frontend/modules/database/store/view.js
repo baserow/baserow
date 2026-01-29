@@ -52,9 +52,8 @@ export function populateDecoration(decoration) {
   return decoration
 }
 
-export function populateView(view) {
-  const { $registry } = useNuxtApp()
-  const type = $registry.get('view', view.type)
+export function populateView(view, registry) {
+  const type = registry.get('view', view.type)
 
   view._ = view._ || {
     type: type.serialize(),
@@ -132,12 +131,12 @@ export const mutations = {
     if (!state.items.some((existingItem) => existingItem.id === item.id))
       state.items = [...state.items, item].sort((a, b) => a.order - b.order)
   },
-  UPDATE_ITEM(state, { id, view, values, repopulate, readOnly }) {
+  UPDATE_ITEM(state, { id, view, values, repopulate, readOnly, registry }) {
     if (!readOnly) {
       const index = state.items.findIndex((item) => item.id === id)
       Object.assign(state.items[index], state.items[index], values)
-      if (repopulate === true) {
-        populateView(state.items[index])
+      if (repopulate === true && registry) {
+        populateView(state.items[index], registry)
       }
     } else {
       Object.assign(view, view, values)
@@ -334,7 +333,7 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
-    const { $client } = this
+    const { $client, $registry } = this
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
 
@@ -347,7 +346,7 @@ export const actions = {
         true
       )
       data.forEach((part, index, d) => {
-        populateView(data[index])
+        populateView(data[index], $registry)
       })
       commit('SET_ITEMS', data)
       commit('SET_LOADING', false)
@@ -360,7 +359,6 @@ export const actions = {
     } catch (error) {
       commit('SET_ITEMS', [])
       commit('SET_LOADING', false)
-
       throw error
     }
   },
@@ -394,7 +392,8 @@ export const actions = {
    * Forcefully create a new view without making a request to the server.
    */
   forceCreate({ commit }, { data }) {
-    populateView(data)
+    const { $registry } = this
+    populateView(data, $registry)
     commit('ADD_ITEM', data)
     return { view: data }
   },
@@ -411,7 +410,7 @@ export const actions = {
       optimisticUpdate = true,
     }
   ) {
-    const { $client } = this
+    const { $client, $registry } = this
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
     const newValues = {}
@@ -445,6 +444,7 @@ export const actions = {
         values: newValues,
         repopulate: true,
         readOnly,
+        registry: $registry,
       })
     }
     try {
@@ -460,7 +460,12 @@ export const actions = {
         const newValues = (await ViewService($client).update(view.id, values))
           .data
         if (refreshFromFetch || !optimisticUpdate) {
-          dispatch('forceUpdate', { view, values: newValues, repopulate: true })
+          dispatch('forceUpdate', {
+            view,
+            values: newValues,
+            repopulate: true,
+            registry: $registry,
+          })
         }
 
         updatePublicViewHasPassword()
@@ -491,7 +496,7 @@ export const actions = {
    */
   forceUpdate(
     { commit },
-    { view, values, repopulate = false, readOnly = false }
+    { view, values, repopulate = false, readOnly = false, registry = null }
   ) {
     commit('UPDATE_ITEM', {
       id: view.id,
@@ -499,13 +504,14 @@ export const actions = {
       values,
       repopulate,
       readOnly,
+      registry,
     })
   },
   /**
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {
-    const { $registry, $client } = this
+    const { $client } = this
     const { data } = await ViewService($client).duplicate(view.id)
     await dispatch('forceCreate', { data })
     return data

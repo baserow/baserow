@@ -125,7 +125,7 @@ export default {
         const { data: viewsData } = await ViewService(this.$client).fetchAll(
           this.table.id
         )
-        viewsData.forEach((v) => populateView(v))
+        viewsData.forEach((v) => populateView(v, this.$registry))
         this.views = viewsData
       } catch (error) {
         this.handleError(error, 'views')

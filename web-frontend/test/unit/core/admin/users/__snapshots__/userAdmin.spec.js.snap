@@ -139,8 +139,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
     </table>
   </div>
   <div class="data-table__footer">
-    <div class="paginator">
-      <!-- <div class="paginator__name"></div> --><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
+    <div class="paginator"><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
       <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
     </div>
   </div>
@@ -384,8 +383,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
     </table>
   </div>
   <div class="data-table__footer">
-    <div class="paginator">
-      <!-- <div class="paginator__name"></div> --><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
+    <div class="paginator"><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
       <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
     </div>
   </div>

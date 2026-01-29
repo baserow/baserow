@@ -18,6 +18,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     ? parseInt(to.params.workspaceId, 10)
     : getWorkspaceCookie(nuxtApp)
 
+  // If the target route contains a workspaceId param, prefer it over the cookie.
+  if (to.params.workspaceId) {
+    const routeWorkspaceId = parseInt(to.params.workspaceId, 10)
+    if (!isNaN(routeWorkspaceId)) {
+      workspaceId = routeWorkspaceId
+    }
+  }
+
   // If the workspaces haven't already been selected we will
   if (store.getters['auth/isAuthenticated']) {
     // If the workspaces haven't been loaded we will load them all.

@@ -305,18 +305,24 @@ export default {
       })
     },
     async selectTable(database, table) {
+      if (table._.selected) {
+        return
+      }
+
       this.setLoading(database, true)
 
       try {
-        await this.$router.push({
+        const failure = await this.$router.push({
           name: 'database-table',
           params: {
             databaseId: database.id,
             tableId: table.id,
           },
         })
-        await pageFinished()
-        await nextTick()
+        if (!failure) {
+          await pageFinished()
+          await nextTick()
+        }
       } finally {
         this.setLoading(database, false)
       }

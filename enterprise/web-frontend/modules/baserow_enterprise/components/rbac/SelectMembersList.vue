@@ -19,6 +19,7 @@
     <List
       class="margin-top-2 select-members-list__items"
       :items="usersFiltered"
+      :selected-items="usersSelected"
       :attributes="['email']"
       selectable
       @selected="userSelected"

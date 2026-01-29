@@ -2,7 +2,9 @@
   <BubbleMenu
     v-if="editor"
     :editor="editor"
-    :should-show="() => visible"
+    plugin-key="inlineBubbleMenu"
+    :update-delay="0"
+    :should-show="shouldShowMenu"
     :options="{
       placement: 'top',
       offset: 5,
@@ -177,6 +179,14 @@ export default {
     }
   },
   methods: {
+    shouldShowMenu({ editor }) {
+      if (!this.visible) return false
+      const emptySelection = editor.state.selection.empty
+      const codeBlockActive = editor.isActive('codeBlock')
+      const linkMarkActive = editor.isActive('link')
+      if (editor.isActive('image')) return false
+      return (!emptySelection && !codeBlockActive) || linkMarkActive
+    },
     isEventTargetInside(event) {
       return (
         isElement(this.$el, event.target) ||

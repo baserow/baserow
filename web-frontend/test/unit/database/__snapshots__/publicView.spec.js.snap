@@ -18,7 +18,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
     <div
       class="toasts__container-bottom"
     >
-      <!-- Bottom toasts-->
       <!--v-if-->
       <!--v-if-->
       <!--v-if-->
@@ -50,9 +49,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               target="_blank"
               title="Baserow - open source no-code database tool and Airtable alternative"
             >
-              
-              <!-- TODO MIG component :is="getComponent()" v-if="getComponent()" /-->
-              <!-- must be in sync with modules/baserow_enterprise/components/EnterpriseLogo.vue -->
               <div
                 alt="Baserow - open source no-code database tool and Airtable alternative"
                 class="logo"
@@ -65,7 +61,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                   src="/modules/core/static/img/logo.svg"
                 />
               </div>
-              
             </a>
           </li>
           <li
