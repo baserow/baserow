@@ -355,10 +355,10 @@ class GenerateAIValuesJobType(JobType):
                     model=model,
                     values_already_prepared=True,
                 )
-            except Exception:
-                logger.exception(
-                    f"Cannot update AI value field {ai_field} and row {row.id}"
-                )
+            except RowDoesNotExist:
+                # The row was trahsed during the generation and we cannot update
+                # it, so we skip it.
+                return
 
         generator = AIValueGenerator(user, ai_field, self, on_progress)
         generator.process(rows.order_by("id"))
@@ -411,7 +411,7 @@ class AIValueGenerator:
         self.results_queue = Queue(self.max_concurrency)
 
         # Marker to keep track if any errors ocurred during the process.
-        self.has_errors = False
+        self.error_msg = None
 
         self.row_handler = RowHandler()
         self.on_progress = on_progress
@@ -536,17 +536,19 @@ class AIValueGenerator:
         value = ai_output_type.parse_output(value, ai_field)
         return value
 
-    def handle_error(self):
+    def handle_error(self, error_message: str):
         """
         Error handling routine, if an error occurred during getting AI model response
         for a row.
 
         If an error occurs, this will stop processing any pending rows and will notify
         the frontend on a first occurrence of an error.
+
+        :param error_message: The exception message to log and send with the signal.
         """
 
         self.stop_scheduling_rows()
-        self.has_errors = True
+        self.error_msg = error_message
 
     def raise_if_error(self):
         """
@@ -557,8 +559,10 @@ class AIValueGenerator:
         there was an error.
         """
 
-        if self.has_errors:
-            raise GenerativeAIPromptError("AI model responded with errors.")
+        if self.error_msg:
+            raise GenerativeAIPromptError(
+                f"AI model responded with errors: {self.error_msg}"
+            )
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
         """
@@ -647,12 +651,16 @@ class AIValueGenerator:
         """
 
         if isinstance(result.result, Exception):
-            self.handle_error()
+            exc = result.result
+            self.handle_error(str(exc))
 
         self.finished += 1
         self.in_process.remove(result.row.id)
         if self.on_progress:
-            self.on_progress(result)
+            try:
+                self.on_progress(result)
+            except Exception as exc:
+                self.handle_error(str(exc))
 
     def schedule_next_row(self, rows_iter: Iterator, executor: Executor):
         """
@@ -660,9 +668,5 @@ class AIValueGenerator:
         """
 
         row = next(rows_iter)
-        if row.trashed:  # Skip trashed rows
-            self.finished += 1
-            return
-
         executor.submit(self.generate_value_for, row)
         self.in_process.add(row.id)
