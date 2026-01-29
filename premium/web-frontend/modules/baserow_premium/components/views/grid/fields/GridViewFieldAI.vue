@@ -43,14 +43,14 @@
             icon="iconoir-magic-wand"
             :disabled="!modelAvailable || generating"
             :loading="generating"
-            @click.prevent.stop="generate()"
+            @mousedown.prevent.stop="generate()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
           <ButtonText
             v-else
             icon="iconoir-lock"
-            @click.prevent.stop="$refs.clickModal.show()"
+            @mousedown.prevent.stop="$refs.clickModal.show()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
