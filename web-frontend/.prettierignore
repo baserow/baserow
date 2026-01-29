@@ -27,6 +27,7 @@ pnpm-lock.yaml
 # Project-specific
 modules/core/templates/
 modules/core/formula/parser/
+modules/core/assets/scss/vendor/
 **/locales/*.json
 
 # Storybook
