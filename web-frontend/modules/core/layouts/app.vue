@@ -122,8 +122,8 @@ function resizeCol3(v) {
   col3Width.value = v
 }
 
-function toggleRightSidebar() {
-  col3Visible.value = !col3Visible.value
+function toggleRightSidebar(value = !col3Visible.value) {
+  col3Visible.value = value
   localStorage.setItem('baserow.rightSidebarOpen', col3Visible.value)
 }
 

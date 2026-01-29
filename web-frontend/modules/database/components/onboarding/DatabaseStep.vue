@@ -13,7 +13,12 @@
       ></SegmentControl>
     </div>
     <template v-if="hasName">
-      <FormGroup :error="v$.name.$error">
+      <FormGroup
+        :error="v$.name.$error"
+        :label="$t('databaseStep.databaseNameLabel')"
+        small-label
+        required
+      >
         <FormInput
           ref="nameInput"
           v-model="name"

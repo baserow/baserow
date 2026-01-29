@@ -713,5 +713,9 @@
   },
   "databaseStep": {
     "ai": "Kuma AI"
+  },
+  "aiDatabaseOnboardingForm": {
+    "label": "Describe your database",
+    "placeholder": "e.g. Create project management solution"
   }
 }
