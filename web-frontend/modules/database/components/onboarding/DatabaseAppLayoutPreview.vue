@@ -37,14 +37,14 @@ import {
   DatabaseImportOnboardingType,
   DatabaseScratchTrackOnboardingType,
 } from '@baserow/modules/database/onboardingTypes'
-import DatabaseTablePreview from '@baserow/modules/database/components/onboarding/DatabaseTablePreview.vue'
+import DatabaseTablePreview from '@baserow/modules/database/components/onboarding/DatabaseTablePreview'
 import { populateTable } from '@baserow/modules/database/store/table'
 import { clone } from '@baserow/modules/core/utils/object'
-import Sidebar from '~/modules/core/components/sidebar/Sidebar.vue'
-import Highlight from '~/modules/core/components/Highlight.vue'
-import {populateWorkspace} from '~/modules/core/store/workspace.js'
-import {populateApplication} from '~/modules/core/store/application.js'
-import {DatabaseApplicationType} from '~/modules/database/applicationTypes.js'
+import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
+import Highlight from '@baserow/modules/core/components/Highlight'
+import { populateWorkspace } from '@baserow/modules/core/store/workspace'
+import { populateApplication } from '@baserow/modules/core/store/application'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
   name: 'DatabaseAppLayoutPreview',

@@ -709,6 +709,9 @@
   },
   "viewOwnershipType": {
     "restricted": "Restricted",
-    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It’s possible to manage the members."
+    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It's possible to manage the members."
+  },
+  "databaseStep": {
+    "ai": "Kuma AI"
   }
 }

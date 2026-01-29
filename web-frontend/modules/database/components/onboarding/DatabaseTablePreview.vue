@@ -196,7 +196,6 @@ export default {
       deep: true,
       flush: 'post',
     },
-  }
-
+  },
 }
 </script>

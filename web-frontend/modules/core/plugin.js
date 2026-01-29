@@ -60,9 +60,7 @@ import {
   WorkspaceInvitationRejectedNotificationType,
   BaserowVersionUpgradeNotificationType,
 } from '@baserow/modules/core/notificationTypes'
-import {
-  MoreOnboardingType,
-} from '@baserow/modules/core/onboardingTypes'
+import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 

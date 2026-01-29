@@ -9,10 +9,7 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
-import AirtableService from '@baserow/modules/database/services/airtable'
 import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
-import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
-import TemplateService from '@baserow/modules/core/services/template'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -53,12 +50,14 @@ export class DatabaseOnboardingType extends OnboardingType {
 
   getPreviewComponent(data) {
     const type = data[this.getType()]?.type
-    const template = data[this.getType()]?.template
-    if (type === 'template' && template) {
-      return DatabaseTemplatePreview
-    } else {
-      return DatabaseAppLayoutPreview
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      const component = stepType.getPreviewComponent(data)
+      if (component) {
+        return component
+      }
     }
+    return DatabaseAppLayoutPreview
   }
 
   getAdditionalPreviewProps() {
@@ -74,67 +73,39 @@ export class DatabaseOnboardingType extends OnboardingType {
     const returnValue = { workspace }
     const stepData = data[this.getType()]
     const fromType = stepData.type
-    if (fromType === 'airtable') {
-      const airtableUrl = stepData.airtableUrl
-      const skipFiles = stepData.skipFiles
-      const useSession = stepData.useSession
-      const session = stepData.session
-      const sessionSignature = stepData.sessionSignature
-      const { data: job } = await AirtableService(this.app.$client).create(
-        workspace.id,
-        airtableUrl,
-        skipFiles,
-        useSession ? session : null,
-        useSession ? sessionSignature : null
+
+    // Delegate to the step type for type-specific completion logic
+    if (fromType) {
+      const stepType = this.app.$registry.get(
+        'databaseOnboardingStep',
+        fromType
       )
-
-      // Responds with the newly created job, so that the `getJobForPolling` can use
-      // the response to mark the onboarding as an async job.
-      returnValue.job = job
-    } else if (fromType === 'template') {
-      const template = stepData.template
-      const { data: job } = await TemplateService(
-        this.app.$client
-      ).asyncInstall(workspace.id, template.id)
-
-      // Responds with the newly created job, so that the `getJobForPolling` can use
-      // the response to mark the onboarding as an async job.
-      returnValue.job = job
+      const stepResult = await stepType.completeAfterWorkspace(
+        workspace,
+        stepData
+      )
+      Object.assign(returnValue, stepResult)
     }
+
     return returnValue
   }
 
   getJobForPolling(data, responses) {
     const type = data[this.getType()].type
-    if (type === 'airtable' || type === 'template') {
-      return responses[this.getType()].job
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getJobForPolling(data, responses)
     }
+    return null
   }
 
   getCompletedRoute(data, responses) {
-    const type = data[this.getType()]?.job?.type
-    let database = null
-    if (type === 'airtable') {
-      database = responses[this.getType()].job.database
-    } else if (type === 'template') {
-      database = responses[this.getType()].job.installed_applications.find(
-        (application) => application.type === DatabaseApplicationType.getType()
-      )
+    const type = data[this.getType()]?.type
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getCompletedRoute(data, responses)
     }
-
-    // Deliberately open the database first because that's where the user must start
-    // their journey. If no database exist, return nothing, so that the dashboard
-    // is opened.
-    if (database) {
-      const firstTableId = database.tables[0]?.id || 0
-      return {
-        name: 'database-table',
-        params: {
-          databaseId: database.id,
-          tableId: firstTableId,
-        },
-      }
-    }
+    return null
   }
 }
 

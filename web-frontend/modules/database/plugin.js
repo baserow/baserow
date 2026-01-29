@@ -335,6 +335,13 @@ import {
 } from '@baserow/modules/database/onboardingTypes'
 
 import {
+  ScratchDatabaseOnboardingStepType,
+  ImportDatabaseOnboardingStepType,
+  AirtableDatabaseOnboardingStepType,
+  TemplateDatabaseOnboardingStepType,
+} from '@baserow/modules/database/databaseOnboardingStepTypes'
+
+import {
   DatabaseScratchTrackCampaignFieldsOnboardingType,
   DatabaseScratchTrackCustomFieldsOnboardingType,
   DatabaseScratchTrackProjectFieldsOnboardingType,
@@ -381,6 +388,7 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('rowModalSidebar')
     $registry.registerNamespace('onboardingTrackFields')
     $registry.registerNamespace('configureDataSync')
+    $registry.registerNamespace('databaseOnboardingStep')
 
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
@@ -998,6 +1006,23 @@ export default defineNuxtPlugin({
       new DatabaseScratchTrackFieldsOnboardingType(context)
     )
     $registry.register('onboarding', new DatabaseImportOnboardingType(context))
+
+    $registry.register(
+      'databaseOnboardingStep',
+      new ScratchDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new ImportDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new AirtableDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new TemplateDatabaseOnboardingStepType(context)
+    )
 
     $registry.register(
       'onboardingTrackFields',

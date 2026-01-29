@@ -90,6 +90,7 @@ import {
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
+import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -251,6 +252,11 @@ export default defineNuxtPlugin({
     $registry.register(
       'builderPageDecorator',
       new MadeWithBaserowBuilderPageDecoratorType(context)
+    )
+
+    $registry.register(
+      'databaseOnboardingStep',
+      new AIDatabaseOnboardingStepType(context)
     )
 
     $registry.register(

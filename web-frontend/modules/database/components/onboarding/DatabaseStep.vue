@@ -26,15 +26,13 @@
         <template #error>{{ v$.name.$errors[0].$message }}</template>
       </FormGroup>
     </template>
-    <AirtableImportForm
-      v-if="selectedType === 'airtable'"
-      ref="airtable"
+    <component
+      :is="selectedStepType.getComponent()"
+      v-if="selectedStepType.getComponent()"
+      ref="stepComponent"
       @input="updateValue($event)"
-    ></AirtableImportForm>
-    <TemplateImportForm
-      v-if="selectedType === 'template'"
       @selected-template="selectedTemplate"
-    ></TemplateImportForm>
+    ></component>
   </div>
 </template>
 
@@ -42,13 +40,10 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 import { useI18n } from 'vue-i18n'
-import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
-import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 
 export default {
   name: 'DatabaseStep',
-  components: { AirtableImportForm, TemplateImportForm },
   props: {
     data: {
       required: true,
@@ -64,61 +59,62 @@ export default {
     const name = this.$store.getters['auth/getName']
 
     return {
-      types: [
-        {
-          type: 'scratch',
-          label: this.$t('databaseStep.scratch'),
-        },
-        {
-          type: 'import',
-          label: this.$t('databaseStep.import'),
-        },
-        {
-          type: 'airtable',
-          label: this.$t('databaseStep.airtable'),
-        },
-        {
-          type: 'template',
-          label: this.$t('databaseStep.template'),
-        },
-      ],
       selectedTypeIndex: 0,
       name: t('databaseStep.databaseNamePrefill', { name }),
     }
   },
   computed: {
+    allStepTypes() {
+      return this.$registry.getOrderedList('databaseOnboardingStep')
+    },
+    visibleTypes() {
+      return this.allStepTypes
+        .filter((stepType) => stepType.isVisible())
+        .map((stepType) => ({
+          type: stepType.getType(),
+          label: stepType.getLabel(),
+        }))
+    },
+    types() {
+      return this.visibleTypes
+    },
     selectedType() {
-      return this.types[this.selectedTypeIndex].type
+      return this.visibleTypes[this.selectedTypeIndex].type
+    },
+    selectedStepType() {
+      return this.allStepTypes.find(
+        (stepType) => stepType.getType() === this.selectedType
+      )
     },
     hasName() {
-      return ['scratch', 'import'].includes(this.selectedType)
+      return this.selectedStepType.hasNameInput()
+    },
+  },
+  watch: {
+    hasName(newValue) {
+      if (newValue) {
+        this.$nextTick(() => {
+          if (this.$refs.nameInput) {
+            this.$refs.nameInput.focus()
+            this.v$.name.$touch()
+          }
+        })
+      }
     },
   },
   mounted() {
     this.updateValue()
-    this.$nextTick(() => {
-      this.$refs.nameInput.focus()
-      this.v$.name.$touch()
-    })
   },
   methods: {
     isValid() {
-      if (this.selectedType === 'airtable') {
-        const airtable = this.$refs.airtable
-        return !!airtable && !airtable.v$.$invalid && airtable.v$.$dirty
-      } else if (this.selectedType === 'template') {
-        const template = this.data[DatabaseOnboardingType.getType()].template
-        return !!template
-      } else {
-        return !this.v$.$invalid && this.v$.$dirty
-      }
+      return this.selectedStepType.isValid(this.data, this.v$, this.$refs)
     },
-    updateValue(airtable = {}) {
+    updateValue(params = {}) {
       this.$nextTick(() => {
         this.$emit('update-data', {
           name: this.name,
           type: this.selectedType,
-          ...airtable,
+          ...params,
         })
       })
     },
