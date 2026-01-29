@@ -188,10 +188,11 @@ class GenerateAIValuesJobType(JobType):
         :return: The filtered queryset.
         """
 
-        ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
+        baserow_field_type = ai_field.get_type().get_baserow_field_type(ai_field)
+        model_field = baserow_field_type.get_model_field(ai_field)
         q = ai_field.get_type().empty_query(
             ai_field.db_column,
-            ai_output_type.baserow_field_type.model_class(),
+            model_field,
             ai_field,
         )
         return queryset.filter(q)
