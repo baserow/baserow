@@ -108,6 +108,7 @@ export class MoreOnboardingType extends OnboardingType {
 
   async complete(data, responses) {
     const moreData = data[this.getType()]
+    console.log(moreData)
     const share = moreData?.share
 
     if (share) {
@@ -119,5 +120,7 @@ export class MoreOnboardingType extends OnboardingType {
         moreData.how,
       )
     }
+
+    throw new Error('test')
   }
 }

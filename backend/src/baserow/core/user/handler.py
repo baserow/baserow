@@ -945,7 +945,13 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         )(send_email)()
 
     def start_share_onboarding_details_with_baserow(
-        self, user, team: str, role: str, size: str, country: str
+        self,
+        user,
+        team: str,
+        role: str,
+        size: str,
+        country: str,
+        how: str,
     ):
         """
         Starts a celery task that shares some user information with baserow.io. Note
@@ -962,10 +968,17 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         email = user.email
 
         share_onboarding_details_with_baserow.delay(
-            email=email, team=team, role=role, size=size, country=country
+            email=email,
+            team=team,
+            role=role,
+            size=size,
+            country=country,
+            how=how,
         )
 
-    def share_onboarding_details_with_baserow(self, email, team, role, size, country):
+    def share_onboarding_details_with_baserow(
+        self, email, team, role, size, country, how
+    ):
         """
         Makes an API request to baserow.io that shares the additional information. Note
         that this is only triggered if the user given permission during the onboarding
@@ -975,6 +988,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :param role: The role that the user shared.
         :param size: The company size that the user shared.
         :param country: The country name that the user shared.
+        :param how: How the user found Baserow.
         """
 
         settings_object = CoreHandler().get_settings()
@@ -990,6 +1004,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
                     "size": size,
                     "country": country,
                     "email": email,
+                    "how": how,
                     "instance_id": settings_object.instance_id,
                 },
                 timeout=settings.ADDITIONAL_INFORMATION_TIMEOUT_SECONDS,

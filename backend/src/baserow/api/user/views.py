@@ -863,7 +863,12 @@ class ShareOnboardingDetailsWithBaserowView(APIView):
     @validate_body(ShareOnboardingDetailsWithBaserowSerializer)
     def post(self, request, data):
         UserHandler().start_share_onboarding_details_with_baserow(
-            request.user, data["team"], data["role"], data["size"], data["country"]
+            request.user,
+            data["team"],
+            data["role"],
+            data["size"],
+            data["country"],
+            data["how"],
         )
 
         return Response(status=204)
