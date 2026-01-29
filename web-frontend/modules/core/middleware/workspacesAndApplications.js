@@ -4,7 +4,7 @@ import { getWorkspaceCookie } from '@baserow/modules/core/utils/workspace'
  * This middleware will make sure that all the workspaces and applications belonging to
  * the user are fetched and added to the store.
  */
-export default defineNuxtRouteMiddleware(async () => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
   const event = import.meta.server ? useRequestEvent() : null
@@ -12,8 +12,11 @@ export default defineNuxtRouteMiddleware(async () => {
   // If nuxt generate, pass this middleware
   if (import.meta.server && !event) return
 
-  // Get the selected workspace id
-  let workspaceId = getWorkspaceCookie(nuxtApp)
+  // Prioritize workspaceId from route params if navigating to a workspace page.
+  // This ensures SSR and client select the same workspace, avoiding hydration mismatch.
+  let workspaceId = to.params.workspaceId
+    ? parseInt(to.params.workspaceId, 10)
+    : getWorkspaceCookie(nuxtApp)
 
   // If the workspaces haven't already been selected we will
   if (store.getters['auth/isAuthenticated']) {
