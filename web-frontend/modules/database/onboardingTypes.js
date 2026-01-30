@@ -100,7 +100,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getCompletedRoute(data, responses) {
-    const type = data[this.getType()]?.type
+    const type = data[DatabaseOnboardingType.getType()]?.type
     if (type) {
       const stepType = this.app.$registry.get('databaseOnboardingStep', type)
       return stepType.getCompletedRoute(data, responses)
