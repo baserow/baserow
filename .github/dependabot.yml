@@ -1,38 +1,46 @@
 version: 2
 updates:
-  # frontend
+  # =============================================================================
+  # npm ecosystems
+  # =============================================================================
+  # Note: We only monitor directories with actual dependencies declared.
+  # /enterprise/web-frontend and /premium/web-frontend are excluded because
+  # they currently have no dependencies in their package.json files.
+  # /integrations/zapier and /plugin-boilerplate are excluded intentionally.
+
   - package-ecosystem: "npm"
     directory: "/web-frontend"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "npm"
-    directory: "/enterprise/web-frontend"
+    directory: "/backend/email_compiler"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "npm"
-    directory: "/premium/web-frontend"
+    directory: "/e2e-tests"
     schedule:
       interval: "daily"
 
-  # backend
+  # =============================================================================
+  # uv (Python) ecosystem
+  # =============================================================================
+  # Note: We only monitor /backend because it manages the uv workspace centrally.
+  # The workspace is defined in backend/pyproject.toml with members including
+  # ../premium/backend and ../enterprise/backend, and backend/uv.lock contains
+  # all resolved dependencies. Separate entries for enterprise/premium backends
+  # would be redundant and cause duplicate update runs.
+
   - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "uv"
-    directory: "/enterprise/backend"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "uv"
-    directory: "/premium/backend"
-    schedule:
-      interval: "daily"
-
+  # =============================================================================
   # GitHub Actions
+  # =============================================================================
+
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
     schedule:
