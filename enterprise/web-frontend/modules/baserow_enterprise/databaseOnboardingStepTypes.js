@@ -56,15 +56,14 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
       await nextTick()
       await waitFor(() => !this.app.$store.getters['assistant/isLoadingChats'])
       await nextTick()
-      const message = `Create a database including tables, fields, example rows, and example views matching this description: ${prompt}.`
-      console.log(message)
+      const message = this.app.$i18n.t('aiDatabaseOnboardingStepType.prompt', { prompt })
       await this.app.$store.dispatch('assistant/sendMessage', {
         message,
         workspace: workspace,
       })
     })
     // By default, this will redirect to the dashboard. We want to redirect there
-    // because the AI-assistant must first create the workspace.
+    // because the AI-assistant must first create the database.
     return super.getCompletedRoute(data, responses)
   }
 }

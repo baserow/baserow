@@ -67,13 +67,17 @@ export default {
   },
   computed: {
     selectedWorkspace() {
+      const name = this.$store.getters['auth/getName']
       const workspace = populateWorkspace({
         id: 0,
-        name: this.$store.getters['auth/getName'] + "'s workspace",
+        name: this.$t('databaseStep.workspaceName', { name }),
         users: [],
       })
       workspace._.is_onboarding = true
       return workspace
+    },
+    workspaces() {
+      return [this.selectedWorkspace]
     },
     trackTableName() {
       return this.data[DatabaseScratchTrackOnboardingType.getType()]?.tableName
@@ -150,12 +154,15 @@ export default {
   methods: {
     updateHighlightedElement(value) {
       this.$nextTick(() => {
+        const highlight = this.$refs.highlight
+        if (!highlight) {
+          return
+        }
+
         if (value) {
-          this.$refs.highlight.show(
-            `[data-highlight='${this.highlightDataName}']`
-          )
+          highlight.show(`[data-highlight='${this.highlightDataName}']`)
         } else {
-          this.$refs.highlight.hide()
+          highlight.hide()
         }
       })
     },

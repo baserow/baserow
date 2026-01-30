@@ -1247,6 +1247,7 @@ def test_share_onboarding_details_with_baserow(mock_task, client, data_fixture):
             "role": "CEO",
             "size": "11 - 50",
             "country": "The Netherlands",
+            "how": "Google",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1260,6 +1261,7 @@ def test_share_onboarding_details_with_baserow(mock_task, client, data_fixture):
         role="CEO",
         size="11 - 50",
         country="The Netherlands",
+        how="Google",
     )
 
 

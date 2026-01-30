@@ -728,5 +728,8 @@
     "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups.",
     "exampleBugTrackerName": "Bug Tracker",
     "exampleBugTrackerPrompt": "Create a bug tracker with Bugs, Severity, Status, Steps to reproduce, Environment, Reporter, Assignee, and fix version."
+  },
+  "aiDatabaseOnboardingStepType": {
+    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}"
   }
 }

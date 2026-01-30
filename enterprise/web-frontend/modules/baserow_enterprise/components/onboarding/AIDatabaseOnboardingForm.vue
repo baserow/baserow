@@ -10,9 +10,7 @@
         ref="promptInput"
         v-model="values.prompt"
         :placeholder="$t('aiDatabaseOnboardingForm.placeholder')"
-        size="large"
-        rows="4"
-        :error="v$.values.prompt.$error"
+        :rows="4"
         @input=";[v$.values.prompt.$touch(), updateValue()]"
       />
     </FormGroup>
