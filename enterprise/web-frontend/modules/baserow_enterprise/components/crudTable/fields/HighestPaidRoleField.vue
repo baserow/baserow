@@ -6,7 +6,7 @@
       href="https://baserow.io/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes"
       target="_blank"
     >
-      <Badge v-if="role && role.isBillable" color="cyan" class="margin-left-1"
+      <Badge v-if="roleIsBillable" color="cyan" class="margin-left-1"
         >{{ $t('highestPaidRoleField.billable') }}
       </Badge>
     </a>
@@ -32,6 +32,9 @@ export default {
     },
     roleName() {
       return this.role ? this.role.name : ''
+    },
+    roleIsBillable() {
+      return this.role ? this.role.isBillable : false
     },
     role() {
       return this.roles.find((r) => r.uid === this.roleUID)
