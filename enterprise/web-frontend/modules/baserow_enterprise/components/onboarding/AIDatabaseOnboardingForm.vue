@@ -1,23 +1,30 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
-      :error="v$.values.prompt.$error"
       :label="$t('aiDatabaseOnboardingForm.label')"
+      :helper-text="$t('aiDatabaseOnboardingForm.description')"
       small-label
       required
     >
       <FormTextarea
-        v-model="values.prompt"
         ref="promptInput"
+        v-model="values.prompt"
         :placeholder="$t('aiDatabaseOnboardingForm.placeholder')"
         size="large"
         rows="4"
         :error="v$.values.prompt.$error"
-        @blur="v$.values.prompt.$touch"
         @input=";[v$.values.prompt.$touch(), updateValue()]"
       />
-      <template #error>{{ v$.values.prompt.$errors[0].$message }}</template>
     </FormGroup>
+    <div class="flex flex-wrap margin-top-2 margin-bottom-2">
+      <Button
+        v-for="example in examples"
+        :key="example.id"
+        tag="a"
+        type="secondary"
+        @click="setPrompt(example.prompt)"
+      >{{ example.name }}</Button>
+    </div>
   </form>
 </template>
 
@@ -25,6 +32,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
+import { useI18n } from 'vue-i18n'
 
 export default {
   name: 'AIDatabaseOnboardingForm',
@@ -39,10 +47,38 @@ export default {
     })
   },
   data() {
+    const { t } = useI18n()
     return {
       values: {
         prompt: '',
       },
+      examples: [
+        {
+          id: 'project-tracker',
+          name: t('aiDatabaseOnboardingForm.exampleProjectTrackerName'),
+          prompt: t('aiDatabaseOnboardingForm.exampleProjectTrackerPrompt')
+        },
+        {
+          id: 'product-roadmap',
+          name: t('aiDatabaseOnboardingForm.exampleProductRoadmapName'),
+          prompt: t('aiDatabaseOnboardingForm.exampleProductRoadmapPrompt')
+        },
+        {
+          id: 'company-asset-tracker',
+          name: t('aiDatabaseOnboardingForm.exampleCompanyAssetTrackerName'),
+          prompt: t('aiDatabaseOnboardingForm.exampleCompanyAssetTrackerPrompt')
+        },
+        {
+          id: 'team-check-ins',
+          name: t('aiDatabaseOnboardingForm.exampleTeamCheckInsName'),
+          prompt: t('aiDatabaseOnboardingForm.exampleTeamCheckInsPrompt')
+        },
+        {
+          id: 'bug-tracker',
+          name: t('aiDatabaseOnboardingForm.exampleBugTrackerName'),
+          prompt: t('aiDatabaseOnboardingForm.exampleBugTrackerPrompt')
+        }
+      ]
     }
   },
   methods: {
@@ -50,7 +86,12 @@ export default {
       this.$nextTick(() => {
         this.$emit('input', this.values)
       })
-    }
+    },
+    setPrompt(prompt) {
+      this.values.prompt = prompt
+      this.v$.values.prompt.$touch()
+      this.updateValue()
+    },
   },
   validations() {
     return {
