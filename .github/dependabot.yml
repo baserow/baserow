@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # frontend
+  - package-ecosystem: "npm"
+    directory: "/web-frontend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/enterprise/web-frontend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/premium/web-frontend"
+    schedule:
+      interval: "daily"
+
+  # backend
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "uv"
+    directory: "/enterprise/backend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "uv"
+    directory: "/premium/backend"
+    schedule:
+      interval: "daily"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "daily"
