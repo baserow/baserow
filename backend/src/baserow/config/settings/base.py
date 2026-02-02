@@ -180,8 +180,8 @@ CELERY_TASK_ROUTES = {
     "baserow.contrib.database.table.tasks.run_row_count_job": {"queue": "export"},
     "baserow.core.jobs.tasks.clean_up_jobs": {"queue": "export"},
 }
-CELERY_SOFT_TIME_LIMIT = 60 * 5  # 5 minutes
-CELERY_TIME_LIMIT = CELERY_SOFT_TIME_LIMIT + 60  # 60 seconds
+CELERY_TASK_SOFT_TIME_LIMIT = 60 * 5  # 5 minutes
+CELERY_TASK_TIME_LIMIT = CELERY_TASK_SOFT_TIME_LIMIT + 60  # 60 seconds
 
 CELERY_REDBEAT_REDIS_URL = REDIS_URL
 # Explicitly set the same value as the default loop interval here so we can use it
