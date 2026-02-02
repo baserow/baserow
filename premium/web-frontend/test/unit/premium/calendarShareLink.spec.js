@@ -220,7 +220,7 @@ describe('Premium Share View Calendar ical feed Tests', () => {
         .findComponent({ name: 'ViewRotateSlugModal' })
         .exists()
     ).toBe(true)
-    console.log(4)
+
     // it should be the last one out of two
     expect(
       shareViewLinkContext.findAll('.view-sharing__shared-link-action')

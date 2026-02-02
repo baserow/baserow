@@ -7,7 +7,6 @@ import {
   encodeDefaultViewIdPerTable,
 } from '@baserow/modules/database/utils/view'
 import gallery from '~/modules/database/services/view/gallery'
-import flushPromises from 'flush-promises'
 import { NuxtPage } from '#components'
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
@@ -26,6 +25,8 @@ describe('View Tests', () => {
   afterEach(async () => await testApp.afterEach())
 
   const mountRoute = (route) => {
+    // Let's mount a NuxtPage component for the route.
+    // It allow the router to work properly
     const App = defineComponent({
       components: { NuxtPage },
       template: '<NuxtPage />',
@@ -42,17 +43,6 @@ describe('View Tests', () => {
 
     const gridView = views[0]
     const galleryView = views[1]
-
-    const App = defineComponent({
-      components: { NuxtPage },
-      template: '<NuxtPage />',
-    })
-
-    // The first view is the Grid view, the Default view is the Gallery view which
-    // is going to be rendered initially:
-    /*const tableComponent = await testApp.mount(App, {
-      route: `/database/${application.id}/table/${table.id}/${galleryView.id}?token=fake`,
-    })*/
 
     const tableComponent = await mountRoute(
       `/database/${application.id}/table/${table.id}/${galleryView.id}?token=fake`

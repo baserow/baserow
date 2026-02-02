@@ -3,7 +3,6 @@ import MockAdapter from 'axios-mock-adapter'
 import httpMocks from 'node-mocks-http'
 
 import createNuxt from '@baserow/test/helpers/create-nuxt'
-import { describe, it, expect } from 'vitest'
 
 let nuxt = null
 let mock = null

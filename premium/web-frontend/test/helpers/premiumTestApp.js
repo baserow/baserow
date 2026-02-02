@@ -4,17 +4,6 @@ import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
 import MockPremiumServer from '@baserow_premium_test/fixtures/mockPremiumServer'
 
 export class PremiumTestApp extends TestApp {
-  /*constructor(...args) {
-    super(...args)
-    /*setupPremium({ store: this.$store, app }, (name, dep) => {
-      app[`$${name}`] = dep
-    })*
-    /*setupLicensePlugin({ store: this.$store, app }, (name, dep) => {
-      app[`$${name}`] = dep
-    })*
-    //this._initialCleanStoreState = _.cloneDeep(this.store.state)
-  }*/
-
   setupMockServer() {
     return new MockPremiumServer(this.mock, this.store)
   }
