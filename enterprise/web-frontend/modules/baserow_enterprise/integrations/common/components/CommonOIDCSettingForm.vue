@@ -8,8 +8,13 @@
   >
     <OpenIdConnectSettingsForm
       v-bind="$attrs"
+      :auth-provider="authProvider"
+      :auth-provider-type="authProviderType"
+      :auth-providers="authProviders"
+      :default-values="defaultValues"
+      :disabled="disabled"
       ref="form"
-      @values-changed="checkValidity"
+      @values-changed="onValuesChanged"
     >
       <template #config>
         <FormGroup
@@ -54,7 +59,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CommonOIDCSettingsForm',
-  emits: ['delete'],
+  emits: ['delete', 'values-changed'],
   components: { OpenIdConnectSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
   props: {
@@ -80,8 +85,8 @@ export default {
 
       const userSourceUid = userSourceType.genUid(this.userSource)
 
-      const url = `${this.app.$config.public.publicBackendUrl}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
-      const previewUrl = `${this.app.$config.public.publicBackendUrl.substr(
+      const url = `${this.$config.public.publicBackendUrl}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
+      const previewUrl = `${this.$config.public.publicBackendUrl.substr(
         0,
         10
       )}.../user-source/${userSourceUid}/sso/...`
@@ -113,6 +118,10 @@ export default {
   },
   methods: {
     copyToClipboard,
+    onValuesChanged(values) {
+      this.checkValidity()
+      this.$emit('values-changed', values)
+    },
     checkValidity() {
       if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
         this.inError = true

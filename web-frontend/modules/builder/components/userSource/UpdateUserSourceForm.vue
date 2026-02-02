@@ -179,11 +179,11 @@ export default {
     getChildFormsValues() {
       return Object.assign(
         {},
-        ...this.getChildForms((child) => 'getChildFormsValues' in child).map(
-          (child) => {
-            return child.getFormValues()
-          }
-        )
+        ...this.getChildForms(
+          (child) => 'getChildFormsValues' in child && !child.excludedForm
+        ).map((child) => {
+          return child.getFormValues()
+        })
       )
     },
     hasAtLeastOneOfThisType(appAuthProviderType) {

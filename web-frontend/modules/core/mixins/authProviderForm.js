@@ -17,6 +17,11 @@ export default {
       type: Object,
       required: true,
     },
+    excludedForm: {
+      type: Boolean,
+      required: false, // Must be false to be compatible with other uses of this mixin
+      default: false,
+    },
   },
   data() {
     return { serverErrors: {} }

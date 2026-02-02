@@ -8,8 +8,13 @@
   >
     <SamlSettingsForm
       v-bind="$attrs"
+      :auth-provider="authProvider"
+      :auth-provider-type="authProviderType"
+      :auth-providers="authProviders"
+      :default-values="defaultValues"
+      :disabled="disabled"
       ref="form"
-      @values-changed="checkValidity"
+      @values-changed="onValuesChanged"
     >
       <template #config>
         <FormGroup
@@ -77,12 +82,16 @@ export default {
       type: Object,
       required: true,
     },
+    application: {
+      type: Object,
+      required: true,
+    },
     userSource: {
       type: Object,
       required: true,
     },
   },
-  emits: ['delete'],
+  emits: ['delete', 'values-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -91,7 +100,11 @@ export default {
   },
   computed: {
     relayStateUrls() {
-      return this.authProviderType.getRelayStateUrls(this.userSource)
+      const userSource = {
+        application_id: this.application.id,
+        ...this.userSource,
+      }
+      return this.authProviderType.getRelayStateUrls(userSource)
     },
     acsUrl() {
       return this.authProviderType.getAcsUrl(this.userSource)
@@ -104,8 +117,16 @@ export default {
   },
   methods: {
     copyToClipboard,
+    onValuesChanged(values) {
+      this.checkValidity()
+      this.$emit('values-changed', values)
+    },
     checkValidity() {
-      if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
+      if (
+        this.$refs.form &&
+        !this.$refs.form.isFormValid() &&
+        this.$refs.form.v$.$anyDirty
+      ) {
         this.inError = true
       } else {
         this.inError = false
