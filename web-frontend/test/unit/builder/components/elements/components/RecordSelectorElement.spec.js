@@ -229,8 +229,6 @@ describe('RecordSelectorElement', () => {
 
     expect(wrapper.element).toMatchSnapshot()
 
-    console.log(wrapper.html())
-
     expect(wrapper.find("span[title='First - Suffix']").exists()).toBeTruthy()
     expect(wrapper.find("span[title='Second - Suffix']").exists()).toBeTruthy()
 
