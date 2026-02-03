@@ -11,17 +11,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/web-frontend"
     schedule:
-      interval: "daily"
-
-  - package-ecosystem: "npm"
-    directory: "/backend/email_compiler"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "npm"
-    directory: "/e2e-tests"
-    schedule:
-      interval: "daily"
+      interval: "monthly"
 
   # =============================================================================
   # uv (Python) ecosystem
@@ -35,13 +25,4 @@ updates:
   - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
-      interval: "daily"
-
-  # =============================================================================
-  # GitHub Actions
-  # =============================================================================
-
-  - package-ecosystem: "github-actions"
-    directory: "/.github/workflows"
-    schedule:
-      interval: "daily"
+      interval: "monthly"
