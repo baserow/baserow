@@ -83,7 +83,7 @@ dependencies = [
     "celery-singleton==0.3.1",
     "posthog==7.4.2",
     "prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip",
-    "rich==14.2.0",
+    "rich==14.3.2",
     "tzdata==2025.3",
     "sentry-sdk==2.48.0",
     "typing_extensions>=4.14.1",
