@@ -210,7 +210,9 @@
         "supportSetupStep3": "На лівій бічній панелі перейдіть до \"OAuth & Permissions\", прокрутіть вниз до Scopes і в розділі \"Bot Token Scopes\" виберіть \"Add an OAuth Scope\".",
         "supportPairingHeading": "2. Підключення до вашого застосунку Slack",
         "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" > \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
-        "supportPairingStep2": "Скопіюйте ваш \"Bot User OAuth Token\" і збережіть його в полі \"Токен користувача бота\" у цій формі."
+        "supportPairingStep2": "Скопіюйте ваш \"Bot User OAuth Token\" і збережіть його в полі \"Токен користувача бота\" у цій формі.",
+        "supportSetupStep1": "Перейдіть до вашого робочого простору <a href=\"https://api.slack.com/apps\" target=\"_blank\">.",
+        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  <pre>chat:write</pre> область."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Ця дія повинна бути пов'язана із застосунком Slack. Дотримуйтесь інструкцій у спливаючому вікні інтеграцій, щоб почати.",
