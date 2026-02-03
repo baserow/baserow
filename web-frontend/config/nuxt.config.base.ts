@@ -56,8 +56,7 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
-  // TODO MIG don't load eslint on production even if it's needed for linting
-  modules: [...baserow.modules, '@nuxtjs/i18n', '@nuxt/eslint'],
+  modules: [...baserow.modules, '@nuxtjs/i18n'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',

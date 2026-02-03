@@ -93,8 +93,6 @@ ARG GID
 
 # Web-frontend
 COPY --chown=$UID:$GID --from=web_frontend_image /baserow/web-frontend /baserow/web-frontend
-COPY --chown=$UID:$GID --from=web_frontend_image /baserow/premium/web-frontend /baserow/premium/web-frontend
-COPY --chown=$UID:$GID --from=web_frontend_image /baserow/enterprise/web-frontend /baserow/enterprise/web-frontend
 
 # Backend
 COPY --chown=$UID:$GID --from=backend_image /baserow/backend /baserow/backend
@@ -144,8 +142,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # Web-frontend
 COPY --chown=$UID:$GID --from=web_frontend_image /baserow/web-frontend /baserow/web-frontend
-COPY --chown=$UID:$GID --from=web_frontend_image /baserow/premium/web-frontend /baserow/premium/web-frontend
-COPY --chown=$UID:$GID --from=web_frontend_image /baserow/enterprise/web-frontend /baserow/enterprise/web-frontend
 
 # Backend
 COPY --chown=$UID:$GID --from=backend_image /baserow/backend /baserow/backend

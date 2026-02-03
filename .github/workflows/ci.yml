@@ -693,7 +693,7 @@ jobs:
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e FEATURE_FLAGS="*" \
             -p 3000:3000 \
-            ${{ needs.build-frontend.outputs.image }} nuxt-local &
+            ${{ needs.build-frontend.outputs.image }} nuxt &
 
           # Wait for all docker run commands to complete
           wait

@@ -19,7 +19,7 @@ export default defineNuxtConfig(
   defu(
     {
       // Test-specific configuration
-      modules: ['@nuxt/test-utils/module'],
+      modules: ['@nuxt/test-utils/module', '@nuxt/eslint'],
     },
     baseConfig
   )

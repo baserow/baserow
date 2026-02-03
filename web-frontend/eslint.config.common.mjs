@@ -1,6 +1,4 @@
 // Please keep in sync with the premium/enterprise eslintrc.js
-import withNuxt from './.nuxt/eslint.config.mjs'
-
 import globals from 'globals'
 import vitest from 'eslint-plugin-vitest'
 import eslintConfigPrettier from 'eslint-config-prettier'

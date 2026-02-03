@@ -13,7 +13,6 @@ COMMANDS:
 nuxt-dev                : Start a normal nuxt development server
 nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
 nuxt                    : Start a non-dev prod ready nuxt server
-nuxt-local              : Start a non-dev prod ready nuxt server using the preset local config
 nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
 storybook-dev           : Start a storybook dev server
 bash                    : Start a bash shell
@@ -90,12 +89,7 @@ case "$1" in
     nuxt)
       startup_plugin_setup
       setup_additional_modules
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
-    ;;
-    nuxt-local)
-      startup_plugin_setup
-      setup_additional_modules
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.ts "${@:2}"
+      exec yarn prod --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
     ;;
     nuxt-prepare)
       setup_additional_modules

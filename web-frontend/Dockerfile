@@ -87,8 +87,7 @@ WORKDIR /baserow/web-frontend
 
 # Build, then clean reinstall production only
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
-    yarn run build-local \
-    && ls .output \
+    yarn run build \
     && find .output -type f -name "*.map" -delete
 
 
@@ -140,7 +139,7 @@ WORKDIR /baserow/web-frontend
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
 HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
-CMD ["nuxt-local"]
+CMD ["nuxt", "--config-file", "./config/nuxt.config.test.ts"]
 
 
 # =============================================================================
@@ -254,10 +253,11 @@ USER $UID:$GID
 RUN mkdir -p /baserow/web-frontend
 WORKDIR /baserow/web-frontend
 
+COPY --chown=$UID:$GID web-frontend/package.json /baserow/web-frontend/package.json
+COPY --chown=$UID:$GID web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
+
 # Install dependencies first (cached unless package.json/yarn.lock change)
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
-    --mount=type=bind,source=web-frontend/package.json,target=/baserow/web-frontend/package.json \
-    --mount=type=bind,source=web-frontend/yarn.lock,target=/baserow/web-frontend/yarn.lock \
     yarn install --production --pure-lockfile --cache-folder $YARN_CACHE_FOLDER \
     # Clean up unnecessary files to reduce image size
     && find node_modules -type f -name "*.map" -delete \
@@ -275,26 +275,20 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
     -o -name ".github" \
     \) -prune -exec rm -rf {} +
 
-COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
-COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
-COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=$UID:$GID ./web-frontend/env-remap.mjs /baserow/web-frontend/env-remap.mjs
+COPY --chown=$UID:$GID  ./web-frontend/docker/docker-entrypoint.sh /baserow/web-frontend/docker/docker-entrypoint.sh
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
-
-# Create symlinks because premium and enterprise are node packages
-RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
-    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 
 HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
 
 FROM local-base AS local
 
-COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 
-CMD ["nuxt-local"]
+CMD ["nuxt"]
 
 
 FROM local AS prod
 
-CMD ["nuxt-local"]
+CMD ["nuxt"]
