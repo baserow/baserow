@@ -6,7 +6,7 @@
   "main": "baserowEmailCompiler.js",
   "dependencies": {
     "chalk": "^5.0.0",
-    "chokidar": "^3.5.3",
+    "chokidar": "^5.0.0",
     "eta": "^2.0.0",
     "glob": "^9.0.0",
     "mjml": "^4.15.0"
