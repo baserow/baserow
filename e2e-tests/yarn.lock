@@ -83,7 +83,7 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@nuxt/kit@^3.20.1", "@nuxt/kit@^3.20.2":
+"@nuxt/kit@^3.20.2":
   version "3.20.2"
   resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-3.20.2.tgz#6af1b227f15ee9518337b1306829872d17a6e341"
   integrity sha512-laqfmMcWWNV1FsVmm1+RQUoGY8NIJvCRl0z0K8ikqPukoEry0LXMqlQ+xaf8xJRvoH2/78OhZmsEEsUBTXipcw==
@@ -110,7 +110,7 @@
     unctx "^2.4.1"
     untyped "^2.0.0"
 
-"@nuxt/test-utils@>=3.13.1":
+"@nuxt/test-utils@>=3.13.1", "@nuxt/test-utils@^3.23.0":
   version "3.23.0"
   resolved "https://registry.yarnpkg.com/@nuxt/test-utils/-/test-utils-3.23.0.tgz#611bef9961467b4f4b5ef0a2d41cb1bf6aafb9bf"
   integrity sha512-NZKWSwvfIiTO2qhMoJHVbUQLgJMe96J9ccLhPPqN5+a/XzISZ027LG9wWVp1tC5oB0qQ3eUDhrxmq6Lj8EQLMQ==
@@ -143,37 +143,6 @@
     unplugin "^2.3.11"
     vitest-environment-nuxt "^1.0.1"
     vue "^3.5.26"
-
-"@nuxt/test-utils@^3.21.0":
-  version "3.21.0"
-  resolved "https://registry.yarnpkg.com/@nuxt/test-utils/-/test-utils-3.21.0.tgz#8685bdba914fd0f834793ba7537afaf79f2b5fd4"
-  integrity sha512-A6XExfgHq88+XuXAU4MMr5QBHS2mWA5qRVSvsMPP2U+YSsnk+Vt7P7dxbvJPE4+n6LHbC1IM0QjTVteo+VCxOA==
-  dependencies:
-    "@nuxt/kit" "^3.20.1"
-    c12 "^3.3.2"
-    consola "^3.4.2"
-    defu "^6.1.4"
-    destr "^2.0.5"
-    estree-walker "^3.0.3"
-    exsolve "^1.0.8"
-    fake-indexeddb "^6.2.5"
-    get-port-please "^3.2.0"
-    h3 "^1.15.4"
-    local-pkg "^1.1.2"
-    magic-string "^0.30.21"
-    node-fetch-native "^1.6.7"
-    node-mock-http "^1.0.3"
-    ofetch "^1.5.1"
-    pathe "^2.0.3"
-    perfect-debounce "^2.0.0"
-    radix3 "^1.1.2"
-    scule "^1.3.0"
-    std-env "^3.10.0"
-    tinyexec "^1.0.2"
-    ufo "^1.6.1"
-    unplugin "^2.3.11"
-    vitest-environment-nuxt "^1.0.1"
-    vue "^3.5.25"
 
 "@playwright/test@^1.48.0":
   version "1.48.0"
@@ -556,7 +525,7 @@ node-fetch-native@^1.6.6, node-fetch-native@^1.6.7:
   resolved "https://registry.yarnpkg.com/node-fetch-native/-/node-fetch-native-1.6.7.tgz#9d09ca63066cc48423211ed4caf5d70075d76a71"
   integrity sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==
 
-node-mock-http@^1.0.3, node-mock-http@^1.0.4:
+node-mock-http@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/node-mock-http/-/node-mock-http-1.0.4.tgz#21f2ab4ce2fe4fbe8a660d7c5195a1db85e042a4"
   integrity sha512-8DY+kFsDkNXy1sJglUfuODx1/opAGJGyrTuFqEoN90oRc2Vk0ZbD4K2qmKXBBEhZQzdKHIVfEJpDU8Ak2NJEvQ==
@@ -769,7 +738,7 @@ vitest-environment-nuxt@^1.0.1:
   dependencies:
     "@nuxt/test-utils" ">=3.13.1"
 
-vue@^3.5.25, vue@^3.5.26:
+vue@^3.5.26:
   version "3.5.27"
   resolved "https://registry.yarnpkg.com/vue/-/vue-3.5.27.tgz#e55fd941b614459ab2228489bc19d1692e05876c"
   integrity sha512-aJ/UtoEyFySPBGarREmN4z6qNKpbEguYHMmXSiOGk69czc+zhs0NF6tEFrY8TZKAl8N/LYAkd4JHVd5E/AsSmw==
