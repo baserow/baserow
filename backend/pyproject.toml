@@ -146,7 +146,7 @@ dev = [
     "graphviz==0.21",
     "pytest-cov==7.0.0",
     "django-stubs==5.2.8",
-    "django-stubs-ext==5.2.8",
+    "django-stubs-ext==5.2.9",
     "mypy==1.19.1",
     "mypy-extensions==1.1.0",
     "ipython",
