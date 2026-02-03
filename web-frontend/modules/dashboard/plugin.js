@@ -80,7 +80,10 @@ export default defineNuxtPlugin({
     } */
 
     if (!$store.hasModule('dashboardApplication')) {
-      $store.registerModuleSSR('dashboardApplication', dashboardApplicationStore)
+      $store.registerModuleSSR(
+        'dashboardApplication',
+        dashboardApplicationStore
+      )
       $store.registerModuleSSR(
         'template/dashboardApplication',
         dashboardApplicationStore

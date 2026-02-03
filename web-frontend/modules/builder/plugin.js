@@ -188,7 +188,10 @@ export default defineNuxtPlugin({
     $store.registerModuleSSR('dataSourceContent', dataSourceContentStore)
     $store.registerModuleSSR('elementContent', elementContentStore)
     $store.registerModuleSSR('theme', themeStore)
-    $store.registerModuleSSR('builderWorkflowAction', builderWorkflowActionStore)
+    $store.registerModuleSSR(
+      'builderWorkflowAction',
+      builderWorkflowActionStore
+    )
     $store.registerModuleSSR('formData', formDataStore)
     $store.registerModuleSSR('builderToast', builderToast)
 
