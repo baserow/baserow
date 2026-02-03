@@ -245,7 +245,7 @@ if [[ -d "/baserow/web-frontend" && -d "$PLUGIN_WEBFRONTEND_FOLDER" ]]; then
       run_as_docker_user yarn add "$PLUGIN_WEBFRONTEND_FOLDER" && yarn cache clean
 
       # We only load web-frontend modules into nuxt which have a built marker. Touch
-      # it now so the build-local picks up the newly installed module and builds it.
+      # it now so the build picks up the newly installed module and builds it.
       touch "$WEBFRONTEND_BUILT_MARKER"
       function finish {
         rm -f "$WEBFRONTEND_BUILT_MARKER"
@@ -253,7 +253,7 @@ if [[ -d "/baserow/web-frontend" && -d "$PLUGIN_WEBFRONTEND_FOLDER" ]]; then
       trap finish EXIT
 
       if [[ "$dev" != true ]]; then
-        run_as_docker_user /baserow/web-frontend/docker/docker-entrypoint.sh build-local
+        run_as_docker_user /baserow/web-frontend/docker/docker-entrypoint.sh build
       else
         log "Installing plugins dev dependencies..."
         # In dev mode yarn install the plugins own dependencies so they are available

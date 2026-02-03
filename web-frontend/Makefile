@@ -73,7 +73,7 @@ jest:
 test: jest
 
 ci-test-javascript:
-	$(YARNBIN) test-coverage || exit;
+	$(YARNBIN) test:coverage || exit;
 
 update-snapshots:
 	$(YARNBIN) run jest --updateSnapshot || exit;

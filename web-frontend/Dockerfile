@@ -132,7 +132,8 @@ COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /basero
 # Create symlinks and cache directories (after COPY so they don't get overwritten)
 RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
     && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules \
-    && mkdir -p /baserow/web-frontend/.cache /baserow/web-frontend/reports/coverage
+    && mkdir -p /baserow/web-frontend/.cache /baserow/web-frontend/reports/coverage \
+    && chown -R $UID:$GID /baserow/web-frontend/.cache /baserow/web-frontend/reports
 
 COPY --chown=$UID:$GID tests /baserow/tests
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
@@ -142,7 +143,8 @@ WORKDIR /baserow/web-frontend
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
 HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
-CMD ["nuxt"]
+
+CMD ["nuxt-prod"]
 
 
 # =============================================================================
@@ -290,9 +292,9 @@ FROM local-base AS local
 
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 
-CMD ["nuxt"]
+CMD ["nuxt-prod"]
 
 
 FROM local AS prod
 
-CMD ["nuxt"]
+CMD ["nuxt-prod"]

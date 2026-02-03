@@ -10,17 +10,17 @@ show_help() {
 The available Baserow web-frontend related commands and services are shown below:
 
 COMMANDS:
+nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
 nuxt-dev                : Start a normal nuxt development server
 nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
-nuxt                    : Start a non-dev prod ready nuxt server
-nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
 storybook-dev           : Start a storybook dev server
+nuxt-prod               : Start a production nuxt server
 bash                    : Start a bash shell
-build-local             : Triggers a nuxt re-build of Baserow's web-frontend.
+build                   : Triggers a nuxt re-build of Baserow's web-frontend.
 
 DEV COMMANDS:
 lint            : Run all linters (eslint, stylelint, prettier)
-fix             : Run all linter fixes
+lint-fix        : Run all linter fixes
 eslint          : Run eslint
 stylelint       : Run stylelint
 test            : Run vitest tests
@@ -86,7 +86,7 @@ case "$1" in
       setup_additional_modules
       exec yarn dev
     ;;
-    nuxt)
+    nuxt-prod)
       startup_plugin_setup
       setup_additional_modules
       export NITRO_HOST="${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}"
@@ -107,7 +107,7 @@ case "$1" in
     lint)
       exec yarn lint
     ;;
-    fix)
+    lint-fix)
       attachable_exec yarn fix
     ;;
     eslint)
@@ -125,9 +125,9 @@ case "$1" in
     bash)
       exec /bin/bash -c "${@:2}"
     ;;
-    build-local)
+    build)
       setup_additional_modules
-      exec yarn build-local
+      exec yarn build
     ;;
     install-plugin)
       exec /baserow/plugins/install_plugin.sh "${@:2}"

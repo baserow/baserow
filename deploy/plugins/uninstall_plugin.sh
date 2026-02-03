@@ -69,11 +69,11 @@ if [[ -d "/baserow/web-frontend" && -d "$PLUGIN_WEBFRONTEND_FOLDER" ]]; then
     check_and_run_script "$PLUGIN_WEBFRONTEND_FOLDER" uninstall.sh
     run_as_docker_user yarn remove "$package_name"
 
-    # We must delete the web-frontend plugin entirely so the build-local doesn't
+    # We must delete the web-frontend plugin entirely so the build doesn't
     # pick it up and build it.
     rm -rf "$PLUGIN_WEBFRONTEND_FOLDER"
     # We need to rebuild to ensure nuxt no longer has the plugin.
-    run_as_docker_user /baserow/web-frontend/docker/docker-entrypoint.sh build-local
+    run_as_docker_user /baserow/web-frontend/docker/docker-entrypoint.sh build
     rm -f /baserow/container_markers/"$plugin_name".web-frontend-built
     rm -f /baserow/container_markers/"$plugin_name".web-frontend-runtime-setup
     found_sub_module="true"
