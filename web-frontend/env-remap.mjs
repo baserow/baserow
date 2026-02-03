@@ -80,9 +80,10 @@ if (!process.env.NUXT_PUBLIC_BASEROW_EMBEDDED_SHARE_URL) {
   if (process.env.BASEROW_EMBEDDED_SHARE_URL) {
     process.env.NUXT_PUBLIC_BASEROW_EMBEDDED_SHARE_URL =
       process.env.BASEROW_EMBEDDED_SHARE_URL
-  } else if (process.env.PUBLIC_WEB_FRONTEND_URL) {
+  } else if (process.env.NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL) {
+    // Use the already-remapped variable (PUBLIC_WEB_FRONTEND_URL -> NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL)
     process.env.NUXT_PUBLIC_BASEROW_EMBEDDED_SHARE_URL =
-      process.env.PUBLIC_WEB_FRONTEND_URL
+      process.env.NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL
   }
 }
 
@@ -91,10 +92,20 @@ if (
   process.env.BASEROW_EXTRA_PUBLIC_URLS &&
   !process.env.NUXT_PUBLIC_EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES
 ) {
-  const { parseHostnamesFromUrls } = await import('./modules/core/utils/url.js')
-  const hostnames = parseHostnamesFromUrls(
-    process.env.BASEROW_EXTRA_PUBLIC_URLS
-  )
+  // Inline parseHostnamesFromUrls to avoid importing from source files
+  // (source files are not copied to production Docker images)
+  const hostnames = process.env.BASEROW_EXTRA_PUBLIC_URLS.split(',')
+    .map((url) => url.trim())
+    .filter((url) => url !== '')
+    .map((url) => {
+      try {
+        return new URL(url).hostname
+      } catch (e) {
+        console.warn(`Invalid URL in BASEROW_EXTRA_PUBLIC_URLS: ${url}`)
+        return null
+      }
+    })
+    .filter((hostname) => hostname !== null)
   process.env.NUXT_PUBLIC_EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES =
     JSON.stringify(hostnames)
 }

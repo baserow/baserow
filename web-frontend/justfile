@@ -88,16 +88,6 @@ lint:
 fix:
     yarn run fix
 
-# Check formatting with Prettier
-[group('4 - code-quality')]
-prettier-check:
-    yarn run prettier:check
-
-# Format all files with Prettier
-[group('4 - code-quality')]
-format:
-    yarn run format
-
 # =============================================================================
 # Testing
 # =============================================================================

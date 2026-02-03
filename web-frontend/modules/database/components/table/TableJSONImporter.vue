@@ -101,7 +101,6 @@ export default {
   components: { CharsetDropdown },
   mixins: [form, importer],
   emits: ['changed', 'data', 'getData'],
-  emits: ['changed', 'data', 'getData'],
   setup() {
     const config = useRuntimeConfig()
     return { v$: useVuelidate({ $lazy: true }), config }

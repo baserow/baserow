@@ -96,7 +96,7 @@ export default defineNuxtModule({
     })
 
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
-    // See server.mjs for the env var remapping that enables backwards compatibility
+    // See env-remap.mjs for the env var remapping that enables backwards compatibility
     nuxt.options.runtimeConfig.privateBackendUrl = 'http://backend:8000'
 
     nuxt.options.runtimeConfig.public = defu(

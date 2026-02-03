@@ -106,7 +106,8 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DOCKER_USER=baserow_docker_user \
-    BASEROW_IMAGE_TYPE="web-frontend"
+    VITEST=1 \
+    BASEROW_IMAGE_TYPE="web-frontend" 
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
@@ -115,10 +116,11 @@ COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
 
-RUN mkdir -p /baserow/web-frontend/.cache /baserow/reports /baserow/.cache /baserow/.yarn /baserow/web-frontend/reports/coverage && \
+RUN mkdir -p /baserow/reports /baserow/.cache /baserow/.yarn && \
     chown -R $UID:$GID /baserow
 
 # Copy dependencies and source code
+COPY --chown=$UID:$GID ./eslint.config.mjs /baserow/eslint.config.mjs
 COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
 COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
@@ -127,9 +129,10 @@ COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /bas
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 
-# Create symlinks because premium and enterprise are node packages
+# Create symlinks and cache directories (after COPY so they don't get overwritten)
 RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules \
-    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
+    && ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules \
+    && mkdir -p /baserow/web-frontend/.cache /baserow/web-frontend/reports/coverage
 
 COPY --chown=$UID:$GID tests /baserow/tests
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
@@ -139,7 +142,7 @@ WORKDIR /baserow/web-frontend
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
 HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
-CMD ["nuxt", "--config-file", "./config/nuxt.config.test.ts"]
+CMD ["nuxt"]
 
 
 # =============================================================================
@@ -203,6 +206,7 @@ RUN echo "set -g default-command \"\${SHELL}\"" > /baserow/.tmux.conf && \
     'echo "  j        - See available commands"' \
     > /baserow/.bashrc
 
+COPY ./eslint.config.mjs /baserow/eslint.config.mjs
 COPY --chown=$UID:$GID web-frontend/docker/docker-entrypoint.sh /baserow/web-frontend/docker/docker-entrypoint.sh
 
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \

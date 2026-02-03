@@ -19,12 +19,12 @@ bash                    : Start a bash shell
 build-local             : Triggers a nuxt re-build of Baserow's web-frontend.
 
 DEV COMMANDS:
-lint            : Run all the linting
-lint-fix        : Run eslint fix
-stylelint       : Run stylelint
+lint            : Run all linters (eslint, stylelint, prettier)
+fix             : Run all linter fixes
 eslint          : Run eslint
-test            : Run jest tests
-ci-test         : Run ci tests with reporting
+stylelint       : Run stylelint
+test            : Run vitest tests
+ci-test         : Run tests with coverage reporting
 install-plugin  : Installs a plugin (append --help for more info).
 uninstall-plugin: Un-installs a plugin (append --help for more info).
 list-plugins    : Lists currently installed plugins.
@@ -89,7 +89,9 @@ case "$1" in
     nuxt)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn prod --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
+      export NITRO_HOST="${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}"
+      export NITRO_PORT="$BASEROW_WEBFRONTEND_PORT"
+      exec yarn prod "${@:2}"
     ;;
     nuxt-prepare)
       setup_additional_modules
@@ -105,8 +107,8 @@ case "$1" in
     lint)
       exec yarn lint
     ;;
-    lint-fix)
-      attachable_exec yarn eslint --fix
+    fix)
+      attachable_exec yarn fix
     ;;
     eslint)
       exec yarn eslint
@@ -118,7 +120,7 @@ case "$1" in
       exec yarn test
     ;;
     ci-test)
-      exec yarn test-coverage
+      exec yarn test:coverage
     ;;
     bash)
       exec /bin/bash -c "${@:2}"
