@@ -53,7 +53,7 @@
     "@tiptap/extension-dropcursor": "^3.13.0",
     "@tiptap/extension-floating-menu": "^3.13.0",
     "@tiptap/extension-gapcursor": "^3.13.0",
-    "@tiptap/extension-hard-break": "3.13.0",
+    "@tiptap/extension-hard-break": "3.15.3",
     "@tiptap/extension-heading": "^3.13.0",
     "@tiptap/extension-highlight": "^3.13.0",
     "@tiptap/extension-history": "^3.13.0",
