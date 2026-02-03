@@ -8,12 +8,12 @@
   >
     <OpenIdConnectSettingsForm
       v-bind="$attrs"
+      ref="form"
       :auth-provider="authProvider"
       :auth-provider-type="authProviderType"
       :auth-providers="authProviders"
       :default-values="defaultValues"
       :disabled="disabled"
-      ref="form"
       @values-changed="onValuesChanged"
     >
       <template #config>
