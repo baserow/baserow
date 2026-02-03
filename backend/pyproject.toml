@@ -43,7 +43,7 @@ dependencies = [
     "flower==2.0.1",
     "service-identity==24.2.0",
     "regex==2025.11.3",
-    "antlr4-python3-runtime==4.9.3",
+    "antlr4-python3-runtime==4.13.2",
     "tqdm==4.67.1",
     "boto3==1.42.21",
     "django-storages==1.14.6",
