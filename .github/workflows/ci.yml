@@ -234,8 +234,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Restore lint cache
+        uses: actions/cache@v4
+        with:
+          path: .lint-cache
+          key: frontend-lint-${{ runner.os }}-${{ github.head_ref || github.ref_name }}
+          restore-keys: |
+            frontend-lint-${{ runner.os }}-
+
       - name: Run frontend lint
-        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+        run: |
+          mkdir -p .lint-cache
+          docker run --rm \
+            -v ${{ github.workspace }}/.lint-cache:/baserow/web-frontend/.cache \
+            ${{ needs.build-frontend.outputs.image }} lint
 
   dockerfile-lint:
     name: Dockerfile Lint (hadolint)

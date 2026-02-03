@@ -76,6 +76,7 @@ import gridFieldAI from '@baserow_premium/mixins/gridFieldAI'
 export default {
   name: 'GridViewFieldAI',
   mixins: [gridField, gridFieldAI],
+  emits: ['update', 'selectBelow', 'add-row-after'],
   data() {
     return {
       editing: false,
