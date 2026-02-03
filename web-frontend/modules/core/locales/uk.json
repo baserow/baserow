@@ -614,7 +614,9 @@
         "done": "Готово",
         "close": "Закрити",
         "retry": "Спробувати ще раз",
-        "uploading": "Завантаження..."
+        "uploading": "Завантаження...",
+        "chooseFile": "Виберіть файл",
+        "selectApplications": "Select data to import"
     },
     "exportWorkspaceModal": {
         "title": "Експорт",
