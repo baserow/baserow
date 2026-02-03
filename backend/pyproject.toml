@@ -91,7 +91,7 @@ dependencies = [
     "langchain==0.3.27",
     "langchain-openai==0.3.35",
     "openai==2.14.0",
-    "anthropic==0.75.0",
+    "anthropic==0.77.0",
     "mistralai==1.1.0",
     "icalendar==6.3.2",
     "jira2markdown==0.5",
