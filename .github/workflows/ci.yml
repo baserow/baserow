@@ -90,7 +90,7 @@ jobs:
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
       - name: Build and push backend CI image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/Dockerfile
@@ -135,7 +135,7 @@ jobs:
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
       - name: Build and push web-frontend CI image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: web-frontend/Dockerfile
@@ -899,7 +899,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push final backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/Dockerfile
@@ -941,7 +941,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push final web-frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: web-frontend/Dockerfile
@@ -982,7 +982,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push all-in-one image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/all-in-one/Dockerfile
@@ -1022,7 +1022,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Cloudron image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/cloudron/Dockerfile
