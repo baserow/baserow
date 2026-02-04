@@ -476,13 +476,13 @@ jobs:
           EXTRA_VITEST_PARAMS: --shard=${{ matrix.shard }}/3 --reporter=junit --outputFile=./reports/junit.xml
         run: |
           mkdir -p reports
+          set -o pipefail
           docker run \
             --name=webfrontend_test \
             -e EXTRA_VITEST_PARAMS="$EXTRA_VITEST_PARAMS" \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
           docker cp webfrontend_test:/baserow/web-frontend/reports/junit.xml ./reports
           docker rm webfrontend_test
-          ls ./reports
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4

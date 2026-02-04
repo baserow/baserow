@@ -1,16 +1,10 @@
+import baseConfig from '../../web-frontend/vitest.config.base'
 import { defineVitestConfig } from '@nuxt/test-utils/config'
-import path from 'path'
 
 export default defineVitestConfig({
   test: {
-    globals: true,
-    environment: 'nuxt',
+    ...baseConfig.test,
     setupFiles: ['../web-frontend/vitest.setup.ts'],
-    environmentOptions: {
-      nuxt: {
-        domEnvironment: 'happy-dom',
-      },
-    },
     include: ['../enterprise/web-frontend/test/**/*.{test,spec}.{js,ts}'],
   },
 })
