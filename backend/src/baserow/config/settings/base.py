@@ -218,9 +218,7 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 if "DATABASE_URL" in os.environ:
-    DATABASES = {
-        "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
-    }
+    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
 else:
     DATABASES = {
         "default": {
@@ -246,7 +244,7 @@ for key, value in os.environ.items():
     if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
         suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
         db_key = f"read_{suffix}"
-        DATABASES[db_key] = dj_database_url.parse(value, conn_max_age=600)
+        DATABASES[db_key] = dj_database_url.parse(value)
         DATABASE_READ_REPLICAS.append(db_key)
     elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
         suffix = key[len("DATABASE_READ_") : -len("_NAME")]
