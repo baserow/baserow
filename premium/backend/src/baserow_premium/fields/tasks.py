@@ -88,6 +88,8 @@ def generate_scheduled_ai_field_generation(field_id: int):
     flag = _get_singleton_autoreschedule_flag(field_id)
     flag.clear()
 
+    # Synchronously run the job while keeping the singleton lock, to avoid
+    # multiple concurrent job runs for the same field.
     jh.create_and_start_job(
         user,
         GenerateAIValuesJobType.type,
