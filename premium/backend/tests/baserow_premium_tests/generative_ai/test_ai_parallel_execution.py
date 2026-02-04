@@ -56,7 +56,7 @@ def test_ai_parallel_execution(premium_data_fixture):
 
     assert len(rows) == 30
     assert gen.finished == len(rows)
-    assert not gen.has_errors
+    assert gen.error_msg is None
     assert on_progress_mock.called
 
 
@@ -117,5 +117,5 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
 
     assert len(rows) == 30
     assert gen.finished == 5
-    assert gen.has_errors
+    assert gen.error_msg is not None
     assert on_progress_mock.called
