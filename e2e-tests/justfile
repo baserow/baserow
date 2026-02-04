@@ -202,7 +202,7 @@ up: _ensure-images
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
             -e FEATURE_FLAGS="*" \
             -p 3000:3000 \
-            {{ frontend_image }} nuxt
+            {{ frontend_image }} nuxt-prod
     fi
 
     echo ""
