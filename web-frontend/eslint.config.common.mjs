@@ -3,7 +3,7 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 
 import globals from 'globals'
 import vitest from 'eslint-plugin-vitest'
-import prettier from 'eslint-config-prettier'
+import eslintConfigPrettier from 'eslint-config-prettier'
 
 export default [
   {
@@ -15,7 +15,7 @@ export default [
       '.nuxt-storybook/**',
     ],
   },
-  prettier,
+  eslintConfigPrettier, // deactivate eslint rules that conflict with prettier
   {
     languageOptions: {
       globals: {

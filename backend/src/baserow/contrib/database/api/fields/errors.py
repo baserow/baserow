@@ -214,3 +214,8 @@ ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE = (
     HTTP_400_BAD_REQUEST,
     "Cannot set this constraint when default value is set.",
 )
+ERROR_VIEW_NOT_SUPPORTED = (
+    "ERROR_VIEW_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "Cannot use the view type.",
+)

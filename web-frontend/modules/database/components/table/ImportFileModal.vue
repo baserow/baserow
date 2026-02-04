@@ -98,7 +98,7 @@
           <SimpleGrid
             class="import-modal__preview"
             :rows="previewImportData"
-            :fields="fields"
+            :fields="sortedFields"
           />
         </Tab>
         <Tab :title="$t('importFileModal.filePreview')">
@@ -245,6 +245,18 @@ export default {
     }
   },
   computed: {
+    sortedFields() {
+      // The sort needs to follow the same sort logic as
+      // RowHandler.import_rows(...) in the backend
+      return [...this.fields].sort((a, b) => {
+        const aPrimary = !!a.primary
+        const bPrimary = !!b.primary
+        if (aPrimary !== bPrimary) return aPrimary ? -1 : 1
+        const orderDiff = (a.order ?? 0) - (b.order ?? 0)
+        if (orderDiff !== 0) return orderDiff
+        return a.id - b.id
+      })
+    },
     isTableCreated() {
       if (!this.job?.table_id) {
         return false
@@ -281,7 +293,7 @@ export default {
      * All writable fields.
      */
     writableFields() {
-      return this.fields.filter((field) =>
+      return this.sortedFields.filter((field) =>
         this.fieldTypes[field.type].canWriteFieldValues(field)
       )
     },
@@ -353,7 +365,7 @@ export default {
     },
     availableUpsertFields() {
       const selected = Object.values(this.mapping)
-      return this.fields.filter((field) => {
+      return this.sortedFields.filter((field) => {
         return (
           selected.includes(field.id) && this.fieldTypes[field.type].canUpsert()
         )

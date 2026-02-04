@@ -156,65 +156,61 @@ const login = async () => {
 }
 
 // Async data fetching
-const { data: asyncData } = await useAsyncData(
-  'saml-login',
-  async () => {
-    // the SuperUser must create the account using username and password
-    if (store.getters['settings/get'].show_admin_signup_page === true) {
-      await navigateTo({ name: 'signup' })
-      return {}
-    }
+const { data: asyncData } = await useAsyncData('saml-login', async () => {
+  // the SuperUser must create the account using username and password
+  if (store.getters['settings/get'].show_admin_signup_page === true) {
+    await navigateTo({ name: 'signup' })
+    return {}
+  }
 
-    // if this page is accessed directly, load the login options to
-    // populate the page with all the authentication providers
-    if (!store.getters['authProvider/getLoginOptionsLoaded']) {
-      await store.dispatch('authProvider/fetchLoginOptions')
-    }
+  // if this page is accessed directly, load the login options to
+  // populate the page with all the authentication providers
+  if (!store.getters['authProvider/getLoginOptionsLoaded']) {
+    await store.dispatch('authProvider/fetchLoginOptions')
+  }
 
-    const samlLoginOptions =
-      store.getters['authProvider/getLoginOptionsForType'](
-        new SamlAuthProviderType().getType()
-      )
+  const samlLoginOptions = store.getters['authProvider/getLoginOptionsForType'](
+    new SamlAuthProviderType().getType()
+  )
 
-    if (!samlLoginOptions) {
-      await navigateTo({ name: 'login', query: route.query }) // no SAML provider enabled
-      return {}
-    }
+  if (!samlLoginOptions) {
+    await navigateTo({ name: 'login', query: route.query }) // no SAML provider enabled
+    return {}
+  }
 
-    // Fetch workspace invitation if token exists
-    let invitation = null
-    const invitationToken = route.query.workspaceInvitationToken
-    if (invitationToken) {
-      try {
-        const { data } =
-          await WorkspaceService($client).fetchInvitationByToken(invitationToken)
-        invitation = data
-      } catch {}
-    }
+  // Fetch workspace invitation if token exists
+  let invitation = null
+  const invitationToken = route.query.workspaceInvitationToken
+  if (invitationToken) {
+    try {
+      const { data } =
+        await WorkspaceService($client).fetchInvitationByToken(invitationToken)
+      invitation = data
+    } catch {}
+  }
 
-    // in case the email is not necessary or provided via workspace invitation,
-    // redirect the user directly to the SAML provider
-    if (!samlLoginOptions.domainRequired || invitation?.email) {
-      try {
-        const { data } = await samlAuthProviderService($client).getSamlLoginUrl({
-          email: invitation?.email,
-          original: route.query.original,
-        })
-        return {
-          redirectImmediately: true,
-          redirectUrl: data.redirect_url,
-        }
-      } catch (error) {
-        return {
-          email: invitation?.email,
-          loginRequestError: true,
-        }
+  // in case the email is not necessary or provided via workspace invitation,
+  // redirect the user directly to the SAML provider
+  if (!samlLoginOptions.domainRequired || invitation?.email) {
+    try {
+      const { data } = await samlAuthProviderService($client).getSamlLoginUrl({
+        email: invitation?.email,
+        original: route.query.original,
+      })
+      return {
+        redirectImmediately: true,
+        redirectUrl: data.redirect_url,
+      }
+    } catch (error) {
+      return {
+        email: invitation?.email,
+        loginRequestError: true,
       }
     }
-
-    return { redirectUrl: samlLoginOptions.redirect_url }
   }
-)
+
+  return { redirectUrl: samlLoginOptions.redirect_url }
+})
 
 // Apply async data results
 if (asyncData.value?.redirectImmediately) {

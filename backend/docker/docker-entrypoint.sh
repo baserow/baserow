@@ -69,7 +69,7 @@ DATABASE_PASSWORD=os.getenv('DATABASE_PASSWORD')
 DATABASE_OPTIONS=os.getenv('DATABASE_OPTIONS')
 try:
     options = json.loads(DATABASE_OPTIONS or "{}")
-    psycopg.connect(
+    conn = psycopg.connect(
         dbname=DATABASE_NAME,
         user=DATABASE_USER,
         password=DATABASE_PASSWORD,
@@ -77,19 +77,21 @@ try:
         port=DATABASE_PORT,
         **options
     )
+    conn.close()
 except Exception as e:
     print(f"Error: Failed to connect to the postgresql database at {DATABASE_HOST}")
     print("Please see the error below for more details:")
     print(e)
     print("Trying again without any DATABASE_OPTIONS:")
     try:
-      psycopg.connect(
+      conn = psycopg.connect(
           dbname=DATABASE_NAME,
           user=DATABASE_USER,
           password=DATABASE_PASSWORD,
           host=DATABASE_HOST,
           port=DATABASE_PORT,
       )
+      conn.close()
     except Exception as e:
       print(f"Error: Failed to connect to the postgresql database at {DATABASE_HOST} without the {DATABASE_OPTIONS}")
       print("Please see the error below for more details:")
@@ -109,9 +111,10 @@ except ImportError:
 import os
 DATABASE_URL=os.getenv('DATABASE_URL')
 try:
-    psycopg.connect(
+    conn = psycopg.connect(
         DATABASE_URL
     )
+    conn.close()
 except psycopg.OperationalError as e:
     print(f"Error: Failed to connect to the postgresql database at {DATABASE_URL}")
     print("Please see the error below for more details:")

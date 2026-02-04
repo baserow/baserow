@@ -55,8 +55,7 @@ const mutations = {
     )
 
     if (index > -1) {
-      const moved = structuredClone(pageSource.dataSources[index])
-      moved.page_id = pageDest.id
+      const moved = { ...pageSource.dataSources[index], page_id: pageDest.id }
       pageSource.dataSources.splice(index, 1)
       pageDest.dataSources.push(moved)
     }

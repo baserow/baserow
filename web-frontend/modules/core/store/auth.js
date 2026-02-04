@@ -140,10 +140,7 @@ export const actions = {
    * Authenticate a user by his email and password.
    */
   async login({ getters, dispatch }, { email, password }) {
-    const { data } = await AuthService(this.$client).login(
-      email,
-      password
-    )
+    const { data } = await AuthService(this.$client).login(email, password)
     return dispatch('loginWithData', { data })
   },
   /**

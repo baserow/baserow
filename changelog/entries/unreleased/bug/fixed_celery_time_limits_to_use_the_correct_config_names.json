@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed Celery time limits to use the correct config names.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-02-02"
+}

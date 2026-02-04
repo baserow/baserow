@@ -92,7 +92,9 @@ export class RealTimeHandler {
         Object.prototype.hasOwnProperty.call(data, 'type') &&
         Object.prototype.hasOwnProperty.call(this.events, data.type)
       ) {
-        this.events[data.type](this.context, data)
+        for (const callback of this.events[data.type]) {
+          callback(this.context, data)
+        }
       }
     }
 
@@ -166,12 +168,14 @@ export class RealTimeHandler {
     this.pages = this.pages.filter(
       (item) => JSON.stringify(item) !== JSON.stringify({ page, parameters })
     )
-    this.socket?.send(
-      JSON.stringify({
-        remove_page: page,
-        ...parameters,
-      })
-    )
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          remove_page: page,
+          ...parameters,
+        })
+      )
+    }
   }
 
   /*
@@ -226,7 +230,10 @@ export class RealTimeHandler {
    * Registers a new event with the event registry.
    */
   registerEvent(type, callback) {
-    this.events[type] = callback
+    if (!this.events[type]) {
+      this.events[type] = []
+    }
+    this.events[type].push(callback)
   }
 
   /**

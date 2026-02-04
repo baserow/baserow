@@ -78,22 +78,25 @@ install:
 # Code Quality & Linting
 # =============================================================================
 
-# Run all linters (eslint + stylelint)
+# Run all linters (eslint + stylelint + prettier)
 [group('4 - code-quality')]
 lint:
-    yarn run eslint
-    yarn run stylelint
-    yarn run prettier --check 'modules/**/*.scss'
+    yarn run lint
 
 # Fix code style issues
 [group('4 - code-quality')]
 fix:
     yarn run fix
 
-# Format SCSS files with Prettier
+# Check formatting with Prettier
 [group('4 - code-quality')]
-format-scss:
-    yarn run prettier --write 'modules/**/*.scss'
+prettier-check:
+    yarn run prettier:check
+
+# Format all files with Prettier
+[group('4 - code-quality')]
+format:
+    yarn run format
 
 # =============================================================================
 # Testing

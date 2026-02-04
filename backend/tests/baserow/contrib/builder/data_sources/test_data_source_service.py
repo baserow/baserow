@@ -247,12 +247,13 @@ def test_get_data_sources(data_fixture, stub_check_permissions):
 def test_delete_data_source(data_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
+    data_source_id = data_source.id
 
     service = DataSourceService()
     service.delete_data_source(user, data_source)
 
     data_source_deleted_mock.send.assert_called_once_with(
-        service, data_source_id=data_source.id, page=data_source.page, user=user
+        service, data_source_id=data_source_id, page=data_source.page, user=user
     )
 
 

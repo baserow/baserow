@@ -59,6 +59,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_RESERVED_BASEROW_FIELD_NAME,
     ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
+    ERROR_VIEW_NOT_SUPPORTED,
 )
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import (
@@ -118,6 +119,7 @@ from baserow.contrib.database.table.exceptions import (
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.exceptions import ViewDoesNotSupportListingRows
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
@@ -295,6 +297,7 @@ class FieldsView(APIView):
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
             FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
+            ViewDoesNotSupportListingRows: ERROR_VIEW_NOT_SUPPORTED,
         }
     )
     def post(self, request, data, table_id):

@@ -793,7 +793,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             from_field_type.can_have_select_options
             and not to_field_type.can_have_select_options
         ):
-            SelectOption.objects.filter(field_id=field.id).delete()
+            SelectOption.objects.filter(field_id=field.id)._raw_delete(
+                using=DEFAULT_DB_ALIAS
+            )
 
         to_field_type.after_update(
             old_field,
