@@ -7,6 +7,7 @@ from http import HTTPStatus
 from io import BytesIO, IOBase
 from typing import Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
@@ -128,7 +129,12 @@ def download_airtable_file(
         raise FileDownloadFailed(
             f"File {name} could not be downloaded (HTTP {response.status_code}).",
         )
-
+    file_size_bytes = int(response.headers.get("Content-Length", len(response.content)))
+    max_size_bytes = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
+    if file_size_bytes > max_size_bytes:
+        raise FileDownloadFailed(
+            f"File {name} exceeds the size limit of {settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB} MB."
+        )
     return response
 
 

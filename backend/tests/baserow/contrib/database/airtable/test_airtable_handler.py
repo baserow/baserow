@@ -937,6 +937,121 @@ def test_import_from_airtable_to_workspace(
 
 @pytest.mark.django_db
 @responses.activate
+def test_import_from_airtable_to_workspace_file_size_over_limit(
+    data_fixture, tmpdir, settings
+):
+    settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = 100 * 1024  # 100kB
+    workspace = data_fixture.create_workspace()
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+    storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signed/file-sample.txt",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_application.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/application/appZkaH3aWX3ZjT3b/read",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(os.path.join(base_path, "airtable_table.json"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/table/tbl7glLIGtH8C8zGCzb/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwDgBCKTEdCQoHTQKH.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwDgBCKTEdCQoHTQKH/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    with open(
+        os.path.join(base_path, "airtable_view_viwBAGnUgZ6X5Eyg5Wf.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwBAGnUgZ6X5Eyg5Wf/readData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    progress = Progress(1000)
+
+    database = AirtableHandler.import_from_airtable_to_workspace(
+        workspace,
+        "appZkaH3aWX3ZjT3b",
+        storage=storage,
+        progress_builder=progress.create_child_builder(represents_progress=1000),
+    )
+
+    assert progress.progress == progress.total
+
+    # Oversized file is skipped
+    assert UserFile.objects.all().count() == 2
+
+    # Oversized file is in the report
+    report_table = database.table_set.last()
+    assert report_table.name == "Airtable import report"
+
+    model = report_table.get_model(attribute_names=True)
+    row = model.objects.last()
+    assert row.object_name == "File"
+    assert row.scope.value == "Cell"
+    assert row.table is not None
+    assert row.error_type.value == "Other"
+    assert (
+        row.message
+        == "Field: Attachment, Row: 3, File: e93dc201ce27080d9ad9df5775527d09_93e85b28_file-sample_500kB.doc"
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdir):
     workspace = data_fixture.create_workspace()
     base_path = os.path.join(
