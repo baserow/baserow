@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Optimized how workflow temporary states are updated to reduce lock contention.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-02-02"
+}

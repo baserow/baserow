@@ -870,3 +870,35 @@ def test_toggle_simulate_mode_on_immediate(
 
     mock_automation_workflow_updated.send.assert_called_once()
     mock_async_start_workflow.assert_called_once()
+
+
+@patch(f"{WORKFLOWS_MODULE}.handler.automation_workflow_updated")
+@pytest.mark.django_db
+def test_reset_workflow_temporary_states_doesnt_write_when_already_null(
+    mock_automation_workflow_updated, data_fixture
+):
+    """
+    When both of the workflow temporary states are already null, we shouldn't write
+    to the database to avoid unnecessary row locking.
+    """
+
+    workflow = data_fixture.create_automation_workflow(
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+
+    # This simulates a scenario where we have multiple workers running the
+    # same workflow. The first workflow run would have caused the temporary
+    # states to be reset.
+    #
+    # A subsequent workflow run (this one) would still have the stale states
+    # in memory, but it shouldn't cause a database write since the reset logic
+    # does a conditional update.
+    workflow.simulate_until_node_id = 123
+    workflow.allow_test_run_until = datetime.datetime.now()
+
+    AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+    assert workflow.simulate_until_node_id is None
+    assert workflow.allow_test_run_until is None
+
+    mock_automation_workflow_updated.send.assert_not_called()

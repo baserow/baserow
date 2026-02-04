@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import IntegrityError
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from loguru import logger
@@ -847,17 +847,26 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         This should be executed after an event for this workflow is received.
         """
 
-        fields_to_save = []
-        if workflow.allow_test_run_until:
-            workflow.allow_test_run_until = None
-            fields_to_save.append("allow_test_run_until")
+        # Conditionally update the temporary states only when needed to avoid
+        # unnecessary writes.
+        updated = (
+            AutomationWorkflow.objects.filter(id=workflow.id)
+            .filter(
+                Q(allow_test_run_until__isnull=False)
+                | Q(simulate_until_node__isnull=False)
+            )
+            .update(
+                allow_test_run_until=None,
+                simulate_until_node=None,
+            )
+        )
 
-        if workflow.simulate_until_node:
-            workflow.simulate_until_node = None
-            fields_to_save.append("simulate_until_node")
+        # Update any potential stale states in memory, e.g. a concurrent
+        # worker running the same workflow.
+        workflow.allow_test_run_until = None
+        workflow.simulate_until_node = None
 
-        if fields_to_save:
-            workflow.save(update_fields=fields_to_save)
+        if updated:
             automation_workflow_updated.send(self, user=None, workflow=workflow)
 
     def async_start_workflow(
