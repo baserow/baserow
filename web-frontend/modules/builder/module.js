@@ -5,7 +5,7 @@ import {
   extendPages,
   addTemplate,
   addRouteMiddleware,
-} from 'nuxt/kit'
+} from '@nuxt/kit'
 import { routes } from './routes'
 import { locales } from '../../config/locales.js'
 

@@ -1444,6 +1444,33 @@
     unctx "^2.4.1"
     untyped "^2.0.0"
 
+"@nuxt/kit@^3.20.1":
+  version "3.21.0"
+  resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-3.21.0.tgz#4267fab25e29101ef488bf18350cada4ebdddc76"
+  integrity sha512-KMTLK/dsGaQioZzkYUvgfN9le4grNW54aNcA1jqzgVZLcFVy4jJfrJr5WZio9NT2EMfajdoZ+V28aD7BRr4Zfw==
+  dependencies:
+    c12 "^3.3.3"
+    consola "^3.4.2"
+    defu "^6.1.4"
+    destr "^2.0.5"
+    errx "^0.1.0"
+    exsolve "^1.0.8"
+    ignore "^7.0.5"
+    jiti "^2.6.1"
+    klona "^2.0.6"
+    knitwork "^1.3.0"
+    mlly "^1.8.0"
+    ohash "^2.0.11"
+    pathe "^2.0.3"
+    pkg-types "^2.3.0"
+    rc9 "^2.1.2"
+    scule "^1.3.0"
+    semver "^7.7.3"
+    tinyglobby "^0.2.15"
+    ufo "^1.6.3"
+    unctx "^2.5.0"
+    untyped "^2.0.0"
+
 "@nuxt/kit@^4.1.2", "@nuxt/kit@^4.2.1", "@nuxt/kit@^4.2.2":
   version "4.2.2"
   resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-4.2.2.tgz#f3f900a59e8c8f71313e31366c9319806ac9c9e7"
@@ -10296,6 +10323,11 @@ ufo@^1.1.2, ufo@^1.5.3, ufo@^1.5.4, ufo@^1.6.1, ufo@^1.6.2:
   version "1.6.2"
   resolved "https://registry.yarnpkg.com/ufo/-/ufo-1.6.2.tgz#aaf4d46b98425b2fb5031abe8d65ca069e93e755"
   integrity sha512-heMioaxBcG9+Znsda5Q8sQbWnLJSl98AFDXTO80wELWEzX3hordXsTdxrIfMQoO9IY1MEnoGoPjpoKpMj+Yx0Q==
+
+ufo@^1.6.3:
+  version "1.6.3"
+  resolved "https://registry.yarnpkg.com/ufo/-/ufo-1.6.3.tgz#799666e4e88c122a9659805e30b9dc071c3aed4f"
+  integrity sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==
 
 ulid@^3.0.1:
   version "3.0.2"

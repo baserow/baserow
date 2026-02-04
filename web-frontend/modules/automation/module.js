@@ -3,7 +3,7 @@ import {
   addPlugin,
   createResolver,
   extendPages,
-} from 'nuxt/kit'
+} from '@nuxt/kit'
 import { routes } from './routes'
 import { locales } from '../../config/locales.js'
 

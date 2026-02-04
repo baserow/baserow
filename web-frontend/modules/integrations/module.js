@@ -1,4 +1,4 @@
-import { defineNuxtModule, addPlugin, createResolver } from 'nuxt/kit'
+import { defineNuxtModule, addPlugin, createResolver } from '@nuxt/kit'
 import { locales } from '../../config/locales.js'
 
 export default defineNuxtModule({
