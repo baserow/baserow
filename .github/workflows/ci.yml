@@ -208,7 +208,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "7.2.1"
+          version: "0.9.29"
 
       - name: Run ruff
         working-directory: backend
