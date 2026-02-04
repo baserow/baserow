@@ -213,8 +213,8 @@ jobs:
       - name: Run ruff
         working-directory: backend
         run: |
-          uvx ruff check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
-          uvx ruff format --check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
+          uv run ruff check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
+          uv run ruff format --check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
 
   frontend-lint:
     name: Web-Frontend Lint
