@@ -1,5 +1,8 @@
+import { defineNuxtConfig } from 'nuxt/config'
+import baseConfig from './nuxt.config.base.ts'
+
 export default defineNuxtConfig({
-  extends: ['./config/nuxt.config.base.ts'],
-  modules: ['@nuxt/eslint'],
+  ...baseConfig,
+  modules: [...(baseConfig.modules || []), '@nuxt/eslint'],
   devtools: { enabled: true },
 })

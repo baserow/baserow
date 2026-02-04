@@ -106,7 +106,7 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DOCKER_USER=baserow_docker_user \
-    VITEST=1 \
+    APP_ENV=test \
     BASEROW_IMAGE_TYPE="web-frontend" 
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \

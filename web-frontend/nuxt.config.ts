@@ -1,4 +1,4 @@
-const isTest = process.env.VITEST
+const isTest = process.env.VITEST || process.env.APP_ENV === 'test'
 const isDev = process.env.APP_ENV === 'dev'
 
 export default isTest
