@@ -16,10 +16,19 @@
         </ul>
         <ul class="tree">
           <li
-            v-for="(applicationGroup, index) in groupedApplicationsForSelectedWorkspace"
+            v-for="(
+              applicationGroup, index
+            ) in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
           >
-            <div class="tree__heading" :class="{'margin-bottom-2': applicationGroup.applications.length === 0 && index < groupedApplicationsForSelectedWorkspace.length - 1}">
+            <div
+              class="tree__heading"
+              :class="{
+                'margin-bottom-2':
+                  applicationGroup.applications.length === 0 &&
+                  index < groupedApplicationsForSelectedWorkspace.length - 1,
+              }"
+            >
               <div class="tree__heading-name">
                 {{ applicationGroup.name }}
               </div>
@@ -73,7 +82,10 @@
               >
               </component>
             </ul>
-            <div v-if="index < groupedApplicationsForSelectedWorkspace.length - 1" class="tree__separator"></div>
+            <div
+              v-if="index < groupedApplicationsForSelectedWorkspace.length - 1"
+              class="tree__separator"
+            ></div>
           </li>
         </ul>
       </div>
