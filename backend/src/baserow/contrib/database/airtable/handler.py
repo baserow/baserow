@@ -133,7 +133,7 @@ def download_airtable_file(
     max_size_bytes = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     if file_size_bytes > max_size_bytes:
         raise FileDownloadFailed(
-            f"File {name} exceeds the size limit of {settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB} MB."
+            f"File {name} exceeds the size limit of {settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB} bytes."
         )
     return response
 
