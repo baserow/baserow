@@ -9,6 +9,7 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 import MarkdownIt from 'markdown-it'
 
@@ -31,12 +32,18 @@ const Markdown = MarkdownIt?.default || MarkdownIt
 const md = new Markdown()
 const baseRules = { ...md.renderer.rules }
 
-// The hash makes sure the data are updated if the content changes.
+// The hash makes sure the data is updated if the content changes.
 const contentHash = computed(() => generateHash(props.content))
 
-const htmlContent = computed(() => {
-  // Always start from the base renderer rules then apply overrides.
+// Use ref + watcher to avoid side effects in computed
+const htmlContent = ref('')
+
+const renderMarkdown = () => {
   md.renderer.rules = { ...baseRules, ...props.rules }
-  return md.render(props.content)
-})
+  htmlContent.value = md.render(props.content)
+}
+
+// Render immediately and watch for changes
+renderMarkdown()
+watch(() => [props.content, props.rules], renderMarkdown, { deep: true })
 </script>
