@@ -123,7 +123,7 @@ RUN mkdir -p /baserow/reports /baserow/.cache /baserow/.yarn && \
 COPY --chown=$UID:$GID ./eslint.config.mjs /baserow/eslint.config.mjs
 COPY --chown=$UID:$GID web-frontend /baserow/web-frontend
 COPY --chown=$UID:$GID premium/web-frontend /baserow/premium/web-frontend
-COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=$UID:$GID enterprise/web-frontend /baserow/enterprise/web-frontend
 
 COPY --chown=$UID:$GID --from=builder-ci /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.nuxt /baserow/web-frontend/.nuxt
@@ -170,6 +170,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     wget \
     tmux \
     vim \
+    lsof \
+    procps \
     sudo
 
 ENV DOCKER_USER=baserow_docker_user \
@@ -236,7 +238,7 @@ CMD ["nuxt-dev"]
 # =============================================================================
 # Production target - minimal image with only runtime requirements
 # =============================================================================
-FROM node:24.13-bookworm-slim AS local-base
+FROM node:24.13-bookworm-slim AS local
 ARG UID
 ARG GID
 
@@ -257,44 +259,14 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
 
 USER $UID:$GID
 RUN mkdir -p /baserow/web-frontend
-WORKDIR /baserow/web-frontend
-
-COPY --chown=$UID:$GID web-frontend/package.json /baserow/web-frontend/package.json
-COPY --chown=$UID:$GID web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
-
-# Install dependencies first (cached unless package.json/yarn.lock change)
-RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
-    yarn install --production --pure-lockfile --cache-folder $YARN_CACHE_FOLDER \
-    # Clean up unnecessary files to reduce image size
-    && find node_modules -type f -name "*.map" -delete \
-    && find node_modules -type f \( \
-    -name "*.md" -o -name "*.markdown" \
-    -o -name "*.ts" -o -name "*.d.ts" \
-    -o -name "LICENSE*" -o -name "license*" -o -name "License*" \
-    -o -name "CHANGELOG*" -o -name "HISTORY*" \
-    -o -name ".npmignore" -o -name ".gitignore" -o -name ".eslintrc*" \
-    \) -delete \
-    && find node_modules -type d \( \
-    -name "test" -o -name "tests" -o -name "__tests__" \
-    -o -name "example" -o -name "examples" \
-    -o -name "doc" -o -name "docs" \
-    -o -name ".github" \
-    \) -prune -exec rm -rf {} +
-
-COPY --chown=$UID:$GID ./web-frontend/env-remap.mjs /baserow/web-frontend/env-remap.mjs
-COPY --chown=$UID:$GID  ./web-frontend/docker/docker-entrypoint.sh /baserow/web-frontend/docker/docker-entrypoint.sh
-COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
-
-HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
-ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
-
-FROM local-base AS local
 
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
+COPY --chown=$UID:$GID ./web-frontend/env-remap.mjs /baserow/web-frontend/env-remap.mjs
 
-CMD ["nuxt-prod"]
+HEALTHCHECK --interval=10s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
+
+WORKDIR /baserow/web-frontend
+CMD ["node", "--import", "./env-remap.mjs", ".output/server/index.mjs"]
 
 
 FROM local AS prod
-
-CMD ["nuxt-prod"]

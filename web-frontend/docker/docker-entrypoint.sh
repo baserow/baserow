@@ -91,7 +91,7 @@ case "$1" in
       setup_additional_modules
       export NITRO_HOST="${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}"
       export NITRO_PORT="$BASEROW_WEBFRONTEND_PORT"
-      exec yarn prod "${@:2}"
+      exec node --import ./env-remap.mjs .output/server/index.mjs "${@:2}"
     ;;
     nuxt-prepare)
       setup_additional_modules
