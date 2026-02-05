@@ -31,8 +31,8 @@
             :key="option.id"
             :read-only="isEditMode"
             :error="displayFormDataError"
-            :value="inputValue.includes(option.value)"
-            @input="onOptionChange(option, $event)"
+            :model-value="inputValue.includes(option.value)"
+            @update:model-value="onOptionChange(option, $event)"
           >
             {{ option.name || option.value }}
           </ABCheckbox>
@@ -43,8 +43,8 @@
             :key="option.id"
             :read-only="isEditMode"
             :error="displayFormDataError"
-            :value="option.value === inputValue"
-            @input="onOptionChange(option, $event)"
+            :model-value="option.value === inputValue"
+            @update:model-value="onOptionChange(option, $event)"
           >
             {{ option.name || option.value }}
           </ABRadio>
