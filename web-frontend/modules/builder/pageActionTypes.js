@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 
 import { compile } from 'path-to-regexp'
 import PublishActionModal from '@baserow/modules/builder/components/page/header/PublishActionModal'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export class PageActionType extends Registerable {
   get label() {
@@ -99,9 +100,14 @@ export class PreviewPageActionType extends PageActionType {
 
     const toPath = compile(page.path, { encode: encodeURIComponent })
     const pageParams = Object.fromEntries(
-      page.path_params.map(({ name, value }) => [name, page.parameters[name]])
+      page.path_params.map(({ name }) => [
+        name,
+        ensureString(page.parameters[name]), // toPath needs strings
+      ])
     )
+
     const resolvedPagePath = toPath(pageParams)
+
     const url = new URL(
       `/builder/${builderId}/preview${resolvedPagePath}`,
       window.location.origin
