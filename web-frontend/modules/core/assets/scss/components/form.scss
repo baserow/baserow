@@ -26,6 +26,17 @@
     border-color: $palette-red-600;
   }
 
+  // Override a more precise rule in form_input.scss
+  .form-input {
+    &:active:not(.form-input--no-border),
+    &:focus:not(.form-input--no-border),
+    &:focus-within:not(.form-input--no-border) {
+      &:not(.form-input--disabled):not(.form-input--error) {
+        border-color: $palette-red-600;
+      }
+    }
+  }
+
   .form-input__icon {
     color: $palette-red-600;
   }
