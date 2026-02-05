@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix importing a database with an AI field associated with an ai_auto_update_user",
+    "issue_origin": "github",
+    "issue_number": 4601,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-02-05"
+}

@@ -490,6 +490,25 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         return super().before_update(from_field, to_field_values, user, field_kwargs)
 
+    def import_serialized(
+        self,
+        table,
+        serialized_values,
+        import_export_config,
+        id_mapping,
+        deferred_fk_update_collector,
+    ):
+        if not import_export_config.is_duplicate:
+            serialized_values = serialized_values.copy()
+            serialized_values.pop("ai_auto_update_user_id", None)
+        return super().import_serialized(
+            table,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
+        )
+
     def after_import_serialized(
         self,
         field: AIField,
