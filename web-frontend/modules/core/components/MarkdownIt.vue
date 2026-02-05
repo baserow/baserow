@@ -1,7 +1,6 @@
 <!-- eslint-disable vue/no-v-html vue/no-v-text-v-html-on-component -->
 <template>
-  <component
-    :is="tag"
+  <div
     :key="contentHash"
     class="markdown"
     @click="$emit('click', $event)"
@@ -11,17 +10,14 @@
 
 <script setup>
 import { generateHash } from '@baserow/modules/core/utils/hashing'
-const emit = defineEmits(['click'])
+import MarkdownIt from 'markdown-it'
+
+defineEmits(['click'])
 
 const props = defineProps({
   content: {
     required: true,
     type: String,
-  },
-  tag: {
-    required: false,
-    type: String,
-    default: 'div',
   },
   rules: {
     required: false,
@@ -31,40 +27,16 @@ const props = defineProps({
 })
 
 // Keep a single markdown-it instance per component instance.
-let md
-let baseRules
-
-const initMarkdown = async () => {
-  if (md) return md
-
-  const Markdown = (await import('markdown-it')).default
-  md = new Markdown()
-  baseRules = { ...md.renderer.rules }
-
-  return md
-}
+const Markdown = MarkdownIt?.default || MarkdownIt
+const md = new Markdown()
+const baseRules = { ...md.renderer.rules }
 
 // The hash makes sure the data are updated if the content changes.
 const contentHash = computed(() => generateHash(props.content))
 
-const htmlContent = ref('')
-
-// Render markdown whenever content or rules change
-const renderMarkdown = async () => {
-  const instance = await initMarkdown()
-
+const htmlContent = computed(() => {
   // Always start from the base renderer rules then apply overrides.
-  instance.renderer.rules = { ...baseRules, ...props.rules }
-
-  htmlContent.value = instance.render(props.content)
-}
-
-// Watch for changes and render immediately
-watch(
-  [() => props.content, () => props.rules],
-  () => {
-    renderMarkdown()
-  },
-  { immediate: true }
-)
+  md.renderer.rules = { ...baseRules, ...props.rules }
+  return md.render(props.content)
+})
 </script>
