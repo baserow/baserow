@@ -58,17 +58,17 @@ export default defineNuxtPlugin({
     )
 
     // Register stores
-    $store.registerModuleSSR(
+    $store.registerModuleNuxtSafe(
       'automationApplication',
       automationApplicationStore
     )
-    $store.registerModuleSSR('automationWorkflow', automationWorkflowStore)
-    $store.registerModuleSSR(
+    $store.registerModuleNuxtSafe('automationWorkflow', automationWorkflowStore)
+    $store.registerModuleNuxtSafe(
       'automationWorkflowNode',
       automationWorkflowNodeStore
     )
-    $store.registerModuleSSR('automationHistory', automationHistoryStore)
-    $store.registerModuleSSR(
+    $store.registerModuleNuxtSafe('automationHistory', automationHistoryStore)
+    $store.registerModuleNuxtSafe(
       'template/automationApplication',
       automationApplicationStore
     )

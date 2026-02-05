@@ -26,7 +26,7 @@ export default defineNuxtPlugin({
     // Add helper method for registering modules with proper SSR hydration
     // On client after hydration, use preserveState to keep the hydrated state
     // and avoid "[vuex] state field was overridden" warnings
-    store.registerModuleSSR = (path, module, options = {}) => {
+    store.registerModuleNuxtSafe = (path, module, options = {}) => {
       const shouldPreserveState =
         import.meta.client && nuxtApp.payload.vuex !== undefined
       store.registerModule(path, module, {
