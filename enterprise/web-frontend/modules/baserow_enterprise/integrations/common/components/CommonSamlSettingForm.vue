@@ -100,11 +100,7 @@ export default {
   },
   computed: {
     relayStateUrls() {
-      const userSource = {
-        application_id: this.application.id,
-        ...this.userSource,
-      }
-      return this.authProviderType.getRelayStateUrls(userSource)
+      return this.authProviderType.getRelayStateUrls(this.userSource)
     },
     acsUrl() {
       return this.authProviderType.getAcsUrl(this.userSource)
