@@ -20,13 +20,6 @@ import {
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
-import en from '@baserow_enterprise/locales/en.json'
-import fr from '@baserow_enterprise/locales/fr.json'
-import nl from '@baserow_enterprise/locales/nl.json'
-import de from '@baserow_enterprise/locales/de.json'
-import es from '@baserow_enterprise/locales/es.json'
-import it from '@baserow_enterprise/locales/it.json'
-import ko from '@baserow_enterprise/locales/ko.json'
 import {
   AdvancedLicenseType,
   EnterpriseLicenseType,
@@ -99,18 +92,6 @@ export default defineNuxtPlugin({
     const { $registry, $store, $featureFlagIsEnabled } = nuxtApp
 
     const context = { app: nuxtApp }
-
-    // Allow locale file hot reloading
-    /*if (isDev && app.i18n) {
-      const { i18n } = app
-      i18n.mergeLocaleMessage('en', en)
-      i18n.mergeLocaleMessage('fr', fr)
-      i18n.mergeLocaleMessage('nl', nl)
-      i18n.mergeLocaleMessage('de', de)
-      i18n.mergeLocaleMessage('es', es)
-      i18n.mergeLocaleMessage('it', it)
-      i18n.mergeLocaleMessage('ko', ko)
-    }*/
 
     $registry.register('plugin', new EnterprisePlugin(context))
 
