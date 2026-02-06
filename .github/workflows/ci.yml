@@ -1360,27 +1360,17 @@ jobs:
           git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
           cd saas
 
-      - name: Update image version files
+      - name: Update baserow submodule to current commit
         working-directory: saas
         run: |
-          echo "🧩 Generating updated image references..."
-
-          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
-          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
-          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-
-          echo "$BACKEND_IMAGE" > plugins/saas/backend/build_from_image.version
-          echo "$BACKEND_DEV_IMAGE" > plugins/saas/backend/build_from_dev_image.version
-          echo "$WEB_IMAGE" > plugins/saas/web-frontend/build_from_image.version
-          echo "$WEB_DEV_IMAGE" > plugins/saas/web-frontend/build_from_dev_image.version
-          echo "$ALL_IN_ONE_IMAGE" > all_in_one_image.version
-
-          echo "✅ Updated image references:"
-          cat plugins/saas/backend/build_from_image.version
-          cat plugins/saas/web-frontend/build_from_image.version
-          cat all_in_one_image.version
+          echo "🔄 Updating baserow submodule to ${{ github.sha }}..."
+          git submodule update --init
+          cd baserow
+          git fetch origin
+          git checkout ${{ github.sha }}
+          cd ..
+          git add baserow
+          echo "✅ Submodule updated."
 
       - name: Commit and push changes to GitLab
         working-directory: saas
@@ -1390,24 +1380,12 @@ jobs:
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"
 
-          git add \
-            plugins/saas/backend/build_from_image.version \
-            plugins/saas/backend/build_from_dev_image.version \
-            plugins/saas/web-frontend/build_from_image.version \
-            plugins/saas/web-frontend/build_from_dev_image.version \
-            all_in_one_image.version
-
           if git diff-index --quiet HEAD --; then
             echo "No changes detected — skipping commit."
             exit 0
           fi
 
-          COMMIT_MSG="Automatic core image bump:
-          - backend: ${BACKEND_IMAGE}
-          - web-frontend: ${WEB_IMAGE}
-          - all-in-one: ${ALL_IN_ONE_IMAGE}"
-
-          git commit -m "$COMMIT_MSG"
+          git commit -m "Automatic baserow submodule bump to ${{ github.sha }}"
           git push origin develop
 
           echo "✅ Successfully pushed updates to baserow-saas."
