@@ -18,24 +18,6 @@ members = [
 ]
 
 [[package]]
-name = "advocate"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ndg-httpsclient", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "netifaces", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pyasn1", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pyopenssl", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "requests", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "six", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "urllib3", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/5e/3103b1c63c6cc2a0cdbb1c1e399f700501e1001675c700d39364f9f8df28/advocate-1.0.0.tar.gz", hash = "sha256:1bf1170e41334279996580329c594e017540ab0eaf7a152323e743f0a85a353d", size = 39981, upload-time = "2020-07-14T15:34:11.396Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/48/ab74ba882cf6f5080ed3fc2f353166930376ac4484d784ceb4dfd5f19c78/advocate-1.0.0-py2.py3-none-any.whl", hash = "sha256:e8b340e49fadc0e416fbc9e81ef52d74858ccad16357dabde6cf9d99a7407d70", size = 34179, upload-time = "2020-07-14T15:34:10.013Z" },
-]
-
-[[package]]
 name = "amqp"
 version = "5.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -222,7 +204,6 @@ wheels = [
 name = "baserow"
 source = { editable = "." }
 dependencies = [
-    { name = "advocate", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "anthropic", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "antlr4-python3-runtime", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "asgiref", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -258,6 +239,7 @@ dependencies = [
     { name = "loguru", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "mcp", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "mistralai", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "netifaces", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "ollama", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "openai", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "openpyxl", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -355,7 +337,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "advocate", specifier = "==1.0.0" },
     { name = "anthropic", specifier = "==0.77.0" },
     { name = "antlr4-python3-runtime", specifier = "==4.9.3" },
     { name = "asgiref", specifier = "==3.11.0" },
@@ -393,6 +374,7 @@ requires-dist = [
     { name = "loguru", specifier = "==0.7.3" },
     { name = "mcp", specifier = "==1.26.0" },
     { name = "mistralai", specifier = "==1.1.0" },
+    { name = "netifaces", specifier = "==0.11.0" },
     { name = "ollama", specifier = "==0.6.1" },
     { name = "openai", specifier = "==2.14.0" },
     { name = "openpyxl", specifier = "==3.1.5" },
@@ -2066,19 +2048,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343, upload-time = "2025-04-22T14:54:24.164Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
-]
-
-[[package]]
-name = "ndg-httpsclient"
-version = "0.5.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyasn1", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pyopenssl", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b9/f8/8f49278581cb848fb710a362bfc3028262a82044167684fb64ad068dbf92/ndg_httpsclient-0.5.1.tar.gz", hash = "sha256:d72faed0376ab039736c2ba12e30695e2788c4aa569c9c3e3d72131de2592210", size = 26665, upload-time = "2018-07-23T16:02:43.96Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/67/c2f508c00ed2a6911541494504b7cac16fe0b0473912568df65fd1801132/ndg_httpsclient-0.5.1-py3-none-any.whl", hash = "sha256:dd174c11d971b6244a891f7be2b32ca9853d3797a72edb34fa5d7b07d8fff7d4", size = 34042, upload-time = "2018-07-23T16:04:46.553Z" },
 ]
 
 [[package]]

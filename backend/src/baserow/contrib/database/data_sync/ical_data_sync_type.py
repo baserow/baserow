@@ -1,10 +1,10 @@
 from typing import Any, Dict, List, Optional
 
-import advocate
-from advocate.exceptions import UnacceptableAddressException
 from icalendar import Calendar
 from requests.exceptions import RequestException
 
+import advocate
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.fields.models import DateField, TextField
 from baserow.core.utils import ChildProgressBuilder
 

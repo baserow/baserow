@@ -2,11 +2,11 @@ import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import advocate
-from advocate import UnacceptableAddressException
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
+import advocate
+from advocate import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import compare_date

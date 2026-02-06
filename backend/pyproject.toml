@@ -35,7 +35,6 @@ dependencies = [
     "celery[redis]==5.6.2",
     "django-redis==6.0.0",
     "django-celery-email-reboot==4.2.0",
-    "advocate==1.0.0",
     "zipp==3.23.0",
     "unicodecsv==0.14.1",
     "django-celery-beat==2.8.1",
@@ -103,6 +102,7 @@ dependencies = [
     "pyotp==2.9.0",
     "qrcode==8.2",
     "udspy==0.1.8",
+    "netifaces==0.11.0",
 ]
 
 [project.urls]

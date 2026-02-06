@@ -177,8 +177,9 @@ def call_webhook(
 def make_request_and_save_result(
     webhook, event_id, event_type, method, url, headers, payload
 ):
-    from advocate import UnacceptableAddressException
     from requests import RequestException
+
+    from advocate import UnacceptableAddressException
 
     from .handler import WebhookHandler
     from .models import TableWebhookCall

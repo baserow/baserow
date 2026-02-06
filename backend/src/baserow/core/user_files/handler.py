@@ -16,11 +16,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import QuerySet
 from django.utils.http import parse_header_parameters
 
-import advocate
-from advocate.exceptions import UnacceptableAddressException
 from loguru import logger
 from requests.exceptions import RequestException
 
+import advocate
+from advocate.exceptions import UnacceptableAddressException
 from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile
 from baserow.core.storage import (
