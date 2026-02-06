@@ -1,9 +1,8 @@
 import { expect, test } from "../baserowTest";
 
 test.describe("Builder application test suite", () => {
-  test.beforeEach(async ({ workspacePage, goto }) => {
-    await goto(workspacePage.getFullUrl(), { waitUntil: "hydration" });
-    //await workspacePage.goto();
+  test.beforeEach(async ({ workspacePage }) => {
+    await workspacePage.goto();
   });
 
   test("Can create builder application", async ({ page }) => {
@@ -14,7 +13,7 @@ test.describe("Builder application test suite", () => {
 
     await expect(
       page.locator(".page-editor").getByText("Page settings"),
-      "Check we see the default page."
+      "Check we see the default page.",
     ).toBeVisible();
   });
 
@@ -28,7 +27,7 @@ test.describe("Builder application test suite", () => {
 
     await expect(
       page.locator(".tree__link").getByText("My super application"),
-      "Checks the name of the application is displayed in the sidebar."
+      "Checks the name of the application is displayed in the sidebar.",
     ).toBeVisible();
   });
 });
