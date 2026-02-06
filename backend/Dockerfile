@@ -245,7 +245,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     tmux \
     vim \
     lsof \
-    procps \
     sudo
 
 ENV DOCKER_USER=baserow_docker_user \
