@@ -6,6 +6,7 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import TemplateService from '@baserow/modules/core/services/template'
+import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 
 /**
  * Base class for database onboarding step types. Each type represents a different
@@ -80,10 +81,11 @@ export class DatabaseOnboardingStepType extends Registerable {
    * This is called by DatabaseOnboardingType.complete() to handle type-specific logic.
    * @param workspace - The created workspace
    * @param stepData - The step data for this type
-   *  (data[DatabaseOnboardingType.getType()])
+   * @param callback - Can be used to change the message on component while the
+   *  onboarding is being processed.
    * @returns {Promise<object>} - Object to merge into returnValue (e.g., { job })
    */
-  async completeAfterWorkspace(workspace, stepData) {
+  async completeAfterWorkspace(workspace, stepData, callback) {
     return {}
   }
 

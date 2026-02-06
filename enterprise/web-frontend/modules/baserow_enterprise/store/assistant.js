@@ -18,6 +18,7 @@ export const state = () => ({
   chats: [],
   isLoadingChats: false,
   uiLocation: null,
+  uiLocationHistory: [],
 })
 
 export const mutations = {
@@ -109,12 +110,18 @@ export const mutations = {
 
   SET_UI_LOCATION(state, location) {
     state.uiLocation = location || null
+    state.uiLocationHistory.push(location)
+  },
+
+  CLEAR_UI_LOCATION_HISTORY(state) {
+    state.uiLocationHistory = []
   },
 }
 
 export const actions = {
   reset({ commit }) {
     commit('CLEAR_MESSAGES')
+    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', null)
     commit('SET_CHATS', [])
   },
@@ -123,6 +130,7 @@ export const actions = {
     const id = uuidv4()
     commit('ADD_CHAT', { id, title: '' })
     commit('CLEAR_MESSAGES')
+    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', id)
 
     return id
@@ -150,6 +158,7 @@ export const actions = {
 
   clearChat({ commit }) {
     commit('CLEAR_MESSAGES')
+    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', null)
   },
 
@@ -450,6 +459,10 @@ export const getters = {
 
   uiLocation: (state) => {
     return state.uiLocation
+  },
+
+  uiLocationHistory: (state) => {
+    return state.uiLocationHistory
   },
 }
 

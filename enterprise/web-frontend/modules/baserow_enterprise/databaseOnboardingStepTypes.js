@@ -4,6 +4,8 @@ import { nextTick } from 'vue'
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes.js'
 import { waitFor } from '@baserow/modules/core/utils/queue.js'
+import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes.js'
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
@@ -46,26 +48,45 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
     )
   }
 
+  async completeAfterWorkspace(workspace, stepData, callback) {
+    await this.app.$store.dispatch('workspace/select', workspace)
+    const message = this.app.$i18n.t('aiDatabaseOnboardingStepType.prompt', {
+      prompt: stepData.prompt,
+    })
+    callback(null, AssistantOnboardingMessage)
+    await this.app.$store.dispatch('assistant/sendMessage', {
+      message,
+      workspace,
+    })
+    const chat = this.app.$store.getters['assistant/currentChat']
+    await (() => {
+      const currentChat = this.app.$store.getters['assistant/currentChat']
+      return !currentChat?.running
+    },
+    50)
+    const tableLocation = this.app.$store.getters[
+      'assistant/uiLocationHistory'
+    ].filter((location) => location.type === 'database-table')[0]
+    if (!tableLocation) {
+      throw new Error('The assistant did not create a table.')
+    }
+    return { tableLocation, chat }
+  }
+
   getCompletedRoute(data, responses) {
-    const workspace = responses[DatabaseOnboardingType.getType()].workspace
-    const prompt = data[DatabaseOnboardingType.getType()].prompt
+    const response = responses[DatabaseOnboardingType.getType()]
     nextTick(async () => {
       await pageFinished()
       await nextTick()
       await this.app.$bus.$emit('toggle-right-sidebar', true)
-      await nextTick()
-      await waitFor(() => !this.app.$store.getters['assistant/isLoadingChats'])
-      await nextTick()
-      const message = this.app.$i18n.t('aiDatabaseOnboardingStepType.prompt', {
-        prompt,
-      })
-      await this.app.$store.dispatch('assistant/sendMessage', {
-        message,
-        workspace: workspace,
-      })
+      await this.app.$store.dispatch('assistant/selectChat', response.chat)
     })
-    // By default, this will redirect to the dashboard. We want to redirect there
-    // because the AI-assistant must first create the database.
-    return super.getCompletedRoute(data, responses)
+    return {
+      name: 'database-table',
+      params: {
+        databaseId: response.tableLocation.database_id,
+        tableId: response.tableLocation.table_id,
+      },
+    }
   }
 }

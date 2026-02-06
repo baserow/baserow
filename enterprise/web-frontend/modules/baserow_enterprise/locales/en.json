@@ -731,5 +731,8 @@
   },
   "aiDatabaseOnboardingStepType": {
     "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}"
+  },
+  "assistantOnboardingMessage": {
+    "instructing": "Instructing Kuma to create your database."
   }
 }

@@ -46,9 +46,10 @@ export class OnboardingType extends Registerable {
    * @param data contains the data that was collected by the form component.
    * @param responses the returned value of the `complete` method that was called by
    *  the already completed onboarding steps.
+   * @param callback can be called if the message or loading component must be changed.
    *
    */
-  complete(data, responses) {}
+  complete(data, responses, callback) {}
 
   /**
    * Can optionally return a job that must be polled for completion. It will

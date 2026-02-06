@@ -9,7 +9,8 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
-import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
+import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep'
+import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -64,7 +65,7 @@ export class DatabaseOnboardingType extends OnboardingType {
     return { highlightDataName: 'applications' }
   }
 
-  async complete(data, responses) {
+  async complete(data, responses, callback) {
     const { $i18n: i18n } = this.app
     const name = this.app.$store.getters['auth/getName']
     const workspace = await this.app.$store.dispatch('workspace/create', {
@@ -82,7 +83,8 @@ export class DatabaseOnboardingType extends OnboardingType {
       )
       const stepResult = await stepType.completeAfterWorkspace(
         workspace,
-        stepData
+        stepData,
+        callback
       )
       Object.assign(returnValue, stepResult)
     }
@@ -91,7 +93,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getJobForPolling(data, responses) {
-    const type = data[this.getType()].type
+    const type = data[DatabaseOnboardingType.getType()]?.type
     if (type) {
       const stepType = this.app.$registry.get('databaseOnboardingStep', type)
       return stepType.getJobForPolling(data, responses)

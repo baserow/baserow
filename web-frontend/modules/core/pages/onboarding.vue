@@ -27,13 +27,21 @@
       </div>
     </div>
     <div v-else-if="creating" class="onboarding__loading">
-      <div class="loading"></div>
-      <div class="onboarding__loading-text">
-        {{ $t('onboarding.creating') }}
-      </div>
-      <div v-if="job" class="onboarding__loading-progress">
-        <ProgressBar :value="job.progress_percentage" />
-      </div>
+      <component :is="component" v-if="component">
+        {{ message }}
+      </component>
+      <template v-else>
+        <div class="loading"></div>
+        <div class="onboarding__loading-text">
+          {{ $t('onboarding.creating') }}
+        </div>
+        <div v-if="job" class="onboarding__loading-progress">
+          <ProgressBar :value="job.progress_percentage" />
+        </div>
+        <div v-if="message" class="onboarding__waiting-message">
+          {{ message }}
+        </div>
+      </template>
     </div>
     <template v-else>
       <div class="onboarding__form">
@@ -135,6 +143,8 @@ export default {
       creatingFailed: false,
       cancelling: false,
       reloading: false,
+      message: null,
+      component: null,
     }
   },
   computed: {
@@ -194,16 +204,29 @@ export default {
       const responses = {}
       let route = { name: 'dashboard' }
 
+      const completeCallback = (message = null, component = null) => {
+        this.message = message
+        this.component = component
+      }
+
       // Now that all the steps have been completed, we're looping over all of them and
       // execute the `complete` method to actually create the configured workspace.
       for (let i = 0; i < this.steps.length; i++) {
         const step = this.steps[i]
         try {
-          responses[step.getType()] = await step.complete(this.data, responses)
+          responses[step.getType()] = await step.complete(
+            this.data,
+            responses,
+            completeCallback
+          )
         } catch (error) {
+          console.error(error)
           // Stop the creating process if any of the steps fail.
           this.creatingFailed = true
           return
+        } finally {
+          this.message = null
+          this.component = null
         }
         // Check if there is a job that must be polled after completion. If so, it will
         // show a progressbar to the user, and it will set the job end result as
@@ -216,6 +239,7 @@ export default {
             this.job = null
           } catch (error) {
             this.creatingFailed = true
+            console.error(error)
             return
           }
         }

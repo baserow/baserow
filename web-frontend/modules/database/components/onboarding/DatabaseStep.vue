@@ -107,8 +107,8 @@ export default {
             }
           })
         }
-      }
-    }
+      },
+    },
   },
   mounted() {
     this.updateValue()
