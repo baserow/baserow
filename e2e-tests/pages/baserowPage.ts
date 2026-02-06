@@ -23,42 +23,12 @@ export class BaserowPage {
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
   }
 
-  async goto(params = {}, maxRetries = 3) {
-    const url = this.getFullUrl();
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        // Small delay before navigation to help with Firefox timing issues
-        if (attempt > 0) {
-          await this.page.waitForTimeout(500);
-        }
-        await this._goto(url, {
-          waitUntil: "hydration",
-          ...params,
-        });
-        return; // Success, exit the retry loop
-      } catch (error: any) {
-        lastError = error;
-        // Check if this is a NS_BINDING_ABORTED error (Firefox-specific)
-        if (
-          error.message?.includes("NS_BINDING_ABORTED") ||
-          error.message?.includes("frame was detached")
-        ) {
-          console.log(
-            `Navigation interrupted (attempt ${attempt + 1}/${maxRetries}), retrying...`,
-          );
-          continue;
-        }
-        // For other errors, throw immediately
-        throw error;
-      }
-    }
-
-    // If we've exhausted all retries, throw the last error
-    if (lastError) {
-      throw lastError;
-    }
+  async goto(params = {}) {
+    await this.page.waitForTimeout(100); // Small delay before navigation to help with Firefox timing issues
+    await this._goto(this.getFullUrl(), {
+      waitUntil: "hydration",
+      ...params,
+    });
   }
 
   async checkOnPage() {
