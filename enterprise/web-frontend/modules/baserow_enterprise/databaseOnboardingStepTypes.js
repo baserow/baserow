@@ -61,8 +61,7 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
     await waitFor(() => {
       const currentChat = this.app.$store.getters['assistant/currentChat']
       return !currentChat?.running
-    },
-    50)
+    }, 50)
     const tableLocation = this.app.$store.getters[
       'assistant/uiLocationHistory'
     ].filter((location) => location.type === 'database-table')[0]
