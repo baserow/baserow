@@ -10,7 +10,6 @@ import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
 import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep'
-import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
