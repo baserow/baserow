@@ -6,7 +6,6 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import TemplateService from '@baserow/modules/core/services/template'
-import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 
 /**
  * Base class for database onboarding step types. Each type represents a different

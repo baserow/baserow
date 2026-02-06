@@ -5,7 +5,6 @@ import { pageFinished } from '@baserow/modules/core/utils/routing.js'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes.js'
 import { waitFor } from '@baserow/modules/core/utils/queue.js'
 import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
-import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes.js'
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
@@ -59,7 +58,7 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
       workspace,
     })
     const chat = this.app.$store.getters['assistant/currentChat']
-    await (() => {
+    await waitFor(() => {
       const currentChat = this.app.$store.getters['assistant/currentChat']
       return !currentChat?.running
     },
