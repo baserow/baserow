@@ -12,6 +12,9 @@ from baserow.api.generative_ai.errors import (
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
 )
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.dependencies.types import FieldDependencies
 from baserow.contrib.database.fields.dependencies.update_collector import (
@@ -348,6 +351,9 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
         field_ids = extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        existing_field_ids = set(
+            Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
+        )
         return [
             FieldDependency(
                 dependency_id=field_id,
@@ -355,6 +361,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 via=None,
             )
             for field_id in field_ids
+            if field_id in existing_field_ids
         ]
 
     def _handle_dependent_rows_change(
@@ -501,6 +508,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if not import_export_config.is_duplicate:
             serialized_values = serialized_values.copy()
             serialized_values.pop("ai_auto_update_user_id", None)
+            serialized_values["ai_auto_update"] = False
         return super().import_serialized(
             table,
             serialized_values,
@@ -536,6 +544,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         if save:
             field.save()
+
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def should_backup_field_data_for_same_type_update(
         self, old_field, new_field_attrs
