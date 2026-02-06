@@ -51,7 +51,7 @@
               :class="{
                 'margin-bottom-0': pendingJobs[applicationGroup.type].length,
               }"
-              data-highlight="applications"
+              :data-highlight="`applications-${applicationGroup.type}`"
             >
               <component
                 :is="getApplicationComponent(application)"

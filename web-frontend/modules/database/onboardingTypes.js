@@ -62,7 +62,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getAdditionalPreviewProps() {
-    return { highlightDataName: 'applications' }
+    return { highlightDataName: 'applications-database' }
   }
 
   async complete(data, responses, callback) {
