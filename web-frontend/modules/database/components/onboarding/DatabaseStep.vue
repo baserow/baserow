@@ -96,16 +96,19 @@ export default {
     },
   },
   watch: {
-    hasName(newValue) {
-      if (newValue) {
-        this.$nextTick(() => {
-          if (this.$refs.nameInput) {
-            this.$refs.nameInput.focus()
-            this.v$.name.$touch()
-          }
-        })
+    hasName: {
+      immediate: true,
+      handler(newValue) {
+        if (newValue) {
+          this.$nextTick(() => {
+            if (this.$refs.nameInput) {
+              this.$refs.nameInput.focus()
+              this.v$.name.$touch()
+            }
+          })
+        }
       }
-    },
+    }
   },
   mounted() {
     this.updateValue()

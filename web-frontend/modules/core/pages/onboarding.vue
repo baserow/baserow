@@ -117,8 +117,8 @@ export default {
         'authenticated',
         () => {
           const { $store } = useNuxtApp()
-          // If the user has completed the onboarding, then redirect to the on-boarding page
-          // so that the user can create their first one.
+          // If the user has completed the onboarding, then redirect to the dashboard
+          // page so that the user can create their first one.
           const user = $store.getters['auth/getUserObject']
           if (user.completed_onboarding) {
             return navigateTo({ name: 'dashboard' })

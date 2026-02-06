@@ -41,7 +41,7 @@ export default {
       )
     },
     isConfigured() {
-      return this.$config.public.baserowEnterpriseAssistantLLMModel !== null
+      return !!this.$config.public.baserowEnterpriseAssistantLLMModel
     },
   },
   mounted() {
