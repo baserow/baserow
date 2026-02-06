@@ -21,7 +21,8 @@
         tag="a"
         type="secondary"
         @click="setPrompt(example.prompt)"
-      >{{ example.name }}</Button>
+        >{{ example.name }}</Button
+      >
     </div>
   </form>
 </template>
@@ -54,29 +55,31 @@ export default {
         {
           id: 'project-tracker',
           name: t('aiDatabaseOnboardingForm.exampleProjectTrackerName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleProjectTrackerPrompt')
+          prompt: t('aiDatabaseOnboardingForm.exampleProjectTrackerPrompt'),
         },
         {
           id: 'product-roadmap',
           name: t('aiDatabaseOnboardingForm.exampleProductRoadmapName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleProductRoadmapPrompt')
+          prompt: t('aiDatabaseOnboardingForm.exampleProductRoadmapPrompt'),
         },
         {
           id: 'company-asset-tracker',
           name: t('aiDatabaseOnboardingForm.exampleCompanyAssetTrackerName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleCompanyAssetTrackerPrompt')
+          prompt: t(
+            'aiDatabaseOnboardingForm.exampleCompanyAssetTrackerPrompt'
+          ),
         },
         {
           id: 'team-check-ins',
           name: t('aiDatabaseOnboardingForm.exampleTeamCheckInsName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleTeamCheckInsPrompt')
+          prompt: t('aiDatabaseOnboardingForm.exampleTeamCheckInsPrompt'),
         },
         {
           id: 'bug-tracker',
           name: t('aiDatabaseOnboardingForm.exampleBugTrackerName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleBugTrackerPrompt')
-        }
-      ]
+          prompt: t('aiDatabaseOnboardingForm.exampleBugTrackerPrompt'),
+        },
+      ],
     }
   },
   methods: {
