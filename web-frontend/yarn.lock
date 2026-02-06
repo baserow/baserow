@@ -3497,10 +3497,10 @@
   resolved "https://registry.yarnpkg.com/@vue-flow/controls/-/controls-1.1.3.tgz#40866b553101fbef22d2b9a043965ed76fca4b2c"
   integrity sha512-XCf+G+jCvaWURdFlZmOjifZGw3XMhN5hHlfMGkWh9xot+9nH9gdTZtn+ldIJKtarg3B21iyHU8JjKDhYcB6JMw==
 
-"@vue-flow/core@^1.48.0":
-  version "1.48.1"
-  resolved "https://registry.yarnpkg.com/@vue-flow/core/-/core-1.48.1.tgz#e21f53be161944aff4a6ded127c10d54e2f2c25d"
-  integrity sha512-3IxaMBLvWRbznZ4CuK0kVhp4Y4lCDQx9nhi48Swp6PwPw29KNhmiKd2kaBogYeWjGLb/tLjlE9V0s3jEmKCYWw==
+"@vue-flow/core@^1.48.2":
+  version "1.48.2"
+  resolved "https://registry.yarnpkg.com/@vue-flow/core/-/core-1.48.2.tgz#cef8641b17f6220c257d4208bdb2082cee882225"
+  integrity sha512-raxhgKWE+G/mcEvXJjGFUDYW9rAI3GOtiHR3ZkNpwBWuIaCC1EYiBmKGwJOoNzVFgwO7COgErnK7i08i287AFA==
   dependencies:
     "@vueuse/core" "^10.5.0"
     d3-drag "^3.0.0"
