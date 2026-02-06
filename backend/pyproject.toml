@@ -103,6 +103,7 @@ dependencies = [
     "qrcode==8.2",
     "udspy==0.1.8",
     "netifaces==0.11.0",
+    "requests-futures>=1.0.2",
 ]
 
 [project.urls]
