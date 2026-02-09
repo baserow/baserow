@@ -1,6 +1,5 @@
 from functools import partial
 from http.client import _is_illegal_header_value, _is_legal_header_name
-from socket import gaierror, timeout
 from typing import Callable
 from urllib.parse import urlparse
 
@@ -89,7 +88,7 @@ def url_validator(value):
     try:
         validate_url(url.hostname, port, validator=validator, timeout=dns_timeout)
         return value
-    except (InvalidSSRFAddress, gaierror, ConnectionError, timeout) as e:
+    except InvalidSSRFAddress as e:
         raise ValidationError("Invalid URL", code=INVALID_URL_CODE) from e
 
 

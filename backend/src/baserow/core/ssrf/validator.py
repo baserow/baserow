@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import socket
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from ipaddress import (
     IPv4Address,
     IPv4Network,
@@ -141,23 +142,22 @@ class SSRFValidator:
                 message=f"Hostname {hostname!r} is blocked by blacklist",
             )
 
-        # Temporarily set a socket timeout for DNS resolution if requested
-        old_timeout = socket.getdefaulttimeout()
-        if timeout is not None:
-            socket.setdefaulttimeout(timeout)
-
         try:
-            # Use positional args for compatibility with test stubs that
-            # use different parameter names than the real socket.getaddrinfo
-            results = socket.getaddrinfo(hostname, port, 0, socket.SOCK_STREAM)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    socket.getaddrinfo, hostname, port, 0, socket.SOCK_STREAM
+                )
+                results = future.result(timeout=timeout)
+        except TimeoutError as e:
+            raise InvalidSSRFAddress(
+                address=hostname,
+                message=f"DNS resolution for {hostname!r} timed out after {timeout}s",
+            ) from e
         except socket.gaierror as e:
             raise InvalidSSRFAddress(
                 address=hostname,
                 message=f"Could not resolve hostname {hostname!r}: {e}",
             ) from e
-        finally:
-            if timeout is not None:
-                socket.setdefaulttimeout(old_timeout)
 
         if not results:
             raise InvalidSSRFAddress(

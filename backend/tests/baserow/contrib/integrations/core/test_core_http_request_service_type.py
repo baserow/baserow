@@ -36,18 +36,21 @@ def mock_ssrf_request(body=None, headers=None, status_code=200, raise_exception=
     mock_response.headers = headers
     mock_response.status_code = status_code
 
-    # Use the patch context manager to mock `ssrf_safe_request.request`
+    mock_request = Mock()
+
+    def side_effect(*args, **kwargs):
+        if raise_exception is not None:
+            raise raise_exception
+        return mock_response
+
+    mock_request.side_effect = side_effect
+
+    # Patch get_http_request_function at the import site so the service type
+    # uses our mock callable instead of the real SSRF-protected request.
     with patch(
-        "baserow.core.ssrf._SSRFSafeClient.request",
-        return_value=mock_response,
-    ) as mock_request:
-
-        def side_effect(*args, **kwargs):
-            if raise_exception is not None:
-                raise raise_exception
-            return mock_response
-
-        mock_request.side_effect = side_effect
+        "baserow.contrib.integrations.core.service_types.get_http_request_function",
+        return_value=mock_request,
+    ):
         yield mock_request
 
 

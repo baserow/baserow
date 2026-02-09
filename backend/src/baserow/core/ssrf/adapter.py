@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, NoReturn, Optional, Union
 
 from requests.adapters import HTTPAdapter
 from requests.models import PreparedRequest, Response
@@ -37,8 +37,8 @@ class SSRFSafeAdapter(HTTPAdapter):
     def build_connection_pool_key_attributes(
         self,
         request: PreparedRequest,
-        verify: bool,
-        cert: Optional[tuple[str, str]] = None,
+        verify: Union[bool, str],
+        cert: Optional[Union[str, tuple[str, str]]] = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         host_params, pool_kwargs = super().build_connection_pool_key_attributes(
             request, verify, cert
@@ -68,7 +68,12 @@ class SSRFSafeAdapter(HTTPAdapter):
             request.headers = request.headers.copy()
 
         if "Host" not in request.headers:
-            request.headers["Host"] = original_host
+            # Include port in Host header for non-default ports per RFC 7230
+            default_port = 443 if self._is_https else 80
+            if port != default_port:
+                request.headers["Host"] = f"{original_host}:{port}"
+            else:
+                request.headers["Host"] = original_host
 
         # For HTTPS, ensure TLS certificate validation uses the original
         # hostname, not the resolved IP
@@ -87,7 +92,7 @@ class SSRFSafeAdapter(HTTPAdapter):
         self,
         url: str,
         proxies: Optional[dict[str, str]] = None,
-    ) -> None:
+    ) -> NoReturn:
         raise NotImplementedError(
             "SSRFSafeAdapter requires requests >= 2.32.2 which uses "
             "get_connection_with_tls_context instead of get_connection."
@@ -97,7 +102,7 @@ class SSRFSafeAdapter(HTTPAdapter):
         self,
         proxy: str,
         **proxy_kwargs: Any,
-    ) -> None:
+    ) -> NoReturn:
         raise NotImplementedError(
             "SSRFSafeAdapter does not support proxies to prevent SSRF bypass."
         )
@@ -106,9 +111,9 @@ class SSRFSafeAdapter(HTTPAdapter):
         self,
         request: PreparedRequest,
         stream: bool = False,
-        timeout: Optional[float] = None,
-        verify: bool = True,
-        cert: Optional[tuple[str, str]] = None,
+        timeout: Optional[Union[float, tuple[float, float]]] = None,
+        verify: Union[bool, str] = True,
+        cert: Optional[Union[str, tuple[str, str]]] = None,
         proxies: Optional[dict[str, str]] = None,
     ) -> Response:
         # Intercept requests with proxies set

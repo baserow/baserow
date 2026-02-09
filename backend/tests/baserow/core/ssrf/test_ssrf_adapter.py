@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-import httpretty as httpretty
+import httpretty
 import pytest
 
 from baserow.core.ssrf import ssrf_safe_request, validate_url
