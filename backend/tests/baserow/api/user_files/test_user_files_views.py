@@ -7,6 +7,7 @@ from django.shortcuts import reverse
 
 import httpretty as httpretty
 import pytest
+import responses
 from freezegun import freeze_time
 from PIL import Image
 from rest_framework.status import (
@@ -289,7 +290,7 @@ def test_upload_file_with_token_auth(api_client, data_fixture, tmpdir):
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
@@ -311,8 +312,8 @@ def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "https://baserow.io/test2.txt",
         status=404,
     )
@@ -336,8 +337,8 @@ def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
     old_limit = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = 6
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "http://localhost/test.txt",
         body="Hello World",
         status=200,
@@ -353,11 +354,10 @@ def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
 
     # If the content length is not specified then when streaming down the file we will
     # check the file size.
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "http://localhost/test2.txt",
         body="Hello World",
-        forcing_headers={"Content-Length": None},
         status=200,
         content_type="text/plain",
     )
@@ -398,7 +398,7 @@ def test_upload_file_via_url_with_jwt_auth(api_client, data_fixture, tmpdir):
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_file_via_url_with_token_auth(api_client, data_fixture, tmpdir):
     user, jwt_token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
@@ -422,8 +422,8 @@ def test_upload_file_via_url_with_token_auth(api_client, data_fixture, tmpdir):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "https://baserow.io/test2.txt",
         status=404,
     )
@@ -447,8 +447,8 @@ def test_upload_file_via_url_with_token_auth(api_client, data_fixture, tmpdir):
     old_limit = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = 6
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "http://localhost/test.txt",
         body="Hello World",
         status=200,
@@ -464,11 +464,10 @@ def test_upload_file_via_url_with_token_auth(api_client, data_fixture, tmpdir):
 
     # If the content length is not specified then when streaming down the file we will
     # check the file size.
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "http://localhost/test2.txt",
         body="Hello World",
-        forcing_headers={"Content-Length": None},
         status=200,
         content_type="text/plain",
     )

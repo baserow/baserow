@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 from django.db import transaction
 from django.test import override_settings
 
-import httpretty
 import pytest
 import responses
 from celery.exceptions import Retry
@@ -293,7 +292,7 @@ def test_call_webhook_next_item_scheduled(mock_schedule, data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=0,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=0,
 )
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 @patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
@@ -301,7 +300,7 @@ def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
     patched_getaddrinfo,
     data_fixture,
 ):
-    httpretty.register_uri(httpretty.POST, "http://127.0.0.1", status=200)
+    responses.add(responses.POST, "http://127.0.0.1", status=200)
     webhook = data_fixture.create_table_webhook()
 
     assert webhook.active

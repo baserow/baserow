@@ -143,7 +143,6 @@ dev = [
     "pytest-unordered==0.7.0",
     "debugpy==1.8.20",
     "backports.cached-property==1.0.2",
-    "httpretty==1.1.4",
     "graphviz==0.21",
     "pytest-cov==7.0.0",
     "django-stubs==5.2.8",

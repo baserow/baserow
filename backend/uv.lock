@@ -307,7 +307,6 @@ dev = [
     { name = "fakeredis", extra = ["lua"], marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "freezegun", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "graphviz", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "httpretty", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "ipdb", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "ipython", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "mypy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -443,7 +442,6 @@ dev = [
     { name = "fakeredis", extras = ["lua"], specifier = "==2.33.0" },
     { name = "freezegun", specifier = "==1.5.5" },
     { name = "graphviz", specifier = "==0.21" },
-    { name = "httpretty", specifier = "==1.1.4" },
     { name = "ipdb" },
     { name = "ipython" },
     { name = "mypy", specifier = "==1.19.1" },
@@ -1418,12 +1416,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/06/94/82699a10bca87a555
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55", size = 78784, upload-time = "2025-04-24T22:06:20.566Z" },
 ]
-
-[[package]]
-name = "httpretty"
-version = "1.1.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6e/19/850b7ed736319d0c4088581f4fc34f707ef14461947284026664641e16d4/httpretty-1.1.4.tar.gz", hash = "sha256:20de0e5dd5a18292d36d928cc3d6e52f8b2ac73daec40d41eb62dee154933b68", size = 442389, upload-time = "2021-08-16T19:35:31.4Z" }
 
 [[package]]
 name = "httptools"
