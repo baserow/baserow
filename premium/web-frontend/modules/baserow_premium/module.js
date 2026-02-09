@@ -18,13 +18,7 @@ export default defineNuxtModule({
     // Register new alias to the web-frontend directory.
     nuxt.options.alias['@baserow_premium'] = resolve('./')
 
-    /*let alreadyExtended = false
-    this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-      if (alreadyExtended) return
-      additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
-      alreadyExtended = true
-    })*/
-
+    // Register locales
     nuxt.hook('i18n:registerModule', (register) => {
       register({
         langDir: resolve('./locales'),
@@ -53,19 +47,11 @@ export default defineNuxtModule({
     // mixins, placeholders etc.
     nuxt.options.css[0] = resolve('./assets/scss/default.scss')
 
+    // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
+    // See env-remap.mjs for the env var remapping that enables backwards compatibility
     Object.assign(nuxt.options.runtimeConfig.public, {
-      baserowPremiumGroupedAggregateServiceMaxSeries:
-        process.env.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES || 3,
-      baserowPricingUrl: process.env.BASEROW_PRICING_URL || null,
+      baserowPremiumGroupedAggregateServiceMaxSeries: 3,
+      baserowPricingUrl: null,
     })
-
-    /*if (this.options.publicRuntimeConfig) {
-      this.options.publicRuntimeConfig.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES =
-        process.env.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES || 3
-      // This environment variable exist for the SaaS to override the pricing URL, so
-      // that the user can be redirected to the correct URL.
-      this.options.publicRuntimeConfig.BASEROW_PRICING_URL =
-        process.env.BASEROW_PRICING_URL || null
-    }*/
   },
 })
