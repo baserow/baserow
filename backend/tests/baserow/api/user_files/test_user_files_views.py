@@ -5,7 +5,6 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.shortcuts import reverse
 
-import httpretty as httpretty
 import pytest
 import responses
 from freezegun import freeze_time
