@@ -112,9 +112,6 @@ describe('User Admin Component Tests', () => {
   })
 
   test('A user can be deleted', async () => {
-    // TODO: This test is skipped as it fails at
-    // TypeError: Converting circular structure to JSON
-
     const { user, userAdmin, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
     expect(userAdmin.html()).toContain(user.username)
