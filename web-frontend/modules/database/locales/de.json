@@ -1,976 +1,976 @@
 {
-  "webhookModal": {
-    "title": "{name} Webhooks",
-    "createWebhook": "Webhook erstellen",
-    "backToList": "Zurück zur Liste"
-  },
-  "deleteWebhookModal": {
-    "title": "Löschen {webhookName}",
-    "deleteButton": "Webhook löschen",
-    "body": "Sind Sie sicher, dass Sie diesen Webhook löschen wollen? Sie werden ihn später nicht wiederherstellen können."
-  },
-  "webhookList": {
-    "noWebhooksMessage": "Sie haben noch keine Webhooks erstellt. Webhooks können verwendet werden, um Systeme von Drittanbietern zu informieren, wenn eine Zeile in Baserow erstellt, aktualisiert oder gelöscht wurde."
-  },
-  "testWebhookModal": {
-    "title": "Test Webhook",
-    "unreachable": "Server unerreichbar"
-  },
-  "webhookForm": {
-    "inputLabels": {
-      "name": "Name",
-      "value": "Wert",
-      "requestMethod": "Methode",
-      "url": "URL",
-      "userFieldNames": "Namen der Benutzerfelder",
-      "events": "Welche Ereignisse sollen diesen Webhook auslösen?",
-      "headers": "Zusätzliche Überschriften",
-      "example": "Beispiel Nutzlast"
+    "webhookModal": {
+        "title": "{name} Webhooks",
+        "createWebhook": "Webhook erstellen",
+        "backToList": "Zurück zur Liste"
     },
-    "errors": {
-      "urlField": "Muss eine gültige URL sein, die mit \"https://\" oder \"http://\" beginnt.",
-      "invalidHeaders": "Eine der Kopfzeilen ist ungültig."
+    "deleteWebhookModal": {
+        "title": "Löschen {webhookName}",
+        "deleteButton": "Webhook löschen",
+        "body": "Sind Sie sicher, dass Sie diesen Webhook löschen wollen? Sie werden ihn später nicht wiederherstellen können."
     },
-    "checkbox": {
-      "sendUserFieldNames": "Feldname anstelle von id verwenden"
+    "webhookList": {
+        "noWebhooksMessage": "Sie haben noch keine Webhooks erstellt. Webhooks können verwendet werden, um Systeme von Drittanbietern zu informieren, wenn eine Zeile in Baserow erstellt, aktualisiert oder gelöscht wurde."
     },
-    "radio": {
-      "allEvents": "Schick mir alles",
-      "customEvents": "Ich möchte einzelne Ereignisse auswählen"
+    "testWebhookModal": {
+        "title": "Test Webhook",
+        "unreachable": "Server unerreichbar"
     },
-    "triggerButton": "Test-Webhook auslösen",
-    "deactivated": {
-      "title": "Webhook ist deaktiviert",
-      "content": "Dieser Webhook wurde deaktiviert, weil zu viele aufeinanderfolgende Fehler aufgetreten sind. Bitte überprüfen Sie das Aufrufprotokoll für weitere Details. Klicken Sie auf die Schaltfläche unten, um ihn wieder zu aktivieren. Vergessen Sie nicht, den Webhook nach dem Aktivieren zu speichern.",
-      "activate": "Aktivierung"
-    },
-    "deprecatedEventType": {
-      "description": "Dieser Webhook empfängt keine Informationen über alle geänderten Zeilen auf einmal. Bitte konvertieren Sie ihn in den Ereignistyp \"Batch\". Dadurch wird die JSON-Nutzlast in ein Format geändert, das mehrere Zeilen enthält.",
-      "title": "Veralteter Ereignistyp",
-      "convert": "Konvertieren"
-    },
-    "triggerWhenFieldsHaveChanged": "Löse aus, wenn Felder verändert wurden",
-    "helpTriggerWhenFieldsHaveChanged": "Wird nur ausgelöst, wenn sich der Zellwert der gewählten Felder verändert."
-  },
-  "webhook": {
-    "details": "Details",
-    "lastCall": "Letzter Aufruf: {lastCallTime}",
-    "noCalls": "Keine Aufrufe getätigt",
-    "callLog": "Aufrufprotokoll",
-    "triggerDescription": "Auslöser bei jedem Ereignis | Auslöser bei {count} Ereignis | Auslöser bei {count} Ereignissen"
-  },
-  "createWebhook": {
-    "errorTableWebhookMaxLimitExceededTitle": "Maximale Webhooks überschritten",
-    "errorTableWebhookMaxLimitExceededDescription": "Der Webhook kann nicht erstellt werden, da die maximale Anzahl von Webhooks pro Tabelle überschritten wurde."
-  },
-  "sidebar": {
-    "viewAPI": "API-Dokumente anzeigen",
-    "createTable": "Neue Tabelle"
-  },
-  "sidebarItem": {
-    "exportTable": "Exportieren der Tabelle",
-    "webhooks": "Webhooks",
-    "lastSynced": "Zuletzt synchronisiert",
-    "notSynced": "nicht sychnronisiert",
-    "sync": "Tabelle synchronisieren",
-    "updateSyncConfig": "Sync-Konfiguration aktualisieren"
-  },
-  "apiToken": {
-    "create": "erstellen",
-    "read": "lesen",
-    "update": "Aktualisierung",
-    "delete": "löschen",
-    "tokenPrefix": "Wertmarke:",
-    "viewAPIDocs": "API-Dokumentation anzeigen",
-    "generateNewToken": "Neues Token generieren",
-    "showOrHide": "Das Token ein- oder ausblenden",
-    "copyToClipboard": "In die Zwischenablage kopieren",
-    "showDatabases": "Datenbanken anzeigen"
-  },
-  "apiTokenSettings": {
-    "title": "Datenbank-Token",
-    "createToken": "Token erstellen",
-    "noTokensMessage": "Sie haben noch kein Datenbank-Token erstellt. Sie können Datenbank-Tokens verwenden, um sich bei den REST-API-Endpunkten zu authentifizieren, wo Sie Zeilen erstellen, lesen, aktualisieren und löschen können. Es ist möglich, Berechtigungen auf Tabellenebene festzulegen.",
-    "hasFullPermissions": "Hat volle Berechtigung, auch für alle Kinder.",
-    "hasOnlySelectedPermissions": "Hat nur Berechtigungen für die ausgewählten Kinder.",
-    "noPermissions": "Hat keine Berechtigungen.",
-    "createNewTitle": "Neues Datenbank-Token erstellen",
-    "backToOverview": "Zurück zur Übersicht"
-  },
-  "apiTokenForm": {
-    "nameLabel": "Name",
-    "workspaceLabel": "Arbeitsbereich"
-  },
-  "apiDocsSelectDatabase": {
-    "needOneDatabase": "Sie müssen mindestens eine Datenbank haben, um die API-Dokumentation anzuzeigen."
-  },
-  "apiDocsExample": {
-    "requestSample": "Beispiel anfordern",
-    "responseSample": "Antwortbeispiel",
-    "userFieldNames": "Namen der Benutzerfelder"
-  },
-  "apiDocsParameter": {
-    "optional": "Optional",
-    "defaultValue": "Standardwert: {value}"
-  },
-  "apiDocsTableGetRow": {
-    "description": "Holt eine einzelne Zeile {Name}.",
-    "rowId": "Der eindeutige Bezeichner der angeforderten Zeile."
-  },
-  "apiDocsErrors": {
-    "errorCode": "Fehlercode",
-    "name": "Name",
-    "description": "Beschreibung",
-    "okDescription": "Anfrage erfolgreich abgeschlossen.",
-    "badRequestDescription": "Die Anfrage enthält ungültige Werte oder das JSON konnte nicht interpretiert werden.",
-    "unauthorizedDescription": "Wenn Sie versuchen, auf einen Endpunkt ohne ein gültiges Datenbank-Token zuzugreifen.",
-    "notFoundDescription": "Zeile oder Tabelle wird nicht gefunden.",
-    "requestEntityTooLargeDescription": "Die Anfrage hat die maximal zulässige Größe der Nutzdaten überschritten.",
-    "internalErrorDescription": "Der Server ist auf eine unerwartete Bedingung gestoßen.",
-    "badGatewayDescription": "Baserow wird neu gestartet oder ein unerwarteter Ausfall ist im Gange.",
-    "unavailableDescription": "Der Server konnte Ihre Anfrage nicht rechtzeitig bearbeiten."
-  },
-  "apiDocsTableFields": {
-    "tableTitle": "{name} Tabelle",
-    "tableId": "Die ID dieser Tabelle lautet:",
-    "description": "Jede Zeile in der Tabelle {name} enthält die folgenden Felder.",
-    "id": "ID",
-    "name": "Name",
-    "type": "Typ",
-    "compatibleFilters": "Kompatible Filter"
-  },
-  "apiDocsTableListRows": {
-    "description": "Um Zeilen in der Tabelle *{name}* aufzulisten, muss eine `GET`-Anfrage an den Endpunkt *{name}* gestellt werden. Die Antwort ist paginiert und standardmäßig wird die erste Seite zurückgegeben. Die richtige Seite kann durch Angabe der Abfrageparameter \"page\" und \"size\" abgerufen werden.",
-    "page": "Legt fest, welche Seite von Zeilen zurückgegeben werden soll.",
-    "size": "Legt fest, wie viele Zeilen pro Seite zurückgegeben werden sollen.",
-    "userFieldNames": "Wenn der GET-Parameter \"user_field_names\" vorhanden ist und dessen Inhalt einem dieser Werte entspricht (`y`, `yes`, `true`, `t`, `on`, `1`, oder eine leere Zeichenfolge), sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\nWenn der GET-Parameter \"user_field_names\" nicht angegeben wird oder nicht einem der oben angegebenen Werte entspricht, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".\n\n Wenn `user_field_names` gesetzt ist, ändert sich außerdem das Verhalten der anderen GET-Parameter `order_by`, `include` und `exclude`. Sie erwarten stattdessen kommagetrennte Listen mit den tatsächlichen Feldnamen.",
-    "search": "Wenn angegeben, werden nur Zeilen mit Daten zurückgegeben, die der Suchanfrage entsprechen.",
-    "orderBy": "Optional können die Zeilen nach durch Komma getrennten Feldern geordnet werden. Standardmäßig oder wenn einem Feld ein '+' vorangestellt wird, ist es aufsteigend (A-Z) geordnet, aber durch Voranstellen eines '-' kann es absteigend (Z-A) geordnet werden.\n #### Mit`user_field_names`:\n\n `order_by`sollte eine durch ein Komma getrennte Liste der Feldnamen sein, nach denen geordnet werden soll. Wenn Sie beispielsweise den folgenden GET-Parameter angeben: `order_by=My Field,-My Field 2`, werden die Zeilen nach dem Feld mit der Bezeichnung `My Field`in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach dem Feld `My Field 2` in absteigender Reihenfolge geordnet.\n\n Stellen Sie sicher, dass Feldern, deren Namen mit einem `+` oder `-` beginnen, ausdrücklich ein weiteres `+` oder `-` vorangestellt wird. Z.B.`+-Name`.\n\n\n Feldnamen, die Kommas enthalten, müssen in Anführungszeichen eingeschlossen werden: `\"Name ,\"`. Wenn Feldnamen Anführungszeichen enthalten, müssen sie mit dem Zeichen `\\` geschützt werden. Beispiel: `Name `.\n\n#### Ohne `user_field_names`:\n\n `order_by` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, nach dem geordnet werden soll. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `order_by=field_1,-field_2`, werden die Zeilen nach `field_1` in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach `field_2` in absteigender Reihenfolge geordnet.",
-    "filter": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Es können mehrere Filter angewandt werden, wenn sie das gleiche Format haben. Die Variablen `field` und `filter` geben an, wie bzw. wo der Filter angewendet werden soll.\n\n#### Mit `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__Name__equal=test`, werden nur Zeilen zurückgegeben, in denen der Wert von `Name` gleich 'test' ist. Diese Methode ist abwärtskompatibel und prüft gegen `field_id`, wenn sie am Namen fehlschlägt.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__field_1__equal=test`, werden nur Zeilen zurückgegeben, bei denen der Wert von `field_1` gleich 'test' ist.\n\nBitte beachten Sie, dass dieser Parameter ignoriert wird, wenn der Parameter filters angegeben wird. ",
-    "filterLink": "Eine Liste mit allen Filtern finden Sie hier.",
-    "filterType": "- `AND`: Gibt an, dass die Zeilen allen angegebenen Filtern entsprechen müssen.\n- `OR`: Gibt an, dass die Zeilen nur einem der Filter entsprechen müssen.\n\n Dies funktioniert nur, wenn zwei oder mehr Filter vorhanden sind.",
-    "include": "Alle Felder werden standardmäßig in die Antwort aufgenommen. Sie können eine Teilmenge der einzuschließenden Felder auswählen, indem Sie den Abfrageparameter include angeben.\n\n #### Mit `user_field_names`:\n\n Include\" sollte eine durch das Komma getrennte Liste von Feldnamen sein, die in die Ergebnisse aufgenommen werden sollen. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `include=My Field,-My Field 2`, dann werden nur diese Felder eingeschlossen (es sei denn, sie werden ausdrücklich ausgeschlossen).\n\n Der Name des Feldes, das die Felder enthält, muss mit einem Hinweis versehen werden: `name ,'. Enthält der Feldname Schrägstriche, so müssen diese unter Verwendung des Zeichens `\\` geschützt werden. Ex : `Name \\'.\n\n #### Ohne `user_field_names`:\n\n `include` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das in die Ergebnisse aufgenommen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `include=field_1,field_2` angeben, werden nur die Felder mit der ID `1` und der ID `2` einbezogen (es sei denn, sie werden ausdrücklich ausgeschlossen).",
-    "exclude": "Alle Felder werden standardmäßig in die Antwort aufgenommen. Sie können eine Untergruppe von Feldern auswählen, die ausgeschlossen werden sollen, indem Sie den Abfrageparameter exclude angeben.\n\n #### Mit \"user_field_names\":\n\n`exclude` sollte eine durch das Komma getrennte Liste von Feldern sein, die von den Ergebnissen ausgeschlossen werden sollen. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `exclude=My Field,-My Field 2` dann werden diese Felder ausgeschlossen.\n\n Der Name des Feldes, das die Felder enthält, muss mit einem Hinweis versehen sein: \"name,\". Wenn der Feldname Schrägstriche enthält, müssen diese ebenfalls mit dem Zeichen \"name\" geschützt werden. Ex : `name\\\"`.\n\n #### Ohne `user_field_names`:\n\n `exclude` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das von den Ergebnissen ausgeschlossen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `exclude=field_1,field_2` angeben, werden die Felder mit der id `1` und id `2` ausgeschlossen.",
-    "viewId": "Standardmäßig werden keine Filter und Sortierungen außerhalb der in den Abfrageparametern definierten angewendet. Sie können die Filter und Sortierungen einer Ansicht hinzufügen, indem Sie deren `id` im GET-Parameter `view_id` angeben. Wenn Sie z. B. den folgenden GET-Parameter angeben: \"view_id=1\", werden die in der Ansicht mit der ID \"1\" definierten Filter und Sortierungen angewandt. Sie können die `view_id` im Kontextmenü einer beliebigen Ansicht finden. Es ist die Zahl in Klammern hinter dem Namen der Ansicht. \n\n #### Mit `filter__{field}__{filter}` \n\n Es werden sowohl der im Abfrageparameter angegebene Filter als auch die in der Ansicht definierten Filter angewendet.\n\n #### Mit `order_by` \n\n Wenn `order_by` angegeben wird, wird die in der Ansicht definierte Sortierung ignoriert.",
-    "filtersBuilder": "Öffnet den Filter-Parameter-Builder",
-    "filters": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Dieser Parameter akzeptiert eine serialisierte JSON-Zeichenkette, die den Filterbaum enthält, der auf diese Ansicht anzuwenden ist. Der Filterbaum ist eine verschachtelte Struktur, die die anzuwendenden Filter enthält. \n\n#### Mit `user_field_names`:\n\nEin Beispiel für einen gültigen Filterbaum ist der Folgende: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\n\nBitte beachten Sie, dass bei Angabe dieses Parameters alle anderen `filter__{field}__{filter}` ignoriert werden, ebenso wie der Parameter \\\"filter_type\\\".",
-    "join": "Ermöglicht die Abfrage von Feldwerten aus einer Zieltabelle über vorhandene Verknüpfungszeilenfelder. Der Parametername muss der Name eines bestehenden Link-Zeilenfeldes sein, gefolgt von __join. Der Wert sollte eine Liste von Feldnamen sein, für die zusätzliche Werte abgefragt werden sollen. Sie können ein oder mehrere Zielfelder angeben. Es ist nicht möglich, den Wert eines Link-Zeilenfeldes in der Zieltabelle zu suchen.\n\n #### Mit `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von Feldnamen sein, die in die Ergebnisse aufgenommen werden sollen. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `LinkRowField__join=MyField,MyField2` angeben, werden die Werte von `MyField` und `My Field2` in der durch `LinkRowField` verknüpften Tabelle in die Antwort aufgenommen.\n\n#### Ohne `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das in die Ergebnisse aufgenommen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter angeben: `field_1__join=field_2,field_3`, werden die Werte von `field_2` und `field_3` in der mit `field_1` verknüpften Tabelle in die Antwort aufgenommen."
-  },
-  "apiDocsIntro": {
-    "intro": "Die Datenbank {name} bietet eine einfache Möglichkeit, die Daten in ein beliebiges externes System zu integrieren. Die API folgt der REST-Semantik, verwendet JSON zur Kodierung von Objekten und stützt sich auf Standard-HTTP-Codes sowie maschinen- und menschenlesbare Fehler zur Signalisierung von Operationsergebnissen.",
-    "autoDocDescription": "Diese Dokumentation wird automatisch auf der Grundlage der in Ihrer Datenbank vorhandenen Tabellen und Felder erstellt. Wenn Sie Änderungen an Ihrer Datenbank, Ihren Tabellen oder Feldern vornehmen, kann es sein, dass sich auch die API-Schnittstelle geändert hat. Stellen Sie daher sicher, dass Sie Ihre API-Implementierung entsprechend aktualisieren.",
-    "databaseId": "Die ID dieser Datenbank lautet:",
-    "jsClient": "JavaScript-Beispiel API-Client:",
-    "pythonClient": "Python-Beispiel API-Client:"
-  },
-  "apiDocsTableListFields": {
-    "description": "Um Felder der Tabelle {name} aufzulisten, muss eine `GET`-Anfrage an den Endpunkt {name} fields gestellt werden. Es ist nur möglich, die Felder aufzulisten, wenn das Datenbank-Token Lese-, Erstellungs- oder Aktualisierungsberechtigungen hat.",
-    "resultFieldProperties": "Eigenschaften des Ergebnisfeldes",
-    "id": "Primärschlüssel des Feldes. Kann verwendet werden, um den Namen der Datenbankspalte durch Hinzufügen des Präfixes `field_` zu generieren.",
-    "name": "Name des Feldes.",
-    "tableId": "Zugehörige Tabelle id.",
-    "order": "Reihenfolge der Felder in der Tabelle. 0 für das erste Feld.",
-    "primary": "Gibt an, wenn das Feld ein Primärfeld ist. Wenn `true`, kann das Feld nicht gelöscht werden und der Wert sollte die gesamte Zeile repräsentieren.",
-    "type": "Für dieses Feld definierter Typ.",
-    "extraProps": "Einige zusätzliche Eigenschaften werden hier nicht beschrieben, da sie typspezifisch sind.",
-    "readOnly": "Zeigt an, ob das Feld ein schreibgeschütztes Feld ist. Wenn \"true\", kann der Wert der Zelle nicht aktualisiert werden.",
-    "descriptionField": "Feldbeschreibung"
-  },
-  "apiDocsTableDeleteRow": {
-    "description": "Löscht eine vorhandene {name} Zeile.",
-    "rowId": "Der eindeutige Bezeichner der Zeile, die gelöscht werden muss."
-  },
-  "apiDocsTableMoveRow": {
-    "description": "Verschiebt eine vorhandene Zeile {name} vor eine andere Zeile. Wenn keine `before_id` angegeben wird, dann wird die Zeile an das Ende der Tabelle verschoben.",
-    "rowId": "Verschiebt die mit dem Wert verbundene Zeile.",
-    "before": "Verschiebt die Zeile mit der angegebenen `row_id` vor die Zeile mit dem angegebenen Wert. Wenn nicht angegeben, wird die Zeile an das Ende verschoben."
-  },
-  "apiDocsTableUpdateRow": {
-    "description": "Aktualisiert eine vorhandene {name} Zeile.",
-    "rowId": "Der eindeutige Bezeichner der Zeile, die aktualisiert werden muss.",
-    "before": "Wenn angegeben, wird die neu erstellte Zeile vor der Zeile mit der angegebenen id positioniert."
-  },
-  "apiDocsTableCreateRow": {
-    "description": "Erstellen Sie eine neue {name} Zeile.",
-    "before": "Wenn angegeben, wird die neu erstellte Zeile vor der Zeile mit der angegebenen id positioniert."
-  },
-  "apiDocsAuth": {
-    "description": "Baserow verwendet eine einfache tokenbasierte Authentifizierung. Sie müssen mindestens ein Datenbank-Token in Ihrem {settingsLink} erzeugen, um die unten beschriebenen Endpunkte zu verwenden. Es ist möglich, per Token Berechtigungen zum Erstellen, Lesen, Aktualisieren und Löschen bis zur Tabellenebene zu vergeben. Sie können sich bei der API authentifizieren, indem Sie Ihren Token im HTTP-Authorization Bearer Token Header angeben. Alle API-Anfragen müssen authentifiziert sein und über HTTPS erfolgen.",
-    "settingsLink": "Einstellungen"
-  },
-  "apiDocsFilters": {
-    "filter": "Filter",
-    "exampleValue": "Beispielwert",
-    "example": "Volles Beispiel",
-    "field": "feld {name}",
-    "deprecated": "veraltet"
-  },
-  "fieldTextSubForm": {
-    "placeholder": "Standardtext"
-  },
-  "fieldSingleSelectSubForm": {
-    "optionsLabel": "Optionen"
-  },
-  "fieldSingleSelectDropdown": {
-    "notFound": "Option nicht gefunden"
-  },
-  "fieldDateSubForm": {
-    "dateFormatLabel": "Datumsformat",
-    "dateFormatEuropean": "Europäisch",
-    "dateFormatUS": "US",
-    "dateFormatISO": "ISO",
-    "includeTimeLabel": "Zeit einbeziehen",
-    "timeFormatLabel": "Zeitformat",
-    "24Hour": "24 Stunden",
-    "12Hour": "12 Stunden",
-    "showTimezoneLabel": "Zeitzone anzeigen",
-    "forceTimezoneLabel": "Legen Sie die Zeitzone für alle Mitarbeiter fest",
-    "forceTimezoneValue": "Zeitzone",
-    "addTimezoneOffsetLabel": "Werte umrechnen ({utcOffsetDiff} Minuten hinzufügen)",
-    "subTimezoneOffsetLabel": "Werte umrechnen ({utcOffsetDiff} Minuten subtrahieren)"
-  },
-  "fieldLinkRowSubForm": {
-    "noTable": "Sie benötigen mindestens eine weitere Tabelle in derselben Datenbank, auf die Sie verweisen können.",
-    "selectTableLabel": "Wählen Sie eine Tabelle für die Verknüpfung",
-    "hasRelatedFieldLabel": "Verknüpftes Feld in verknüpfter Tabelle erstellen",
-    "limitToView": "Auswahl auf Ansicht beschränken",
-    "limitToViewDescription": "Beachten Sie, dass dies nur visuell ist. Es ist immer noch möglich, Beziehungen außerhalb der Ansicht über die Bezugstabelle oder API herzustellen."
-  },
-  "fieldSelectOptions": {
-    "add": "Eine Option hinzufügen"
-  },
-  "fieldNumberSubForm": {
-    "typeLabel": "Typ der Nummer",
-    "integer": "Integer",
-    "decimal": "Dezimal",
-    "decimalPlacesLabel": "Dezimalstellen",
-    "allowNegative": "Negativ zulassen",
-    "separatorLabel": "Tausender- und Dezimaltrennzeichen",
-    "prefixPlaceholder": "Präfix",
-    "suffixPlaceholder": "Suffix",
-    "prefixAndSuffixLabel": "Präfix / Suffix",
-    "spaceComma": "Leerzeichen, Komma (1 000 000,00)",
-    "spacePeriod": "Leerzeichen, Punkt (1 000 000.00)",
-    "commaPeriod": "Komma, Leerzeichen (1,000,000.00)",
-    "periodComma": "Punkt, Komma (1.000.000,00)",
-    "noFormatting": "Keine Formatierung"
-  },
-  "fieldContext": {
-    "editField": "Feld bearbeiten",
-    "deleteField": "Feld löschen",
-    "hideField": "Feld ausblenden",
-    "showField": "Feld anzeigen",
-    "changePrimaryField": "Primäres Feld ändern"
-  },
-  "fieldForm": {
-    "name": "Name",
-    "fieldAlreadyExists": "Ein Feld mit diesem Namen existiert bereits.",
-    "nameNotAllowed": "Dieser Feldname ist nicht zulässig.",
-    "nameTooLong": "Der Name dieses Feldes ist zu lang.",
-    "description": "Beschreibung",
-    "addDescription": "Beschreibung hinzufügen"
-  },
-  "fieldLookupSubForm": {
-    "noTable": "Sie benötigen mindestens ein Verknüpfungszeilenfeld, um ein Nachschlagefeld zu erstellen.",
-    "selectThroughFieldLabel": "Wählen Sie ein Link-Zeilenfeld",
-    "selectTargetFieldLabel": "Wählen Sie ein Feld zum Nachschlagen"
-  },
-  "fieldFormulaNumberSubForm": {
-    "typeLabel": "Typ der Nummer",
-    "integer": "Integer",
-    "decimal": "Dezimal",
-    "decimalPlacesLabel": "Dezimalstellen",
-    "allowNegative": "Negativ zulassen"
-  },
-  "fieldRatingSubForm": {
-    "maxValue": "Max",
-    "color": "Farbe",
-    "style": "Stil"
-  },
-  "rowCreateModal": {
-    "addField": "Feld hinzufügen"
-  },
-  "selectRowContent": {
-    "search": "Zeilen suchen"
-  },
-  "rowEditModal": {
-    "addField": "Feld hinzufügen",
-    "showHiddenFields": "Ausgeblendete Felder anzeigen",
-    "hideHiddenFields": "Versteckte Felder ausblenden"
-  },
-  "rowEditFieldMultipleSelect": {
-    "addOption": "Wähle eine Option"
-  },
-  "rowEditFieldFile": {
-    "addFile": "Eine Datei hinzufügen",
-    "sizes": {
-      "0": "Bytes",
-      "1": "KB",
-      "2": "MB",
-      "3": "GB",
-      "4": "TB",
-      "5": "PB"
-    }
-  },
-  "rowEditFieldLinkRow": {
-    "addLink": "Wählen Sie einen Link"
-  },
-  "tableCSVImporter": {
-    "chooseFileLabel": "CSV-Datei auswählen",
-    "chooseFileDescription": "Sie können eine vorhandene CSV-Datei importieren, indem Sie die .CSV-Datei mit den Tabellendaten hochladen. Mit den meisten Tabellenkalkulationsprogrammen können Sie Ihre Kalkulationstabelle als CSV-Datei exportieren.",
-    "chooseFile": "CSV-Datei auswählen",
-    "columnSeparator": "Spaltentrenner",
-    "recordSeparator": "Datensatz-Trennzeichen",
-    "unitSeparator": "Elementarteiler",
-    "encoding": "Kodierung",
-    "firstRowHeader": "Erste Zeile ist Kopfzeile",
-    "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
-    "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren.",
-    "emptyCSV": "Diese CSV-Datei ist leer."
-  },
-  "tableForm": {
-    "name": "Name"
-  },
-  "tableXMLImporter": {
-    "fileLabel": "XML-Datei auswählen",
-    "fileDescription": "Sie können eine bestehende XML-Datei importieren, indem Sie die XML-Datei mit tabellarischen Daten hochladen, d.h.:",
-    "chooseButton": "XML-Datei auswählen",
-    "processingError": "Bei der Verarbeitung von XML ist ein Fehler aufgetreten: {errors}",
-    "emptyError": "Diese XML-Datei ist leer.",
-    "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
-    "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
-  },
-  "tableJSONImporter": {
-    "fileLabel": "JSON-Datei auswählen",
-    "fileDescription": "Sie können eine vorhandene JSON-Datei importieren, indem Sie die .json-Datei mit tabellarischen Daten hochladen, d.h.:",
-    "chooseButton": "JSON-Datei auswählen",
-    "encodingLabel": "Kodierung",
-    "processingError": "Beim Analysieren von JSON ist ein Fehler aufgetreten: {error}",
-    "arrayError": "Die JSON-Datei ist kein Arrangement.",
-    "emptyError": "Diese JSON-Datei ist leer.",
-    "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
-    "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
-  },
-  "tablePasteImporter": {
-    "pasteLabel": "Einfügen der Tabellendaten",
-    "pasteDescription": "Sie können die Zellen aus einer Kalkulationstabelle kopieren und unten einfügen.",
-    "firstRowHeader": "Erste Zeile ist Kopfzeile",
-    "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
-  },
-  "importFileModal": {
-    "title": "Neue Tabelle erstellen",
-    "importLabel": "Möchten Sie vorhandene Daten importieren?",
-    "newTable": "Beginnen Sie mit einer neuen Tabelle",
-    "addButton": "Tabelle hinzufügen",
-    "uploading": "Hochladen...",
-    "preparing": "Daten werden vorbereitet...",
-    "importError": "Beim Dateiimport ist etwas schief gelaufen",
-    "statePreValidation": "Validierung von Daten...",
-    "stateCreateTable": "Tabelle wird erstellt...",
-    "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
-    "additionalImportTitle": "In {table} importieren",
-    "showTable": "Tabelle anzeigen",
-    "importButton": "Importieren",
-    "openCreatedTable": "Erstellte Tabelle öffnen",
-    "showReport": "Fehlerbericht anzeigen",
-    "stateRowCreation": "Importieren...",
-    "fieldMappingTitle": "Feldzuordnung",
-    "fieldMappingDescription": "Wir haben die Spalten der Baserow-Felder in Ihrer Tabelle automatisch zugewiesen. Sie können sie unten ändern. Jede nicht kompatible Zelle bleibt nach dem Import leer.",
-    "selectImportMessage": "Bitte wählen Sie die zu importierenden Daten aus.",
-    "reportTitleSuccess": "Import erfolgreich, aber...",
-    "reportTitleFailure": "Fehlerhafte Zeilen",
-    "filePreview": "Vorschau des Dateiinhalts",
-    "importPreview": "Importvorschau",
-    "changeImporterType": "Importtyp ändern",
-    "defaultName": "Tabelle"
-  },
-  "formulaAdvancedEditContext": {
-    "textAreaFormulaInputPlaceholder": "Klicken Sie zum Bearbeiten der Formel",
-    "fields": "Felder",
-    "functions": "Funktionen",
-    "operators": "Operatoren",
-    "fieldType": "Ein {type} Feld"
-  },
-  "fieldFormulaInitialSubForm": {
-    "formulaInputPlaceholder": "Klicken Sie zum Bearbeiten der Formel",
-    "refreshFormulaOptions": "Formeloptionen aktualisieren"
-  },
-  "formulaFieldItemDescription": {
-    "syntax": "Syntax",
-    "examples": "Beispiele"
-  },
-  "viewSearchContext": {
-    "searchInRows": "Suche in allen Zeilen",
-    "hideNotMatching": "nicht übereinstimmende Zeilen ausblenden"
-  },
-  "viewsContext": {
-    "searchView": "Suchen nach Ansichten",
-    "noViews": "Keine Ansichten gefunden",
-    "collaborative": "Kollaborativ"
-  },
-  "viewFilterTypeLinkRow": {
-    "unnamed": "unbenannte Zeile {value}",
-    "choose": "Reihe auswählen"
-  },
-  "viewFilterContext": {
-    "addFilter": "Filter hinzufügen",
-    "disableAllFilters": "alle deaktiviert",
-    "noFilterTitle": "Sie haben noch keinen Filter erstellt",
-    "noFilterText": "Mit Hilfe von Filtern können Sie Zeilen anzeigen, die auf Ihre Bedingungen zutreffen.",
-    "where": "Wo",
-    "and": "Und",
-    "or": "Oder",
-    "relatedFieldNotFound": "Das zugehörige Feld wurde nicht gefunden.",
-    "filterTypeNotFound": "Der Filtertyp ist nicht kompatibel.",
-    "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filtertypen",
-    "noCompatibleFilterTypesErrorMessage": "Keines Ihrer Felder hat einen kompatiblen Filtertyp",
-    "addFilterGroup": "Filtergruppe hinzufügen"
-  },
-  "viewFilterTypeFileTypeDropdown": {
-    "image": "Bild",
-    "document": "Dokument"
-  },
-  "createViewModal": {
-    "createNew": "Neue {Ansicht} erstellen",
-    "add": "Hinzufügen {view}"
-  },
-  "shareViewLink": {
-    "shareView": "{viewTypeSharingLinkName} teilen",
-    "shareViewTitle": "Sie haben die Ansicht noch nicht geteilt",
-    "sharedViewTitle": "Dieser {ViewTypeSharingLinkName} ist derzeit über einen privaten Link freigegeben",
-    "sharedViewDescription": "Personen, die den Link haben, können den {ViewTypeSharingLinkName} sehen.",
-    "disableLink": "Freigegebenen Link deaktivieren",
-    "generateNewUrl": "neue Url generieren",
-    "copyURL": "URL kopieren",
-    "DisablePassword": "Zugriff ist passwortgeschützt",
-    "EnablePassword": "Beschränken Sie den Zugriff mit einem Passwort",
-    "ChangePassword": "Ändern",
-    "createPrivateLink": "Einen privaten Link erstellen",
-    "shareViewText": "Ein privater, gemeinsam nutzbarer Link erlaubt es jedem, die Daten in dieser Ansicht zu sehen.",
-    "notSharedYetText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender."
-  },
-  "viewSortContext": {
-    "noSortTitle": "Sie haben noch keine Sortierungen erstellt",
-    "noSortText": "Mit Sortierungen können Sie Zeilen nach einem Feld sortieren.",
-    "sortBy": "Sortieren nach",
-    "thenBy": "Dann durch",
-    "addSort": "ein Feld zum Sortieren auswählen"
-  },
-  "viewSort": {
-    "sort": "Sortieren | 1 Sortieren | {count} Sortiert"
-  },
-  "viewRotateSlugModal": {
-    "title": "URL aktualisieren",
-    "refreshWarning": "Sind Sie sicher, dass Sie die URL von {viewName} aktualisieren möchten? Nach der Aktualisierung wird eine neue URL generiert und es ist nicht möglich, über die alte URL auf {viewTypeSharingLinkName} zuzugreifen. Alle Personen, für die Sie die URL freigegeben haben, können nicht mehr auf {viewTypeSharingLinkName} zugreifen.",
-    "generateNewURL": "Neue URL generieren"
-  },
-  "viewFieldsContext": {
-    "coverField": "Coverfeld",
-    "noCover": "Kein Cover",
-    "search": "Felder durchsuchen",
-    "hideAll": "Alle ausblenden",
-    "showAll": "Alle anzeigen"
-  },
-  "viewFilterTypeBoolean": {
-    "selected": "Ausgewählte"
-  },
-  "viewFilter": {
-    "filter": "Filter | 1 Filter | {count} Filters",
-    "hasAllValuesEqual": "hat alle Werte gleich",
-    "hasValueHigherThanOrEqual": "hat einen Wert größer oder gleich",
-    "hasValueLowerThan": "hat einen Wert kleiner als",
-    "hasValueLowerThanOrEqual": "hat einen Wert kleiner oder gleich",
-    "hasNotValueHigherThan": "hat keinen Wert größer als",
-    "hasValueHigherThan": "hat einen Wert größer als",
-    "hasNotValueHigherThanOrEqual": "hat keinen Wert größer oder gleich",
-    "hasNotValueLowerThan": "hat keinen Wert kleiner als",
-    "hasNotValueLowerThanOrEqual": "hat keinen Wert kleiner oder gleich"
-  },
-  "viewContext": {
-    "exportView": "Ansicht exportieren",
-    "renameView": "Ansicht umbenennen",
-    "deleteView": "Ansicht löschen",
-    "webhooks": "Webhooks",
-    "duplicateView": "Ansicht duplizieren",
-    "importFile": "Datei importieren",
-    "toCollaborative": "Zu Kollaborativ",
-    "toPersonal": "Zu Persönlich"
-  },
-  "deleteViewModal": {
-    "title": "Löschen {name}",
-    "description": "Sind Sie sicher, dass Sie die Ansicht {name} löschen möchten? Die Tabellendaten bleiben erhalten, aber die Filter, Sortierungen und Feldbreiten, die mit der Ansicht verbunden sind, werden gelöscht.",
-    "delete": "Ansicht löschen"
-  },
-  "viewForm": {
-    "name": "Name",
-    "whoCanEdit": "Wer kann bearbeiten"
-  },
-  "galleryViewHeader": {
-    "customizeCards": "Karten individuell gestalten"
-  },
-  "gridViewHide": {
-    "hideField": "Felder ausblenden | 1 verstecktes Feld | {count} versteckte Felder"
-  },
-  "gridViewFieldType": {
-    "createFilter": "Filter erstellen",
-    "sortField": "Sortieren",
-    "hideField": "Feld ausblenden",
-    "insertLeft": "Links einfügen",
-    "insertRight": "Rechts einfügen",
-    "duplicate": "Feld duplizieren",
-    "dataSyncField": "Das Feld ist schreibgeschützt und Teil des Datenabgleichs der Tabelle."
-  },
-  "gridViewRow": {
-    "rowNotMatchingFilters": "Zeile entspricht nicht den Filtern",
-    "rowNotMatchingSearch": "Zeile stimmt nicht mit Suche überein",
-    "rowHasMoved": "Zeile hat sich verschoben"
-  },
-  "gridView": {
-    "insertRowAbove": "Zeile oben einfügen",
-    "insertRowBelow": "Zeile unten einfügen",
-    "enlargeRow": "Zeile vergrößern",
-    "deleteRow": "Zeile löschen",
-    "rowCount": "Keine Zeilen | 1 Zeile | {count} Zeilen",
-    "selectRow": "Zeile auswählen",
-    "duplicateRow": "Zeile duplizieren",
-    "deleteRows": "Zeilen löschen",
-    "copyCells": "Zellen kopieren",
-    "hiddenRowsInsertedTitle": "Zeilen hinzugefügt",
-    "hiddenRowsInsertedMessage": "{number} neu hinzugefügte Zeilen wurden hinzugefügt, sind aber wegen der aktiven Filter nicht sichtbar.",
-    "tooManyItemsDescription": "Es ist nicht möglich, mehr als {limit} Zeilen auf einmal zu aktualisieren, also wurde nur die erste Zeile aktualisiert.",
-    "copyRowURL": "Zeilen-URL kopieren",
-    "copiedRowURL": "Zeilen-URL kopiert",
-    "copiedRowURLMessage": "Die URL aus Zeile {id} wurde in die Zwischenablage kopiert.",
-    "tooManyItemsTitle": "Zu viele Elemente",
-    "AIValuesGenerationErrorTitle": "Werterstellung mittels KI fehlgeschlagen",
-    "AIValuesGenerationErrorMessage": "Bitte überprüfen Sie Ihren API_KEY und das ausgewählte Modell.",
-    "generateCellsValues": "Mit KI Werte generieren",
-    "copyCellsWithHeader": "Zellen mit Kopfbereich kopieren"
-  },
-  "gridViewFieldLinkRow": {
-    "unnamed": "unbenannte Zeile {value}"
-  },
-  "gridViewIdentifierOptions": {
-    "id": "Spalten Identifikator",
-    "count": "Spalten Position"
-  },
-  "previewAny": {
-    "externalWarning": "Wenn Sie Ihre Datei über einen externen Dienst öffnen, wird Ihre Datei auf dessen Servern veröffentlicht."
-  },
-  "exportTableModal": {
-    "failedTitle": "Export fehlgeschlagen",
-    "failedDescription": "Der Export ist aufgrund eines Serverfehlers fehlgeschlagen.",
-    "cancelledTitle": "Export abgebrochen",
-    "cancelledDescription": "Die Exportaktion wurde abgebrochen.",
-    "title": "{name} exportieren"
-  },
-  "exporterTypeChoices": {
-    "formatLabel": "In welches Format möchten Sie exportieren?"
-  },
-  "exportTableForm": {
-    "viewLabel": "Wählen Sie die zu exportierende Ansicht aus:",
-    "typeError": "Kein Exporttyp verfügbar, bitte wählen Sie eine andere Ansicht oder eine ganze Tabelle."
-  },
-  "exportTableLoadingBar": {
-    "export": "Exportieren",
-    "download": "Herunterladen"
-  },
-  "exportTableDropdown": {
-    "exportEntireTable": "Gesamte Tabelle exportieren"
-  },
-  "tableCSVExporter": {
-    "columnSeparatorLabel": "Spaltentrenner",
-    "recordSeparator": "Datensatz-Trennzeichen",
-    "unitSeparator": "Teilgruppentrennzeichen",
-    "encodingLabel": "Kodierung",
-    "firstRowIsHeaderLabel": "Erste Zeile ist Kopfzeile",
-    "includeHeader": "Feldnamen als Überschrift einfügen"
-  },
-  "apiDocsDatabase": {
-    "pageTitle": "{name} Datenbank-API-Dokumentation",
-    "back": "Zurück zum Dashboard",
-    "openDatabase": "Datenbank öffnen"
-  },
-  "apiDocsComponent": {
-    "title": "REST API",
-    "intro": "Nachdem Sie Ihr Datenbankschema und Ihren API-Schlüssel im {settingsLink} erstellt haben, bietet Ihre Baserow-Datenbank eigene REST-API-Endpunkte zum Erstellen, Lesen, Aktualisieren und Löschen von Zeilen.",
-    "settings": "Einstellungen",
-    "selectApplicationTitle": "Für welche Datenbank möchten Sie die Dokumentation sehen?",
-    "signIn": "Anmelden, um zu starten",
-    "back": "Zurück zum Dashboard"
-  },
-  "viewAggregationType": {
-    "min": "Min",
-    "max": "Max",
-    "earliestDate": "Frühestes Datum",
-    "checkedCount": "Geprüft",
-    "notCheckedCount": "Ungeprüft",
-    "checkedPercentage": "Prozent markiert",
-    "notCheckedPercentage": "Prozentsatz nicht geprüft",
-    "earliestDateShort": "Früheste",
-    "latestDate": "Letztes Datum",
-    "latestDateShort": "Letztes",
-    "uniqueCount": "Eindeutig",
-    "sum": "Summe",
-    "median": "Median",
-    "stdDev": "Standardabweichung",
-    "variance": "Varianz",
-    "average": "Durchschnitt",
-    "stdDevShort": "Std Abw",
-    "emptyCount": "(Leer)",
-    "notEmptyCount": "Gefüllt",
-    "emptyPercentage": "Prozent leer",
-    "notEmptyPercentage": "Prozent gefüllt",
-    "count": "Anzahl"
-  },
-  "databaseForm": {
-    "importLabel": "Möchten Sie vorhandene Daten importieren?",
-    "emptyLabel": "Neu anfangen",
-    "airtableLabel": "Importieren von Airtable (beta)"
-  },
-  "importFromAirtable": {
-    "airtableShareLinkTitle": "Teilen Sie einen Link zu Ihrer Basis",
-    "airtableShareLinkBeta": "Beachten Sie, dass sich diese Funktion noch in Beta befindet. Ihre Tabellen, Felder (außer formula, lookup, und count) und Daten werden importiert. Ihre Views werden nicht importiert.",
-    "airtableShareLinkPaste": "Den Link hier einfügen",
-    "importButtonLabel": "Importieren von Airtable",
-    "openButtonLabel": "Importierte Datenbank öffnen",
-    "importError": "Etwas ist schief gelaufen",
-    "statePending": "Warten",
-    "stateFailed": "Fehlgeschlagen",
-    "stateFinished": "Abgeschlossen",
-    "stateDownloadingBase": "Herunterladen das Baseschemas",
-    "stateConverting": "Konvertierung zu Baserow",
-    "stateDownloadingFiles": "Herunterladen von Dateien",
-    "stateImporting": "Importieren",
-    "stateImportingTable": "Tabelle importieren {table}",
-    "airtableShareLinkDescription": "Um Ihre Airtable Base zu importieren, müssen Sie einen Link zu Ihrer gesamten Base haben. Klicken Sie in Airtable auf die \"Share\" taste in der oberen rechten Ecke, nachdem Sie Ihre Base geöffnet haben. Danach müssen Sie die Option \"Access to base\" wählen. Im modal drücken Sie auf \"Create a shared link to the whole base\" und dann auf \"Private read-only link\". Kopieren Sie den Link und fügen Sie ihn in das unten stehende Feld ein.",
-    "errorJobAlreadyRunningTitle": "Schon läuft",
-    "errorJobAlreadyRunningDescription": "Ein weiterer Importauftrag ist bereits in Arbeit. Sie müssen abwarten, bis dieser Vorgang abgeschlossen ist, bevor Sie einen weiteren beginnen.",
-    "linkError": "Der Link sollte wie folgt aussehen: https://airtable.com/shrxxxxxxxxxxxxxxx"
-  },
-  "chooseSingleSelectField": {
-    "addSelectField": "Einzelnes Auswahlfeld hinzufügen",
-    "warningWhenNothingToChooseOrCreate": "Es gibt keine einzelnen Auswahlfelder, aus denen Sie auswählen können, und Sie haben keine Berechtigung, eines zu erstellen."
-  },
-  "shareViewEnablePasswordModal": {
-    "newPasswordTitle": "Geben Sie ein Passwort ein",
-    "changePasswordSave": "Passwort ändern",
-    "newPasswordSave": "Passwort setzen",
-    "changePasswordTitle": "Passwort ändern",
-    "changePasswordDescription": "Durch das Ändern des Passworts funktioniert das vorherige nicht mehr. Dieses Passwort wird verschlüsselt gespeichert.",
-    "newPasswordDescription": "Der öffentliche Link ist erst nach Eingabe des Passworts zugänglich. Dieses Passwort wird verschlüsselt gespeichert."
-  },
-  "shareViewDisablePasswordModal": {
-    "title": "Passwortschutz deaktivieren",
-    "description": "Möchten Sie den Passwortschutz für diesen öffentlichen Link wirklich deaktivieren? Durch die Deaktivierung wird das Passwort gelöscht und kann nicht wiederhergestellt werden",
-    "disable": "Deaktivieren"
-  },
-  "publicViewAuthLogin": {
-    "title": "Diese Seite ist passwortgeschützt",
-    "enter": "Eingeben",
-    "error": {
-      "incorrectPasswordTitle": "Falsches Passwort",
-      "incorrectPasswordText": "Das angegebene Passwort ist falsch."
-    },
-    "description": "Geben Sie das richtige Passwort ein, um auf die Seite zuzugreifen."
-  },
-  "viewDecoratorContext": {
-    "addDecorator": "Verzierung hinzufügen"
-  },
-  "viewDecorator": {
-    "decorator": "Farbe | 1 Farbe | {count} Farben"
-  },
-  "apiDocsTableUpdateRows": {
-    "description": "Aktualisiert bestehende {name} Zeilen.",
-    "id": "Die Zeilen-ID."
-  },
-  "apiDocsTableCreateRows": {
-    "before": "Falls angegeben, werden die neu erstellten Zeilen vor der Zeile mit der angegebenen id positioniert.",
-    "description": "Neue Zeilen {name} erstellen."
-  },
-  "importer": {
-    "loading": "Datei wird geladen",
-    "decoding": "Dekodierung von Daten",
-    "inProgress": "In Arbeit...",
-    "parsing": "Analysieren von Daten",
-    "preparing": "Aufbereitung der Daten",
-    "fieldDefaultName": "Feld {count}"
-  },
-  "apiDocsTableDeleteRows": {
-    "description": "Löscht die vorhandenen Zeilen {name}.",
-    "items": "Ein Array von Zeilennummern, die gelöscht werden sollen."
-  },
-  "formViewMeta": {
-    "includeRowId": "Verwenden Sie {row_id}, um die neu erstellte Zeilen-ID in die URL aufzunehmen."
-  },
-  "databaseDashboardSidebarLinks": {
-    "apiDocumentation": "API-Dokumentation"
-  },
-  "formViewField": {
-    "required": "erforderlich",
-    "showWhenMatchingConditions": "anzeigen, wenn die Bedingungen erfüllt sind",
-    "addCondition": "Bedingung hinzufügen",
-    "descriptionPlaceholder": "Beschreibung",
-    "addConditionGroup": "Bedingungsgruppe hinzufügen",
-    "showFieldAs": "Feld anzeigen als"
-  },
-  "duplicateFieldContext": {
-    "duplicate": "Feld duplizieren",
-    "cloneData": "Daten kopieren",
-    "soon": "In Kürze verfügbar",
-    "readOnlyField": "Die Zellenwerte werden automatisch ausgefüllt."
-  },
-  "snapshotsModal": {
-    "descriptionLimits": "Sie können maximal {n} Snapshots pro Arbeitsbereich haben. | Sie können maximal {n} Snapshots pro Arbeitsbereich haben. | Sie können maximal {n} Snapshots pro Arbeitsbereich haben.",
-    "createLabel": "Erstelle einen neuen Snapshot",
-    "description": "Snapshots sind eine vollständige Kopie von {applicationTypeName} zu dem Zeitpunkt, an dem sie erstellt wurde. Bei der Wiederherstellung wird ein Duplikat dieser Daten erstellt. Snapshots werden nach einem Jahr automatisch gelöscht.",
-    "create": "Snapshot erstellen",
-    "snapshotRestoredErrorTitle": "Ein Fehler ist aufgetreten",
-    "title": "snapshots",
-    "snapshotRestoredErrorMessage": "Der Snapshot konnte nicht wiederhergestellt werden. Bitte versuchen Sie es später noch einmal.",
-    "snapshotDeletedErrorTitle": "Fehler aufgetreten",
-    "snapshotDeletedErrorMessage": "Der Snapshot konnte nicht gelöscht werden. Bitte versuchen Sie es später noch einmal.",
-    "limitReached": "Das Limit der maximalen Snapshots wurde erreicht.",
-    "snapshot": "Snapshot",
-    "importingState": "Erstellen",
-    "reset": "Erstellen eines weiteren"
-  },
-  "snapshotListItem": {
-    "created": "erstellt",
-    "restore": "wiederherstellen",
-    "delete": "Löschen"
-  },
-  "deleteSnapshotModal": {
-    "title": "Snapshot löschen",
-    "content": "Sind Sie sicher, dass Sie den Snapshot {name} dauerhaft löschen möchten?",
-    "confirm": "Löschen"
-  },
-  "duplicateTableJobType": {
-    "duplicating": "Duplizieren",
-    "duplicatedTitle": "Tabelle dupliziert",
-    "name": "Tabelle duplizieren"
-  },
-  "formViewModePreviewForm": {
-    "titlePlaceholder": "Titel",
-    "descriptionPlaceholder": "Beschreibung",
-    "addCoverImage": "Ein Titelbild hinzufügen",
-    "addLogo": "Ein Logo hinzufügen",
-    "noFields": "Dieses Formular hat noch keine Felder. Klicken Sie auf ein Feld in der linken Seitenleiste, um eines hinzuzufügen."
-  },
-  "apiDocsUploadFile": {
-    "description": "Lädt eine Datei auf Baserow hoch, indem der Dateiinhalt direkt hochgeladen wird. Es wird ein Multipart `file` erwartet, der den Inhalt der Datei enthält. Die Antwort kann dann zum [Hochladen einer Datei in eine Zeile]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row) verwendet werden.",
-    "file": "Der `file` Multipart, der den Dateiinhalt enthält."
-  },
-  "table": {
-    "chooseView": "Ansicht wählen",
-    "adjacentRow": {
-      "notification": {
-        "notFound": {
-          "previous": {
-            "title": "Keine Zeilen mehr",
-            "message": "Es gibt keine vorherige Zeile"
-          },
-          "next": {
-            "message": "Es gibt keine nächste Zeile",
-            "title": "Keine Zeilen mehr"
-          }
+    "webhookForm": {
+        "inputLabels": {
+            "name": "Name",
+            "value": "Wert",
+            "requestMethod": "Methode",
+            "url": "URL",
+            "userFieldNames": "Namen der Benutzerfelder",
+            "events": "Welche Ereignisse sollen diesen Webhook auslösen?",
+            "headers": "Zusätzliche Überschriften",
+            "example": "Beispiel Nutzlast"
         },
-        "error": {
-          "title": "Fehler aufgetreten",
-          "message": "Beim Abrufen der angrenzenden Zeile ist ein Fehler aufgetreten"
-        }
-      },
-      "toast": {
-        "notFound": {
-          "previous": {
-            "message": "Es gibt keine vorherige Zeile",
-            "title": "Keine Zeilen mehr"
-          },
-          "next": {
-            "title": "Keine Zeilen mehr",
-            "message": "Es gibt keine nächste Zeile"
-          }
+        "errors": {
+            "urlField": "Muss eine gültige URL sein, die mit \"https://\" oder \"http://\" beginnt.",
+            "invalidHeaders": "Eine der Kopfzeilen ist ungültig."
         },
-        "error": {
-          "title": "Ein Fehler ist aufgetreten",
-          "message": "Beim Abrufen der angrenzenden Zeile ist ein Fehler aufgetreten"
+        "checkbox": {
+            "sendUserFieldNames": "Feldname anstelle von id verwenden"
+        },
+        "radio": {
+            "allEvents": "Schick mir alles",
+            "customEvents": "Ich möchte einzelne Ereignisse auswählen"
+        },
+        "triggerButton": "Test-Webhook auslösen",
+        "deactivated": {
+            "title": "Webhook ist deaktiviert",
+            "content": "Dieser Webhook wurde deaktiviert, weil zu viele aufeinanderfolgende Fehler aufgetreten sind. Bitte überprüfen Sie das Aufrufprotokoll für weitere Details. Klicken Sie auf die Schaltfläche unten, um ihn wieder zu aktivieren. Vergessen Sie nicht, den Webhook nach dem Aktivieren zu speichern.",
+            "activate": "Aktivierung"
+        },
+        "deprecatedEventType": {
+            "description": "Dieser Webhook empfängt keine Informationen über alle geänderten Zeilen auf einmal. Bitte konvertieren Sie ihn in den Ereignistyp \"Batch\". Dadurch wird die JSON-Nutzlast in ein Format geändert, das mehrere Zeilen enthält.",
+            "title": "Veralteter Ereignistyp",
+            "convert": "Konvertieren"
+        },
+        "triggerWhenFieldsHaveChanged": "Löse aus, wenn Felder verändert wurden",
+        "helpTriggerWhenFieldsHaveChanged": "Wird nur ausgelöst, wenn sich der Zellwert der gewählten Felder verändert."
+    },
+    "webhook": {
+        "details": "Details",
+        "lastCall": "Letzter Aufruf: {lastCallTime}",
+        "noCalls": "Keine Aufrufe getätigt",
+        "callLog": "Aufrufprotokoll",
+        "triggerDescription": "Auslöser bei jedem Ereignis | Auslöser bei {count} Ereignis | Auslöser bei {count} Ereignissen"
+    },
+    "createWebhook": {
+        "errorTableWebhookMaxLimitExceededTitle": "Maximale Webhooks überschritten",
+        "errorTableWebhookMaxLimitExceededDescription": "Der Webhook kann nicht erstellt werden, da die maximale Anzahl von Webhooks pro Tabelle überschritten wurde."
+    },
+    "sidebar": {
+        "viewAPI": "API-Dokumente anzeigen",
+        "createTable": "Neue Tabelle"
+    },
+    "sidebarItem": {
+        "exportTable": "Exportieren der Tabelle",
+        "webhooks": "Webhooks",
+        "lastSynced": "Zuletzt synchronisiert",
+        "notSynced": "nicht sychnronisiert",
+        "sync": "Tabelle synchronisieren",
+        "updateSyncConfig": "Sync-Konfiguration aktualisieren"
+    },
+    "apiToken": {
+        "create": "erstellen",
+        "read": "lesen",
+        "update": "Aktualisierung",
+        "delete": "löschen",
+        "tokenPrefix": "Wertmarke:",
+        "viewAPIDocs": "API-Dokumentation anzeigen",
+        "generateNewToken": "Neues Token generieren",
+        "showOrHide": "Das Token ein- oder ausblenden",
+        "copyToClipboard": "In die Zwischenablage kopieren",
+        "showDatabases": "Datenbanken anzeigen"
+    },
+    "apiTokenSettings": {
+        "title": "Datenbank-Token",
+        "createToken": "Token erstellen",
+        "noTokensMessage": "Sie haben noch kein Datenbank-Token erstellt. Sie können Datenbank-Tokens verwenden, um sich bei den REST-API-Endpunkten zu authentifizieren, wo Sie Zeilen erstellen, lesen, aktualisieren und löschen können. Es ist möglich, Berechtigungen auf Tabellenebene festzulegen.",
+        "hasFullPermissions": "Hat volle Berechtigung, auch für alle Kinder.",
+        "hasOnlySelectedPermissions": "Hat nur Berechtigungen für die ausgewählten Kinder.",
+        "noPermissions": "Hat keine Berechtigungen.",
+        "createNewTitle": "Neues Datenbank-Token erstellen",
+        "backToOverview": "Zurück zur Übersicht"
+    },
+    "apiTokenForm": {
+        "nameLabel": "Name",
+        "workspaceLabel": "Arbeitsbereich"
+    },
+    "apiDocsSelectDatabase": {
+        "needOneDatabase": "Sie müssen mindestens eine Datenbank haben, um die API-Dokumentation anzuzeigen."
+    },
+    "apiDocsExample": {
+        "requestSample": "Beispiel anfordern",
+        "responseSample": "Antwortbeispiel",
+        "userFieldNames": "Namen der Benutzerfelder"
+    },
+    "apiDocsParameter": {
+        "optional": "Optional",
+        "defaultValue": "Standardwert: {value}"
+    },
+    "apiDocsTableGetRow": {
+        "description": "Holt eine einzelne Zeile {Name}.",
+        "rowId": "Der eindeutige Bezeichner der angeforderten Zeile."
+    },
+    "apiDocsErrors": {
+        "errorCode": "Fehlercode",
+        "name": "Name",
+        "description": "Beschreibung",
+        "okDescription": "Anfrage erfolgreich abgeschlossen.",
+        "badRequestDescription": "Die Anfrage enthält ungültige Werte oder das JSON konnte nicht interpretiert werden.",
+        "unauthorizedDescription": "Wenn Sie versuchen, auf einen Endpunkt ohne ein gültiges Datenbank-Token zuzugreifen.",
+        "notFoundDescription": "Zeile oder Tabelle wird nicht gefunden.",
+        "requestEntityTooLargeDescription": "Die Anfrage hat die maximal zulässige Größe der Nutzdaten überschritten.",
+        "internalErrorDescription": "Der Server ist auf eine unerwartete Bedingung gestoßen.",
+        "badGatewayDescription": "Baserow wird neu gestartet oder ein unerwarteter Ausfall ist im Gange.",
+        "unavailableDescription": "Der Server konnte Ihre Anfrage nicht rechtzeitig bearbeiten."
+    },
+    "apiDocsTableFields": {
+        "tableTitle": "{name} Tabelle",
+        "tableId": "Die ID dieser Tabelle lautet:",
+        "description": "Jede Zeile in der Tabelle {name} enthält die folgenden Felder.",
+        "id": "ID",
+        "name": "Name",
+        "type": "Typ",
+        "compatibleFilters": "Kompatible Filter"
+    },
+    "apiDocsTableListRows": {
+        "description": "Um Zeilen in der Tabelle *{name}* aufzulisten, muss eine `GET`-Anfrage an den Endpunkt *{name}* gestellt werden. Die Antwort ist paginiert und standardmäßig wird die erste Seite zurückgegeben. Die richtige Seite kann durch Angabe der Abfrageparameter \"page\" und \"size\" abgerufen werden.",
+        "page": "Legt fest, welche Seite von Zeilen zurückgegeben werden soll.",
+        "size": "Legt fest, wie viele Zeilen pro Seite zurückgegeben werden sollen.",
+        "userFieldNames": "Wenn der GET-Parameter \"user_field_names\" vorhanden ist und dessen Inhalt einem dieser Werte entspricht (`y`, `yes`, `true`, `t`, `on`, `1`, oder eine leere Zeichenfolge), sind die von diesem Endpunkt zurückgegebenen Feldnamen die tatsächlichen Namen der Felder.\n\nWenn der GET-Parameter \"user_field_names\" nicht angegeben wird oder nicht einem der oben angegebenen Werte entspricht, lauten alle zurückgegebenen Feldnamen \"field_\", gefolgt von der ID des Feldes. Zum Beispiel bezieht sich \"field_1\" auf das Feld mit der ID \"1\".\n\n Wenn `user_field_names` gesetzt ist, ändert sich außerdem das Verhalten der anderen GET-Parameter `order_by`, `include` und `exclude`. Sie erwarten stattdessen kommagetrennte Listen mit den tatsächlichen Feldnamen.",
+        "search": "Wenn angegeben, werden nur Zeilen mit Daten zurückgegeben, die der Suchanfrage entsprechen.",
+        "orderBy": "Optional können die Zeilen nach durch Komma getrennten Feldern geordnet werden. Standardmäßig oder wenn einem Feld ein '+' vorangestellt wird, ist es aufsteigend (A-Z) geordnet, aber durch Voranstellen eines '-' kann es absteigend (Z-A) geordnet werden.\n #### Mit`user_field_names`:\n\n `order_by`sollte eine durch ein Komma getrennte Liste der Feldnamen sein, nach denen geordnet werden soll. Wenn Sie beispielsweise den folgenden GET-Parameter angeben: `order_by=My Field,-My Field 2`, werden die Zeilen nach dem Feld mit der Bezeichnung `My Field`in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach dem Feld `My Field 2` in absteigender Reihenfolge geordnet.\n\n Stellen Sie sicher, dass Feldern, deren Namen mit einem `+` oder `-` beginnen, ausdrücklich ein weiteres `+` oder `-` vorangestellt wird. Z.B.`+-Name`.\n\n\n Feldnamen, die Kommas enthalten, müssen in Anführungszeichen eingeschlossen werden: `\"Name ,\"`. Wenn Feldnamen Anführungszeichen enthalten, müssen sie mit dem Zeichen `\\` geschützt werden. Beispiel: `Name `.\n\n#### Ohne `user_field_names`:\n\n `order_by` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, nach dem geordnet werden soll. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `order_by=field_1,-field_2`, werden die Zeilen nach `field_1` in aufsteigender Reihenfolge geordnet. Wenn einige Felder denselben Wert haben, wird diese Teilmenge nach `field_2` in absteigender Reihenfolge geordnet.",
+        "filter": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Es können mehrere Filter angewandt werden, wenn sie das gleiche Format haben. Die Variablen `field` und `filter` geben an, wie bzw. wo der Filter angewendet werden soll.\n\n#### Mit `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__Name__equal=test`, werden nur Zeilen zurückgegeben, in denen der Wert von `Name` gleich 'test' ist. Diese Methode ist abwärtskompatibel und prüft gegen `field_id`, wenn sie am Namen fehlschlägt.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `filter__field_1__equal=test`, werden nur Zeilen zurückgegeben, bei denen der Wert von `field_1` gleich 'test' ist.\n\nBitte beachten Sie, dass dieser Parameter ignoriert wird, wenn der Parameter filters angegeben wird. ",
+        "filterLink": "Eine Liste mit allen Filtern finden Sie hier.",
+        "filterType": "- `AND`: Gibt an, dass die Zeilen allen angegebenen Filtern entsprechen müssen.\n- `OR`: Gibt an, dass die Zeilen nur einem der Filter entsprechen müssen.\n\n Dies funktioniert nur, wenn zwei oder mehr Filter vorhanden sind.",
+        "include": "Alle Felder werden standardmäßig in die Antwort aufgenommen. Sie können eine Teilmenge der einzuschließenden Felder auswählen, indem Sie den Abfrageparameter include angeben.\n\n #### Mit `user_field_names`:\n\n Include\" sollte eine durch das Komma getrennte Liste von Feldnamen sein, die in die Ergebnisse aufgenommen werden sollen. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `include=My Field,-My Field 2`, dann werden nur diese Felder eingeschlossen (es sei denn, sie werden ausdrücklich ausgeschlossen).\n\n Der Name des Feldes, das die Felder enthält, muss mit einem Hinweis versehen werden: `name ,'. Enthält der Feldname Schrägstriche, so müssen diese unter Verwendung des Zeichens `\\` geschützt werden. Ex : `Name \\'.\n\n #### Ohne `user_field_names`:\n\n `include` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das in die Ergebnisse aufgenommen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `include=field_1,field_2` angeben, werden nur die Felder mit der ID `1` und der ID `2` einbezogen (es sei denn, sie werden ausdrücklich ausgeschlossen).",
+        "exclude": "Alle Felder werden standardmäßig in die Antwort aufgenommen. Sie können eine Untergruppe von Feldern auswählen, die ausgeschlossen werden sollen, indem Sie den Abfrageparameter exclude angeben.\n\n #### Mit \"user_field_names\":\n\n`exclude` sollte eine durch das Komma getrennte Liste von Feldern sein, die von den Ergebnissen ausgeschlossen werden sollen. Wenn Sie zum Beispiel den folgenden GET-Parameter angeben: `exclude=My Field,-My Field 2` dann werden diese Felder ausgeschlossen.\n\n Der Name des Feldes, das die Felder enthält, muss mit einem Hinweis versehen sein: \"name,\". Wenn der Feldname Schrägstriche enthält, müssen diese ebenfalls mit dem Zeichen \"name\" geschützt werden. Ex : `name\\\"`.\n\n #### Ohne `user_field_names`:\n\n `exclude` sollte eine durch das Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das von den Ergebnissen ausgeschlossen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `exclude=field_1,field_2` angeben, werden die Felder mit der id `1` und id `2` ausgeschlossen.",
+        "viewId": "Standardmäßig werden keine Filter und Sortierungen außerhalb der in den Abfrageparametern definierten angewendet. Sie können die Filter und Sortierungen einer Ansicht hinzufügen, indem Sie deren `id` im GET-Parameter `view_id` angeben. Wenn Sie z. B. den folgenden GET-Parameter angeben: \"view_id=1\", werden die in der Ansicht mit der ID \"1\" definierten Filter und Sortierungen angewandt. Sie können die `view_id` im Kontextmenü einer beliebigen Ansicht finden. Es ist die Zahl in Klammern hinter dem Namen der Ansicht. \n\n #### Mit `filter__{field}__{filter}` \n\n Es werden sowohl der im Abfrageparameter angegebene Filter als auch die in der Ansicht definierten Filter angewendet.\n\n #### Mit `order_by` \n\n Wenn `order_by` angegeben wird, wird die in der Ansicht definierte Sortierung ignoriert.",
+        "filtersBuilder": "Öffnet den Filter-Parameter-Builder",
+        "filters": "Die Zeilen können optional mit denselben Ansichtsfiltern gefiltert werden, die auch für die Ansichten verfügbar sind. Dieser Parameter akzeptiert eine serialisierte JSON-Zeichenkette, die den Filterbaum enthält, der auf diese Ansicht anzuwenden ist. Der Filterbaum ist eine verschachtelte Struktur, die die anzuwendenden Filter enthält. \n\n#### Mit `user_field_names`:\n\nEin Beispiel für einen gültigen Filterbaum ist der Folgende: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\n\n#### Ohne `user_field_names`:\n\nWenn Sie zum Beispiel optional den folgenden GET-Parameter angeben: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\n\nBitte beachten Sie, dass bei Angabe dieses Parameters alle anderen `filter__{field}__{filter}` ignoriert werden, ebenso wie der Parameter \\\"filter_type\\\".",
+        "join": "Ermöglicht die Abfrage von Feldwerten aus einer Zieltabelle über vorhandene Verknüpfungszeilenfelder. Der Parametername muss der Name eines bestehenden Link-Zeilenfeldes sein, gefolgt von __join. Der Wert sollte eine Liste von Feldnamen sein, für die zusätzliche Werte abgefragt werden sollen. Sie können ein oder mehrere Zielfelder angeben. Es ist nicht möglich, den Wert eines Link-Zeilenfeldes in der Zieltabelle zu suchen.\n\n #### Mit `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von Feldnamen sein, die in die Ergebnisse aufgenommen werden sollen. Zum Beispiel: Wenn Sie den folgenden GET-Parameter `LinkRowField__join=MyField,MyField2` angeben, werden die Werte von `MyField` und `My Field2` in der durch `LinkRowField` verknüpften Tabelle in die Antwort aufgenommen.\n\n#### Ohne `user_field_names`:\n\n `join` sollte eine durch Komma getrennte Liste von `field_` sein, gefolgt von der ID des Feldes, das in die Ergebnisse aufgenommen werden soll. Zum Beispiel: Wenn Sie den folgenden GET-Parameter angeben: `field_1__join=field_2,field_3`, werden die Werte von `field_2` und `field_3` in der mit `field_1` verknüpften Tabelle in die Antwort aufgenommen."
+    },
+    "apiDocsIntro": {
+        "intro": "Die Datenbank {name} bietet eine einfache Möglichkeit, die Daten in ein beliebiges externes System zu integrieren. Die API folgt der REST-Semantik, verwendet JSON zur Kodierung von Objekten und stützt sich auf Standard-HTTP-Codes sowie maschinen- und menschenlesbare Fehler zur Signalisierung von Operationsergebnissen.",
+        "autoDocDescription": "Diese Dokumentation wird automatisch auf der Grundlage der in Ihrer Datenbank vorhandenen Tabellen und Felder erstellt. Wenn Sie Änderungen an Ihrer Datenbank, Ihren Tabellen oder Feldern vornehmen, kann es sein, dass sich auch die API-Schnittstelle geändert hat. Stellen Sie daher sicher, dass Sie Ihre API-Implementierung entsprechend aktualisieren.",
+        "databaseId": "Die ID dieser Datenbank lautet:",
+        "jsClient": "JavaScript-Beispiel API-Client:",
+        "pythonClient": "Python-Beispiel API-Client:"
+    },
+    "apiDocsTableListFields": {
+        "description": "Um Felder der Tabelle {name} aufzulisten, muss eine `GET`-Anfrage an den Endpunkt {name} fields gestellt werden. Es ist nur möglich, die Felder aufzulisten, wenn das Datenbank-Token Lese-, Erstellungs- oder Aktualisierungsberechtigungen hat.",
+        "resultFieldProperties": "Eigenschaften des Ergebnisfeldes",
+        "id": "Primärschlüssel des Feldes. Kann verwendet werden, um den Namen der Datenbankspalte durch Hinzufügen des Präfixes `field_` zu generieren.",
+        "name": "Name des Feldes.",
+        "tableId": "Zugehörige Tabelle id.",
+        "order": "Reihenfolge der Felder in der Tabelle. 0 für das erste Feld.",
+        "primary": "Gibt an, wenn das Feld ein Primärfeld ist. Wenn `true`, kann das Feld nicht gelöscht werden und der Wert sollte die gesamte Zeile repräsentieren.",
+        "type": "Für dieses Feld definierter Typ.",
+        "extraProps": "Einige zusätzliche Eigenschaften werden hier nicht beschrieben, da sie typspezifisch sind.",
+        "readOnly": "Zeigt an, ob das Feld ein schreibgeschütztes Feld ist. Wenn \"true\", kann der Wert der Zelle nicht aktualisiert werden.",
+        "descriptionField": "Feldbeschreibung"
+    },
+    "apiDocsTableDeleteRow": {
+        "description": "Löscht eine vorhandene {name} Zeile.",
+        "rowId": "Der eindeutige Bezeichner der Zeile, die gelöscht werden muss."
+    },
+    "apiDocsTableMoveRow": {
+        "description": "Verschiebt eine vorhandene Zeile {name} vor eine andere Zeile. Wenn keine `before_id` angegeben wird, dann wird die Zeile an das Ende der Tabelle verschoben.",
+        "rowId": "Verschiebt die mit dem Wert verbundene Zeile.",
+        "before": "Verschiebt die Zeile mit der angegebenen `row_id` vor die Zeile mit dem angegebenen Wert. Wenn nicht angegeben, wird die Zeile an das Ende verschoben."
+    },
+    "apiDocsTableUpdateRow": {
+        "description": "Aktualisiert eine vorhandene {name} Zeile.",
+        "rowId": "Der eindeutige Bezeichner der Zeile, die aktualisiert werden muss.",
+        "before": "Wenn angegeben, wird die neu erstellte Zeile vor der Zeile mit der angegebenen id positioniert."
+    },
+    "apiDocsTableCreateRow": {
+        "description": "Erstellen Sie eine neue {name} Zeile.",
+        "before": "Wenn angegeben, wird die neu erstellte Zeile vor der Zeile mit der angegebenen id positioniert."
+    },
+    "apiDocsAuth": {
+        "description": "Baserow verwendet eine einfache tokenbasierte Authentifizierung. Sie müssen mindestens ein Datenbank-Token in Ihrem {settingsLink} erzeugen, um die unten beschriebenen Endpunkte zu verwenden. Es ist möglich, per Token Berechtigungen zum Erstellen, Lesen, Aktualisieren und Löschen bis zur Tabellenebene zu vergeben. Sie können sich bei der API authentifizieren, indem Sie Ihren Token im HTTP-Authorization Bearer Token Header angeben. Alle API-Anfragen müssen authentifiziert sein und über HTTPS erfolgen.",
+        "settingsLink": "Einstellungen"
+    },
+    "apiDocsFilters": {
+        "filter": "Filter",
+        "exampleValue": "Beispielwert",
+        "example": "Volles Beispiel",
+        "field": "feld {name}",
+        "deprecated": "veraltet"
+    },
+    "fieldTextSubForm": {
+        "placeholder": "Standardtext"
+    },
+    "fieldSingleSelectSubForm": {
+        "optionsLabel": "Optionen"
+    },
+    "fieldSingleSelectDropdown": {
+        "notFound": "Option nicht gefunden"
+    },
+    "fieldDateSubForm": {
+        "dateFormatLabel": "Datumsformat",
+        "dateFormatEuropean": "Europäisch",
+        "dateFormatUS": "US",
+        "dateFormatISO": "ISO",
+        "includeTimeLabel": "Zeit einbeziehen",
+        "timeFormatLabel": "Zeitformat",
+        "24Hour": "24 Stunden",
+        "12Hour": "12 Stunden",
+        "showTimezoneLabel": "Zeitzone anzeigen",
+        "forceTimezoneLabel": "Legen Sie die Zeitzone für alle Mitarbeiter fest",
+        "forceTimezoneValue": "Zeitzone",
+        "addTimezoneOffsetLabel": "Werte umrechnen ({utcOffsetDiff} Minuten hinzufügen)",
+        "subTimezoneOffsetLabel": "Werte umrechnen ({utcOffsetDiff} Minuten subtrahieren)"
+    },
+    "fieldLinkRowSubForm": {
+        "noTable": "Sie benötigen mindestens eine weitere Tabelle in derselben Datenbank, auf die Sie verweisen können.",
+        "selectTableLabel": "Wählen Sie eine Tabelle für die Verknüpfung",
+        "hasRelatedFieldLabel": "Verknüpftes Feld in verknüpfter Tabelle erstellen",
+        "limitToView": "Auswahl auf Ansicht beschränken",
+        "limitToViewDescription": "Beachten Sie, dass dies nur visuell ist. Es ist immer noch möglich, Beziehungen außerhalb der Ansicht über die Bezugstabelle oder API herzustellen."
+    },
+    "fieldSelectOptions": {
+        "add": "Eine Option hinzufügen"
+    },
+    "fieldNumberSubForm": {
+        "typeLabel": "Typ der Nummer",
+        "integer": "Integer",
+        "decimal": "Dezimal",
+        "decimalPlacesLabel": "Dezimalstellen",
+        "allowNegative": "Negativ zulassen",
+        "separatorLabel": "Tausender- und Dezimaltrennzeichen",
+        "prefixPlaceholder": "Präfix",
+        "suffixPlaceholder": "Suffix",
+        "prefixAndSuffixLabel": "Präfix / Suffix",
+        "spaceComma": "Leerzeichen, Komma (1 000 000,00)",
+        "spacePeriod": "Leerzeichen, Punkt (1 000 000.00)",
+        "commaPeriod": "Komma, Leerzeichen (1,000,000.00)",
+        "periodComma": "Punkt, Komma (1.000.000,00)",
+        "noFormatting": "Keine Formatierung"
+    },
+    "fieldContext": {
+        "editField": "Feld bearbeiten",
+        "deleteField": "Feld löschen",
+        "hideField": "Feld ausblenden",
+        "showField": "Feld anzeigen",
+        "changePrimaryField": "Primäres Feld ändern"
+    },
+    "fieldForm": {
+        "name": "Name",
+        "fieldAlreadyExists": "Ein Feld mit diesem Namen existiert bereits.",
+        "nameNotAllowed": "Dieser Feldname ist nicht zulässig.",
+        "nameTooLong": "Der Name dieses Feldes ist zu lang.",
+        "description": "Beschreibung",
+        "addDescription": "Beschreibung hinzufügen"
+    },
+    "fieldLookupSubForm": {
+        "noTable": "Sie benötigen mindestens ein Verknüpfungszeilenfeld, um ein Nachschlagefeld zu erstellen.",
+        "selectThroughFieldLabel": "Wählen Sie ein Link-Zeilenfeld",
+        "selectTargetFieldLabel": "Wählen Sie ein Feld zum Nachschlagen"
+    },
+    "fieldFormulaNumberSubForm": {
+        "typeLabel": "Typ der Nummer",
+        "integer": "Integer",
+        "decimal": "Dezimal",
+        "decimalPlacesLabel": "Dezimalstellen",
+        "allowNegative": "Negativ zulassen"
+    },
+    "fieldRatingSubForm": {
+        "maxValue": "Max",
+        "color": "Farbe",
+        "style": "Stil"
+    },
+    "rowCreateModal": {
+        "addField": "Feld hinzufügen"
+    },
+    "selectRowContent": {
+        "search": "Zeilen suchen"
+    },
+    "rowEditModal": {
+        "addField": "Feld hinzufügen",
+        "showHiddenFields": "Ausgeblendete Felder anzeigen",
+        "hideHiddenFields": "Versteckte Felder ausblenden"
+    },
+    "rowEditFieldMultipleSelect": {
+        "addOption": "Wähle eine Option"
+    },
+    "rowEditFieldFile": {
+        "addFile": "Eine Datei hinzufügen",
+        "sizes": {
+            "0": "Bytes",
+            "1": "KB",
+            "2": "MB",
+            "3": "GB",
+            "4": "TB",
+            "5": "PB"
         }
-      }
+    },
+    "rowEditFieldLinkRow": {
+        "addLink": "Wählen Sie einen Link"
+    },
+    "tableCSVImporter": {
+        "chooseFileLabel": "CSV-Datei auswählen",
+        "chooseFileDescription": "Sie können eine vorhandene CSV-Datei importieren, indem Sie die .CSV-Datei mit den Tabellendaten hochladen. Mit den meisten Tabellenkalkulationsprogrammen können Sie Ihre Kalkulationstabelle als CSV-Datei exportieren.",
+        "chooseFile": "CSV-Datei auswählen",
+        "columnSeparator": "Spaltentrenner",
+        "recordSeparator": "Datensatz-Trennzeichen",
+        "unitSeparator": "Elementarteiler",
+        "encoding": "Kodierung",
+        "firstRowHeader": "Erste Zeile ist Kopfzeile",
+        "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
+        "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren.",
+        "emptyCSV": "Diese CSV-Datei ist leer."
+    },
+    "tableForm": {
+        "name": "Name"
+    },
+    "tableXMLImporter": {
+        "fileLabel": "XML-Datei auswählen",
+        "fileDescription": "Sie können eine bestehende XML-Datei importieren, indem Sie die XML-Datei mit tabellarischen Daten hochladen, d.h.:",
+        "chooseButton": "XML-Datei auswählen",
+        "processingError": "Bei der Verarbeitung von XML ist ein Fehler aufgetreten: {errors}",
+        "emptyError": "Diese XML-Datei ist leer.",
+        "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
+        "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
+    },
+    "tableJSONImporter": {
+        "fileLabel": "JSON-Datei auswählen",
+        "fileDescription": "Sie können eine vorhandene JSON-Datei importieren, indem Sie die .json-Datei mit tabellarischen Daten hochladen, d.h.:",
+        "chooseButton": "JSON-Datei auswählen",
+        "encodingLabel": "Kodierung",
+        "processingError": "Beim Analysieren von JSON ist ein Fehler aufgetreten: {error}",
+        "arrayError": "Die JSON-Datei ist kein Arrangement.",
+        "emptyError": "Diese JSON-Datei ist leer.",
+        "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
+        "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
+    },
+    "tablePasteImporter": {
+        "pasteLabel": "Einfügen der Tabellendaten",
+        "pasteDescription": "Sie können die Zellen aus einer Kalkulationstabelle kopieren und unten einfügen.",
+        "firstRowHeader": "Erste Zeile ist Kopfzeile",
+        "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren."
+    },
+    "importFileModal": {
+        "title": "Neue Tabelle erstellen",
+        "importLabel": "Möchten Sie vorhandene Daten importieren?",
+        "newTable": "Beginnen Sie mit einer neuen Tabelle",
+        "addButton": "Tabelle hinzufügen",
+        "uploading": "Hochladen...",
+        "preparing": "Daten werden vorbereitet...",
+        "importError": "Beim Dateiimport ist etwas schief gelaufen",
+        "statePreValidation": "Validierung von Daten...",
+        "stateCreateTable": "Tabelle wird erstellt...",
+        "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
+        "additionalImportTitle": "In {table} importieren",
+        "showTable": "Tabelle anzeigen",
+        "importButton": "Importieren",
+        "openCreatedTable": "Erstellte Tabelle öffnen",
+        "showReport": "Fehlerbericht anzeigen",
+        "stateRowCreation": "Importieren...",
+        "fieldMappingTitle": "Feldzuordnung",
+        "fieldMappingDescription": "Wir haben die Spalten der Baserow-Felder in Ihrer Tabelle automatisch zugewiesen. Sie können sie unten ändern. Jede nicht kompatible Zelle bleibt nach dem Import leer.",
+        "selectImportMessage": "Bitte wählen Sie die zu importierenden Daten aus.",
+        "reportTitleSuccess": "Import erfolgreich, aber...",
+        "reportTitleFailure": "Fehlerhafte Zeilen",
+        "filePreview": "Vorschau des Dateiinhalts",
+        "importPreview": "Importvorschau",
+        "changeImporterType": "Importtyp ändern",
+        "defaultName": "Tabelle"
+    },
+    "formulaAdvancedEditContext": {
+        "textAreaFormulaInputPlaceholder": "Klicken Sie zum Bearbeiten der Formel",
+        "fields": "Felder",
+        "functions": "Funktionen",
+        "operators": "Operatoren",
+        "fieldType": "Ein {type} Feld"
+    },
+    "fieldFormulaInitialSubForm": {
+        "formulaInputPlaceholder": "Klicken Sie zum Bearbeiten der Formel",
+        "refreshFormulaOptions": "Formeloptionen aktualisieren"
+    },
+    "formulaFieldItemDescription": {
+        "syntax": "Syntax",
+        "examples": "Beispiele"
+    },
+    "viewSearchContext": {
+        "searchInRows": "Suche in allen Zeilen",
+        "hideNotMatching": "nicht übereinstimmende Zeilen ausblenden"
+    },
+    "viewsContext": {
+        "searchView": "Suchen nach Ansichten",
+        "noViews": "Keine Ansichten gefunden",
+        "collaborative": "Kollaborativ"
+    },
+    "viewFilterTypeLinkRow": {
+        "unnamed": "unbenannte Zeile {value}",
+        "choose": "Reihe auswählen"
+    },
+    "viewFilterContext": {
+        "addFilter": "Filter hinzufügen",
+        "disableAllFilters": "alle deaktiviert",
+        "noFilterTitle": "Sie haben noch keinen Filter erstellt",
+        "noFilterText": "Mit Hilfe von Filtern können Sie Zeilen anzeigen, die auf Ihre Bedingungen zutreffen.",
+        "where": "Wo",
+        "and": "Und",
+        "or": "Oder",
+        "relatedFieldNotFound": "Das zugehörige Feld wurde nicht gefunden.",
+        "filterTypeNotFound": "Der Filtertyp ist nicht kompatibel.",
+        "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filtertypen",
+        "noCompatibleFilterTypesErrorMessage": "Keines Ihrer Felder hat einen kompatiblen Filtertyp",
+        "addFilterGroup": "Filtergruppe hinzufügen"
+    },
+    "viewFilterTypeFileTypeDropdown": {
+        "image": "Bild",
+        "document": "Dokument"
+    },
+    "createViewModal": {
+        "createNew": "Neue {Ansicht} erstellen",
+        "add": "Hinzufügen {view}"
+    },
+    "shareViewLink": {
+        "shareView": "{viewTypeSharingLinkName} teilen",
+        "shareViewTitle": "Sie haben die Ansicht noch nicht geteilt",
+        "sharedViewTitle": "Dieser {ViewTypeSharingLinkName} ist derzeit über einen privaten Link freigegeben",
+        "sharedViewDescription": "Personen, die den Link haben, können den {ViewTypeSharingLinkName} sehen.",
+        "disableLink": "Freigegebenen Link deaktivieren",
+        "generateNewUrl": "neue Url generieren",
+        "copyURL": "URL kopieren",
+        "DisablePassword": "Zugriff ist passwortgeschützt",
+        "EnablePassword": "Beschränken Sie den Zugriff mit einem Passwort",
+        "ChangePassword": "Ändern",
+        "createPrivateLink": "Einen privaten Link erstellen",
+        "shareViewText": "Ein privater, gemeinsam nutzbarer Link erlaubt es jedem, die Daten in dieser Ansicht zu sehen.",
+        "notSharedYetText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender."
+    },
+    "viewSortContext": {
+        "noSortTitle": "Sie haben noch keine Sortierungen erstellt",
+        "noSortText": "Mit Sortierungen können Sie Zeilen nach einem Feld sortieren.",
+        "sortBy": "Sortieren nach",
+        "thenBy": "Dann durch",
+        "addSort": "ein Feld zum Sortieren auswählen"
+    },
+    "viewSort": {
+        "sort": "Sortieren | 1 Sortieren | {count} Sortiert"
+    },
+    "viewRotateSlugModal": {
+        "title": "URL aktualisieren",
+        "refreshWarning": "Sind Sie sicher, dass Sie die URL von {viewName} aktualisieren möchten? Nach der Aktualisierung wird eine neue URL generiert und es ist nicht möglich, über die alte URL auf {viewTypeSharingLinkName} zuzugreifen. Alle Personen, für die Sie die URL freigegeben haben, können nicht mehr auf {viewTypeSharingLinkName} zugreifen.",
+        "generateNewURL": "Neue URL generieren"
+    },
+    "viewFieldsContext": {
+        "coverField": "Coverfeld",
+        "noCover": "Kein Cover",
+        "search": "Felder durchsuchen",
+        "hideAll": "Alle ausblenden",
+        "showAll": "Alle anzeigen"
+    },
+    "viewFilterTypeBoolean": {
+        "selected": "Ausgewählte"
+    },
+    "viewFilter": {
+        "filter": "Filter | 1 Filter | {count} Filters",
+        "hasAllValuesEqual": "hat alle Werte gleich",
+        "hasValueHigherThanOrEqual": "hat einen Wert größer oder gleich",
+        "hasValueLowerThan": "hat einen Wert kleiner als",
+        "hasValueLowerThanOrEqual": "hat einen Wert kleiner oder gleich",
+        "hasNotValueHigherThan": "hat keinen Wert größer als",
+        "hasValueHigherThan": "hat einen Wert größer als",
+        "hasNotValueHigherThanOrEqual": "hat keinen Wert größer oder gleich",
+        "hasNotValueLowerThan": "hat keinen Wert kleiner als",
+        "hasNotValueLowerThanOrEqual": "hat keinen Wert kleiner oder gleich"
+    },
+    "viewContext": {
+        "exportView": "Ansicht exportieren",
+        "renameView": "Ansicht umbenennen",
+        "deleteView": "Ansicht löschen",
+        "webhooks": "Webhooks",
+        "duplicateView": "Ansicht duplizieren",
+        "importFile": "Datei importieren",
+        "toCollaborative": "Zu Kollaborativ",
+        "toPersonal": "Zu Persönlich"
+    },
+    "deleteViewModal": {
+        "title": "Löschen {name}",
+        "description": "Sind Sie sicher, dass Sie die Ansicht {name} löschen möchten? Die Tabellendaten bleiben erhalten, aber die Filter, Sortierungen und Feldbreiten, die mit der Ansicht verbunden sind, werden gelöscht.",
+        "delete": "Ansicht löschen"
+    },
+    "viewForm": {
+        "name": "Name",
+        "whoCanEdit": "Wer kann bearbeiten"
+    },
+    "galleryViewHeader": {
+        "customizeCards": "Karten individuell gestalten"
+    },
+    "gridViewHide": {
+        "hideField": "Felder ausblenden | 1 verstecktes Feld | {count} versteckte Felder"
+    },
+    "gridViewFieldType": {
+        "createFilter": "Filter erstellen",
+        "sortField": "Sortieren",
+        "hideField": "Feld ausblenden",
+        "insertLeft": "Links einfügen",
+        "insertRight": "Rechts einfügen",
+        "duplicate": "Feld duplizieren",
+        "dataSyncField": "Das Feld ist schreibgeschützt und Teil des Datenabgleichs der Tabelle."
+    },
+    "gridViewRow": {
+        "rowNotMatchingFilters": "Zeile entspricht nicht den Filtern",
+        "rowNotMatchingSearch": "Zeile stimmt nicht mit Suche überein",
+        "rowHasMoved": "Zeile hat sich verschoben"
+    },
+    "gridView": {
+        "insertRowAbove": "Zeile oben einfügen",
+        "insertRowBelow": "Zeile unten einfügen",
+        "enlargeRow": "Zeile vergrößern",
+        "deleteRow": "Zeile löschen",
+        "rowCount": "Keine Zeilen | 1 Zeile | {count} Zeilen",
+        "selectRow": "Zeile auswählen",
+        "duplicateRow": "Zeile duplizieren",
+        "deleteRows": "Zeilen löschen",
+        "copyCells": "Zellen kopieren",
+        "hiddenRowsInsertedTitle": "Zeilen hinzugefügt",
+        "hiddenRowsInsertedMessage": "{number} neu hinzugefügte Zeilen wurden hinzugefügt, sind aber wegen der aktiven Filter nicht sichtbar.",
+        "tooManyItemsDescription": "Es ist nicht möglich, mehr als {limit} Zeilen auf einmal zu aktualisieren, also wurde nur die erste Zeile aktualisiert.",
+        "copyRowURL": "Zeilen-URL kopieren",
+        "copiedRowURL": "Zeilen-URL kopiert",
+        "copiedRowURLMessage": "Die URL aus Zeile {id} wurde in die Zwischenablage kopiert.",
+        "tooManyItemsTitle": "Zu viele Elemente",
+        "AIValuesGenerationErrorTitle": "Werterstellung mittels KI fehlgeschlagen",
+        "AIValuesGenerationErrorMessage": "Bitte überprüfen Sie Ihren API_KEY und das ausgewählte Modell.",
+        "generateCellsValues": "Mit KI Werte generieren",
+        "copyCellsWithHeader": "Zellen mit Kopfbereich kopieren"
+    },
+    "gridViewFieldLinkRow": {
+        "unnamed": "unbenannte Zeile {value}"
+    },
+    "gridViewIdentifierOptions": {
+        "id": "Spalten Identifikator",
+        "count": "Spalten Position"
+    },
+    "previewAny": {
+        "externalWarning": "Wenn Sie Ihre Datei über einen externen Dienst öffnen, wird Ihre Datei auf dessen Servern veröffentlicht."
+    },
+    "exportTableModal": {
+        "failedTitle": "Export fehlgeschlagen",
+        "failedDescription": "Der Export ist aufgrund eines Serverfehlers fehlgeschlagen.",
+        "cancelledTitle": "Export abgebrochen",
+        "cancelledDescription": "Die Exportaktion wurde abgebrochen.",
+        "title": "{name} exportieren"
+    },
+    "exporterTypeChoices": {
+        "formatLabel": "In welches Format möchten Sie exportieren?"
+    },
+    "exportTableForm": {
+        "viewLabel": "Wählen Sie die zu exportierende Ansicht aus:",
+        "typeError": "Kein Exporttyp verfügbar, bitte wählen Sie eine andere Ansicht oder eine ganze Tabelle."
+    },
+    "exportTableLoadingBar": {
+        "export": "Exportieren",
+        "download": "Herunterladen"
+    },
+    "exportTableDropdown": {
+        "exportEntireTable": "Gesamte Tabelle exportieren"
+    },
+    "tableCSVExporter": {
+        "columnSeparatorLabel": "Spaltentrenner",
+        "recordSeparator": "Datensatz-Trennzeichen",
+        "unitSeparator": "Teilgruppentrennzeichen",
+        "encodingLabel": "Kodierung",
+        "firstRowIsHeaderLabel": "Erste Zeile ist Kopfzeile",
+        "includeHeader": "Feldnamen als Überschrift einfügen"
+    },
+    "apiDocsDatabase": {
+        "pageTitle": "{name} Datenbank-API-Dokumentation",
+        "back": "Zurück zum Dashboard",
+        "openDatabase": "Datenbank öffnen"
+    },
+    "apiDocsComponent": {
+        "title": "REST API",
+        "intro": "Nachdem Sie Ihr Datenbankschema und Ihren API-Schlüssel im {settingsLink} erstellt haben, bietet Ihre Baserow-Datenbank eigene REST-API-Endpunkte zum Erstellen, Lesen, Aktualisieren und Löschen von Zeilen.",
+        "settings": "Einstellungen",
+        "selectApplicationTitle": "Für welche Datenbank möchten Sie die Dokumentation sehen?",
+        "signIn": "Anmelden, um zu starten",
+        "back": "Zurück zum Dashboard"
+    },
+    "viewAggregationType": {
+        "min": "Min",
+        "max": "Max",
+        "earliestDate": "Frühestes Datum",
+        "checkedCount": "Geprüft",
+        "notCheckedCount": "Ungeprüft",
+        "checkedPercentage": "Prozent markiert",
+        "notCheckedPercentage": "Prozentsatz nicht geprüft",
+        "earliestDateShort": "Früheste",
+        "latestDate": "Letztes Datum",
+        "latestDateShort": "Letztes",
+        "uniqueCount": "Eindeutig",
+        "sum": "Summe",
+        "median": "Median",
+        "stdDev": "Standardabweichung",
+        "variance": "Varianz",
+        "average": "Durchschnitt",
+        "stdDevShort": "Std Abw",
+        "emptyCount": "(Leer)",
+        "notEmptyCount": "Gefüllt",
+        "emptyPercentage": "Prozent leer",
+        "notEmptyPercentage": "Prozent gefüllt",
+        "count": "Anzahl"
+    },
+    "databaseForm": {
+        "importLabel": "Möchten Sie vorhandene Daten importieren?",
+        "emptyLabel": "Neu anfangen",
+        "airtableLabel": "Importieren von Airtable (beta)"
+    },
+    "importFromAirtable": {
+        "airtableShareLinkTitle": "Teilen Sie einen Link zu Ihrer Basis",
+        "airtableShareLinkBeta": "Beachten Sie, dass sich diese Funktion noch in Beta befindet. Ihre Tabellen, Felder (außer formula, lookup, und count) und Daten werden importiert. Ihre Views werden nicht importiert.",
+        "airtableShareLinkPaste": "Den Link hier einfügen",
+        "importButtonLabel": "Importieren von Airtable",
+        "openButtonLabel": "Importierte Datenbank öffnen",
+        "importError": "Etwas ist schief gelaufen",
+        "statePending": "Warten",
+        "stateFailed": "Fehlgeschlagen",
+        "stateFinished": "Abgeschlossen",
+        "stateDownloadingBase": "Herunterladen das Baseschemas",
+        "stateConverting": "Konvertierung zu Baserow",
+        "stateDownloadingFiles": "Herunterladen von Dateien",
+        "stateImporting": "Importieren",
+        "stateImportingTable": "Tabelle importieren {table}",
+        "airtableShareLinkDescription": "Um Ihre Airtable Base zu importieren, müssen Sie einen Link zu Ihrer gesamten Base haben. Klicken Sie in Airtable auf die \"Share\" taste in der oberen rechten Ecke, nachdem Sie Ihre Base geöffnet haben. Danach müssen Sie die Option \"Access to base\" wählen. Im modal drücken Sie auf \"Create a shared link to the whole base\" und dann auf \"Private read-only link\". Kopieren Sie den Link und fügen Sie ihn in das unten stehende Feld ein.",
+        "errorJobAlreadyRunningTitle": "Schon läuft",
+        "errorJobAlreadyRunningDescription": "Ein weiterer Importauftrag ist bereits in Arbeit. Sie müssen abwarten, bis dieser Vorgang abgeschlossen ist, bevor Sie einen weiteren beginnen.",
+        "linkError": "Der Link sollte wie folgt aussehen: https://airtable.com/shrxxxxxxxxxxxxxxx"
+    },
+    "chooseSingleSelectField": {
+        "addSelectField": "Einzelnes Auswahlfeld hinzufügen",
+        "warningWhenNothingToChooseOrCreate": "Es gibt keine einzelnen Auswahlfelder, aus denen Sie auswählen können, und Sie haben keine Berechtigung, eines zu erstellen."
+    },
+    "shareViewEnablePasswordModal": {
+        "newPasswordTitle": "Geben Sie ein Passwort ein",
+        "changePasswordSave": "Passwort ändern",
+        "newPasswordSave": "Passwort setzen",
+        "changePasswordTitle": "Passwort ändern",
+        "changePasswordDescription": "Durch das Ändern des Passworts funktioniert das vorherige nicht mehr. Dieses Passwort wird verschlüsselt gespeichert.",
+        "newPasswordDescription": "Der öffentliche Link ist erst nach Eingabe des Passworts zugänglich. Dieses Passwort wird verschlüsselt gespeichert."
+    },
+    "shareViewDisablePasswordModal": {
+        "title": "Passwortschutz deaktivieren",
+        "description": "Möchten Sie den Passwortschutz für diesen öffentlichen Link wirklich deaktivieren? Durch die Deaktivierung wird das Passwort gelöscht und kann nicht wiederhergestellt werden",
+        "disable": "Deaktivieren"
+    },
+    "publicViewAuthLogin": {
+        "title": "Diese Seite ist passwortgeschützt",
+        "enter": "Eingeben",
+        "error": {
+            "incorrectPasswordTitle": "Falsches Passwort",
+            "incorrectPasswordText": "Das angegebene Passwort ist falsch."
+        },
+        "description": "Geben Sie das richtige Passwort ein, um auf die Seite zuzugreifen."
+    },
+    "viewDecoratorContext": {
+        "addDecorator": "Verzierung hinzufügen"
+    },
+    "viewDecorator": {
+        "decorator": "Farbe | 1 Farbe | {count} Farben"
+    },
+    "apiDocsTableUpdateRows": {
+        "description": "Aktualisiert bestehende {name} Zeilen.",
+        "id": "Die Zeilen-ID."
+    },
+    "apiDocsTableCreateRows": {
+        "before": "Falls angegeben, werden die neu erstellten Zeilen vor der Zeile mit der angegebenen id positioniert.",
+        "description": "Neue Zeilen {name} erstellen."
+    },
+    "importer": {
+        "loading": "Datei wird geladen",
+        "decoding": "Dekodierung von Daten",
+        "inProgress": "In Arbeit...",
+        "parsing": "Analysieren von Daten",
+        "preparing": "Aufbereitung der Daten",
+        "fieldDefaultName": "Feld {count}"
+    },
+    "apiDocsTableDeleteRows": {
+        "description": "Löscht die vorhandenen Zeilen {name}.",
+        "items": "Ein Array von Zeilennummern, die gelöscht werden sollen."
+    },
+    "formViewMeta": {
+        "includeRowId": "Verwenden Sie {row_id}, um die neu erstellte Zeilen-ID in die URL aufzunehmen."
+    },
+    "databaseDashboardSidebarLinks": {
+        "apiDocumentation": "API-Dokumentation"
+    },
+    "formViewField": {
+        "required": "erforderlich",
+        "showWhenMatchingConditions": "anzeigen, wenn die Bedingungen erfüllt sind",
+        "addCondition": "Bedingung hinzufügen",
+        "descriptionPlaceholder": "Beschreibung",
+        "addConditionGroup": "Bedingungsgruppe hinzufügen",
+        "showFieldAs": "Feld anzeigen als"
+    },
+    "duplicateFieldContext": {
+        "duplicate": "Feld duplizieren",
+        "cloneData": "Daten kopieren",
+        "soon": "In Kürze verfügbar",
+        "readOnlyField": "Die Zellenwerte werden automatisch ausgefüllt."
+    },
+    "snapshotsModal": {
+        "descriptionLimits": "Sie können maximal {n} Snapshots pro Arbeitsbereich haben. | Sie können maximal {n} Snapshots pro Arbeitsbereich haben. | Sie können maximal {n} Snapshots pro Arbeitsbereich haben.",
+        "createLabel": "Erstelle einen neuen Snapshot",
+        "description": "Snapshots sind eine vollständige Kopie von {applicationTypeName} zu dem Zeitpunkt, an dem sie erstellt wurde. Bei der Wiederherstellung wird ein Duplikat dieser Daten erstellt. Snapshots werden nach einem Jahr automatisch gelöscht.",
+        "create": "Snapshot erstellen",
+        "snapshotRestoredErrorTitle": "Ein Fehler ist aufgetreten",
+        "title": "snapshots",
+        "snapshotRestoredErrorMessage": "Der Snapshot konnte nicht wiederhergestellt werden. Bitte versuchen Sie es später noch einmal.",
+        "snapshotDeletedErrorTitle": "Fehler aufgetreten",
+        "snapshotDeletedErrorMessage": "Der Snapshot konnte nicht gelöscht werden. Bitte versuchen Sie es später noch einmal.",
+        "limitReached": "Das Limit der maximalen Snapshots wurde erreicht.",
+        "snapshot": "Snapshot",
+        "importingState": "Erstellen",
+        "reset": "Erstellen eines weiteren"
+    },
+    "snapshotListItem": {
+        "created": "erstellt",
+        "restore": "wiederherstellen",
+        "delete": "Löschen"
+    },
+    "deleteSnapshotModal": {
+        "title": "Snapshot löschen",
+        "content": "Sind Sie sicher, dass Sie den Snapshot {name} dauerhaft löschen möchten?",
+        "confirm": "Löschen"
+    },
+    "duplicateTableJobType": {
+        "duplicating": "Duplizieren",
+        "duplicatedTitle": "Tabelle dupliziert",
+        "name": "Tabelle duplizieren"
+    },
+    "formViewModePreviewForm": {
+        "titlePlaceholder": "Titel",
+        "descriptionPlaceholder": "Beschreibung",
+        "addCoverImage": "Ein Titelbild hinzufügen",
+        "addLogo": "Ein Logo hinzufügen",
+        "noFields": "Dieses Formular hat noch keine Felder. Klicken Sie auf ein Feld in der linken Seitenleiste, um eines hinzuzufügen."
+    },
+    "apiDocsUploadFile": {
+        "description": "Lädt eine Datei auf Baserow hoch, indem der Dateiinhalt direkt hochgeladen wird. Es wird ein Multipart `file` erwartet, der den Inhalt der Datei enthält. Die Antwort kann dann zum [Hochladen einer Datei in eine Zeile]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row) verwendet werden.",
+        "file": "Der `file` Multipart, der den Dateiinhalt enthält."
+    },
+    "table": {
+        "chooseView": "Ansicht wählen",
+        "adjacentRow": {
+            "notification": {
+                "notFound": {
+                    "previous": {
+                        "title": "Keine Zeilen mehr",
+                        "message": "Es gibt keine vorherige Zeile"
+                    },
+                    "next": {
+                        "message": "Es gibt keine nächste Zeile",
+                        "title": "Keine Zeilen mehr"
+                    }
+                },
+                "error": {
+                    "title": "Fehler aufgetreten",
+                    "message": "Beim Abrufen der angrenzenden Zeile ist ein Fehler aufgetreten"
+                }
+            },
+            "toast": {
+                "notFound": {
+                    "previous": {
+                        "message": "Es gibt keine vorherige Zeile",
+                        "title": "Keine Zeilen mehr"
+                    },
+                    "next": {
+                        "title": "Keine Zeilen mehr",
+                        "message": "Es gibt keine nächste Zeile"
+                    }
+                },
+                "error": {
+                    "title": "Ein Fehler ist aufgetreten",
+                    "message": "Beim Abrufen der angrenzenden Zeile ist ein Fehler aufgetreten"
+                }
+            }
+        }
+    },
+    "fieldmultipleCollaboratorsDropdown": {
+        "notFound": "Mitarbeiter nicht gefunden"
+    },
+    "formViewHeader": {
+        "preview": "Vorschau",
+        "mode": "Modus",
+        "fields": "Felder"
+    },
+    "apiDocsUploadFileViaURL": {
+        "description": "Lädt eine Datei in Baserow hoch, indem es sie von der angegebenen URL herunterlädt. Die Antwort kann dann zum [Hochladen einer Datei in eine Zeile]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row) verwendet werden.",
+        "url": "Die URL, die Baserow in Ihrem Namen herunterladen und hochladen soll."
+    },
+    "rowEditFieldMultipleCollaborators": {
+        "addCollaborator": "Wählen Sie einen Mitarbeiter"
+    },
+    "gridViewFieldFile": {
+        "dropFileHere": "Dateien hier ablegen",
+        "dropHere": "Hier ablegen"
+    },
+    "formViewModeType": {
+        "form": "Formular",
+        "formDescription": "Alle Felder sind sichtbar und vertikal gestapelt."
+    },
+    "fileField": {
+        "errorEmptyFileNameMessage": "Sie können keinen leeren Namen für eine Datei angeben.",
+        "errorEmptyFileNameTitle": "Ungültiger Dateiname"
+    },
+    "gridViewRowsAddContext": {
+        "title": "Mehrere Zeilen erstellen",
+        "choice": "Fügen Sie {rowAmountChoice} Zeilen hinzu"
+    },
+    "viewOwnershipType": {
+        "personal": "Persönlich",
+        "collaborative": "Kollaborativ"
+    },
+    "fieldSelectThroughFieldSubForm": {
+        "noTable": "Sie benötigen mindestens einen Link zum Tabellenfeld, um dieses Feld zu erstellen.",
+        "selectThroughFieldLabel": "Wählen Sie eine Verknüpfung zum Tabellenfeld aus"
+    },
+    "fieldRollupSubForm": {
+        "selectTargetFieldLabel": "Wählen Sie ein Feld aus, für das ein Rollup durchgeführt werden soll",
+        "label": "Rollup-Funktion"
+    },
+    "viewGroupByContext": {
+        "noGroupByText": "Zeilen nach einem Feld gruppieren.",
+        "groupBy": "Gruppieren nach",
+        "thenBy": "dann nach",
+        "addGroupBy": "Wählen Sie ein Feld, nach dem gruppiert werden soll",
+        "noGroupByTitle": "Sie haben noch keine Gruppierungen erstellt"
+    },
+    "viewGroupBy": {
+        "groupBy": "Gruppieren | Gruppieren nach 1 Feld | Gruppieren nach {count} Feldern"
+    },
+    "apiDocsFiltersBuilderModal": {
+        "userFieldNames": "Benutzerfeld-Namen",
+        "queryParameter": "Abfrageparameter",
+        "json": "JSON",
+        "title": "Filter-Parameter-Builder"
+    },
+    "rowHistorySidebar": {
+        "name": "Historie",
+        "empty": "Noch keine Änderungen. Sie können alle Änderungen an dieser Zeile hier verfolgen.",
+        "you": "Sie"
+    },
+    "fieldDurationSubForm": {
+        "durationFormatLabel": "Format der Dauer"
+    },
+    "viewFieldConditionsForm": {
+        "addCondition": "Bedingung hinzufügen",
+        "addConditionGroup": "Bedingungsgruppe hinzufügen"
+    },
+    "fieldCollaboratorSubForm": {
+        "notifyUserWhenAdded": "Benutzer beim Hinzufügen benachrichtigen"
+    },
+    "collaboratorAddedToRowNotification": {
+        "title": "{sender} hat Sie dem {fieldName} in Zeile {rowId} in {tableName} zugewiesen",
+        "deletedUser": "Gelöschter Benutzer"
+    },
+    "formSubmittedNotification": {
+        "title": "{formName} wurde in Tabelle {tableName} abgesendet:",
+        "moreValues": "0 | und 1 weiteres Feld. | und {count} weitere Felder."
+    },
+    "fieldLongTextSubForm": {
+        "enableRichTextFormatting": "Rich-Text-Formatierung aktivieren"
+    },
+    "rowHistoryFieldPassword": {
+        "passwordSet": "Das Passwort wurde festgelegt",
+        "passwordUpdated": "Das Passwort wurde aktualisiert",
+        "passwordDeleted": "Das Passwort wurde entfernt"
+    },
+    "dataProviderTypes": {
+        "fieldsName": "Felder"
+    },
+    "databaseScratchTrackStep": {
+        "teamsRow3": "Marketing",
+        "tasks": "Aufgaben",
+        "tasksRow1": "Logo-Redesign",
+        "tasksRow2": "E-Mail versenden",
+        "tasksRow3": "Blogpost schreiben",
+        "campaigns": "Kampagnen",
+        "tableName": "Tabellenname",
+        "productsRow2": "Kundenbefragung",
+        "productsRow3": "Bezahlte Anzeigenkampagne",
+        "teams": "Teams",
+        "teamsRow1": "Verkauf",
+        "teamsRow2": "Personalwesen",
+        "campaignsRow1": "Sommerschlussverkauf",
+        "campaignsRow2": "Treueprämien",
+        "title": "Was möchten Sie verfolgen?",
+        "campaignsRow3": "Marken-Relaunch",
+        "productsRow1": "Rebranding-Website",
+        "description": "Wählen Sie aus gängigen Anwendungsfällen oder erstellen Sie Ihre eigenen.",
+        "addYourOwn": "Erstellen Sie Ihren eigenen",
+        "rowName": "Zeilenname",
+        "thisIncludes": "Das beinhaltet:",
+        "projects": "Projekte"
+    },
+    "fieldPasswordSubForm": {
+        "description": "Es ist noch nicht möglich, direkt etwas mit dem Passwortfeld zu tun. Dieses wird nur von der Benutzerauthentifizierung im Application Builder verwendet."
+    },
+    "rowEditFieldPassword": {
+        "setPassword": "Passwort festlegen"
+    },
+    "databaseImportStep": {
+        "title": "Importieren Sie Ihre Daten",
+        "description": "Verschieben Sie Ihre Daten mit nur wenigen Klicks in Baserow.",
+        "tableNameLabel": "Tabellenname"
+    },
+    "databaseStep": {
+        "scratch": "Von Grund auf",
+        "import": "Aus einer Datei",
+        "title": "Erstellen Sie Ihre erste Datenbank",
+        "airtable": "Von Airtable",
+        "databaseNameLabel": "Datenbankname",
+        "description": "Lassen Sie uns wissen, woran Sie gerade arbeiten."
+    },
+    "userMentionInRichTextFieldNotification": {
+        "deletedUser": "Ein gelöschter Benutzer",
+        "title": "{sender} hat Sie in Feld {fieldName} aus Zeile {rowId} in {tableName} erwähnt"
+    },
+    "ViewFilterTypeDateUpgradeToMultiStep": {
+        "migrateButtonText": "Umstellung auf mehrstufigen Datumsfilter",
+        "migrateButtonTooltip": "Neuer Filter verfügbar. Zum Aktualisieren anklicken. Er funktioniert genauso."
+    },
+    "createTableModal": {
+        "title": "Neue Tabelle anlegen",
+        "defaultName": "Tabelle",
+        "importLabel": "Möchten Sie bestehende Daten importieren?",
+        "newTable": "Starten Sie mit einer neuen Tabelle"
+    },
+    "createTable": {
+        "showTable": "Tabelle anzeigen",
+        "addButton": "Tabelle hinzufügen",
+        "uploading": "Lade hoch...",
+        "preparing": "Bereite Daten vor...",
+        "importError": "Beim Import der Datei ist etwas schiefgelaufen",
+        "stateRowCreation": "Importiere...",
+        "statePreValidation": "Prüfe Daten...",
+        "stateCreateTable": "Erstelle Tabelle..."
+    },
+    "importErrorReport": {
+        "reportTitleSuccess": "Import war erfolgreich, allerdings...",
+        "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
+        "reportTitleFailure": "Fehlgeschlagene Zeilen"
+    },
+    "formViewMetaControls": {
+        "showMessage": "Eine Nachricht anzeigen",
+        "theMessage": "Die Nachricht",
+        "theURL": "Die URL",
+        "whenSubmittedLabel": "Wenn das Formular abgeschickt wurde",
+        "urlRedirect": "Weiterleiten zu einer URL"
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "Dieser Ansichtstyp ist nicht mit einer Datenabgleichs-Tabelle kompatibel."
     }
-  },
-  "fieldmultipleCollaboratorsDropdown": {
-    "notFound": "Mitarbeiter nicht gefunden"
-  },
-  "formViewHeader": {
-    "preview": "Vorschau",
-    "mode": "Modus",
-    "fields": "Felder"
-  },
-  "apiDocsUploadFileViaURL": {
-    "description": "Lädt eine Datei in Baserow hoch, indem es sie von der angegebenen URL herunterlädt. Die Antwort kann dann zum [Hochladen einer Datei in eine Zeile]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row) verwendet werden.",
-    "url": "Die URL, die Baserow in Ihrem Namen herunterladen und hochladen soll."
-  },
-  "rowEditFieldMultipleCollaborators": {
-    "addCollaborator": "Wählen Sie einen Mitarbeiter"
-  },
-  "gridViewFieldFile": {
-    "dropFileHere": "Dateien hier ablegen",
-    "dropHere": "Hier ablegen"
-  },
-  "formViewModeType": {
-    "form": "Formular",
-    "formDescription": "Alle Felder sind sichtbar und vertikal gestapelt."
-  },
-  "fileField": {
-    "errorEmptyFileNameMessage": "Sie können keinen leeren Namen für eine Datei angeben.",
-    "errorEmptyFileNameTitle": "Ungültiger Dateiname"
-  },
-  "gridViewRowsAddContext": {
-    "title": "Mehrere Zeilen erstellen",
-    "choice": "Fügen Sie {rowAmountChoice} Zeilen hinzu"
-  },
-  "viewOwnershipType": {
-    "personal": "Persönlich",
-    "collaborative": "Kollaborativ"
-  },
-  "fieldSelectThroughFieldSubForm": {
-    "noTable": "Sie benötigen mindestens einen Link zum Tabellenfeld, um dieses Feld zu erstellen.",
-    "selectThroughFieldLabel": "Wählen Sie eine Verknüpfung zum Tabellenfeld aus"
-  },
-  "fieldRollupSubForm": {
-    "selectTargetFieldLabel": "Wählen Sie ein Feld aus, für das ein Rollup durchgeführt werden soll",
-    "label": "Rollup-Funktion"
-  },
-  "viewGroupByContext": {
-    "noGroupByText": "Zeilen nach einem Feld gruppieren.",
-    "groupBy": "Gruppieren nach",
-    "thenBy": "dann nach",
-    "addGroupBy": "Wählen Sie ein Feld, nach dem gruppiert werden soll",
-    "noGroupByTitle": "Sie haben noch keine Gruppierungen erstellt"
-  },
-  "viewGroupBy": {
-    "groupBy": "Gruppieren | Gruppieren nach 1 Feld | Gruppieren nach {count} Feldern"
-  },
-  "apiDocsFiltersBuilderModal": {
-    "userFieldNames": "Benutzerfeld-Namen",
-    "queryParameter": "Abfrageparameter",
-    "json": "JSON",
-    "title": "Filter-Parameter-Builder"
-  },
-  "rowHistorySidebar": {
-    "name": "Historie",
-    "empty": "Noch keine Änderungen. Sie können alle Änderungen an dieser Zeile hier verfolgen.",
-    "you": "Sie"
-  },
-  "fieldDurationSubForm": {
-    "durationFormatLabel": "Format der Dauer"
-  },
-  "viewFieldConditionsForm": {
-    "addCondition": "Bedingung hinzufügen",
-    "addConditionGroup": "Bedingungsgruppe hinzufügen"
-  },
-  "fieldCollaboratorSubForm": {
-    "notifyUserWhenAdded": "Benutzer beim Hinzufügen benachrichtigen"
-  },
-  "collaboratorAddedToRowNotification": {
-    "title": "{sender} hat Sie dem {fieldName} in Zeile {rowId} in {tableName} zugewiesen",
-    "deletedUser": "Gelöschter Benutzer"
-  },
-  "formSubmittedNotification": {
-    "title": "{formName} wurde in Tabelle {tableName} abgesendet:",
-    "moreValues": "0 | und 1 weiteres Feld. | und {count} weitere Felder."
-  },
-  "fieldLongTextSubForm": {
-    "enableRichTextFormatting": "Rich-Text-Formatierung aktivieren"
-  },
-  "rowHistoryFieldPassword": {
-    "passwordSet": "Das Passwort wurde festgelegt",
-    "passwordUpdated": "Das Passwort wurde aktualisiert",
-    "passwordDeleted": "Das Passwort wurde entfernt"
-  },
-  "dataProviderTypes": {
-    "fieldsName": "Felder"
-  },
-  "databaseScratchTrackStep": {
-    "teamsRow3": "Marketing",
-    "tasks": "Aufgaben",
-    "tasksRow1": "Logo-Redesign",
-    "tasksRow2": "E-Mail versenden",
-    "tasksRow3": "Blogpost schreiben",
-    "campaigns": "Kampagnen",
-    "tableName": "Tabellenname",
-    "productsRow2": "Kundenbefragung",
-    "productsRow3": "Bezahlte Anzeigenkampagne",
-    "teams": "Teams",
-    "teamsRow1": "Verkauf",
-    "teamsRow2": "Personalwesen",
-    "campaignsRow1": "Sommerschlussverkauf",
-    "campaignsRow2": "Treueprämien",
-    "title": "Was möchten Sie verfolgen?",
-    "campaignsRow3": "Marken-Relaunch",
-    "productsRow1": "Rebranding-Website",
-    "description": "Wählen Sie aus gängigen Anwendungsfällen oder erstellen Sie Ihre eigenen.",
-    "addYourOwn": "Erstellen Sie Ihren eigenen",
-    "rowName": "Zeilenname",
-    "thisIncludes": "Das beinhaltet:",
-    "projects": "Projekte"
-  },
-  "fieldPasswordSubForm": {
-    "description": "Es ist noch nicht möglich, direkt etwas mit dem Passwortfeld zu tun. Dieses wird nur von der Benutzerauthentifizierung im Application Builder verwendet."
-  },
-  "rowEditFieldPassword": {
-    "setPassword": "Passwort festlegen"
-  },
-  "databaseImportStep": {
-    "title": "Importieren Sie Ihre Daten",
-    "description": "Verschieben Sie Ihre Daten mit nur wenigen Klicks in Baserow.",
-    "tableNameLabel": "Tabellenname"
-  },
-  "databaseStep": {
-    "scratch": "Von Grund auf",
-    "import": "Aus einer Datei",
-    "title": "Erstellen Sie Ihre erste Datenbank",
-    "airtable": "Von Airtable",
-    "databaseNameLabel": "Datenbankname",
-    "description": "Lassen Sie uns wissen, woran Sie gerade arbeiten."
-  },
-  "userMentionInRichTextFieldNotification": {
-    "deletedUser": "Ein gelöschter Benutzer",
-    "title": "{sender} hat Sie in Feld {fieldName} aus Zeile {rowId} in {tableName} erwähnt"
-  },
-  "ViewFilterTypeDateUpgradeToMultiStep": {
-    "migrateButtonText": "Umstellung auf mehrstufigen Datumsfilter",
-    "migrateButtonTooltip": "Neuer Filter verfügbar. Zum Aktualisieren anklicken. Er funktioniert genauso."
-  },
-  "createTableModal": {
-    "title": "Neue Tabelle anlegen",
-    "defaultName": "Tabelle",
-    "importLabel": "Möchten Sie bestehende Daten importieren?",
-    "newTable": "Starten Sie mit einer neuen Tabelle"
-  },
-  "createTable": {
-    "showTable": "Tabelle anzeigen",
-    "addButton": "Tabelle hinzufügen",
-    "uploading": "Lade hoch...",
-    "preparing": "Bereite Daten vor...",
-    "importError": "Beim Import der Datei ist etwas schiefgelaufen",
-    "stateRowCreation": "Importiere...",
-    "statePreValidation": "Prüfe Daten...",
-    "stateCreateTable": "Erstelle Tabelle..."
-  },
-  "importErrorReport": {
-    "reportTitleSuccess": "Import war erfolgreich, allerdings...",
-    "reportMessage": "Die folgenden Zeilenindizes konnten nicht importiert werden:",
-    "reportTitleFailure": "Fehlgeschlagene Zeilen"
-  },
-  "formViewMetaControls": {
-    "showMessage": "Eine Nachricht anzeigen",
-    "theMessage": "Die Nachricht",
-    "theURL": "Die URL",
-    "whenSubmittedLabel": "Wenn das Formular abgeschickt wurde",
-    "urlRedirect": "Weiterleiten zu einer URL"
-  },
-  "createViewLink": {
-    "inCompatibleWithDataSync": "Dieser Ansichtstyp ist nicht mit einer Datenabgleichs-Tabelle kompatibel."
-  }
 }
