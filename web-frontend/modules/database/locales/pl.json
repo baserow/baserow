@@ -1,898 +1,898 @@
 {
-  "webhookModal": {
-    "title": "Webhooki {name}",
-    "createWebhook": "Utwórz webhook",
-    "backToList": "Powrót do listy"
-  },
-  "deleteWebhookModal": {
-    "title": "Usuń {webhookName}",
-    "deleteButton": "Usuń webhook",
-    "body": "Czy na pewno chcesz usunąć ten webhook? Nie będziesz mógł go później przywrócić."
-  },
-  "webhookList": {
-    "noWebhooksMessage": "Nie utworzyłeś jeszcze żadnych webhooków. Webhooks mogą być używane w celu informowania innych systemów, gdy wiersz w Baserow został utworzony, zaktualizowany lub usunięty."
-  },
-  "testWebhookModal": {
-    "title": "Przetestuj webhook",
-    "unreachable": "Serwer nieosiągalny"
-  },
-  "webhookForm": {
-    "inputLabels": {
-      "name": "Nazwa",
-      "value": "Wartość",
-      "requestMethod": "Metoda",
-      "url": "Adres URL",
-      "userFieldNames": "Nazwy pól użytkownika",
-      "events": "Jakie zdarzenia powinny wyzwalać ten webhook?",
-      "headers": "Dodatkowe nagłówki",
-      "example": "Przykładowy ładunek"
+    "webhookModal": {
+        "title": "Webhooki {name}",
+        "createWebhook": "Utwórz webhook",
+        "backToList": "Powrót do listy"
     },
-    "errors": {
-      "urlField": "To pole jest wymagane i musi być prawidłowym adresem url.",
-      "invalidHeaders": "Jeden z nagłówków jest nieprawidłowy."
+    "deleteWebhookModal": {
+        "title": "Usuń {webhookName}",
+        "deleteButton": "Usuń webhook",
+        "body": "Czy na pewno chcesz usunąć ten webhook? Nie będziesz mógł go później przywrócić."
     },
-    "checkbox": {
-      "sendUserFieldNames": "Użyj nazwy pola zamiast id"
+    "webhookList": {
+        "noWebhooksMessage": "Nie utworzyłeś jeszcze żadnych webhooków. Webhooks mogą być używane w celu informowania innych systemów, gdy wiersz w Baserow został utworzony, zaktualizowany lub usunięty."
     },
-    "radio": {
-      "allEvents": "Wyślij mi wszystko",
-      "customEvents": "Pozwól mi wybrać poszczególne wydarzenia"
+    "testWebhookModal": {
+        "title": "Przetestuj webhook",
+        "unreachable": "Serwer nieosiągalny"
     },
-    "triggerButton": "Uruchom webhooka testowego",
-    "deactivated": {
-      "title": "Webhook jest nieaktywny",
-      "content": "Ten webhook został wyłączony, ponieważ wystąpiło zbyt wiele kolejnych niepowodzeń. Proszę sprawdzić dziennik połączeń, aby uzyskać więcej szczegółów. Kliknij na poniższy przycisk, aby aktywować go ponownie. Nie zapomnij zapisać webhooka po aktywacji.",
-      "activate": "Aktywować"
-    },
-    "deprecatedEventType": {
-      "title": "Przestarzały typ zdarzenia",
-      "description": "Ten webhook nie otrzymuje jednocześnie informacji o wszystkich zmienionych wierszach. Przekonwertuj go na typ zdarzenia w stylu wsadowym. Spowoduje to zmianę ładunku treści JSON na format, który zawiera wiele wierszy.",
-      "convert": "Konwertuj"
-    },
-    "triggerWhenFieldsHaveChanged": "Wyzwalanie po zmianie pól",
-    "helpTriggerWhenFieldsHaveChanged": "Zostanie uruchomiona tylko wtedy, gdy wartość komórki wybranych pól ulegnie zmianie."
-  },
-  "webhook": {
-    "details": "szczegóły",
-    "lastCall": "Ostatnie połączenie: {lastCallTime}",
-    "noCalls": "Brak połączeń",
-    "callLog": "Rejestr połączeń",
-    "triggerDescription": "Wyzwalacze przy każdym zdarzeniu | Wyzwalacze przy {count} zdarzeń | Wyzwalacze przy {count} zdarzeń"
-  },
-  "createWebhook": {
-    "errorTableWebhookMaxLimitExceededTitle": "Przekroczona maksymalna liczba webhooków",
-    "errorTableWebhookMaxLimitExceededDescription": "Nie można utworzyć webhooka, ponieważ przekroczono maksymalną ilość webhooków na tabelę."
-  },
-  "sidebar": {
-    "viewAPI": "Wyświetl dokumentację API",
-    "createTable": "Nowa tabela"
-  },
-  "sidebarItem": {
-    "exportTable": "Eksportuj tabelę",
-    "webhooks": "Webhooki",
-    "lastSynced": "Ostatnia synchronizacja",
-    "notSynced": "niezsynchronizowany",
-    "sync": "Tabela synchronizacji",
-    "updateSyncConfig": "Zaktualizuj konfigurację synchronizacji"
-  },
-  "apiToken": {
-    "create": "stwórz",
-    "read": "czytaj",
-    "update": "aktualizacja",
-    "delete": "usuń",
-    "tokenPrefix": "Token:",
-    "viewAPIDocs": "Wyświetl dokumentację API",
-    "generateNewToken": "Wygeneruj nowy token",
-    "showOrHide": "Pokaż lub ukryj token",
-    "copyToClipboard": "Kopiuj do schowka",
-    "showDatabases": "pokaż bazy danych"
-  },
-  "apiTokenSettings": {
-    "title": "Tokeny bazy danych",
-    "createToken": "Utwórz token",
-    "noTokensMessage": "Nie utworzyłeś jeszcze tokena bazy danych. Możesz użyć tokena bazy danych, aby uwierzytelnić się w punktach końcowych REST API, gdzie możesz tworzyć, czytać, aktualizować i usuwać wiersze. Możliwe jest ustawienie uprawnień na poziomie tabeli.",
-    "hasFullPermissions": "Posiada pełne uprawnienia, również dla wszystkich dzieci.",
-    "hasOnlySelectedPermissions": "Ma uprawnienia tylko do wybranych dzieci.",
-    "noPermissions": "Nie ma uprawnień.",
-    "createNewTitle": "Tworzenie nowego tokena bazy danych",
-    "backToOverview": "Powrót do przeglądu"
-  },
-  "apiTokenForm": {
-    "nameLabel": "Nazwa",
-    "workspaceLabel": "Grupa"
-  },
-  "apiDocsSelectDatabase": {
-    "needOneDatabase": "Musisz mieć co najmniej jedną bazę danych, aby wyświetlić dokumentację API."
-  },
-  "apiDocsExample": {
-    "requestSample": "Poproś o próbkę",
-    "responseSample": "Próbka odpowiedzi",
-    "userFieldNames": "Nazwy pól użytkownika"
-  },
-  "apiDocsParameter": {
-    "optional": "opcjonalny",
-    "defaultValue": "Domyślnie: {value}"
-  },
-  "apiDocsTableGetRow": {
-    "description": "Pobieranie pojedynczego wiersza {name}.",
-    "rowId": "Unikatowy identyfikator żądanego wiersza."
-  },
-  "apiDocsErrors": {
-    "errorCode": "Kod błędu",
-    "name": "Nazwa",
-    "description": "Opis",
-    "okDescription": "Żądanie zakończone pomyślnie.",
-    "badRequestDescription": "Żądanie zawiera nieprawidłowe wartości lub nie można przeanalizować JSON.",
-    "unauthorizedDescription": "Gdy próbujesz uzyskać dostęp do punktu końcowego bez ważnego tokena bazy danych.",
-    "notFoundDescription": "Nie znaleziono wiersza lub tabeli.",
-    "requestEntityTooLargeDescription": "Żądanie przekroczyło maksymalny dozwolony rozmiar ładunku.",
-    "internalErrorDescription": "Serwer napotkał nieoczekiwany stan.",
-    "badGatewayDescription": "Baserow uruchamia się ponownie lub trwa nieoczekiwana awaria.",
-    "unavailableDescription": "Serwer nie mógł przetworzyć Twojego żądania na czas."
-  },
-  "apiDocsTableFields": {
-    "tableTitle": "Tabela {name}",
-    "tableId": "ID tej tabeli to:",
-    "description": "Każdy wiersz w tabeli {name} zawiera następujące pola.",
-    "id": "ID",
-    "name": "Nazwa",
-    "type": "Typ",
-    "compatibleFilters": "Kompatybilne filtry"
-  },
-  "apiDocsTableListRows": {
-    "description": "Aby wyświetlić listę wierszy w tabeli *{name}* należy wykonać żądanie `GET` do punktu końcowego *{name}*. Odpowiedź jest paginowana i domyślnie zwracana jest pierwsza strona. Właściwa strona może zostać pobrana poprzez podanie parametrów zapytania `page` i `size`.",
-    "page": "Określa, która strona wierszy powinna zostać zwrócona.",
-    "size": "Określa ile wierszy powinno być zwróconych na stronę.",
-    "userFieldNames": "Gdy dostarczony jest parametr GET `user_field_names`, a jego wartość jest jedną z następujących: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, nazwy pól zwrócone przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\nJeśli parametr GET `user_field_names` nie zostanie podany lub jeśli nie pasuje do żadnej z powyższych wartości, wówczas wszystkie zwrócone nazwy pól będą miały postać `field_`, po której nastąpi identyfikator pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.\n\n Dodatkowo, gdy ustawiona jest wartość `user_field_names`, zmienia się zachowanie innych parametrów GET `order_by`, `include` i `exclude`. Zamiast tego oczekują one rozdzielonych przecinkami list rzeczywistych nazw pól.",
-    "search": "Jeśli zostanie podane, zostaną zwrócone tylko wiersze z danymi pasującymi do zapytania.",
-    "orderBy": "Opcjonalnie wiersze mogą być uporządkowane według pól oddzielonych przecinkiem. Domyślnie lub po poprzedzeniu znakiem '+', pole jest uporządkowane rosnąco (A-Z), ale poprzedzeniu znakiem '-' może być uporządkowane malejąco (Z-A).\n\n #### Z `user_field_names`:\n\n `order_by` powinna być rozdzieloną przecinkami listą nazw pól, po których mają być zamawiane. Na przykład jeśli podasz następujący parametr GET `order_by=My Field,-My Field 2` wiersze zostaną uporządkowane według pola o nazwie `My Field` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany według pola o nazwie `My Field 2` w porządku malejącym.\n\n Upewnij się, że pola z nazwami zaczynającymi się od `+` lub `-` są wyraźnie poprzedzone innym `+` lub `-`. Np. `+-Name`.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `Name ,,`''. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku ``. Eg: `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n `order_by` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola, po którym ma być złożone zamówienie. Na przykład, jeśli podasz następujący parametr GET `order_by=field_1,-field_2` wiersze zostaną uporządkowane według `field_1` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany przez `field_2` w porządku malejącym.",
-    "filter": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Można zastosować wiele filtrów, jeśli mają one ten sam format. Zmienne `field` i `filter` wskazują odpowiednio jak i gdzie zastosować filtr.\n\n#### Z `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__Name__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `Name` jest równa \"test\". Ta metoda jest kompatybilna wstecz i będzie sprawdzać `field_id`, jeśli nie powiedzie się na nazwie.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__field_1__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `field_1` jest równa 'test'.\n\nNależy pamiętać, że jeśli podano parametr filters, ten parametr zostanie zignorowany. ",
-    "filterLink": "Listę wszystkich filtrów można znaleźć tutaj.",
-    "filterType": "- `AND`: Wskazuje, że wiersze muszą pasować do wszystkich podanych filtrów.\n- `OR`: Wskazuje, że wiersze muszą pasować tylko do jednego z filtrów.\n\n Działa to tylko wtedy, gdy podane są dwa lub więcej filtrów.",
-    "include": "Wszystkie pola są domyślnie zawarte w odpowiedzi. Możesz wybrać podzbiór pól do uwzględnienia poprzez podanie parametru zapytania include.\n\n #### Z `user_field_names`:\n\n `include` powinna być rozdzieloną przecinkami listą nazw pól, które mają być zawarte w wynikach. Na przykład, jeśli podasz następujący parametr GET: `include=My Field,-My Field 2` to tylko te pola zostaną uwzględnione (chyba, że zostaną wyraźnie wykluczone).\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `\"Name ,\"`. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku `\\` . Na przykład: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `include` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola do uwzględnienia w wynikach. Na przykład: Jeśli podasz następujący parametr GET `exclude=field_1,field_2` to pola o id `1` i id `2` to tylko te pola zostaną uwzględnione (chyba, że zostaną jawnie wykluczone).",
-    "exclude": "Wszystkie pola są domyślnie zawarte w odpowiedzi. Możesz wybrać podzbiór pól do wykluczenia poprzez podanie parametru zapytania exclude.\n\n #### Z `user_field_names`:\n\n `exclude` powinna być rozdzieloną przecinkami listą nazw pól, które mają być wykluczone z wyników. Na przykład, jeśli podasz następujący parametr GET: `exclude=My Field,-My Field 2` to te pola zostaną wykluczone.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `\"Name ,\"`. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku `\\`. Na przykład: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `exclude` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola do wykluczenia z wyników. Na przykład: Jeśli podasz następujący parametr GET `exclude=field_1,field_2` to pola o id `1` i id `2` zostaną wykluczone.",
-    "viewId": "Domyślnie nie są stosowane filtry i sortowania poza tymi, które zostały zdefiniowane w parametrach zapytania. Możesz dodać filtry i sortowania widoku poprzez podanie jego `id` w parametrze `view_id` GET. Na przykład, jeśli podasz następujący parametr GET `view_id=1` to filtry i sortowania zdefiniowane w widoku o id `1` zostaną zastosowane. Możesz znaleźć `view_id` w menu kontekstowym dowolnego widoku. Jest to liczba w nawiasach za nazwą widoku. \n\n #### Z `filter__{field}__{filter}`. \n\n Zastosowany zostanie zarówno filtr podany w parametrze zapytania, jak i filtry zdefiniowane w widoku.\n\n #### Z `order_by` \n\n Jeśli `order_by` jest podane, sortowanie zdefiniowane w widoku zostanie zignorowane.",
-    "filtersBuilder": "Otwórz kreator parametrów filtrów",
-    "filters": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Ten parametr akceptuje serializowany ciąg JSON zawierający drzewo filtrów do zastosowania w tym widoku. Drzewo filtrów jest zagnieżdżoną strukturą zawierającą filtry, które należy zastosować. \\n\\n#### Z `user_field_names`:\\n\\nPrzykład prawidłowego drzewa filtrów jest następujący: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\\n\\n#### Bez `user_field_names`:\\n\\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\\n\\nNależy pamiętać, że jeśli ten parametr zostanie podany, wszystkie inne `filter__{field}__{filter}` zostaną zignorowane, podobnie jak parametr filter_type.",
-    "join": "Umożliwia zażądanie wyszukiwania wartości pól z tabeli docelowej poprzez istniejące pola wierszy linków. Nazwa parametru musi być nazwą istniejącego pola wiersza łącza, po którym następuje __join. Wartość powinna być listą nazw pól, dla których chcemy wyszukać dodatkowe wartości. Można podać jedno lub wiele pól docelowych. Nie jest możliwe wyszukanie wartości pola wiersza łącza w tabeli docelowej.\n\n #### Z `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą nazw pól, które mają być uwzględnione w wynikach. Na przykład: Jeśli podasz następujący parametr GET `LinkRowField__join=MyField,MyField2` to wartości `MyField` i `My Field2` w tabeli połączonej przez `LinkRowField` zostaną uwzględnione w odpowiedzi.\n\n#### Bez `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą `field_`, po której następuje identyfikator pola do uwzględnienia w wynikach. Na przykład: Jeśli podasz następujący parametr GET `field_1__join=field_2,field_3` to wartości `field_2` i `field_3` w tabeli połączonej przez `field_1` zostaną uwzględnione w odpowiedzi."
-  },
-  "apiDocsIntro": {
-    "intro": "Baza danych {name} zapewnia łatwy sposób integracji danych z dowolnym systemem zewnętrznym. API podąża za semantyką REST, używa JSON do kodowania obiektów i opiera się na standardowych kodach HTTP, błędach odczytywanych maszynowo i przez człowieka, aby zasygnalizować wyniki operacji.",
-    "autoDocDescription": "Ta dokumentacja jest generowana automatycznie na podstawie tabel i pól, które znajdują się w Twojej bazie danych. Jeśli dokonasz zmian w swojej bazie danych, tabeli lub polach, może się okazać, że interfejs API również się zmienił. Dlatego upewnij się, że zaktualizowałeś odpowiednio swoją implementację API.",
-    "databaseId": "ID tej bazy danych to:",
-    "jsClient": "Przykładowy klient API w języku JavaScript:",
-    "pythonClient": "Przykładowy klient API w języku Python:"
-  },
-  "apiDocsTableListFields": {
-    "description": "Aby wylistować pola tabeli {name} należy wykonać żądanie `GET` do punktu końcowego {name}. Lista pól jest możliwa tylko wtedy, gdy token ma uprawnienia do odczytu, tworzenia lub aktualizacji.",
-    "resultFieldProperties": "Właściwości pola wynikowego",
-    "id": "Klucz główny pola. Może zostać użyte do wygenerowania nazwy kolumny w bazie danych poprzez dodanie prefiksu `field_`.",
-    "name": "Nazwa pola.",
-    "tableId": "Powiązany identyfikator ID tabeli.",
-    "order": "Kolejność pól w tabeli. 0 dla pierwszego pola.",
-    "primary": "Wskazuje czy pole jest polem głównym. Jeśli `true`, pole nie może być usunięte, a wartość powinna reprezentować cały wiersz.",
-    "type": "Typ zdefiniowany dla tego pola.",
-    "extraProps": "Niektóre dodatkowe właściwości nie zostały tu opisane, ponieważ są specyficzne dla danego typu.",
-    "readOnly": "Wskazuje, czy pole jest polem tylko do odczytu. Jeśli ma wartość true, nie można zaktualizować wartości komórki.",
-    "descriptionField": "Opis pola"
-  },
-  "apiDocsTableDeleteRow": {
-    "description": "Usuwa istniejący wiersz {name}.",
-    "rowId": "Unikalny identyfikator wiersza, który ma zostać usunięty."
-  },
-  "apiDocsTableDeleteRows": {
-    "description": "Usuwa istniejące wiersze {name}.",
-    "items": "Tablica identyfikatorów wierszy, które powinny zostać usunięte."
-  },
-  "apiDocsTableMoveRow": {
-    "description": "Przesuwa istniejący wiersz {name} przed inny wiersz. Jeśli nie podano `before_id`, to wiersz zostanie przeniesiony na koniec tabeli.",
-    "rowId": "Przesuwa wiersz związany z wartością.",
-    "before": "Przenosi wiersz związany z podanym `row_id` przed wiersz związany z podaną wartością. Jeśli nie podano, to wiersz zostanie przeniesiony na koniec."
-  },
-  "apiDocsTableUpdateRow": {
-    "description": "Aktualizuje istniejący wiersz {name}.",
-    "rowId": "Unikatowy identyfikator wiersza, który ma zostać zaktualizowany.",
-    "before": "Jeśli zostanie podany, nowo utworzony wiersz zostanie umieszczony przed wierszem o podanym identyfikatorze."
-  },
-  "apiDocsTableUpdateRows": {
-    "description": "Aktualizuje istniejące wiersze {name}.",
-    "id": "Identyfikator wiersza."
-  },
-  "apiDocsTableCreateRow": {
-    "description": "Utwórz nowy wiersz {name}.",
-    "before": "Jeśli zostanie podane, to nowo utworzony wiersz zostanie umieszczony przed wierszem o podanym id."
-  },
-  "apiDocsTableCreateRows": {
-    "description": "Utwórz nowe wiersze {name}.",
-    "before": "Jeśli zostanie podane, to nowo utworzone wiersze zostaną umieszczone przed wierszem o podanym id."
-  },
-  "apiDocsAuth": {
-    "description": "Baserow używa prostego uwierzytelniania opartego na tokenach. Aby korzystać z opisanych poniżej punktów końcowych, musisz wygenerować co najmniej jeden token API w swoim {settingsLink}. Możliwe jest nadawanie uprawnień do tworzenia, odczytu, aktualizacji i usuwania aż do poziomu tabeli na token. Możesz uwierzytelnić się w interfejsie API, podając swój token interfejsu API w nagłówku tokena elementu nośnego autoryzacji HTTP. Wszystkie żądania API muszą być uwierzytelnione i przesłane przez HTTPS.",
-    "settingsLink": "ustawienia"
-  },
-  "apiDocsFilters": {
-    "filter": "Filtr",
-    "exampleValue": "Przykładowa wartość",
-    "example": "Pełny przykład",
-    "field": "pole {name}",
-    "deprecated": "przestarzały"
-  },
-  "fieldTextSubForm": {
-    "placeholder": "Tekst domyślny"
-  },
-  "fieldSingleSelectSubForm": {
-    "optionsLabel": "Opcje"
-  },
-  "fieldSingleSelectDropdown": {
-    "notFound": "Nie znaleziono opcji"
-  },
-  "fieldDateSubForm": {
-    "dateFormatLabel": "Format daty",
-    "dateFormatEuropean": "Europejski",
-    "dateFormatUS": "US",
-    "dateFormatISO": "ISO",
-    "includeTimeLabel": "Uwzględnić czas",
-    "timeFormatLabel": "Format czasu",
-    "24Hour": "24 godziny",
-    "12Hour": "12 godzin",
-    "showTimezoneLabel": "Pokaż strefę czasową",
-    "forceTimezoneLabel": "Ustaw strefę czasową dla wszystkich współpracowników",
-    "addTimezoneOffsetLabel": "Przelicz wartości (dodaj {utcOffsetDiff} minut)",
-    "subTimezoneOffsetLabel": "Przelicz wartości (odejmij {utcOffsetDiff} minut)",
-    "forceTimezoneValue": "Strefa czasowa"
-  },
-  "fieldLinkRowSubForm": {
-    "noTable": "Potrzebujesz co najmniej jednej innej tabeli w tej samej bazie danych, aby połączyć się z nią.",
-    "selectTableLabel": "Wybierz tabelę, do której chcesz utworzyć link",
-    "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli",
-    "limitToView": "Ogranicz wybór do widoku",
-    "limitToViewDescription": "Należy pamiętać, że jest to tylko wizualne. Nadal możliwe jest tworzenie relacji poza widokiem za pośrednictwem powiązanej tabeli lub interfejsu API."
-  },
-  "fieldSelectOptions": {
-    "add": "Dodaj opcję"
-  },
-  "fieldNumberSubForm": {
-    "typeLabel": "Typ numeru",
-    "integer": "Liczba całkowita",
-    "decimal": "Dziesiętny",
-    "decimalPlacesLabel": "Miejsca dziesiętne",
-    "allowNegative": "Zezwalaj na negatywne",
-    "separatorLabel": "Separator tysięcy i dziesiętny",
-    "prefixPlaceholder": "Prefiks",
-    "suffixPlaceholder": "Sufiks",
-    "prefixAndSuffixLabel": "Prefiks / sufiks",
-    "spaceComma": "Spacja, przecinek (1 000 000,00)",
-    "spacePeriod": "Spacja, kropka (1 000 000.00)",
-    "commaPeriod": "Przecinek, kropka (1,000,000.00)",
-    "periodComma": "Kropka, przecinek (1.000.000,00)",
-    "noFormatting": "Bez formatowania"
-  },
-  "fieldContext": {
-    "editField": "Edytuj pole",
-    "deleteField": "Usuń pole",
-    "hideField": "Ukryj pole",
-    "showField": "Pokaż pole",
-    "changePrimaryField": "Zmień pole podstawowe"
-  },
-  "fieldForm": {
-    "name": "Nazwa",
-    "fieldAlreadyExists": "Pole o tej nazwie już istnieje.",
-    "nameNotAllowed": "Ta nazwa pola nie jest dozwolona.",
-    "nameTooLong": "Ta nazwa pola jest zbyt długa.",
-    "description": "Opis",
-    "addDescription": "Dodaj opis"
-  },
-  "fieldLookupSubForm": {
-    "noTable": "Aby utworzyć pole odnośnika, potrzebujesz co najmniej jednego pola wiersza linku.",
-    "selectThroughFieldLabel": "Wybieranie pola wiersza łącza",
-    "selectTargetFieldLabel": "Wybierz pole do wyszukania"
-  },
-  "fieldFormulaNumberSubForm": {
-    "typeLabel": "Typ numeru",
-    "integer": "Liczba całkowita",
-    "decimal": "Dziesiętny",
-    "decimalPlacesLabel": "Miejsca dziesiętne",
-    "allowNegative": "Zezwalaj na negatywne"
-  },
-  "fieldRatingSubForm": {
-    "maxValue": "Maks.",
-    "color": "Kolor",
-    "style": "Styl"
-  },
-  "rowCreateModal": {
-    "addField": "Dodaj pole"
-  },
-  "selectRowContent": {
-    "search": "Szukaj wierszy",
-    "hideFields": "Ukryj pola"
-  },
-  "rowEditModal": {
-    "addField": "Dodaj pole",
-    "showHiddenFields": "Pokaż ukryte pola",
-    "hideHiddenFields": "Ukryj ukryte pola"
-  },
-  "rowEditFieldMultipleSelect": {
-    "addOption": "Wybierz opcję"
-  },
-  "rowEditFieldFile": {
-    "addFile": "Dodaj plik",
-    "sizes": {
-      "0": "Bajty",
-      "1": "KB",
-      "2": "MB",
-      "3": "GB",
-      "4": "TB",
-      "5": "PB"
-    }
-  },
-  "rowEditFieldLinkRow": {
-    "addLink": "Wybierz link"
-  },
-  "tableCSVImporter": {
-    "chooseFileLabel": "Wybierz plik CSV",
-    "chooseFileDescription": "Możesz zaimportować istniejący CSV, przesyłając plik .CSV z danymi tabelarycznymi. Większość aplikacji arkuszy kalkulacyjnych pozwoli Ci wyeksportować Twój arkusz jako plik .CSV.",
-    "chooseFile": "Wybierz plik CSV",
-    "columnSeparator": "Separator kolumn",
-    "recordSeparator": "separator rekordów",
-    "unitSeparator": "separator jednostek",
-    "encoding": "Kodowanie",
-    "firstRowHeader": "Pierwszy wiersz to nagłówek",
-    "limitFileSize": "Maksymalny rozmiar pliku to {limit} MB.",
-    "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy.",
-    "emptyCSV": "Ten plik CSV jest pusty."
-  },
-  "importer": {
-    "fieldDefaultName": "Pole {liczba}",
-    "loading": "Ładowanie pliku",
-    "decoding": "Dekodowanie danych",
-    "parsing": "Analiza danych",
-    "preparing": "Przygotowanie danych",
-    "inProgress": "W trakcie..."
-  },
-  "tableForm": {
-    "name": "Nazwa"
-  },
-  "tableXMLImporter": {
-    "fileLabel": "Wybierz plik XML",
-    "fileDescription": "Istniejący kod XML można zaimportować, przesyłając plik .XML z danymi tabelarycznymi, tj.:",
-    "chooseButton": "Wybierz plik XML",
-    "processingError": "Podczas przetwarzania XML wystąpił błąd: {errors}",
-    "emptyError": "Ten plik XML jest pusty.",
-    "limitFileSize": "Maksymalna wielkość pliku to {limit}MB.",
-    "limitError": "Nie można zaimportować więcej niż {limit} wierszy."
-  },
-  "tableJSONImporter": {
-    "fileLabel": "Wybierz plik JSON",
-    "fileDescription": "Możesz zaimportować istniejący plik JSON, przesyłając plik .json z danymi tabelarycznymi, tj:",
-    "chooseButton": "Wybierz plik JSON",
-    "encodingLabel": "Kodowanie",
-    "processingError": "Podczas parsowania JSON wystąpił błąd: {error}",
-    "arrayError": "Plik JSON nie jest tablicą.",
-    "emptyError": "Ten plik JSON jest pusty.",
-    "limitFileSize": "Maksymalny rozmiar pliku to {limit}MB.",
-    "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy."
-  },
-  "tablePasteImporter": {
-    "pasteLabel": "Wklej dane tabeli",
-    "pasteDescription": "Możesz skopiować komórki z arkusza kalkulacyjnego i wkleić je poniżej.",
-    "firstRowHeader": "Pierwszy rząd to nagłówek",
-    "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy."
-  },
-  "importFileModal": {
-    "title": "Utwórz nową tabelę",
-    "additionalImportTitle": "Importuj do {table}",
-    "importLabel": "Czy chcesz zaimportować istniejące dane?",
-    "newTable": "Zacznij od nowej tabeli",
-    "addButton": "Dodaj tabelę",
-    "showTable": "pokaż tabelę",
-    "importButton": "Import",
-    "uploading": "Przesyłanie...",
-    "preparing": "Przygotowywanie danych...",
-    "importError": "Coś poszło nie tak podczas importowania pliku",
-    "openCreatedTable": "Otwórz utworzoną tabelę",
-    "showReport": "Pokaż raport o błędach",
-    "reportTitleFailure": "Nieudane wiersze",
-    "reportTitleSuccess": "Importowanie powiodło się, ale...",
-    "reportMessage": "Nie udało się zaimportować następujących indeksów wierszy:",
-    "stateRowCreation": "Importowanie...",
-    "statePreValidation": "Weryfikuję dane...",
-    "stateCreateTable": "Tworzę tabelę...",
-    "fieldMappingTitle": "Mapowanie pól",
-    "fieldMappingDescription": "Automatycznie zmapowaliśmy kolumny pól Baserow w Twojej tabeli. Możesz je zmienić poniżej. Każda niezgodna komórka pozostanie pusta po imporcie.",
-    "selectImportMessage": "Proszę wybrać dane do importu.",
-    "filePreview": "Podgląd zawartości pliku",
-    "changeImporterType": "Zmień typ importu",
-    "importPreview": "Podgląd importu",
-    "defaultName": "Tabela"
-  },
-  "formulaAdvancedEditContext": {
-    "textAreaFormulaInputPlaceholder": "Kliknij, aby edytować formułę",
-    "fields": "Pola",
-    "functions": "Funkcje",
-    "operators": "Operatory",
-    "fieldType": "Pole {type}"
-  },
-  "fieldFormulaInitialSubForm": {
-    "formulaInputPlaceholder": "Kliknij, aby edytować formułę",
-    "refreshFormulaOptions": "Odśwież opcje formuł"
-  },
-  "formulaFieldItemDescription": {
-    "syntax": "Składnia",
-    "examples": "Przykłady"
-  },
-  "viewSearchContext": {
-    "searchInRows": "Szukaj we wszystkich wierszach",
-    "hideNotMatching": "ukryj nie pasujące wiersze"
-  },
-  "viewsContext": {
-    "searchView": "Wyszukaj widoki",
-    "noViews": "Nie znaleziono widoków",
-    "collaborative": "Współpraca"
-  },
-  "viewFilterTypeLinkRow": {
-    "unnamed": "nienazwany rząd {value}",
-    "choose": "Wybierz wiersz"
-  },
-  "viewFilterContext": {
-    "addFilter": "Dodaj filtr",
-    "disableAllFilters": "wszystkie wyłączone",
-    "noFilterTitle": "Nie utworzyłeś jeszcze filtra",
-    "noFilterText": "Filtry umożliwiają pokazanie wierszy spełniających określone warunki.",
-    "where": "Gdzie",
-    "and": "I",
-    "or": "Lub",
-    "relatedFieldNotFound": "Powiązane pole nie zostało znalezione.",
-    "filterTypeNotFound": "Niezgodny typ filtra.",
-    "noCompatibleFilterTypesErrorTitle": "Brak kompatybilnych typów filtrów",
-    "noCompatibleFilterTypesErrorMessage": "Żadne z twoich pól nie ma kompatybilnych typów filtrów",
-    "addFilterGroup": "Dodaj grupę filtrów"
-  },
-  "viewFilterTypeFileTypeDropdown": {
-    "image": "zdjęcie",
-    "document": "dokument"
-  },
-  "createViewModal": {
-    "createNew": "Utwórz nowy {view}",
-    "add": "Dodaj {view}"
-  },
-  "shareViewLink": {
-    "shareView": "Udostępnij {viewTypeSharingLinkName}",
-    "shareViewTitle": "Utwórz prywatny link do udostępniania do {viewTypeSharingLinkName}",
-    "sharedViewTitle": "Ten {viewTypeSharingLinkName} jest obecnie udostępniany za pośrednictwem linku prywatnego",
-    "sharedViewDescription": "Osoby, które posiadają link mogą zobaczyć {viewTypeSharingLinkName}.",
-    "disableLink": "wyłącz udostępniony link",
-    "generateNewUrl": "wygeneruj nowy adres URL",
-    "copyURL": "skopiuj adres URL",
-    "EnablePassword": "Ogranicz dostęp za pomocą hasła",
-    "DisablePassword": "Dostęp jest chroniony hasłem",
-    "ChangePassword": "Zmień"
-  },
-  "viewSortContext": {
-    "noSortTitle": "Sortowanie nie zostało jeszcze utworzone",
-    "noSortText": "Sortowanie pozwala na sortowanie wierszy według pola.",
-    "sortBy": "Sortuj według",
-    "thenBy": "Następnie przez",
-    "addSort": "wybierz pole do sortowania według"
-  },
-  "viewSort": {
-    "sort": "Sortowanie | 1 Sortowanie | {count} Sortowań"
-  },
-  "viewDecorator": {
-    "decorator": "Kolor | 1 Kolor | {count} Kolory"
-  },
-  "viewRotateSlugModal": {
-    "title": "Odśwież URL",
-    "refreshWarning": "Czy jesteś pewien, że chcesz odświeżyć adres URL {viewName}? Po odświeżeniu zostanie wygenerowany nowy adres URL i nie będzie można uzyskać dostępu do {viewTypeSharingLinkName} za pomocą starego adresu URL. Wszyscy, którym udostępniłeś adres URL, nie będą mogli uzyskać dostępu do {viewTypeSharingLinkName}.",
-    "generateNewURL": "Wygeneruj nowy adres URL"
-  },
-  "shareViewEnablePasswordModal": {
-    "newPasswordTitle": "Wprowadź hasło",
-    "newPasswordDescription": "Link publiczny będzie dostępny tylko po wpisaniu hasła. To hasło zostanie zapisane w postaci zaszyfrowanej.",
-    "newPasswordSave": "Ustaw hasło",
-    "changePasswordTitle": "Zmień hasło",
-    "changePasswordDescription": "Po zmianie hasła poprzednie przestanie działać. To hasło zostanie zapisane w postaci zaszyfrowanej.",
-    "changePasswordSave": "Zmień hasło"
-  },
-  "shareViewDisablePasswordModal": {
-    "title": "Wyłącz ochronę hasłem",
-    "description": "Czy na pewno chcesz wyłączyć ochronę hasłem dla tego publicznego linku? Poprzez wyłączenie, hasło zostanie usunięte i nie będzie możliwe jego odzyskanie",
-    "disable": "Wyłączyć"
-  },
-  "publicViewAuthLogin": {
-    "title": "Ta strona jest chroniona hasłem",
-    "description": "Wprowadź prawidłowe hasło, aby uzyskać dostęp do strony.",
-    "enter": "Wejść",
-    "error": {
-      "incorrectPasswordTitle": "Nieprawidłowe hasło",
-      "incorrectPasswordText": "Podane hasło jest nieprawidłowe."
-    }
-  },
-  "viewFieldsContext": {
-    "coverField": "Pole okładki",
-    "noCover": "Brak okładki",
-    "search": "Pola wyszukiwania",
-    "hideAll": "Ukryj wszystko",
-    "showAll": "Pokaż wszystko"
-  },
-  "viewFilterTypeBoolean": {
-    "selected": "Wybrane"
-  },
-  "viewFilter": {
-    "filter": "Filtr | 1 Filtr | {count} Filtry/ów"
-  },
-  "viewContext": {
-    "exportView": "Eksportuj widok",
-    "duplicateView": "Duplikat widoku",
-    "renameView": "Zmień nazwę widoku",
-    "webhooks": "Webhooki",
-    "importFile": "Importuj plik",
-    "deleteView": "Usunąć widok",
-    "toPersonal": "Do osobistych",
-    "toCollaborative": "Do współpracy"
-  },
-  "deleteViewModal": {
-    "title": "Usuń {name}",
-    "description": "Czy na pewno chcesz usunąć widok {name}? Dane tabeli zostaną zachowane, ale filtry, sortowania i szerokości pól związane z widokiem zostaną usunięte.",
-    "delete": "Usuń widok"
-  },
-  "viewForm": {
-    "name": "Nazwa",
-    "whoCanEdit": "Kto może edytować"
-  },
-  "galleryViewHeader": {
-    "customizeCards": "Dostosuj karty"
-  },
-  "gridViewHide": {
-    "hideField": "Ukryj pola | 1 ukryte pole | {count} ukryte pola"
-  },
-  "gridViewFieldType": {
-    "insertLeft": "Wstaw z lewej",
-    "insertRight": "Wstaw z prawej",
-    "createFilter": "Utwórz filtr",
-    "duplicate": "Duplikat pola",
-    "sortField": "Sortuj",
-    "hideField": "Ukryj pole"
-  },
-  "gridViewRow": {
-    "rowNotMatchingFilters": "Wiersz nie pasuje do filtrów",
-    "rowNotMatchingSearch": "Wiersz nie pasuje do wyszukiwania",
-    "rowHasMoved": "Wiersz został przeniesiony"
-  },
-  "gridView": {
-    "selectRow": "Wybierz wiersz",
-    "insertRowAbove": "Wstaw wiersz powyżej",
-    "insertRowBelow": "Wstaw wiersz poniżej",
-    "duplicateRow": "Powiel wiersz",
-    "enlargeRow": "Powiększ wiersz",
-    "deleteRow": "Usuń wiersz",
-    "deleteRows": "Usuń wiersze",
-    "copyCells": "Kopiuj komórki",
-    "rowCount": "Brak wierszy | 1 wiersz | {count} wierszy",
-    "hiddenRowsInsertedTitle": "Dodano wiersze",
-    "hiddenRowsInsertedMessage": "Dodano {number} nowych wierszy, ale nie są one widoczne z powodu aktywnych filtrów.",
-    "copiedRowURLMessage": "Adres URL wiersza {id} został skopiowany do schowka.",
-    "copiedRowURL": "Skopiowany adres URL wiersza",
-    "copyRowURL": "Skopiuj adres URL wiersza",
-    "generateCellsValues": "Generowanie wartości za pomocą sztucznej inteligencji",
-    "tooManyItemsDescription": "Nie można zaktualizować więcej niż {limit} wierszy jednocześnie, więc zaktualizowaliśmy tylko pierwszy.",
-    "tooManyItemsTitle": "Zbyt wiele elementów",
-    "AIValuesGenerationErrorTitle": "Generowanie wartości AI nie powiodło się",
-    "AIValuesGenerationErrorMessage": "Sprawdź API_KEY i zweryfikuj wybrany model."
-  },
-  "gridViewFieldFile": {
-    "dropHere": "Upuść tutaj",
-    "dropFileHere": "Upuść pliki tutaj"
-  },
-  "gridViewFieldLinkRow": {
-    "unnamed": "nienazwany wiersz {value}"
-  },
-  "gridViewIdentifierOptions": {
-    "id": "Identyfikator wiersza",
-    "count": "Liczba"
-  },
-  "formViewMeta": {
-    "includeRowId": "Użyj {row_id}, aby dołączyć nowo utworzony id wiersza w adresie URL."
-  },
-  "previewAny": {
-    "externalWarning": "Otwarcie pliku przez zewnętrzną usługę naraża twój plik na działanie ich serwerów."
-  },
-  "exportTableModal": {
-    "failedTitle": "Eksport nie powiódł się",
-    "failedDescription": "Eksport nie powiódł się z powodu błędu serwera.",
-    "cancelledTitle": "Eksport anulowany",
-    "cancelledDescription": "Eksport został anulowany."
-  },
-  "exporterTypeChoices": {
-    "formatLabel": "Do jakiego formatu chcesz wyeksportować?"
-  },
-  "exportTableForm": {
-    "viewLabel": "Wybierz widok do wyeksportowania:",
-    "typeError": "Brak dostępnego typu eksportera, wybierz inny widok lub całą tabelę."
-  },
-  "exportTableLoadingBar": {
-    "export": "Eksport",
-    "download": "Pobierz"
-  },
-  "exportTableDropdown": {
-    "exportEntireTable": "Eksportowanie całej tabeli"
-  },
-  "tableCSVExporter": {
-    "columnSeparatorLabel": "Separator kolumn",
-    "recordSeparator": "separator rekordów",
-    "unitSeparator": "separator jednostek",
-    "encodingLabel": "Kodowanie",
-    "firstRowIsHeaderLabel": "Pierwszy wiersz to nagłówek"
-  },
-  "apiDocsDatabase": {
-    "pageTitle": "Dokumentacja API bazy danych {name}",
-    "back": "Powrót do pulpitu",
-    "openDatabase": "otwórz bazę danych"
-  },
-  "apiDocsComponent": {
-    "title": "REST API",
-    "intro": "Po utworzeniu schematu bazy danych i klucza API w {settingsLink} baza danych Baserow udostępnia własne punkty końcowe REST API do tworzenia, odczytu, aktualizacji i usuwania wierszy.",
-    "settings": "ustawienia",
-    "selectApplicationTitle": "Dla jakiej bazy danych chcesz zobaczyć dokumentację?",
-    "signIn": "Zaloguj się, aby zacząć",
-    "back": "Powrót do pulpitu"
-  },
-  "viewAggregationType": {
-    "emptyCount": "Pusty",
-    "notEmptyCount": "Wypełniony",
-    "emptyPercentage": "Procent pustego",
-    "notEmptyPercentage": "Procent wypełnienia",
-    "checkedCount": "Sprawdzono",
-    "notCheckedCount": "Niesprawdzony",
-    "checkedPercentage": "Odsetek skontrolowanych",
-    "notCheckedPercentage": "Procent Niesprawdzonych",
-    "min": "Min",
-    "max": "Max",
-    "earliestDate": "Najwcześniejsza data",
-    "earliestDateShort": "Najwcześniej",
-    "latestDate": "Ostatnia data",
-    "latestDateShort": "Najnowszy",
-    "uniqueCount": "Unikalny",
-    "sum": "Suma",
-    "average": "Średnia",
-    "median": "Mediana",
-    "stdDev": "Odchylenie standardowe",
-    "stdDevShort": "Odchylenie standardowe",
-    "variance": "Wariancja"
-  },
-  "databaseForm": {
-    "importLabel": "Czy chcesz zaimportować istniejące dane?",
-    "emptyLabel": "Zaczynać od początku",
-    "airtableLabel": "Importuj z Airtable (beta)"
-  },
-  "importFromAirtable": {
-    "airtableShareLinkTitle": "Udostępnij link do swojej bazy",
-    "airtableShareLinkDescription": "Aby zaimportować swoją bazę Airtable, musisz mieć udostępniony link do całej swojej bazy. W Airtable, po otwarciu swojej bazy kliknij w przycisk udostępniania w prawym górnym rogu. Następnie musisz wybrać opcję \"Dostęp do bazy\". W modalu udostępniania możesz kliknąć w przycisk \"Utwórz wspólny link do całej bazy\", a następnie w \"Prywatny link tylko do odczytu\". Skopiuj publiczny link i wklej go w poniższym wpisie.",
-    "airtableShareLinkBeta": "Pamiętaj, że ta funkcja jest w wersji beta, tabele, pola (z wyjątkiem formuły, wyszukiwania i liczby) oraz dane zostaną zaimportowane. Widoki nie zostaną zaimportowane.",
-    "airtableShareLinkPaste": "Wklej link tutaj",
-    "importButtonLabel": "Importuj z Airtable",
-    "openButtonLabel": "Otwórz importowaną bazę danych",
-    "importError": "Coś poszło nie tak",
-    "statePending": "Oczekiwanie na rozpoczęcie",
-    "stateFailed": "Nie powiodło się",
-    "stateFinished": "Skończone",
-    "stateDownloadingBase": "Pobieranie schematu bazy",
-    "stateConverting": "Konwersja do Baserow",
-    "stateDownloadingFiles": "Pobieranie plików",
-    "stateImporting": "Importowanie",
-    "stateImportingTable": "Importowanie tabeli {table}",
-    "errorJobAlreadyRunningTitle": "Już działa",
-    "errorJobAlreadyRunningDescription": "Inne zadanie importu jest już uruchomione. Musisz poczekać na zakończenie tego zadania przed rozpoczęciem kolejnego.",
-    "linkError": "Link powinien wyglądać tak: https://airtable.com/shrxxxxxxxxxxxxxx"
-  },
-  "chooseSingleSelectField": {
-    "addSelectField": "Dodaj pojedyncze pole wyboru",
-    "warningWhenNothingToChooseOrCreate": "Nie ma pojedynczych pól wyboru do wyboru i nie masz uprawnień do ich utworzenia."
-  },
-  "viewDecoratorContext": {
-    "addDecorator": "Dodaj dekorator"
-  },
-  "databaseDashboardSidebarLinks": {
-    "apiDocumentation": "Dokumentacja API"
-  },
-  "formViewField": {
-    "required": "wymagane",
-    "showWhenMatchingConditions": "pokaż, kiedy warunki są spełnione",
-    "addCondition": "Dodaj warunek",
-    "descriptionPlaceholder": "Opis",
-    "addConditionGroup": "Dodaj grupę warunków",
-    "showFieldAs": "Pokaż pole jako"
-  },
-  "duplicateFieldContext": {
-    "duplicate": "Duplikuj pola",
-    "cloneData": "Skopiuj dane",
-    "soon": "Dostępne wkrótce",
-    "readOnlyField": "Wartości komórek zostaną wypełnione automatycznie."
-  },
-  "snapshotsModal": {
-    "title": "migawki",
-    "description": "Migawki są pełną kopią danych {applicationTypeName} z momentu ich utworzenia. Podczas przywracania zostanie utworzona duplikacja tych danych. Migawki są automatycznie usuwane po upływie roku.",
-    "descriptionLimits": "Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawek na obszar roboczy.",
-    "createLabel": "Utwórz nową migawkę",
-    "create": "Utwórz migawkę",
-    "snapshotRestoredErrorTitle": "Wystąpił błąd",
-    "snapshotRestoredErrorMessage": "Nie udało się przywrócić migawki. Proszę spróbować ponownie później.",
-    "snapshotDeletedErrorTitle": "Wystąpił błąd",
-    "snapshotDeletedErrorMessage": "Migawki nie można usunąć. spróbuj ponownie później.",
-    "limitReached": "Osiągnięto limit maksymalnej liczby migawek.",
-    "snapshot": "Migawka",
-    "importingState": "Tworzenie",
-    "reset": "Utwórz kolejną"
-  },
-  "deleteSnapshotModal": {
-    "title": "Usuń migawkę",
-    "content": "Czy na pewno chcesz trwale usunąć migawkę {name}?",
-    "confirm": "Usuń"
-  },
-  "snapshotListItem": {
-    "restore": "przywrócić",
-    "delete": "usuń",
-    "created": "utworzono"
-  },
-  "formViewHeader": {
-    "mode": "Tryb",
-    "preview": "Podgląd",
-    "fields": "Pola"
-  },
-  "table": {
-    "chooseView": "Wybierz widok",
-    "adjacentRow": {
-      "notification": {
-        "notFound": {
-          "next": {
-            "title": "Nie ma już rzędów",
-            "message": "Nie ma następnego wiersza"
-          },
-          "previous": {
-            "title": "Nigdy więcej wierszy",
-            "message": "Nie ma poprzedniego wiersza"
-          }
+    "webhookForm": {
+        "inputLabels": {
+            "name": "Nazwa",
+            "value": "Wartość",
+            "requestMethod": "Metoda",
+            "url": "Adres URL",
+            "userFieldNames": "Nazwy pól użytkownika",
+            "events": "Jakie zdarzenia powinny wyzwalać ten webhook?",
+            "headers": "Dodatkowe nagłówki",
+            "example": "Przykładowy ładunek"
         },
-        "error": {
-          "title": "Wystąpił błąd",
-          "message": "Wystąpił błąd podczas pobierania sąsiedniego wiersza"
-        }
-      },
-      "toast": {
-        "notFound": {
-          "previous": {
-            "message": "Nie ma poprzedniego wiersza",
-            "title": "Nie ma już rzędów"
-          },
-          "next": {
-            "title": "Nie ma już rzędów",
-            "message": "Nie ma następnego wiersza"
-          }
+        "errors": {
+            "urlField": "To pole jest wymagane i musi być prawidłowym adresem url.",
+            "invalidHeaders": "Jeden z nagłówków jest nieprawidłowy."
         },
-        "error": {
-          "title": "Wystąpił błąd",
-          "message": "Wystąpił błąd podczas pobierania sąsiedniego wiersza"
+        "checkbox": {
+            "sendUserFieldNames": "Użyj nazwy pola zamiast id"
+        },
+        "radio": {
+            "allEvents": "Wyślij mi wszystko",
+            "customEvents": "Pozwól mi wybrać poszczególne wydarzenia"
+        },
+        "triggerButton": "Uruchom webhooka testowego",
+        "deactivated": {
+            "title": "Webhook jest nieaktywny",
+            "content": "Ten webhook został wyłączony, ponieważ wystąpiło zbyt wiele kolejnych niepowodzeń. Proszę sprawdzić dziennik połączeń, aby uzyskać więcej szczegółów. Kliknij na poniższy przycisk, aby aktywować go ponownie. Nie zapomnij zapisać webhooka po aktywacji.",
+            "activate": "Aktywować"
+        },
+        "deprecatedEventType": {
+            "title": "Przestarzały typ zdarzenia",
+            "description": "Ten webhook nie otrzymuje jednocześnie informacji o wszystkich zmienionych wierszach. Przekonwertuj go na typ zdarzenia w stylu wsadowym. Spowoduje to zmianę ładunku treści JSON na format, który zawiera wiele wierszy.",
+            "convert": "Konwertuj"
+        },
+        "triggerWhenFieldsHaveChanged": "Wyzwalanie po zmianie pól",
+        "helpTriggerWhenFieldsHaveChanged": "Zostanie uruchomiona tylko wtedy, gdy wartość komórki wybranych pól ulegnie zmianie."
+    },
+    "webhook": {
+        "details": "szczegóły",
+        "lastCall": "Ostatnie połączenie: {lastCallTime}",
+        "noCalls": "Brak połączeń",
+        "callLog": "Rejestr połączeń",
+        "triggerDescription": "Wyzwalacze przy każdym zdarzeniu | Wyzwalacze przy {count} zdarzeń | Wyzwalacze przy {count} zdarzeń"
+    },
+    "createWebhook": {
+        "errorTableWebhookMaxLimitExceededTitle": "Przekroczona maksymalna liczba webhooków",
+        "errorTableWebhookMaxLimitExceededDescription": "Nie można utworzyć webhooka, ponieważ przekroczono maksymalną ilość webhooków na tabelę."
+    },
+    "sidebar": {
+        "viewAPI": "Wyświetl dokumentację API",
+        "createTable": "Nowa tabela"
+    },
+    "sidebarItem": {
+        "exportTable": "Eksportuj tabelę",
+        "webhooks": "Webhooki",
+        "lastSynced": "Ostatnia synchronizacja",
+        "notSynced": "niezsynchronizowany",
+        "sync": "Tabela synchronizacji",
+        "updateSyncConfig": "Zaktualizuj konfigurację synchronizacji"
+    },
+    "apiToken": {
+        "create": "stwórz",
+        "read": "czytaj",
+        "update": "aktualizacja",
+        "delete": "usuń",
+        "tokenPrefix": "Token:",
+        "viewAPIDocs": "Wyświetl dokumentację API",
+        "generateNewToken": "Wygeneruj nowy token",
+        "showOrHide": "Pokaż lub ukryj token",
+        "copyToClipboard": "Kopiuj do schowka",
+        "showDatabases": "pokaż bazy danych"
+    },
+    "apiTokenSettings": {
+        "title": "Tokeny bazy danych",
+        "createToken": "Utwórz token",
+        "noTokensMessage": "Nie utworzyłeś jeszcze tokena bazy danych. Możesz użyć tokena bazy danych, aby uwierzytelnić się w punktach końcowych REST API, gdzie możesz tworzyć, czytać, aktualizować i usuwać wiersze. Możliwe jest ustawienie uprawnień na poziomie tabeli.",
+        "hasFullPermissions": "Posiada pełne uprawnienia, również dla wszystkich dzieci.",
+        "hasOnlySelectedPermissions": "Ma uprawnienia tylko do wybranych dzieci.",
+        "noPermissions": "Nie ma uprawnień.",
+        "createNewTitle": "Tworzenie nowego tokena bazy danych",
+        "backToOverview": "Powrót do przeglądu"
+    },
+    "apiTokenForm": {
+        "nameLabel": "Nazwa",
+        "workspaceLabel": "Grupa"
+    },
+    "apiDocsSelectDatabase": {
+        "needOneDatabase": "Musisz mieć co najmniej jedną bazę danych, aby wyświetlić dokumentację API."
+    },
+    "apiDocsExample": {
+        "requestSample": "Poproś o próbkę",
+        "responseSample": "Próbka odpowiedzi",
+        "userFieldNames": "Nazwy pól użytkownika"
+    },
+    "apiDocsParameter": {
+        "optional": "opcjonalny",
+        "defaultValue": "Domyślnie: {value}"
+    },
+    "apiDocsTableGetRow": {
+        "description": "Pobieranie pojedynczego wiersza {name}.",
+        "rowId": "Unikatowy identyfikator żądanego wiersza."
+    },
+    "apiDocsErrors": {
+        "errorCode": "Kod błędu",
+        "name": "Nazwa",
+        "description": "Opis",
+        "okDescription": "Żądanie zakończone pomyślnie.",
+        "badRequestDescription": "Żądanie zawiera nieprawidłowe wartości lub nie można przeanalizować JSON.",
+        "unauthorizedDescription": "Gdy próbujesz uzyskać dostęp do punktu końcowego bez ważnego tokena bazy danych.",
+        "notFoundDescription": "Nie znaleziono wiersza lub tabeli.",
+        "requestEntityTooLargeDescription": "Żądanie przekroczyło maksymalny dozwolony rozmiar ładunku.",
+        "internalErrorDescription": "Serwer napotkał nieoczekiwany stan.",
+        "badGatewayDescription": "Baserow uruchamia się ponownie lub trwa nieoczekiwana awaria.",
+        "unavailableDescription": "Serwer nie mógł przetworzyć Twojego żądania na czas."
+    },
+    "apiDocsTableFields": {
+        "tableTitle": "Tabela {name}",
+        "tableId": "ID tej tabeli to:",
+        "description": "Każdy wiersz w tabeli {name} zawiera następujące pola.",
+        "id": "ID",
+        "name": "Nazwa",
+        "type": "Typ",
+        "compatibleFilters": "Kompatybilne filtry"
+    },
+    "apiDocsTableListRows": {
+        "description": "Aby wyświetlić listę wierszy w tabeli *{name}* należy wykonać żądanie `GET` do punktu końcowego *{name}*. Odpowiedź jest paginowana i domyślnie zwracana jest pierwsza strona. Właściwa strona może zostać pobrana poprzez podanie parametrów zapytania `page` i `size`.",
+        "page": "Określa, która strona wierszy powinna zostać zwrócona.",
+        "size": "Określa ile wierszy powinno być zwróconych na stronę.",
+        "userFieldNames": "Gdy dostarczony jest parametr GET `user_field_names`, a jego wartość jest jedną z następujących: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, nazwy pól zwrócone przez ten punkt końcowy będą rzeczywistymi nazwami pól.\n\nJeśli parametr GET `user_field_names` nie zostanie podany lub jeśli nie pasuje do żadnej z powyższych wartości, wówczas wszystkie zwrócone nazwy pól będą miały postać `field_`, po której nastąpi identyfikator pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.\n\n Dodatkowo, gdy ustawiona jest wartość `user_field_names`, zmienia się zachowanie innych parametrów GET `order_by`, `include` i `exclude`. Zamiast tego oczekują one rozdzielonych przecinkami list rzeczywistych nazw pól.",
+        "search": "Jeśli zostanie podane, zostaną zwrócone tylko wiersze z danymi pasującymi do zapytania.",
+        "orderBy": "Opcjonalnie wiersze mogą być uporządkowane według pól oddzielonych przecinkiem. Domyślnie lub po poprzedzeniu znakiem '+', pole jest uporządkowane rosnąco (A-Z), ale poprzedzeniu znakiem '-' może być uporządkowane malejąco (Z-A).\n\n #### Z `user_field_names`:\n\n `order_by` powinna być rozdzieloną przecinkami listą nazw pól, po których mają być zamawiane. Na przykład jeśli podasz następujący parametr GET `order_by=My Field,-My Field 2` wiersze zostaną uporządkowane według pola o nazwie `My Field` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany według pola o nazwie `My Field 2` w porządku malejącym.\n\n Upewnij się, że pola z nazwami zaczynającymi się od `+` lub `-` są wyraźnie poprzedzone innym `+` lub `-`. Np. `+-Name`.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `Name ,,`''. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku ``. Eg: `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n `order_by` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola, po którym ma być złożone zamówienie. Na przykład, jeśli podasz następujący parametr GET `order_by=field_1,-field_2` wiersze zostaną uporządkowane według `field_1` w porządku rosnącym. Jeśli niektóre pola mają tę samą wartość, ten podzbiór zostanie uporządkowany przez `field_2` w porządku malejącym.",
+        "filter": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Można zastosować wiele filtrów, jeśli mają one ten sam format. Zmienne `field` i `filter` wskazują odpowiednio jak i gdzie zastosować filtr.\n\n#### Z `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__Name__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `Name` jest równa \"test\". Ta metoda jest kompatybilna wstecz i będzie sprawdzać `field_id`, jeśli nie powiedzie się na nazwie.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `filter__field_1__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `field_1` jest równa 'test'.\n\nNależy pamiętać, że jeśli podano parametr filters, ten parametr zostanie zignorowany. ",
+        "filterLink": "Listę wszystkich filtrów można znaleźć tutaj.",
+        "filterType": "- `AND`: Wskazuje, że wiersze muszą pasować do wszystkich podanych filtrów.\n- `OR`: Wskazuje, że wiersze muszą pasować tylko do jednego z filtrów.\n\n Działa to tylko wtedy, gdy podane są dwa lub więcej filtrów.",
+        "include": "Wszystkie pola są domyślnie zawarte w odpowiedzi. Możesz wybrać podzbiór pól do uwzględnienia poprzez podanie parametru zapytania include.\n\n #### Z `user_field_names`:\n\n `include` powinna być rozdzieloną przecinkami listą nazw pól, które mają być zawarte w wynikach. Na przykład, jeśli podasz następujący parametr GET: `include=My Field,-My Field 2` to tylko te pola zostaną uwzględnione (chyba, że zostaną wyraźnie wykluczone).\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `\"Name ,\"`. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku `\\` . Na przykład: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `include` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola do uwzględnienia w wynikach. Na przykład: Jeśli podasz następujący parametr GET `exclude=field_1,field_2` to pola o id `1` i id `2` to tylko te pola zostaną uwzględnione (chyba, że zostaną jawnie wykluczone).",
+        "exclude": "Wszystkie pola są domyślnie zawarte w odpowiedzi. Możesz wybrać podzbiór pól do wykluczenia poprzez podanie parametru zapytania exclude.\n\n #### Z `user_field_names`:\n\n `exclude` powinna być rozdzieloną przecinkami listą nazw pól, które mają być wykluczone z wyników. Na przykład, jeśli podasz następujący parametr GET: `exclude=My Field,-My Field 2` to te pola zostaną wykluczone.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami: `\"Name ,\"`. Jeśli nazwy pól zawierają cudzysłowy, to muszą one zostać usunięte przy użyciu znaku `\\`. Na przykład: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `exclude` powinno być rozdzieloną przecinkami listą `field_`, po której następuje id pola do wykluczenia z wyników. Na przykład: Jeśli podasz następujący parametr GET `exclude=field_1,field_2` to pola o id `1` i id `2` zostaną wykluczone.",
+        "viewId": "Domyślnie nie są stosowane filtry i sortowania poza tymi, które zostały zdefiniowane w parametrach zapytania. Możesz dodać filtry i sortowania widoku poprzez podanie jego `id` w parametrze `view_id` GET. Na przykład, jeśli podasz następujący parametr GET `view_id=1` to filtry i sortowania zdefiniowane w widoku o id `1` zostaną zastosowane. Możesz znaleźć `view_id` w menu kontekstowym dowolnego widoku. Jest to liczba w nawiasach za nazwą widoku. \n\n #### Z `filter__{field}__{filter}`. \n\n Zastosowany zostanie zarówno filtr podany w parametrze zapytania, jak i filtry zdefiniowane w widoku.\n\n #### Z `order_by` \n\n Jeśli `order_by` jest podane, sortowanie zdefiniowane w widoku zostanie zignorowane.",
+        "filtersBuilder": "Otwórz kreator parametrów filtrów",
+        "filters": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne dla widoków. Ten parametr akceptuje serializowany ciąg JSON zawierający drzewo filtrów do zastosowania w tym widoku. Drzewo filtrów jest zagnieżdżoną strukturą zawierającą filtry, które należy zastosować. \\n\\n#### Z `user_field_names`:\\n\\nPrzykład prawidłowego drzewa filtrów jest następujący: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\\n\\n#### Bez `user_field_names`:\\n\\nNa przykład, jeśli opcjonalnie podasz następujący parametr GET: `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\\n\\nNależy pamiętać, że jeśli ten parametr zostanie podany, wszystkie inne `filter__{field}__{filter}` zostaną zignorowane, podobnie jak parametr filter_type.",
+        "join": "Umożliwia zażądanie wyszukiwania wartości pól z tabeli docelowej poprzez istniejące pola wierszy linków. Nazwa parametru musi być nazwą istniejącego pola wiersza łącza, po którym następuje __join. Wartość powinna być listą nazw pól, dla których chcemy wyszukać dodatkowe wartości. Można podać jedno lub wiele pól docelowych. Nie jest możliwe wyszukanie wartości pola wiersza łącza w tabeli docelowej.\n\n #### Z `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą nazw pól, które mają być uwzględnione w wynikach. Na przykład: Jeśli podasz następujący parametr GET `LinkRowField__join=MyField,MyField2` to wartości `MyField` i `My Field2` w tabeli połączonej przez `LinkRowField` zostaną uwzględnione w odpowiedzi.\n\n#### Bez `user_field_names`:\n\n `join` powinno być rozdzieloną przecinkami listą `field_`, po której następuje identyfikator pola do uwzględnienia w wynikach. Na przykład: Jeśli podasz następujący parametr GET `field_1__join=field_2,field_3` to wartości `field_2` i `field_3` w tabeli połączonej przez `field_1` zostaną uwzględnione w odpowiedzi."
+    },
+    "apiDocsIntro": {
+        "intro": "Baza danych {name} zapewnia łatwy sposób integracji danych z dowolnym systemem zewnętrznym. API podąża za semantyką REST, używa JSON do kodowania obiektów i opiera się na standardowych kodach HTTP, błędach odczytywanych maszynowo i przez człowieka, aby zasygnalizować wyniki operacji.",
+        "autoDocDescription": "Ta dokumentacja jest generowana automatycznie na podstawie tabel i pól, które znajdują się w Twojej bazie danych. Jeśli dokonasz zmian w swojej bazie danych, tabeli lub polach, może się okazać, że interfejs API również się zmienił. Dlatego upewnij się, że zaktualizowałeś odpowiednio swoją implementację API.",
+        "databaseId": "ID tej bazy danych to:",
+        "jsClient": "Przykładowy klient API w języku JavaScript:",
+        "pythonClient": "Przykładowy klient API w języku Python:"
+    },
+    "apiDocsTableListFields": {
+        "description": "Aby wylistować pola tabeli {name} należy wykonać żądanie `GET` do punktu końcowego {name}. Lista pól jest możliwa tylko wtedy, gdy token ma uprawnienia do odczytu, tworzenia lub aktualizacji.",
+        "resultFieldProperties": "Właściwości pola wynikowego",
+        "id": "Klucz główny pola. Może zostać użyte do wygenerowania nazwy kolumny w bazie danych poprzez dodanie prefiksu `field_`.",
+        "name": "Nazwa pola.",
+        "tableId": "Powiązany identyfikator ID tabeli.",
+        "order": "Kolejność pól w tabeli. 0 dla pierwszego pola.",
+        "primary": "Wskazuje czy pole jest polem głównym. Jeśli `true`, pole nie może być usunięte, a wartość powinna reprezentować cały wiersz.",
+        "type": "Typ zdefiniowany dla tego pola.",
+        "extraProps": "Niektóre dodatkowe właściwości nie zostały tu opisane, ponieważ są specyficzne dla danego typu.",
+        "readOnly": "Wskazuje, czy pole jest polem tylko do odczytu. Jeśli ma wartość true, nie można zaktualizować wartości komórki.",
+        "descriptionField": "Opis pola"
+    },
+    "apiDocsTableDeleteRow": {
+        "description": "Usuwa istniejący wiersz {name}.",
+        "rowId": "Unikalny identyfikator wiersza, który ma zostać usunięty."
+    },
+    "apiDocsTableDeleteRows": {
+        "description": "Usuwa istniejące wiersze {name}.",
+        "items": "Tablica identyfikatorów wierszy, które powinny zostać usunięte."
+    },
+    "apiDocsTableMoveRow": {
+        "description": "Przesuwa istniejący wiersz {name} przed inny wiersz. Jeśli nie podano `before_id`, to wiersz zostanie przeniesiony na koniec tabeli.",
+        "rowId": "Przesuwa wiersz związany z wartością.",
+        "before": "Przenosi wiersz związany z podanym `row_id` przed wiersz związany z podaną wartością. Jeśli nie podano, to wiersz zostanie przeniesiony na koniec."
+    },
+    "apiDocsTableUpdateRow": {
+        "description": "Aktualizuje istniejący wiersz {name}.",
+        "rowId": "Unikatowy identyfikator wiersza, który ma zostać zaktualizowany.",
+        "before": "Jeśli zostanie podany, nowo utworzony wiersz zostanie umieszczony przed wierszem o podanym identyfikatorze."
+    },
+    "apiDocsTableUpdateRows": {
+        "description": "Aktualizuje istniejące wiersze {name}.",
+        "id": "Identyfikator wiersza."
+    },
+    "apiDocsTableCreateRow": {
+        "description": "Utwórz nowy wiersz {name}.",
+        "before": "Jeśli zostanie podane, to nowo utworzony wiersz zostanie umieszczony przed wierszem o podanym id."
+    },
+    "apiDocsTableCreateRows": {
+        "description": "Utwórz nowe wiersze {name}.",
+        "before": "Jeśli zostanie podane, to nowo utworzone wiersze zostaną umieszczone przed wierszem o podanym id."
+    },
+    "apiDocsAuth": {
+        "description": "Baserow używa prostego uwierzytelniania opartego na tokenach. Aby korzystać z opisanych poniżej punktów końcowych, musisz wygenerować co najmniej jeden token API w swoim {settingsLink}. Możliwe jest nadawanie uprawnień do tworzenia, odczytu, aktualizacji i usuwania aż do poziomu tabeli na token. Możesz uwierzytelnić się w interfejsie API, podając swój token interfejsu API w nagłówku tokena elementu nośnego autoryzacji HTTP. Wszystkie żądania API muszą być uwierzytelnione i przesłane przez HTTPS.",
+        "settingsLink": "ustawienia"
+    },
+    "apiDocsFilters": {
+        "filter": "Filtr",
+        "exampleValue": "Przykładowa wartość",
+        "example": "Pełny przykład",
+        "field": "pole {name}",
+        "deprecated": "przestarzały"
+    },
+    "fieldTextSubForm": {
+        "placeholder": "Tekst domyślny"
+    },
+    "fieldSingleSelectSubForm": {
+        "optionsLabel": "Opcje"
+    },
+    "fieldSingleSelectDropdown": {
+        "notFound": "Nie znaleziono opcji"
+    },
+    "fieldDateSubForm": {
+        "dateFormatLabel": "Format daty",
+        "dateFormatEuropean": "Europejski",
+        "dateFormatUS": "US",
+        "dateFormatISO": "ISO",
+        "includeTimeLabel": "Uwzględnić czas",
+        "timeFormatLabel": "Format czasu",
+        "24Hour": "24 godziny",
+        "12Hour": "12 godzin",
+        "showTimezoneLabel": "Pokaż strefę czasową",
+        "forceTimezoneLabel": "Ustaw strefę czasową dla wszystkich współpracowników",
+        "addTimezoneOffsetLabel": "Przelicz wartości (dodaj {utcOffsetDiff} minut)",
+        "subTimezoneOffsetLabel": "Przelicz wartości (odejmij {utcOffsetDiff} minut)",
+        "forceTimezoneValue": "Strefa czasowa"
+    },
+    "fieldLinkRowSubForm": {
+        "noTable": "Potrzebujesz co najmniej jednej innej tabeli w tej samej bazie danych, aby połączyć się z nią.",
+        "selectTableLabel": "Wybierz tabelę, do której chcesz utworzyć link",
+        "hasRelatedFieldLabel": "Utwórz powiązane pole w podlinkowanej tabeli",
+        "limitToView": "Ogranicz wybór do widoku",
+        "limitToViewDescription": "Należy pamiętać, że jest to tylko wizualne. Nadal możliwe jest tworzenie relacji poza widokiem za pośrednictwem powiązanej tabeli lub interfejsu API."
+    },
+    "fieldSelectOptions": {
+        "add": "Dodaj opcję"
+    },
+    "fieldNumberSubForm": {
+        "typeLabel": "Typ numeru",
+        "integer": "Liczba całkowita",
+        "decimal": "Dziesiętny",
+        "decimalPlacesLabel": "Miejsca dziesiętne",
+        "allowNegative": "Zezwalaj na negatywne",
+        "separatorLabel": "Separator tysięcy i dziesiętny",
+        "prefixPlaceholder": "Prefiks",
+        "suffixPlaceholder": "Sufiks",
+        "prefixAndSuffixLabel": "Prefiks / sufiks",
+        "spaceComma": "Spacja, przecinek (1 000 000,00)",
+        "spacePeriod": "Spacja, kropka (1 000 000.00)",
+        "commaPeriod": "Przecinek, kropka (1,000,000.00)",
+        "periodComma": "Kropka, przecinek (1.000.000,00)",
+        "noFormatting": "Bez formatowania"
+    },
+    "fieldContext": {
+        "editField": "Edytuj pole",
+        "deleteField": "Usuń pole",
+        "hideField": "Ukryj pole",
+        "showField": "Pokaż pole",
+        "changePrimaryField": "Zmień pole podstawowe"
+    },
+    "fieldForm": {
+        "name": "Nazwa",
+        "fieldAlreadyExists": "Pole o tej nazwie już istnieje.",
+        "nameNotAllowed": "Ta nazwa pola nie jest dozwolona.",
+        "nameTooLong": "Ta nazwa pola jest zbyt długa.",
+        "description": "Opis",
+        "addDescription": "Dodaj opis"
+    },
+    "fieldLookupSubForm": {
+        "noTable": "Aby utworzyć pole odnośnika, potrzebujesz co najmniej jednego pola wiersza linku.",
+        "selectThroughFieldLabel": "Wybieranie pola wiersza łącza",
+        "selectTargetFieldLabel": "Wybierz pole do wyszukania"
+    },
+    "fieldFormulaNumberSubForm": {
+        "typeLabel": "Typ numeru",
+        "integer": "Liczba całkowita",
+        "decimal": "Dziesiętny",
+        "decimalPlacesLabel": "Miejsca dziesiętne",
+        "allowNegative": "Zezwalaj na negatywne"
+    },
+    "fieldRatingSubForm": {
+        "maxValue": "Maks.",
+        "color": "Kolor",
+        "style": "Styl"
+    },
+    "rowCreateModal": {
+        "addField": "Dodaj pole"
+    },
+    "selectRowContent": {
+        "search": "Szukaj wierszy",
+        "hideFields": "Ukryj pola"
+    },
+    "rowEditModal": {
+        "addField": "Dodaj pole",
+        "showHiddenFields": "Pokaż ukryte pola",
+        "hideHiddenFields": "Ukryj ukryte pola"
+    },
+    "rowEditFieldMultipleSelect": {
+        "addOption": "Wybierz opcję"
+    },
+    "rowEditFieldFile": {
+        "addFile": "Dodaj plik",
+        "sizes": {
+            "0": "Bajty",
+            "1": "KB",
+            "2": "MB",
+            "3": "GB",
+            "4": "TB",
+            "5": "PB"
         }
-      }
+    },
+    "rowEditFieldLinkRow": {
+        "addLink": "Wybierz link"
+    },
+    "tableCSVImporter": {
+        "chooseFileLabel": "Wybierz plik CSV",
+        "chooseFileDescription": "Możesz zaimportować istniejący CSV, przesyłając plik .CSV z danymi tabelarycznymi. Większość aplikacji arkuszy kalkulacyjnych pozwoli Ci wyeksportować Twój arkusz jako plik .CSV.",
+        "chooseFile": "Wybierz plik CSV",
+        "columnSeparator": "Separator kolumn",
+        "recordSeparator": "separator rekordów",
+        "unitSeparator": "separator jednostek",
+        "encoding": "Kodowanie",
+        "firstRowHeader": "Pierwszy wiersz to nagłówek",
+        "limitFileSize": "Maksymalny rozmiar pliku to {limit} MB.",
+        "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy.",
+        "emptyCSV": "Ten plik CSV jest pusty."
+    },
+    "importer": {
+        "fieldDefaultName": "Pole {liczba}",
+        "loading": "Ładowanie pliku",
+        "decoding": "Dekodowanie danych",
+        "parsing": "Analiza danych",
+        "preparing": "Przygotowanie danych",
+        "inProgress": "W trakcie..."
+    },
+    "tableForm": {
+        "name": "Nazwa"
+    },
+    "tableXMLImporter": {
+        "fileLabel": "Wybierz plik XML",
+        "fileDescription": "Istniejący kod XML można zaimportować, przesyłając plik .XML z danymi tabelarycznymi, tj.:",
+        "chooseButton": "Wybierz plik XML",
+        "processingError": "Podczas przetwarzania XML wystąpił błąd: {errors}",
+        "emptyError": "Ten plik XML jest pusty.",
+        "limitFileSize": "Maksymalna wielkość pliku to {limit}MB.",
+        "limitError": "Nie można zaimportować więcej niż {limit} wierszy."
+    },
+    "tableJSONImporter": {
+        "fileLabel": "Wybierz plik JSON",
+        "fileDescription": "Możesz zaimportować istniejący plik JSON, przesyłając plik .json z danymi tabelarycznymi, tj:",
+        "chooseButton": "Wybierz plik JSON",
+        "encodingLabel": "Kodowanie",
+        "processingError": "Podczas parsowania JSON wystąpił błąd: {error}",
+        "arrayError": "Plik JSON nie jest tablicą.",
+        "emptyError": "Ten plik JSON jest pusty.",
+        "limitFileSize": "Maksymalny rozmiar pliku to {limit}MB.",
+        "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy."
+    },
+    "tablePasteImporter": {
+        "pasteLabel": "Wklej dane tabeli",
+        "pasteDescription": "Możesz skopiować komórki z arkusza kalkulacyjnego i wkleić je poniżej.",
+        "firstRowHeader": "Pierwszy rząd to nagłówek",
+        "limitError": "Nie jest możliwe zaimportowanie więcej niż {limit} wierszy."
+    },
+    "importFileModal": {
+        "title": "Utwórz nową tabelę",
+        "additionalImportTitle": "Importuj do {table}",
+        "importLabel": "Czy chcesz zaimportować istniejące dane?",
+        "newTable": "Zacznij od nowej tabeli",
+        "addButton": "Dodaj tabelę",
+        "showTable": "pokaż tabelę",
+        "importButton": "Import",
+        "uploading": "Przesyłanie...",
+        "preparing": "Przygotowywanie danych...",
+        "importError": "Coś poszło nie tak podczas importowania pliku",
+        "openCreatedTable": "Otwórz utworzoną tabelę",
+        "showReport": "Pokaż raport o błędach",
+        "reportTitleFailure": "Nieudane wiersze",
+        "reportTitleSuccess": "Importowanie powiodło się, ale...",
+        "reportMessage": "Nie udało się zaimportować następujących indeksów wierszy:",
+        "stateRowCreation": "Importowanie...",
+        "statePreValidation": "Weryfikuję dane...",
+        "stateCreateTable": "Tworzę tabelę...",
+        "fieldMappingTitle": "Mapowanie pól",
+        "fieldMappingDescription": "Automatycznie zmapowaliśmy kolumny pól Baserow w Twojej tabeli. Możesz je zmienić poniżej. Każda niezgodna komórka pozostanie pusta po imporcie.",
+        "selectImportMessage": "Proszę wybrać dane do importu.",
+        "filePreview": "Podgląd zawartości pliku",
+        "changeImporterType": "Zmień typ importu",
+        "importPreview": "Podgląd importu",
+        "defaultName": "Tabela"
+    },
+    "formulaAdvancedEditContext": {
+        "textAreaFormulaInputPlaceholder": "Kliknij, aby edytować formułę",
+        "fields": "Pola",
+        "functions": "Funkcje",
+        "operators": "Operatory",
+        "fieldType": "Pole {type}"
+    },
+    "fieldFormulaInitialSubForm": {
+        "formulaInputPlaceholder": "Kliknij, aby edytować formułę",
+        "refreshFormulaOptions": "Odśwież opcje formuł"
+    },
+    "formulaFieldItemDescription": {
+        "syntax": "Składnia",
+        "examples": "Przykłady"
+    },
+    "viewSearchContext": {
+        "searchInRows": "Szukaj we wszystkich wierszach",
+        "hideNotMatching": "ukryj nie pasujące wiersze"
+    },
+    "viewsContext": {
+        "searchView": "Wyszukaj widoki",
+        "noViews": "Nie znaleziono widoków",
+        "collaborative": "Współpraca"
+    },
+    "viewFilterTypeLinkRow": {
+        "unnamed": "nienazwany rząd {value}",
+        "choose": "Wybierz wiersz"
+    },
+    "viewFilterContext": {
+        "addFilter": "Dodaj filtr",
+        "disableAllFilters": "wszystkie wyłączone",
+        "noFilterTitle": "Nie utworzyłeś jeszcze filtra",
+        "noFilterText": "Filtry umożliwiają pokazanie wierszy spełniających określone warunki.",
+        "where": "Gdzie",
+        "and": "I",
+        "or": "Lub",
+        "relatedFieldNotFound": "Powiązane pole nie zostało znalezione.",
+        "filterTypeNotFound": "Niezgodny typ filtra.",
+        "noCompatibleFilterTypesErrorTitle": "Brak kompatybilnych typów filtrów",
+        "noCompatibleFilterTypesErrorMessage": "Żadne z twoich pól nie ma kompatybilnych typów filtrów",
+        "addFilterGroup": "Dodaj grupę filtrów"
+    },
+    "viewFilterTypeFileTypeDropdown": {
+        "image": "zdjęcie",
+        "document": "dokument"
+    },
+    "createViewModal": {
+        "createNew": "Utwórz nowy {view}",
+        "add": "Dodaj {view}"
+    },
+    "shareViewLink": {
+        "shareView": "Udostępnij {viewTypeSharingLinkName}",
+        "shareViewTitle": "Utwórz prywatny link do udostępniania do {viewTypeSharingLinkName}",
+        "sharedViewTitle": "Ten {viewTypeSharingLinkName} jest obecnie udostępniany za pośrednictwem linku prywatnego",
+        "sharedViewDescription": "Osoby, które posiadają link mogą zobaczyć {viewTypeSharingLinkName}.",
+        "disableLink": "wyłącz udostępniony link",
+        "generateNewUrl": "wygeneruj nowy adres URL",
+        "copyURL": "skopiuj adres URL",
+        "EnablePassword": "Ogranicz dostęp za pomocą hasła",
+        "DisablePassword": "Dostęp jest chroniony hasłem",
+        "ChangePassword": "Zmień"
+    },
+    "viewSortContext": {
+        "noSortTitle": "Sortowanie nie zostało jeszcze utworzone",
+        "noSortText": "Sortowanie pozwala na sortowanie wierszy według pola.",
+        "sortBy": "Sortuj według",
+        "thenBy": "Następnie przez",
+        "addSort": "wybierz pole do sortowania według"
+    },
+    "viewSort": {
+        "sort": "Sortowanie | 1 Sortowanie | {count} Sortowań"
+    },
+    "viewDecorator": {
+        "decorator": "Kolor | 1 Kolor | {count} Kolory"
+    },
+    "viewRotateSlugModal": {
+        "title": "Odśwież URL",
+        "refreshWarning": "Czy jesteś pewien, że chcesz odświeżyć adres URL {viewName}? Po odświeżeniu zostanie wygenerowany nowy adres URL i nie będzie można uzyskać dostępu do {viewTypeSharingLinkName} za pomocą starego adresu URL. Wszyscy, którym udostępniłeś adres URL, nie będą mogli uzyskać dostępu do {viewTypeSharingLinkName}.",
+        "generateNewURL": "Wygeneruj nowy adres URL"
+    },
+    "shareViewEnablePasswordModal": {
+        "newPasswordTitle": "Wprowadź hasło",
+        "newPasswordDescription": "Link publiczny będzie dostępny tylko po wpisaniu hasła. To hasło zostanie zapisane w postaci zaszyfrowanej.",
+        "newPasswordSave": "Ustaw hasło",
+        "changePasswordTitle": "Zmień hasło",
+        "changePasswordDescription": "Po zmianie hasła poprzednie przestanie działać. To hasło zostanie zapisane w postaci zaszyfrowanej.",
+        "changePasswordSave": "Zmień hasło"
+    },
+    "shareViewDisablePasswordModal": {
+        "title": "Wyłącz ochronę hasłem",
+        "description": "Czy na pewno chcesz wyłączyć ochronę hasłem dla tego publicznego linku? Poprzez wyłączenie, hasło zostanie usunięte i nie będzie możliwe jego odzyskanie",
+        "disable": "Wyłączyć"
+    },
+    "publicViewAuthLogin": {
+        "title": "Ta strona jest chroniona hasłem",
+        "description": "Wprowadź prawidłowe hasło, aby uzyskać dostęp do strony.",
+        "enter": "Wejść",
+        "error": {
+            "incorrectPasswordTitle": "Nieprawidłowe hasło",
+            "incorrectPasswordText": "Podane hasło jest nieprawidłowe."
+        }
+    },
+    "viewFieldsContext": {
+        "coverField": "Pole okładki",
+        "noCover": "Brak okładki",
+        "search": "Pola wyszukiwania",
+        "hideAll": "Ukryj wszystko",
+        "showAll": "Pokaż wszystko"
+    },
+    "viewFilterTypeBoolean": {
+        "selected": "Wybrane"
+    },
+    "viewFilter": {
+        "filter": "Filtr | 1 Filtr | {count} Filtry/ów"
+    },
+    "viewContext": {
+        "exportView": "Eksportuj widok",
+        "duplicateView": "Duplikat widoku",
+        "renameView": "Zmień nazwę widoku",
+        "webhooks": "Webhooki",
+        "importFile": "Importuj plik",
+        "deleteView": "Usunąć widok",
+        "toPersonal": "Do osobistych",
+        "toCollaborative": "Do współpracy"
+    },
+    "deleteViewModal": {
+        "title": "Usuń {name}",
+        "description": "Czy na pewno chcesz usunąć widok {name}? Dane tabeli zostaną zachowane, ale filtry, sortowania i szerokości pól związane z widokiem zostaną usunięte.",
+        "delete": "Usuń widok"
+    },
+    "viewForm": {
+        "name": "Nazwa",
+        "whoCanEdit": "Kto może edytować"
+    },
+    "galleryViewHeader": {
+        "customizeCards": "Dostosuj karty"
+    },
+    "gridViewHide": {
+        "hideField": "Ukryj pola | 1 ukryte pole | {count} ukryte pola"
+    },
+    "gridViewFieldType": {
+        "insertLeft": "Wstaw z lewej",
+        "insertRight": "Wstaw z prawej",
+        "createFilter": "Utwórz filtr",
+        "duplicate": "Duplikat pola",
+        "sortField": "Sortuj",
+        "hideField": "Ukryj pole"
+    },
+    "gridViewRow": {
+        "rowNotMatchingFilters": "Wiersz nie pasuje do filtrów",
+        "rowNotMatchingSearch": "Wiersz nie pasuje do wyszukiwania",
+        "rowHasMoved": "Wiersz został przeniesiony"
+    },
+    "gridView": {
+        "selectRow": "Wybierz wiersz",
+        "insertRowAbove": "Wstaw wiersz powyżej",
+        "insertRowBelow": "Wstaw wiersz poniżej",
+        "duplicateRow": "Powiel wiersz",
+        "enlargeRow": "Powiększ wiersz",
+        "deleteRow": "Usuń wiersz",
+        "deleteRows": "Usuń wiersze",
+        "copyCells": "Kopiuj komórki",
+        "rowCount": "Brak wierszy | 1 wiersz | {count} wierszy",
+        "hiddenRowsInsertedTitle": "Dodano wiersze",
+        "hiddenRowsInsertedMessage": "Dodano {number} nowych wierszy, ale nie są one widoczne z powodu aktywnych filtrów.",
+        "copiedRowURLMessage": "Adres URL wiersza {id} został skopiowany do schowka.",
+        "copiedRowURL": "Skopiowany adres URL wiersza",
+        "copyRowURL": "Skopiuj adres URL wiersza",
+        "generateCellsValues": "Generowanie wartości za pomocą sztucznej inteligencji",
+        "tooManyItemsDescription": "Nie można zaktualizować więcej niż {limit} wierszy jednocześnie, więc zaktualizowaliśmy tylko pierwszy.",
+        "tooManyItemsTitle": "Zbyt wiele elementów",
+        "AIValuesGenerationErrorTitle": "Generowanie wartości AI nie powiodło się",
+        "AIValuesGenerationErrorMessage": "Sprawdź API_KEY i zweryfikuj wybrany model."
+    },
+    "gridViewFieldFile": {
+        "dropHere": "Upuść tutaj",
+        "dropFileHere": "Upuść pliki tutaj"
+    },
+    "gridViewFieldLinkRow": {
+        "unnamed": "nienazwany wiersz {value}"
+    },
+    "gridViewIdentifierOptions": {
+        "id": "Identyfikator wiersza",
+        "count": "Liczba"
+    },
+    "formViewMeta": {
+        "includeRowId": "Użyj {row_id}, aby dołączyć nowo utworzony id wiersza w adresie URL."
+    },
+    "previewAny": {
+        "externalWarning": "Otwarcie pliku przez zewnętrzną usługę naraża twój plik na działanie ich serwerów."
+    },
+    "exportTableModal": {
+        "failedTitle": "Eksport nie powiódł się",
+        "failedDescription": "Eksport nie powiódł się z powodu błędu serwera.",
+        "cancelledTitle": "Eksport anulowany",
+        "cancelledDescription": "Eksport został anulowany."
+    },
+    "exporterTypeChoices": {
+        "formatLabel": "Do jakiego formatu chcesz wyeksportować?"
+    },
+    "exportTableForm": {
+        "viewLabel": "Wybierz widok do wyeksportowania:",
+        "typeError": "Brak dostępnego typu eksportera, wybierz inny widok lub całą tabelę."
+    },
+    "exportTableLoadingBar": {
+        "export": "Eksport",
+        "download": "Pobierz"
+    },
+    "exportTableDropdown": {
+        "exportEntireTable": "Eksportowanie całej tabeli"
+    },
+    "tableCSVExporter": {
+        "columnSeparatorLabel": "Separator kolumn",
+        "recordSeparator": "separator rekordów",
+        "unitSeparator": "separator jednostek",
+        "encodingLabel": "Kodowanie",
+        "firstRowIsHeaderLabel": "Pierwszy wiersz to nagłówek"
+    },
+    "apiDocsDatabase": {
+        "pageTitle": "Dokumentacja API bazy danych {name}",
+        "back": "Powrót do pulpitu",
+        "openDatabase": "otwórz bazę danych"
+    },
+    "apiDocsComponent": {
+        "title": "REST API",
+        "intro": "Po utworzeniu schematu bazy danych i klucza API w {settingsLink} baza danych Baserow udostępnia własne punkty końcowe REST API do tworzenia, odczytu, aktualizacji i usuwania wierszy.",
+        "settings": "ustawienia",
+        "selectApplicationTitle": "Dla jakiej bazy danych chcesz zobaczyć dokumentację?",
+        "signIn": "Zaloguj się, aby zacząć",
+        "back": "Powrót do pulpitu"
+    },
+    "viewAggregationType": {
+        "emptyCount": "Pusty",
+        "notEmptyCount": "Wypełniony",
+        "emptyPercentage": "Procent pustego",
+        "notEmptyPercentage": "Procent wypełnienia",
+        "checkedCount": "Sprawdzono",
+        "notCheckedCount": "Niesprawdzony",
+        "checkedPercentage": "Odsetek skontrolowanych",
+        "notCheckedPercentage": "Procent Niesprawdzonych",
+        "min": "Min",
+        "max": "Max",
+        "earliestDate": "Najwcześniejsza data",
+        "earliestDateShort": "Najwcześniej",
+        "latestDate": "Ostatnia data",
+        "latestDateShort": "Najnowszy",
+        "uniqueCount": "Unikalny",
+        "sum": "Suma",
+        "average": "Średnia",
+        "median": "Mediana",
+        "stdDev": "Odchylenie standardowe",
+        "stdDevShort": "Odchylenie standardowe",
+        "variance": "Wariancja"
+    },
+    "databaseForm": {
+        "importLabel": "Czy chcesz zaimportować istniejące dane?",
+        "emptyLabel": "Zaczynać od początku",
+        "airtableLabel": "Importuj z Airtable (beta)"
+    },
+    "importFromAirtable": {
+        "airtableShareLinkTitle": "Udostępnij link do swojej bazy",
+        "airtableShareLinkDescription": "Aby zaimportować swoją bazę Airtable, musisz mieć udostępniony link do całej swojej bazy. W Airtable, po otwarciu swojej bazy kliknij w przycisk udostępniania w prawym górnym rogu. Następnie musisz wybrać opcję \"Dostęp do bazy\". W modalu udostępniania możesz kliknąć w przycisk \"Utwórz wspólny link do całej bazy\", a następnie w \"Prywatny link tylko do odczytu\". Skopiuj publiczny link i wklej go w poniższym wpisie.",
+        "airtableShareLinkBeta": "Pamiętaj, że ta funkcja jest w wersji beta, tabele, pola (z wyjątkiem formuły, wyszukiwania i liczby) oraz dane zostaną zaimportowane. Widoki nie zostaną zaimportowane.",
+        "airtableShareLinkPaste": "Wklej link tutaj",
+        "importButtonLabel": "Importuj z Airtable",
+        "openButtonLabel": "Otwórz importowaną bazę danych",
+        "importError": "Coś poszło nie tak",
+        "statePending": "Oczekiwanie na rozpoczęcie",
+        "stateFailed": "Nie powiodło się",
+        "stateFinished": "Skończone",
+        "stateDownloadingBase": "Pobieranie schematu bazy",
+        "stateConverting": "Konwersja do Baserow",
+        "stateDownloadingFiles": "Pobieranie plików",
+        "stateImporting": "Importowanie",
+        "stateImportingTable": "Importowanie tabeli {table}",
+        "errorJobAlreadyRunningTitle": "Już działa",
+        "errorJobAlreadyRunningDescription": "Inne zadanie importu jest już uruchomione. Musisz poczekać na zakończenie tego zadania przed rozpoczęciem kolejnego.",
+        "linkError": "Link powinien wyglądać tak: https://airtable.com/shrxxxxxxxxxxxxxx"
+    },
+    "chooseSingleSelectField": {
+        "addSelectField": "Dodaj pojedyncze pole wyboru",
+        "warningWhenNothingToChooseOrCreate": "Nie ma pojedynczych pól wyboru do wyboru i nie masz uprawnień do ich utworzenia."
+    },
+    "viewDecoratorContext": {
+        "addDecorator": "Dodaj dekorator"
+    },
+    "databaseDashboardSidebarLinks": {
+        "apiDocumentation": "Dokumentacja API"
+    },
+    "formViewField": {
+        "required": "wymagane",
+        "showWhenMatchingConditions": "pokaż, kiedy warunki są spełnione",
+        "addCondition": "Dodaj warunek",
+        "descriptionPlaceholder": "Opis",
+        "addConditionGroup": "Dodaj grupę warunków",
+        "showFieldAs": "Pokaż pole jako"
+    },
+    "duplicateFieldContext": {
+        "duplicate": "Duplikuj pola",
+        "cloneData": "Skopiuj dane",
+        "soon": "Dostępne wkrótce",
+        "readOnlyField": "Wartości komórek zostaną wypełnione automatycznie."
+    },
+    "snapshotsModal": {
+        "title": "migawki",
+        "description": "Migawki są pełną kopią danych {applicationTypeName} z momentu ich utworzenia. Podczas przywracania zostanie utworzona duplikacja tych danych. Migawki są automatycznie usuwane po upływie roku.",
+        "descriptionLimits": "Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawek na obszar roboczy.",
+        "createLabel": "Utwórz nową migawkę",
+        "create": "Utwórz migawkę",
+        "snapshotRestoredErrorTitle": "Wystąpił błąd",
+        "snapshotRestoredErrorMessage": "Nie udało się przywrócić migawki. Proszę spróbować ponownie później.",
+        "snapshotDeletedErrorTitle": "Wystąpił błąd",
+        "snapshotDeletedErrorMessage": "Migawki nie można usunąć. spróbuj ponownie później.",
+        "limitReached": "Osiągnięto limit maksymalnej liczby migawek.",
+        "snapshot": "Migawka",
+        "importingState": "Tworzenie",
+        "reset": "Utwórz kolejną"
+    },
+    "deleteSnapshotModal": {
+        "title": "Usuń migawkę",
+        "content": "Czy na pewno chcesz trwale usunąć migawkę {name}?",
+        "confirm": "Usuń"
+    },
+    "snapshotListItem": {
+        "restore": "przywrócić",
+        "delete": "usuń",
+        "created": "utworzono"
+    },
+    "formViewHeader": {
+        "mode": "Tryb",
+        "preview": "Podgląd",
+        "fields": "Pola"
+    },
+    "table": {
+        "chooseView": "Wybierz widok",
+        "adjacentRow": {
+            "notification": {
+                "notFound": {
+                    "next": {
+                        "title": "Nie ma już rzędów",
+                        "message": "Nie ma następnego wiersza"
+                    },
+                    "previous": {
+                        "title": "Nigdy więcej wierszy",
+                        "message": "Nie ma poprzedniego wiersza"
+                    }
+                },
+                "error": {
+                    "title": "Wystąpił błąd",
+                    "message": "Wystąpił błąd podczas pobierania sąsiedniego wiersza"
+                }
+            },
+            "toast": {
+                "notFound": {
+                    "previous": {
+                        "message": "Nie ma poprzedniego wiersza",
+                        "title": "Nie ma już rzędów"
+                    },
+                    "next": {
+                        "title": "Nie ma już rzędów",
+                        "message": "Nie ma następnego wiersza"
+                    }
+                },
+                "error": {
+                    "title": "Wystąpił błąd",
+                    "message": "Wystąpił błąd podczas pobierania sąsiedniego wiersza"
+                }
+            }
+        }
+    },
+    "formViewModeType": {
+        "formDescription": "Wszystkie pola są widoczne i ułożone pionowo.",
+        "form": "Formularz"
+    },
+    "rowEditFieldMultipleCollaborators": {
+        "addCollaborator": "Wybierz współpracownika"
+    },
+    "apiDocsUploadFile": {
+        "file": "\"Plik\" wieloczęściowy zawierający zawartość pliku.",
+        "description": "Przesyła plik do Baserow poprzez bezpośrednie przesłanie zawartości pliku. Oczekiwany jest multipart `file` zawierający zawartość pliku. Odpowiedź może być następnie użyta do [załadowania pliku do wiersza]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
+    },
+    "apiDocsUploadFileViaURL": {
+        "description": "Przesyła plik do Baserow, pobierając go z podanego adresu URL. Odpowiedź może być następnie użyta do [przesłania pliku do wiersza]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
+        "url": "Adres URL, który chcesz, aby Baserow pobrał i przesłał w Twoim imieniu."
+    },
+    "fieldmultipleCollaboratorsDropdown": {
+        "notFound": "Nie znaleziono współpracownika"
+    },
+    "formViewModePreviewForm": {
+        "addCoverImage": "Dodaj zdjęcie na okładkę",
+        "addLogo": "Dodaj logo",
+        "noFields": "Ten formularz nie ma żadnych pól. Kliknij na pole w lewym pasku bocznym, aby je dodać.",
+        "descriptionPlaceholder": "Opis",
+        "titlePlaceholder": "Tytuł"
+    },
+    "duplicateTableJobType": {
+        "duplicating": "Powielanie",
+        "duplicatedTitle": "Tabela zduplikowana"
+    },
+    "fileField": {
+        "errorEmptyFileNameTitle": "Nieprawidłowa nazwa pliku",
+        "errorEmptyFileNameMessage": "Nie można ustawić pustej nazwy pliku."
+    },
+    "viewOwnershipType": {
+        "collaborative": "Współpraca",
+        "personal": "Osobisty"
+    },
+    "gridViewRowsAddContext": {
+        "title": "Utwórz wiele wierszy",
+        "choice": "Dodawanie {rowAmountChoice} wierszy"
+    },
+    "fieldSelectThroughFieldSubForm": {
+        "noTable": "Potrzeba przynajmniej jeden link do tabeli aby utworzyć to pole.",
+        "selectThroughFieldLabel": "Wybierz link do pola tabeli"
+    },
+    "fieldRollupSubForm": {
+        "label": "Funkcja zwijania",
+        "selectTargetFieldLabel": "Wybierz pole do zestawienia"
+    },
+    "collaboratorAddedToRowNotification": {
+        "title": "{sender} przypisał cię do {fieldName} w wierszu {rowId} w {tableName}",
+        "deletedUser": "Usunięty użytkownik"
+    },
+    "fieldCollaboratorSubForm": {
+        "notifyUserWhenAdded": "Powiadomienie użytkownika o dodaniu"
+    },
+    "rowHistorySidebar": {
+        "name": "Historia",
+        "empty": "Nie wprowadzono jeszcze żadnych zmian. Wszelkie zmiany w tym wierszu można śledzić tutaj.",
+        "you": "Ty"
+    },
+    "formSubmittedNotification": {
+        "title": "{formName} został przesłany do tabeli {tableName}:",
+        "moreValues": "0 | i jeszcze 1 pole. | i {count} więcej pól."
+    },
+    "fieldPasswordSubForm": {
+        "description": "Nie jest jeszcze możliwe bezpośrednie zrobienie czegokolwiek z polem hasła, jest ono używane tylko przez uwierzytelnianie użytkownika w kreatorze aplikacji."
+    },
+    "rowEditFieldPassword": {
+        "setPassword": "Ustaw hasło"
+    },
+    "rowHistoryFieldPassword": {
+        "passwordDeleted": "Hasło zostało usunięte",
+        "passwordSet": "Hasło zostało ustawione",
+        "passwordUpdated": "Hasło zostało zaktualizowane"
+    },
+    "dataProviderTypes": {
+        "fieldsName": "Pola"
+    },
+    "apiDocsFiltersBuilderModal": {
+        "title": "Konstruktor parametrów filtrów",
+        "userFieldNames": "Nazwy pól użytkownika",
+        "json": "JSON",
+        "queryParameter": "Parametr zapytania"
+    },
+    "fieldDurationSubForm": {
+        "durationFormatLabel": "Format czasu trwania"
+    },
+    "viewGroupByContext": {
+        "noGroupByTitle": "Nie utworzono jeszcze żadnych grup",
+        "noGroupByText": "Grupowanie wierszy według pola.",
+        "groupBy": "Grupa według",
+        "thenBy": "Następnie przez",
+        "addGroupBy": "wybierz pole do grupowania według"
+    },
+    "userMentionInRichTextFieldNotification": {
+        "title": "{sender} wspomniał o Tobie w polu {fieldName} wiersza {rowId} w {tableName}",
+        "deletedUser": "Usunięty użytkownik"
+    },
+    "fieldLongTextSubForm": {
+        "enableRichTextFormatting": "Włącz formatowanie tekstu sformatowanego"
+    },
+    "viewFieldConditionsForm": {
+        "addCondition": "Dodaj warunek"
+    },
+    "viewGroupBy": {
+        "groupBy": "Grupuj | Grupuj według 1 pól | Grupuj według {count} pól"
+    },
+    "createTableModal": {
+        "title": "Utwórz nową tabelę",
+        "defaultName": "Tabela",
+        "newTable": "Zacznij z nową tabelą",
+        "importLabel": "Czy chcesz zaimportować istniejące dane?"
+    },
+    "createTable": {
+        "preparing": "Przygotowywanie danych...",
+        "uploading": "Przesyłanie...",
+        "showTable": "pokaż tabelę",
+        "addButton": "Dodaj tabelę"
     }
-  },
-  "formViewModeType": {
-    "formDescription": "Wszystkie pola są widoczne i ułożone pionowo.",
-    "form": "Formularz"
-  },
-  "rowEditFieldMultipleCollaborators": {
-    "addCollaborator": "Wybierz współpracownika"
-  },
-  "apiDocsUploadFile": {
-    "file": "\"Plik\" wieloczęściowy zawierający zawartość pliku.",
-    "description": "Przesyła plik do Baserow poprzez bezpośrednie przesłanie zawartości pliku. Oczekiwany jest multipart `file` zawierający zawartość pliku. Odpowiedź może być następnie użyta do [załadowania pliku do wiersza]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
-  },
-  "apiDocsUploadFileViaURL": {
-    "description": "Przesyła plik do Baserow, pobierając go z podanego adresu URL. Odpowiedź może być następnie użyta do [przesłania pliku do wiersza]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
-    "url": "Adres URL, który chcesz, aby Baserow pobrał i przesłał w Twoim imieniu."
-  },
-  "fieldmultipleCollaboratorsDropdown": {
-    "notFound": "Nie znaleziono współpracownika"
-  },
-  "formViewModePreviewForm": {
-    "addCoverImage": "Dodaj zdjęcie na okładkę",
-    "addLogo": "Dodaj logo",
-    "noFields": "Ten formularz nie ma żadnych pól. Kliknij na pole w lewym pasku bocznym, aby je dodać.",
-    "descriptionPlaceholder": "Opis",
-    "titlePlaceholder": "Tytuł"
-  },
-  "duplicateTableJobType": {
-    "duplicating": "Powielanie",
-    "duplicatedTitle": "Tabela zduplikowana"
-  },
-  "fileField": {
-    "errorEmptyFileNameTitle": "Nieprawidłowa nazwa pliku",
-    "errorEmptyFileNameMessage": "Nie można ustawić pustej nazwy pliku."
-  },
-  "viewOwnershipType": {
-    "collaborative": "Współpraca",
-    "personal": "Osobisty"
-  },
-  "gridViewRowsAddContext": {
-    "title": "Utwórz wiele wierszy",
-    "choice": "Dodawanie {rowAmountChoice} wierszy"
-  },
-  "fieldSelectThroughFieldSubForm": {
-    "noTable": "Potrzeba przynajmniej jeden link do tabeli aby utworzyć to pole.",
-    "selectThroughFieldLabel": "Wybierz link do pola tabeli"
-  },
-  "fieldRollupSubForm": {
-    "label": "Funkcja zwijania",
-    "selectTargetFieldLabel": "Wybierz pole do zestawienia"
-  },
-  "collaboratorAddedToRowNotification": {
-    "title": "{sender} przypisał cię do {fieldName} w wierszu {rowId} w {tableName}",
-    "deletedUser": "Usunięty użytkownik"
-  },
-  "fieldCollaboratorSubForm": {
-    "notifyUserWhenAdded": "Powiadomienie użytkownika o dodaniu"
-  },
-  "rowHistorySidebar": {
-    "name": "Historia",
-    "empty": "Nie wprowadzono jeszcze żadnych zmian. Wszelkie zmiany w tym wierszu można śledzić tutaj.",
-    "you": "Ty"
-  },
-  "formSubmittedNotification": {
-    "title": "{formName} został przesłany do tabeli {tableName}:",
-    "moreValues": "0 | i jeszcze 1 pole. | i {count} więcej pól."
-  },
-  "fieldPasswordSubForm": {
-    "description": "Nie jest jeszcze możliwe bezpośrednie zrobienie czegokolwiek z polem hasła, jest ono używane tylko przez uwierzytelnianie użytkownika w kreatorze aplikacji."
-  },
-  "rowEditFieldPassword": {
-    "setPassword": "Ustaw hasło"
-  },
-  "rowHistoryFieldPassword": {
-    "passwordDeleted": "Hasło zostało usunięte",
-    "passwordSet": "Hasło zostało ustawione",
-    "passwordUpdated": "Hasło zostało zaktualizowane"
-  },
-  "dataProviderTypes": {
-    "fieldsName": "Pola"
-  },
-  "apiDocsFiltersBuilderModal": {
-    "title": "Konstruktor parametrów filtrów",
-    "userFieldNames": "Nazwy pól użytkownika",
-    "json": "JSON",
-    "queryParameter": "Parametr zapytania"
-  },
-  "fieldDurationSubForm": {
-    "durationFormatLabel": "Format czasu trwania"
-  },
-  "viewGroupByContext": {
-    "noGroupByTitle": "Nie utworzono jeszcze żadnych grup",
-    "noGroupByText": "Grupowanie wierszy według pola.",
-    "groupBy": "Grupa według",
-    "thenBy": "Następnie przez",
-    "addGroupBy": "wybierz pole do grupowania według"
-  },
-  "userMentionInRichTextFieldNotification": {
-    "title": "{sender} wspomniał o Tobie w polu {fieldName} wiersza {rowId} w {tableName}",
-    "deletedUser": "Usunięty użytkownik"
-  },
-  "fieldLongTextSubForm": {
-    "enableRichTextFormatting": "Włącz formatowanie tekstu sformatowanego"
-  },
-  "viewFieldConditionsForm": {
-    "addCondition": "Dodaj warunek"
-  },
-  "viewGroupBy": {
-    "groupBy": "Grupuj | Grupuj według 1 pól | Grupuj według {count} pól"
-  },
-  "createTableModal": {
-    "title": "Utwórz nową tabelę",
-    "defaultName": "Tabela",
-    "newTable": "Zacznij z nową tabelą",
-    "importLabel": "Czy chcesz zaimportować istniejące dane?"
-  },
-  "createTable": {
-    "preparing": "Przygotowywanie danych...",
-    "uploading": "Przesyłanie...",
-    "showTable": "pokaż tabelę",
-    "addButton": "Dodaj tabelę"
-  }
 }
