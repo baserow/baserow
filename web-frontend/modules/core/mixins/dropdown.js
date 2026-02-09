@@ -180,13 +180,15 @@ export default {
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
-      selectedName: '',
+      selectedName: this.multiple ? [] : '',
       selectedIcon: null,
       selectedImage: null,
       hideCleanupFunctions: [], // Store cleanup functions to call on hide
     }
   },
   created() {
+    // Intentionally non-reactive: stores component instances which would cause
+    // performance issues if wrapped in Vue 3's Proxy reactivity system.
     this.registeredDropdownItems = []
   },
   computed: {

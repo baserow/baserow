@@ -28,6 +28,7 @@
       :enable-rich-text-formatting="true"
       :mentionable-users="workspace ? workspace.users : null"
       :thin-scrollbar="true"
+      :menu-container="getMenuContainer"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -86,6 +87,9 @@ export default {
     },
   },
   methods: {
+    getMenuContainer() {
+      return document.body
+    },
     isModalOpen() {
       return this.$refs.expandedModal?.isOpen()
     },

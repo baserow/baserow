@@ -70,6 +70,7 @@ import LoginButtons from '@baserow/modules/core/components/auth/LoginButtons'
 import LoginActions from '@baserow/modules/core/components/auth/LoginActions'
 import EmailNotVerified from '@baserow/modules/core/components/auth/EmailNotVerified.vue'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
+import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
 definePageMeta({
   layout: 'login',
@@ -150,7 +151,7 @@ const next = (params) => {
 
   if (
     emailToVerify.value &&
-    !store.getters['auth/isAuthenticated'] &&
+    settings.value.email_verification === EMAIL_VERIFICATION_OPTIONS.ENFORCED &&
     !route.query.workspaceInvitationToken
   ) {
     displayEmailNotVerified.value = true

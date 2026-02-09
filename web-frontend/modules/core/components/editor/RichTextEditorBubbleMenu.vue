@@ -1,16 +1,16 @@
 <template>
   <BubbleMenu
     v-if="editor"
+    class="rich-text-editor__menu-container"
     :editor="editor"
-    plugin-key="inlineBubbleMenu"
-    :update-delay="0"
+    :plugin-key="pluginKey"
+    :append-to="appendTo"
     :should-show="shouldShowMenu"
-    :options="{
-      placement: 'top',
-      offset: 5,
-    }"
+    :update-delay="0"
+    :resize-delay="0"
+    :options="menuOptions"
   >
-    <div :style="{ visibility: 'visible' }">
+    <div>
       <div v-if="editLink" class="rich-text-editor__bubble-menu">
         <div class="rich-text-editor__bubble-menu-link-edit">
           <input
@@ -73,7 +73,7 @@
         >
           <button
             :class="{ 'is-active': editor.isActive('bold') }"
-            @click.stop.prevent="editor.chain().focus().toggleBold().run()"
+            @click.stop.prevent="toggleMark('bold')"
           >
             <i class="iconoir-bold"></i>
           </button>
@@ -84,7 +84,7 @@
         >
           <button
             :class="{ 'is-active': editor.isActive('italic') }"
-            @click.stop.prevent="editor.chain().focus().toggleItalic().run()"
+            @click.stop.prevent="toggleMark('italic')"
           >
             <i class="iconoir-italic"></i>
           </button>
@@ -95,7 +95,7 @@
         >
           <button
             :class="{ 'is-active': editor.isActive('underline') }"
-            @click.stop.prevent="editor.chain().focus().toggleUnderline().run()"
+            @click.stop.prevent="toggleMark('underline')"
           >
             <i class="iconoir-underline"></i>
           </button>
@@ -106,7 +106,7 @@
         >
           <button
             :class="{ 'is-active': editor.isActive('strike') }"
-            @click.stop.prevent="editor.chain().focus().toggleStrike().run()"
+            @click.stop.prevent="toggleMark('strike')"
           >
             <i class="iconoir-strikethrough"></i>
           </button>
@@ -146,6 +146,18 @@ export default {
       type: Boolean,
       default: true,
     },
+    pluginKey: {
+      type: [String, Object],
+      default: 'inlineBubbleMenu',
+    },
+    appendTo: {
+      type: [Object, Function],
+      default: undefined,
+    },
+    scrollTarget: {
+      type: Object,
+      default: null,
+    },
   },
   data() {
     return {
@@ -153,6 +165,19 @@ export default {
       editLinkValue: '',
       unsetLinkMarkHandler: null,
     }
+  },
+  computed: {
+    menuOptions() {
+      const opts = {
+        strategy: 'fixed',
+        placement: 'top',
+        offset: 5,
+      }
+      if (this.scrollTarget) {
+        opts.scrollTarget = this.scrollTarget
+      }
+      return opts
+    },
   },
   watch: {
     visible(value) {
@@ -179,13 +204,49 @@ export default {
     }
   },
   methods: {
-    shouldShowMenu({ editor }) {
+    shouldShowMenu({ editor, view, element }) {
       if (!this.visible) return false
+
+      const isChildOfMenu = element.contains(document.activeElement)
+      const hasEditorFocus = view.hasFocus() || isChildOfMenu
+
+      if (!hasEditorFocus || !editor.isEditable) {
+        return false
+      }
+
+      if (editor.isActive('image')) {
+        return false
+      }
+
       const emptySelection = editor.state.selection.empty
       const codeBlockActive = editor.isActive('codeBlock')
       const linkMarkActive = editor.isActive('link')
-      if (editor.isActive('image')) return false
+
       return (!emptySelection && !codeBlockActive) || linkMarkActive
+    },
+    toggleMark(type) {
+      if (!this.editor) {
+        return
+      }
+
+      const chain = this.editor.chain().focus()
+
+      switch (type) {
+        case 'bold':
+          chain.toggleBold()
+          break
+        case 'italic':
+          chain.toggleItalic()
+          break
+        case 'underline':
+          chain.toggleUnderline()
+          break
+        case 'strike':
+          chain.toggleStrike()
+          break
+      }
+
+      chain.run()
     },
     isEventTargetInside(event) {
       return (

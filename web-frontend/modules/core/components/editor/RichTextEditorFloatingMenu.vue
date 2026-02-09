@@ -3,16 +3,17 @@
     v-if="editor"
     v-show="open"
     ref="menu"
+    class="rich-text-editor__menu-container"
     :editor="editor"
-    plugin-key="floatingBlockMenu"
+    :plugin-key="pluginKey"
+    :append-to="appendTo"
     :should-show="shouldShowMenu"
-    :options="{
-      placement: 'left',
-      offset: { mainAxis: 14, crossAxis: 0 },
-    }"
+    :update-delay="0"
+    :resize-delay="0"
+    :options="menuOptions"
     :get-referenced-virtual-element="getVirtualElement"
   >
-    <div :style="{ visibility: 'visible' }">
+    <div>
       <div
         v-if="!expanded"
         class="rich-text-editor__floating-menu rich-text-editor__floating-menu--collapsed"
@@ -138,6 +139,18 @@ export default {
       type: Boolean,
       default: true,
     },
+    pluginKey: {
+      type: [String, Object],
+      default: 'floatingBlockMenu',
+    },
+    appendTo: {
+      type: [Object, Function],
+      default: undefined,
+    },
+    scrollTarget: {
+      type: Object,
+      default: null,
+    },
   },
   data() {
     return {
@@ -146,6 +159,19 @@ export default {
     }
   },
   computed: {
+    menuOptions() {
+      const opts = {
+        strategy: 'fixed',
+        placement: 'left',
+        offset: { mainAxis: 14, crossAxis: 0 },
+        flip: false,
+        duration: 0,
+      }
+      if (this.scrollTarget) {
+        opts.scrollTarget = this.scrollTarget
+      }
+      return opts
+    },
     activeNode() {
       if (this.editor.isActive('heading', { level: 1 })) {
         return 'h1'

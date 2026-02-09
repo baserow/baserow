@@ -45,7 +45,7 @@ export const routes = [
       {
         name: 'change-email',
         path: '/change-email/:token',
-        component: path.resolve(__dirname, 'pages/changeEmail.vue'),
+        file: path.resolve(__dirname, 'pages/changeEmail.vue'),
         meta: { preventPageViewTracking: true },
       },
       {

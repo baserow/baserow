@@ -135,7 +135,7 @@ export const mutations = {
     if (!readOnly) {
       const index = state.items.findIndex((item) => item.id === id)
       Object.assign(state.items[index], state.items[index], values)
-      if (repopulate === true && registry) {
+      if (repopulate === true && registry != null) {
         populateView(state.items[index], registry)
       }
     } else {
@@ -504,7 +504,7 @@ export const actions = {
       values,
       repopulate,
       readOnly,
-      registry,
+      registry: registry || (repopulate ? this.$registry : null),
     })
   },
   /**

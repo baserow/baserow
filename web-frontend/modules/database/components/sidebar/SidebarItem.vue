@@ -312,6 +312,8 @@ export default {
       this.setLoading(database, true)
 
       try {
+        // Vue Router 4: push() resolves to undefined on success, or a
+        // NavigationFailure on failure (e.g. duplicate navigation).
         const failure = await this.$router.push({
           name: 'database-table',
           params: {

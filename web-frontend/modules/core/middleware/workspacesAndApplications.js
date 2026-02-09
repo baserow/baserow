@@ -18,8 +18,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     ? parseInt(to.params.workspaceId, 10)
     : getWorkspaceCookie(nuxtApp)
 
-  // If the target route contains a workspaceId param, prefer it over the cookie.
-  if (to.params.workspaceId) {
+  // Prefer route param over cookie to avoid double selectById calls on SSR.
+  // Pages can opt out with definePageMeta({ useRouteWorkspace: false }).
+  if (to.meta.useRouteWorkspace !== false && to.params.workspaceId) {
     const routeWorkspaceId = parseInt(to.params.workspaceId, 10)
     if (!isNaN(routeWorkspaceId)) {
       workspaceId = routeWorkspaceId

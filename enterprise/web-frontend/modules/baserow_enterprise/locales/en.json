@@ -196,8 +196,6 @@
     "memberRolesDatabaseTabTitle": "Database",
     "memberRolesTableTabTitle": "Table",
     "memberRolesViewTabTitle": "View",
-    "accessRemovedTitle": "Access removed",
-    "accessRemovedMessage": "You have removed your own access to this resource.",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."

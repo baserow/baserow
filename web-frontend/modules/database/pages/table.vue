@@ -86,7 +86,7 @@ const { data, error, pending, status, refresh } = await useAsyncData(
   async () => {
     // Use current route params (not captured params) so refresh works correctly
     const currentParams = route.params
-    const viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
+    let viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
 
     const result = {
       view: undefined,
@@ -104,7 +104,7 @@ const { data, error, pending, status, refresh } = await useAsyncData(
       return result
     }
 
-    // No viewId → redirect to default view
+    // No viewId → resolve default view and continue loading
     if (viewId === null) {
       const rowId = currentParams.rowId ? parseInt(currentParams.rowId) : null
       const workspaceId = currentDatabase.workspace.id
@@ -116,15 +116,8 @@ const { data, error, pending, status, refresh } = await useAsyncData(
       )
 
       if (viewToUse) {
-        const newParams = { ...currentParams, viewId: viewToUse.id }
-        // Let's redirect to the route WITH the viewId
-        return {
-          redirect: router.resolve({
-            name: route.name,
-            params: newParams,
-            query: route.query,
-          }),
-        }
+        viewId = viewToUse.id
+        result.resolvedViewId = viewToUse.id
       }
     }
 
@@ -174,15 +167,31 @@ const { data, error, pending, status, refresh } = await useAsyncData(
   }
 )
 
+// Flag to skip the watcher when we're just syncing the URL after resolving a viewId
+let isUrlSync = false
+
 // Watch for route changes and refresh data
 watch(
   () => [route.params.tableId, route.params.viewId],
   async ([newTableId, newViewId], [oldTableId, oldViewId]) => {
+    if (isUrlSync) {
+      isUrlSync = false
+      return
+    }
     if (newTableId && (newTableId !== oldTableId || newViewId !== oldViewId)) {
       // Set loading state immediately to hide old content before refresh
       $store.dispatch('table/setLoading', true)
       try {
         await refresh()
+        // If the handler resolved a default viewId, update the URL silently
+        if (data.value?.resolvedViewId && !route.params.viewId) {
+          isUrlSync = true
+          await router.replace({
+            name: route.name,
+            params: { ...route.params, viewId: data.value.resolvedViewId },
+            query: route.query,
+          })
+        }
       } finally {
         $store.dispatch('table/setLoading', false)
       }
@@ -195,9 +204,16 @@ if (error.value) {
   throw error.value
 }
 
-if (data.value?.redirect) {
-  // We have a redirect, we can apply it now
-  await navigateTo(data.value.redirect.href)
+// If viewId was resolved during initial load, update URL to include it
+if (data.value?.resolvedViewId) {
+  await navigateTo(
+    router.resolve({
+      name: route.name,
+      params: { ...route.params, viewId: data.value.resolvedViewId },
+      query: route.query,
+    }).href,
+    { replace: true }
+  )
 }
 
 /**

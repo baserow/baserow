@@ -166,6 +166,13 @@ span[data-type='mention'] {
   height: 0;
 }
 
+// The BubbleMenu plugin toggles opacity 0/1 on its container element.
+// Override any transitions to make show/hide instant (no fade).
+.rich-text-editor__menu-container {
+  transition: none !important;
+  z-index: 6;
+}
+
 .rich-text-editor__floating-menu,
 .rich-text-editor__bubble-menu {
   @include elevation($elevation-medium);

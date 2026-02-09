@@ -66,7 +66,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import error from '@baserow/modules/core/mixins/error'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
@@ -106,7 +105,6 @@ export default {
     }
   },
   computed: {
-    ...mapGetters({ userId: 'auth/getUserId' }),
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
@@ -331,25 +329,6 @@ export default {
           roleAssignment.scope_type,
           newRole
         )
-
-        // Check if the user just removed or downgraded their own access
-        const isOwnUser =
-          roleAssignment.subject_type === 'auth.User' &&
-          subjectId === this.userId
-        if (isOwnUser && (newRole === null || newRole === 'NO_ACCESS')) {
-          // User removed their own access - close modal and redirect to dashboard
-          this.hide()
-          this.$router.push({ name: 'dashboard' })
-          this.$store.dispatch(
-            'toast/info',
-            {
-              title: this.$t('memberRolesModal.accessRemovedTitle'),
-              message: this.$t('memberRolesModal.accessRemovedMessage'),
-            },
-            { root: true }
-          )
-          return
-        }
       } catch (error) {
         // Restore previous role
         if (roleAssignmentIndex !== -1) {

@@ -13,11 +13,15 @@
         ref="bubbleMenu"
         :editor="editor"
         :visible="bubbleMenuVisible"
+        :append-to="menuContainer"
+        :scroll-target="scrollElement"
       />
       <RichTextEditorFloatingMenu
         ref="floatingMenu"
         :editor="editor"
         :visible="floatingMenuVisible"
+        :append-to="menuContainer"
+        :scroll-target="scrollElement"
       />
     </div>
     <EditorContent
@@ -61,7 +65,7 @@ import { Text } from '@tiptap/extension-text'
 import { Dropcursor } from '@tiptap/extension-dropcursor'
 import { Gapcursor } from '@tiptap/extension-gapcursor'
 import { History } from '@tiptap/extension-history'
-import { mergeAttributes, isActive } from '@tiptap/core'
+import { mergeAttributes, isActive, posToDOMRect } from '@tiptap/core'
 
 import { Markdown } from 'tiptap-markdown'
 
@@ -169,6 +173,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    menuContainer: {
+      type: [Object, Function],
+      default: undefined,
+    },
   },
   emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
   data() {
@@ -180,6 +188,7 @@ export default {
       loadings: [],
       mousedownEvent: null,
       scrollEvent: null,
+      scrollElement: null,
     }
   },
   computed: {
@@ -205,6 +214,7 @@ export default {
     },
   },
   mounted() {
+    this.scrollElement = this.getScrollElement()
     this.createEditor()
   },
   beforeUnmount() {
@@ -225,14 +235,36 @@ export default {
   methods: {
     registerResizeObserver() {
       let lastWidth = null
+      let lastHeight = null
       const resizeObserver = new ResizeObserver((entries) => {
         const entry = entries[0]
         if (!entry) return
         const newWidth = entry.contentRect.width
+        const newHeight = entry.contentRect.height
+
         if (lastWidth !== null && lastWidth !== newWidth) {
           this.bubbleMenuVisible = false
         }
+
+        const sizeChanged =
+          lastWidth !== null &&
+          (lastWidth !== newWidth || lastHeight !== newHeight)
         lastWidth = newWidth
+        lastHeight = newHeight
+
+        // Check bounds after resize, deferred so ProseMirror can re-layout
+        if (sizeChanged && this.editor && this.scrollElement) {
+          requestAnimationFrame(() => {
+            if (!this.editor || !this.scrollElement) return
+            const { from, to } = this.editor.state.selection
+            const selectionRect = posToDOMRect(this.editor.view, from, to)
+            const containerRect = this.scrollElement.getBoundingClientRect()
+            const inBounds =
+              selectionRect.bottom > containerRect.top &&
+              selectionRect.top < containerRect.bottom
+            this.setMenuScrollVisibility(inBounds)
+          })
+        }
       })
       resizeObserver.observe(this.$refs.root)
       this.resizeObserver = resizeObserver
@@ -319,6 +351,7 @@ export default {
         onFocus: ({ editor, event }) => {
           this.bubbleMenuVisible = true
           this.floatingMenuVisible = true
+          this.setMenuScrollVisibility(true)
           this.$emit('focus')
         },
         onBlur: ({ editor, event }) => {
@@ -333,6 +366,7 @@ export default {
           }
           this.bubbleMenuVisible = true
           this.floatingMenuVisible = true
+          this.setMenuScrollVisibility(true)
         },
       })
       this.setupEditor()
@@ -358,9 +392,25 @@ export default {
     getScrollElement() {
       return this.scrollableAreaElement ?? this.$refs.root
     },
+    setMenuScrollVisibility(visible) {
+      const floatingEl = this.$refs.floatingMenu?.$el
+      const bubbleEl = this.$refs.bubbleMenu?.$el
+      if (floatingEl) floatingEl.style.visibility = visible ? '' : 'hidden'
+      if (bubbleEl) bubbleEl.style.visibility = visible ? '' : 'hidden'
+    },
     registerAutoHideBubbleMenuHandler() {
       this.scrollEvent = () => {
-        this.bubbleMenuVisible = false
+        if (!this.editor) return
+
+        const { from, to } = this.editor.state.selection
+        const selectionRect = posToDOMRect(this.editor.view, from, to)
+        const containerRect = this.scrollElement.getBoundingClientRect()
+
+        const inBounds =
+          selectionRect.bottom > containerRect.top &&
+          selectionRect.top < containerRect.bottom
+
+        this.setMenuScrollVisibility(inBounds)
       }
 
       const elem = this.getScrollElement()
