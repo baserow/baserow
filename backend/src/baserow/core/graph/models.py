@@ -14,7 +14,10 @@ class GraphModelMixin(models.Model):
     # If True, the graph can contain named edges between nodes.
     supports_edges: bool = False
 
-    graph = models.JSONField(default=dict, help_text="Contains the node graph.")
+    graph = models.JSONField(
+        default=dict,
+        help_text="A JSON serialized graph containing the points and edges.",
+    )
 
     class Meta:
         abstract = True
