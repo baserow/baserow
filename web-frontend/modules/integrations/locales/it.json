@@ -1,87 +1,87 @@
 {
-  "localBaserowGetRowForm": {
-    "rowFieldHelpText": "Lascia vuoto per ritornare la prima riga.",
-    "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati.",
-    "rowFieldLabel": "ID Riga",
-    "noTableChosenForFiltering": "Scegli una tabella per iniziare ad utilizzare i filtri delle sorgenti dati.",
-    "invalidFormula": "La formula non è valida",
-    "rowFieldPlaceHolder": "Seleziona un ID di riga",
-    "searchFieldPlaceHolder": "Inserisci un termine di ricerca...",
-    "filterTabTitle": "Filtri",
-    "searchTabTitle": "Cerca"
-  },
-  "localBaserowListRowsForm": {
-    "filterTabTitle": "Filtri",
-    "searchTabTitle": "Cerca",
-    "sortTabTitle": "Ordinamenti",
-    "searchFieldPlaceHolder": "Inserisci un termine di ricerca...",
-    "noTableChosenForFiltering": "Scegli una tabella per iniziare ad utilizzare i filtri delle sorgenti dati.",
-    "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati."
-  },
-  "localBaserowTableServiceConditionalForm": {
-    "noCompatibleFilterTypesErrorTitle": "Nessun tipo di filtro compatibile",
-    "noCompatibleFilterTypesErrorMessage": "Nessuno dei tuoi campi ha un tipo di filtro compatibile",
-    "addFilter": "Aggiungi un altro filtro",
-    "noFilterTitle": "Non hai ancora creato un filtro sulle sorgenti dati",
-    "noFilterText": "I filtri sulle sorgenti dati ti consentono di mostrare le righe della tabella Baserow che si applicano alle tue condizioni.",
-    "relatedFieldNotFound": "Impossibile trovare il campo correlato.",
-    "filterTypeNotFound": "Il tipo di filtro non è compatibile.",
-    "formulaFilterInputPlaceholder": "Inserisci il testo...",
-    "useFormulaForValue": "Utilizza una formula per questo filtro",
-    "useDefaultForValue": "Utilizza il filtro di default per questo campo"
-  },
-  "localBaserowTableServiceSortForm": {
-    "noSortTitle": "Non hai ancora creato un ordinamento per le sorgenti dati",
-    "noSortText": "L'ordinamento ti permette di ordinare le righe per un campo.",
-    "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati.",
-    "sortBy": "Ordina per",
-    "thenBy": "Poi per",
-    "addSort": "Aggiungi un ordinamento"
-  },
-  "integrationType": {
-    "localBaserow": "Baserow locale",
-    "localBaserowSummary": "Baserow locale - {name}, {surname}",
-    "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo."
-  },
-  "serviceType": {
-    "localBaserowGetRow": "Leggi single Row",
-    "localBaserowListRows": "Elenca multiple rows",
-    "localBaserowAggregateRows": "Aggrega campo",
-    "misconfigured": "Errore di configurazione",
-    "trashedField": "Campo eliminato"
-  },
-  "userSourceType": {
-    "localBaserow": "Autenticazione tramite tabella di Baserow"
-  },
-  "localBaserowForm": {
-    "user": "Utente",
-    "userMessage": "Creando questa connessione, autorizzi l'applicazione a utilizzare il tuo account per apportare modifiche nell'area di lavoro Baserow locale."
-  },
-  "dataProviderType": {
-    "dataSource": "Sorgente dati",
-    "pageParameter": "Parametro"
-  },
-  "localBaserowTableSelector": {
-    "viewFieldLabel": "Vista",
-    "tableFieldLabel": "Tabella",
-    "chooseNoView": "Non selezionato",
-    "databaseFieldLabel": "Database"
-  },
-  "localBaserowIntegrationType": {
-    "localBaserowSummary": "Baserow Locale - {name}, {username}",
-    "localBaserowNoUser": "Baserow Locale - Non configurato",
-    "localBaserowWarning": "Autorizzare il tuo account consente a chiunque abbia i permessi di modifica sull'applicazione di avere pieno accesso ai dati a cui hai accesso tu. È possibile creare un secondo utente, assegnare i permessi appropriati e utilizzare quello."
-  },
-  "integrationsCommon": {
-    "singleRow": "Singola riga",
-    "multipleRows": "Più righe"
-  },
-  "localBaserowAggregateRowsForm": {
-    "aggregationFieldLabel": "Campo",
-    "aggregationTypeLabel": "Aggregazione",
-    "searchFieldPlaceHolder": "Inserisci un termine per la ricerca...",
-    "noTableChosenForFiltering": "Scegli una tabella per iniziare ad usare i filtri.",
-    "filterTabTitle": "Filtri",
-    "searchTabTitle": "Cerca"
-  }
+    "localBaserowGetRowForm": {
+        "rowFieldHelpText": "Lascia vuoto per ritornare la prima riga.",
+        "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati.",
+        "rowFieldLabel": "ID Riga",
+        "noTableChosenForFiltering": "Scegli una tabella per iniziare ad utilizzare i filtri delle sorgenti dati.",
+        "invalidFormula": "La formula non è valida",
+        "rowFieldPlaceHolder": "Seleziona un ID di riga",
+        "searchFieldPlaceHolder": "Inserisci un termine di ricerca...",
+        "filterTabTitle": "Filtri",
+        "searchTabTitle": "Cerca"
+    },
+    "localBaserowListRowsForm": {
+        "filterTabTitle": "Filtri",
+        "searchTabTitle": "Cerca",
+        "sortTabTitle": "Ordinamenti",
+        "searchFieldPlaceHolder": "Inserisci un termine di ricerca...",
+        "noTableChosenForFiltering": "Scegli una tabella per iniziare ad utilizzare i filtri delle sorgenti dati.",
+        "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati."
+    },
+    "localBaserowTableServiceConditionalForm": {
+        "noCompatibleFilterTypesErrorTitle": "Nessun tipo di filtro compatibile",
+        "noCompatibleFilterTypesErrorMessage": "Nessuno dei tuoi campi ha un tipo di filtro compatibile",
+        "addFilter": "Aggiungi un altro filtro",
+        "noFilterTitle": "Non hai ancora creato un filtro sulle sorgenti dati",
+        "noFilterText": "I filtri sulle sorgenti dati ti consentono di mostrare le righe della tabella Baserow che si applicano alle tue condizioni.",
+        "relatedFieldNotFound": "Impossibile trovare il campo correlato.",
+        "filterTypeNotFound": "Il tipo di filtro non è compatibile.",
+        "formulaFilterInputPlaceholder": "Inserisci il testo...",
+        "useFormulaForValue": "Utilizza una formula per questo filtro",
+        "useDefaultForValue": "Utilizza il filtro di default per questo campo"
+    },
+    "localBaserowTableServiceSortForm": {
+        "noSortTitle": "Non hai ancora creato un ordinamento per le sorgenti dati",
+        "noSortText": "L'ordinamento ti permette di ordinare le righe per un campo.",
+        "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati.",
+        "sortBy": "Ordina per",
+        "thenBy": "Poi per",
+        "addSort": "Aggiungi un ordinamento"
+    },
+    "integrationType": {
+        "localBaserow": "Baserow locale",
+        "localBaserowSummary": "Baserow locale - {name}, {surname}",
+        "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo."
+    },
+    "serviceType": {
+        "localBaserowGetRow": "Leggi single Row",
+        "localBaserowListRows": "Elenca multiple rows",
+        "localBaserowAggregateRows": "Aggrega campo",
+        "misconfigured": "Errore di configurazione",
+        "trashedField": "Campo eliminato"
+    },
+    "userSourceType": {
+        "localBaserow": "Autenticazione tramite tabella di Baserow"
+    },
+    "localBaserowForm": {
+        "user": "Utente",
+        "userMessage": "Creando questa connessione, autorizzi l'applicazione a utilizzare il tuo account per apportare modifiche nell'area di lavoro Baserow locale."
+    },
+    "dataProviderType": {
+        "dataSource": "Sorgente dati",
+        "pageParameter": "Parametro"
+    },
+    "localBaserowTableSelector": {
+        "viewFieldLabel": "Vista",
+        "tableFieldLabel": "Tabella",
+        "chooseNoView": "Non selezionato",
+        "databaseFieldLabel": "Database"
+    },
+    "localBaserowIntegrationType": {
+        "localBaserowSummary": "Baserow Locale - {name}, {username}",
+        "localBaserowNoUser": "Baserow Locale - Non configurato",
+        "localBaserowWarning": "Autorizzare il tuo account consente a chiunque abbia i permessi di modifica sull'applicazione di avere pieno accesso ai dati a cui hai accesso tu. È possibile creare un secondo utente, assegnare i permessi appropriati e utilizzare quello."
+    },
+    "integrationsCommon": {
+        "singleRow": "Singola riga",
+        "multipleRows": "Più righe"
+    },
+    "localBaserowAggregateRowsForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Aggregazione",
+        "searchFieldPlaceHolder": "Inserisci un termine per la ricerca...",
+        "noTableChosenForFiltering": "Scegli una tabella per iniziare ad usare i filtri.",
+        "filterTabTitle": "Filtri",
+        "searchTabTitle": "Cerca"
+    }
 }
