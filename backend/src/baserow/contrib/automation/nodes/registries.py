@@ -10,8 +10,9 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotReplaceable,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -86,7 +87,7 @@ class AutomationNodeType(
         self,
         node: AutomationNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """Called before the node is moved."""
@@ -95,7 +96,7 @@ class AutomationNodeType(
         self,
         workflow: AutomationWorkflow,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """

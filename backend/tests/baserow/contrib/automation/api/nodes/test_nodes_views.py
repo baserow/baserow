@@ -689,7 +689,7 @@ def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_dis
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -758,7 +758,7 @@ def test_deleting_router_node_with_output_nodes_disallowed(api_client, data_fixt
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -787,7 +787,7 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 

@@ -146,7 +146,7 @@ class AutomationNode(
         :param output_uid: filter nodes only for this output uid.
         """
 
-        return self.workflow.get_graph().get_next_nodes(self, output_uid)
+        return self.workflow.get_graph().get_next_points(self, output_uid)
 
     def get_children(self):
         """
