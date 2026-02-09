@@ -5,7 +5,6 @@ import pytest
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotMovable,
-    AutomationNodeReferenceNodeInvalid,
 )
 from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -14,6 +13,7 @@ from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashable
 from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.fixtures import Fixtures
 
@@ -93,7 +93,7 @@ def test_create_node_as_child_not_in_container(data_fixture: Fixtures):
 
     service = AutomationNodeService()
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         service.create_node(
             user,
             node_type,
@@ -116,7 +116,7 @@ def test_create_node_reference_node_invalid(data_fixture: Fixtures):
 
     node_type = automation_node_type_registry.get("local_baserow_create_row")
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         AutomationNodeService().create_node(
             user,
             node_type,
@@ -728,14 +728,14 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
     workflow_b = data_fixture.create_automation_workflow(user)
     node1_b = workflow_b.get_trigger()
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         AutomationNodeService().move_node(
             user, action3.id, reference_node_id=99999999, position="south", output=""
         )
 
     assert exc.value.args[0] == "The reference node 99999999 doesn't exist"
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         AutomationNodeService().move_node(
             user, action3.id, reference_node_id=action3.id, position="south", output=""
         )
@@ -744,14 +744,14 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
         exc.value.args[0] == "The reference node and the moved node must be different"
     )
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         AutomationNodeService().move_node(
             user, action3.id, reference_node_id=node1_b.id, position="south", output=""
         )
 
     assert exc.value.args[0] == f"The reference node {node1_b.id} doesn't exist"
 
-    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+    with pytest.raises(GraphPointReferencePointInvalid) as exc:
         AutomationNodeService().move_node(
             user, action3.id, reference_node_id=action2.id, position="child", output=""
         )

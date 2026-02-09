@@ -29,18 +29,6 @@ class AutomationNodeDoesNotExist(AutomationNodeError):
         )
 
 
-class AutomationNodeNotFoundInGraph(AutomationNodeError):
-    """
-    Raised when we try to access a node that doesn't exist in the graph.
-    """
-
-
-class AutomationNodeReferenceNodeInvalid(AutomationNodeError):
-    """
-    Raised when trying to use an invalid reference node.
-    """
-
-
 class AutomationNodeTriggerAlreadyExists(AutomationNodeError):
     """When we try to create a trigger node when it already exists"""
 

@@ -12,10 +12,10 @@ from baserow.contrib.automation.nodes.models import AutomationActionNode, Automa
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
-from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -387,10 +387,10 @@ class MoveAutomationNodeActionType(UndoableActionType):
         node_id: int
         node_type: str
         origin_reference_node_id: int
-        origin_position: NodePositionType
+        origin_position: GraphPointPositionType
         origin_output: str
         destination_reference_node_id: int
-        destination_position: NodePositionType
+        destination_position: GraphPointPositionType
         destination_output: str
 
     @classmethod
@@ -399,7 +399,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         user: AbstractUser,
         node_id: int,
         reference_node_id: int | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ) -> AutomationActionNode:
         move = AutomationNodeService().move_node(
