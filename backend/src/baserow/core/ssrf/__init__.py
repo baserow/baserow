@@ -36,6 +36,9 @@ class _SSRFSafeClient:
             validator = SSRFValidator()
 
         with requests.Session() as session:
+            # Ignore HTTP_PROXY / HTTPS_PROXY env vars — proxies could
+            # bypass SSRF validation by routing to internal addresses.
+            session.trust_env = False
             session.mount(
                 "http://", SSRFSafeAdapter(validator=validator, is_https=False)
             )
@@ -146,6 +149,7 @@ def validate_url(
     hostname: str,
     port: int,
     validator: Optional[SSRFValidator] = None,
+    timeout: Optional[float] = None,
 ) -> tuple[str, int]:
     """
     Pre-flight URL validation: resolves the hostname and checks that the
@@ -156,6 +160,7 @@ def validate_url(
     :param hostname: Hostname or IP to validate.
     :param port: Port number.
     :param validator: Optional SSRFValidator instance.
+    :param timeout: Optional DNS resolution timeout in seconds.
     :returns: Tuple of (ip_string, port) if valid.
     :raises InvalidSSRFAddress: If the resolved address is blocked.
     """
@@ -163,4 +168,4 @@ def validate_url(
     if validator is None:
         validator = SSRFValidator()
 
-    return validator.validate_address(hostname, port)
+    return validator.validate_address(hostname, port, timeout=timeout)

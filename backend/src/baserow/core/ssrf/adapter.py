@@ -60,10 +60,12 @@ class SSRFSafeAdapter(HTTPAdapter):
 
         # Preserve the original hostname in the Host header
         if request.headers is None:
-            request.headers = {}
+            from requests.structures import CaseInsensitiveDict
+
+            request.headers = CaseInsensitiveDict()
         else:
             # Copy to avoid mutating shared state
-            request.headers = dict(request.headers)
+            request.headers = request.headers.copy()
 
         if "Host" not in request.headers:
             request.headers["Host"] = original_host

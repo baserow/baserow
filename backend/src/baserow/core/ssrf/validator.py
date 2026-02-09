@@ -119,12 +119,19 @@ class SSRFValidator:
 
         return True
 
-    def validate_address(self, hostname: str, port: int) -> tuple[str, int]:
+    def validate_address(
+        self,
+        hostname: str,
+        port: int,
+        timeout: Optional[float] = None,
+    ) -> tuple[str, int]:
         """
         Resolve a hostname and validate the resulting IP address(es).
 
         Returns the first allowed (ip_string, port) tuple.
         Raises InvalidSSRFAddress if no resolved address passes validation.
+
+        :param timeout: Optional DNS resolution timeout in seconds.
         """
 
         # Check hostname against regex blacklist first
@@ -133,6 +140,11 @@ class SSRFValidator:
                 address=hostname,
                 message=f"Hostname {hostname!r} is blocked by blacklist",
             )
+
+        # Temporarily set a socket timeout for DNS resolution if requested
+        old_timeout = socket.getdefaulttimeout()
+        if timeout is not None:
+            socket.setdefaulttimeout(timeout)
 
         try:
             # Use positional args for compatibility with test stubs that
@@ -143,6 +155,9 @@ class SSRFValidator:
                 address=hostname,
                 message=f"Could not resolve hostname {hostname!r}: {e}",
             ) from e
+        finally:
+            if timeout is not None:
+                socket.setdefaulttimeout(old_timeout)
 
         if not results:
             raise InvalidSSRFAddress(

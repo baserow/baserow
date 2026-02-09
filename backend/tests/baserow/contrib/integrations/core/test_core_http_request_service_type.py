@@ -15,9 +15,7 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 # Custom context manager
 @contextmanager
-def mock_advocate_request(
-    body=None, headers=None, status_code=200, raise_exception=None
-):
+def mock_ssrf_request(body=None, headers=None, status_code=200, raise_exception=None):
     if headers is None:
         headers = {}
 
@@ -65,7 +63,7 @@ def test_core_http_request_basic(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request(
+    with mock_ssrf_request(
         {"raw_body": "body"}, status_code=204, headers={"test": "header"}
     ) as mock_request:
         dispatch_data = service_type.dispatch(service, dispatch_context)
@@ -105,7 +103,7 @@ def test_core_http_request_request_error(
     from requests.exceptions import InvalidHeader
 
     with pytest.raises(UnexpectedDispatchException):
-        with mock_advocate_request(raise_exception=InvalidHeader()):
+        with mock_ssrf_request(raise_exception=InvalidHeader()):
             service_type.dispatch(service, dispatch_context)
 
 
@@ -123,7 +121,7 @@ def test_core_http_request_basic_body_raw(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -152,7 +150,7 @@ def test_core_http_request_basic_body_json(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -182,7 +180,7 @@ def test_core_http_request_with_formulas(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -215,7 +213,7 @@ def test_core_http_request_with_headers(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -251,7 +249,7 @@ def test_core_http_request_with_query_params(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -283,7 +281,7 @@ def test_core_http_request_with_form_data(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request({"foo": "bar"}) as mock_request:
+    with mock_ssrf_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -579,7 +577,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
         headers["Content-Type"] = content_type
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request(
+    with mock_ssrf_request(
         {"fighters": {"Ryu": {"power": "Hadogen"}}},
         status_code=204,
         headers=headers,
@@ -633,7 +631,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
         headers["Content-Type"] = content_type
 
     # Use the patch context manager to mock `ssrf_safe_request`
-    with mock_advocate_request(
+    with mock_ssrf_request(
         "Hello world!",
         status_code=204,
         headers=headers,

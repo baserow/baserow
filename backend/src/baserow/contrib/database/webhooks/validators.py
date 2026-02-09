@@ -84,9 +84,10 @@ def url_validator(value):
             port = 443
 
     validator = get_ssrf_validator()
+    dns_timeout = getattr(settings, "BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS", 10)
 
     try:
-        validate_url(url.hostname, port, validator=validator)
+        validate_url(url.hostname, port, validator=validator, timeout=dns_timeout)
         return value
     except (InvalidSSRFAddress, gaierror, ConnectionError, timeout) as e:
         raise ValidationError("Invalid URL", code=INVALID_URL_CODE) from e
