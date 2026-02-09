@@ -157,11 +157,11 @@ class AutomationNodeFixtures:
             output_label="output edge 2",
         )
 
-        edge1_output = workflow.get_graph().get_node_at_position(
-            reference_node=router, position="south", output=edge1.uid
+        edge1_output = workflow.get_graph().get_point_at_position(
+            reference_point=router, position="south", output=edge1.uid
         )
-        edge2_output = workflow.get_graph().get_node_at_position(
-            reference_node=router, position="south", output=edge2.uid
+        edge2_output = workflow.get_graph().get_point_at_position(
+            reference_point=router, position="south", output=edge2.uid
         )
 
         fallback_output_node = self.create_local_baserow_create_row_action_node(

@@ -62,7 +62,6 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
     AutomationNodeNotReplaceable,
-    AutomationNodeReferenceNodeInvalid,
     AutomationNodeSimulateDispatchError,
     AutomationNodeTriggerAlreadyExists,
     AutomationNodeTriggerMustBeFirstNode,
@@ -75,6 +74,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -122,7 +122,7 @@ class AutomationNodesView(APIView):
     @map_exceptions(
         {
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
-            AutomationNodeReferenceNodeInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
+            GraphPointReferencePointInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeTriggerAlreadyExists: ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
@@ -463,7 +463,7 @@ class MoveAutomationNodeView(APIView):
             AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
             AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
-            AutomationNodeReferenceNodeInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
+            GraphPointReferencePointInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )

@@ -38,7 +38,6 @@ from baserow.contrib.automation.nodes.models import (
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
-from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
@@ -64,6 +63,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -104,7 +104,7 @@ class ContainerNodeTypeMixin:
         self,
         node: "ContainerNodeTypeMixin",
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -212,7 +212,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         """
 
         for edge_uid in node.service.get_type().get_edges(node.service.specific).keys():
-            if edge_uid != "" and node.workflow.get_graph().get_next_nodes(
+            if edge_uid != "" and node.workflow.get_graph().get_next_points(
                 node, edge_uid
             ):
                 return True
@@ -241,7 +241,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         self,
         node: AutomationTriggerNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -295,7 +295,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
 
             for removed_uid in removed_uids:
-                if instance.workflow.get_graph().get_node_at_position(
+                if instance.workflow.get_graph().get_point_at_position(
                     instance, "south", removed_uid
                 ):
                     raise AutomationNodeMisconfiguredService(
@@ -325,14 +325,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
         position: str,
         output: str,
     ):
-        if workflow.get_graph().get_node_at_position(None, "south", ""):
+        if workflow.get_graph().get_point_at_position(None, "south", ""):
             raise AutomationNodeTriggerAlreadyExists()
 
         if reference_node is not None:
             raise AutomationNodeTriggerMustBeFirstNode()
 
     def before_delete(self, node: AutomationNode):
-        if node.workflow.get_graph().get_next_nodes(node):
+        if node.workflow.get_graph().get_next_points(node):
             raise AutomationNodeNotDeletable(
                 "Trigger nodes cannot be deleted if they are followed nodes."
             )
@@ -341,7 +341,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         self,
         node: AutomationTriggerNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")

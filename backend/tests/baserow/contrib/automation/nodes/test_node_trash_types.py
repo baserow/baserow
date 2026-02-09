@@ -160,7 +160,7 @@ def test_restoring_a_trashed_output_node_after_its_edge_is_destroyed_is_disallow
         }
     )
 
-    output_node = workflow.get_graph().get_node_at_position(
+    output_node = workflow.get_graph().get_point_at_position(
         router, "south", str(edge.uid)
     )
 
