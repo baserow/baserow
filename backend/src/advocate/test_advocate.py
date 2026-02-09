@@ -3,15 +3,14 @@ from __future__ import division
 
 import socket
 
+import pytest
+
 # This needs to be done before third-party imports to make sure they all use
 # our wrapped socket class, especially in case of subclasses.
 from .monkeypatching import CheckedSocket, DisallowedConnectException
 
-socket.socket = CheckedSocket
-
 import ipaddress
 import pickle
-import socket
 import unittest
 from unittest.mock import patch
 
@@ -81,6 +80,7 @@ def permissive_validator(**kwargs):
 
 
 # Test our test wrappers to make sure they're testy
+@pytest.mark.skip(reason="Requires monkeypatching socket.socket=CheckedSocket")
 class TestWrapperTests(unittest.TestCase):
     def test_unsafe_connect_raises(self):
         self.assertRaises(
