@@ -82,7 +82,7 @@
         "passwordRepeat": "Repite la contraseña"
     },
     "invitationTitle": "Invitación",
-    "invitationMessage": "{invitadoPor} te ha invitado a unirte a {espacio de trabajo}.",
+    "invitationMessage": "{invitedBy} te ha invitado a unirte a {workspace}.",
     "workspaceForm": {
         "nameLabel": "Nombre"
     },
@@ -230,7 +230,7 @@
         "title": "Tablero",
         "alertTitle": "¡Necesitamos tu ayuda!",
         "alertText": "Al compartir Baserow, nos está ayudando a mejorar el producto y a hacerlo más útil para ti.",
-        "tweetContent": "¡Eche un vistazo a @baserow, una herramienta de base de datos sin código de código abierto y una alternativa a Airtable!",
+        "tweetContent": "¡Eche un vistazo a {'@'}baserow, una herramienta de base de datos sin código de código abierto y una alternativa a Airtable!",
         "redditTitle": "'Baserow: una base de datos sin código de código abierto",
         "noWorkspaceTitle": "No se encontraron grupos",
         "noWorkspaceText": "No eres miembro de ningún grupo. Las aplicaciones, como las bases de datos, pertenecen a un grupo, por lo que, para crearlas, debe crear un grupo.",
@@ -386,7 +386,7 @@
             "format": {
                 "title": "Formato",
                 "description": "El formato de los parámetros de consulta es:",
-                "codeSnippet": "?pre-llenar_<nombre_del_campo>=<valor>"
+                "codeSnippet": "?pre-llenar_&#60;nombre_del_campo&#62;=&#60;valor&#62;"
             },
             "example": {
                 "title": "Ejemplo",
@@ -452,7 +452,7 @@
         "accountDeletedSuccessMessage": "Se ha programado la eliminación de tu cuenta.",
         "workspaceLoadingError": "La comprobación de los grupos ha fallado",
         "workspaceLoadingErrorDescription": "La comprobación de los grupos a eliminar ha fallado, favor de actualizar la página.",
-        "description": "Puedes programar la eliminación de tu cuenta introduciendo tu contraseña y haciendo clic en el botón. Tu cuenta será eliminada permanentemente después de {días}. Mientras tanto, si vuelves a conectarte, se cancelará la eliminación de tu cuenta.",
+        "description": "Puedes programar la eliminación de tu cuenta introduciendo tu contraseña y haciendo clic en el botón. Tu cuenta será eliminada permanentemente después de {days} días. Mientras tanto, si vuelves a conectarte, se cancelará la eliminación de tu cuenta.",
         "workspaceNoticeDescription": "Cuando tu cuenta se elimina permanentemente, todos los grupos y datos asociados para los que eres el último usuario activo con permisos de administrador también se eliminarán. Los grupos que se muestran a continuación son los que se borrarán porque tú eres el único administrador. Para evitar que se borren, primero dale a otro usuario permisos de administrador antes de borrar tu cuenta."
     },
     "clearingNotification": {
@@ -688,7 +688,7 @@
         "deletedUser": "Un usuario eliminado"
     },
     "versionUpgradeNotification": {
-        "title": "{versión} ¡ya está aquí! Descubre qué hay de nuevo."
+        "title": "{version} ¡ya está aquí! Descubre qué hay de nuevo."
     },
     "userPasswordChangedToast": {
         "title": "Contraseña cambiada",
