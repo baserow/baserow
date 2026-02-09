@@ -1,0 +1,27 @@
+from typing import Any, Dict, List, Optional
+
+from baserow.config.celery import app
+from baserow.core.db import atomic_with_retry_on_deadlock
+
+
+@app.task(bind=True, queue="automation_workflow")
+@atomic_with_retry_on_deadlock()
+def dispatch_node_celery_task(
+    self,
+    node_id: int,
+    history_id: Optional[int],
+    simulate_until_node_id: Optional[int],
+    allowed_node_ids: Optional[List[int]] = None,
+    current_iterations: Optional[Dict[int, int]] = None,
+    simulation_results: Optional[Dict[int, Any]] = None,
+):
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+    AutomationNodeHandler().dispatch_node_async(
+        node_id,
+        history_id,
+        simulate_until_node_id,
+        allowed_node_ids=allowed_node_ids,
+        current_iterations=current_iterations,
+        simulation_results=simulation_results,
+    )

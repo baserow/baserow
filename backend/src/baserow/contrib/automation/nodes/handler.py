@@ -3,7 +3,9 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
+from django.utils import timezone
 
+from loguru import logger
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -11,10 +13,16 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.automation.formula_importer import import_formula
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationNodeResult,
+    AutomationWorkflowHistory,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeMisconfiguredService,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -22,6 +30,8 @@ from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.signals import automation_node_updated
+from baserow.contrib.automation.nodes.tasks import dispatch_node_celery_task
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
@@ -349,66 +359,193 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         return node_instance
 
-    def dispatch_node(
+    def dispatch_node_async(
         self,
-        node: "AutomationNode",
-        dispatch_context: AutomationDispatchContext,
-        allowed_nodes=None,
+        node_id: int,
+        history_id: Optional[int],
+        simulate_until_node_id: Optional[int],
+        allowed_node_ids: Optional[List[int]],
+        current_iterations: Optional[Dict[int, int]] = None,
+        simulation_results: Optional[Dict[int, Any]] = None,
     ):
         """
-        Dispatch one node and recursively dispatch the next nodes.
+        Dispatch one node and recursively dispatch the next nodes asynchronously.
 
-        :param node: The node to start with.
-        :param dispatch_context: The context in which the workflow is being dispatched,
-            which contains the event payload and other relevant data.
-        :param allowed_nodes: if set, only the nodes from the list will be dispatched.
+        The exception are Iterator node children, which are dispatched sync.
+
+        :param node_id: The node to dispatch.
+        :param history_id: The AutomationNodeHistory ID from which the
+            workflow's event payload and node results are derived.
+        :param simulate_until_node_id: When a node dispatch is being simulated.
+        :param allowed_node_ids: Controls which nodes can be dispatched.
+        :param current_iterations: Used by the Iterator node's children.
+        :param simulation_results: Previous node results used for simulations only.
         """
 
-        if dispatch_context.simulate_until_node and allowed_nodes is None:
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        simulate_until_node = (
+            AutomationNodeHandler().get_node(simulate_until_node_id)
+            if simulate_until_node_id
+            else None
+        )
+        allowed_nodes = (
+            [self.get_node(n_id) for n_id in allowed_node_ids]
+            if allowed_node_ids
+            else None
+        )
+        if simulate_until_node and allowed_nodes is None:
             allowed_nodes = {
-                *dispatch_context.simulate_until_node.get_previous_nodes(),
-                dispatch_context.simulate_until_node,
+                *simulate_until_node.get_previous_nodes(),
+                simulate_until_node,
             }
 
+        node = self.get_node(node_id)
         if allowed_nodes is not None and node not in allowed_nodes:
             # Return early as the node is not on the path until the simulated node
             return
 
+        history_handler = AutomationHistoryHandler()
+        workflow_history: Optional[AutomationWorkflowHistory] = None
+        node_history: Optional[AutomationNodeHistory] = None
+
+        if not simulate_until_node:
+            workflow_history = AutomationWorkflowHistory.objects.get(id=history_id)
+            node_history = history_handler.create_node_history(
+                workflow_history=workflow_history,
+                node=node,
+                started_on=timezone.now(),
+            )
+
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            event_payload=workflow_history.event_payload if workflow_history else None,
+            simulate_until_node=simulate_until_node,
+        )
+        if current_iterations:
+            dispatch_context.current_iterations = current_iterations
+
+        if simulation_results:
+            # Celery JSON serialization converts integer keys to strings, so
+            # we need to convert them back to ints.
+            simulation_results = {
+                int(key): value for key, value in simulation_results.items()
+            }
+            dispatch_context.previous_nodes_results.update(simulation_results)
+
+        if workflow_history:
+            previous_results = AutomationNodeResult.objects.filter(
+                node_history__workflow_history=workflow_history
+            ).select_related("node_history__node")
+
+            for result in previous_results:
+                dispatch_context.previous_nodes_results[result.node_history.node_id] = (
+                    result.result
+                )
+
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
-            dispatch_context.after_dispatch(node, dispatch_result)
-
-            # Return early if this is a simulated dispatch
-            if until_node := dispatch_context.simulate_until_node:
-                if until_node.id == node.id:
-                    return
-
-            if children := node.get_children():
-                node_data = dispatch_result.data["results"]
-
-                if dispatch_context.simulate_until_node:
-                    iterations = [0]
-                else:
-                    iterations = range(len(node_data))
-
-                for index in iterations:
-                    sub_dispatch_context = dispatch_context.clone()
-                    sub_dispatch_context.set_current_iteration(node, index)
-
-                    # dispatch context build
-                    for child in children:
-                        self.dispatch_node(
-                            child, sub_dispatch_context, allowed_nodes=allowed_nodes
-                        )
-
-            next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-
-            for next_node in next_nodes:
-                self.dispatch_node(
-                    next_node, dispatch_context, allowed_nodes=allowed_nodes
-                )
         except ServiceImproperlyConfiguredDispatchException as e:
-            raise AutomationNodeMisconfiguredService(
-                f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
-            ) from e
+            error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
+            if workflow_history:
+                workflow_history.completed_on = timezone.now()
+                workflow_history.message = error
+                workflow_history.status = HistoryStatusChoices.ERROR
+                workflow_history.save()
+            else:
+                logger.exception(error)
+
+            if node_history:
+                node_history.completed_on = timezone.now()
+                node_history.message = error
+                node_history.status = HistoryStatusChoices.ERROR
+                node_history.save()
+            return
+        except Exception as e:
+            original_workflow = AutomationWorkflowHandler().get_original_workflow(
+                node.workflow
+            )
+            error = (
+                f"Unexpected error while running workflow {original_workflow.id}. "
+                f"Error: {str(e)}"
+            )
+            logger.exception(error)
+            if workflow_history:
+                workflow_history.completed_on = timezone.now()
+                workflow_history.message = error
+                workflow_history.status = HistoryStatusChoices.ERROR
+                workflow_history.save()
+            if node_history:
+                node_history.completed_on = timezone.now()
+                node_history.message = error
+                node_history.status = HistoryStatusChoices.ERROR
+                node_history.save()
+            return
+
+        if not simulate_until_node:
+            history_handler.create_node_result(
+                node_history=node_history, result=dispatch_result.data
+            )
+
+        # Return early if this is a simulated dispatch
+        if until_node := simulate_until_node:
+            if until_node.id == node.id:
+                until_node.service.specific.refresh_from_db(fields=["sample_data"])
+                automation_node_updated.send(self, user=None, node=until_node)
+                return
+
+        allowed_node_ids = [n.id for n in allowed_nodes] if allowed_nodes else None
+
+        simulation_results = {
+            **(simulation_results or {}),
+            node.id: dispatch_result.data,
+        }
+
+        if children := node.get_children():
+            node_data = dispatch_result.data["results"]
+
+            if simulate_until_node:
+                iterations = [0]
+            else:
+                iterations = range(len(node_data))
+
+            for index in iterations:
+                child_iterations = {
+                    **dispatch_context.current_iterations,
+                    node.id: index,
+                }
+                for child in children:
+                    self.dispatch_node_async(
+                        child.id,
+                        history_id,
+                        simulate_until_node_id,
+                        allowed_node_ids,
+                        current_iterations=child_iterations,
+                        simulation_results=simulation_results,
+                    )
+
+        if node_history:
+            node_history.completed_on = timezone.now()
+            node_history.status = HistoryStatusChoices.SUCCESS
+            node_history.save()
+
+        next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+        if not next_nodes and not node.get_children():
+            if workflow_history:
+                workflow_history.completed_on = timezone.now()
+                workflow_history.status = HistoryStatusChoices.SUCCESS
+                workflow_history.save()
+            return
+
+        for next_node in next_nodes:
+            dispatch_node_celery_task.delay(
+                next_node.id,
+                history_id,
+                simulate_until_node_id,
+                allowed_node_ids,
+                current_iterations=current_iterations,
+                simulation_results=simulation_results,
+            )

@@ -1,10 +1,15 @@
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional, Union
 
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationNodeResult,
+    AutomationWorkflowHistory,
+)
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
@@ -28,15 +33,55 @@ class AutomationHistoryHandler:
         workflow: AutomationWorkflow,
         started_on: datetime,
         is_test_run: bool,
+        event_payload: Optional[Union[Dict, List[Dict]]] = None,
         status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
         completed_on: Optional[datetime] = None,
         message: str = "",
     ) -> AutomationWorkflowHistory:
+        """Creates a history entry for a Workflow run."""
+
+        event_payload = event_payload if event_payload else {}
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
             started_on=started_on,
             is_test_run=is_test_run,
+            event_payload=event_payload,
             status=status,
             completed_on=completed_on,
             message=message,
+        )
+
+    def create_node_history(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        node: AutomationNode,
+        started_on: datetime,
+        status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
+        completed_on: Optional[datetime] = None,
+        message: str = "",
+    ) -> AutomationNodeHistory:
+        """Creates a history entry for a Node dispatch."""
+
+        return AutomationNodeHistory.objects.create(
+            workflow_history=workflow_history,
+            node=node,
+            started_on=started_on,
+            status=status,
+            completed_on=completed_on,
+            message=message,
+        )
+
+    def create_node_result(
+        self,
+        node_history: AutomationNodeHistory,
+        result: Optional[Union[Dict, List[Dict]]] = None,
+        iteration: int = 0,
+    ) -> AutomationNodeResult:
+        """Saves the result of a Node dispatch."""
+
+        result = result if result else {}
+        return AutomationNodeResult.objects.create(
+            node_history=node_history,
+            iteration=iteration,
+            result=result,
         )

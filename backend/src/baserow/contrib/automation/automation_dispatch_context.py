@@ -3,16 +3,15 @@ from typing import Any, Dict, List, Optional, Union
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
-from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
-from baserow.core.services.types import DispatchResult
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["workflow", "event_payload", "simulate_until_node"]
+    own_properties = ["workflow", "event_payload"]
 
     def __init__(
         self,
@@ -34,7 +33,6 @@ class AutomationDispatchContext(DispatchContext):
 
         self.workflow = workflow
         self.previous_nodes_results: Dict[int, Any] = {}
-        self.dispatch_history: List[int] = []
         self.simulate_until_node = simulate_until_node
         self.current_iterations: Dict[int, int] = {}
 
@@ -61,8 +59,6 @@ class AutomationDispatchContext(DispatchContext):
         new_context = super().clone(**kwargs)
         new_context.previous_nodes_results = {**self.previous_nodes_results}
         new_context.current_iterations = {**self.current_iterations}
-        new_context.dispatch_history = list(self.dispatch_history)
-
         return new_context
 
     @property
@@ -76,23 +72,6 @@ class AutomationDispatchContext(DispatchContext):
         """
 
         return super().get_timezone_name()
-
-    def _register_node_result(
-        self, node: AutomationNode, dispatch_data: Dict[str, Any]
-    ):
-        self.previous_nodes_results[node.id] = dispatch_data
-
-    def after_dispatch(self, node: AutomationNode, dispatch_result: DispatchResult):
-        """
-        This method is called after each node dispatch. It can be used
-        to perform any final actions or cleanup.
-        """
-
-        self.dispatch_history.append(node.id)
-        self._register_node_result(node, dispatch_result.data)
-
-    def set_current_iteration(self, node, index):
-        self.current_iterations[node.id] = index
 
     def range(self, service: Service):
         return [0, None]

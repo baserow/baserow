@@ -9,8 +9,6 @@ class AutomationHistory(models.Model):
 
     message = models.TextField()
 
-    is_test_run = models.BooleanField()
-
     status = models.CharField(
         choices=HistoryStatusChoices.choices,
         max_length=8,
@@ -25,5 +23,53 @@ class AutomationWorkflowHistory(AutomationHistory):
     workflow = models.ForeignKey(
         "automation.AutomationWorkflow",
         on_delete=models.CASCADE,
-        related_name="workflow_history",
+        related_name="workflow_histories",
     )
+
+    is_test_run = models.BooleanField(
+        default=False,
+        help_text="True when the workflow is being simulated.",
+    )
+
+    event_payload = models.JSONField(
+        default=dict, help_text="Event payload received by the workflow."
+    )
+
+
+class AutomationNodeHistory(AutomationHistory):
+    workflow_history = models.ForeignKey(
+        "automation.AutomationWorkflowHistory",
+        on_delete=models.CASCADE,
+        related_name="node_histories",
+    )
+    node = models.ForeignKey(
+        "automation.AutomationNode",
+        on_delete=models.CASCADE,
+        related_name="node_histories",
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["workflow_history", "node"]),
+        ]
+
+
+class AutomationNodeResult(models.Model):
+    node_history = models.ForeignKey(
+        "automation.AutomationNodeHistory",
+        on_delete=models.CASCADE,
+        related_name="node_results",
+    )
+
+    iteration = models.PositiveIntegerField(
+        default=0,
+        help_text="Keeps track of the current iteration of the Iterator node.",
+    )
+
+    result = models.JSONField(
+        default=dict,
+        help_text="Contains node results.",
+    )
+
+    class Meta:
+        unique_together = [["node_history", "iteration"]]
