@@ -211,9 +211,9 @@
         "supportPairingHeading": "2. Підключення до вашого застосунку Slack",
         "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" &gt; \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
         "supportPairingStep2": "Скопіюйте ваш \"Bot User OAuth Token\" і збережіть його в полі \"Токен користувача бота\" у цій формі.",
-        "supportSetupStep1": "Перейдіть до вашого робочого простору <&lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;apps page&lt;/a&gt;",
-        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  &lt;pre&gt;chat:write&lt;/pre&gt; область.",
-        "supportPairingStep3": "Нарешті, якщо ваш додаток новий: у Slack запросіть його до обраного каналу за допомогою команди &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;"
+        "supportPairingStep3": "Нарешті, якщо ваш додаток новий: у Slack запросіть його до обраного каналу за допомогою команди &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;",
+        "supportSetupStep1": "Перейдіть до вашого робочого простору &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;.",
+        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  &lt;pre&gt;chat:write&lt;/pre&gt; область."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Ця дія повинна бути пов'язана із застосунком Slack. Дотримуйтесь інструкцій у спливаючому вікні інтеграцій, щоб почати.",
@@ -250,7 +250,7 @@
     "smtpEmailForm": {
         "integrationDropdownLabel": "Інтеграція",
         "fromEmail": "Від кого (Email)",
-        "fromEmailPlaceholder": "sender@{'@'}example.com",
+        "fromEmailPlaceholder": "sender{'@'}example.com",
         "fromName": "Від кого (Ім'я)",
         "fromNamePlaceholder": "Ваше ім'я",
         "toEmails": "Кому (Email)",
