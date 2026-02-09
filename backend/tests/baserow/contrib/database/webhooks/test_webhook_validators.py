@@ -16,7 +16,7 @@ URL_BLACKLIST_ONLY_ALLOWING_GOOGLE_WEBHOOKS = re.compile(r"(?!(www\.)?google\.co
 
 @httpretty.activate(verbose=True, allow_net_connect=False)
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blocks_internal_address(mock):
+def test_ssrf_blocks_internal_address(mock):
     httpretty.register_uri(httpretty.GET, "https://1.1.1.1/", status=200)
     httpretty.register_uri(httpretty.GET, "https://2.2.2.2/", status=200)
     httpretty.register_uri(httpretty.GET, "http://127.0.0.1/", status=200)
@@ -31,7 +31,7 @@ def test_advocate_blocks_internal_address(mock):
 
 @httpretty.activate(verbose=True, allow_net_connect=False)
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blocks_invalid_urls(mock):
+def test_ssrf_blocks_invalid_urls(mock):
     httpretty.register_uri(httpretty.GET, "https://1.1.1.1/", status=200)
     httpretty.register_uri(httpretty.GET, "https://2.2.2.2/", status=200)
     httpretty.register_uri(httpretty.GET, "http://127.0.0.1/", status=200)
@@ -51,7 +51,7 @@ def test_advocate_blocks_invalid_urls(mock):
 @httpretty.activate(verbose=True, allow_net_connect=False)
 @override_settings(BASEROW_WEBHOOKS_IP_WHITELIST=[ip_network("127.0.0.1/32")])
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_whitelist_rules(mock):
+def test_ssrf_whitelist_rules(mock):
     httpretty.register_uri(httpretty.GET, "http://127.0.0.1/", status=200)
     httpretty.register_uri(httpretty.GET, "http://10.0.0.1/", status=200)
 
@@ -67,7 +67,7 @@ def test_advocate_whitelist_rules(mock):
 @httpretty.activate(verbose=True, allow_net_connect=False)
 @override_settings(BASEROW_WEBHOOKS_IP_BLACKLIST=[ip_network("1.1.1.1/32")])
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blacklist_rules(mock):
+def test_ssrf_blacklist_rules(mock):
     httpretty.register_uri(httpretty.GET, "https://1.1.1.1", status=200)
     httpretty.register_uri(httpretty.GET, "http://127.0.0.1/", status=200)
     httpretty.register_uri(httpretty.GET, "https://2.2.2.2/", status=200)
@@ -94,9 +94,6 @@ def test_advocate_blacklist_rules(mock):
 def test_hostname_blacklist_rules(patched_addr_info):
     httpretty.register_uri(httpretty.GET, "https://google.com", status=200)
     httpretty.register_uri(httpretty.GET, "http://1.1.1.1", status=200)
-
-    # The httpretty stub implemenation of socket.getaddrinfo is incorrect and doesn't
-    # return an IP causing advocate to fail, instead we patch to fix this.
 
     # This request should not go through
     with pytest.raises(ValidationError, match="Invalid URL") as exec_info:
@@ -135,7 +132,7 @@ def test_hostname_blacklist_rules_only_allow_one_host(patched_addr_info):
     BASEROW_WEBHOOKS_IP_BLACKLIST=[ip_network("1.0.0.0/8")],
     BASEROW_WEBHOOKS_IP_WHITELIST=[ip_network("1.1.1.1/32")],
 )
-def test_advocate_combination_of_whitelist_blacklist_rules():
+def test_ssrf_combination_of_whitelist_blacklist_rules():
     httpretty.register_uri(httpretty.GET, "https://1.1.1.1", status=200)
     httpretty.register_uri(httpretty.GET, "https://1.1.1.2", status=200)
     httpretty.register_uri(httpretty.GET, "http://127.0.0.1/", status=200)
@@ -163,7 +160,7 @@ def test_advocate_combination_of_whitelist_blacklist_rules():
     BASEROW_WEBHOOKS_IP_WHITELIST=[ip_network("1.1.1.1/32")],
 )
 @patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_hostname_blacklist_overrides_ip_lists(
+def test_ssrf_hostname_blacklist_overrides_ip_lists(
     mock,
 ):
     httpretty.register_uri(httpretty.GET, "https://1.1.1.1", status=200)

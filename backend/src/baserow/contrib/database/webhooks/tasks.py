@@ -177,8 +177,9 @@ def call_webhook(
 def make_request_and_save_result(
     webhook, event_id, event_type, method, url, headers, payload
 ):
-    from advocate import UnacceptableAddressException
     from requests import RequestException
+
+    from baserow.core.ssrf import InvalidSSRFAddress
 
     from .handler import WebhookHandler
     from .models import TableWebhookCall
@@ -198,8 +199,8 @@ def make_request_and_save_result(
         request = exception.request
         response = exception.response
         error = str(exception)
-    except UnacceptableAddressException as exception:
-        error = f"UnacceptableAddressException: {exception}"
+    except InvalidSSRFAddress as exception:
+        error = f"InvalidSSRFAddress: {exception}"
 
     TableWebhookCall.objects.update_or_create(
         event_id=event_id,

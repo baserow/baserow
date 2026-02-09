@@ -15,7 +15,6 @@ from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from advocate.connection import UnacceptableAddressException
 from dateutil.relativedelta import relativedelta
 from genson import SchemaBuilder
 from loguru import logger
@@ -78,6 +77,7 @@ from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow.core.ssrf import InvalidSSRFAddress
 from baserow.version import VERSION as BASEROW_VERSION
 
 
@@ -581,7 +581,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 **body_dict,
             )
 
-        except (UnacceptableAddressException, ConnectionError) as e:
+        except (InvalidSSRFAddress, ConnectionError) as e:
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e

@@ -316,7 +316,7 @@ def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
     )
     call = TableWebhookCall.objects.get(webhook=webhook)
     webhook.refresh_from_db()
-    assert call.error == "UnacceptableAddressException: ('127.0.0.1', 80)"
+    assert "InvalidSSRFAddress" in call.error
     assert not webhook.active
 
 

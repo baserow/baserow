@@ -16,13 +16,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import QuerySet
 from django.utils.http import parse_header_parameters
 
-import advocate
-from advocate.exceptions import UnacceptableAddressException
 from loguru import logger
 from requests.exceptions import RequestException
 
 from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile
+from baserow.core.ssrf import InvalidSSRFAddress, ssrf_safe_request
 from baserow.core.storage import (
     ExportZipFile,
     OverwritingStorageHandler,
@@ -357,7 +356,7 @@ class UserFileHandler:
         )
 
         try:
-            response = advocate.get(url, stream=True, timeout=10)
+            response = ssrf_safe_request.get(url, stream=True, timeout=10)
 
             if not response.ok:
                 raise FileURLCouldNotBeReached(
@@ -385,7 +384,7 @@ class UserFileHandler:
                     )
             content_type = response.headers.get("Content-Type", "")
 
-        except (RequestException, UnacceptableAddressException, ConnectionError):
+        except (RequestException, InvalidSSRFAddress, ConnectionError):
             raise FileURLCouldNotBeReached("The provided URL could not be reached.")
 
         # content-type may contain extra params, like charset: text/plain; charset=utf-8

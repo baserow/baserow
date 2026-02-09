@@ -1,6 +1,5 @@
 from django.db import transaction
 
-from advocate import UnacceptableAddressException
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from requests import RequestException
@@ -33,6 +32,7 @@ from baserow.contrib.database.webhooks.handler import WebhookHandler
 from baserow.contrib.database.webhooks.models import TableWebhook
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.ssrf import InvalidSSRFAddress
 
 from .serializers import (
     TableWebhookCreateRequestSerializer,
@@ -292,7 +292,7 @@ class TableWebhookTestCallView(APIView):
             data = {"response": response, "request": webhook_request}
         except RequestException as exception:
             data = {"request": exception.request}
-        except UnacceptableAddressException:
+        except InvalidSSRFAddress:
             data = {}
 
         return Response(TableWebhookTestCallResponseSerializer(data).data)

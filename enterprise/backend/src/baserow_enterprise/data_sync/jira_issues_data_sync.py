@@ -2,8 +2,6 @@ import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import advocate
-from advocate import UnacceptableAddressException
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
@@ -16,6 +14,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.core.ssrf import InvalidSSRFAddress, ssrf_safe_request
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -248,7 +247,9 @@ class JiraIssuesDataSyncType(DataSyncType):
                 if instance.jira_project_key:
                     url += f"&jql=project={instance.jira_project_key}"
 
-                response = advocate.get(url, headers=headers, timeout=10, **kwargs)
+                response = ssrf_safe_request.get(
+                    url, headers=headers, timeout=10, **kwargs
+                )
                 if not response.ok:
                     try:
                         json = response.json()
@@ -282,7 +283,7 @@ class JiraIssuesDataSyncType(DataSyncType):
                 start_at += max_results
                 if data["total"] <= start_at:
                     break
-        except (RequestException, UnacceptableAddressException, ConnectionError) as e:
+        except (RequestException, InvalidSSRFAddress, ConnectionError) as e:
             raise SyncError(f"Error connecting to Jira: {str(e)}")
 
         return issues

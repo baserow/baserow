@@ -1,11 +1,10 @@
 from typing import Any, Dict, List, Optional
 
-import advocate
-from advocate.exceptions import UnacceptableAddressException
 from icalendar import Calendar
 from requests.exceptions import RequestException
 
 from baserow.contrib.database.fields.models import DateField, TextField
+from baserow.core.ssrf import InvalidSSRFAddress, ssrf_safe_request
 from baserow.core.utils import ChildProgressBuilder
 
 from .exceptions import SyncError
@@ -87,8 +86,8 @@ class ICalCalendarDataSyncType(DataSyncType):
         progress = ChildProgressBuilder.build(progress_builder, child_total=3)
 
         try:
-            response = advocate.get(instance.ical_url, timeout=60)
-        except (RequestException, UnacceptableAddressException, ConnectionError):
+            response = ssrf_safe_request.get(instance.ical_url, timeout=60)
+        except (RequestException, InvalidSSRFAddress, ConnectionError):
             raise SyncError("The provided URL could not be reached.")
 
         if not response.ok:

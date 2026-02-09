@@ -601,7 +601,7 @@ def assert_serialized_rows_contain_same_values(row_1, row_2):
 
 
 # The httpretty stub implementation of socket.getaddrinfo is incorrect and doesn't
-# return an IP causing advocate to fail, instead we patch to fix this.
+# return an IP causing SSRF validation to fail, instead we patch to fix this.
 def stub_getaddrinfo(host, port, family=None, socktype=None, proto=None, flags=None):
     try:
         ip_network(host)
