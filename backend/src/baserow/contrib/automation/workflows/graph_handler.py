@@ -18,5 +18,5 @@ class AutomationWorkflowGraphHandler(BaseGraphHandler):
     instance_id_mapping = "automation_workflow_nodes"
     does_not_exist_exception = AutomationNodeDoesNotExist
 
-    def get_point_map(self) -> Dict[int, AutomationNode]:
+    def _get_point_map(self) -> Dict[int, AutomationNode]:
         return {n.id: n for n in AutomationNodeHandler().get_nodes(self.instance)}
