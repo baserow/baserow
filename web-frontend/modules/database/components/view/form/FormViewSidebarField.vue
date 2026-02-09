@@ -11,8 +11,8 @@
       }"
       @click="
         !readOnly &&
-          compatible &&
-          $emit('updated-field-options', { enabled: true })
+        compatible &&
+        $emit('updated-field-options', { enabled: true })
       "
     >
       <i
@@ -40,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['updated-field-options'],
   computed: {
     compatible() {
       const fieldType = this.$registry.get('field', this.field.type)

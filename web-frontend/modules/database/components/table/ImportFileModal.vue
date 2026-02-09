@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     :right-sidebar="true"
     :right-sidebar-scrollable="true"
     :close-button="false"
@@ -54,7 +55,7 @@
           @changed="reset()"
           @header="onHeader($event)"
           @data="onData($event)"
-          @getData="onGetData($event)"
+          @get-data="onGetData($event)"
         >
           <template #upsertMapping>
             <div class="control margin-top-1">
@@ -97,7 +98,7 @@
           <SimpleGrid
             class="import-modal__preview"
             :rows="previewImportData"
-            :fields="fields"
+            :fields="sortedFields"
           />
         </Tab>
         <Tab :title="$t('importFileModal.filePreview')">
@@ -204,6 +205,8 @@ import _ from 'lodash'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'ImportFileModal',
@@ -225,6 +228,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['table-refresh'],
   data() {
     return {
       importer: '',
@@ -241,6 +245,18 @@ export default {
     }
   },
   computed: {
+    sortedFields() {
+      // The sort needs to follow the same sort logic as
+      // RowHandler.import_rows(...) in the backend
+      return [...this.fields].sort((a, b) => {
+        const aPrimary = !!a.primary
+        const bPrimary = !!b.primary
+        if (aPrimary !== bPrimary) return aPrimary ? -1 : 1
+        const orderDiff = (a.order ?? 0) - (b.order ?? 0)
+        if (orderDiff !== 0) return orderDiff
+        return a.id - b.id
+      })
+    },
     isTableCreated() {
       if (!this.job?.table_id) {
         return false
@@ -277,7 +293,7 @@ export default {
      * All writable fields.
      */
     writableFields() {
-      return this.fields.filter((field) =>
+      return this.sortedFields.filter((field) =>
         this.fieldTypes[field.type].canWriteFieldValues(field)
       )
     },
@@ -349,7 +365,7 @@ export default {
     },
     availableUpsertFields() {
       const selected = Object.values(this.mapping)
-      return this.fields.filter((field) => {
+      return this.sortedFields.filter((field) => {
         return (
           selected.includes(field.id) && this.fieldTypes[field.type].canUpsert()
         )
@@ -407,7 +423,7 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -614,13 +630,15 @@ export default {
     },
     async openTable() {
       // Redirect to the newly created table.
-      await this.$nuxt.$router.push({
+      await this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.database.id,
           tableId: this.job.table_id,
         },
       })
+      await pageFinished()
+      await nextTick()
       this.hide()
     },
     onJobDone() {
@@ -643,9 +661,11 @@ export default {
     },
     stopPollAndHandleError(error, specificErrorMap = null) {
       this.stopPollIfRunning()
-      error.handler
-        ? this.handleError(error, 'application', specificErrorMap)
-        : this.showError(error)
+      if (error.handler) {
+        this.handleError(error, 'application', specificErrorMap)
+      } else {
+        this.showError(error)
+      }
     },
   },
 }

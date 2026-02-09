@@ -57,5 +57,6 @@ export default {
       required: true,
     },
   },
+  emits: ['updated-field-options'],
 }
 </script>

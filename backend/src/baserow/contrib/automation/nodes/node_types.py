@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import router
@@ -341,14 +341,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
     def on_event(
         self,
         services: QuerySet[Service],
-        event_payload: Optional[List[Dict]] = None,
+        event_payload: List[Dict] | None | Callable = None,
         user: Optional[AbstractUser] = None,
     ):
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
         )
 
-        triggers = (
+        triggers = list(
             self.model_class.objects.filter(
                 service__in=services,
             )
@@ -362,6 +362,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
             .select_related("workflow__automation__workspace")
         )
+
+        if triggers and callable(event_payload):
+            event_payload = event_payload()
 
         for trigger in triggers:
             workflow = trigger.workflow

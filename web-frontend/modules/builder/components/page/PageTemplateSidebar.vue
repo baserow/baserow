@@ -46,6 +46,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected', 'selected-page'],
   computed: {
     orderedPages() {
       return this.$store.getters['page/getVisiblePages'](this.application)

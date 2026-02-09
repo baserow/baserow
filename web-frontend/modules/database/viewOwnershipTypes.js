@@ -1,11 +1,18 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import ViewOwnershipRadioVue from './components/view/ViewOwnershipRadio.vue'
 
 export class ViewOwnershipType extends Registerable {
   /**
    * A human readable name of the view ownership type.
    */
   getName() {
+    return null
+  }
+
+  /**
+   * A short human readable description of the view ownership type that will be
+   * shown to the user when creating the view.
+   */
+  getDescription() {
     return null
   }
 
@@ -21,13 +28,6 @@ export class ViewOwnershipType extends Registerable {
    */
   getIconClass() {
     return null
-  }
-
-  /*
-   * Radio component used in view ownership forms.
-   */
-  getRadioComponent() {
-    return ViewOwnershipRadioVue
   }
 
   /**
@@ -69,33 +69,10 @@ export class ViewOwnershipType extends Registerable {
     }
   }
 
-  userCanTryCreate(table, workspaceId) {
-    return false
-  }
-}
-
-export class CollaborativeViewOwnershipType extends ViewOwnershipType {
-  static getType() {
-    return 'collaborative'
-  }
-
-  getName() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.collaborative')
-  }
-
-  getIconClass() {
-    return 'iconoir-community'
-  }
-
-  isDeactivated(workspaceId) {
-    return false
-  }
-
   /**
-   * This should return nothing, because collaborative views should know nothing
-   * about other ownership types and if you're in a collaborative view, you
-   * should not be able to switch to a different view type.
+   * A component that's added to the context menu of the view that can be used to,
+   * for example, change the ownership type of the view. By default, it doesn't
+   * register a component.
    */
   getChangeOwnershipTypeMenuItemComponent() {
     return null
@@ -107,5 +84,34 @@ export class CollaborativeViewOwnershipType extends ViewOwnershipType {
       table,
       workspaceId
     )
+  }
+
+  /**
+   * Hook that can be used to change the realtime page payload before subscribing to
+   * the page. This can be used to subscribe to a different page with different
+   * real-time events, if needed.
+   */
+  enhanceRealtimePagePayload(database, table, view, realtimePage) {
+    return realtimePage
+  }
+}
+
+export class CollaborativeViewOwnershipType extends ViewOwnershipType {
+  static getType() {
+    return 'collaborative'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('viewOwnershipType.collaborative')
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('viewOwnershipType.collaborativeDescription')
+  }
+
+  getIconClass() {
+    return 'iconoir-group'
   }
 }

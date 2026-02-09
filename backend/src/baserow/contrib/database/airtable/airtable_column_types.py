@@ -92,7 +92,7 @@ class TextAirtableColumnType(AirtableColumnType):
                     raw_airtable_table, raw_airtable_row
                 )
                 import_report.add_failed(
-                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                     SCOPE_CELL,
                     raw_airtable_table["name"],
                     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -270,7 +270,7 @@ class NumberAirtableColumnType(AirtableColumnType):
             # 999999999 * 24 * 60 * 60 = 86399999913600.
             if abs(value) > AIRTABLE_MAX_DURATION_VALUE:
                 import_report.add_failed(
-                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                     SCOPE_CELL,
                     raw_airtable_table["name"],
                     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -289,7 +289,7 @@ class NumberAirtableColumnType(AirtableColumnType):
             # If the value can't be parsed as decimal, then it might be corrupt, so we
             # need to inform the user and skip the import.
             import_report.add_failed(
-                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                 SCOPE_CELL,
                 raw_airtable_table["name"],
                 ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -496,7 +496,7 @@ class DateAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_row
             )
             import_report.add_failed(
-                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                 SCOPE_CELL,
                 raw_airtable_table["name"],
                 ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -700,7 +700,7 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
                     raw_airtable_table, raw_airtable_row
                 )
                 import_report.add_failed(
-                    f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                    f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                     SCOPE_CELL,
                     raw_airtable_table["name"],
                     ERROR_TYPE_DATA_TYPE_MISMATCH,
@@ -904,7 +904,7 @@ class PhoneAirtableColumnType(AirtableColumnType):
                 raw_airtable_table, raw_airtable_row
             )
             import_report.add_failed(
-                f"Row: \"{row_name}\", field: \"{raw_airtable_column['name']}\"",
+                f'Row: "{row_name}", field: "{raw_airtable_column["name"]}"',
                 SCOPE_CELL,
                 raw_airtable_table["name"],
                 ERROR_TYPE_DATA_TYPE_MISMATCH,

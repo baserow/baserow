@@ -2,8 +2,6 @@ from django.conf import settings
 
 from baserow.core.exceptions import FeatureDisabledException
 
-FF_WORKSPACE_SEARCH = "workspace-search"
-FF_DATE_DEPENDENCY = "date_dependency"
 FF_ENABLE_ALL = "*"
 
 

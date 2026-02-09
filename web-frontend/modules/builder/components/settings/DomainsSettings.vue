@@ -8,7 +8,7 @@
       </Button>
     </div>
     <div
-      v-if="$fetchState.pending && !error.visible"
+      v-if="loading && !error.visible"
       class="loading domains-settings__loading"
     />
     <template v-else>
@@ -22,7 +22,7 @@
       />
     </template>
     <p
-      v-if="!error.visible && !$fetchState.pending && domains.length === 0"
+      v-if="!error.visible && !loading && domains.length === 0"
       class="margin-top-3"
     >
       {{ $t('domainSettings.noDomainMessage') }}
@@ -47,16 +47,23 @@ export default {
   name: 'DomainsSettings',
   components: { DomainCard, DomainForm },
   mixins: [error, builderSetting],
-  async fetch() {
+  data() {
+    return {
+      loading: true,
+    }
+  },
+  computed: {
+    ...mapGetters({ domains: 'domain/getDomains' }),
+  },
+  async mounted() {
     try {
       await this.actionFetchDomains({ builderId: this.builder.id })
       this.hideError()
     } catch (error) {
       this.handleError(error)
+    } finally {
+      this.loading = false
     }
-  },
-  computed: {
-    ...mapGetters({ domains: 'domain/getDomains' }),
   },
   methods: {
     ...mapActions({

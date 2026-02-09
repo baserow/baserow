@@ -26,8 +26,7 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
 
     class SerializedDict(
         AppAuthProviderTypeDict, SamlAuthProviderTypeMixin.SamlSerializedDict
-    ):
-        ...
+    ): ...
 
     @property
     def allowed_fields(self) -> List[str]:

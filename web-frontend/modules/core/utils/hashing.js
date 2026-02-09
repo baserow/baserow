@@ -1,5 +1,6 @@
-import crypto from 'crypto'
+import { sha256 } from 'js-sha256'
 
 export function generateHash(value) {
-  return crypto.createHash('sha256').update(value.toString()).digest('hex')
+  // TODO MIG do we want to use browser async version
+  return sha256(value)
 }

@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo
 from django.utils.timezone import override
 
 import pytest
+
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow_premium.ical_utils import (
     build_calendar,
     description_maker,
@@ -12,8 +14,6 @@ from baserow_premium.ical_utils import (
     make_field_renderer,
 )
 from baserow_premium.views.models import CalendarView
-
-from baserow.contrib.database.views.handler import ViewHandler
 
 NUM_EVENTS = 20
 BASEROW_ICAL_VIEW_MAX_EVENTS = 5

@@ -4,12 +4,6 @@ from typing import List, Optional
 from django.dispatch import receiver
 from django.utils.translation import gettext as _
 
-from baserow_premium.row_comments.handler import RowCommentHandler
-from baserow_premium.row_comments.models import (
-    RowCommentsNotificationMode,
-    RowCommentsNotificationModes,
-)
-
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.notifications.registries import (
@@ -17,6 +11,11 @@ from baserow.core.notifications.registries import (
     NotificationType,
 )
 from baserow.core.prosemirror.utils import prosemirror_doc_to_plain_text
+from baserow_premium.row_comments.handler import RowCommentHandler
+from baserow_premium.row_comments.models import (
+    RowCommentsNotificationMode,
+    RowCommentsNotificationModes,
+)
 
 from .signals import row_comment_created, row_comment_updated
 

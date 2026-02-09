@@ -21,11 +21,7 @@
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import ABDateTimePicker from '@baserow/modules/builder/components/elements/baseComponents/ABDateTimePicker.vue'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
-import {
-  ensureDateTime,
-  ensureDate,
-  ensureString,
-} from '@baserow/modules/core/utils/validator'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'DateTimePickerElement',
@@ -52,39 +48,8 @@ export default {
     DATE_FORMATS() {
       return DATE_FORMATS
     },
-    resolvedDefaultValue() {
-      const resolvedFormula = this.resolveFormula(this.element.default_value)
-
-      if (!resolvedFormula) {
-        return null
-      }
-
-      try {
-        const result = this.element.include_time
-          ? ensureDateTime(resolvedFormula)
-          : ensureDate(resolvedFormula)
-
-        if (result && !isNaN(result)) {
-          // We convert to an iso string here because date objects are not serialized
-          // properly during SSR
-          return result.toJSON()
-        } else {
-          return result
-        }
-      } catch (e) {
-        return null
-      }
-    },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
-    },
-  },
-  watch: {
-    resolvedDefaultValue: {
-      handler(value) {
-        this.setFormData(value)
-      },
-      immediate: true,
     },
   },
   methods: {

@@ -17,6 +17,7 @@ from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.models import Workspace
+from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
@@ -131,7 +132,13 @@ class DomainHandler:
             prepared_values["domain_name"] = prepared_values["domain_name"].lower()
 
         domain = model_class(builder=builder, order=last_order, **prepared_values)
-        domain.save()
+
+        try:
+            domain.save()
+        except IntegrityError as error:
+            if is_unique_violation_error(error):
+                raise DomainNameNotUniqueError(prepared_values["domain_name"])
+            raise error
 
         return domain
 
@@ -171,7 +178,7 @@ class DomainHandler:
         try:
             domain.save()
         except IntegrityError as error:
-            if "unique" in str(error) and "domain_name" in prepared_values:
+            if is_unique_violation_error(error):
                 raise DomainNameNotUniqueError(prepared_values["domain_name"])
             raise error
 

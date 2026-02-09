@@ -2,12 +2,11 @@ import abc
 import dataclasses
 from typing import Dict, List, Optional
 
-from baserow_premium.license.models import License
-
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
+from baserow_premium.license.models import License
 
 
 @dataclasses.dataclass

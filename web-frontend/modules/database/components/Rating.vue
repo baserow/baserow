@@ -1,28 +1,21 @@
-<template functional>
+<template>
   <div
     :class="[
-      data.staticClass,
-      props.customColor ? 'rating' : `rating color--${props.color}`,
-      props.showUnselected ? 'rating--show-unselected' : '',
-      props.readOnly ? '' : 'editing',
+      customColor ? 'rating' : `rating color--${color}`,
+      showUnselected ? 'rating--show-unselected' : '',
+      readOnly ? '' : 'editing',
     ]"
-    :style="{ '--rating-color': props.customColor }"
+    :style="{ '--rating-color': customColor }"
   >
     <i
-      v-for="index in props.readOnly && !props.showUnselected
-        ? props.value
-        : props.maxValue"
+      v-for="index in readOnly && !showUnselected ? value : maxValue"
       :key="index"
       class="rating__star"
       :class="{
-        [`baserow-icon-${props.ratingStyle}`]: true,
-        'rating__star--selected': index <= props.value,
+        [`baserow-icon-${ratingStyle}`]: true,
+        'rating__star--selected': index <= value,
       }"
-      @click="
-        !props.readOnly &&
-          listeners['update'] &&
-          listeners['update'](index === props.value ? 0 : index)
-      "
+      @click="onClick(index)"
     />
   </div>
 </template>
@@ -39,7 +32,7 @@ export default {
     },
     value: {
       required: true,
-      validator: () => true,
+      type: Number,
     },
     maxValue: {
       required: true,
@@ -65,6 +58,15 @@ export default {
     customColor: {
       default: '',
       type: String,
+    },
+  },
+  emits: ['update'],
+  methods: {
+    onClick(index) {
+      if (this.readOnly) {
+        return
+      }
+      this.$emit('update', index === this.value ? 0 : index)
     },
   },
 }

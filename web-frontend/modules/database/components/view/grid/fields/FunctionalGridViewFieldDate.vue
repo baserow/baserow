@@ -1,24 +1,19 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
+<template>
+  <div ref="cell" class="grid-view__cell">
     <client-only>
       <div class="grid-field-date">
         <div ref="dateDisplay" class="grid-field-date__date">
-          {{
-            $options.methods.getDate(props.field, props.value) || props.value
-          }}
+          {{ getDate(field, value) || value }}
         </div>
         <div
-          v-if="props.field.date_include_time"
+          v-if="field.date_include_time"
           ref="timeDisplay"
           class="grid-field-date__time"
         >
-          {{ $options.methods.getTime(props.field, props.value) }}
+          {{ getTime(field, value) }}
         </div>
-        <div
-          v-if="props.field.date_show_tzinfo"
-          class="grid-field-date__tzinfo"
-        >
-          {{ $options.methods.getCellTimezoneAbbr(props.field, props.value) }}
+        <div v-if="field.date_show_tzinfo" class="grid-field-date__tzinfo">
+          {{ getCellTimezoneAbbr(field, value) }}
         </div>
       </div>
     </client-only>
@@ -31,5 +26,15 @@ import readOnlyDateField from '@baserow/modules/database/mixins/readOnlyDateFiel
 export default {
   name: 'FunctionalGridViewFieldDate',
   mixins: [readOnlyDateField],
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
 }
 </script>

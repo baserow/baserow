@@ -191,6 +191,8 @@ DEFAULT_CATEGORIES = [
     DocumentCategory("enterprise", "billing"),
     # FAQ
     DocumentCategory("faq", None),
+    # Dev Docs
+    DocumentCategory("dev_docs", None),
 ]
 
 
@@ -263,6 +265,10 @@ class KnowledgeBaseDocument(CreatedAndUpdatedOnMixin, models.Model):
         BASEROW_USER_DOCS = "baserow_user_docs", "Baserow User Docs"
         """
         Documents downloaded from `baserow.io/user-docs`, our online Knowledge Base.
+        """
+        BASEROW_DEV_DOCS = "baserow_dev_docs", "Baserow Dev Docs"
+        """
+        Documents downloaded from `baserow.io/docs`, the dev docs.
         """
         FAQ = "faq", "FAQ"
         """

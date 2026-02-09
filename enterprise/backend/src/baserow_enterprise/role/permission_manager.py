@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -21,7 +19,9 @@ from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_premium.license.handler import LicenseHandler
 
+from .constants import READ_ONLY_ROLE_UID
 from .models import Role
 
 User = get_user_model()
@@ -67,7 +67,9 @@ class RolePermissionManagerType(PermissionManagerType):
 
         return set(
             op.name
-            for op in RoleAssignmentHandler().get_role_by_uid("VIEWER").operations.all()
+            for op in RoleAssignmentHandler()
+            .get_role_by_uid(READ_ONLY_ROLE_UID)
+            .operations.all()
         )
 
     def check_multiple_permissions(

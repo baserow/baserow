@@ -82,6 +82,7 @@ export default {
       default: true,
     },
   },
+  emits: ['values-changed'],
   setup() {
     const values = reactive({
       values: {

@@ -10,7 +10,7 @@ To install the chart with the release name `my-baserow` run the following comman
 
 From repo
 ```bash
-helm repo add baserow-chart https://baserow.gitlab.io/baserow-chart
+helm repo add baserow-chart https://baserow.github.io/baserow-chart
 helm install my-baserow baserow-chart/baserow --namespace baserow --create-namespace --values config.yaml
 ```
 
@@ -232,7 +232,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `1.35.3`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.0.6`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |

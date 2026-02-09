@@ -9,7 +9,7 @@
     height: 0;
     border-style: solid;
     border-width: 0 6px 8px;
-    border-color: transparent transparent $color-neutral-800 transparent;
+    border-color: transparent transparent $color-neutral-800;
     position: absolute;
     top: 0;
     left: var(--tooltip-cursor-position-left, 50%);

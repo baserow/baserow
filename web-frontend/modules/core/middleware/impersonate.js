@@ -7,6 +7,37 @@ import UserService from '@baserow/modules/core/services/admin/users'
  * sure that we never have to take this situation into account because it only
  * happens on first page load before everything is fetched.
  */
+export default defineNuxtRouteMiddleware(async (to) => {
+  if (!import.meta.server) return
+
+  const nuxtApp = useNuxtApp()
+  const store = nuxtApp.$store
+
+  // If the query param is not provided, we don't want to do anything.
+  if (!Object.prototype.hasOwnProperty.call(to.query, '__impersonate-user')) {
+    return
+  }
+
+  const userId = to.query['__impersonate-user']
+
+  // Request the impersonate user data, this contains the `token` and `user` object.
+  // This is needed to impersonate the user.
+  const { data } = await UserService(nuxtApp.$client).impersonate(userId)
+
+  // Override the existing user data based on the response of the impersonate endpoint.
+  store.dispatch('auth/forceSetUserData', data)
+
+  // Make sure that the auth doesn't override the JWT token cookie because we want
+  // the admin one to persist.
+  store.dispatch('auth/preventSetToken')
+
+  // Set the impersonating state to true so that the warning in the top left corner
+  // is visible.
+  store.dispatch('impersonating/setImpersonating', true)
+})
+
+/*
+Previous Nuxt 2 middleware:
 export default async function ({ store, req, app, route }) {
   if (!req) return
 
@@ -34,3 +65,4 @@ export default async function ({ store, req, app, route }) {
   // is visible.
   store.dispatch('impersonating/setImpersonating', true)
 }
+*/

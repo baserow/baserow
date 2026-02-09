@@ -14,7 +14,7 @@ export default {
       updateLoading: false,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   computed: {
@@ -30,8 +30,8 @@ export default {
           a.initially_selected === b.initially_selected
             ? 0
             : a.initially_selected
-            ? -1
-            : 1
+              ? -1
+              : 1
         )
     },
   },

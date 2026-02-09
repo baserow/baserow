@@ -121,6 +121,7 @@ def test_exporting_empty_workspace(
     job_id = response_json["id"]
     assert response_json == {
         "created_on": run_time,
+        "updated_on": run_time,
         "exported_file_name": None,
         "human_readable_error": "",
         "id": job_id,
@@ -200,6 +201,7 @@ def test_exporting_workspace_with_single_empty_database(
     job_id = response_json["id"]
     assert response_json == {
         "created_on": run_time,
+        "updated_on": run_time,
         "exported_file_name": None,
         "human_readable_error": "",
         "id": job_id,

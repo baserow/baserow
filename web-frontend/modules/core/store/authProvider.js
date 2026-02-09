@@ -19,14 +19,25 @@ export const mutations = {
 
 export const actions = {
   async fetchLoginOptions({ commit }) {
-    const { data } = await authProviderService(this.$client).fetchLoginOptions()
+    const { $client, $registry } = this
+
+    const { data } = await authProviderService($client).fetchLoginOptions()
+
     const loginOptions = {}
-    for (const providerTypeLoginOption of Object.values(data)) {
-      const loginOption = populateProviderLoginOptions(
-        providerTypeLoginOption,
-        this.$registry
-      )
-      loginOptions[providerTypeLoginOption.type] = loginOption
+
+    const dataValues = Object.values(data)
+
+    for (const providerTypeLoginOption of dataValues) {
+      try {
+        const loginOption = populateProviderLoginOptions(
+          providerTypeLoginOption,
+          $registry
+        )
+        loginOptions[providerTypeLoginOption.type] = loginOption
+      } catch (error) {
+        console.error('Error in populateProviderLoginOptions:', error)
+        throw error
+      }
     }
     commit('SET_LOGIN_OPTIONS', loginOptions)
     return loginOptions

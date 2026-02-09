@@ -28,5 +28,6 @@ export default {
       default: null,
     },
   },
+  emits: ['add-element'],
 }
 </script>

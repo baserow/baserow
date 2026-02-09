@@ -2,20 +2,6 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
 
-from baserow_premium.api.views.calendar.errors import (
-    ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD,
-)
-from baserow_premium.api.views.calendar.serializers import (
-    ListCalendarRowsQueryParamsSerializer,
-    get_calendar_view_example_response_serializer,
-)
-from baserow_premium.ical_utils import build_calendar
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.views.actions import RotateCalendarIcalSlugActionType
-from baserow_premium.views.exceptions import CalendarViewHasNoDateField
-from baserow_premium.views.handler import get_rows_grouped_by_date_field
-from baserow_premium.views.models import CalendarView
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -82,6 +68,20 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow_premium.api.views.calendar.errors import (
+    ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD,
+)
+from baserow_premium.api.views.calendar.serializers import (
+    ListCalendarRowsQueryParamsSerializer,
+    get_calendar_view_example_response_serializer,
+)
+from baserow_premium.ical_utils import build_calendar
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.views.actions import RotateCalendarIcalSlugActionType
+from baserow_premium.views.exceptions import CalendarViewHasNoDateField
+from baserow_premium.views.handler import get_rows_grouped_by_date_field
+from baserow_premium.views.models import CalendarView
 
 
 class CalendarViewView(APIView):
@@ -231,6 +231,7 @@ class CalendarViewView(APIView):
         adhoc_filters = AdHocFilters.from_request(request)
 
         grouped_rows = get_rows_grouped_by_date_field(
+            user=request.user,
             view=view,
             date_field=date_field,
             from_timestamp=query_params.get("from_timestamp"),
@@ -416,6 +417,7 @@ class PublicCalendarViewView(APIView):
         )
 
         grouped_rows = get_rows_grouped_by_date_field(
+            user=None,
             view=view,
             date_field=date_field,
             from_timestamp=query_params.get("from_timestamp"),
@@ -505,7 +507,7 @@ class ICalView(APIView):
         )
         if not view.ical_public:
             raise ViewDoesNotExist()
-        qs = view_handler.get_queryset(view)
+        qs = view_handler.get_queryset(request.user, view)
         cal = build_calendar(qs, view, limit=settings.BASEROW_ICAL_VIEW_MAX_EVENTS)
         return HttpResponse(
             cal.to_ical(),

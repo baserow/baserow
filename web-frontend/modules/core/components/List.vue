@@ -45,6 +45,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['selected'],
   computed: {
     /**
      * If no attributes are provided as a prop we will just use all the attributes
@@ -60,7 +61,7 @@ export default {
       return this.selectedItems.map((item) => item.id)
     },
     hasRightSlot() {
-      return !!this.$scopedSlots['right-side']
+      return !!(this.$slots && this.$slots['right-side'])
     },
   },
   methods: {

@@ -60,6 +60,18 @@ export default (client) => {
         new_password: newPassword,
       })
     },
+    sendChangeEmailConfirmation(newEmail, password, baseUrl) {
+      return client.post('/user/send-change-email-confirmation/', {
+        new_email: newEmail,
+        password,
+        base_url: baseUrl,
+      })
+    },
+    changeEmail(token) {
+      return client.post('/user/change-email/', {
+        token,
+      })
+    },
     sendVerifyEmail(email) {
       return client.post(`/user/send-verify-email/`, {
         email,

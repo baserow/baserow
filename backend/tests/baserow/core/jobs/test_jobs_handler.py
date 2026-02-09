@@ -214,9 +214,9 @@ def test_job_cancel_when_running(data_fixture, test_thread, mutable_job_type_reg
         t.start()
         assert m_start.wait(0.5)
         assert job.started, job.get_cached_state()
-        assert (
-            job.get_cached_progress_percentage() == 11
-        ), job.get_cached_progress_percentage()
+        assert job.get_cached_progress_percentage() == 11, (
+            job.get_cached_progress_percentage()
+        )
 
         jh.cancel_job(job)
         m_set_stop.set()

@@ -37,6 +37,16 @@ class RoleType extends Registerable {
   getDeactivatedClickModal(workspaceId) {
     return null
   }
+
+  // `null` equals all scope types.
+  get allowedScopeTypes() {
+    return null
+  }
+
+  // `null` equals all scope types.
+  get allowedSubjectTypes() {
+    return null
+  }
 }
 
 export class AdminRoleType extends RoleType {
@@ -49,12 +59,12 @@ export class AdminRoleType extends RoleType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('roles.admin.name')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('roles.admin.description')
   }
 }
@@ -69,12 +79,12 @@ export class MemberRoleType extends RoleType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('permission.member')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('permission.memberDescription')
   }
 }

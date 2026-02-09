@@ -53,7 +53,6 @@ export default {
     },
     title: {
       type: String,
-      required: true,
       default: '',
     },
     subtitle: {
@@ -62,5 +61,6 @@ export default {
       default: '',
     },
   },
+  emits: ['click'],
 }
 </script>

@@ -2,6 +2,16 @@
   <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="context__menu-title">{{ view.name }} ({{ view.id }})</div>
     <ul class="context__menu">
+      <component
+        :is="component"
+        v-for="(component, i) in additionalContextComponents"
+        :key="i"
+        :workspace="database.workspace"
+        :database="database"
+        :table="table"
+        :view="view"
+        @hide-context="$refs.context.hide()"
+      />
       <li
         v-if="
           hasValidExporter &&
@@ -94,15 +104,6 @@
           {{ $t('viewContext.renameView') }}
         </a>
       </li>
-      <component
-        :is="component"
-        v-for="(component, i) in getAdditionalMenuItems()"
-        :key="i"
-        :workspace="database.workspace"
-        :database="database"
-        :table="table"
-        @hide-context="$refs.context.hide()"
-      />
       <li
         v-if="
           $hasPermission(
@@ -170,6 +171,7 @@ export default {
       required: true,
     },
   },
+  emits: ['enable-rename'],
   data() {
     return {
       duplicateLoading: false,
@@ -192,6 +194,21 @@ export default {
         .map((viewOwnershipType) => {
           return viewOwnershipType.getChangeOwnershipTypeMenuItemComponent()
         })
+        .filter((component) => component !== null)
+    },
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .reduce(
+          (components, plugin) =>
+            components.concat(
+              plugin.getAdditionalViewContextComponents(
+                this.database.workspace,
+                this.table,
+                this.view
+              )
+            ),
+          []
+        )
         .filter((component) => component !== null)
     },
   },
@@ -225,7 +242,7 @@ export default {
       this.duplicateLoading = false
 
       // Redirect to the newly created view.
-      this.$nuxt.$router.push({
+      this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.table.database_id,
@@ -245,21 +262,6 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
-    },
-
-    getAdditionalMenuItems() {
-      const opts = Object.values(this.$registry.getAll('plugin'))
-        .reduce((components, plugin) => {
-          components = components.concat(
-            plugin.getAdditionalViewContextComponents(
-              this.database.workspace,
-              this.view
-            )
-          )
-          return components
-        }, [])
-        .filter((component) => component !== null)
-      return opts
     },
   },
 }

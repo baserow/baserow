@@ -67,11 +67,7 @@
 
 <script>
 import _ from 'lodash'
-import {
-  ensureArray,
-  ensureInteger,
-  ensureString,
-} from '@baserow/modules/core/utils/validator'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
@@ -88,7 +84,7 @@ export default {
      * @type {Object}
      * @property {boolean} required - If the element is required for form submission
      * @property {string} data_source_id - The data source for the record selector element
-     * @propeRty {number} items_per_page - Number of items to show per page
+     * @property {number} items_per_page - Number of items to show per page
      * @property {string} label - The label displayed above the record selector element
      * @property {string} default_value - The formula to generate the displayed name
      * @property {string} placeholder - The placeholder text which should be applied to the element
@@ -120,22 +116,6 @@ export default {
     },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
-    },
-    resolvedDefaultValue() {
-      const resolvedFormula = this.resolveFormula(this.element.default_value)
-      if (this.element.multiple) {
-        try {
-          return ensureArray(resolvedFormula).map(ensureInteger)
-        } catch {
-          return []
-        }
-      } else {
-        try {
-          return ensureInteger(resolvedFormula)
-        } catch {
-          return null
-        }
-      }
     },
     resolvedPlaceholder() {
       return ensureString(this.resolveFormula(this.element.placeholder))

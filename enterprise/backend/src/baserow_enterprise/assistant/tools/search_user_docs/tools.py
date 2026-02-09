@@ -18,31 +18,51 @@ if TYPE_CHECKING:
 
 class SearchDocsSignature(udspy.Signature):
     """
-    Given a user question and the relevant documentation chunks as context, provide a an
-    accurate and concise answer along with a reliability score. If the documentation
-    provides instructions or URLs, include them in the answer. If the answer is not
-    found in the context, respond with "Nothing found in the documentation."
+    Given a user question and documentation chunks as context, provide an accurate
+    and concise answer along with a reliability score.
 
+    CRITICAL: The context may contain documents retrieved by keyword similarity that
+    are NOT actually relevant to the user's question. You MUST carefully evaluate
+    each document's ACTUAL TOPIC before using it:
+
+    1. First, identify the SPECIFIC FEATURE or concept the user is asking about
+    2. For each document, check if it DIRECTLY explains that specific feature
+    3. IGNORE documents that merely mention similar keywords but cover different topics
+       (e.g., if asked about "webhooks in Baserow", ignore docs about external
+       webhook services or third-party integrations - only use docs about
+       Baserow's native webhook feature)
+    4. Only use documents that would genuinely help answer THIS specific question
+
+    If no documents in the context actually address the user's question (even if
+    they contain similar words), respond with "Nothing found in the documentation."
+
+    Include instructions and URLs from the documentation when relevant.
     Never fabricate answers or URLs.
     """
 
     question: str = udspy.InputField()
     context: dict[str, str] = udspy.InputField(
-        desc="A mapping of source URLs to content."
+        desc=(
+            "A mapping of source URLs to documents. WARNING: These documents were "
+            "retrieved by keyword similarity and may include irrelevant results. "
+            "Carefully filter to only use documents that DIRECTLY address the question."
+        )
     )
 
     answer: str = udspy.OutputField()
     sources: list[str] = udspy.OutputField(
         desc=(
-            "A list of source URLs as strings used to generate the answer, "
-            "picked from the provided context keys, in order of importance."
+            "URLs of documents that were ACTUALLY USED to form the answer. "
+            "Only include sources that directly addressed the question topic. "
+            "Leave empty if no documents were relevant. Maximum 3 URLs, ordered by relevance."
         )
     )
     reliability: float = udspy.OutputField(
         desc=(
-            "The reliability score of the answer, from 0 to 1. "
-            "1 means the answer is fully supported by the provided context. "
-            "0 means the answer is not supported by the provided context."
+            "How well the RELEVANT documents (not all documents) support the answer. "
+            "1.0 = found documents that directly and completely answer the question. "
+            "0.5 = found partially relevant information. "
+            "0.0 = no documents actually addressed the question (regardless of keyword matches)."
         )
     )
 
@@ -72,29 +92,42 @@ def get_search_user_docs_tool(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[str], dict[str, Any]]:
     """
-    Returns a function that searches the Baserow documentation for a given query.
+    Returns a tool function that searches Baserow's knowledge base and uses an LLM
+    to filter and synthesize relevant documentation into a focused answer.
+
+    The search retrieves documents by keyword similarity, then the LLM evaluates
+    each document's actual relevance to the question before generating an answer.
     """
 
     async def search_user_docs(
         question: Annotated[
-            str, "The English version of the user question, using Baserow vocabulary."
-        ]
+            str,
+            (
+                "A precise search query in English using Baserow terminology. "
+                "Focus on the SPECIFIC Baserow feature being asked about. "
+                "Include the feature name and action, e.g., 'How to create webhooks in Baserow' "
+                "or 'Baserow table linking feature'. Avoid generic terms that could match "
+                "unrelated documentation about third-party services or integrations."
+            ),
+        ],
     ) -> dict[str, Any]:
         """
-        Search Baserow documentation to provide instructions and information for USERS.
+        Search Baserow's official documentation for user guides and feature
+        explanations.
 
-        This tool provides end-user documentation explaining Baserow features and how
-        users can use them manually through the UI. It does NOT contain information
-        about:
-        - Which tools/functions the agent should use
-        - How to use agent tools or loaders
-        - Agent-specific implementation details
+        PURPOSE: Provides end-user documentation about Baserow's built-in
+        features and how to use them through the UI.
 
-        Use this ONLY when the user explicitly asks for instructions on how to do
-        something themselves, or wants to learn about Baserow features.
+        USE WHEN: The user asks how to do something in Baserow, wants to learn
+        about a Baserow feature, or needs step-by-step instructions.
 
-        Make sure the question is in English and uses Baserow-specific terminology
-        to get the best results.
+        DO NOT USE FOR: Agent tool usage, API implementation details, or
+        programming help.
+
+        IMPORTANT: Frame the question to target Baserow's NATIVE features
+        specifically. For example, ask about "Baserow webhooks" not just
+        "webhooks" to avoid getting results about external webhook services that
+        integrate WITH Baserow.
         """
 
         nonlocal tool_helpers
@@ -103,7 +136,7 @@ def get_search_user_docs_tool(
 
         @sync_to_async
         def _search(question: str) -> list[KnowledgeBaseChunk]:
-            chunks = KnowledgeBaseHandler().search(question)
+            chunks = KnowledgeBaseHandler().search(question, 15)
             return list(chunks)
 
         searcher = udspy.ChainOfThought(SearchDocsSignature)
@@ -126,15 +159,46 @@ def get_search_user_docs_tool(
 
             if url in available_urls and url not in sources:
                 sources.append(url)
+                if len(sources) >= 3:
+                    break
 
-        # If for any reason the model wasn't able to return sources correctly, fill them
-        # from the available URLs.
-        if not sources:
-            sources = list(available_urls)
+        # Only fallback to available URLs if reliability is high AND we have a
+        # real answer. Don't populate sources if the model indicated no relevant
+        # docs were found.
+        nothing_found = "nothing found" in prediction.answer.lower()
+        if not sources and prediction.reliability > 0.8 and not nothing_found:
+            sources = list(available_urls)[:3]
+
+        # Override reliability to 0 if the model explicitly said nothing was
+        # found. The model sometimes returns high reliability for "nothing
+        # found" answers, which is semantically incorrect - we want reliability
+        # to reflect whether we actually found useful information.
+        reliability = 0.0 if nothing_found else prediction.reliability
+
+        if reliability >= 0.7:
+            reliability_note = (
+                "HIGH CONFIDENCE: Answer is well-supported by the documentation."
+            )
+        elif reliability >= 0.4:
+            reliability_note = (
+                "PARTIAL MATCH: Some relevant information was found, but the "
+                "documentation may not fully cover this topic. Supplement with "
+                "general knowledge but warn the user that details may be incomplete."
+            )
+        else:
+            reliability_note = (
+                "LOW CONFIDENCE: The documentation does not contain information about "
+                "this topic. DO NOT provide an answer based on general knowledge or "
+                "assumptions - the feature may not exist in Baserow. Tell the user: "
+                "'I couldn't find information about this in the official Baserow "
+                "documentation.' and suggest they check the community forum or "
+                "contact support."
+            )
 
         return {
             "answer": prediction.answer,
-            "reliability": prediction.reliability,
+            "reliability": reliability,
+            "reliability_note": reliability_note,
             "sources": sources,
         }
 

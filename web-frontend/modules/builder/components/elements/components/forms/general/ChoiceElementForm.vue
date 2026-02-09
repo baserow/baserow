@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="input"
       :config-block-types="['input']"
@@ -78,7 +78,6 @@
     >
       <RadioButton
         v-model="values.option_type"
-        type="chips"
         :value="CHOICE_OPTION_TYPES.MANUAL"
         icon="iconoir-open-select-hand-gesture"
       >
@@ -86,7 +85,6 @@
       </RadioButton>
       <RadioButton
         v-model="values.option_type"
-        type="chips"
         :value="CHOICE_OPTION_TYPES.FORMULAS"
         icon="iconoir-sigma-function"
       >
@@ -176,7 +174,7 @@
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -184,7 +182,7 @@ export default {
   name: 'ChoiceElementForm',
   components: {
     InjectedFormulaInput,
-    CustomStyle,
+    CustomStyleButton,
   },
   mixins: [formElementForm],
   props: {

@@ -187,7 +187,7 @@ describe('Notification store', () => {
     expect(store.getters['notification/getUnreadCount']).toBe(0)
   })
 
-  test('getting user data set the user unread count', () => {
+  test('getting user data set the user unread count', async () => {
     const fakeUserData = {
       user: {
         id: 256,
@@ -200,12 +200,13 @@ describe('Notification store', () => {
         `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`,
       user_notifications: { unread_count: 1 },
     }
-    store.dispatch('auth/setUserData', fakeUserData)
+    await store.dispatch('auth/setUserData', fakeUserData)
+
     expect(store.getters['notification/getUnreadCount']).toBe(1)
   })
 
-  test('fetching workspaces set the unread count', () => {
-    store.dispatch('notification/setPerWorkspaceUnreadCount', {
+  test('fetching workspaces set the unread count', async () => {
+    await store.dispatch('notification/setPerWorkspaceUnreadCount', {
       workspaces: [
         { id: 1, unread_notifications_count: 1 },
         { id: 2, unread_notifications_count: 2 },

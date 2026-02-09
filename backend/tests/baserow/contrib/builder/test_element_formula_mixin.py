@@ -87,10 +87,9 @@ def test_element_formula_generator_mixin(
     in the test_link_element_formula_generator() test case.
     """
 
-    simple_formula_fields = {
-        formula_field: formula_generator_fixture["formula_1"]
-        for formula_field in element_type.simple_formula_fields
-    }
+    simple_formula_fields = dict.fromkeys(
+        element_type.simple_formula_fields, formula_generator_fixture["formula_1"]
+    )
     exported_element = data_fixture.create_builder_element(
         element_cls,
         **simple_formula_fields,

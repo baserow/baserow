@@ -1,11 +1,16 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <ul class="context__menu">
       <li
         v-if="
           $hasPermission(
             'database.table.create_row',
             table,
+            database.workspace.id
+          ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
             database.workspace.id
           )
         "
@@ -106,6 +111,7 @@ import KanbanViewUpdateStackContext from '@baserow_premium/components/views/kanb
 
 export default {
   name: 'KanbanViewStackContext',
+  emits: ['create-row', 'refresh'],
   components: { KanbanViewUpdateStackContext },
   mixins: [context, error],
   props: {
@@ -118,6 +124,10 @@ export default {
       required: true,
     },
     table: {
+      type: Object,
+      required: true,
+    },
+    view: {
       type: Object,
       required: true,
     },

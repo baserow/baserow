@@ -1,14 +1,4 @@
-"""
-Tests for the Assistant class focusing on behaviors rather than implementation details.
-
-These tests verify that the Assistant:
-- Correctly loads and formats chat history for context
-- Persists messages to the database during streaming
-- Handles sources from tool outputs correctly
-- Generates and persists chat titles appropriately
-- Adapts its signature based on chat state
-"""
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
 
@@ -32,6 +22,15 @@ from baserow_enterprise.assistant.types import (
     ViewUIContext,
     WorkspaceUIContext,
 )
+
+
+@pytest.fixture(autouse=True)
+def mock_posthog_openai():
+    with patch("posthog.ai.openai.AsyncOpenAI") as mock:
+        # Configure the mock if needed
+        mock.return_value = MagicMock()
+        mock.return_value.model = "test-model"
+        yield mock
 
 
 @pytest.mark.django_db
@@ -296,9 +295,8 @@ class TestAssistantChatHistory:
         }
 
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_history_is_passed_to_astream_as_context(
-        self, mock_lm, mock_react_astream, enterprise_data_fixture
+        self, mock_react_astream, enterprise_data_fixture
     ):
         """
         Test that chat history is loaded correctly and passed to the agent as context
@@ -332,9 +330,9 @@ class TestAssistantChatHistory:
 
         assistant = Assistant(chat)
 
-        # Mock the router stream to delegate to agent with extracted context
-        def mock_router_stream_factory(*args, **kwargs):
-            # Verify conversation history is passed to router
+        # Mock the agent stream to verify conversation history is passed
+        def mock_agent_stream_factory(*args, **kwargs):
+            # Verify conversation history is passed to the agent
             assert kwargs["conversation_history"] == [
                 "[0] (user): What is Baserow?",
                 "[1] (assistant): Baserow is a no-code database",
@@ -343,36 +341,23 @@ class TestAssistantChatHistory:
             ]
 
             async def _stream():
-                yield Prediction(
-                    routing_decision="delegate_to_agent",
-                    extracted_context="User wants to add a view to their table",
-                    search_query="",
-                )
-
-            return _stream()
-
-        # Patch the instance method
-        assistant._request_router.astream = Mock(side_effect=mock_router_stream_factory)
-
-        # Mock the agent stream
-        def mock_agent_stream_factory(*args, **kwargs):
-            # Verify extracted context is passed to agent
-            assert kwargs["context"] == "User wants to add a view to their table"
-
-            async def _stream():
                 yield OutputStreamChunk(
-                    module=None,
+                    module=assistant._assistant.extract_module,
                     field_name="answer",
                     delta="Answer",
                     content="Answer",
                     is_complete=False,
                 )
-                yield Prediction(answer="Answer", trajectory=[], reasoning="")
+                yield Prediction(
+                    module=assistant._assistant,
+                    answer="Answer",
+                    trajectory=[],
+                    reasoning="",
+                )
 
             return _stream()
 
         mock_react_astream.side_effect = mock_agent_stream_factory
-        mock_lm.return_value.model = "test-model"
 
         message = HumanMessage(content="How to add a view?")
 
@@ -390,9 +375,8 @@ class TestAssistantMessagePersistence:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_persists_human_message(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that human messages are persisted to database before streaming"""
 
@@ -426,9 +410,6 @@ class TestAssistantMessagePersistence:
 
         mock_react_astream.return_value = mock_agent_stream()
 
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
-
         assistant = Assistant(chat)
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
@@ -456,9 +437,8 @@ class TestAssistantMessagePersistence:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_persists_ai_message_with_sources(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that AI messages are persisted with sources in artifacts"""
 
@@ -467,9 +447,6 @@ class TestAssistantMessagePersistence:
         chat = AssistantChat.objects.create(
             user=user, workspace=workspace, title="Test Chat"
         )
-
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
 
@@ -536,7 +513,9 @@ class TestAssistantMessagePersistence:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator
@@ -599,9 +578,8 @@ class TestAssistantStreaming:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_answer_chunks(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that answer chunks are yielded during streaming"""
 
@@ -643,9 +621,6 @@ class TestAssistantStreaming:
 
         mock_react_astream.return_value = mock_agent_stream()
 
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
-
         async def consume_stream():
             chunks = []
             human_message = HumanMessage(content="Test")
@@ -676,7 +651,9 @@ class TestAssistantStreaming:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator
@@ -733,9 +710,8 @@ class TestAssistantStreaming:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_thinking_messages(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that thinking messages from tools are yielded"""
 
@@ -771,9 +747,6 @@ class TestAssistantStreaming:
 
         mock_react_astream.return_value = mock_agent_stream()
 
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
-
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
             user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
@@ -789,10 +762,9 @@ class TestAssistantStreaming:
 
         thinking_messages = async_to_sync(consume_stream)()
 
-        # Should receive thinking messages
-        assert len(thinking_messages) == 2
-        assert thinking_messages[0].content == "Thinking..."
-        assert thinking_messages[1].content == "still thinking..."
+        # Should receive the thinking message emitted by the agent stream
+        assert len(thinking_messages) == 1
+        assert thinking_messages[0].content == "still thinking..."
 
 
 @pytest.mark.django_db
@@ -1056,9 +1028,8 @@ class TestAssistantCancellation:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_ai_started_message(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that astream_messages yields AiStartedMessage at the beginning"""
 
@@ -1090,7 +1061,6 @@ class TestAssistantCancellation:
             yield Prediction(answer="Hello there!", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         human_message = HumanMessage(content="Hello")
@@ -1111,9 +1081,8 @@ class TestAssistantCancellation:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_checks_cancellation_periodically(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that astream_messages checks for cancellation every 10 chunks"""
 
@@ -1147,7 +1116,6 @@ class TestAssistantCancellation:
             yield Prediction(answer="Complete response", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         cache_key = assistant._get_cancellation_cache_key()

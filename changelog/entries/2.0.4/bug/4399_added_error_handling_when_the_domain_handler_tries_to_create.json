@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where domain names were not correctly validated during domain creation.",
+    "issue_origin": "github",
+    "issue_number": 4399,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-12-05"
+}

@@ -30,6 +30,7 @@ import timelineViewHelpers from '@baserow_premium/mixins/timelineViewHelpers'
 
 export default {
   name: 'TimelineView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: { TimelineDateSettingsInitBox, TimelineContainer },
   mixins: [viewHelpers, timelineViewHelpers],
   props: {

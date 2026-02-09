@@ -1,14 +1,8 @@
-<template functional>
+<template>
   <!-- must be in sync with `modules/core/components/Logo.vue` apart from the label. -->
   <div class="logo">
-    <div v-if="$options.methods.showLabel(parent)" class="logo__label">
-      by Baserow
-    </div>
-    <img
-      :src="$options.methods.getLogoUrl(parent)"
-      v-bind="props"
-      :class="[data.staticClass, data.class]"
-    />
+    <div v-if="showLabel()" class="logo__label">by Baserow</div>
+    <img :src="getLogoUrl()" v-bind="$attrs" />
   </div>
 </template>
 
@@ -16,13 +10,13 @@
 export default {
   name: 'EnterpriseLogo',
   methods: {
-    showLabel(parent) {
-      const settings = parent.$store.getters['settings/get']
+    showLabel() {
+      const settings = this.$store.getters['settings/get']
       return !!settings.co_branding_logo
     },
     getLogoUrl(parent) {
-      const baserowLogo = require('@baserow/modules/core/static/img/logo.svg')
-      const settings = parent.$store.getters['settings/get']
+      const baserowLogo = require('@baserow/modules/core/static/img/logo.svg?url')
+      const settings = this.$store.getters['settings/get']
       if (settings.co_branding_logo) {
         return settings.co_branding_logo.url
       }

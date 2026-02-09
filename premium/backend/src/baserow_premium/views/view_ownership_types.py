@@ -1,8 +1,5 @@
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
 )
@@ -15,6 +12,9 @@ from baserow.contrib.database.views.operations import (
 from baserow.contrib.database.views.registries import ViewOwnershipType
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 
 class PersonalViewOwnershipType(ViewOwnershipType):
@@ -97,3 +97,6 @@ class PersonalViewOwnershipType(ViewOwnershipType):
         view.ownership_type = self.type
         view.owned_by = user
         return view
+
+    def view_created(self, user: AbstractUser, view: "View", workspace: Workspace):
+        LicenseHandler.raise_if_user_doesnt_have_feature(PREMIUM, user, workspace)

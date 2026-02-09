@@ -2,10 +2,10 @@ import { WidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
 import PieChartWidget from '@baserow_premium/dashboard/components/widget/PieChartWidget'
 import ChartWidgetSettings from '@baserow_premium/dashboard/components/widget/ChartWidgetSettings'
-import ChartBarWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_bar.svg'
-import ChartLineWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_line.svg'
-import ChartPieWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_pie.svg'
-import ChartDonutWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_donut.svg'
+import ChartBarWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_bar.svg?url'
+import ChartLineWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_line.svg?url'
+import ChartPieWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_pie.svg?url'
+import ChartDonutWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_donut.svg?url'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
@@ -16,7 +16,7 @@ export class ChartWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('chartWidget.name')
+    return this.app.$i18n.t('chartWidget.name')
   }
 
   get createWidgetImage() {
@@ -34,7 +34,7 @@ export class ChartWidgetType extends WidgetType {
   get variations() {
     return [
       {
-        name: this.app.i18n.t('chartWidget.bar'),
+        name: this.app.$i18n.t('chartWidget.bar'),
         createWidgetImage: ChartBarWidgetSvg,
         type: this,
         params: {
@@ -43,7 +43,7 @@ export class ChartWidgetType extends WidgetType {
         dropdownIcon: 'baserow-icon-bar-chart',
       },
       {
-        name: this.app.i18n.t('chartWidget.line'),
+        name: this.app.$i18n.t('chartWidget.line'),
         createWidgetImage: ChartLineWidgetSvg,
         type: this,
         params: {
@@ -75,7 +75,7 @@ export class ChartWidgetType extends WidgetType {
         series_chart_type: widget.default_series_chart_type,
       }
       values.series_config.push(seriesConfig)
-      await this.app.store.dispatch(`dashboardApplication/updateWidget`, {
+      await this.app.$store.dispatch(`dashboardApplication/updateWidget`, {
         widgetId: widget.id,
         values,
         originalValues,
@@ -109,7 +109,7 @@ export class PieChartWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('pieChartWidget.name')
+    return this.app.$i18n.t('pieChartWidget.name')
   }
 
   get createWidgetImage() {
@@ -127,7 +127,7 @@ export class PieChartWidgetType extends WidgetType {
   get variations() {
     return [
       {
-        name: this.app.i18n.t('pieChartWidget.pie'),
+        name: this.app.$i18n.t('pieChartWidget.pie'),
         createWidgetImage: ChartPieWidgetSvg,
         type: this,
         params: {
@@ -136,7 +136,7 @@ export class PieChartWidgetType extends WidgetType {
         dropdownIcon: 'baserow-icon-pie-chart',
       },
       {
-        name: this.app.i18n.t('pieChartWidget.doughnut'),
+        name: this.app.$i18n.t('pieChartWidget.doughnut'),
         createWidgetImage: ChartDonutWidgetSvg,
         type: this,
         params: {
@@ -168,7 +168,7 @@ export class PieChartWidgetType extends WidgetType {
         series_chart_type: widget.default_series_chart_type,
       }
       values.series_config.push(seriesConfig)
-      await this.app.store.dispatch(`dashboardApplication/updateWidget`, {
+      await this.app.$store.dispatch(`dashboardApplication/updateWidget`, {
         widgetId: widget.id,
         values,
         originalValues,

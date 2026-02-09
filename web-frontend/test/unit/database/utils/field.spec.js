@@ -8,12 +8,12 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('test field utils', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   describe('getPrimaryOrFirstField', () => {

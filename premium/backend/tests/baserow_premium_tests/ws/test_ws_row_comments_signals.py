@@ -3,15 +3,15 @@ from unittest.mock import patch
 from django.test.utils import override_settings
 
 import pytest
+from freezegun import freeze_time
+
+from baserow.core.db import transaction_atomic
+from baserow.core.trash.handler import TrashHandler
 from baserow_premium.row_comments.handler import (
     RowCommentHandler,
     RowCommentsNotificationModes,
 )
 from baserow_premium.row_comments.trash_types import RowCommentTrashableItemType
-from freezegun import freeze_time
-
-from baserow.core.db import transaction_atomic
-from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db(transaction=True)
@@ -200,6 +200,7 @@ def test_row_comment_restored(premium_data_fixture):
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 @override_settings(DEBUG=True)
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_row_comments_notification_mode_updated(
     mocked_broadcast_to_users,
     premium_data_fixture,

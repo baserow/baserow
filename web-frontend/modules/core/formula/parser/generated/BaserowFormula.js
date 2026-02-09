@@ -6,7 +6,7 @@ import BaserowFormulaVisitor from './BaserowFormulaVisitor.js';
 
 
 const serializedATN = ["\u0003\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786",
-    "\u5964\u0003U`\u0004\u0002\t\u0002\u0004\u0003\t\u0003\u0004\u0004\t",
+    "\u5964\u0003Uc\u0004\u0002\t\u0002\u0004\u0003\t\u0003\u0004\u0004\t",
     "\u0004\u0004\u0005\t\u0005\u0004\u0006\t\u0006\u0004\u0007\t\u0007\u0003",
     "\u0002\u0003\u0002\u0003\u0002\u0003\u0003\u0003\u0003\u0003\u0003\u0003",
     "\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003",
@@ -19,53 +19,55 @@ const serializedATN = ["\u0003\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786",
     "\u0005\u0003@\n\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003",
     "\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003",
     "\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003",
-    "\u0003\u0003\u0007\u0003S\n\u0003\f\u0003\u000e\u0003V\u000b\u0003\u0003",
-    "\u0004\u0003\u0004\u0003\u0005\u0003\u0005\u0003\u0006\u0003\u0006\u0003",
-    "\u0007\u0003\u0007\u0003\u0007\u0002\u0003\u0004\b\u0002\u0004\u0006",
-    "\b\n\f\u0002\u000b\u0003\u0002\u0006\u0007\u0004\u0002\u0010\u0010K",
-    "K\u0004\u0002??EE\u0004\u0002  BB\u0004\u0002+,67\u0004\u0002\'\'))",
-    "\u0003\u0002\u0003\u0005\u0003\u0002\u001b\u001c\u0003\u0002\u001d\u001e",
-    "\u0002l\u0002\u000e\u0003\u0002\u0002\u0002\u0004?\u0003\u0002\u0002",
-    "\u0002\u0006W\u0003\u0002\u0002\u0002\bY\u0003\u0002\u0002\u0002\n[",
-    "\u0003\u0002\u0002\u0002\f]\u0003\u0002\u0002\u0002\u000e\u000f\u0005",
-    "\u0004\u0003\u0002\u000f\u0010\u0007\u0002\u0002\u0003\u0010\u0003\u0003",
-    "\u0002\u0002\u0002\u0011\u0012\b\u0003\u0001\u0002\u0012@\u0007\u001b",
-    "\u0002\u0002\u0013@\u0007\u001c\u0002\u0002\u0014@\u0007\u0018\u0002",
-    "\u0002\u0015@\u0007\u0017\u0002\u0002\u0016@\t\u0002\u0002\u0002\u0017",
-    "\u0018\u0005\u0006\u0004\u0002\u0018\u0019\u0005\u0004\u0003\u000e\u0019",
-    "@\u0003\u0002\u0002\u0002\u001a\u001b\u0007\u0011\u0002\u0002\u001b",
-    "\u001c\u0005\u0004\u0003\u0002\u001c\u001d\u0007\u0012\u0002\u0002\u001d",
-    "@\u0003\u0002\u0002\u0002\u001e\u001f\u0007\b\u0002\u0002\u001f \u0007",
-    "\u0011\u0002\u0002 !\u0005\n\u0006\u0002!\"\u0007\u0012\u0002\u0002",
-    "\"@\u0003\u0002\u0002\u0002#$\u0007\t\u0002\u0002$%\u0007\u0011\u0002",
-    "\u0002%&\u0007\u0018\u0002\u0002&@\u0007\u0012\u0002\u0002\'(\u0007",
-    "\n\u0002\u0002()\u0007\u0011\u0002\u0002)*\u0005\n\u0006\u0002*,\u0007",
-    "\u000b\u0002\u0002+-\u0007\u0005\u0002\u0002,+\u0003\u0002\u0002\u0002",
-    ",-\u0003\u0002\u0002\u0002-.\u0003\u0002\u0002\u0002./\u0005\n\u0006",
-    "\u0002/0\u0007\u0012\u0002\u00020@\u0003\u0002\u0002\u000212\u0005\b",
-    "\u0005\u00022;\u0007\u0011\u0002\u000238\u0005\u0004\u0003\u000245\u0007",
-    "\u000b\u0002\u000257\u0005\u0004\u0003\u000264\u0003\u0002\u0002\u0002",
-    "7:\u0003\u0002\u0002\u000286\u0003\u0002\u0002\u000289\u0003\u0002\u0002",
-    "\u00029<\u0003\u0002\u0002\u0002:8\u0003\u0002\u0002\u0002;3\u0003\u0002",
-    "\u0002\u0002;<\u0003\u0002\u0002\u0002<=\u0003\u0002\u0002\u0002=>\u0007",
-    "\u0012\u0002\u0002>@\u0003\u0002\u0002\u0002?\u0011\u0003\u0002\u0002",
-    "\u0002?\u0013\u0003\u0002\u0002\u0002?\u0014\u0003\u0002\u0002\u0002",
-    "?\u0015\u0003\u0002\u0002\u0002?\u0016\u0003\u0002\u0002\u0002?\u0017",
-    "\u0003\u0002\u0002\u0002?\u001a\u0003\u0002\u0002\u0002?\u001e\u0003",
-    "\u0002\u0002\u0002?#\u0003\u0002\u0002\u0002?\'\u0003\u0002\u0002\u0002",
-    "?1\u0003\u0002\u0002\u0002@T\u0003\u0002\u0002\u0002AB\f\u000b\u0002",
-    "\u0002BC\t\u0003\u0002\u0002CS\u0005\u0004\u0003\fDE\f\n\u0002\u0002",
-    "EF\t\u0004\u0002\u0002FS\u0005\u0004\u0003\u000bGH\f\t\u0002\u0002H",
-    "I\t\u0005\u0002\u0002IS\u0005\u0004\u0003\nJK\f\b\u0002\u0002KL\t\u0006",
-    "\u0002\u0002LS\u0005\u0004\u0003\tMN\f\u0007\u0002\u0002NO\t\u0007\u0002",
-    "\u0002OS\u0005\u0004\u0003\bPQ\f\r\u0002\u0002QS\u0005\u0006\u0004\u0002",
-    "RA\u0003\u0002\u0002\u0002RD\u0003\u0002\u0002\u0002RG\u0003\u0002\u0002",
-    "\u0002RJ\u0003\u0002\u0002\u0002RM\u0003\u0002\u0002\u0002RP\u0003\u0002",
-    "\u0002\u0002SV\u0003\u0002\u0002\u0002TR\u0003\u0002\u0002\u0002TU\u0003",
-    "\u0002\u0002\u0002U\u0005\u0003\u0002\u0002\u0002VT\u0003\u0002\u0002",
-    "\u0002WX\t\b\u0002\u0002X\u0007\u0003\u0002\u0002\u0002YZ\u0005\f\u0007",
-    "\u0002Z\t\u0003\u0002\u0002\u0002[\\\t\t\u0002\u0002\\\u000b\u0003\u0002",
-    "\u0002\u0002]^\t\n\u0002\u0002^\r\u0003\u0002\u0002\u0002\b,8;?RT"].join("");
+    "\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0003\u0007\u0003V\n\u0003",
+    "\f\u0003\u000e\u0003Y\u000b\u0003\u0003\u0004\u0003\u0004\u0003\u0005",
+    "\u0003\u0005\u0003\u0006\u0003\u0006\u0003\u0007\u0003\u0007\u0003\u0007",
+    "\u0002\u0003\u0004\b\u0002\u0004\u0006\b\n\f\u0002\n\u0003\u0002\u0006",
+    "\u0007\u0004\u0002\u0010\u0010KK\u0004\u0002??EE\u0004\u0002+,67\u0004",
+    "\u0002\'\'))\u0003\u0002\u0003\u0005\u0003\u0002\u001b\u001c\u0003\u0002",
+    "\u001d\u001e\u0002p\u0002\u000e\u0003\u0002\u0002\u0002\u0004?\u0003",
+    "\u0002\u0002\u0002\u0006Z\u0003\u0002\u0002\u0002\b\\\u0003\u0002\u0002",
+    "\u0002\n^\u0003\u0002\u0002\u0002\f`\u0003\u0002\u0002\u0002\u000e\u000f",
+    "\u0005\u0004\u0003\u0002\u000f\u0010\u0007\u0002\u0002\u0003\u0010\u0003",
+    "\u0003\u0002\u0002\u0002\u0011\u0012\b\u0003\u0001\u0002\u0012@\u0007",
+    "\u001b\u0002\u0002\u0013@\u0007\u001c\u0002\u0002\u0014@\u0007\u0018",
+    "\u0002\u0002\u0015@\u0007\u0017\u0002\u0002\u0016@\t\u0002\u0002\u0002",
+    "\u0017\u0018\u0005\u0006\u0004\u0002\u0018\u0019\u0005\u0004\u0003\u000f",
+    "\u0019@\u0003\u0002\u0002\u0002\u001a\u001b\u0007\u0011\u0002\u0002",
+    "\u001b\u001c\u0005\u0004\u0003\u0002\u001c\u001d\u0007\u0012\u0002\u0002",
+    "\u001d@\u0003\u0002\u0002\u0002\u001e\u001f\u0007\b\u0002\u0002\u001f",
+    " \u0007\u0011\u0002\u0002 !\u0005\n\u0006\u0002!\"\u0007\u0012\u0002",
+    "\u0002\"@\u0003\u0002\u0002\u0002#$\u0007\t\u0002\u0002$%\u0007\u0011",
+    "\u0002\u0002%&\u0007\u0018\u0002\u0002&@\u0007\u0012\u0002\u0002\'(",
+    "\u0007\n\u0002\u0002()\u0007\u0011\u0002\u0002)*\u0005\n\u0006\u0002",
+    "*,\u0007\u000b\u0002\u0002+-\u0007\u0005\u0002\u0002,+\u0003\u0002\u0002",
+    "\u0002,-\u0003\u0002\u0002\u0002-.\u0003\u0002\u0002\u0002./\u0005\n",
+    "\u0006\u0002/0\u0007\u0012\u0002\u00020@\u0003\u0002\u0002\u000212\u0005",
+    "\b\u0005\u00022;\u0007\u0011\u0002\u000238\u0005\u0004\u0003\u00024",
+    "5\u0007\u000b\u0002\u000257\u0005\u0004\u0003\u000264\u0003\u0002\u0002",
+    "\u00027:\u0003\u0002\u0002\u000286\u0003\u0002\u0002\u000289\u0003\u0002",
+    "\u0002\u00029<\u0003\u0002\u0002\u0002:8\u0003\u0002\u0002\u0002;3\u0003",
+    "\u0002\u0002\u0002;<\u0003\u0002\u0002\u0002<=\u0003\u0002\u0002\u0002",
+    "=>\u0007\u0012\u0002\u0002>@\u0003\u0002\u0002\u0002?\u0011\u0003\u0002",
+    "\u0002\u0002?\u0013\u0003\u0002\u0002\u0002?\u0014\u0003\u0002\u0002",
+    "\u0002?\u0015\u0003\u0002\u0002\u0002?\u0016\u0003\u0002\u0002\u0002",
+    "?\u0017\u0003\u0002\u0002\u0002?\u001a\u0003\u0002\u0002\u0002?\u001e",
+    "\u0003\u0002\u0002\u0002?#\u0003\u0002\u0002\u0002?\'\u0003\u0002\u0002",
+    "\u0002?1\u0003\u0002\u0002\u0002@W\u0003\u0002\u0002\u0002AB\f\f\u0002",
+    "\u0002BC\t\u0003\u0002\u0002CV\u0005\u0004\u0003\rDE\f\u000b\u0002\u0002",
+    "EF\t\u0004\u0002\u0002FV\u0005\u0004\u0003\fGH\f\n\u0002\u0002HI\t\u0005",
+    "\u0002\u0002IV\u0005\u0004\u0003\u000bJK\f\t\u0002\u0002KL\t\u0006\u0002",
+    "\u0002LV\u0005\u0004\u0003\nMN\f\b\u0002\u0002NO\u0007 \u0002\u0002",
+    "OV\u0005\u0004\u0003\tPQ\f\u0007\u0002\u0002QR\u0007B\u0002\u0002RV",
+    "\u0005\u0004\u0003\bST\f\u000e\u0002\u0002TV\u0005\u0006\u0004\u0002",
+    "UA\u0003\u0002\u0002\u0002UD\u0003\u0002\u0002\u0002UG\u0003\u0002\u0002",
+    "\u0002UJ\u0003\u0002\u0002\u0002UM\u0003\u0002\u0002\u0002UP\u0003\u0002",
+    "\u0002\u0002US\u0003\u0002\u0002\u0002VY\u0003\u0002\u0002\u0002WU\u0003",
+    "\u0002\u0002\u0002WX\u0003\u0002\u0002\u0002X\u0005\u0003\u0002\u0002",
+    "\u0002YW\u0003\u0002\u0002\u0002Z[\t\u0007\u0002\u0002[\u0007\u0003",
+    "\u0002\u0002\u0002\\]\u0005\f\u0007\u0002]\t\u0003\u0002\u0002\u0002",
+    "^_\t\b\u0002\u0002_\u000b\u0003\u0002\u0002\u0002`a\t\t\u0002\u0002",
+    "a\r\u0003\u0002\u0002\u0002\b,8;?UW"].join("");
 
 
 const atn = new antlr4.atn.ATNDeserializer().deserialize(serializedATN);
@@ -138,17 +140,19 @@ export default class BaserowFormula extends antlr4.Parser {
     expr_sempred(localctx, predIndex) {
     	switch(predIndex) {
     		case 0:
-    			return this.precpred(this._ctx, 9);
+    			return this.precpred(this._ctx, 10);
     		case 1:
-    			return this.precpred(this._ctx, 8);
+    			return this.precpred(this._ctx, 9);
     		case 2:
-    			return this.precpred(this._ctx, 7);
+    			return this.precpred(this._ctx, 8);
     		case 3:
-    			return this.precpred(this._ctx, 6);
+    			return this.precpred(this._ctx, 7);
     		case 4:
-    			return this.precpred(this._ctx, 5);
+    			return this.precpred(this._ctx, 6);
     		case 5:
-    			return this.precpred(this._ctx, 11);
+    			return this.precpred(this._ctx, 5);
+    		case 6:
+    			return this.precpred(this._ctx, 12);
     		default:
     			throw "No predicate with index:" + predIndex;
     	}
@@ -250,7 +254,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	            this.state = 21;
 	            this.ws_or_comment();
 	            this.state = 22;
-	            this.expr(12);
+	            this.expr(13);
 	            break;
 	        case BaserowFormula.OPEN_PAREN:
 	            localctx = new BracketsContext(this, localctx);
@@ -350,7 +354,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	            throw new antlr4.error.NoViableAltException(this);
 	        }
 	        this._ctx.stop = this._input.LT(-1);
-	        this.state = 82;
+	        this.state = 85;
 	        this._errHandler.sync(this);
 	        let _alt = this._interp.adaptivePredict(this._input,5,this._ctx)
 	        while(_alt!=2 && _alt!=antlr4.atn.ATN.INVALID_ALT_NUMBER) {
@@ -359,7 +363,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	                    this.triggerExitRuleEvent();
 	                }
 	                _prevctx = localctx;
-	                this.state = 80;
+	                this.state = 83;
 	                this._errHandler.sync(this);
 	                var la_ = this._interp.adaptivePredict(this._input,4,this._ctx);
 	                switch(la_) {
@@ -367,8 +371,8 @@ export default class BaserowFormula extends antlr4.Parser {
 	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
 	                    this.state = 63;
-	                    if (!( this.precpred(this._ctx, 9))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 9)");
+	                    if (!( this.precpred(this._ctx, 10))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 10)");
 	                    }
 	                    this.state = 64;
 	                    localctx.op = this._input.LT(1);
@@ -381,15 +385,15 @@ export default class BaserowFormula extends antlr4.Parser {
 	                        this.consume();
 	                    }
 	                    this.state = 65;
-	                    this.expr(10);
+	                    this.expr(11);
 	                    break;
 
 	                case 2:
 	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
 	                    this.state = 66;
-	                    if (!( this.precpred(this._ctx, 8))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 8)");
+	                    if (!( this.precpred(this._ctx, 9))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 9)");
 	                    }
 	                    this.state = 67;
 	                    localctx.op = this._input.LT(1);
@@ -402,38 +406,17 @@ export default class BaserowFormula extends antlr4.Parser {
 	                        this.consume();
 	                    }
 	                    this.state = 68;
-	                    this.expr(9);
+	                    this.expr(10);
 	                    break;
 
 	                case 3:
 	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
 	                    this.state = 69;
-	                    if (!( this.precpred(this._ctx, 7))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 7)");
+	                    if (!( this.precpred(this._ctx, 8))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 8)");
 	                    }
 	                    this.state = 70;
-	                    localctx.op = this._input.LT(1);
-	                    _la = this._input.LA(1);
-	                    if(!(_la===BaserowFormula.AMP_AMP || _la===BaserowFormula.PIPE_PIPE)) {
-	                        localctx.op = this._errHandler.recoverInline(this);
-	                    }
-	                    else {
-	                    	this._errHandler.reportMatch(this);
-	                        this.consume();
-	                    }
-	                    this.state = 71;
-	                    this.expr(8);
-	                    break;
-
-	                case 4:
-	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
-	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
-	                    this.state = 72;
-	                    if (!( this.precpred(this._ctx, 6))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 6)");
-	                    }
-	                    this.state = 73;
 	                    localctx.op = this._input.LT(1);
 	                    _la = this._input.LA(1);
 	                    if(!(((((_la - 41)) & ~0x1f) == 0 && ((1 << (_la - 41)) & ((1 << (BaserowFormula.GT - 41)) | (1 << (BaserowFormula.GTE - 41)) | (1 << (BaserowFormula.LT - 41)) | (1 << (BaserowFormula.LTE - 41)))) !== 0))) {
@@ -443,18 +426,18 @@ export default class BaserowFormula extends antlr4.Parser {
 	                    	this._errHandler.reportMatch(this);
 	                        this.consume();
 	                    }
-	                    this.state = 74;
-	                    this.expr(7);
+	                    this.state = 71;
+	                    this.expr(9);
 	                    break;
 
-	                case 5:
+	                case 4:
 	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
-	                    this.state = 75;
-	                    if (!( this.precpred(this._ctx, 5))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 5)");
+	                    this.state = 72;
+	                    if (!( this.precpred(this._ctx, 7))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 7)");
 	                    }
-	                    this.state = 76;
+	                    this.state = 73;
 	                    localctx.op = this._input.LT(1);
 	                    _la = this._input.LA(1);
 	                    if(!(_la===BaserowFormula.BANG_EQUAL || _la===BaserowFormula.EQUAL)) {
@@ -464,24 +447,50 @@ export default class BaserowFormula extends antlr4.Parser {
 	                    	this._errHandler.reportMatch(this);
 	                        this.consume();
 	                    }
+	                    this.state = 74;
+	                    this.expr(8);
+	                    break;
+
+	                case 5:
+	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
+	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
+	                    this.state = 75;
+	                    if (!( this.precpred(this._ctx, 6))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 6)");
+	                    }
+	                    this.state = 76;
+	                    localctx.op = this.match(BaserowFormula.AMP_AMP);
 	                    this.state = 77;
-	                    this.expr(6);
+	                    this.expr(7);
 	                    break;
 
 	                case 6:
-	                    localctx = new RightWhitespaceOrCommentsContext(this, new ExprContext(this, _parentctx, _parentState));
+	                    localctx = new BinaryOpContext(this, new ExprContext(this, _parentctx, _parentState));
 	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
 	                    this.state = 78;
-	                    if (!( this.precpred(this._ctx, 11))) {
-	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 11)");
+	                    if (!( this.precpred(this._ctx, 5))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 5)");
 	                    }
 	                    this.state = 79;
+	                    localctx.op = this.match(BaserowFormula.PIPE_PIPE);
+	                    this.state = 80;
+	                    this.expr(6);
+	                    break;
+
+	                case 7:
+	                    localctx = new RightWhitespaceOrCommentsContext(this, new ExprContext(this, _parentctx, _parentState));
+	                    this.pushNewRecursionContext(localctx, _startState, BaserowFormula.RULE_expr);
+	                    this.state = 81;
+	                    if (!( this.precpred(this._ctx, 12))) {
+	                        throw new antlr4.error.FailedPredicateException(this, "this.precpred(this._ctx, 12)");
+	                    }
+	                    this.state = 82;
 	                    this.ws_or_comment();
 	                    break;
 
 	                } 
 	            }
-	            this.state = 84;
+	            this.state = 87;
 	            this._errHandler.sync(this);
 	            _alt = this._interp.adaptivePredict(this._input,5,this._ctx);
 	        }
@@ -508,7 +517,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	    var _la = 0; // Token type
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 85;
+	        this.state = 88;
 	        _la = this._input.LA(1);
 	        if(!((((_la) & ~0x1f) == 0 && ((1 << _la) & ((1 << BaserowFormula.BLOCK_COMMENT) | (1 << BaserowFormula.LINE_COMMENT) | (1 << BaserowFormula.WHITESPACE))) !== 0))) {
 	        this._errHandler.recoverInline(this);
@@ -538,7 +547,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	    this.enterRule(localctx, 6, BaserowFormula.RULE_func_name);
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 87;
+	        this.state = 90;
 	        this.identifier();
 	    } catch (re) {
 	    	if(re instanceof antlr4.error.RecognitionException) {
@@ -562,7 +571,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	    var _la = 0; // Token type
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 89;
+	        this.state = 92;
 	        _la = this._input.LA(1);
 	        if(!(_la===BaserowFormula.SINGLEQ_STRING_LITERAL || _la===BaserowFormula.DOUBLEQ_STRING_LITERAL)) {
 	        this._errHandler.recoverInline(this);
@@ -593,7 +602,7 @@ export default class BaserowFormula extends antlr4.Parser {
 	    var _la = 0; // Token type
 	    try {
 	        this.enterOuterAlt(localctx, 1);
-	        this.state = 91;
+	        this.state = 94;
 	        _la = this._input.LA(1);
 	        if(!(_la===BaserowFormula.IDENTIFIER || _la===BaserowFormula.IDENTIFIER_UNICODE)) {
 	        this._errHandler.recoverInline(this);
@@ -1318,14 +1327,6 @@ class BinaryOpContext extends ExprContext {
 	    return this.getToken(BaserowFormula.MINUS, 0);
 	};
 
-	AMP_AMP() {
-	    return this.getToken(BaserowFormula.AMP_AMP, 0);
-	};
-
-	PIPE_PIPE() {
-	    return this.getToken(BaserowFormula.PIPE_PIPE, 0);
-	};
-
 	GT() {
 	    return this.getToken(BaserowFormula.GT, 0);
 	};
@@ -1348,6 +1349,14 @@ class BinaryOpContext extends ExprContext {
 
 	BANG_EQUAL() {
 	    return this.getToken(BaserowFormula.BANG_EQUAL, 0);
+	};
+
+	AMP_AMP() {
+	    return this.getToken(BaserowFormula.AMP_AMP, 0);
+	};
+
+	PIPE_PIPE() {
+	    return this.getToken(BaserowFormula.PIPE_PIPE, 0);
 	};
 
 	enterRule(listener) {

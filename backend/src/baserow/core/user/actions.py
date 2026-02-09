@@ -502,3 +502,94 @@ class VerifyEmailAddressActionType(ActionType):
     @classmethod
     def scope(cls) -> ActionScopeStr:
         return RootActionScopeType.value()
+
+
+class SendChangeEmailConfirmationActionType(ActionType):
+    type = "send_change_email_confirmation"
+    description = ActionTypeDescription(
+        _("Send change email confirmation"),
+        _(
+            'User "%(user_email)s" (%(user_id)s) requested to change email to '
+            '"%(new_email)s"'
+        ),
+    )
+    analytics_params = [
+        "user_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        user_id: int
+        user_email: str
+        new_email: str
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, new_email: str, password: str, base_url: str
+    ) -> AbstractUser:
+        """
+        Send a change email confirmation email to the new email address.
+
+        :param user: The user that requested the email change.
+        :param new_email: The new email address.
+        :param password: The current password for verification.
+        :param base_url: The base URL for the confirmation link.
+        """
+
+        UserHandler().send_change_email_confirmation(
+            user, new_email, password, base_url
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(user.id, user.email, new_email),
+            scope=cls.scope(),
+        )
+        return user
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class ChangeEmailActionType(ActionType):
+    type = "change_email"
+    description = ActionTypeDescription(
+        _("Change email"),
+        _(
+            'User "%(old_email)s" (%(user_id)s) changed email to "%(new_email)s" by '
+            "using the token."
+        ),
+    )
+    analytics_params = [
+        "user_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        user_id: int
+        old_email: str
+        new_email: str
+
+    @classmethod
+    def do(cls, token: str) -> AbstractUser:
+        """
+        Change the user's email address if the provided confirmation token is valid.
+
+        :param token: The confirmation token to check whether it's valid.
+        :return: The updated user object.
+        """
+
+        handler = UserHandler()
+        user, old_email = handler.change_email(token)
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(user.id, old_email, user.email),
+            scope=cls.scope(),
+        )
+        return user
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()

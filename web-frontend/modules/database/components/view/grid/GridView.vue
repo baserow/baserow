@@ -32,11 +32,16 @@
       :include-group-by="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :store-prefix="storePrefix"
       :style="{ width: leftWidth + 'px' }"
@@ -116,11 +121,16 @@
       :can-order-fields="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :store-prefix="storePrefix"
       :style="{ left: leftWidth + 'px' }"
@@ -155,7 +165,7 @@
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
       :offset="activeGroupByWidth"
-      vertical="getVerticalScrollbarElement"
+      :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
     <Context ref="rowContext" overflow-scroll max-height-if-outside-viewport>
@@ -192,11 +202,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -224,11 +239,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -244,11 +264,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -264,11 +289,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -305,11 +335,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item context__menu-item--with-separator"
         >
@@ -333,19 +368,29 @@
       :can-modify-fields="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :enable-navigation="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @toggle-hidden-fields-visibility="
@@ -427,6 +472,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   data() {
     return {
       lastHoveredRow: null,
@@ -445,6 +491,7 @@ export default {
       // Set to true when the row is being refreshed to avoid multiple fields
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
+      resizeObserver: null,
     }
   },
   computed: {
@@ -517,6 +564,14 @@ export default {
         `${this.storePrefix}view/grid/getActiveSearchTerm`
       ]
     },
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
+    },
+    isMultiSelectActive() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/isMultiSelectActive'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -575,7 +630,7 @@ export default {
       this.$emit('refresh')
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -584,7 +639,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/isMultiSelectActive',
       }),
     }
-  },
+  },*/
   created() {
     // When the grid view is created we want to update the scrollbars.
     this.fieldsUpdated()
@@ -593,8 +648,8 @@ export default {
     this.$bus.$on('field-deleted', this.fieldDeleted)
   },
   mounted() {
-    this.$el.resizeObserver = new ResizeObserver(this.onWindowResize)
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver = new ResizeObserver(this.onWindowResize)
+    this.resizeObserver.observe(this.$el)
     window.addEventListener('keydown', this.keyDownEvent)
     window.addEventListener('copy', this.copySelection)
     window.addEventListener('paste', this.pasteFromMultipleCellSelection)
@@ -614,8 +669,10 @@ export default {
       this.populateAndEditRow(this.row)
     }
   },
-  beforeDestroy() {
-    this.$el.resizeObserver.unobserve(this.$el)
+  beforeUnmount() {
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(this.$el)
+    }
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)
     window.removeEventListener('paste', this.pasteFromMultipleCellSelection)
@@ -725,15 +782,15 @@ export default {
     },
     copyLinkToSelectedRow(event, selectedRow) {
       const url =
-        this.$config.BASEROW_EMBEDDED_SHARE_URL +
+        this.$config.public.baserowEmbeddedShareUrl +
         this.$router.resolve({
           name: 'database-table-row',
           params: { ...this.$route.params, rowId: selectedRow.id },
         }).href
       copyToClipboard(url)
       this.$store.dispatch('toast/info', {
-        title: this.$i18n.t('gridView.copiedRowURL'),
-        message: this.$i18n.t('gridView.copiedRowURLMessage', {
+        title: this.$t('gridView.copiedRowURL'),
+        message: this.$t('gridView.copiedRowURLMessage', {
           id: selectedRow.id,
         }),
       })
@@ -1251,7 +1308,7 @@ export default {
       // being sorted, and this will only be the case after a refresh.
       await this.$store.dispatch(
         this.storePrefix + 'view/grid/updateActiveGroupBys',
-        clone(this.view.group_bys)
+        clone(this.view.group_bys || [])
       )
       this.$nextTick(() => {
         this.fieldsUpdated()
@@ -1518,18 +1575,23 @@ export default {
         textData.length === 0 ||
         textData[0].length === 0 ||
         this.readOnly ||
-        !this.$hasPermission(
+        (!this.$hasPermission(
           'database.table.update_row',
           this.table,
           this.database.workspace.id
-        )
+        ) &&
+          !this.$hasPermission(
+            'database.table.view.update_row',
+            this.view,
+            this.database.workspace.id
+          ))
       ) {
         return
       }
 
       // The backend will fail hard if it tries to update more rows than the limit, so
       // we're slicing the data here.
-      const pageSizeLimit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+      const pageSizeLimit = this.$config.public.baserowRowPageSizeLimit
       if (textData.length > pageSizeLimit) {
         this.$store.dispatch('toast/info', {
           title: this.$t('gridView.tooManyItemsTitle'),

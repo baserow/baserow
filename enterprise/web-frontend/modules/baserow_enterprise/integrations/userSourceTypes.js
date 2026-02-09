@@ -1,7 +1,7 @@
 import { UserSourceType } from '@baserow/modules/core/userSourceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import LocalBaserowUserSourceForm from '@baserow_enterprise/integrations/localBaserow/components/userSources/LocalBaserowUserSourceForm'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import moment from '@baserow/modules/core/moment'
 
 import {
@@ -27,7 +27,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   get name() {
-    return this.app.i18n.t('userSourceType.localBaserow')
+    return this.app.$i18n.t('userSourceType.localBaserow')
   }
 
   get image() {
@@ -67,6 +67,15 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   /**
+   * The Local Baserow user source will only work on tables which are not data-synced.
+   * @param {Array} tables - The array of tables to filter.
+   * @returns {Array} - The supported tables.
+   */
+  supportedTables(tables) {
+    return tables.filter((table) => !table.is_data_sync)
+  }
+
+  /**
    * Returns the allowed field type list for the role field.
    * It's defined here so that it can be changed by a plugin.
    *
@@ -82,15 +91,15 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   getSummary(userSource) {
-    const application = this.app.store.getters['application/get'](
+    const application = this.app.$store.getters['application/get'](
       userSource.application_id
     )
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](application, userSource.integration_id)
 
     if (!integration) {
-      return this.app.i18n.t('localBaserowUserSourceType.notConfigured')
+      return this.app.$i18n.t('localBaserowUserSourceType.notConfigured')
     }
 
     const databases = integration.context_data?.databases
@@ -101,7 +110,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
       .find(({ id }) => id === userSource.table_id)
 
     if (!tableSelected) {
-      return `${integration.name} - ${this.app.i18n.t(
+      return `${integration.name} - ${this.app.$i18n.t(
         'localBaserowUserSourceType.notConfigured'
       )}`
     }
@@ -109,11 +118,11 @@ export class LocalBaserowUserSourceType extends UserSourceType {
     const summaryParts = [integration.name, tableSelected.name]
     if (!userSource.email_field_id || !userSource.name_field_id) {
       summaryParts.push(
-        this.app.i18n.t('localBaserowUserSourceType.notConfigured')
+        this.app.$i18n.t('localBaserowUserSourceType.notConfigured')
       )
     } else if (userSource.user_count_updated_at !== null) {
       summaryParts.push(
-        this.app.i18n.t('userSourceType.userCountSummary', {
+        this.app.$i18n.t('userSourceType.userCountSummary', {
           count: userSource.user_count,
           lastUpdated: moment.utc(userSource.user_count_updated_at).fromNow(),
         })

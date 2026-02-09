@@ -125,9 +125,9 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
 
             query_params = data.get("saml_request_data", {})
             # Add the refresh token as query parameter
-            query_params[
-                f"user_source_saml_token__{user.user_source.id}"
-            ] = user.get_refresh_token()
+            query_params[f"user_source_saml_token__{user.user_source.id}"] = (
+                user.get_refresh_token()
+            )
 
             # Otherwise it's a success, we redirect to the login page
             redirect_url = get_valid_frontend_url(

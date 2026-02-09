@@ -709,3 +709,24 @@ def test_delete_shared_page(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_SHARED_PAGE_READ_ONLY"
+
+
+@pytest.mark.django_db
+def test_rename_page_using_existing_page_name(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    page_1 = data_fixture.create_builder_page(builder=builder, order=1, name="test1")
+    page_2 = data_fixture.create_builder_page(builder=builder, order=1, name="test2")
+
+    url = reverse("api:builder:pages:item", kwargs={"page_id": page_2.id})
+    response = api_client.patch(
+        url,
+        {
+            "name": page_1.name,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"

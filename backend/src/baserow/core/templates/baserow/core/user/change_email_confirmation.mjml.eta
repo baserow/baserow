@@ -1,0 +1,35 @@
+<% layout("../../base.layout.eta") %>
+
+<mj-section>
+  <mj-column>
+    <mj-text mj-class="title">{% trans "Confirm email address change" %}</mj-text>
+    <mj-text mj-class="text">
+      {% blocktrans trimmed with user.username as old_email and new_email as new_email and baserow_embedded_share_hostname as baserow_embedded_share_hostname %}
+        A request was made to change the email address for your Baserow account from
+        {{ old_email }} to {{ new_email }} on Baserow ({{ baserow_embedded_share_hostname }}).
+        If you did not authorize this, you may simply ignore this email.
+      {% endblocktrans %}
+    </mj-text>
+    <mj-text mj-class="text" padding-bottom="20px">
+      {% blocktrans trimmed with expire_hours|floatformat:"0" as hours %}
+        To confirm your email address change, simply click the button below.
+        This link will expire in {{ hours }} hours.
+      {% endblocktrans %}
+    </mj-text>
+    <mj-button mj-class="button" href="{{ confirmation_url }}">
+      {% trans "Confirm email change" %}
+    </mj-button>
+    <mj-text mj-class="button-url">
+      {{ confirmation_url }}
+    </mj-text>
+    <mj-raw><!-- htmlmin:ignore -->{% if show_baserow_description %}<!-- htmlmin:ignore --></mj-raw>
+      <mj-text mj-class="text">
+        {% blocktrans trimmed %}
+          Baserow is an open source no-code database tool which allows you to collaborate
+          on projects, customers and more. It gives you the powers of a developer without
+          leaving your browser.
+        {% endblocktrans %}
+      </mj-text>
+    <mj-raw><!-- htmlmin:ignore -->{% endif %}<!-- htmlmin:ignore --></mj-raw>
+  </mj-column>
+</mj-section>

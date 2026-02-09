@@ -229,7 +229,7 @@
         "title": "Dashboard",
         "alertTitle": "Aiutaci!",
         "alertText": "Il tuo feedback è importante per noi, per aiutarci a migliorare il prodotto e a renderlo migliore.",
-        "tweetContent": "Dai un'occhiata a @baserow, uno strumento di database open source senza codice e un'alternativa a Airtable!",
+        "tweetContent": "Dai un'occhiata a {'@'}baserow, uno strumento di database open source senza codice e un'alternativa a Airtable!",
         "redditTitle": "Baserow - Un database open source senza codice",
         "noWorkspaceTitle": "Nessun progetto",
         "noWorkspaceText": "Non sei membro di nessun progetto. Applicazioni come i database appartengono a un progetto, quindi per crearli devi creare un progetto.",
@@ -372,7 +372,7 @@
             "format": {
                 "title": "Formato",
                 "description": "Il formato da usare è il seguente:",
-                "codeSnippet": "?prefill_<nome_campo>=<valore>"
+                "codeSnippet": "?prefill_&lt;nome_campo&gt;=&lt;valore&gt;"
             },
             "example": {
                 "title": "Esempio",

@@ -8,10 +8,13 @@ const groupGetNameCalls = callGrouper(GRACE_DELAY)
 
 export default (client) => {
   return {
-    get(tableId, rowId, includeMetadata = true) {
+    get(tableId, rowId, includeMetadata = true, viewId = null) {
       const searchParams = {}
       if (includeMetadata) {
         searchParams.include = 'metadata'
+      }
+      if (viewId !== null) {
+        searchParams.view_id = viewId
       }
       const params = new URLSearchParams(searchParams).toString()
       return client.get(`/database/rows/table/${tableId}/${rowId}/?${params}`)
@@ -72,21 +75,35 @@ export default (client) => {
     getIds(tableId, rowNames) {
       return Promise.all(rowNames.map((name) => this.getId(tableId, name)))
     },
-    create(tableId, values, beforeId = null) {
+    create(tableId, values, beforeId = null, viewId = null) {
       const config = { params: {} }
 
       if (beforeId !== null) {
         config.params.before = beforeId
       }
 
+      if (viewId !== null) {
+        config.params.view = viewId
+      }
+
       return client.post(`/database/rows/table/${tableId}/`, values, config)
     },
-    batchCreate(tableId, rows, beforeId = null, undoRedoActionGroupId = null) {
+    batchCreate(
+      tableId,
+      rows,
+      beforeId = null,
+      undoRedoActionGroupId = null,
+      viewId = null
+    ) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
       config.params = { include_metadata: true }
 
       if (beforeId !== null) {
         config.params.before = beforeId
+      }
+
+      if (viewId !== null) {
+        config.params.view = viewId
       }
 
       return client.post(
@@ -95,12 +112,27 @@ export default (client) => {
         config
       )
     },
-    update(tableId, rowId, values) {
-      return client.patch(`/database/rows/table/${tableId}/${rowId}/`, values)
+    update(tableId, rowId, values, viewId = null) {
+      const config = { params: {} }
+
+      if (viewId !== null) {
+        config.params.view = viewId
+      }
+
+      return client.patch(
+        `/database/rows/table/${tableId}/${rowId}/`,
+        values,
+        config
+      )
     },
-    batchUpdate(tableId, items, undoRedoActionGroupId = null) {
+    batchUpdate(tableId, items, undoRedoActionGroupId = null, viewId = null) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
       config.params.include_metadata = true
+
+      if (viewId !== null) {
+        config.params.view = viewId
+      }
+
       return client.patch(
         `/database/rows/table/${tableId}/batch/`,
         { items },
@@ -125,13 +157,29 @@ export default (client) => {
         config
       )
     },
-    delete(tableId, rowId) {
-      return client.delete(`/database/rows/table/${tableId}/${rowId}/`)
+    delete(tableId, rowId, viewId) {
+      const config = { params: {} }
+
+      if (viewId !== null) {
+        config.params.view = viewId
+      }
+
+      return client.delete(`/database/rows/table/${tableId}/${rowId}/`, config)
     },
-    batchDelete(tableId, items) {
-      return client.post(`/database/rows/table/${tableId}/batch-delete/`, {
-        items,
-      })
+    batchDelete(tableId, items, viewId = null) {
+      const config = { params: {} }
+
+      if (viewId !== null) {
+        config.params.view = viewId
+      }
+
+      return client.post(
+        `/database/rows/table/${tableId}/batch-delete/`,
+        {
+          items,
+        },
+        config
+      )
     },
     getAdjacent({
       tableId,

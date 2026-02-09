@@ -1,6 +1,5 @@
-from baserow_premium.prompts import get_formula_docs
-
 from baserow.contrib.database.formula.registries import formula_function_registry
+from baserow_premium.prompts import get_formula_docs
 
 
 def test_if_prompt_contains_all_formula_functions():

@@ -13,12 +13,6 @@ from django.db import DatabaseError, transaction
 from django.db.models import Q
 
 import requests
-from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
-from baserow_premium.license.exceptions import (
-    CantManuallyChangeSeatsError,
-    InvalidLicenseError,
-)
-from baserow_premium.license.models import License
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -35,6 +29,12 @@ from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.utils import get_baserow_saas_base_url
 from baserow.ws.signals import broadcast_to_users
+from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
+from baserow_premium.license.exceptions import (
+    CantManuallyChangeSeatsError,
+    InvalidLicenseError,
+)
+from baserow_premium.license.models import License
 
 from .constants import (
     AUTHORITY_RESPONSE_DOES_NOT_EXIST,

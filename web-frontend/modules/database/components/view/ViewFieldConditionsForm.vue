@@ -18,7 +18,7 @@
           :index="index"
           :filter-type="filterType"
           :disable-filter="disableFilter"
-          @updateFilterType="$emit('updateFilterType', { value: $event })"
+          @update-filter-type="$emit('updateFilterType', { value: $event })"
         />
 
         <ViewFieldConditionItem
@@ -30,8 +30,8 @@
           :disable-filter="disableFilter"
           :read-only="readOnly"
           :placeholder="placeholder"
-          @updateFilter="updateFilter({ filter, values: $event })"
-          @deleteFilter="deleteFilter({ filter, event: $event })"
+          @update-filter="updateFilter({ filter, values: $event })"
+          @delete-filter="deleteFilter({ filter, event: $event })"
         >
           <template #filterInputComponent="{ slotProps }">
             <slot name="filterInputComponent" :slot-props="slotProps"></slot>
@@ -51,7 +51,7 @@
         :index="filtersTree.filters.length + groupIndex"
         :filter-type="filterType"
         :disable-filter="disableFilter"
-        @updateFilterType="$emit('updateFilterType', { value: $event })"
+        @update-filter-type="$emit('updateFilterType', { value: $event })"
       />
       <ViewFieldConditionGroup
         :group-node="groupNode"
@@ -63,11 +63,11 @@
         :can-add-filter-groups="canAddFilterGroups"
         :add-condition-string="addConditionString"
         :add-condition-group-string="addConditionGroupString"
-        @addFilter="$emit('addFilter', $event)"
-        @addFilterGroup="$emit('addFilterGroup', $event)"
-        @updateFilter="updateFilter($event)"
-        @deleteFilter="deleteFilter($event)"
-        @updateFilterType="$emit('updateFilterType', $event)"
+        @add-filter="$emit('addFilter', $event)"
+        @add-filter-group="$emit('addFilterGroup', $event)"
+        @update-filter="updateFilter($event)"
+        @delete-filter="deleteFilter($event)"
+        @update-filter-type="$emit('updateFilterType', $event)"
       >
       </ViewFieldConditionGroup>
     </div>
@@ -232,6 +232,15 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'updateFilterType',
+    'addFilter',
+    'addFilterGroup',
+    'filterFocused',
+    'deleteFilterGroup',
+    'deleteFilter',
+    'updateFilter',
+  ],
   data() {
     return {
       groups: {},

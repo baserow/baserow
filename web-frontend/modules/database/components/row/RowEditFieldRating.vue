@@ -21,6 +21,7 @@ import Rating from '@baserow/modules/database/components/Rating'
 export default {
   components: { Rating },
   mixins: [rowEditField],
+  emits: ['update'],
   methods: {
     update(newValue) {
       this.$emit('update', newValue, this.value)

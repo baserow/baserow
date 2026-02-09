@@ -17,7 +17,10 @@
   transform: translateY(0) translateX(0);
   top: 0;
   left: 0;
-  transition: top 0.1s ease, left 0.1s ease, transform 0.1s ease,
+  transition:
+    top 0.1s ease,
+    left 0.1s ease,
+    transform 0.1s ease,
     position 0.1s ease;
 
   @include absolute(0, 0, auto, auto);
@@ -85,7 +88,7 @@
       left: 12px;
       top: -6px;
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200 transparent;
+      border-color: transparent transparent $palette-neutral-1200;
     }
   }
 
@@ -99,7 +102,7 @@
       right: 12px;
       top: -6px;
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200 transparent;
+      border-color: transparent transparent $palette-neutral-1200;
     }
   }
 
@@ -114,7 +117,7 @@
       top: -6px;
       transform: translateX(-50%);
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200 transparent;
+      border-color: transparent transparent $palette-neutral-1200;
     }
   }
 

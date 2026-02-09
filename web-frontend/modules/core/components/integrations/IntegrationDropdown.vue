@@ -88,6 +88,7 @@ export default {
       default: false,
     },
   },
+  emits: ['input'],
   watch: {
     integrations: {
       handler(newValue) {

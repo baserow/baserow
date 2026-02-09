@@ -73,9 +73,11 @@ class BaserowEnterpriseConfig(AppConfig):
             AssignRoleWorkspaceOperationType,
             ReadRoleApplicationOperationType,
             ReadRoleTableOperationType,
+            ReadRoleViewOperationType,
             ReadRoleWorkspaceOperationType,
             UpdateRoleApplicationOperationType,
             UpdateRoleTableOperationType,
+            UpdateRoleViewOperationType,
         )
         from .teams.subjects import TeamSubjectType
 
@@ -131,6 +133,8 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
         operation_type_registry.register(ChatAssistantChatOperationType())
+        operation_type_registry.register(ReadRoleViewOperationType())
+        operation_type_registry.register(UpdateRoleViewOperationType())
 
         from baserow.contrib.database.field_rules.registries import (
             field_rules_type_registry,
@@ -152,13 +156,12 @@ class BaserowEnterpriseConfig(AppConfig):
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
-        from baserow_premium.license.registries import license_type_registry
-
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,
             EnterpriseLicenseType,
             EnterpriseWithoutSupportLicenseType,
         )
+        from baserow_premium.license.registries import license_type_registry
 
         license_type_registry.register(AdvancedLicenseType())
         license_type_registry.register(EnterpriseWithoutSupportLicenseType())
@@ -347,17 +350,43 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
+        from baserow_enterprise.views.operations import (
+            ListenToAllRestrictedViewEventsOperationType,
+        )
+
+        operation_type_registry.register(ListenToAllRestrictedViewEventsOperationType())
+
+        from baserow.contrib.database.views.registries import (
+            view_ownership_type_registry,
+        )
+        from baserow.contrib.database.ws.views.rows.registries import (
+            view_realtime_rows_registry,
+        )
+        from baserow.core.feature_flags import feature_flag_is_enabled
+        from baserow.ws.registries import page_registry
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+        from baserow_enterprise.ws.pages import RestrictedViewPageType
+        from baserow_enterprise.ws.restricted_view.rows.view_realtime_rows import (
+            RestrictedViewRealtimeRowsType,
+        )
+
+        if feature_flag_is_enabled("view_permissions"):
+            view_ownership_type_registry.register(RestrictedViewOwnershipType())
+
+        page_registry.register(RestrictedViewPageType())
+        view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
-        import baserow_enterprise.assistant.tasks  # noqa: F
-        import baserow_enterprise.audit_log.signals  # noqa: F
-        import baserow_enterprise.ws.signals  # noqa: F
+        import baserow_enterprise.assistant.tasks  # noqa: F401
+        import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.ws.signals  # noqa: F401
 
 
 def sync_default_roles_after_migrate(sender, **kwargs):
     from baserow.core.db import LockedAtomicTransaction
 
-    from .role.default_roles import default_roles
+    from .role.default_roles import default_roles, hidden_roles
 
     apps = kwargs.get("apps", None)
 
@@ -379,6 +408,7 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                 for role_name, role_operations in tqdm(
                     default_roles.items(), desc="Syncing default roles"
                 ):
+                    is_hidden = role_name in hidden_roles
                     # Create any missing role or update existing ones
                     role = all_old_roles.get(role_name, None)
                     if role is None:
@@ -386,11 +416,17 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                             uid=role_name,
                             name=f"role.{role_name}",
                             default=True,
+                            hidden=is_hidden,
                         )
-                    elif not role.default or role.name != f"role.{role_name}":
+                    elif (
+                        not role.default
+                        or role.name != f"role.{role_name}"
+                        or role.hidden != is_hidden
+                    ):
                         role.name = f"role.{role_name}"
                         role.default = True
-                        role.save(update_fields=["name", "default"])
+                        role.hidden = is_hidden
+                        role.save(update_fields=["name", "default", "hidden"])
 
                     # Create any missing operations for the role
                     new_ops = Operation.objects.bulk_create(

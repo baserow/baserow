@@ -9,8 +9,8 @@ export class RealtimePushTwoWaySyncStrategyType extends TwoWaySyncStrategyType {
   }
 
   getDescription() {
-    const { i18n } = this.app
-    return i18n.t('enterpriseTwoWaySyncStrategyType.realtimePushDescription')
+    const { $i18n } = this.app
+    return $i18n.t('enterpriseTwoWaySyncStrategyType.realtimePushDescription')
   }
 
   isDeactivated(workspaceId) {

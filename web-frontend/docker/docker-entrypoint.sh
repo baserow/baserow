@@ -2,7 +2,7 @@
 # Bash strict mode: http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
-export BASEROW_VERSION="1.35.3"
+export BASEROW_VERSION="2.0.6"
 BASEROW_WEBFRONTEND_PORT="${BASEROW_WEBFRONTEND_PORT:-3000}"
 
 show_help() {
@@ -10,20 +10,21 @@ show_help() {
 The available Baserow web-frontend related commands and services are shown below:
 
 COMMANDS:
-nuxt-dev     : Start a normal nuxt development server
-nuxt         : Start a non-dev prod ready nuxt server
-nuxt-local   : Start a non-dev prod ready nuxt server using the preset local config
-storybook-dev: Start a storybook dev server
-bash         : Start a bash shell
-build-local  : Triggers a nuxt re-build of Baserow's web-frontend.
+nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
+nuxt-dev                : Start a normal nuxt development server
+nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
+storybook-dev           : Start a storybook dev server
+nuxt-prod               : Start a production nuxt server
+bash                    : Start a bash shell
+build                   : Triggers a nuxt re-build of Baserow's web-frontend.
 
 DEV COMMANDS:
-lint            : Run all the linting
-lint-fix        : Run eslint fix
-stylelint       : Run stylelint
+lint            : Run all linters (eslint, stylelint, prettier)
+lint-fix        : Run all linter fixes
 eslint          : Run eslint
-test            : Run jest tests
-ci-test         : Run ci tests with reporting
+stylelint       : Run stylelint
+test            : Run vitest tests
+ci-test         : Run tests with coverage reporting
 install-plugin  : Installs a plugin (append --help for more info).
 uninstall-plugin: Un-installs a plugin (append --help for more info).
 list-plugins    : Lists currently installed plugins.
@@ -78,52 +79,55 @@ case "$1" in
       startup_plugin_setup
       setup_additional_modules
       # Retry the command over and over to work around heap crash.
-      attachable_exec_retry yarn run dev
+      attachable_exec_retry yarn dev
     ;;
     nuxt-dev-no-attach)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn run dev
+      exec yarn dev
     ;;
-    nuxt)
+    nuxt-prod)
       startup_plugin_setup
       setup_additional_modules
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
+      export NITRO_HOST="${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}"
+      export NITRO_PORT="$BASEROW_WEBFRONTEND_PORT"
+      exec yarn prod "${@:2}"
     ;;
-    nuxt-local)
+    nuxt-prepare)
+      setup_additional_modules
+      exec ./node_modules/.bin/nuxt prepare "${@:2}"
+    ;;
+    nuxt-dev-with-storybook)
       startup_plugin_setup
       setup_additional_modules
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" --config-file ./config/nuxt.config.local.js "${@:2}"
-    ;;
-    storybook-dev)
-      startup_plugin_setup
-      setup_additional_modules
-      exec yarn run storybook
+      # Start Storybook in background and Nuxt in foreground
+      yarn storybook &
+      attachable_exec_retry yarn dev
     ;;
     lint)
-      exec make lint-javascript
+      exec yarn lint
     ;;
     lint-fix)
-      attachable_exec yarn run eslint --fix
+      attachable_exec yarn fix
     ;;
     eslint)
-      exec make eslint
+      exec yarn eslint
     ;;
     stylelint)
-      exec make eslint
+      exec yarn stylelint
     ;;
     test)
-      exec make jest
+      exec yarn test
     ;;
     ci-test)
-      exec make ci-test-javascript
+      exec yarn test:coverage
     ;;
     bash)
       exec /bin/bash -c "${@:2}"
     ;;
-    build-local)
+    build)
       setup_additional_modules
-      exec yarn run build-local
+      exec yarn build
     ;;
     install-plugin)
       exec /baserow/plugins/install_plugin.sh "${@:2}"

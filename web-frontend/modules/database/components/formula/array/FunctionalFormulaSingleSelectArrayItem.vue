@@ -1,15 +1,21 @@
-<template functional>
+<template>
   <div
-    v-if="props.value"
+    v-if="value"
     class="array-field__single-option"
-    :class="'background-color--' + props.value.color"
+    :class="'background-color--' + value.color"
   >
-    <div class="array-field__ellipsis">{{ props.value.value }}</div>
+    <div class="array-field__ellipsis">{{ value.value }}</div>
   </div>
 </template>
 
 <script>
 export default {
   name: 'FunctionalFormulaSingleSelectArrayItem',
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
 }
 </script>

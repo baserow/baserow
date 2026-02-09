@@ -299,6 +299,10 @@ def test_queued_notifications_are_not_visible_to_the_users(
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
+@pytest.mark.enable_signals(
+    "baserow.core.notifications.tasks.send_queued_notifications_to_users.delay",
+    "baserow.ws.tasks.broadcast_to_users.delay",
+)
 def test_queued_notifications_are_sent_grouped_by_user(
     mocked_broadcast_to_users,
     data_fixture,

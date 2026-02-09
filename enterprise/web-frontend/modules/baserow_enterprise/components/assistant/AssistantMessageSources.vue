@@ -57,6 +57,7 @@
 <script>
 export default {
   name: 'AssistantMessageSources',
+  emits: ['toggle'],
   props: {
     sources: {
       type: Array,

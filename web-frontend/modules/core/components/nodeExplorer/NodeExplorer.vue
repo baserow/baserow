@@ -11,7 +11,7 @@
           content-no-padding
           rounded
           full-height
-          @update:selectedIndex="resetSearch"
+          @update:selected-index="resetSearch"
         >
           <Tab
             v-for="hierarchyNode in filteredNodesHierarchy"
@@ -55,18 +55,24 @@
 import NodeExplorerTab from '@baserow/modules/core/components/nodeExplorer/NodeExplorerTab'
 
 import _ from 'lodash'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'NodeExplorer',
   components: {
     NodeExplorerTab,
   },
+  provide() {
+    return {
+      getFormulaMode: () => this.mode,
+    }
+  },
   props: {
     mode: {
       type: String,
       required: false,
       default: 'advanced',
-      validator: (value) => ['advanced', 'simple', 'raw'].includes(value),
+      validator: (value) => BASEROW_FORMULA_MODES.includes(value),
     },
     nodeSelected: {
       type: String,
@@ -89,6 +95,7 @@ export default {
       default: false,
     },
   },
+  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   data() {
     return {
       activeTabIndex: 0,

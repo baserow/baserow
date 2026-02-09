@@ -2,14 +2,14 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n path="invitationMessage" tag="p">
+      <i18n-t keypath="invitationMessage" tag="span">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>
         <template #workspace>
           <strong>{{ invitation.workspace }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </Alert>
     <Error :error="error"></Error>
     <form @submit.prevent="login">
@@ -43,8 +43,8 @@
 
         <template #error>
           <i class="iconoir-warning-triangle"></i>
-          {{ $t('error.invalidEmail') }}</template
-        >
+          {{ $t('error.invalidEmail') }}
+        </template>
       </FormGroup>
 
       <FormGroup
@@ -57,8 +57,8 @@
         <template v-if="displayForgotPassword" #after-label>
           <nuxt-link tabindex="3" :to="{ name: 'forgot-password' }">
             {{ $t('login.forgotPassword') }}
-          </nuxt-link></template
-        >
+          </nuxt-link>
+        </template>
         <FormInput
           ref="password"
           v-model="values.password"
@@ -100,7 +100,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'PasswordLogin',
-  mixins: [form, error],
+  mixins: [error],
   props: {
     invitation: {
       required: false,
@@ -113,6 +113,12 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'email-not-verified',
+    'success',
+    'two-factor-auth',
+    'invitation-accepted',
+  ],
   setup() {
     const values = reactive({
       values: {
@@ -144,9 +150,9 @@ export default {
     }
   },
   async mounted() {
-    if (!this.$config.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
-      const publicBackendUrl = new URL(this.$config.PUBLIC_BACKEND_URL)
-      if (publicBackendUrl.host !== window.location.host) {
+    if (!this.$config.public.baserowDisablePublicUrlCheck) {
+      const publicBackendUrl = new URL(this.$config.public.publicBackendUrl)
+      if (publicBackendUrl.hostname !== window.location.hostname) {
         // If the host of the browser location does not match the PUBLIC_BACKEND_URL
         // then we are probably mis-configured.
         try {
@@ -171,6 +177,15 @@ export default {
     }
   },
   methods: {
+    fieldHasErrors(fieldName) {
+      return this.v$.values[fieldName]?.$error || false
+    },
+    focusOnFirstError() {
+      const firstError = this.$el.querySelector('[data-form-error]')
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth' })
+      }
+    },
     async login() {
       this.v$.$touch()
       const formValid = await this.v$.$validate()
@@ -199,14 +214,19 @@ export default {
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
+        let acceptedWorkspace = null
         if (this.invitation?.email === this.values.email) {
-          await WorkspaceService(this.$client).acceptInvitation(
-            this.invitation.id
-          )
+          const { data: workspace } = await WorkspaceService(
+            this.$client
+          ).acceptInvitation(this.invitation.id)
+          acceptedWorkspace = workspace
         }
-
         this.$i18n.setLocale(data.language)
-        this.$emit('success')
+        if (acceptedWorkspace) {
+          this.$emit('invitation-accepted', acceptedWorkspace)
+        } else {
+          this.$emit('success')
+        }
       } catch (error) {
         if (error.handler) {
           const response = error.handler.response

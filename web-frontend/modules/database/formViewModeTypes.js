@@ -77,12 +77,12 @@ export class FormViewFormModeType extends FormViewModeType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formViewModeType.form')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formViewModeType.formDescription')
   }
 

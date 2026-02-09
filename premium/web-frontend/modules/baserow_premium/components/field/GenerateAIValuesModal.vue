@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal" @hidden="hideError">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('generateAIValuesModal.title', { name: field.name }) }}
@@ -26,6 +26,28 @@
       >
       </GenerateAIValuesFormFooter>
     </GenerateAIValuesForm>
+
+    <!-- Job List Section -->
+    <div class="generate-ai-values__list">
+      <div v-if="loadingPreviousJobs" class="loading"></div>
+      <div v-else-if="previousJobs.length > 0">
+        <GenerateAIValuesJobListItem
+          v-for="jobItem in previousJobs"
+          :key="jobItem.id"
+          :job-item="jobItem"
+          :field="field"
+          :views="views"
+          :last-updated="
+            jobItem.state === 'finished'
+              ? jobItem.updated_on
+              : jobItem.created_on
+          "
+        />
+      </div>
+      <div v-else class="margin-top-2">
+        {{ $t('generateAIValuesModal.noPreviousJobs') }}
+      </div>
+    </div>
   </Modal>
 </template>
 
@@ -37,12 +59,17 @@ import FieldService from '@baserow_premium/services/field'
 import { populateView } from '@baserow/modules/database/store/view'
 import GenerateAIValuesForm from '@baserow_premium/components/field/GenerateAIValuesForm'
 import GenerateAIValuesFormFooter from '@baserow_premium/components/field/GenerateAIValuesFormFooter'
+import GenerateAIValuesJobListItem from '@baserow_premium/components/field/GenerateAIValuesJobListItem'
 import job from '@baserow/modules/core/mixins/job'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 
 export default {
   name: 'GenerateAIValuesModal',
-  components: { GenerateAIValuesForm, GenerateAIValuesFormFooter },
+  components: {
+    GenerateAIValuesForm,
+    GenerateAIValuesFormFooter,
+    GenerateAIValuesJobListItem,
+  },
   mixins: [modal, error, job],
   props: {
     database: {
@@ -65,12 +92,22 @@ export default {
   },
   data() {
     return {
+      loading: false,
+      isValid: false,
       views: [],
       loadingViews: false,
-      loading: false,
-      cancelLoading: false,
-      isValid: false,
+      previousJobs: [],
+      loadingPreviousJobs: false,
     }
+  },
+  computed: {
+    unfinishedJobsFromStore() {
+      return this.$store.getters['job/getUnfinishedJobs'].filter(
+        (job) =>
+          job.type === GenerateAIValuesJobType.getType() &&
+          job.field_id === this.field.id
+      )
+    },
   },
   methods: {
     loadRunningJob() {
@@ -79,7 +116,8 @@ export default {
           return (
             job.type === GenerateAIValuesJobType.getType() &&
             job.field_id === this.field.id &&
-            job.row_ids === null
+            job.row_ids === null &&
+            job.is_auto_update === false
           )
         }
       )
@@ -88,28 +126,64 @@ export default {
         this.loading = true
       }
     },
-    async show(...args) {
+    show(...args) {
       const show = modal.methods.show.call(this, ...args)
-      this.loading = false
-      await this.fetchViews()
+      // Don't await to avoid blocking the modal display
       this.loadRunningJob()
+      this.fetchViews()
+      this.loadPreviousJobs()
       this.$nextTick(() => {
         this.valuesChanged()
       })
       return show
     },
+    async loadPreviousJobs() {
+      this.loadingPreviousJobs = true
+
+      try {
+        const { data } = await FieldService(
+          this.$client
+        ).listGenerateAIValuesJobs(this.field.id)
+        const jobs = data.jobs
+        const storeJobs = this.unfinishedJobsFromStore
+        let addedRunningJobs = false
+
+        jobs.forEach((job, index) => {
+          const storeJob = storeJobs.find((sj) => sj.id === job.id)
+          if (storeJob) {
+            jobs[index] = storeJob
+          } else if (job.state === 'pending' || job.state === 'started') {
+            this.$store.dispatch('job/forceCreate', job)
+            addedRunningJobs = true
+          }
+        })
+
+        if (addedRunningJobs) {
+          this.$store.dispatch('job/tryScheduleNextUpdate')
+        }
+
+        // Filter out the current job being shown in the form to avoid duplication
+        this.previousJobs = jobs.filter((job) => job.id !== this.job?.id)
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        this.loadingPreviousJobs = false
+      }
+    },
     async fetchViews() {
       this.loadingViews = true
+
       try {
         const { data: viewsData } = await ViewService(this.$client).fetchAll(
           this.table.id
         )
-        viewsData.forEach((v) => populateView(v, this.$registry))
+        viewsData.forEach((v) => populateView(v))
         this.views = viewsData
       } catch (error) {
         this.handleError(error, 'views')
+      } finally {
+        this.loadingViews = false
       }
-      this.loadingViews = false
     },
     async submitted(values) {
       if (!this.$refs.form.isFormValid()) {
@@ -133,16 +207,23 @@ export default {
         this.handleError(error)
       }
     },
-    onJobFinished() {
+
+    async onJobFinished() {
+      this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    onJobFailed() {
+
+    async onJobFailed() {
+      this.previousJobs.unshift(this.job)
+      this.job = null
       this.loading = false
     },
-    onJobCancelled() {
+
+    async onJobCancelled() {
+      this.previousJobs.unshift(this.job)
+      this.job = null
       this.loading = false
-      this.cancelLoading = false
     },
     valuesChanged() {
       this.isValid = this.$refs.form.isFormValid()

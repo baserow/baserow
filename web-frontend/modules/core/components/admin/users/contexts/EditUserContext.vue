@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <template v-if="Object.keys(user).length > 0">
       <div class="context__menu-title">{{ user.username }} ({{ user.id }})</div>
       <ul class="context__menu">
@@ -112,6 +112,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['delete-user', 'update'],
   data() {
     return {
       loading: false,
@@ -125,16 +126,16 @@ export default {
   },
   methods: {
     showChangePasswordModal() {
-      this.hide()
       this.$refs.changePasswordModal.show()
+      this.hide()
     },
     showDeleteModal() {
-      this.hide()
       this.$refs.deleteUserModal.show()
+      this.hide()
     },
     showEditModal() {
-      this.hide()
       this.$refs.editUserModal.show()
+      this.hide()
     },
     onDeleteUser(event) {
       this.$emit('delete-user', event)
@@ -166,7 +167,7 @@ export default {
         return
       }
       this.impersonateLoading = true
-      let url = this.$nuxt.$router.resolve({ name: 'dashboard' }).href
+      let url = this.$router.resolve({ name: 'dashboard' }).href
       // Adding the `__impersonate-user` query parameter impersonates the user when the
       // page first loads.
       url += '?__impersonate-user=' + this.user.id

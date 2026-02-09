@@ -160,8 +160,9 @@ def test_fill_table_with_initial_data(data_fixture):
     with pytest.raises(InvalidInitialTableData):
         table_handler.create_table(user, database, name="Table 1", data=[[]])
 
-    with override_settings(INITIAL_TABLE_DATA_LIMIT=2), pytest.raises(
-        InitialTableDataLimitExceeded
+    with (
+        override_settings(INITIAL_TABLE_DATA_LIMIT=2),
+        pytest.raises(InitialTableDataLimitExceeded),
     ):
         table_handler.create_table(user, database, name="Table 1", data=[[], [], []])
     with override_settings(MAX_FIELD_LIMIT=2), pytest.raises(MaxFieldLimitExceeded):
@@ -1115,6 +1116,9 @@ def test_usage_is_calculated_correctly_when_a_template_is_installed(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.table.tasks.update_table_usage.delay"
+)
 def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)

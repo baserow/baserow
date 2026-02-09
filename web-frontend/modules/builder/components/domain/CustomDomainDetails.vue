@@ -26,5 +26,6 @@ export default {
       required: true,
     },
   },
+  emits: ['delete'],
 }
 </script>

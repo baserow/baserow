@@ -1,7 +1,7 @@
 <template>
   <div class="padding-selector">
     <FormInput
-      :value="value.horizontal"
+      :value="currentValue.horizontal"
       :default-value-when-empty="
         defaultValuesWhenEmpty ? defaultValuesWhenEmpty[`horizontal`] : null
       "
@@ -10,11 +10,11 @@
       :to-value="(value) => (value ? parseInt(value) : null)"
       class="padding-selector__input"
       icon-right="iconoir-horizontal-split"
-      @input="$emit('input', { horizontal: $event, vertical: value.vertical })"
+      @input="emit({ horizontal: $event, vertical: currentValue.vertical })"
       @blur="$emit('blur')"
     />
     <FormInput
-      :value="value.vertical"
+      :value="currentValue.vertical"
       :default-value-when-empty="
         defaultValuesWhenEmpty ? defaultValuesWhenEmpty[`vertical`] : null
       "
@@ -23,9 +23,7 @@
       :to-value="(value) => (value ? parseInt(value) : null)"
       class="padding-selector__input"
       icon-right="iconoir-vertical-split"
-      @input="
-        $emit('input', { horizontal: value.horizontal, vertical: $event })
-      "
+      @input="emit({ horizontal: currentValue.horizontal, vertical: $event })"
       @blur="$emit('blur')"
     />
   </div>
@@ -37,12 +35,28 @@ export default {
   props: {
     value: {
       type: Object,
-      required: true,
+      default: undefined,
+    },
+    modelValue: {
+      type: Object,
+      default: undefined,
     },
     defaultValuesWhenEmpty: {
       type: Object,
       required: false,
       default: null,
+    },
+  },
+  emits: ['input', 'blur', 'update:modelValue'],
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+  },
+  methods: {
+    emit(newValue) {
+      this.$emit('input', newValue)
+      this.$emit('update:modelValue', newValue)
     },
   },
 }

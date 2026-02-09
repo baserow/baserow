@@ -1,6 +1,10 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import PageSettings from '@baserow/modules/builder/components/page/settings/PageSettings'
-import PageVisibilitySettings from '@baserow/modules/builder/components/page/settings/PageVisibilitySettings'
+import PageSettingsComponent from '@baserow/modules/builder/components/page/settings/PageSettings'
+import PageVisibilitySettingsComponent from '@baserow/modules/builder/components/page/settings/PageVisibilitySettings'
+
+const PageSettings = markRaw(PageSettingsComponent)
+const PageVisibilitySettings = markRaw(PageVisibilitySettingsComponent)
 
 export class PageSettingType extends Registerable {
   static getType() {
@@ -30,7 +34,7 @@ export class PagePageSettingsType extends PageSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('pageSettingsTypes.pageName')
+    return this.app.$i18n.t('pageSettingsTypes.pageName')
   }
 
   get icon() {
@@ -52,7 +56,7 @@ export class PageVisibilitySettingsType extends PageSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('pageVisibilitySettingsTypes.pageName')
+    return this.app.$i18n.t('pageVisibilitySettingsTypes.pageName')
   }
 
   get icon() {

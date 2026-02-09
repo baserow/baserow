@@ -17,7 +17,7 @@ def test_fill_table_rows_no_table():
 
     with pytest.raises(SystemExit) as sys_exit:
         call_command("fill_table_rows", table_id_that_does_not_exist, 10, stdout=output)
-    assert sys_exit.type == SystemExit
+    assert sys_exit.type is SystemExit
     assert sys_exit.value.code == 1
 
     assert (

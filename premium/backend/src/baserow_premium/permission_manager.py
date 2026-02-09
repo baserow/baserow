@@ -4,10 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from django.contrib.auth import get_user_model
 from django.db.models import Q, QuerySet
 
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
-
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.operations import (
     CanReceiveNotificationOnSubmitFormViewOperationType,
@@ -16,12 +12,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterGroupOperationType,
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -37,6 +35,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewFilterOperationType,
     ReadViewGroupByOperationType,
     ReadViewOperationType,
+    ReadViewRowOperationType,
     ReadViewSortOperationType,
     RestoreViewOperationType,
     UpdateViewDecorationOperationType,
@@ -46,6 +45,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -55,6 +55,9 @@ from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType, object_scope_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import Actor, PermissionCheck
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 User = get_user_model()
 
@@ -119,6 +122,10 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             CreateViewDecorationOperationType.type,
             UpdateViewDecorationOperationType.type,
             DeleteViewDecorationOperationType.type,
+            ReadViewRowOperationType.type,
+            CreateViewRowOperationType.type,
+            UpdateViewRowOperationType.type,
+            DeleteViewRowOperationType.type,
         ]
         # This list controls operations that for personal views, should only be allowed
         # to be performed by the creator of the personal view BUT should only be

@@ -16,7 +16,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.exceptions import (
-    DoesNotExist,
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -257,7 +256,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_view_filter(data_fixtu
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
@@ -291,7 +290,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_search(
     dispatch_context = FakeDispatchContext()
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
@@ -363,8 +362,9 @@ def test_local_baserow_get_row_service_dispatch_data_permission_denied(
     )
 
     dispatch_context = FakeDispatchContext()
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         LocalBaserowGetRowUserServiceType().dispatch_data(
             service, {"table": table}, dispatch_context
@@ -421,7 +421,7 @@ def test_local_baserow_get_row_service_dispatch_data_row_not_exist(data_fixture)
 
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
@@ -774,21 +774,21 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = {}
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowGetRowUserServiceType()
 
     dispatch_data = {
         "baserow_table_model": MagicMock(),
-        "data": [],
+        "data": {},
     }
     dispatch_data["public_allowed_properties"] = field_names
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results.data == mock_serializer_instance.data
+    assert results.data == mock_serializer.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,

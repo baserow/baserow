@@ -1,6 +1,6 @@
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
 import LocalBaserowForm from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowForm'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 
 export class LocalBaserowIntegrationType extends IntegrationType {
   static getType() {
@@ -8,7 +8,7 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   get name() {
-    return this.app.i18n.t('integrationType.localBaserow')
+    return this.app.$i18n.t('integrationType.localBaserow')
   }
 
   get image() {
@@ -17,10 +17,10 @@ export class LocalBaserowIntegrationType extends IntegrationType {
 
   getSummary(integration) {
     if (!integration.authorized_user) {
-      return this.app.i18n.t('localBaserowIntegrationType.localBaserowNoUser')
+      return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
 
-    return this.app.i18n.t('localBaserowIntegrationType.localBaserowSummary', {
+    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
       name: integration.authorized_user.first_name,
       username: integration.authorized_user.username,
     })
@@ -31,11 +31,11 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   get warning() {
-    return this.app.i18n.t('localBaserowIntegrationType.localBaserowWarning')
+    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowWarning')
   }
 
   getDefaultValues() {
-    const user = this.app.store.getters['auth/getUserObject']
+    const user = this.app.$store.getters['auth/getUserObject']
     return {
       authorized_user: { username: user.username, first_name: user.first_name },
     }

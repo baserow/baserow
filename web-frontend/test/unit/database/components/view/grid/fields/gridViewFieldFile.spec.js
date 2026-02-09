@@ -5,16 +5,16 @@ import UploadFileUserFileUpload from '@baserow/modules/core/components/files/Upl
 describe('GridViewFieldFile component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (props, slots = {}) => {
-    return testApp.mount(GridViewFieldFile, { propsData: props, slots })
+    return testApp.mount(GridViewFieldFile, { props, slots })
   }
 
   const field = {
@@ -53,15 +53,17 @@ describe('GridViewFieldFile component', () => {
 
     await wrapper.find('.grid-field-file__item-add').trigger('click')
 
+    const modal = wrapper.findComponent(UploadFileUserFileUpload)
+
     // Manually call file input change event handler
-    wrapper.findComponent(UploadFileUserFileUpload).vm.addFile(event)
+    modal.vm.addFile(event)
     await wrapper.vm.$nextTick()
 
-    const documentClick = jest.fn()
+    const documentClick = vi.fn()
     document.body.addEventListener('click', documentClick)
 
     // After clicking remove file, the modal should still be visible
-    await wrapper.find('.upload-files__state-link').trigger('click')
+    await modal.find('.upload-files__state-link').trigger('click')
     expect(documentClick).not.toHaveBeenCalled()
   })
 })

@@ -1,14 +1,16 @@
-<template functional>
-  <a
-    class="grid-view__row-more"
-    @click="listeners['edit-modal'] && listeners['edit-modal']()"
-  >
+<template>
+  <a class="grid-view__row-more" @click="onClick">
     <i class="baserow-icon-enlarge-row"></i>
   </a>
 </template>
 <script>
 export default {
   name: 'GridViewRowExpandButton',
-  functional: true,
+  emits: ['edit-modal'],
+  methods: {
+    onClick() {
+      this.$emit('edit-modal')
+    },
+  },
 }
 </script>

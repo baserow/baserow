@@ -1,13 +1,12 @@
 <template>
-  <Context :overflow-scroll="true" :max-height-if-outside-viewport="true">
+  <Context
+    ref="context"
+    :overflow-scroll="true"
+    :max-height-if-outside-viewport="true"
+  >
     <ul class="context__menu">
       <li class="context__menu-item">
-        <a
-          class="context__menu-item-link"
-          @click.prevent="
-            handleEditClick({ enabled: !fieldMapping.enabled, value: '' })
-          "
-        >
+        <a class="context__menu-item-link" @click.prevent="handleEditClick()">
           <i class="context__menu-item-icon" :class="enabledClass"></i>
           {{ toggleEnabledText }}
         </a>
@@ -28,6 +27,7 @@ export default {
       required: true,
     },
   },
+  emits: ['edit'],
   computed: {
     enabledClass() {
       return this.fieldMapping.enabled ? 'iconoir-eye-off' : 'iconoir-eye-empty'
@@ -39,8 +39,11 @@ export default {
     },
   },
   methods: {
-    handleEditClick(change) {
-      this.$emit('edit', change)
+    handleEditClick() {
+      this.$emit(
+        'edit',
+        this.fieldMapping.enabled ? undefined : { enabled: true, formula: '' }
+      )
       this.hide()
     },
   },

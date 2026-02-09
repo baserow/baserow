@@ -1,69 +1,38 @@
-import Router from 'vue-router'
-
-import {
-  createRouter as createDefaultRouter,
-  routerOptions as defaultRouterOptions,
-} from './defaultRouter'
-
 /**
- * Replace the official Nuxt `createRouter` function. If the request hostname is equal
- * to the `PUBLIC_WEB_FRONTEND_URL` hostname, the router will contain only routes that
- * are not marked as `{ meta: { publishedBuilderRoute: true } }` and it will contains
- * only this routes otherwise.
- *
- * @param {*} ssrContext
- * @param {*} config
- * @returns the new router instance accessible from `this.$router` in components.
+ * Make sure only baserow routes are available for instance public hostname.
  */
-export function createRouter(ssrContext, config) {
-  let isWebFrontendHostname = true
-  // On the server
-  if (
-    process.server &&
-    ssrContext &&
-    ssrContext.nuxt &&
-    ssrContext.req &&
-    ssrContext.runtimeConfig
-  ) {
-    const req = ssrContext.req
-    const runtimeConfig = ssrContext.runtimeConfig
-    const frontendHostname = new URL(
-      runtimeConfig.public.PUBLIC_WEB_FRONTEND_URL
-    ).hostname
-    const requestHostname = new URL(`http://${req.headers.host}`).hostname
+export default defineNuxtPlugin({
+  name: 'router',
+  dependsOn: ['core', 'builder', 'database'],
+  setup() {
+    const router = useRouter()
+    const runtimeConfig = useRuntimeConfig()
 
-    // We allow published routes only if the builder feature flag is on
-    isWebFrontendHostname = frontendHostname === requestHostname
+    // SSR-safe host detection
+    const requestHostname = useRequestURL().hostname
 
-    // Send the variable to the frontend using the `__NUXT__` property
-    ssrContext.nuxt.isWebFrontendHostname = isWebFrontendHostname
-  }
+    const frontendHostname = new URL(runtimeConfig.public.publicWebFrontendUrl)
+      .hostname
 
-  // On the client
-  if (
-    process.client &&
-    window.__NUXT__ &&
-    window.__NUXT__.isWebFrontendHostname !== isWebFrontendHostname
-  ) {
-    isWebFrontendHostname = window.__NUXT__.isWebFrontendHostname
-  }
+    const extraPublicHostnames =
+      runtimeConfig.public.extraPublicWebFrontendHostnames || []
 
-  const routerOptions =
-    defaultRouterOptions || createDefaultRouter(ssrContext, config).options
+    // Check if request hostname matches main hostname or any extra hostname so we know
+    // whether the tool or a published application must be served.
+    const isWebFrontendHostname =
+      frontendHostname === requestHostname ||
+      extraPublicHostnames.includes(requestHostname)
 
-  // Filter the routes to keep only the core Baserow routes if the hostname is the
-  // main one and for any other hostname, we keep the routes marked as
-  // `publishedBuilderRoute`.
-  const newRoutes = routerOptions.routes.filter((route) => {
-    const isPublishedWebsiteRoute = !!route?.meta?.publishedBuilderRoute
-    return (
-      (isWebFrontendHostname && !isPublishedWebsiteRoute) ||
-      (!isWebFrontendHostname && isPublishedWebsiteRoute)
-    )
-  })
-
-  return new Router({
-    ...routerOptions,
-    routes: newRoutes,
-  })
-}
+    for (const r of router.getRoutes()) {
+      if (isWebFrontendHostname) {
+        if (r.meta?.publishedBuilderRoute && router.hasRoute(r.name)) {
+          router.removeRoute(r.name)
+        }
+      } else {
+        if (!r.meta?.publishedBuilderRoute && router.hasRoute(r.name)) {
+          router.removeRoute(r.name)
+        }
+      }
+    }
+  },
+})

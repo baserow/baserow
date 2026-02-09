@@ -3,6 +3,7 @@ import selectDropdown from '@baserow/modules/database/mixins/selectDropdown'
 
 export default {
   mixins: [createSelectOption, selectDropdown],
+  emits: ['update'],
   computed: {
     valueId() {
       return this.value && this.value !== null ? this.value.id : null

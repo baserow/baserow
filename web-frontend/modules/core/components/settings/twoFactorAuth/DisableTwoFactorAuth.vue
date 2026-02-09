@@ -58,6 +58,7 @@ import TwoFactorAuthService from '@baserow/modules/core/services/twoFactorAuth'
 export default {
   name: 'DisableTwoFactorAuth',
   mixins: [error],
+  emits: ['cancel', 'disabled'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

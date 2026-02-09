@@ -280,8 +280,8 @@ class ElementHandler:
         # both cache keys in case the specific argument has changed.
         if base_queryset is not None:
             use_cache = False
-            setattr(page, "_page_elements", None)
-            setattr(page, "_page_elements_specific", None)
+            page._page_elements = None
+            page._page_elements_specific = None
 
         elements_cache = getattr(page, cache_key, None)
         if use_cache and elements_cache is not None:
@@ -637,9 +637,9 @@ class ElementHandler:
             elements_and_workflow_actions_duplicated["elements"] += children_duplicated[
                 "elements"
             ]
-            elements_and_workflow_actions_duplicated[
-                "workflow_actions"
-            ] += children_duplicated["workflow_actions"]
+            elements_and_workflow_actions_duplicated["workflow_actions"] += (
+                children_duplicated["workflow_actions"]
+            )
 
         return elements_and_workflow_actions_duplicated
 
@@ -768,8 +768,8 @@ class ElementHandler:
             **kwargs,
         )
 
-        id_mapping["builder_page_elements"][
-            serialized_element["id"]
-        ] = created_instance.id
+        id_mapping["builder_page_elements"][serialized_element["id"]] = (
+            created_instance.id
+        )
 
         return created_instance

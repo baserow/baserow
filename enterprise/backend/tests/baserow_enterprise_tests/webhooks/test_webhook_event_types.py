@@ -14,6 +14,10 @@ from baserow.core.redis import WebhookRedisQueue
 
 @pytest.mark.django_db()
 def test_rows_enter_view_event_type(enterprise_data_fixture):
+    """
+    Test the payload structure for the view.rows_entered webhook event type.
+    """
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     view = enterprise_data_fixture.create_grid_view(table=table)
@@ -44,7 +48,6 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
             "name": table.name,
             "database_id": table.database_id,
         },
-        "type": "grid",
         "filters_disabled": False,
         "show_logo": True,
         "allow_public_export": False,
@@ -127,6 +130,10 @@ def test_rows_enter_view_event_type(enterprise_data_fixture):
 def test_rows_enter_view_event_type_require_enterprise_license(
     mock_call_webhook, enterprise_data_fixture, synced_roles
 ):
+    """
+    Test that the view.rows_entered event only triggers with an enterprise license.
+    """
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     view = enterprise_data_fixture.create_grid_view(table=table)
@@ -166,6 +173,8 @@ def test_rows_enter_view_event_type_require_enterprise_license(
 def test_rows_enter_view_event_type_not_triggerd_with_include_all_events(
     mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
+    """Test that view.rows_entered is not triggered when include_all_events is True."""
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     view = enterprise_data_fixture.create_grid_view(table=table)
@@ -183,6 +192,8 @@ def test_rows_enter_view_event_type_not_triggerd_with_include_all_events(
 
 @pytest.mark.django_db()
 def test_rows_enter_view_event_event_type_test_payload(enterprise_data_fixture):
+    """Test the test/mock payload generation for the view.rows_entered event type."""
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     field = enterprise_data_fixture.create_text_field(
@@ -210,7 +221,6 @@ def test_rows_enter_view_event_event_type_test_payload(enterprise_data_fixture):
             "name": table.name,
             "database_id": table.database_id,
         },
-        "type": "grid",
         "filters_disabled": False,
         "show_logo": True,
         "allow_public_export": False,
@@ -238,6 +248,8 @@ def test_rows_enter_view_event_event_type_test_payload(enterprise_data_fixture):
 def test_rows_enter_view_event_type_not_called_without_view(
     mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
+    """Test that the webhook is not called when no views are configured."""
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     view = enterprise_data_fixture.create_grid_view(table=table)
@@ -277,6 +289,8 @@ def test_rows_enter_view_event_type_not_called_without_view(
 def test_rows_enter_view_event_type_called_once_per_view(
     mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
+    """Test that the webhook is called once for each configured view."""
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     view_a = enterprise_data_fixture.create_grid_view(table=table)
@@ -306,6 +320,8 @@ def test_rows_enter_view_event_type_called_once_per_view(
 def test_rows_enter_view_event_type_only_right_webhook_is_called(
     mock_call_webhook, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
+    """Test that only the webhook for the correct table/view is triggered."""
+
     user = enterprise_data_fixture.create_user()
     table_a = enterprise_data_fixture.create_database_table(user=user)
     view_a = enterprise_data_fixture.create_grid_view(table=table_a)
@@ -350,6 +366,8 @@ def test_rows_enter_view_event_type_only_right_webhook_is_called(
 def test_rows_enter_view_event_type_paginate_data(
     mock_make_request, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
+    """Test that large row batches are paginated into multiple webhook calls."""
+
     user = enterprise_data_fixture.create_user()
     table = enterprise_data_fixture.create_database_table(user=user)
     text_field = enterprise_data_fixture.create_text_field(table=table, name="text")
@@ -376,7 +394,6 @@ def test_rows_enter_view_event_type_paginate_data(
             "name": table.name,
             "database_id": table.database_id,
         },
-        "type": "grid",
         "filters_disabled": False,
         "show_logo": True,
         "allow_public_export": False,
@@ -513,6 +530,7 @@ def test_rows_enter_view_webhook_does_not_trigger_for_events_before_creation(
             table=table,
             rows_values=[
                 {"id": rows[0].id, f"field_{text_field.id}": "Banana"},
+                {"id": rows[3].id, f"field_{text_field.id}": "Banana no more"},
             ],
         )
     with transaction.atomic():
@@ -540,3 +558,5 @@ def test_rows_enter_view_webhook_does_not_trigger_for_events_before_creation(
 
     assert mock_call_webhook.delay.call_count == 1
     assert mock_call_webhook.delay.call_args[1]["event_type"] == "view.rows_entered"
+    # Only row[2] entered the view since we recreated the webhook
+    assert mock_call_webhook.delay.call_args[1]["payload"]["row_ids"] == [rows[2].id]

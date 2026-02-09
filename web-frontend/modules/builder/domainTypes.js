@@ -28,7 +28,7 @@ export class CustomDomainType extends DomainType {
   }
 
   get name() {
-    return this.app.i18n.t('domainTypes.customName')
+    return this.app.$i18n.t('domainTypes.customName')
   }
 
   get detailsComponent() {
@@ -42,7 +42,7 @@ export class CustomDomainType extends DomainType {
   get options() {
     return [
       {
-        name: this.app.i18n.t('domainTypes.customName'),
+        name: this.app.$i18n.t('domainTypes.customName'),
         value: {
           type: this.getType(),
           domain: 'custom',
@@ -58,12 +58,13 @@ export class SubDomainType extends DomainType {
   }
 
   get name() {
-    return this.app.i18n.t('domainTypes.subDomainName')
+    return this.app.$i18n.t('domainTypes.subDomainName')
   }
 
   get options() {
-    return this.app.$config.BASEROW_BUILDER_DOMAINS.map((domain) => ({
-      name: this.app.i18n.t('domainTypes.subDomain', { domain }),
+    const domains = this.app.$config.public.baserowBuilderDomains ?? []
+    return domains.map((domain) => ({
+      name: this.app.$i18n.t('domainTypes.subDomain', { domain }),
       value: {
         type: this.getType(),
         domain,

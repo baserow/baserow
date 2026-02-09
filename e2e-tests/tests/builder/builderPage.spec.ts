@@ -23,7 +23,7 @@ test.describe("Builder page test suite", () => {
     await expect(
       page
         .locator(".preview-navigation-bar__address-bar-path")
-        .getByText("/complex/path")
+        .getByText("/complex/path"),
     ).toBeVisible();
   });
 
@@ -46,16 +46,16 @@ test.describe("Builder page test suite", () => {
 
     await page.locator(".button").getByText("Save").click();
     await expect(
-      page.getByText("The page settings have been updated.")
+      page.getByText("The page settings have been updated."),
     ).toBeVisible();
 
-    await page.getByTitle("Close").click();
+    await page.locator(".modal__close", { title: "Close" }).click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
 
     await expect(
       page
         .locator(".preview-navigation-bar__address-bar-path")
-        .getByText("/new/path")
+        .getByText("/new/path"),
     ).toBeVisible();
   });
 
@@ -64,10 +64,10 @@ test.describe("Builder page test suite", () => {
     await page.getByText("Heading", { exact: true }).click();
 
     await expect(
-      page.locator(".modal__box").getByText("Add new element")
+      page.locator(".modal__box").getByText("Add new element"),
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name-tag").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading"),
     ).toBeVisible();
   });
 
@@ -80,10 +80,10 @@ test.describe("Builder page test suite", () => {
     await page.getByText("Heading", { exact: true }).click();
 
     await expect(
-      page.locator(".modal__box").getByText("Add new element")
+      page.locator(".modal__box").getByText("Add new element"),
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name-tag").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading"),
     ).toBeVisible();
   });
 
@@ -131,11 +131,11 @@ test.describe("Builder page test suite", () => {
     // Save the page
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
-      page.getByText("The page settings have been updated.")
+      page.getByText("The page settings have been updated."),
     ).toBeVisible();
 
     // Close the modal
-    await page.getByTitle("Close").click();
+    await page.locator(".modal__close", { title: "Close" }).click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
 
     // Wait for page update
@@ -157,7 +157,10 @@ test.describe("Builder page test suite", () => {
       ],
     });
 
-    await page.getByText("linkim");
+    // Reload the page to see the newly created element
+    await builderPagePage.goto();
+
+    await expect(page.getByRole("link", { name: "linkim" })).toBeVisible();
 
     // Set the value of page parameters
     await page.getByLabel("my_param=").fill("foo");
@@ -165,7 +168,7 @@ test.describe("Builder page test suite", () => {
 
     await expect(page.getByRole("link", { name: "linkim" })).toHaveAttribute(
       "href",
-      /\?my_param2=15&my_param=foo/
+      /\?my_param2=15&my_param=foo/,
     );
   });
 });

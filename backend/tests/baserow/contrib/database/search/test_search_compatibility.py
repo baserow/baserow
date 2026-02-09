@@ -11,6 +11,11 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.user_files.handler import UserFileHandler
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir):
@@ -18,7 +23,7 @@ def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir)
         "text": [
             ["Peter Evans", "Peter Evans"],  # full-text, compat exact
             ["Peter Ev", "Peter Ev"],  # full-text, compat partial
-            ["peTeR   EV", "peTeR EV"]  # full-text, compat mixed case.
+            ["peTeR   EV", "peTeR EV"],  # full-text, compat mixed case.
             # Compat can't handle multiple spaces.
         ],
         "long_text": [
@@ -199,9 +204,9 @@ def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir)
     model = table.get_model()
     for field_type, queries in query_searches.items():
         for pg_query, compat_query in queries:
-            assert (
-                model.objects.filter(pk=row.pk).pg_search(pg_query).exists()
-            ), f"Unable to match Postgres query '{pg_query}'."
+            assert model.objects.filter(pk=row.pk).pg_search(pg_query).exists(), (
+                f"Unable to match Postgres query '{pg_query}'."
+            )
             if compat_query is not None:
                 assert (
                     model.objects.filter(pk=row.pk).compat_search(compat_query).exists()

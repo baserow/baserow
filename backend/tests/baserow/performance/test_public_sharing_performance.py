@@ -151,7 +151,7 @@ def test_updating_many_rows_in_public_filtered_views(
    │        │  │  │     [18 frames hidden]  rest_framework, django, copy, <built-in>
    │        │  │  └─ 0.001 get_row_serializer_class  baserow/contrib/database/api/rows/
    │        │  │     └─ 0.001 get_response_serializer_field  baserow/contrib/database/fi
-   │        │  └─ 0.002 get_public_views_where_row_is_visible  baserow/contrib/database/
+   │        │  └─ 0.002 get_filtered_views_where_row_is_visible  baserow/contrib/databas
    │        │     └─ 0.002 _check_row_visible  baserow/contrib/database/views/handler.py
    │        │        └─ 0.002 exists  django/db/models/query.py:806
    │        │              [19 frames hidden]  django, copy

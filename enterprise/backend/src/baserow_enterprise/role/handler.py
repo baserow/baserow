@@ -6,8 +6,6 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -35,6 +33,7 @@ from baserow_enterprise.signals import (
     role_assignment_updated,
 )
 from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
     ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
@@ -286,9 +285,9 @@ class RoleAssignmentHandler:
             )
 
             if key in role_assignments_by_user_id_scope_id:
-                roles_by_user_scope[
-                    (subject, scope)
-                ] = role_assignments_by_user_id_scope_id[key]
+                roles_by_user_scope[(subject, scope)] = (
+                    role_assignments_by_user_id_scope_id[key]
+                )
             else:
                 roles_by_user_scope[(subject, scope)] = None
 
@@ -477,9 +476,9 @@ class RoleAssignmentHandler:
                     # order for role_by_scope. We need to keep it ordered as expected
                     # by the caller.
                     roles_by_scope[actor_id][scope_param] = [role]
-                    priorities_by_scope_per_actor_id[actor_id][
-                        scope_param
-                    ] = role_assignment_priority
+                    priorities_by_scope_per_actor_id[actor_id][scope_param] = (
+                        role_assignment_priority
+                    )
                 else:
                     # If the priority is the same we add the role to the
                     # current role list.
@@ -561,11 +560,9 @@ class RoleAssignmentHandler:
         """
         Returns the computed roles for the given actor on the given context.
 
-        :param workspace: The workspace in which we want the roles for.
-        :param actor: The actor for whom we want the roles for.
+        :param roles_per_scopes: The roles that the user has per scope object.
         :param context: The context on which we want to now the role.
-        :param include_trash: If true then also checks even if given workspace has been
-            trashed instead of raising a DoesNotExist exception.
+        :param cache: A cache dict to temporarily store reusable values in.
         :return: A list of roles that applies on this context.
         """
 

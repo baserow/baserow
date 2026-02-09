@@ -34,5 +34,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

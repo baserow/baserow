@@ -1,17 +1,18 @@
-import { firstBy } from 'thenby'
+import thenBy from 'thenby'
 import BigNumber from 'bignumber.js'
-import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
+export const maxPossibleOrderValue = 32767
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
 /**
  * Generates a sort function based on the provided sortings.
  */
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
+  const { firstBy } = thenBy
   let sortFunction = firstBy()
   const combined = [...groupBys, ...sortings]
   combined.forEach((sort) => {
@@ -323,13 +324,14 @@ export const createFiltersTree = (filterType, filters, filterGroups) => {
  * view.
  */
 export const matchSearchFilters = (
-  $registry,
   filterType,
   filters,
   filterGroups,
   fields,
   values
 ) => {
+  const { $registry } = useNuxtApp()
+
   // If there aren't any filters then it is not possible to check if the row
   // matches any of the filters, so we can mark it as valid.
   if (filters.length === 0) {
@@ -707,12 +709,12 @@ export function encodeDefaultViewIdPerTable(data) {
  * is no default view for the table.
  */
 export function readDefaultViewIdFromCookie(
-  cookies,
   tableId,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookieValue = cookies.get(cookieName) || ''
+    const cookie = useCookie(cookieName)
+    const cookieValue = cookie.value || ''
     const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
     return defaultView ? defaultView.viewId : null
@@ -733,13 +735,22 @@ export function readDefaultViewIdFromCookie(
  * @param {String} cookieName - The name of the cookie.
  */
 export function saveDefaultViewIdInCookie(
-  cookies,
   view,
   config,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
-  const cookieValue = cookies.get(cookieName) || ''
-  let defaultViews = decodeDefaultViewIdPerTable(cookieValue)
+  const secure = isSecureURL(config.public.publicWebFrontendUrl)
+  const cookieValue = useCookie(cookieName, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    sameSite: config.public.baserowFrontendSameSiteCookie,
+    secure,
+    default: () => {
+      return ''
+    },
+  })
+
+  let defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
 
   function createEntry(view) {
     return { tableId: view.table_id, viewId: view.id }
@@ -762,12 +773,6 @@ export function saveDefaultViewIdInCookie(
       defaultViews,
       encodeDefaultViewIdPerTable
     )
-    const secure = isSecureURL(config.PUBLIC_WEB_FRONTEND_URL)
-    cookies.set(cookieName, fittedListEncoded, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
-      secure,
-    })
+    cookieValue.value = fittedListEncoded
   }
 }

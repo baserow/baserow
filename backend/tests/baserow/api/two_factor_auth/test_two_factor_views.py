@@ -4,6 +4,7 @@ from django.urls import reverse
 
 import pyotp
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -435,53 +436,55 @@ def test_verify_totp_view_missing_email(api_client, data_fixture):
 @pytest.mark.django_db
 def test_verify_totp_code_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    provider = data_fixture.configure_totp(user)
+    with freeze_time("2020-02-01 00:00"):
+        provider = data_fixture.configure_totp(user)
 
-    response = api_client.post(
-        reverse("api:user:token_auth"),
-        {"email": user.email, "password": "password"},
-        format="json",
-    )
-    response_json = response.json()
-    two_fa_token = response_json["token"]
+    with freeze_time("2020-02-01 00:01"):
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": user.email, "password": "password"},
+            format="json",
+        )
+        response_json = response.json()
+        two_fa_token = response_json["token"]
 
-    totp = pyotp.TOTP(provider.secret)
-    valid_code = totp.now()
+        totp = pyotp.TOTP(provider.secret)
+        valid_code = totp.now()
 
-    url = reverse("api:two_factor_auth:verify")
-    response = api_client.post(
-        url,
-        {
-            "type": "totp",
-            "email": user.email,
-            "code": valid_code,
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
-    )
+        url = reverse("api:two_factor_auth:verify")
+        response = api_client.post(
+            url,
+            {
+                "type": "totp",
+                "email": user.email,
+                "code": valid_code,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+        )
 
-    response_json = response.json()
-    assert response.status_code == HTTP_200_OK, response_json
-    assert response_json == {
-        "access_token": AnyStr(),
-        "active_licenses": {"instance_wide": {}, "per_workspace": {}},
-        "permissions": AnyList(),
-        "refresh_token": AnyStr(),
-        "token": AnyStr(),
-        "user": {
-            "completed_guided_tours": [],
-            "completed_onboarding": False,
-            "email_notification_frequency": "instant",
-            "email_verified": False,
-            "first_name": user.first_name,
-            "id": user.id,
-            "is_staff": False,
-            "language": "en",
-            "username": user.email,
-        },
-        "user_notifications": {"unread_count": 0},
-        "user_session": AnyStr(),
-    }
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK, response_json
+        assert response_json == {
+            "access_token": AnyStr(),
+            "active_licenses": {"instance_wide": {}, "per_workspace": {}},
+            "permissions": AnyList(),
+            "refresh_token": AnyStr(),
+            "token": AnyStr(),
+            "user": {
+                "completed_guided_tours": [],
+                "completed_onboarding": False,
+                "email_notification_frequency": "instant",
+                "email_verified": False,
+                "first_name": user.first_name,
+                "id": user.id,
+                "is_staff": False,
+                "language": "en",
+                "username": user.email,
+            },
+            "user_notifications": {"unread_count": 0},
+            "user_session": AnyStr(),
+        }
 
 
 @pytest.mark.django_db

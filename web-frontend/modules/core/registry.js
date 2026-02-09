@@ -1,10 +1,18 @@
+export const REGISTERABLE = Symbol('REGISTERABLE')
+
 /**
  * Only instances that are children of a Registerable can be registered into the
  * registry.
  */
 export class Registerable {
+  [REGISTERABLE] = true
+
   constructor({ app } = {}) {
     this.app = app
+  }
+
+  isRegisterable() {
+    return !!this[REGISTERABLE]
   }
 
   /**
@@ -37,7 +45,7 @@ export class Registerable {
   }
 
   $t(key) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t(key)
   }
 }
@@ -57,6 +65,11 @@ export class Registry {
    * Registers an empty namespace.
    */
   registerNamespace(namespace) {
+    if (Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
+      throw new Error(
+        `The namespace ${namespace} already exists in the registry.`
+      )
+    }
     this.registry[namespace] = {}
   }
 
@@ -66,7 +79,7 @@ export class Registry {
    * instantiated classes here.
    */
   register(namespace, object) {
-    if (!(object instanceof Registerable)) {
+    if (!(object.isRegisterable || object.isRegisterable())) {
       throw new TypeError(
         'The registered object must be an instance of Registrable.'
       )
@@ -74,7 +87,10 @@ export class Registry {
     const type = object.getType()
 
     if (!Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
-      this.registry[namespace] = {}
+      throw new TypeError(
+        `The namespace ${namespace} doesn't exists. Can't register ${type}.`
+      )
+      //this.registry[namespace] = {}
     }
     this.registry[namespace][type] = object
   }
@@ -105,7 +121,9 @@ export class Registry {
     }
     if (!Object.prototype.hasOwnProperty.call(this.registry[namespace], type)) {
       throw new Error(
-        `The type "${type}" is not found under namespace "${namespace}" in the registry.`
+        `The type "${type}" is not found under namespace "${namespace}" in the registry. Available types are: ${Object.keys(
+          this.registry[namespace]
+        ).join(', ')}.`
       )
     }
     return this.registry[namespace][type]

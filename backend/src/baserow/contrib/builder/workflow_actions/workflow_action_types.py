@@ -122,8 +122,7 @@ class OpenPageWorkflowActionType(BuilderWorkflowActionType):
     class SerializedDict(
         BuilderWorkflowActionDict,
         NavigationElementManager.SerializedDict,
-    ):
-        ...
+    ): ...
 
     def get_pytest_params(self, pytest_data_fixture):
         return NavigationElementManager().get_pytest_params(pytest_data_fixture)
@@ -183,8 +182,7 @@ class LogoutWorkflowActionType(BuilderWorkflowActionType):
     type = "logout"
     model_class = LogoutWorkflowAction
 
-    class SerializedDict(BuilderWorkflowActionDict):
-        ...
+    class SerializedDict(BuilderWorkflowActionDict): ...
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
@@ -417,11 +415,10 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
                     queryset=specific_queryset(
                         Service.objects.all(),
                         per_content_type_queryset_hook=(
-                            lambda service, queryset: service_type_registry.get_by_model(
+                            lambda service,
+                            queryset: service_type_registry.get_by_model(
                                 service
-                            ).enhance_queryset(
-                                queryset
-                            )
+                            ).enhance_queryset(queryset)
                         ),
                     ),
                 )

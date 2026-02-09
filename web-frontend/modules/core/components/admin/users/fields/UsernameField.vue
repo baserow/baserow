@@ -1,17 +1,17 @@
-<template functional>
-  <div class="user-admin-username" :class="[data.staticClass, data.class]">
+<template>
+  <div class="user-admin-username">
     <Avatar
       class="user-admin-username__avatar"
       rounded
       size="large"
-      :initials="$options.methods.firstTwoInitials(props.row.name)"
+      :initials="firstTwoInitials(row.name)"
     ></Avatar>
-    <div class="user-admin-username__name" :title="props.row.username">
-      {{ props.row.username }}
+    <div class="user-admin-username__name" :title="row.username">
+      {{ row.username }}
     </div>
     <i
-      v-if="props.row.is_staff"
-      v-tooltip="parent.$t('user.isStaff')"
+      v-if="row.is_staff"
+      v-tooltip="$t('user.isStaff')"
       class="user-admin-username__icon iconoir-user-crown"
     ></i>
   </div>
@@ -20,7 +20,6 @@
 <script>
 export default {
   name: 'UsernameField',
-  functional: true,
   props: {
     row: {
       required: true,
@@ -29,7 +28,7 @@ export default {
   },
   methods: {
     firstTwoInitials(name) {
-      return name
+      return (name || '')
         .split(' ')
         .map((s) => s.slice(0, 1))
         .join('')

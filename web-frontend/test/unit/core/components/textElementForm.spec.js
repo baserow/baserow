@@ -1,6 +1,10 @@
-import { mount } from '@vue/test-utils'
 import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
 import TextElementForm from '@baserow/modules/builder/components/elements/components/forms/general/TextElementForm'
+
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { h } from 'vue'
+
+// TODO MIG move that to builder folder
 
 describe('TextElementForm', () => {
   let wrapper
@@ -17,8 +21,8 @@ describe('TextElementForm', () => {
   }
 
   const mountComponent = (props = {}) => {
-    return mount(TextElementForm, {
-      propsData: {
+    return mountSuspended(TextElementForm, {
+      props: {
         ...defaultProps,
         ...props,
       },
@@ -28,14 +32,18 @@ describe('TextElementForm', () => {
           getOrderedList: () => [],
         },
       },
-      provide: {
-        workspace: {},
-        builder: {
-          theme: {},
+      global: {
+        provide: {
+          workspace: {},
+          builder: {
+            theme: {},
+          },
+          currentPage: {},
+          elementPage: {},
+          mode: 'edit',
+          formulaComponent: () => h('div', `fake formula component`),
+          dataProvidersAllowed: [],
         },
-        currentPage: {},
-        elementPage: {},
-        mode: 'edit',
       },
       stubs: {
         FormGroup: true,
@@ -46,12 +54,12 @@ describe('TextElementForm', () => {
     })
   }
 
-  beforeEach(() => {
-    wrapper = mountComponent()
+  beforeEach(async () => {
+    wrapper = await mountComponent()
   })
 
   afterEach(() => {
-    wrapper.destroy()
+    wrapper.unmount()
   })
 
   test('only emits allowed values when values change', async () => {

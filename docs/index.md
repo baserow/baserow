@@ -104,8 +104,10 @@ Everything related to contributing and developing for Baserow.
 * [Debugging](./development/debugging.md): Debugging tools and how to use them.
 * [Create a template](./development/create-a-template.md): Create a template that can be
   previewed and installed by others.
-* [dev.sh](./development/dev_sh.md): Further details on how to use Baserow's `./dev.sh`
-  helper script.
+* [Justfile reference](./development/justfile.md): Complete reference for all `just` commands
+  available for development.
+* [dev.sh](./development/dev_sh.md): **(Deprecated)** Legacy `./dev.sh` helper script.
+  Use `just` commands instead.
 * [IntelliJ setup](./development/intellij-setup.md): How to configure Intellij to work
   well with Baserow for development purposes.
 * [Feature flags](./development/feature-flags.md): How Baserow uses basic feature flags for optionally

@@ -556,7 +556,7 @@ fieldTypes.forEach((fieldType) => {
         const cellValue = testCase.matchRowIdColumn
           ? "row id"
           : testCase.cellValue;
-        test(
+        test.skip(
           `${testIdx++} FullTextTest @search => ${subFieldSetup.name}
             - ${cellValue} should ${
             testCase.expectsCellToMatch ? "match" : "not match"

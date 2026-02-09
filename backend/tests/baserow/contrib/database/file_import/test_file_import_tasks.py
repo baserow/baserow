@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import NamedTuple
 
 from django.conf import settings
@@ -1307,6 +1307,52 @@ def test_run_file_import_task_with_upsert_for_multiple_field_types(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_date_validation(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    f1 = data_fixture.create_date_field(table=table, order=1, name="date 1")
+    f2 = data_fixture.create_text_field(table=table, order=2, name="text 1")
+
+    model = table.get_model()
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={
+                "data": [
+                    ["0000-01-01", "zero"],
+                    ["2020-01-01", "one"],
+                    ["19999-09-09", "two"],
+                ],
+            },
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    rows = model.objects.order_by("order").all()
+    # first and last are discarded because they're not valid date formats
+    assert [
+        (
+            getattr(r, f1.db_column),
+            getattr(r, f2.db_column),
+        )
+        for r in rows
+    ] == [
+        (
+            date(2020, 1, 1),
+            "one",
+        )
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_constraints
 def test_run_file_import_task_with_field_constraints(
     data_fixture, patch_filefield_storage
@@ -1314,7 +1360,6 @@ def test_run_file_import_task_with_field_constraints(
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
-
     handler = FieldHandler()
     text_field = handler.create_field(
         user=user,
@@ -1344,7 +1389,6 @@ def test_run_file_import_task_with_field_constraints(
             first_row_header=False,
         )
         run_async_job(job.id)
-
     job.refresh_from_db()
     assert job.finished
     assert not job.failed

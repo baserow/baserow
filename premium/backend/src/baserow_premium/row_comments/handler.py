@@ -3,6 +3,15 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.handler import CoreHandler
+from baserow.core.prosemirror.utils import (
+    extract_mentioned_users_in_workspace,
+    is_valid_prosemirror_document,
+)
+from baserow.core.trash.handler import TrashHandler
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.row_comments.exceptions import (
@@ -30,16 +39,6 @@ from baserow_premium.row_comments.signals import (
     row_comment_updated,
     row_comments_notification_mode_updated,
 )
-
-from baserow.contrib.database.rows.exceptions import RowDoesNotExist
-from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.table.handler import TableHandler
-from baserow.core.handler import CoreHandler
-from baserow.core.prosemirror.utils import (
-    extract_mentioned_users_in_workspace,
-    is_valid_prosemirror_document,
-)
-from baserow.core.trash.handler import TrashHandler
 
 
 class RowCommentHandler:

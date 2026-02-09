@@ -1,7 +1,7 @@
-<template functional>
+<template>
   <span class="array-field__multiple-collaborators-container">
     <div
-      v-for="item in props.value"
+      v-for="item in value"
       :key="item.id"
       class="field-multiple-collaborators__item"
     >
@@ -10,13 +10,11 @@
           class="field-multiple-collaborators__name background-color--light-gray"
         >
           <span class="field-multiple-collaborators__name-text">{{
-            $options.methods.getCollaboratorName(item, parent.$store)
+            getCollaboratorName(item, $store)
           }}</span>
         </div>
         <div class="field-multiple-collaborators__initials">
-          {{
-            $options.methods.getCollaboratorNameInitials(item, parent.$store)
-          }}
+          {{ getCollaboratorNameInitials(item, $store) }}
         </div>
       </template>
     </div>
@@ -29,5 +27,11 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 export default {
   name: 'FunctionalFormulaMultipleCollaboratorsArrayItem',
   mixins: [collaboratorName],
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
 }
 </script>

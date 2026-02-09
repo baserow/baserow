@@ -119,7 +119,7 @@ def test_changing_type_of_other_field_still_results_in_working_filter(data_fixtu
     # filter on the referencing formula field is now and invalid and should be deleted
     FieldHandler().update_field(user, first_formula_field, formula="1")
 
-    queryset = ViewHandler().get_queryset(grid_view)
+    queryset = ViewHandler().get_queryset(user, grid_view)
     assert not queryset.exists()
     assert queryset.count() == 0
 
@@ -142,7 +142,7 @@ def test_can_use_complex_date_filters_on_formula_field(data_fixture):
         value="Europe/London",
     )
 
-    queryset = ViewHandler().get_queryset(grid_view)
+    queryset = ViewHandler().get_queryset(user, grid_view)
     assert not queryset.exists()
     assert queryset.count() == 0
 
@@ -167,7 +167,7 @@ def test_can_use_complex_date_filters_on_formula_field_with_lookup(data_fixture)
 
     table.get_model()
 
-    queryset = ViewHandler().get_queryset(grid_view)
+    queryset = ViewHandler().get_queryset(user, grid_view)
     assert not queryset.exists()
     assert queryset.count() == 0
 
@@ -197,7 +197,7 @@ def test_can_use_complex_contains_filters_on_formula_field(data_fixture):
         value="23",
     )
 
-    queryset = ViewHandler().get_queryset(grid_view)
+    queryset = ViewHandler().get_queryset(user, grid_view)
     assert not queryset.exists()
     assert queryset.count() == 0
 

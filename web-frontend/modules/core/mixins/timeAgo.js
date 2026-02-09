@@ -17,7 +17,7 @@ export default {
   mounted() {
     this.updateTimeAgo()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     clearTimeout(this.timeoutHandler)
   },
   methods: {
@@ -31,7 +31,7 @@ export default {
         this.timeAgo = this.$t('datetime.lessThanMinuteAgo')
         this.refreshPeriod = 60 * 1000
       } else {
-        this.timeAgo = this.$tc(`datetime.${period}Ago`, count)
+        this.timeAgo = this.$t(`datetime.${period}Ago`, { count })
         this.refreshPeriod = period === 'minutes' ? 60 * 1000 : 3600 * 1000
       }
 

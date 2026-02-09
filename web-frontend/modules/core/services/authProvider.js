@@ -1,6 +1,6 @@
 export default (client) => {
   return {
-    fetchLoginOptions() {
+    async fetchLoginOptions() {
       return client.get('/auth-provider/login-options/')
     },
   }

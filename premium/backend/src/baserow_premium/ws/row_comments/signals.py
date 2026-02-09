@@ -1,11 +1,10 @@
 from django.db import transaction
 from django.dispatch import receiver
 
-from baserow_premium.api.row_comments.serializers import RowCommentSerializer
-from baserow_premium.row_comments import signals as row_comment_signals
-
 from baserow.ws.registries import page_registry
 from baserow.ws.tasks import broadcast_to_users
+from baserow_premium.api.row_comments.serializers import RowCommentSerializer
+from baserow_premium.row_comments import signals as row_comment_signals
 
 
 @receiver(row_comment_signals.row_comment_created)

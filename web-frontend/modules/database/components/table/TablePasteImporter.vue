@@ -42,6 +42,7 @@
 <script>
 import { required, helpers } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { useRuntimeConfig } from '#imports'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
@@ -49,8 +50,10 @@ import importer from '@baserow/modules/database/mixins/importer'
 export default {
   name: 'TablePasteImporter',
   mixins: [form, importer],
+  emits: ['changed', 'data', 'getData'],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    const config = useRuntimeConfig()
+    return { v$: useVuelidate({ $lazy: true }), config }
   },
   data() {
     return {
@@ -84,9 +87,9 @@ export default {
         this.resetImporterState()
         return
       }
-      const limit = this.$config.INITIAL_TABLE_DATA_LIMIT
+      const limit = parseInt(this.config.public.initialTableDataLimit, 10)
       const count = this.values.content.split(/\r\n|\r|\n/).length
-      if (limit !== null && count > limit) {
+      if (limit && count > limit) {
         this.handleImporterError(
           this.$t('tablePasteImporter.limitError', {
             limit,

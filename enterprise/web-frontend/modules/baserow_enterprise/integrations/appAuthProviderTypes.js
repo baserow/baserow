@@ -10,7 +10,7 @@ import CommonSamlSettingForm from '@baserow_enterprise/integrations/common/compo
 import CommonOIDCSettingForm from '@baserow_enterprise/integrations/common/components/CommonOIDCSettingForm'
 import SamlAuthLink from '@baserow_enterprise/integrations/common/components/SamlAuthLink'
 import OIDCAuthLink from '@baserow_enterprise/integrations/common/components/OIDCAuthLink'
-import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg'
+import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?url'
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 
@@ -20,7 +20,7 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
   }
 
   get name() {
-    return this.app.i18n.t('appAuthProviderType.localBaserowPassword')
+    return this.app.$i18n.t('appAuthProviderType.localBaserowPassword')
   }
 
   get component() {
@@ -65,7 +65,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   AppAuthProviderType
 ) {
   get name() {
-    return this.app.i18n.t('appAuthProviderType.commonSaml')
+    return this.app.$i18n.t('appAuthProviderType.commonSaml')
   }
 
   get component() {
@@ -125,12 +125,12 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     const queryParamName = `saml_error__${userSource.id}`
     const errorCode = route.query[queryParamName]
     if (errorCode) {
-      return { message: this.app.i18n.t(`loginError.${errorCode}`), code: 500 }
+      return { message: this.app.$i18n.t(`loginError.${errorCode}`), code: 500 }
     }
   }
 
   getRelayStateUrls(userSource) {
-    const application = this.app.store.getters['application/get'](
+    const application = this.app.$store.getters['application/get'](
       userSource.application_id
     )
     const applicationType = this.app.$registry.get(
@@ -141,7 +141,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   }
 
   getAcsUrl(userSource) {
-    return `${this.app.$config.PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/`
+    return `${this.app.$config.public.publicBackendUrl}/api/user-source/sso/saml/acs/`
   }
 
   getOrder() {
@@ -170,14 +170,14 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
   }
 
   getName() {
-    return this.app.i18n.t('appAuthProviderType.openIdConnect')
+    return this.app.$i18n.t('appAuthProviderType.openIdConnect')
   }
 
   getProviderName(provider) {
     if (provider.name) {
       return provider.name
     } else {
-      return this.app.i18n.t(
+      return this.app.$i18n.t(
         'authProviderTypes.ssoOIDCProviderNameUnconfigured'
       )
     }

@@ -6,10 +6,10 @@
     </p>
     <div class="margin-bottom-2">
       <SegmentControl
-        :active-index.sync="selectedTypeIndex"
+        v-model:active-index="selectedTypeIndex"
         :segments="types"
         :initial-active-index="0"
-        @update:activeIndex="updateValue"
+        @update:active-index="updateValue"
       ></SegmentControl>
     </div>
     <template v-if="hasName">
@@ -54,6 +54,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

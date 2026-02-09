@@ -173,6 +173,7 @@ export default {
     getResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
   },
+  emits: ['input'],
   methods: {},
 }
 </script>

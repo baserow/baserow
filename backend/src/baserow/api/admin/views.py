@@ -132,8 +132,7 @@ class APIListingView(
                     name="size",
                     location=OpenApiParameter.QUERY,
                     type=OpenApiTypes.INT,
-                    description=f"Defines how many {name} should be returned per "
-                    f"page.",
+                    description=f"Defines how many {name} should be returned per page.",
                 ),
                 *(extra_parameters or []),
             ],

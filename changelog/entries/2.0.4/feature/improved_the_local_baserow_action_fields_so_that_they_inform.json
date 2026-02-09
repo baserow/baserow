@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Improved the Local Baserow action fields so that they inform users about what data type they expect to receive.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2025-11-26"
+}

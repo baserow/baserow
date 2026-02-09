@@ -1,9 +1,9 @@
-from baserow_premium.plugins import PremiumPlugin
 from rest_framework import serializers
 
 from baserow.api.workspaces.serializers import WorkspaceSerializer
 from baserow.contrib.builder.api.serializers import BuilderSerializer
 from baserow.core.registries import plugin_registry
+from baserow_premium.plugins import PremiumPlugin
 
 
 class PublicWorkspaceSerializer(WorkspaceSerializer):

@@ -7,6 +7,8 @@ import {
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsService from '@baserow/modules/core/services/permissions'
 import RolesService from '@baserow/modules/core/services/roles'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export function populateWorkspace(workspace) {
   workspace._ = {
@@ -207,13 +209,14 @@ export const actions = {
    * Fetches all the workspaces of an authenticated user.
    */
   async fetchAll({ commit, dispatch, state }) {
+    const { $client } = this
     commit('SET_LOADING', true)
 
     try {
-      const { data } = await WorkspaceService(this.$client).fetchAll()
+      const { data } = await WorkspaceService($client).fetchAll()
       commit('SET_LOADED', true)
       commit('SET_ITEMS', data)
-    } catch {
+    } catch (error) {
       commit('SET_ITEMS', [])
     }
     commit('SET_LOADING', false)
@@ -232,7 +235,8 @@ export const actions = {
    * Creates a new workspace with the given values.
    */
   async create({ commit, dispatch }, values) {
-    const { data } = await WorkspaceService(this.$client).create(values)
+    const { $registry, $client } = this
+    const { data } = await WorkspaceService($client).create(values)
     dispatch('forceCreate', data)
     return data
   },
@@ -246,7 +250,8 @@ export const actions = {
    * Updates the values of the workspace with the provided id.
    */
   async update({ commit, dispatch }, { workspace, values }) {
-    const { data } = await WorkspaceService(this.$client).update(
+    const { $registry, $client } = this
+    const { data } = await WorkspaceService($client).update(
       workspace.id,
       values
     )
@@ -273,10 +278,11 @@ export const actions = {
    * Updates the order of the workspaces for the current user.
    */
   async order({ commit, getters }, { order, oldOrder }) {
+    const { $registry, $client } = this
     commit('ORDER_ITEMS', order)
 
     try {
-      await WorkspaceService(this.$client).order(order)
+      await WorkspaceService($client).order(order)
     } catch (error) {
       commit('ORDER_ITEMS', oldOrder)
       throw error
@@ -286,15 +292,19 @@ export const actions = {
    * Makes the current authenticated user leave the workspace.
    */
   async leave({ commit, dispatch }, workspace) {
-    await WorkspaceService(this.$client).leave(workspace.id)
+    const { $registry, $client } = this
+
+    await WorkspaceService($client).leave(workspace.id)
     await dispatch('forceDelete', workspace)
   },
   /**
    * Deletes an existing workspace with the provided id.
    */
   async delete({ commit, dispatch }, workspace) {
+    const { $registry, $client } = this
+
     try {
-      await WorkspaceService(this.$client).delete(workspace.id)
+      await WorkspaceService($client).delete(workspace.id)
       await dispatch('forceDelete', workspace)
     } catch (error) {
       // If the workspace to delete wasn't found we can just delete it from the
@@ -325,12 +335,16 @@ export const actions = {
       // can't be accessed anymore.
       await dispatch('unselect', workspace)
       await this.$router.push({ name: 'dashboard' })
+      await pageFinished()
+      await nextTick()
     }
 
     commit('DELETE_ITEM', workspace.id)
   },
   async forceFetchPermissions({ commit }, workspace) {
-    const { data } = await PermissionsService(this.$client).get(workspace)
+    const { $registry, $client } = this
+
+    const { data } = await PermissionsService($client).get(workspace)
     commit('SET_PERMISSIONS', {
       workspaceId: workspace.id,
       permissions: data,
@@ -355,15 +369,15 @@ export const actions = {
     }
   },
   async forceRefreshRoles({ commit, getters }, workspace) {
+    const { $registry, $hasFeature, $client } = this
+
     commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: true })
 
     try {
-      const { data } = await RolesService(
-        this.$client,
-        this.app.$hasFeature,
-        this.$registry
-      ).get(workspace)
-      const translatedRoles = appendRoleTranslations(data, this.app.$registry)
+      const { data } = await RolesService($client, $hasFeature, $registry).get(
+        workspace
+      )
+      const translatedRoles = appendRoleTranslations(data, $registry)
       commit('SET_ROLES', { workspaceId: workspace.id, roles: translatedRoles })
     } finally {
       commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: false })
@@ -373,10 +387,12 @@ export const actions = {
    * Select a workspace and fetch all the applications related to that workspace.
    */
   async select({ commit, dispatch }, workspace) {
+    const nuxtApp = this
+
     await dispatch('fetchPermissions', workspace)
     await dispatch('fetchRoles', workspace)
     commit('SET_SELECTED', workspace)
-    setWorkspaceCookie(workspace.id, this.app)
+    setWorkspaceCookie(workspace.id, nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(workspace.id),
@@ -401,8 +417,10 @@ export const actions = {
    * Unselect a workspace if selected and clears all the fetched applications.
    */
   unselect({ commit, dispatch, getters }, workspace) {
+    const nuxtApp = this
+
     commit('UNSELECT', {})
-    unsetWorkspaceCookie(this.app)
+    unsetWorkspaceCookie(nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(null),
@@ -429,6 +447,7 @@ export const actions = {
   ) {
     commit('UPDATE_WORKSPACE_USER', { workspaceId, id, values })
     const userId = rootGetters['auth/getUserId']
+
     if (values.user_id === userId) {
       commit('UPDATE_ITEM', {
         id: workspaceId,
@@ -510,12 +529,13 @@ export const getters = {
   getAllSorted(state) {
     return state.items.map((g) => g).sort((a, b) => a.order - b.order)
   },
-  /**
-   * Never use this value in any component to get the current workspace. This is
-   * just used for visual purposes in the left sidebar.
-   */
-  getSelected(state) {
-    return state.selected
+  getSelected(state, getters) {
+    // Return empty object if no workspace is selected to avoid throwing
+    // Components should check hasOwnProperty('id') before using
+    if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
+      return {}
+    }
+    return getters['get'](state.selected.id)
   },
   selectedId(state) {
     if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {

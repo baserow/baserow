@@ -10,8 +10,7 @@
     "lint": "yarn eslint && yarn stylelint",
     "dev": "cd /baserow/web-frontend/ && nuxt --hostname 0.0.0.0 --config-file ./config/nuxt.config.dev.js",
     "build": "cd /baserow/web-frontend/ && nuxt build --config-file ./config/nuxt.config.dev.js",
-    "build-local": "cd /baserow/web-frontend/ && nuxt build --config-file ./config/nuxt.config.local.js",
-    "start": "cd /baserow/web-frontend/ && nuxt start --hostname 0.0.0.0 --config-file ./config/nuxt.config.local.js"
+    "start": "cd /baserow/web-frontend/ && nuxt start --hostname 0.0.0.0 --config-file ./config/nuxt.config.local.ts"
   },
   "dependencies": {
     "baserow": "link:/baserow/web-frontend",

@@ -389,10 +389,14 @@ class AskPublicBuilderDomainExistsView(APIView):
         # certificate for the one domain, and ask for the rest of the domains.
         # Because the backend and web-frontend hostname are not builder domains,
         # we must add these as accepted domains.
-        allowed_domain = [
-            settings.PUBLIC_BACKEND_HOSTNAME,
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-        ]
+        allowed_domain = set(
+            [
+                settings.PUBLIC_BACKEND_HOSTNAME,
+                settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
+            ]
+            + settings.EXTRA_PUBLIC_BACKEND_HOSTNAMES
+            + settings.EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES
+        )
 
         if domain_name in allowed_domain:
             return Response(None, status=200)

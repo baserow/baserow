@@ -23,8 +23,8 @@
               <HelpIcon
                 class="margin-left-1"
                 :tooltip="$t('exportWorkspaceForm.onlyStructureDescription')"
-                @mousedown.native.stop
-                @click.native.stop
+                @mousedown.stop
+                @click.stop
               />
             </Checkbox>
           </div>
@@ -58,6 +58,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

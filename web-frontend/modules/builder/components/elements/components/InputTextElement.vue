@@ -60,17 +60,6 @@ export default {
     localeLanguage() {
       return this.$i18n.locale
     },
-    resolvedDefaultValue() {
-      try {
-        const value = this.resolveFormula(this.element.default_value)
-
-        return this.isNumericField
-          ? ensureNumeric(value, { allowNull: true })
-          : ensureString(value)
-      } catch {
-        return null
-      }
-    },
     isNumericField() {
       return this.element.validation_type === 'integer'
     },
@@ -82,19 +71,15 @@ export default {
     },
   },
   watch: {
-    resolvedDefaultValue: {
-      handler(value) {
-        this.inputValue = value
-        this.internalValue = this.toInternalValue(value)
+    inputValue: {
+      handler(newValue) {
+        // If the inputValue was updated (after a reset for instance) we want to update
+        // the internal value
+        if (this.fromInternalValue(this.internalValue) !== newValue) {
+          this.internalValue = this.toInternalValue(newValue)
+        }
       },
       immediate: true,
-    },
-    inputValue(newValue) {
-      // If the inputValue was updated (after a reset for instance) we want to update
-      // the internal value
-      if (this.fromInternalValue(this.internalValue) !== newValue) {
-        this.internalValue = this.toInternalValue(newValue)
-      }
     },
   },
   methods: {

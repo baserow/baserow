@@ -12,7 +12,7 @@ export default {
     this.originalLanguageBeforeDetect = this.$i18n.locale
     this.$i18n.locale = this.$i18n.getBrowserLocale()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$i18n.locale = this.originalLanguageBeforeDetect
   },
 }

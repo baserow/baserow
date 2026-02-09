@@ -1,15 +1,15 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('deleteWorkspaceModal.title', workspace) }}
     </h2>
     <Error :error="error"></Error>
     <div>
-      <i18n path="deleteWorkspaceModal.confirmation" tag="p">
+      <i18n-t keypath="deleteWorkspaceModal.confirmation" tag="p">
         <template #name>
           <strong>{{ workspace.name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
       <p>
         {{ $t('deleteWorkspaceModal.comment') }}
       </p>
@@ -45,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['workspace-deleted'],
   data() {
     return {
       loading: false,

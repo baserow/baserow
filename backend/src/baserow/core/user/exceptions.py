@@ -44,3 +44,11 @@ class DeactivatedUserException(Exception):
 
 class RefreshTokenAlreadyBlacklisted(Exception):
     """Raised when the provided refresh token is already blacklisted."""
+
+
+class ChangeEmailNotAllowed(Exception):
+    """Raised when a user without a password tries to change their email."""
+
+
+class EmailAlreadyChanged(Exception):
+    """Raised when the email has already been changed to the requested address."""

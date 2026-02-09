@@ -14,6 +14,7 @@
     "navigate": "Navigate",
     "select": "Select",
     "close": "Close",
+    "empty": "(empty)",
     "types": {
       "applications": "Applications",
       "tables": "Tables",
@@ -149,6 +150,21 @@
     "submitButton": "Change password",
     "errorInvalidOldPasswordTitle": "Invalid password",
     "errorInvalidOldPasswordMessage": "Could not change your password because your old password is invalid."
+  },
+  "emailSettings": {
+    "title": "Change email address",
+    "successTitle": "Confirmation email sent",
+    "successDescription": "We've sent a confirmation email to your new address. Please check your inbox and click the link to complete the email change.",
+    "currentEmailLabel": "Current email address",
+    "newEmailLabel": "New email address",
+    "passwordLabel": "Current password",
+    "submitButton": "Send confirmation email",
+    "errorInvalidPasswordTitle": "Invalid password",
+    "errorInvalidPasswordMessage": "Could not request email change because your password is incorrect.",
+    "errorEmailExistsTitle": "Email already exists",
+    "errorEmailExistsMessage": "Could not request email change because an account with this email address already exists.",
+    "errorNotAllowedTitle": "Email change not allowed",
+    "errorNotAllowedMessage": "You cannot change your email address because your account uses single sign-on (SSO) authentication."
   },
   "deleteAccountSettings": {
     "title": "Delete account",
@@ -313,7 +329,7 @@
     "openaiModelsLabel": "Enabled Models",
     "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
     "openaiBaseUrl": "Base URL",
-    "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com, or any other OpenAI compatible API.",
+    "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, or any other OpenAI compatible API.",
     "anthropic": "Anthropic",
     "anthropicApiKeyLabel": "API Key",
     "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
@@ -427,11 +443,11 @@
   },
   "connectingToast": {
     "title": "Reconnecting",
-    "content": "Reconnecting with server."
+    "content": "Trying to reestablish real-time updates."
   },
   "failedConnectingToast": {
     "title": "Failed",
-    "content": "Connection to the server has failed. Please refresh the page.",
+    "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
   },
   "authorizationErrorToast": {
@@ -494,7 +510,7 @@
     "title": "Dashboard",
     "alertTitle": "We need your help!",
     "alertText": "By sharing Baserow you are helping us to improve the product and to make it more useful for you.",
-    "tweetContent": "Check out @baserow an open source no-code database tool and Airtable alternative!",
+    "tweetContent": "Check out {'@'}baserow an open source no-code database tool and Airtable alternative!",
     "redditTitle": "'Baserow - An open source no-code database",
     "becomeGithubSponsor": "Become a GitHub sponsor",
     "starOnGitHub": "Star us on GitHub",
@@ -545,6 +561,20 @@
     "errorLinkExpiredMessage": "The password reset link has expired. Please request another one.",
     "disabled": "Reset Password is disabled",
     "disabledMessage": "It's not possible to reset the password because it has been disabled."
+  },
+  "changeEmail": {
+    "title": "Confirm email change",
+    "submit": "Confirm email change",
+    "changed": "Email address changed",
+    "message": "Your email address has been successfully changed. You can now login to Baserow using your new email address.",
+    "errorInvalidLinkTitle": "Invalid link",
+    "errorInvalidLinkMessage": "Could not change the email address because the link is invalid.",
+    "errorLinkExpiredTitle": "Link expired",
+    "errorLinkExpiredMessage": "The email change link has expired. Please request a new one from your account settings.",
+    "errorEmailExistsTitle": "Email already exists",
+    "errorEmailExistsMessage": "Could not change the email address because an account with this email address already exists.",
+    "errorEmailAlreadyChangedTitle": "Email already changed",
+    "errorEmailAlreadyChangedMessage": "The email address has already been changed to the requested address."
   },
   "signup": {
     "headTitle": "Create account",
@@ -628,7 +658,7 @@
       "format": {
         "title": "Format",
         "description": "The format of the query parameters is as follows:",
-        "codeSnippet": "?prefill_<field_name>=<value>"
+        "codeSnippet": "?prefill_&#60;field_name&#62;=&#60;value&#62;"
       },
       "example": {
         "title": "Example",
@@ -689,7 +719,7 @@
     "daysAgo": "0 days ago | 1 day ago | {n} days ago",
     "monthsAgo": "0 months ago | 1 month ago | {n} months ago",
     "yearsAgo": "0 years ago | 1 year ago | {n} years ago",
-    "lessThanMinuteAgo": "less than minute ago",
+    "lessThanMinuteAgo": "less than a minute ago",
     "justNow": "just now"
   },
   "crudTableSearch": {
@@ -817,10 +847,11 @@
     "operators": "Operators",
     "search": "Search",
     "useRegularInputModalTitle": "Use regular input for this field?",
-    "useRegularInput": "Use regular input",
-    "useAdvancedInput": "Use advanced input",
-    "useAdvancedInputModalTitle": "Use advanced input for this field?",
-    "modalMessage": "Your field’s content will be cleared and it will not be possible to recover it."
+    "useSimpleInput": "Switch to basic mode",
+    "useSimpleInputModalTitle": "Switch to basic mode?",
+    "useAdvancedInput": "Switch to expert mode",
+    "useAdvancedInputModalTitle": "Switch to expert mode?",
+    "modalMessage": "Switching to a different mode will clear the current formula. Are you sure you want to continue?"
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
@@ -1100,5 +1131,11 @@
     "verificationFailedDescription": "The entered code is not valid.",
     "provisioningFailed": "Provisioning failed",
     "checkSuccess": "Successfully enabled two-factor authentication"
+  },
+  "adminUsers": {
+    "title": "Users"
+  },
+  "adminWorkspaces": {
+    "title": "Workspaces"
   }
 }

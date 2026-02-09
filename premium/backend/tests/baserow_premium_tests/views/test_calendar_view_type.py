@@ -9,14 +9,6 @@ from django.core.files.storage import FileSystemStorage
 from django.urls import reverse
 
 import pytest
-from baserow_premium.ical_utils import build_calendar
-from baserow_premium.views.exceptions import CalendarViewHasNoDateField
-from baserow_premium.views.handler import (
-    generate_per_day_intervals,
-    get_rows_grouped_by_date_field,
-    to_midnight,
-)
-from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 from icalendar import Calendar
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
@@ -31,10 +23,19 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
+from baserow_premium.ical_utils import build_calendar
+from baserow_premium.views.exceptions import CalendarViewHasNoDateField
+from baserow_premium.views.handler import (
+    generate_per_day_intervals,
+    get_rows_grouped_by_date_field,
+    to_midnight,
+)
+from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 
 
 @pytest.mark.django_db
@@ -122,7 +123,10 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
     files_buffer = BytesIO()
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         serialized = calendar_view_type.export_serialized(
-            calendar_view, files_zip=files_zip, storage=storage
+            calendar_view,
+            ImportExportConfig(include_permission_data=False),
+            files_zip=files_zip,
+            storage=storage,
         )
 
     assert serialized["id"] == calendar_view.id
@@ -146,7 +150,12 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_calendar_view = calendar_view_type.import_serialized(
-            calendar_view.table, serialized, id_mapping, files_zip, storage
+            calendar_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert calendar_view.id != imported_calendar_view.id
@@ -220,6 +229,7 @@ def test_calendar_view_convert_date_field_to_another(premium_data_fixture):
     calendar_view.refresh_from_db()
     with pytest.raises(CalendarViewHasNoDateField):
         get_rows_grouped_by_date_field(
+            user,
             calendar_view,
             date_field,
             from_timestamp=datetime.now(tz=timezone.utc),
@@ -634,6 +644,7 @@ GET_ROWS_GROUPED_BY_DATE_FIELD_CASES = [
 def test_calendar_timezone_test_cases(
     premium_data_fixture, name, test_case, django_assert_num_queries
 ):
+    user = premium_data_fixture.create_user()
     table, fields, rows = premium_data_fixture.build_table(
         columns=[test_case["field"]], rows=[[v] for v in test_case["rows"]]
     )
@@ -643,6 +654,7 @@ def test_calendar_timezone_test_cases(
     )
 
     grouped_rows = get_rows_grouped_by_date_field(
+        user,
         calendar_view,
         field,
         from_timestamp=test_case["from_timestamp"],
@@ -1226,7 +1238,7 @@ def test_calendar_ical_utils_queries(
         uid_url = urlparse(evt.get("uid"))
         assert uid_url.netloc
         assert uid_url.path == (
-            f"/database/{table.database_id}/table/{table.id}/{calendar_view.id}/row/{idx+1}"
+            f"/database/{table.database_id}/table/{table.id}/{calendar_view.id}/row/{idx + 1}"
         )
         assert evt.get("summary")
 

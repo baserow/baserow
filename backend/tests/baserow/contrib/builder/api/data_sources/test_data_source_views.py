@@ -1183,6 +1183,10 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
     with transaction.atomic():
         user, token = data_fixture.create_user_and_token()
@@ -2385,13 +2389,13 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
                 # Although only field_1 is explicitly used by an element in this
                 # page, field_2 is still returned because the Editor page needs
                 # access to all data source fields.
-                fields[1].name: "5",
+                fields[1].name: 5,
                 "id": AnyInt(),
                 "order": AnyStr(),
             },
             {
                 fields[0].name: "Gobi Manchurian",
-                fields[1].name: "8",
+                fields[1].name: 8,
                 "id": AnyInt(),
                 "order": AnyStr(),
             },

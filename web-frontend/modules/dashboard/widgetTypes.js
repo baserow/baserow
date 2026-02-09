@@ -1,5 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg'
+import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
 import SummaryWidget from '@baserow/modules/dashboard/components/widget/SummaryWidget'
 import SummaryWidgetSettings from '@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'
 
@@ -73,7 +73,8 @@ export class SummaryWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('summaryWidget.name')
+    const { $i18n: i18n } = this.app
+    return i18n.t('summaryWidget.name')
   }
 
   get createWidgetImage() {

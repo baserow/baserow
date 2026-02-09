@@ -177,7 +177,7 @@ def test_create_user(client, data_fixture):
     assert response_json["detail"]["language"][0]["code"] == "invalid_language"
     assert response_json["detail"]["language"][0]["error"] == (
         "Only the following language keys are "
-        f"valid: {','.join([l[0] for l in settings.LANGUAGES])}"
+        f"valid: {','.join([lang[0] for lang in settings.LANGUAGES])}"
     )
 
     # Test username with maximum length
@@ -267,7 +267,7 @@ def test_user_account(data_fixture, api_client):
     assert response_json["detail"]["language"][0]["code"] == "invalid_language"
     assert response_json["detail"]["language"][0]["error"] == (
         "Only the following language keys are "
-        f"valid: {','.join([l[0] for l in settings.LANGUAGES])}"
+        f"valid: {','.join([lang[0] for lang in settings.LANGUAGES])}"
     )
 
     response = api_client.patch(
@@ -1261,3 +1261,240 @@ def test_share_onboarding_details_with_baserow(mock_task, client, data_fixture):
         size="11 - 50",
         country="The Netherlands",
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password=valid_password
+    )
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": "wrongpassword",
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_INVALID_OLD_PASSWORD"
+
+    data_fixture.create_user(email="existing@test.nl")
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "existing@test.nl",
+            "password": valid_password,
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_EXISTS"
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": valid_password,
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to[0] == "newemail@test.nl"
+    assert "Confirm email address change" in mailoutbox[0].subject
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_password_auth_disabled(
+    data_fixture, client, mailoutbox
+):
+    data_fixture.create_password_provider(enabled=False)
+    valid_password = "thisIsAValidPassword"
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password=valid_password
+    )
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": valid_password,
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {
+        "error": "ERROR_AUTH_PROVIDER_DISABLED",
+        "detail": "Authentication provider is disabled.",
+    }
+    assert len(mailoutbox) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_without_password(
+    data_fixture, client, mailoutbox
+):
+    data_fixture.create_password_provider()
+    user, token = data_fixture.create_user_and_token(email="test@test.nl")
+    user.password = ""
+    user.save()
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": "dummy_password",  # Provided but user has no password
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
+        "detail": "Email changes are only allowed for password-based accounts.",
+    }
+    assert len(mailoutbox) == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_change_email(data_fixture, client, mailoutbox):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password=valid_password
+    )
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": valid_password,
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert len(mailoutbox) == 1
+
+    handler = UserHandler()
+    signer = handler.get_change_email_signer()
+    change_token = signer.dumps({"user_id": user.id, "new_email": "newemail@test.nl"})
+
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": "invalid_token"},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "BAD_TOKEN_SIGNATURE"
+
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    user.refresh_from_db()
+    assert user.email == "newemail@test.nl"
+    assert user.username == "newemail@test.nl"
+
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
+
+    user.refresh_from_db()
+    assert user.email == "newemail@test.nl"
+    assert user.username == "newemail@test.nl"
+
+
+@pytest.mark.django_db
+def test_change_email_with_expired_token(data_fixture, client):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@test.nl", password=valid_password)
+
+    handler = UserHandler()
+    signer = handler.get_change_email_signer()
+
+    with freeze_time("2023-01-01 12:00:00"):
+        change_token = signer.dumps(
+            {"user_id": user.id, "new_email": "newemail@test.nl"}
+        )
+
+    with freeze_time("2023-01-10 12:00:00"):  # More than the token max age
+        response = client.post(
+            reverse("api:user:change_email"),
+            {"token": change_token},
+            format="json",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response_json["error"] == "EXPIRED_TOKEN_SIGNATURE"
+
+
+@pytest.mark.django_db
+def test_change_email_same_as_current(data_fixture, client):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@test.nl", password=valid_password)
+
+    handler = UserHandler()
+    signer = handler.get_change_email_signer()
+
+    change_token = signer.dumps({"user_id": user.id, "new_email": "test@test.nl"})
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
+
+    change_token = signer.dumps({"user_id": user.id, "new_email": "TeSt@TeSt.nl"})
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
+
+    user.refresh_from_db()
+    assert user.email == "test@test.nl"

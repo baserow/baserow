@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from "@playwright/test";
-import { BaserowPage } from "../baserowPage";
+import { BaserowPage, PageConfig } from "../baserowPage";
 import { Table } from "../../fixtures/database/table";
 
 const TEST_IMAGE_FILE_PATH = "assets/testuploadimage.png";
@@ -25,8 +25,8 @@ export class TablePage extends BaserowPage {
   readonly rowIdDivsMatchingSearch: Locator;
   readonly firstRowIdDiv: Locator;
 
-  constructor(page: Page) {
-    super(page);
+  constructor(pageConfig: PageConfig) {
+    super(pageConfig);
     this.projectsTextLocator = this.page.locator("text=Projects");
     this.addColumnLocator = this.page.locator(".grid-view__add-column");
     this.searchButtonIcon = this.page.locator(".header__search-icon");

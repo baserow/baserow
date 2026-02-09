@@ -10,7 +10,7 @@
     >
       <i class="header__filter-icon iconoir-filter"></i>
       <span class="header__filter-name">{{
-        $tc('viewFilter.filter', view.filters.length, {
+        $t('viewFilter.filter', {
           count: view.filters.length,
         })
       }}</span>
@@ -62,10 +62,11 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   beforeMount() {
     this.$bus.$on('view-filter-created', this.filterCreated)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('view-filter-created', this.filterCreated)
   },
   methods: {

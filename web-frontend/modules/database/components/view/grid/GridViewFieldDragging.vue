@@ -40,7 +40,12 @@ export default {
       type: Boolean,
       required: true,
     },
+    getScrollElement: {
+      type: Function,
+      required: true,
+    },
   },
+  emits: ['scroll'],
   data() {
     return {
       // Indicates if the user is dragging a field to another position.
@@ -67,9 +72,14 @@ export default {
       lastMoveEvent: null,
       // Indicates if the user is auto scrolling at the moment.
       autoScrolling: false,
+      // Event handler references for cleanup
+      moveEvent: null,
+      upEvent: null,
+      keydownEvent: null,
+      scrollTimeout: null,
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.cancel()
   },
   methods: {
@@ -95,23 +105,23 @@ export default {
       this.moved = false
       this.mouseStartX = event.clientX
       this.mouseStartY = event.clientY
-      this.scrollStart = this.$parent.$el.scrollLeft
+      this.scrollStart = this.getScrollElement().scrollLeft
       this.draggingLeft = 0
       this.targetLeft = 0
 
-      this.$el.moveEvent = (event) => this.move(event)
-      window.addEventListener('mousemove', this.$el.moveEvent)
+      this.moveEvent = (event) => this.move(event)
+      window.addEventListener('mousemove', this.moveEvent)
 
-      this.$el.upEvent = (event) => this.up(event)
-      window.addEventListener('mouseup', this.$el.upEvent)
+      this.upEvent = (event) => this.up(event)
+      window.addEventListener('mouseup', this.upEvent)
 
-      this.$el.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         if (event.key === 'Escape') {
           // When the user presses the escape key we want to cancel the action
           this.cancel(event)
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
     },
     /**
      * The move method is called when every time the user moves the mouse while
@@ -142,7 +152,7 @@ export default {
       }
 
       // This is the horizontally scrollable element.
-      const element = this.$parent.$el
+      const element = this.getScrollElement()
 
       this.draggingWidth = this.getFieldWidth(this.field)
 
@@ -154,7 +164,7 @@ export default {
           this.getFieldLeft(this.field.id) +
             event.clientX -
             this.mouseStartX +
-            this.$parent.$el.scrollLeft -
+            this.getScrollElement().scrollLeft -
             this.scrollStart,
           this.containerWidth - this.draggingWidth
         )
@@ -219,7 +229,7 @@ export default {
         if (speed !== 0) {
           this.autoScrolling = true
           this.$emit('scroll', { pixelY: 0, pixelX: speed })
-          this.$el.scrollTimeout = setTimeout(() => {
+          this.scrollTimeout = setTimeout(() => {
             this.move(null, false)
           }, 1)
         } else {
@@ -235,10 +245,10 @@ export default {
       this.dragging = false
       this.mouseStartX = 0
       this.mouseStartY = 0
-      window.removeEventListener('mousemove', this.$el.moveEvent)
-      window.removeEventListener('mouseup', this.$el.upEvent)
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
-      clearTimeout(this.$el.scrollTimeout)
+      window.removeEventListener('mousemove', this.moveEvent)
+      window.removeEventListener('mouseup', this.upEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
+      clearTimeout(this.scrollTimeout)
     },
     /**
      * Called when the user releases the mouse on a the desired position. It will

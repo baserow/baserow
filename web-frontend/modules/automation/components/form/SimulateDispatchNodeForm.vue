@@ -10,20 +10,34 @@
       {{ buttonLabel }}
     </Button>
 
-    <Alert v-if="cantBeTestedReason" type="info-neutral">
+    <Alert
+      v-if="cantBeTestedReason"
+      type="info-neutral"
+      class="margin-bottom-0"
+    >
       <p>{{ cantBeTestedReason }}</p>
     </Alert>
 
-    <Alert v-else-if="showTestNodeDescription" type="info-neutral">
-      <p>{{ $t('simulateDispatch.testNodeDescription') }}</p>
+    <Alert
+      v-if="isLoading"
+      :type="nodeType.isTrigger ? 'warning' : 'info-neutral'"
+    >
+      <p>
+        {{
+          nodeType.isTrigger
+            ? $t('simulateDispatch.triggerNodeAwaitingEvent')
+            : $t('simulateDispatch.simulationInProgress')
+        }}
+      </p>
     </Alert>
-
-    <Alert v-else-if="isLoading" type="info-neutral">
-      <p>{{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}</p>
+    <Alert v-else-if="!hasSampleData" type="info-neutral">
+      <p>
+        {{ $t('simulateDispatch.testNodeDescription') }}
+      </p>
     </Alert>
 
     <div
-      v-if="hasSampleData && !isSimulating"
+      v-if="hasSampleData && !isLoading"
       :class="{
         'simulate-dispatch-node__sample-data--error': isErrorSample,
       }"
@@ -63,13 +77,12 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import { computed, ref } from 'vue'
-
-import { inject, useContext, useStore } from '@nuxtjs/composition-api'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
-const { app } = useContext()
+const app = useNuxtApp()
 const store = useStore()
 
 const automation = inject('automation')
@@ -78,10 +91,6 @@ const sampleDataModalRef = ref(null)
 
 const props = defineProps({
   node: {
-    type: Object,
-    required: true,
-  },
-  automation: {
     type: Object,
     required: true,
   },
@@ -133,7 +142,7 @@ const isErrorSample = computed(() => {
  */
 const cantBeTestedReason = computed(() => {
   if (nodeType.value.isInError({ service: props.node.service })) {
-    return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
+    return app.$i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
   const previousNodes = store.getters[
@@ -147,13 +156,13 @@ const cantBeTestedReason = computed(() => {
       node: previousNode,
     })
     if (previousNodeType.isInError(previousNode)) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
+      return app.$i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
         node: nodeLabel,
       })
     }
 
     if (!previousNodeType.getSampleData(previousNode)?.data) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
+      return app.$i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
         node: nodeLabel,
       })
     }
@@ -171,7 +180,7 @@ const isDisabled = computed(() => {
 
 const sampleDataModalTitle = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
-  return app.i18n.t('simulateDispatch.sampleDataModalTitle', {
+  return app.$i18n.t('simulateDispatch.sampleDataModalTitle', {
     nodeLabel: nodeType.getLabel({
       automation: props.automation,
       node: props.node,
@@ -181,16 +190,8 @@ const sampleDataModalTitle = computed(() => {
 
 const buttonLabel = computed(() => {
   return hasSampleData.value
-    ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
-    : app.i18n.t('simulateDispatch.buttonLabelTest')
-})
-
-const showTestNodeDescription = computed(() => {
-  if (Boolean(cantBeTestedReason.value) || hasSampleData.value) {
-    return false
-  }
-
-  return true
+    ? app.$i18n.t('simulateDispatch.buttonLabelTestAgain')
+    : app.$i18n.t('simulateDispatch.buttonLabelTest')
 })
 
 const simulateDispatchNode = async () => {

@@ -4,16 +4,17 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_user_stop_receiving_notification_if_another_user_change_view_ownership(
     mocked_broadcast_to_users, api_client, premium_data_fixture
 ):

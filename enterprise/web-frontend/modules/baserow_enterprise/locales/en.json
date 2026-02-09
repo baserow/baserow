@@ -194,7 +194,8 @@
   },
   "memberRolesModal": {
     "memberRolesDatabaseTabTitle": "Database",
-    "memberRolesTableTabTitle": "Current Table",
+    "memberRolesTableTabTitle": "Table",
+    "memberRolesViewTabTitle": "View",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."
@@ -218,6 +219,15 @@
       "warningTitle": "Other users might inherit access!",
       "warningMessage": "Other users might inherit access via their respective roles on the parent database or workspace.",
       "headerTooltip": "Table roles will override workspace and database roles."
+    },
+    "view": {
+      "title": "{name} view",
+      "selectMembers": "Select members",
+      "everyoneHasAccess": "Everyone at {name} workspace can access this view.",
+      "onlyYouHaveAccess": "Only you can access this view.",
+      "warningTitle": "Other users might inherit access!",
+      "warningMessage": "Other users might inherit access via their respective roles on the parent table, database or workspace.",
+      "headerTooltip": "View roles will override workspace, database, and table roles."
     }
   },
   "memberRolesShareToggle": {
@@ -682,7 +692,9 @@
     "advancedSettingsLabel": "Advanced settings",
     "includeWeekendsLabel": "Include weekends when calculating durations",
     "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
-    "fieldInvalidTitle": "Date dependency field error"
+    "fieldInvalidTitle": "Date dependency field error",
+    "addNewField": "Add new field",
+    "linkRowFieldTitle": "Parents"
   },
   "dateDependency": {
     "invalidChildRow": "Successor row is invalid",
@@ -694,5 +706,9 @@
     "invalidDurationEmpty": "Duration is empty",
     "invalidDurationValue": "Duration value is not valid",
     "invalidDurationMismatch": "Duration value mismatch"
+  },
+  "viewOwnershipType": {
+    "restricted": "Restricted",
+    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It’s possible to manage the members."
   }
 }

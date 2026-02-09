@@ -6,19 +6,25 @@ import {
 } from '@baserow/modules/database/viewFilters'
 import { clone } from '@baserow/modules/core/utils/object'
 
+import { createStore } from 'vuex'
+
 describe('Grid view store', () => {
   let testApp = null
-  let store = null
   let mockServer = null
+  let store = null
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
     mockServer = testApp.mockServer
+    store = testApp.createStore({
+      modules: {
+        grid: gridStore,
+      },
+    })
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   test('visibleByScrollTop', async () => {
@@ -41,8 +47,8 @@ describe('Grid view store', () => {
       count: 100,
       windowHeight: 99,
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     await store.dispatch('grid/visibleByScrollTop', 0)
     expect(store.getters['grid/getRowsTop']).toBe(0)
@@ -102,12 +108,13 @@ describe('Grid view store', () => {
       ],
       count: 100,
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -188,6 +195,7 @@ describe('Grid view store', () => {
           },
         ],
         sortings: [],
+        ownership_type: 'collaborative',
       },
       fields: [
         {
@@ -228,8 +236,8 @@ describe('Grid view store', () => {
       ],
       count: 3,
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -245,6 +253,7 @@ describe('Grid view store', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -648,12 +657,13 @@ describe('Grid view store', () => {
       ],
       count: 100,
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -725,6 +735,7 @@ describe('Grid view store', () => {
           },
         ],
         sortings: [],
+        ownership_type: 'collaborative',
       },
       fields: [
         {
@@ -754,13 +765,14 @@ describe('Grid view store', () => {
       rows: [{ id: 2, order: '2.00000000000000000000' }],
       count: 1,
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -800,8 +812,8 @@ describe('Grid view store', () => {
         3: { aggregation_raw_type: 'not_empty_count' },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -871,8 +883,18 @@ describe('Grid view store', () => {
         },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+    const store = createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          state: () => state,
+        },
+      },
+    })
+
+    const nuxtApp = useNuxtApp()
+
+    store.$registry = nuxtApp.$registry
 
     expect(store.getters['grid/getNumberOfVisibleFields']).toBe(3)
   })
@@ -899,8 +921,8 @@ describe('Grid view store', () => {
         },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     expect(
       JSON.parse(
@@ -939,8 +961,8 @@ describe('Grid view store', () => {
         },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     expect(
       JSON.parse(
@@ -976,8 +998,8 @@ describe('Grid view store', () => {
         },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     expect(
       JSON.parse(
@@ -1018,8 +1040,8 @@ describe('Grid view store', () => {
         },
       ],
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     expect(store.getters['grid/getRowIdByIndex'](10)).toBe(11)
   })
@@ -1046,16 +1068,16 @@ describe('Grid view store', () => {
         },
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     expect(store.getters['grid/getFieldIdByIndex'](2, fields)).toBe(3)
   })
 
   test('UPDATE_GROUP_BY_METADATA mutation', () => {
     const state = Object.assign(gridStore.state(), {})
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     store.commit('grid/SET_GROUP_BY_METADATA', {
       field_1: [
@@ -1215,8 +1237,8 @@ describe('Grid view store', () => {
         ],
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -1224,6 +1246,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1379,8 +1402,8 @@ describe('Grid view store', () => {
         ],
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -1388,6 +1411,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1513,8 +1537,8 @@ describe('Grid view store', () => {
         ],
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -1522,6 +1546,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1651,8 +1676,8 @@ describe('Grid view store', () => {
         ],
       },
     })
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     const view = {
       id: 1,
@@ -1660,6 +1685,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {

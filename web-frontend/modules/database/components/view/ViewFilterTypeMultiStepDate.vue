@@ -62,10 +62,10 @@
             :inline="true"
             :monday-first="true"
             :use-utc="true"
-            :value="dateObject"
-            :language="datePickerLang[$i18n.locale]"
+            :model-value="dateObject"
+            :language="$i18n.locale"
             class="datepicker"
-            @input="chooseDate($event)"
+            @update:model-value="chooseDate($event)"
           ></date-picker>
         </client-only>
       </Context>
@@ -80,12 +80,13 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filterTypeMultiStepDateInput'
 
 export default {
   name: 'ViewFilterTypeMultiStepDate',
   mixins: [filterTypeMultiStepDateInput],
+  setup: filterTypeMultiStepDateInput.setup,
   data() {
     return {
       value: '',
@@ -93,8 +94,8 @@ export default {
       dateString: '',
       dateObject: '',
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

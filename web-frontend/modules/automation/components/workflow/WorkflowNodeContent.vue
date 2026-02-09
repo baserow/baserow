@@ -114,9 +114,9 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import { ref } from 'vue'
-import { useVueFlow } from '@vue2-flow/core'
-import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
+import { useVueFlow } from '@vue-flow/core'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
@@ -194,7 +194,7 @@ const openReplaceContext = async () => {
 }
 
 const store = useStore()
-const { app } = useContext()
+const app = useNuxtApp()
 const workflow = inject('workflow')
 const automation = inject('automation')
 
@@ -298,7 +298,7 @@ const getDataBeforeLabel = computed(() => {
   ).getNodePosition(props.node)
 
   if (referenceNode === null) {
-    return app.i18n.t('workflowNode.beforeLabelTrigger')
+    return app.$i18n.t('workflowNode.beforeLabelTrigger')
   }
   const referenceNodeType = app.$registry.get('node', referenceNode.type)
   return referenceNodeType.getBeforeLabel({

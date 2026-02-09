@@ -19,6 +19,7 @@ export default {
   name: 'ViewFilterTypeMultipleSelectOptions',
   components: { FieldSelectOptionsDropdown },
   mixins: [viewFilter],
+  emits: ['input'],
   computed: {
     copy() {
       const value = String(this.filter.value ?? '')

@@ -39,6 +39,8 @@
               icon="iconoir-calendar"
               :errors="v$.dependency.start_date_field_id.$errors"
               :field-name="$t('dateDependencyModal.startDateFieldLabel')"
+              add-new
+              @add-new="addNewField('start_date_field_id')"
             />
           </div>
           <div class="col col-6">
@@ -50,6 +52,8 @@
               :errors="v$.dependency.end_date_field_id.$errors"
               icon="iconoir-calendar"
               :field-name="$t('dateDependencyModal.endDateFieldLabel')"
+              add-new
+              @add-new="addNewField('end_date_field_id')"
             />
           </div>
         </div>
@@ -64,6 +68,8 @@
               icon="iconoir-clock-rotate-right"
               :field-name="$t('dateDependencyModal.durationFieldLabel')"
               :helper-text="$t('dateDependencyModal.durationFieldHint')"
+              add-new
+              @add-new="addNewField('duration_field_id')"
             />
           </div>
 
@@ -81,6 +87,8 @@
               :helper-text="
                 $t('dateDependencyModal.dependencyLinkrowFieldHint')
               "
+              add-new
+              @add-new="addNewField('dependency_linkrow_field_id')"
             />
           </div>
         </div>
@@ -106,6 +114,7 @@ import { required, requiredIf } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'DateDependencyModal',
@@ -210,6 +219,91 @@ export default {
     },
   },
   methods: {
+    async handleCreateField(value) {
+      const { forceCreateCallback, newField } = await this.$store.dispatch(
+        'field/create',
+        {
+          ...value,
+          forceCreate: false,
+        }
+      )
+
+      // The fields store is context-sensitive, and shows fields for the current table
+      // only, so we should add the field only if the modal has been opened for the
+      // current table.
+      if (this.table.id === this.$store.getters['table/getSelectedId']) {
+        if (_.isFunction(forceCreateCallback)) {
+          await forceCreateCallback()
+        }
+      }
+
+      return newField
+    },
+    async addNewField(dependencyFieldName) {
+      try {
+        return await this._addNewField(dependencyFieldName)
+      } catch (error) {
+        notifyIf(error)
+      }
+    },
+
+    async _addNewField(dependencyFieldName) {
+      // Defaults for new fields depending on a configuration field.
+      // We need to have access to instance variables, so this is inside a method.
+      const FIELDS_DEFAULTS = {
+        dependency_linkrow_field_id: {
+          type: 'link_row',
+          table: this.table,
+          values: {
+            link_row_table_id: this.table.id,
+            name: this.$t('dateDependencyModal.linkRowFieldTitle'),
+          },
+        },
+        duration_field_id: {
+          type: 'duration',
+          table: this.table,
+          values: {
+            duration_format: 'd h',
+            table: this.table.id,
+            name: this.$t('dateDependencyModal.durationFieldLabel'),
+          },
+        },
+        start_date_field_id: {
+          type: 'date',
+          table: this.table,
+          values: {
+            date_include_time: false,
+            table: this.table.id,
+            name: this.$t('dateDependencyModal.startDateFieldLabel'),
+          },
+        },
+        end_date_field_id: {
+          type: 'date',
+          table: this.table,
+          values: {
+            date_include_time: false,
+            table: this.table.id,
+            name: this.$t('dateDependencyModal.endDateFieldLabel'),
+          },
+        },
+      }
+
+      const fieldDef = _.clone(FIELDS_DEFAULTS[dependencyFieldName])
+
+      const usedFieldNames = _.map(this.fields, 'name')
+
+      const fieldName = getNextAvailableNameInSequence(
+        fieldDef.values.name,
+        usedFieldNames
+      )
+      fieldDef.values.name = fieldName
+
+      const fieldCreated = await this.handleCreateField(fieldDef)
+      // fields is not using fields store, so we need to update it manually
+      this.fields.push(fieldCreated)
+      this.dependency[dependencyFieldName] = fieldCreated.id
+    },
+
     async fetchFields() {
       // If the fields are already provided as a prop, we don't need to fetch them
       if (this.tableFields?.length > 0) {

@@ -374,7 +374,19 @@
     "other": "Other"
   },
   "generateAIValuesModal": {
-    "title": "Generate all AI values"
+    "title": "Generate all AI values",
+    "noPreviousJobs": "No previous jobs",
+    "started": "Started",
+    "finished": "Completed",
+    "running": "Running",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "view": "View: {name}",
+    "table": "Table: All rows",
+    "deletedView": "View: ID {viewId} (deleted)",
+    "rows": "Rows: {count} rows",
+    "autoUpdate": "Auto update: referenced fields changed"
   },
   "generateAIValuesForm": {
     "scopeLabel": "Scope",
@@ -389,5 +401,9 @@
   },
   "jobType": {
     "generateAIValues": "Regenerate AI field values"
+  },
+  "viewOwnershipType": {
+    "personal": "Personal",
+    "personalDescription": "Only you can see the view."
   }
 }

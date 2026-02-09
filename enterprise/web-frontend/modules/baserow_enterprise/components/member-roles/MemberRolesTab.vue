@@ -60,6 +60,7 @@ import RoleAssignmentModal from '@baserow_enterprise/components/member-roles/Rol
 
 export default {
   name: 'MemberRolesTab',
+  emits: ['invite-members', 'invite-teams', 'role-updated'],
   components: {
     RoleAssignmentModal,
     MemberRolesMembersList,
@@ -109,6 +110,8 @@ export default {
           return 'database'
         case 'database_table':
           return 'table'
+        case 'database_view':
+          return 'view'
         default:
           return 'database'
       }

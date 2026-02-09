@@ -106,6 +106,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ai-type-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

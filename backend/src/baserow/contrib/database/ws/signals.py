@@ -8,19 +8,19 @@ from .field_rules.signals import (
 from .fields.signals import field_created, field_deleted, field_updated
 from .rows.signals import rows_created, rows_deleted, rows_updated
 from .table.signals import table_created, table_deleted, table_updated
+from .views.rows.signals import (
+    views_before_rows_delete,
+    views_before_rows_update,
+    views_rows_created,
+    views_rows_deleted,
+    views_rows_updated,
+)
 from .views.signals import view_created, view_deleted, view_updated, views_reordered
 
 if settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS:
     PUBLIC_SIGNALS = []
 else:
     # isort: off
-    # noinspection PyUnresolvedReferences
-    from .public.rows.signals import (  # noqa: F401
-        public_rows_created,
-        public_rows_deleted,
-        public_rows_updated,
-    )
-
     # noinspection PyUnresolvedReferences
     from .public.views.signals import (  # noqa: F401
         public_view_field_options_updated,
@@ -41,9 +41,6 @@ else:
     # isort: on
 
     PUBLIC_SIGNALS = [
-        "public_rows_created",
-        "public_rows_deleted",
-        "public_rows_updated",
         "public_view_filter_updated",
         "public_view_filter_deleted",
         "public_view_filter_created",
@@ -72,5 +69,10 @@ __all__ = [
     "on_field_rule_created",
     "on_field_rule_updated",
     "on_field_rule_deleted",
+    "views_rows_created",
+    "views_rows_updated",
+    "views_rows_deleted",
+    "views_before_rows_update",
+    "views_before_rows_delete",
     *PUBLIC_SIGNALS,
 ]

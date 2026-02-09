@@ -62,6 +62,7 @@ export default {
       default: false,
     },
   },
+  emits: ['import-workspace-reset'],
   data() {
     return {
       deleting: false,
@@ -70,7 +71,7 @@ export default {
 
   methods: {
     formatSize(bytes) {
-      return formatFileSize(this.$i18n, bytes)
+      return formatFileSize(bytes)
     },
     async handleRemove() {
       if (this.resourceId) {

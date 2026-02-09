@@ -255,10 +255,6 @@ class WebhookHandler:
         if event_config is not None and not values.get("include_all_events"):
             self._update_webhook_event_config(webhook, event_config, webhook_events)
 
-        for webhook_event in webhook_events:
-            webhook_event_type = webhook_event.get_type()
-            webhook_event_type.after_create(webhook_event)
-
         if headers is not None:
             header_objects = []
             for key, value in headers.items():
@@ -324,7 +320,6 @@ class WebhookHandler:
             kwargs.get("include_all_events", False) and not old_include_all_events
         )
 
-        created_events = []
         if not should_update_events:
             TableWebhookEvent.objects.filter(webhook=webhook).delete()
         elif events is not None:
@@ -349,14 +344,10 @@ class WebhookHandler:
             ]
 
             if len(events_to_create) > 0:
-                created_events = TableWebhookEvent.objects.bulk_create(events_to_create)
+                TableWebhookEvent.objects.bulk_create(events_to_create)
 
         if event_config is not None and should_update_events:
             self._update_webhook_event_config(webhook, event_config)
-
-        for webhook_event in created_events:
-            webhook_event_type = webhook_event.get_type()
-            webhook_event_type.after_create(webhook_event)
 
         if headers is not None:
             existing_headers = webhook.headers.all()

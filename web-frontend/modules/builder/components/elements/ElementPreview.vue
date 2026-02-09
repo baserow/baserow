@@ -97,6 +97,7 @@ export default {
       default: false,
     },
   },
+  emits: ['move'],
   data() {
     return {
       isDuplicating: false,
@@ -111,8 +112,15 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    applicationContext() {
+      return {
+        ...this.injectedApplicationContext,
+        ...this.applicationContextAdditions,
+        element: this.element,
+      }
+    },
     pageTop() {
-      return this.pageTopData.value
+      return this.pageTopData?.value ?? 0
     },
     elementSelected() {
       return this.getElementSelected(this.builder)
@@ -259,7 +267,7 @@ export default {
     }
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.observer) {
       this.observer.disconnect()
     }
@@ -275,15 +283,21 @@ export default {
         this.observer.disconnect()
       }
 
+      // Ensure pageTop is a valid number to prevent IntersectionObserver error
+      const topMargin =
+        typeof this.pageTop === 'number' && !isNaN(this.pageTop)
+          ? this.pageTop
+          : 0
+
       const options = {
         root: null,
-        rootMargin: `-${this.pageTop}px 0px 0px 0px`,
+        rootMargin: `-${topMargin}px 0px 0px 0px`,
         threshold: [0, 1],
       }
 
       this.observer = new IntersectionObserver((entries) => {
         const rect = entries[0].boundingClientRect
-        this.isAboveThreshold = rect.top < this.pageTop
+        this.isAboveThreshold = rect.top < topMargin
       }, options)
 
       this.$nextTick(() => {

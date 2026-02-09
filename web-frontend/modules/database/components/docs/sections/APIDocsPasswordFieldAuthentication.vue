@@ -35,7 +35,7 @@
         :value="value"
         type="POST"
         :url="
-          $config.PUBLIC_BACKEND_URL +
+          $config.public.publicBackendUrl +
           `/api/database/fields/password-authentication/`
         "
         :request="{ field_id: 1, row_id: 1, password: 'password' }"
@@ -64,6 +64,7 @@ export default {
     table: { type: Object, required: true },
     field: { type: Object, required: true },
   },
+  emits: ['input'],
   methods: {},
 }
 </script>

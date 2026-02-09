@@ -1,5 +1,5 @@
 <template>
-  <Modal class="sample-data-modal">
+  <Modal ref="modal" class="sample-data-modal">
     <h2 class="box__title">{{ title }}</h2>
     <div class="sample-data-modal__sub-title">
       {{ $t('simulateDispatch.sampleDataModalSubTitle') }}

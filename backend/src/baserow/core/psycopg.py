@@ -5,9 +5,24 @@ if is_psycopg3:
     import psycopg  # noqa: F401
     from psycopg import errors, sql  # noqa: F401
 
+    # used for date type mapping
+    from psycopg.types.datetime import (  # noqa: F401
+        DataError,
+        DateBinaryLoader,
+        DateLoader,
+        TimestampBinaryLoader,
+        TimestampLoader,
+        TimestamptzBinaryLoader,
+        TimestamptzLoader,
+    )
+
 else:
     import psycopg2 as psycopg  # noqa: F401
-    from psycopg2 import errors, sql  # noqa: F401
+    from psycopg2 import (  # noqa: F401
+        DataError,  # noqa: F401
+        errors,
+        sql,
+    )
 
 
 def is_deadlock_error(exc: OperationalError) -> bool:

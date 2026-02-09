@@ -1,8 +1,6 @@
 from django.shortcuts import reverse
 
 import pytest
-from baserow_premium.fields.field_types import AIFieldType
-from baserow_premium.fields.models import AIField
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
@@ -13,6 +11,8 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
+from baserow_premium.fields.field_types import AIFieldType
+from baserow_premium.fields.models import AIField
 
 
 @pytest.mark.django_db
@@ -700,7 +700,7 @@ def test_update_ai_field_type_via_api_file_field_doesnt_exist(
         {
             "ai_generative_ai_type": "test_generative_ai_with_files",
             "ai_generative_ai_model": "test_1",
-            "ai_file_field_id": 999,
+            "ai_file_field_id": 999999999,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

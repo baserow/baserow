@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -19,6 +19,7 @@ from loguru import logger
 from opentelemetry import trace
 from requests.exceptions import RequestException
 
+from baserow.core.auth_provider.exceptions import AuthProviderDisabled
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.emails import EmailPendingVerificationEmail
@@ -53,11 +54,14 @@ from .emails import (
     AccountDeleted,
     AccountDeletionCanceled,
     AccountDeletionScheduled,
+    ChangeEmailConfirmationEmail,
     ResetPasswordEmail,
 )
 from .exceptions import (
+    ChangeEmailNotAllowed,
     DeactivatedUserException,
     DisabledSignupError,
+    EmailAlreadyChanged,
     EmailAlreadyVerified,
     InvalidPassword,
     InvalidVerificationToken,
@@ -379,6 +383,16 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
 
         return URLSafeTimedSerializer(settings.SECRET_KEY, "user-reset-password")
 
+    def get_change_email_signer(self) -> URLSafeTimedSerializer:
+        """
+        Instantiates the email change serializer that can dump and load values.
+
+        :return: The itsdangerous serializer.
+        :rtype: URLSafeTimedSerializer
+        """
+
+        return URLSafeTimedSerializer(settings.SECRET_KEY, "user-change-email")
+
     def send_reset_password_email(self, user: AbstractUser, base_url: str):
         """
         Sends an email containing a password reset url to the user.
@@ -495,6 +509,115 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         return user
+
+    def send_change_email_confirmation(
+        self, user: AbstractUser, new_email: str, password: str, base_url: str
+    ):
+        """
+        Sends an email containing an email change confirmation url to the new email
+        address.
+
+        :param user: The user where to change the email for.
+        :param new_email: The new email address to change to.
+        :param password: The current password of the user for verification.
+        :param base_url: The base url of the frontend, where the user can confirm the
+            email change. The confirmation token is appended to the URL
+            (base_url + '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed
+            as domain name.
+        :raises InvalidPassword: When the provided password is incorrect.
+        :raises UserAlreadyExist: When a user with the new email already exists.
+        :raises BaseURLHostnameNotAllowed: When the provided base_url hostname is not
+            allowed.
+        :raises AuthProviderDisabled: When the password provider is disabled and the
+            user is not staff.
+        :raises ChangeEmailNotAllowed: When the user does not have a password set.
+        """
+
+        # Email changes are only for password-based accounts. Accounts that don't
+        # have password set are accounts created via SSO.
+        if user.password == "":  # nosec
+            raise ChangeEmailNotAllowed()
+
+        if not PasswordProviderHandler.get().enabled:
+            raise AuthProviderDisabled()
+
+        if not user.check_password(password):
+            raise InvalidPassword("The provided password is incorrect.")
+
+        new_email = normalize_email_address(new_email)
+
+        # Check if a user with the new email already exists
+        if User.objects.filter(Q(email=new_email) | Q(username=new_email)).exists():
+            raise UserAlreadyExist(f"A user with email {new_email} already exists.")
+
+        parsed_base_url = urlparse(base_url)
+        if parsed_base_url.hostname not in (
+            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
+            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
+        ):
+            raise BaseURLHostnameNotAllowed(
+                f"The hostname {parsed_base_url.netloc} is not allowed."
+            )
+
+        signer = self.get_change_email_signer()
+        signed_payload = signer.dumps({"user_id": user.id, "new_email": new_email})
+
+        if not base_url.endswith("/"):
+            base_url += "/"
+
+        confirmation_url = urljoin(base_url, signed_payload)
+
+        with translation.override(user.profile.language):
+            email = ChangeEmailConfirmationEmail(
+                user, new_email, confirmation_url, to=[new_email]
+            )
+            email.send()
+
+    def change_email(self, token: str) -> Tuple[AbstractUser, str]:
+        """
+        Changes the email address of a user if the provided token is valid.
+
+        :param token: The signed token that was sent to the new email address.
+        :raises SignatureExpired: When the provided token's signature has expired.
+        :raises UserNotFound: When a user related to the provided token has not been
+            found.
+        :raises UserAlreadyExist: When a user with the new email already exists.
+        :raises EmailAlreadyChanged: When the email has already been changed to the
+            requested address.
+        :return: A tuple containing the updated user instance and the old email address.
+        """
+
+        signer = self.get_change_email_signer()
+        payload = signer.loads(token, max_age=settings.CHANGE_EMAIL_TOKEN_MAX_AGE)
+
+        user_id = payload["user_id"]
+        new_email = normalize_email_address(payload["new_email"])
+
+        user = self.get_active_user(user_id=user_id)
+        old_email = normalize_email_address(user.email)
+
+        # Check if the new email is the same as the current email
+        if old_email == new_email:
+            raise EmailAlreadyChanged(
+                f"The email address has already been changed to the requested address."
+            )
+
+        # Check again if a user with the new email already exists because it could be
+        # that a new user was created in the meantime.
+        if (
+            User.objects.filter(Q(email=new_email) | Q(username=new_email))
+            .exclude(id=user.id)
+            .exists()
+        ):
+            raise UserAlreadyExist(f"A user with email {new_email} already exists.")
+
+        user.email = new_email
+        user.username = new_email
+        user.save()
+
+        user_updated.send(self, performed_by=user, user=user)
+
+        return user, old_email
 
     def user_signed_in_via_provider(
         self, user: AbstractUser, authentication_provider: AuthProviderModel

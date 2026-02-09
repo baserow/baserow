@@ -4,9 +4,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django.core.files.storage import FileSystemStorage
 
 import pytest
-from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
-from baserow_premium.views.handler import get_timeline_view_filtered_queryset
-from baserow_premium.views.models import TimelineViewFieldOptions
 
 from baserow.contrib.database.action.scopes import ViewActionScopeType
 from baserow.contrib.database.fields.exceptions import (
@@ -19,10 +16,14 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
+from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
+from baserow_premium.views.handler import get_timeline_view_filtered_queryset
+from baserow_premium.views.models import TimelineViewFieldOptions
 
 
 @pytest.mark.django_db
@@ -114,7 +115,10 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
     files_buffer = BytesIO()
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         serialized = timeline_view_type.export_serialized(
-            timeline_view, files_zip=files_zip, storage=storage
+            timeline_view,
+            ImportExportConfig(include_permission_data=False),
+            files_zip=files_zip,
+            storage=storage,
         )
 
     assert serialized["id"] == timeline_view.id
@@ -145,7 +149,12 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_timeline_view = timeline_view_type.import_serialized(
-            timeline_view.table, serialized, id_mapping, files_zip, storage
+            timeline_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert timeline_view.id != imported_timeline_view.id
@@ -214,7 +223,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
     )
     timeline_view.refresh_from_db()
     with pytest.raises(IncompatibleField):
-        get_timeline_view_filtered_queryset(timeline_view)
+        get_timeline_view_filtered_queryset(user, timeline_view)
 
     start_date_field = FieldHandler().update_field(
         user=user,
@@ -227,7 +236,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
 
     timeline_view.refresh_from_db()
     with pytest.raises(IncompatibleField):
-        get_timeline_view_filtered_queryset(timeline_view)
+        get_timeline_view_filtered_queryset(user, timeline_view)
 
     end_date_field = FieldHandler().update_field(
         user=user, field=end_date_field, new_type_name="date"
@@ -252,7 +261,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
 
         timeline_view.refresh_from_db()
         with pytest.raises(TimelineViewHasInvalidDateSettings):
-            get_timeline_view_filtered_queryset(timeline_view)
+            get_timeline_view_filtered_queryset(user, timeline_view)
 
 
 @pytest.mark.django_db

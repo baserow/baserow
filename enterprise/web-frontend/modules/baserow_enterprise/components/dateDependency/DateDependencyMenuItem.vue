@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="showEntry && featureFlagEnabled && (hasPermission || !hasFeature)"
+    v-if="showEntry && (hasPermission || !hasFeature)"
     class="context__menu-item"
   >
     <div>
@@ -43,10 +43,10 @@
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal'
-import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'DateDependencyMenuItem',
+  emits: ['hide-context'],
   components: { DateDependencyModal, PaidFeaturesModal },
   props: {
     table: {
@@ -75,9 +75,6 @@ export default {
         EnterpriseFeatures.DATE_DEPENDENCY,
         this.database.workspace.id
       )
-    },
-    featureFlagEnabled() {
-      return this.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)
     },
     hasPermission() {
       return this.$hasPermission(

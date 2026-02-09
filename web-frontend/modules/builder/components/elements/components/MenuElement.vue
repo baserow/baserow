@@ -177,7 +177,9 @@ export default {
      */
     const found = resolveApplicationRoute(
       this.pages,
-      this.$route.params.pathMatch
+      Array.isArray(this.$route.params.pathMatch)
+        ? this.$route.params.pathMatch.join('/')
+        : this.$route.params.pathMatch
     )
 
     if (!found?.length) return
@@ -216,12 +218,12 @@ export default {
           this.resolveFormula,
           this.mode
         )
-      } catch (e) {
+      } catch {
         return '#error'
       }
     },
     toggleExpanded(itemId) {
-      this.$set(this.expandedItems, itemId, !this.expandedItems[itemId])
+      this.expandedItems[itemId] = !this.expandedItems[itemId]
     },
     /**
      * Transforms a Menu Item into a valid object that can be passed as a prop

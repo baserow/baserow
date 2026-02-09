@@ -1,5 +1,5 @@
 <template>
-  <div class="grid-view__cell active">
+  <div ref="cell" class="grid-view__cell active">
     <div class="grid-field-rating">
       <Rating
         :read-only="readOnly"
@@ -20,10 +20,11 @@ import Rating from '@baserow/modules/database/components/Rating'
 export default {
   components: { Rating },
   mixins: [gridField],
+  emits: ['update'],
   mounted() {
     window.addEventListener('keyup', this.keyup)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keyup', this.keyup)
   },
   methods: {

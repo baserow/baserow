@@ -2,10 +2,10 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="isLicenseUnavailable ? '' : route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n
+      <i18n-t
         :path="
           isLicenseUnavailable
             ? 'periodicDataSyncDeactivatedNotification.licenseUnavailable'
@@ -16,7 +16,7 @@
         <template #name>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -26,6 +26,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'PeriodicDataSyncDeactivatedNotification',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   computed: {
     isLicenseUnavailable() {

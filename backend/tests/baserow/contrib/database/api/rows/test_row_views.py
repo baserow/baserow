@@ -289,7 +289,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_9999999__contains=last"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -300,7 +300,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{field_4.id}__contains=100"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -311,7 +311,7 @@ def test_list_rows(api_client, data_fixture):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{field_2.id}__INVALID=100"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -326,7 +326,7 @@ def test_list_rows(api_client, data_fixture):
         f"filter__field_{field_2.id}__equal=200",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -343,7 +343,7 @@ def test_list_rows(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -361,7 +361,7 @@ def test_list_rows(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -503,7 +503,7 @@ def test_list_rows_adhoc_filtering_query_param_null_character(api_client, data_f
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     get_params = [f"filter__field_{text_field.id}__contains={str_with_null_character}"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -543,7 +543,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -562,7 +562,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -580,7 +580,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -597,7 +597,7 @@ def test_list_rows_user_field_names(api_client, data_fixture):
         "filter_type=or",
     ]
     response = api_client.get(
-        f'{url}?user_field_names=true&{"&".join(get_params)}',
+        f"{url}?user_field_names=true&{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -711,7 +711,7 @@ def test_list_rows_filter_filters_query_param(data_fixture, api_client):
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -764,7 +764,7 @@ def test_list_rows_filter_filters_query_param_with_user_field_names(
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
@@ -3678,6 +3678,10 @@ def test_get_row_adjacent_view_invalid_requests(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     user, jwt_token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"

@@ -8,6 +8,7 @@ from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
+from loguru import logger
 from rest_framework import serializers
 from rest_framework.serializers import SkipField, empty
 
@@ -227,7 +228,14 @@ class ArrayValueSerializer(serializers.Serializer):
         self.fields["value"] = child
 
     def to_representation(self, instance):
-        return super().to_representation(instance)
+        # Note this is workaround for https://github.com/baserow/baserow/issues/4424
+        # Once we have a proper way to handle this, we can remove this
+        # and return the super().to_representation(instance) directly.
+        try:
+            return super().to_representation(instance)
+        except Exception:
+            logger.exception("Mismatch between field type and value type")
+        return []
 
 
 class LinkRowValueSerializer(serializers.Serializer):
@@ -439,9 +447,38 @@ class UniqueRowValuesSerializer(serializers.Serializer):
     values = serializers.ListSerializer(child=serializers.CharField())
 
 
+@extend_schema_field(OpenApiTypes.INT)
+class CollaboratorField(serializers.Field):
+    """
+    A serializer field that accepts an int or a dict with an "id" field.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, int) or (isinstance(data, str) and data.isdigit()):
+            return int(data)
+
+        if isinstance(data, dict):
+            try:
+                return int(data["id"])
+            except (KeyError, TypeError, ValueError):
+                pass
+
+        raise serializers.ValidationError(
+            "Expected an integer or an object with an 'id' field",
+            code="invalid",
+        )
+
+    def to_representation(self, value):
+        return value
+
+
 class CollaboratorSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField(source="first_name", read_only=True)
+
+
+class CollaboratorRequestSerializer(serializers.ListSerializer):
+    child = CollaboratorField()
 
 
 class AvailableCollaboratorsSerializer(serializers.ListField):
@@ -463,11 +500,7 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            setattr(
-                workspace,
-                "available_collaborators",
-                workspace.users.order_by("first_name"),
-            )
+            workspace.available_collaborators = workspace.users.order_by("first_name")
 
         return [
             CollaboratorSerializer(user).data

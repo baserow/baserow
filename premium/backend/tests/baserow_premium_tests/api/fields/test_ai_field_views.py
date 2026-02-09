@@ -4,6 +4,7 @@ from django.test.utils import override_settings
 
 import pytest
 from rest_framework.status import (
+    HTTP_200_OK,
     HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_402_PAYMENT_REQUIRED,
@@ -384,3 +385,97 @@ def test_batch_generate_ai_field_value_limit(api_client, premium_data_fixture):
             },
         ],
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_list_jobs_filter_by_type_and_field_id(premium_data_fixture, api_client):
+    """Test that generate_ai_values jobs can be filtered by type and field_id."""
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+
+    # Create multiple AI fields
+    field_1 = premium_data_fixture.create_ai_field(
+        table=table, name="ai_1", ai_prompt="'Hello'"
+    )
+    field_2 = premium_data_fixture.create_ai_field(
+        table=table, name="ai_2", ai_prompt="'World'"
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}, {}]).created_rows
+
+    # Create jobs for field_1
+    response_1 = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field_1.id},
+        ),
+        {"row_ids": [rows[0].id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response_1.status_code == HTTP_202_ACCEPTED
+    job_1_id = response_1.json()["id"]
+
+    # Create jobs for field_2
+    response_2 = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field_2.id},
+        ),
+        {"row_ids": [rows[1].id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response_2.status_code == HTTP_202_ACCEPTED
+    job_2_id = response_2.json()["id"]
+
+    # Test filtering by type only
+    jobs_url = reverse("api:jobs:list")
+    response = api_client.get(
+        f"{jobs_url}?type=generate_ai_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    job_ids = [job["id"] for job in response_data["jobs"]]
+    assert job_1_id in job_ids
+    assert job_2_id in job_ids
+    # All returned jobs should be of type generate_ai_values
+    assert all(job["type"] == "generate_ai_values" for job in response_data["jobs"])
+
+    # Test filtering by type and field_id for field_1
+    response = api_client.get(
+        f"{jobs_url}?type=generate_ai_values&generate_ai_values_field_id={field_1.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    assert len(response_data["jobs"]) == 1
+    assert response_data["jobs"][0]["id"] == job_1_id
+    assert response_data["jobs"][0]["type"] == "generate_ai_values"
+    assert response_data["jobs"][0]["field_id"] == field_1.id
+
+    # Test filtering by type and field_id for field_2
+    response = api_client.get(
+        f"{jobs_url}?type=generate_ai_values&generate_ai_values_field_id={field_2.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    assert len(response_data["jobs"]) == 1
+    assert response_data["jobs"][0]["id"] == job_2_id
+    assert response_data["jobs"][0]["type"] == "generate_ai_values"
+    assert response_data["jobs"][0]["field_id"] == field_2.id

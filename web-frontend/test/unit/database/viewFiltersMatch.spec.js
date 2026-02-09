@@ -985,10 +985,10 @@ describe('(DEPRECATED) Date in this week, month and year tests', () => {
   let testApp = null
   let dateNowSpy
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     // Wed Jun 01 2022 00:00:00 UTC
-    dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => 1654041600000)
+    dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => 1654041600000)
   })
 
   afterAll(() => {
@@ -1959,7 +1959,7 @@ const booleanFieldTests = [
 describe('All Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
   afterEach(() => {
@@ -2707,46 +2707,55 @@ describe('All Tests', () => {
     expect(result).toBe(values.expectedResult)
   }
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldEmptyCases)(
     'formulaUrlFieldFilters empty values test case',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldNotEmptyCases)(
     'formulaUrlFieldFilters not empty values test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterEqualCases)(
     'formulaUrlFieldFilters equal test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterNotEqualCases)(
     'formulaUrlFieldFilters not equal test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterContainsCases)(
     'formulaUrlFieldFilters contains test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterDoesNotContainCases)(
     'formulaUrlFieldFilters contains test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterContainsWordCases)(
     'formulaUrlFieldFilters contains word test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterDoesntContainWordCases)(
     'formulaUrlFieldFilters does not contain word test case %j',
     runUrlFormulafieldTest
   )
 
+  // eslint-disable-next-line vitest/expect-expect
   test.each(formulaUrlFieldFilterLengthIsLowerThanCases)(
     'formulaUrlFieldFilters lenght is lower than test case %j',
     runUrlFormulafieldTest
@@ -2780,7 +2789,7 @@ const MultipleCollaboratorsEmptyCases = [
 describe('Multiple collaborators view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -2900,7 +2909,7 @@ const emptyFilterValueSingleSelectCases = [
 describe('Empty filter value tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

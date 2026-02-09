@@ -127,6 +127,25 @@ def setup_created_by_and_last_modified_by_column(self, table_id: int):
         TableHandler().create_created_by_and_last_modified_by_fields(table)
 
 
+@app.task(bind=True, queue="export")
+def setup_m2m_field_indexes_if_not_exist(self, table_id: int):
+    from baserow.contrib.database.db.schema import safe_django_schema_editor
+    from baserow.contrib.database.table.handler import TableHandler
+
+    with transaction.atomic():
+        table = TableHandler().get_table_for_update(table_id)
+        model = table.get_model()
+        fields = model.get_fields()
+
+        with safe_django_schema_editor(atomic=False) as schema_editor:
+            for field in fields:
+                model_field = model._meta.get_field(field.db_column)
+                schema_editor.ensure_m2m_field_indexes(model_field)
+
+        table.missing_m2m_indexes_added = True
+        table.save(update_fields=["missing_m2m_indexes_added"])
+
+
 @app.task(bind=True)
 def update_table_usage(self, table_id: int, row_count: int = 0):
     from baserow.contrib.database.table.handler import TableUsageHandler

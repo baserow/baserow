@@ -1,12 +1,22 @@
 <template>
-  <component
-    :is="tag"
+  <button
+    v-if="tag === 'button'"
     class="button-icon"
     :class="classes"
     :disabled="disabled"
-    v-bind.prop="customBind"
+    v-bind="customBind"
     :to="to"
-    v-on="$listeners"
+  >
+    <i v-if="!loading" class="button-icon__icon" :class="icon" />
+  </button>
+  <component
+    :is="tag"
+    v-else
+    class="button-icon"
+    :class="classes"
+    :disabled="disabled"
+    v-bind="customBind"
+    :to="to"
   >
     <i v-if="!loading" class="button-icon__icon" :class="icon" />
   </component>
@@ -70,7 +80,7 @@ export default {
     disabled: {
       required: false,
       type: Boolean,
-      default: false,
+      default: undefined,
     },
     /**
      * If true the button will be disabled.
@@ -141,7 +151,7 @@ export default {
       return classObj
     },
     customBind() {
-      const attr = {}
+      const attr = { ...this.$attrs }
       if (this.tag === 'a') {
         attr.href = this.href
         attr.target = this.target

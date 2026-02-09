@@ -28,23 +28,19 @@
       required
     >
       <Dropdown
-        :value="value"
+        :model-value="modelValue"
         :show-search="false"
         :disabled="databaseSelectedId === null"
         fixed-items
         :size="dropdownSize"
-        @input="$emit('input', $event)"
+        @update:model-value="onTableSelect"
       >
         <DropdownItem
-          v-for="table in tables"
+          v-for="table in supportedServiceTables"
           :key="table.id"
           :name="table.name"
           :value="table.id"
-          :description="
-            table.is_data_sync
-              ? $t('localBaserowTableSelector.dataSyncedTableDescription')
-              : null
-          "
+          :description="getTableDescription(table)"
         >
           {{ table.name }}
         </DropdownItem>
@@ -57,12 +53,12 @@
       required
     >
       <Dropdown
-        :value="viewId"
+        :model-value="viewId"
         :show-search="false"
-        :disabled="value === null"
+        :disabled="modelValue === null"
         fixed-items
         :size="dropdownSize"
-        @input="$emit('update:view-id', $event)"
+        @update:model-value="$emit('update:view-id', $event)"
       >
         <DropdownItem
           :name="$t('localBaserowTableSelector.chooseNoView')"
@@ -86,7 +82,7 @@
 export default {
   name: 'LocalBaserowTableSelector',
   props: {
-    value: {
+    modelValue: {
       type: Number,
       required: false,
       default: null,
@@ -98,6 +94,10 @@ export default {
     },
     databases: {
       type: Array,
+      required: true,
+    },
+    serviceType: {
+      type: Object,
       required: true,
     },
     displayViewDropdown: {
@@ -112,12 +112,8 @@ export default {
       },
       default: 'regular',
     },
-    disallowDataSyncedTables: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
   },
+  emits: ['update:modelValue', 'update:view-id'],
   data() {
     return {
       databaseSelectedId: null,
@@ -130,22 +126,21 @@ export default {
       )
     },
     tables() {
-      return (
-        this.databaseSelected?.tables.filter(
-          (table) => !(this.disallowDataSyncedTables && table.is_data_sync)
-        ) || []
-      )
+      return this.databaseSelected?.tables || []
+    },
+    supportedServiceTables() {
+      return this.serviceType.supportedTables(this.tables)
     },
     views() {
       return (
         this.databaseSelected?.views.filter(
-          (view) => view.table_id === this.value
+          (view) => view.table_id === this.modelValue
         ) || []
       )
     },
   },
   watch: {
-    value: {
+    modelValue: {
       handler(tableId) {
         if (tableId !== null) {
           const databaseOfTableId = this.databases.find((database) =>
@@ -157,6 +152,23 @@ export default {
         }
       },
       immediate: true,
+    },
+  },
+  methods: {
+    getTableDescription(table) {
+      if (table.is_two_way_data_sync) {
+        return this.$t(
+          'localBaserowTableSelector.twoWayDataSyncedTableDescription'
+        )
+      } else if (table.is_data_sync) {
+        return this.$t(
+          'localBaserowTableSelector.oneWayDataSyncedTableDescription'
+        )
+      }
+      return null
+    },
+    onTableSelect(tableId) {
+      this.$emit('update:modelValue', tableId)
     },
   },
 }

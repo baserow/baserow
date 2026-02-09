@@ -56,6 +56,7 @@ import Chart from '@baserow_premium/dashboard/components/widget/Chart'
 
 export default {
   name: 'PieChartWidget',
+  emits: ['delete-widget'],
   components: { WidgetContextMenu, Chart },
   props: {
     dashboard: {

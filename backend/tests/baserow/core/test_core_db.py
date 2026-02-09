@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -655,3 +655,49 @@ def test_multiple_field_prefetch__many_to_many_missing_source(data_fixture):
     )
     row = rows[0]
     assert len(row.field.all()) == 1
+
+
+@pytest.mark.django_db
+def test_specific_iterator_skip_missing_specific_objects(data_fixture):
+    """
+    Tests the optional skip_missing_specific_objects argument.
+
+    When True, a missing specific instance shouldn't raise an exception.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    # Create a field without a specific type (simulating data integrity issue)
+    field_without_specific = Field.objects.create(
+        table=table,
+        order=1,
+        name="Test",
+        primary=False,
+        content_type=field.content_type,
+    )
+
+    base_queryset = Field.objects.filter(
+        id__in=[field.id, field_without_specific.id]
+    ).order_by("id")
+
+    # Without skip_missing_specific_objects, the 2nd field should
+    # cause an exception
+    with pytest.raises(Field.DoesNotExist):
+        list(specific_iterator(base_queryset))
+
+    # With skip_missing_specific_objects, the 2nd field should be
+    # skipped gracefully
+    with patch("baserow.core.db.logger") as mock_logger:
+        specific_objects = list(
+            specific_iterator(base_queryset, skip_missing_specific_objects=True)
+        )
+
+    # Should only return the 1 specific field, skipping the one without
+    # a specific instance
+    assert len(specific_objects) == 1
+    assert specific_objects[0].id == field.id
+    mock_logger.error.assert_called_once_with(
+        f"The specific object with id {field_without_specific.id} does not exist."
+    )

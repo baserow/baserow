@@ -1,21 +1,21 @@
-<template functional>
+<template>
   <div class="array-field__item">
     <div class="array-field__ellipsis">
       <a
-        v-if="props.selected && $options.methods.isValid(props.value)"
-        :href="props.value && props.value.url"
+        v-if="selected && isValid(value)"
+        :href="value && value.url"
         target="_blank"
         rel="nofollow noopener noreferrer"
         class="forced-pointer-events-auto"
         @mousedown.stop
       >
-        {{ $options.methods.getLabelOrURL(props.value) }}
+        {{ getLabelOrURL(value) }}
       </a>
-      <u v-else-if="$options.methods.isValid(props.value)">
-        {{ $options.methods.getLabelOrURL(props.value) }}
+      <u v-else-if="isValid(value)">
+        {{ getLabelOrURL(value) }}
       </u>
       <template v-else>
-        {{ $options.methods.getLabelOrURL(props.value) }}
+        {{ getLabelOrURL(value) }}
       </template>
     </div>
   </div>
@@ -26,5 +26,15 @@ import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 export default {
   name: 'FunctionalFormulaLinkArrayItem',
   mixins: [linkURLField],
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+  },
 }
 </script>

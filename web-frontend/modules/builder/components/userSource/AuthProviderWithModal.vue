@@ -62,6 +62,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'hidden'],
   methods: {
     onEdit() {
       this.$refs.modal.show()

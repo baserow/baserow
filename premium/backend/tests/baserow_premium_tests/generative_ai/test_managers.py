@@ -1,17 +1,21 @@
+import os
 from io import BytesIO
 from unittest.mock import Mock
 
+from django.conf import settings
+
 import pytest
-from baserow_premium.generative_ai.managers import AIFileManager
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.fixtures.generative_ai import TestGenerativeAIWithFilesModelType
+from baserow.test_utils.helpers import AnyStr
+from baserow_premium.generative_ai.managers import AIFileManager
 
 
 @pytest.mark.django_db
-def test_upload_files_from_file_field(premium_data_fixture):
+def test_upload_files_from_file_field(premium_data_fixture, django_assert_num_queries):
     storage = get_default_storage()
 
     user = premium_data_fixture.create_user()
@@ -37,13 +41,16 @@ def test_upload_files_from_file_field(premium_data_fixture):
         table_model,
     )
 
-    file_ids = AIFileManager.upload_files_from_file_field(
-        ai_field, row, generative_ai_model_type
-    )
+    ai_field.refresh_from_db()
+    with django_assert_num_queries(0):
+        file_ids = AIFileManager.upload_files_from_file_field(
+            ai_field, row, generative_ai_model_type
+        )
+        assert file_ids == [AnyStr()]
 
     assert len(generative_ai_model_type._files) == 1
     assert generative_ai_model_type._files[file_ids[0]]["file_name"].endswith(
-        f"/baserow/media/user_files/{user_file_1.name}"
+        os.path.join(settings.MEDIA_ROOT, f"user_files/{user_file_1.name}")
     )
 
 

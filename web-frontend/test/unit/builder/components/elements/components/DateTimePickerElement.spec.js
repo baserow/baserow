@@ -1,24 +1,20 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
 import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement.vue'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 describe('DateTimePickerElement', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
-    testApp = new TestApp()
-    store = testApp.store
-  })
-
-  afterEach(() => {
-    testApp.afterEach()
+  beforeEach(() => {
+    testApp = useNuxtApp()
+    store = testApp.$store
   })
 
   const mountComponent = ({ props = {}, slots = {}, provide = {} }) => {
-    return testApp.mount(DateTimePickerElement, {
-      propsData: props,
+    return mountSuspended(DateTimePickerElement, {
+      props: props,
       slots,
-      provide,
+      global: { provide },
       stubs: {
         // <client-only> and <date-picker> are registered globally
         'client-only': { template: '<div><slot /></div>' },

@@ -13,8 +13,7 @@ from baserow.core.utils import get_value_at_path
 SENTINEL = "__no_results__"
 
 
-class AutomationDataProviderType(DataProviderType, ABC):
-    ...
+class AutomationDataProviderType(DataProviderType, ABC): ...
 
 
 class PreviousNodeProviderType(AutomationDataProviderType):
@@ -93,10 +92,15 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
         parent_node_id, *rest = path
 
         parent_node_id = int(parent_node_id)
+        try:
+            parent_node = AutomationNodeHandler().get_node(parent_node_id)
+        except AutomationNodeDoesNotExist as exc:
+            message = "The parent node doesn't exist"
+            raise InvalidFormulaContext(message) from exc
 
         try:
             parent_node_results = dispatch_context.previous_nodes_results[
-                parent_node_id
+                parent_node.id
             ]
         except KeyError as exc:
             message = (

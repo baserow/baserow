@@ -583,7 +583,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         except (UnacceptableAddressException, ConnectionError) as e:
             raise UnexpectedDispatchException(
-                f'Invalid URL: {resolved_values["url"]}'
+                f"Invalid URL: {resolved_values['url']}"
             ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
@@ -988,7 +988,7 @@ class CoreRouterServiceType(CoreServiceType):
             FormulaToResolve(
                 f"edge_{edge.uid}",
                 edge.condition,
-                lambda x: ensure_boolean(x, True),
+                lambda x: ensure_boolean(x, False),
                 f'edge "{edge.label}" condition',
             )
             for edge in service.edges.all()

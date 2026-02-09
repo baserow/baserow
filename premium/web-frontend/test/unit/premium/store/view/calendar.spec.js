@@ -131,7 +131,11 @@ describe('Calendar view store', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        calendar: calendarStore,
+      },
+    })
   })
 
   afterEach(() => {
@@ -197,8 +201,8 @@ describe('Calendar view store', () => {
           },
         },
       })
-      calendarStore.state = () => state
-      store.registerModule('calendar', calendarStore)
+
+      store.replaceState({ ...store.state, calendar: state })
     })
 
     test('getLastCalendarId', () => {
@@ -273,8 +277,7 @@ describe('Calendar view store', () => {
             dateFieldId: 2,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -336,8 +339,7 @@ describe('Calendar view store', () => {
             dateFieldId: 2,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -417,8 +419,7 @@ describe('Calendar view store', () => {
             dateFieldId: 5,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -484,8 +485,7 @@ describe('Calendar view store', () => {
             dateFieldId: 5,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -562,8 +562,7 @@ describe('Calendar view store', () => {
             dateFieldId: 3,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -625,8 +624,7 @@ describe('Calendar view store', () => {
             dateFieldId: 3,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -701,8 +699,7 @@ describe('Calendar view store', () => {
             dateFieldId: 4,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -762,8 +759,7 @@ describe('Calendar view store', () => {
             dateFieldId: 4,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // add rows that should get assigned to correct
           // date bucket in a sorted order
@@ -831,8 +827,7 @@ describe('Calendar view store', () => {
             dateFieldId: 2,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows that should get assigned to correct
           // date bucket in a sorted order
@@ -915,8 +910,7 @@ describe('Calendar view store', () => {
             dateFieldId: 2,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows should get assigned to correct
           // date bucket in a sorted order
@@ -985,8 +979,7 @@ describe('Calendar view store', () => {
             dateFieldId: 5,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows that should get assigned to correct
           // date bucket in a sorted order
@@ -1072,8 +1065,7 @@ describe('Calendar view store', () => {
             dateFieldId: 5,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows should get assigned to correct
           // date bucket in a sorted order
@@ -1163,8 +1155,7 @@ describe('Calendar view store', () => {
             dateFieldId: 3,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows that should get assigned to correct
           // date bucket in a sorted order
@@ -1247,8 +1238,7 @@ describe('Calendar view store', () => {
             dateFieldId: 3,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows should get assigned to correct
           // date bucket in a sorted order
@@ -1316,8 +1306,7 @@ describe('Calendar view store', () => {
             dateFieldId: 4,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows that should get assigned to correct
           // date bucket in a sorted order
@@ -1404,8 +1393,7 @@ describe('Calendar view store', () => {
             dateFieldId: 5,
             dateStacks,
           })
-          calendarStore.state = () => state
-          store.registerModule('calendar', calendarStore)
+          store.replaceState({ ...store.state, calendar: state })
 
           // updated rows should get assigned to correct
           // date bucket in a sorted order
@@ -1476,8 +1464,7 @@ describe('Calendar view store', () => {
           dateFieldId: 5,
           dateStacks,
         })
-        calendarStore.state = () => state
-        store.registerModule('calendar', calendarStore)
+        store.replaceState({ ...store.state, calendar: state })
 
         // deleting existing row
         await store.dispatch('calendar/deletedExistingRow', {

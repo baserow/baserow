@@ -27,7 +27,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "workspace_id",
             type=int,
-            help="The id of the workspace that " "must be exported.",
+            help="The id of the workspace that must be exported.",
         )
         parser.add_argument(
             "--indent",

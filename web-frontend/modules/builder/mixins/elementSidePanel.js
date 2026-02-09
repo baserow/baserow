@@ -42,6 +42,7 @@ export default {
 
     elementPage() {
       // We use the page from the element itself
+      if (!this.element) return null
       return this.$store.getters['page/getById'](
         this.builder,
         this.element.page_id
@@ -63,7 +64,7 @@ export default {
           this.element,
           this.workspace.id
         ) ||
-        !this.$refs.panelForm?.isFormValid(true)
+        (this.$refs.panelForm && !this.$refs.panelForm?.isFormValid(true))
       ) {
         return
       }

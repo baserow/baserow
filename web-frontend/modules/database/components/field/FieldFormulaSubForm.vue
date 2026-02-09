@@ -57,6 +57,7 @@ export default {
       type: String,
     },
   },
+  emits: ['validate'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

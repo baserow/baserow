@@ -9,7 +9,7 @@ function errorInterceptorWithStubAppAndStore(
   errorPageData = {}
 ) {
   const stubApp = {
-    i18n: {
+    $i18n: {
       t(t) {
         return t
       },
@@ -83,7 +83,7 @@ describe('test error handling', () => {
       }
     }
   )
-  test('test an 429 response results in a too many requests error', async () => {
+  test('an 429 response results in a too many requests error', async () => {
     try {
       await errorInterceptorWithStubAppAndStore()({
         response: {
@@ -96,7 +96,7 @@ describe('test error handling', () => {
       expect(message.message).toBe('clientHandler.tooManyRequestsDescription')
     }
   })
-  test('test empty response results in a network error', async () => {
+  test('empty response results in a network error', async () => {
     try {
       await errorInterceptorWithStubAppAndStore()({})
     } catch (error) {
@@ -155,7 +155,7 @@ describe('test error handling', () => {
       }
     }
   )
-  test('test an 401 - ERROR_INVALID_REFRESH_TOKEN response redirect to the error page', async () => {
+  test('an 401 - ERROR_INVALID_REFRESH_TOKEN response redirect to the error page', async () => {
     const actualStoreDispatches = []
     const errorPageData = {}
     try {
@@ -173,7 +173,7 @@ describe('test error handling', () => {
       expect(errorPageData.message).toBe('User session expired')
     }
   })
-  test('test an 404 response returns a not found error', async () => {
+  test('an 404 response returns a not found error', async () => {
     try {
       await errorInterceptorWithStubAppAndStore()({
         response: {
@@ -341,7 +341,7 @@ describe('test error handling', () => {
       }
     }
   )
-  test('test an 500 response returns action not completed error', async () => {
+  test('an 500 response returns action not completed error', async () => {
     try {
       await errorInterceptorWithStubAppAndStore()({
         response: 'traceback from backend',
@@ -394,7 +394,7 @@ describe('test error handling', () => {
       { weirdField: [{ code: Symbol('weird inner code value') }] },
     ]
     test.each(invalidDetails)(
-      'test with invalid detail %s',
+      'with invalid detail %s',
       async (invalidDetail) => {
         try {
           await errorInterceptorWithStubAppAndStore()({

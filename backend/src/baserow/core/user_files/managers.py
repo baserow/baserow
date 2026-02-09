@@ -1,8 +1,10 @@
 from django.db import models
 from django.db.models import Q
 
+from django_cte import CTEQuerySet
 
-class UserFileQuerySet(models.QuerySet):
+
+class UserFileQuerySet(CTEQuerySet, models.QuerySet):
     def name(self, *names):
         if len(names) == 0:
             raise ValueError("At least one name must be provided.")

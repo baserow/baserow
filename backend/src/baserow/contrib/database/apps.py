@@ -5,6 +5,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import ProgrammingError
 from django.db.models.signals import post_migrate, pre_migrate
 
+from baserow.contrib.database.fields.utils.pg_datetime import pg_init
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
 from baserow.core.registries import (
@@ -395,7 +396,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(EqualViewFilterType())
         view_filter_type_registry.register(NotEqualViewFilterType())
         view_filter_type_registry.register(FilenameContainsViewFilterType())
-        view_filter_type_registry.register(FilesLowerThanViewFilterType()),
+        (view_filter_type_registry.register(FilesLowerThanViewFilterType()),)
         view_filter_type_registry.register(HasFileTypeViewFilterType())
         view_filter_type_registry.register(ContainsViewFilterType())
         view_filter_type_registry.register(ContainsNotViewFilterType())
@@ -829,12 +830,14 @@ class DatabaseConfig(AppConfig):
             CreateViewFilterOperationType,
             CreateViewGroupByOperationType,
             CreateViewOperationType,
+            CreateViewRowOperationType,
             CreateViewSortOperationType,
             DeleteViewDecorationOperationType,
             DeleteViewFilterGroupOperationType,
             DeleteViewFilterOperationType,
             DeleteViewGroupByOperationType,
             DeleteViewOperationType,
+            DeleteViewRowOperationType,
             DeleteViewSortOperationType,
             DuplicateViewOperationType,
             ListAggregationsViewOperationType,
@@ -851,6 +854,7 @@ class DatabaseConfig(AppConfig):
             ReadViewFilterOperationType,
             ReadViewGroupByOperationType,
             ReadViewOperationType,
+            ReadViewRowOperationType,
             ReadViewsOrderOperationType,
             ReadViewSortOperationType,
             RestoreViewOperationType,
@@ -860,6 +864,7 @@ class DatabaseConfig(AppConfig):
             UpdateViewGroupByOperationType,
             UpdateViewOperationType,
             UpdateViewPublicOperationType,
+            UpdateViewRowOperationType,
             UpdateViewSlugOperationType,
             UpdateViewSortOperationType,
         )
@@ -872,6 +877,10 @@ class DatabaseConfig(AppConfig):
             UpdateWebhookOperationType,
         )
 
+        operation_type_registry.register(ReadViewRowOperationType())
+        operation_type_registry.register(CreateViewRowOperationType())
+        operation_type_registry.register(UpdateViewRowOperationType())
+        operation_type_registry.register(DeleteViewRowOperationType())
         operation_type_registry.register(CreateTableDatabaseTableOperationType())
         operation_type_registry.register(ListTablesDatabaseTableOperationType())
         operation_type_registry.register(OrderTablesDatabaseTableOperationType())
@@ -1088,9 +1097,20 @@ class DatabaseConfig(AppConfig):
 
         operation_type_registry.register(SetFieldRuleOperationType())
         operation_type_registry.register(ReadFieldRuleOperationType())
+
         action_type_registry.register(CreateFieldRuleActionType())
         action_type_registry.register(UpdateFieldRuleActionType())
         action_type_registry.register(DeleteFieldRuleActionType())
+
+        from baserow.contrib.database.ws.public.rows.view_realtime_rows import (
+            PublicViewRealtimeRowsType,
+        )
+        from baserow.contrib.database.ws.views.rows.registries import (
+            view_realtime_rows_registry,
+        )
+
+        if not settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS:
+            view_realtime_rows_registry.register(PublicViewRealtimeRowsType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
@@ -1120,6 +1140,9 @@ class DatabaseConfig(AppConfig):
         # `related_name="+"` because the relation won't be created on the user side.
         get_user_model()._meta._expire_cache = lambda *a, **kw: None
         SelectOption._meta._expire_cache = lambda *a, **kw: None
+
+        # date/datetime min/max year handling - replace overflowed date with None
+        pg_init()
 
 
 # noinspection PyPep8Naming

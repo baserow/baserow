@@ -1,5 +1,5 @@
 <template>
-  <Modal wide v-on="$listeners">
+  <Modal ref="modal" wide v-on="$attrs">
     <h2 class="box__title">
       {{
         create
@@ -77,6 +77,7 @@ export default {
   props: {
     dataSourceId: { type: Number, required: false, default: null },
   },
+  emits: ['updated'],
   data() {
     return {
       loading: false,
@@ -174,11 +175,12 @@ export default {
             )
           )
 
-          await this.actionUpdateDataSource({
+          const updatedDataSource = await this.actionUpdateDataSource({
             page: this.dataSourcePage,
             dataSourceId: this.dataSource.id,
             values: differences,
           })
+          this.$emit('updated', updatedDataSource)
           // Send data source update element event
           this.$store.dispatch('element/emitElementEvent', {
             event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,

@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hidden">
+  <Modal ref="modal" @hidden="hidden">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('exportTableModal.title', { name: table.name }) }}
@@ -125,7 +125,7 @@ export default {
         const { data: viewsData } = await ViewService(this.$client).fetchAll(
           this.table.id
         )
-        viewsData.forEach((v) => populateView(v, this.$registry))
+        viewsData.forEach((v) => populateView(v))
         this.views = viewsData
       } catch (error) {
         this.handleError(error, 'views')
@@ -190,7 +190,15 @@ export default {
       }
     },
     valuesChanged() {
-      this.isValid = this.$refs.form.isFormValid()
+      const form = this.$refs.form
+
+      if (!form || typeof form.isFormValid !== 'function') {
+        this.isValid = false
+        this.job = null
+        return
+      }
+
+      this.isValid = form.isFormValid()
       this.job = null
     },
   },

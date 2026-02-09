@@ -1,13 +1,15 @@
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypedDict, Union
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractUser  # noqa: F401
-    from django.contrib.auth.models import AnonymousUser  # noqa: F401
+    from django.contrib.auth.models import (
+        AbstractUser,  # noqa: F401
+        AnonymousUser,  # noqa: F401
+    )
 
-    from baserow.contrib.automation.models import Automation
-    from baserow.contrib.builder.models import Builder
-    from baserow.contrib.dashboard.models import Dashboard
-    from baserow.contrib.database.models import Database, Table
+    from baserow.contrib.automation.models import Automation  # noqa: F401
+    from baserow.contrib.builder.models import Builder  # noqa: F401
+    from baserow.contrib.dashboard.models import Dashboard  # noqa: F401
+    from baserow.contrib.database.models import Database, Table, View  # noqa: F401
 
 # A scope object needs to have a related registered ScopeObjectType
 ScopeObject = Any
@@ -24,7 +26,7 @@ Actor = Any
 
 # Objects which can be exported and imported in a `SerializationProcessorType`.
 SerializationProcessorScope = Union[
-    "Database", "Table", "Builder", "Dashboard", "Automation"
+    "Database", "Table", "View", "Builder", "Dashboard", "Automation"
 ]
 
 

@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.urls import reverse
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.core.jobs.constants import JOB_CANCELLED
@@ -18,115 +19,125 @@ from baserow.test_utils.helpers import is_dict_subset
 def test_create_job(mock_run_async, data_fixture, api_client):
     data_fixture.register_temp_job_types()
 
-    user, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
 
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {},
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert response.json() == {
-        "error": "ERROR_REQUEST_BODY_VALIDATION",
-        "detail": {
-            "type": [{"error": "This field is required.", "code": "required"}],
-        },
-    }
+    run_time = "2023-01-01T12:00:00Z"
+    with freeze_time("2023-01-01 12:00:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {},
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "type": [{"error": "This field is required.", "code": "required"}],
+            },
+        }
 
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "tmp_job_type_1",
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "test_request_field": [
+                    {"error": "This field is required.", "code": "required"}
+                ],
+            },
+        }
+
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "tmp_job_type_1",
+                "test_request_field": "test",
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "test_request_field": [
+                    {"error": "A valid integer is required.", "code": "invalid"}
+                ],
+            },
+        }
+
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "tmp_job_type_3",
+                "test_request_field": 1,
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_404_NOT_FOUND
+        assert response.json()["error"] == "TEST_EXCEPTION"
+
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "tmp_job_type_1",
+                "test_request_field": 1,
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        job = Job.objects.all().first()
+
+        assert response.json() == {
+            "id": job.id,
+            "created_on": run_time,
+            "updated_on": run_time,
             "type": "tmp_job_type_1",
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert response.json() == {
-        "error": "ERROR_REQUEST_BODY_VALIDATION",
-        "detail": {
-            "test_request_field": [
-                {"error": "This field is required.", "code": "required"}
-            ],
-        },
-    }
+            "test_field": 42,
+            "state": "pending",
+            "progress_percentage": 0,
+            "human_readable_error": "",
+        }
+        mock_run_async.delay.assert_called()
 
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "tmp_job_type_1",
-            "test_request_field": "test",
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert response.json() == {
-        "error": "ERROR_REQUEST_BODY_VALIDATION",
-        "detail": {
-            "test_request_field": [
-                {"error": "A valid integer is required.", "code": "invalid"}
-            ],
-        },
-    }
-
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "tmp_job_type_3",
-            "test_request_field": 1,
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "TEST_EXCEPTION"
-
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "tmp_job_type_1",
-            "test_request_field": 1,
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    job = Job.objects.all().first()
-
-    assert response.json() == {
-        "id": job.id,
-        "type": "tmp_job_type_1",
-        "test_field": 42,
-        "state": "pending",
-        "progress_percentage": 0,
-        "human_readable_error": "",
-    }
-    mock_run_async.delay.assert_called()
-
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "tmp_job_type_1",
-            "test_request_field": 1,
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "tmp_job_type_1",
+                "test_request_field": 1,
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"
 
 
 @pytest.mark.django_db
 def test_list_jobs(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
-    job_1 = data_fixture.create_fake_job(user=user)
-    job_2 = data_fixture.create_fake_job(user=user, state="failed")
-    job_3 = data_fixture.create_fake_job()
+
+    with freeze_time("2023-01-01 12:00:00"):
+        job_1 = data_fixture.create_fake_job(user=user)
+        job_2 = data_fixture.create_fake_job(user=user, state="failed")
+        job_3 = data_fixture.create_fake_job()
+
     url = reverse("api:jobs:list")
 
     response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     job_1_json = {
         "id": job_1.id,
+        "created_on": "2023-01-01T12:00:00Z",
+        "updated_on": "2023-01-01T12:00:00Z",
         "type": "tmp_job_type_1",
         "progress_percentage": 0,
         "state": "pending",
@@ -137,6 +148,8 @@ def test_list_jobs(data_fixture, api_client):
     job_2_json = {
         "id": job_2.id,
         "type": "tmp_job_type_1",
+        "created_on": "2023-01-01T12:00:00Z",
+        "updated_on": "2023-01-01T12:00:00Z",
         "progress_percentage": 0,
         "state": "failed",
         "human_readable_error": "",
@@ -212,10 +225,50 @@ def test_list_jobs(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@patch("baserow.core.jobs.handler.run_async_job")
+def test_list_jobs_with_type_specific_filters(mock_run_async, data_fixture, api_client):
+    """Test that type-specific filters work correctly and are isolated per job type."""
+
+    data_fixture.register_temp_job_types()
+    user, token = data_fixture.create_user_and_token()
+    job = data_fixture.create_fake_job(user=user, type="tmp_job_type_1")
+
+    response = api_client.get(
+        reverse("api:jobs:list"),
+        {
+            "non_existing_field": "will_be_ignored",
+            "type": "tmp_job_type_1",
+            "test_request_field": 1,
+            "tmp_job_type_1_progress_percentage": 100,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()["jobs"]) == 0
+
+    response = api_client.get(
+        reverse("api:jobs:list"),
+        {
+            "type": "tmp_job_type_1",
+            "test_request_field": 1,
+            "tmp_job_type_1_progress_percentage": 0,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()["jobs"]) == 1
+    assert response.json()["jobs"][0]["id"] == job.id
+
+
+@pytest.mark.django_db
 def test_get_job(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
-    job_1 = data_fixture.create_fake_job(user=user)
-    job_2 = data_fixture.create_fake_job()
+
+    run_time = "2023-01-01T12:00:00Z"
+    with freeze_time("2023-01-01 12:00:00"):
+        job_1 = data_fixture.create_fake_job(user=user)
+        job_2 = data_fixture.create_fake_job()
 
     response = api_client.get(
         reverse(
@@ -239,6 +292,8 @@ def test_get_job(data_fixture, api_client):
 
     assert json == {
         "id": job_1.id,
+        "created_on": run_time,
+        "updated_on": run_time,
         "type": "tmp_job_type_1",
         "progress_percentage": 0,
         "state": "pending",
@@ -246,10 +301,12 @@ def test_get_job(data_fixture, api_client):
         "test_field": 42,
     }
 
-    job_1.progress_percentage = 50
-    job_1.state = "failed"
-    job_1.human_readable_error = "Wrong"
-    job_1.save()
+    updated_time = "2023-01-01T13:00:00Z"
+    with freeze_time("2023-01-01 13:00:00"):
+        job_1.progress_percentage = 50
+        job_1.state = "failed"
+        job_1.human_readable_error = "Wrong"
+        job_1.save()
 
     response = api_client.get(
         reverse(
@@ -263,6 +320,8 @@ def test_get_job(data_fixture, api_client):
 
     assert json == {
         "id": job_1.id,
+        "created_on": run_time,
+        "updated_on": updated_time,
         "type": "tmp_job_type_1",
         "progress_percentage": 50,
         "state": "failed",
@@ -320,13 +379,16 @@ def test_cancel_job_running(
     assert job
     assert job.id
     assert job.specific
-    assert resp == {
-        "id": job.id,
-        "type": IdlingJobType.type,
-        "state": "pending",
-        "progress_percentage": 0,
-        "human_readable_error": "",
-    }
+    assert is_dict_subset(
+        {
+            "id": job.id,
+            "type": IdlingJobType.type,
+            "state": "pending",
+            "progress_percentage": 0,
+            "human_readable_error": "",
+        },
+        resp,
+    )
 
     with test_thread(run_async_job.apply, args=(job.id,)) as t:
         assert job.pending, job.get_cached_state()
@@ -402,13 +464,16 @@ def test_cancel_job_pending(
     assert job
     assert job.id
     assert job.specific
-    assert resp == {
-        "id": job.id,
-        "type": IdlingJobType.type,
-        "state": "pending",
-        "progress_percentage": 0,
-        "human_readable_error": "",
-    }
+    assert is_dict_subset(
+        {
+            "id": job.id,
+            "type": IdlingJobType.type,
+            "state": "pending",
+            "progress_percentage": 0,
+            "human_readable_error": "",
+        },
+        resp,
+    )
 
     with test_thread(run_async_job.apply, args=(job.id,)) as t:
         assert job.pending, job.get_cached_state()
@@ -472,13 +537,16 @@ def test_cancel_job_finished(
     assert job
     assert job.id
     assert job.specific
-    assert resp == {
-        "id": job.id,
-        "type": IdlingJobType.type,
-        "state": "pending",
-        "progress_percentage": 0,
-        "human_readable_error": "",
-    }
+    assert is_dict_subset(
+        {
+            "id": job.id,
+            "type": IdlingJobType.type,
+            "state": "pending",
+            "progress_percentage": 0,
+            "human_readable_error": "",
+        },
+        resp,
+    )
 
     with test_thread(run_async_job.apply, args=(job.id,)) as t:
         assert job.pending, job.get_cached_state()

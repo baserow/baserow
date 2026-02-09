@@ -1,25 +1,18 @@
-<template functional>
+<template>
   <div class="card-multiple-collaborators__list-wrapper">
     <div class="card-multiple-collaborators__list">
       <div
-        v-for="item in props.value"
+        v-for="item in value"
         :key="item.id"
         class="card-multiple-collaborators__item"
       >
         <template v-if="item.id && item.name">
           <span
             class="field-multiple-collaborators__name background-color--light-gray"
-            >{{
-              $options.methods.getCollaboratorName(item, parent.$store)
-            }}</span
+            >{{ getCollaboratorName(item, $store) }}</span
           >
-          <div
-            v-if="props.value"
-            class="field-multiple-collaborators__initials"
-          >
-            {{
-              $options.methods.getCollaboratorNameInitials(item, parent.$store)
-            }}
+          <div v-if="value" class="field-multiple-collaborators__initials">
+            {{ getCollaboratorNameInitials(item, $store) }}
           </div>
         </template>
       </div>
@@ -31,7 +24,14 @@
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
+  name: 'RowCardFieldMultipleCollaborators',
   height: 30,
   mixins: [collaboratorName],
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
 }
 </script>

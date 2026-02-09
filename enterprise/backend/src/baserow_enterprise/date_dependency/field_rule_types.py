@@ -4,8 +4,6 @@ from functools import partial
 from django.db.models import QuerySet
 from django.db.transaction import on_commit
 
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.handler import LicenseHandler
 from loguru import logger
 from rest_framework import serializers
 
@@ -27,6 +25,8 @@ from baserow_enterprise.date_dependency.models import (
 )
 from baserow_enterprise.date_dependency.types import DateDepenencyDict
 from baserow_enterprise.features import DATE_DEPENDENCY
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.handler import LicenseHandler
 
 from .calculations import DateCalculator, DateDependencyCalculator, DateValues
 from .serializers import (

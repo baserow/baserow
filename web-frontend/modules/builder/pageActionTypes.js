@@ -51,7 +51,7 @@ export class PublishPageActionType extends PageActionType {
   }
 
   get label() {
-    return this.app.i18n.t('pageActionTypes.publish')
+    return this.app.$i18n.t('pageActionTypes.publish')
   }
 
   get icon() {
@@ -85,7 +85,7 @@ export class PreviewPageActionType extends PageActionType {
   }
 
   get label() {
-    return this.app.i18n.t('pageActionTypes.preview')
+    return this.app.$i18n.t('pageActionTypes.preview')
   }
 
   generatePreviewUrl(builderId, page) {

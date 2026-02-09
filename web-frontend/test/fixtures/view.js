@@ -7,6 +7,7 @@ export function createView(data) {
     filters: [],
     sortings: [],
     decorations: [],
+    ownership_type: 'collaborative',
   }
 
   return {
@@ -36,6 +37,7 @@ export function createPublicGridView(
     slug: viewSlug,
     sortings,
     show_logo: true,
+    ownership_type: 'collaborative',
   }
   mock
     .onGet(`/database/views/${viewSlug}/public/info/`)
@@ -78,6 +80,7 @@ export function createGridView(
     sortings,
     group_bys: groupBys,
     decorations,
+    ownership_type: 'collaborative',
   }
   mock.onGet(`/database/views/table/${tableId}/`).reply(200, [gridView])
   return gridView

@@ -12,6 +12,11 @@ export default {
       required: false,
       default: () => ({}),
     },
+    serviceType: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
     contextData: {
       type: Object,
       required: false,

@@ -62,12 +62,6 @@ export default {
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
     },
-    resolvedDefaultValue() {
-      return this.elementType.getInitialFormDataValue(
-        this.element,
-        this.applicationContext
-      )
-    },
     allowedExtensions() {
       return this.element.allowed_filetypes
         .filter((v) => v)
@@ -121,9 +115,11 @@ export default {
     },
   },
   watch: {
+    // override the default mixin method because we want to use the one with metadata
+    resolvedDefaultValue() {},
     resolvedDefaultValueWithMetadata: {
       handler(value) {
-        if (process.client) {
+        if (import.meta.client) {
           this.updatedMetadata()
         }
         this.inputValue = value

@@ -837,3 +837,183 @@ def test_share_onboarding_details_with_baserow_valid_response(data_fixture):
     )
 
     assert response1.call_count == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation(data_fixture, mailoutbox):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@localhost", password=valid_password)
+    handler = UserHandler()
+
+    # Test with invalid hostname
+    with pytest.raises(BaseURLHostnameNotAllowed):
+        handler.send_change_email_confirmation(
+            user, "newemail@localhost", valid_password, "http://test.nl/change-email"
+        )
+
+    # Test with incorrect password
+    with pytest.raises(InvalidPassword):
+        handler.send_change_email_confirmation(
+            user,
+            "newemail@localhost",
+            "wrongpassword",
+            "http://localhost:3000/change-email",
+        )
+
+    # Test with existing email
+    data_fixture.create_user(email="existing@localhost")
+    with pytest.raises(UserAlreadyExist):
+        handler.send_change_email_confirmation(
+            user,
+            "existing@localhost",
+            valid_password,
+            "http://localhost:3000/change-email",
+        )
+
+    # Test successful email change confirmation
+    signer = handler.get_change_email_signer()
+    handler.send_change_email_confirmation(
+        user, "newemail@localhost", valid_password, "http://localhost:3000/change-email"
+    )
+
+    assert len(mailoutbox) == 1
+    email = mailoutbox[0]
+
+    assert email.subject == "Confirm email address change - Baserow"
+    assert email.from_email == "no-reply@localhost"
+    assert "newemail@localhost" in email.to
+
+    html_body = email.alternatives[0][0]
+    search_url = "http://localhost:3000/change-email/"
+    start_url_index = html_body.index(search_url)
+
+    assert start_url_index != -1
+
+    end_url_index = html_body.index('"', start_url_index)
+    token = html_body[start_url_index + len(search_url) : end_url_index]
+
+    payload = signer.loads(token)
+    assert payload["user_id"] == user.id
+    assert payload["new_email"] == "newemail@localhost"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_in_different_language(data_fixture, mailoutbox):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(
+        email="test@localhost", password=valid_password, language="fr"
+    )
+    handler = UserHandler()
+
+    handler.send_change_email_confirmation(
+        user, "newemail@localhost", valid_password, "http://localhost:3000/change-email"
+    )
+
+    assert len(mailoutbox) == 1
+    # The French translation for "Confirm email address change - Baserow"
+    assert (
+        "Confirmer le changement" in mailoutbox[0].subject
+        or "Baserow" in mailoutbox[0].subject
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_auth_provider_disabled(data_fixture):
+    from baserow.core.auth_provider.exceptions import AuthProviderDisabled
+
+    data_fixture.create_password_provider(enabled=False)
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@localhost", password=valid_password)
+
+    with pytest.raises(AuthProviderDisabled):
+        UserHandler().send_change_email_confirmation(
+            user,
+            "newemail@localhost",
+            valid_password,
+            "http://localhost:3000/change-email",
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_without_password(data_fixture):
+    from baserow.core.user.exceptions import ChangeEmailNotAllowed
+
+    data_fixture.create_password_provider()
+    # Create user without password (simulating SSO account)
+    user = data_fixture.create_user(email="test@localhost")
+    user.password = ""
+    user.save()
+
+    with pytest.raises(ChangeEmailNotAllowed):
+        UserHandler().send_change_email_confirmation(
+            user,
+            "newemail@localhost",
+            "dummy_password",  # Provided but user has no password
+            "http://localhost:3000/change-email",
+        )
+
+
+@pytest.mark.django_db
+def test_change_email(data_fixture):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@localhost", password=valid_password)
+    handler = UserHandler()
+
+    # Test with invalid token
+    with pytest.raises(BadSignature):
+        handler.change_email("invalid_token")
+
+    # Test with non-existent user
+    signer = handler.get_change_email_signer()
+    with freeze_time("2020-01-01 12:00"):
+        token = signer.dumps({"user_id": 9999, "new_email": "newemail@localhost"})
+
+    with freeze_time("2020-01-01 18:00"):  # Within 12 hours
+        with pytest.raises(UserNotFound):
+            handler.change_email(token)
+
+    # Test with expired token
+    with freeze_time("2020-01-01 12:00"):
+        token = signer.dumps({"user_id": user.id, "new_email": "newemail@localhost"})
+
+    with freeze_time("2020-01-02 01:01"):  # More than 12 hours later (13 hours 1 min)
+        with pytest.raises(SignatureExpired):
+            handler.change_email(token)
+
+    # Test successful email change
+    with freeze_time("2020-01-01 12:00"):
+        token = signer.dumps({"user_id": user.id, "new_email": "newemail@localhost"})
+
+    with freeze_time("2020-01-01 18:00"):  # Within 12 hours
+        changed_user, old_email = handler.change_email(token)
+
+    assert changed_user.email == "newemail@localhost"
+    assert changed_user.username == "newemail@localhost"
+    assert old_email == "test@localhost"
+
+    # Verify the user was updated in the database
+    user.refresh_from_db()
+    assert user.email == "newemail@localhost"
+    assert user.username == "newemail@localhost"
+
+
+@pytest.mark.django_db
+def test_change_email_already_exists(data_fixture):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@localhost", password=valid_password)
+    data_fixture.create_user(email="existing@localhost")
+    handler = UserHandler()
+
+    signer = handler.get_change_email_signer()
+    token = signer.dumps({"user_id": user.id, "new_email": "existing@localhost"})
+
+    with pytest.raises(UserAlreadyExist):
+        handler.change_email(token)
+
+    # Verify the user's email was not changed
+    user.refresh_from_db()
+    assert user.email == "test@localhost"

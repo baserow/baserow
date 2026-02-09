@@ -1,5 +1,5 @@
 <template>
-  <div class="expand-overflow-list" v-on="$listeners">
+  <div class="expand-overflow-list" v-on="$attrs">
     <div class="expand-overflow-list__container">
       <span v-if="noRecords"><slot name="no-records"></slot></span>
       <span ref="empty" class="expand-overflow-list__empty-item"></span>
@@ -87,7 +87,7 @@ export default {
     this.$el.resizeObserver = new ResizeObserver(this.recalculateHiddenRecords)
     this.$el.resizeObserver.observe(this.$el)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$el.resizeObserver.unobserve(this.$el)
   },
   created() {
@@ -104,13 +104,17 @@ export default {
      * wrap down to a new row below which is invisible.
      */
     recalculateHiddenRecords() {
-      if (process.server) {
+      if (import.meta.server) {
         return
       }
 
       this.$nextTick(() => {
         let expandOrder = 0
         let numHiddenRecords = this.records.length
+
+        if (!this.$refs.empty) {
+          return
+        }
 
         /*
            The starting empty element never flex-wraps down into a new row as it has 0

@@ -3,6 +3,7 @@
     <LocalBaserowServiceForm
       ref="serviceForm"
       :application="application"
+      :service-type="serviceType"
       :default-values="defaultValues"
       :enable-view-picker="false"
       @values-changed="emitServiceChange($event)"
@@ -23,6 +24,10 @@ export default defineComponent({
       required: true,
     },
     service: {
+      type: Object,
+      required: true,
+    },
+    serviceType: {
       type: Object,
       required: true,
     },

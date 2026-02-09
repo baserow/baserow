@@ -149,8 +149,9 @@ def test_create_element_permission_denied(data_fixture, stub_check_permissions):
 
     element_type = element_type_registry.get("heading")
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().create_element(
             user,
@@ -181,8 +182,9 @@ def test_get_element_permission_denied(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().get_element(user, element.id)
 
@@ -269,8 +271,9 @@ def test_delete_element_permission_denied(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().delete_element(user, element)
 
@@ -294,8 +297,9 @@ def test_update_element_permission_denied(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().update_element(user, element, value="newValue")
 
@@ -350,8 +354,9 @@ def test_move_element_permission_denied(data_fixture, stub_check_permissions):
     element2 = data_fixture.create_builder_heading_element(page=page)
     element3 = data_fixture.create_builder_text_element(page=page)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().move_element(
             user,
@@ -408,7 +413,8 @@ def test_duplicate_element_permission_denied(data_fixture, stub_check_permission
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         ElementService().duplicate_element(user, element)

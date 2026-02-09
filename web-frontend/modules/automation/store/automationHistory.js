@@ -1,3 +1,4 @@
+import { useNuxtApp } from '#app'
 import AutomationHistoryService from '@baserow/modules/automation/services/history'
 
 const state = {
@@ -14,7 +15,7 @@ const mutations = {
 const actions = {
   async fetchWorkflowHistory({ commit }, { workflowId }) {
     const { data } = await AutomationHistoryService(
-      this.$client
+      useNuxtApp().$client
     ).getWorkflowHistory(workflowId)
 
     commit('SET_WORKFLOW_HISTORY', { data })

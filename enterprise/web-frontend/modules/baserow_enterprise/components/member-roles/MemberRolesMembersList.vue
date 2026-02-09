@@ -15,7 +15,7 @@
       >
         <Avatar
           size="large"
-          :initials="roleAssignment.subject.first_name | nameAbbreviation"
+          :initials="nameAbbreviation(roleAssignment.subject.first_name)"
           rounded
         ></Avatar>
 
@@ -30,7 +30,7 @@
       <!-- Team subjects -->
       <div v-else class="member-roles-members-list__subject-section">
         <div class="member-roles-members-list__team-initials">
-          {{ roleAssignment.subject.name | nameAbbreviation }}
+          {{ nameAbbreviation(roleAssignment.subject.name) }}
         </div>
         <div
           v-tooltip="roleAssignment.subject.name"
@@ -73,9 +73,11 @@
 import { mapGetters } from 'vuex'
 import RoleSelector from '@baserow_enterprise/components/member-roles/RoleSelector'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'MemberRolesMembersList',
+  emits: ['role-updated'],
   components: { RoleSelector },
   props: {
     roleAssignments: {
@@ -128,6 +130,7 @@ export default {
         subjectType: roleAssignment.subject_type,
       })
     },
+    nameAbbreviation,
   },
 }
 </script>

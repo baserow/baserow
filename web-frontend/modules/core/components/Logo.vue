@@ -1,16 +1,11 @@
-<template functional>
-  <component
-    :is="$options.methods.getComponent(parent)"
-    v-if="$options.methods.getComponent(parent) !== null"
-    v-bind="props"
-    :class="[data.staticClass, data.class]"
-  />
+<template>
+  <!-- TODO MIG component :is="getComponent()" v-if="getComponent()" /-->
   <!-- must be in sync with modules/baserow_enterprise/components/EnterpriseLogo.vue -->
-  <div v-else class="logo">
+  <div class="logo">
     <img
-      src="@baserow/modules/core/static/img/logo.svg"
-      v-bind="props"
-      :class="[data.staticClass, data.class]"
+      src="@baserow/modules/core/static/img/logo.svg?url"
+      v-bind="$attrs"
+      :class="[$attrs.class]"
     />
   </div>
 </template>
@@ -19,9 +14,9 @@
 export default {
   name: 'Logo',
   methods: {
-    getComponent(parent) {
+    getComponent() {
       return (
-        Object.values(parent.$registry.getAll('plugin'))
+        Object.values(this.$registry.getAll('plugin'))
           .filter((plugin) => plugin.getLogoComponent() !== null)
           .sort(
             (p1, p2) => p2.getLogoComponentOrder() - p1.getLogoComponentOrder()

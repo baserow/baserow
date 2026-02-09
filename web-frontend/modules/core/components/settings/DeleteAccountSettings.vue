@@ -1,7 +1,6 @@
 <template>
   <div>
     <h2 class="box__title">{{ $t('deleteAccountSettings.title') }}</h2>
-
     <p>
       {{
         $t('deleteAccountSettings.description', {
@@ -9,18 +8,15 @@
         })
       }}
     </p>
-
-    <div v-if="$fetchState.pending" class="loading__wrapper">
+    <div v-if="fetchPending" class="loading__wrapper">
       <div class="loading loading-absolute-center" />
     </div>
-
-    <Alert v-else-if="$fetchState.error" type="error">
-      <template #title>{{
-        $t('deleteAccountSettings.workspaceLoadingError')
-      }}</template>
+    <Alert v-else-if="fetchError" type="error">
+      <template #title>
+        {{ $t('deleteAccountSettings.workspaceLoadingError') }}
+      </template>
       <p>{{ $t('deleteAccountSettings.workspaceLoadingErrorDescription') }}</p>
     </Alert>
-
     <div v-else-if="orphanWorkspaces.length" class="delete-section">
       <div class="delete-section__label">
         <div class="delete-section__label-icon">
@@ -37,21 +33,15 @@
           {{ workspace.name }}
           <small>
             {{
-              $tc(
-                'deleteAccountSettings.orphanWorkspaceMemberCount',
-                workspaceMembers[workspace.id].length,
-                {
-                  count: workspaceMembers[workspace.id].length,
-                }
-              )
+              $t('deleteAccountSettings.orphanWorkspaceMemberCount', {
+                count: workspaceMembers[workspace.id].length,
+              })
             }}</small
           >
         </li>
       </ul>
     </div>
-
     <Error :error="error"></Error>
-
     <form
       v-if="!success"
       class="delete-account-settings__form"
@@ -71,19 +61,17 @@
     </form>
   </div>
 </template>
-
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
-
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import AuthService from '@baserow/modules/core/services/auth'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
-
 export default {
   mixins: [error],
+
   data() {
     return {
       loading: false,
@@ -93,24 +81,9 @@ export default {
         passwordConfirm: '',
       },
       workspaceMembers: {},
+      fetchPending: true,
+      fetchError: null,
     }
-  },
-  async fetch() {
-    this.workspaceMembers = Object.fromEntries(
-      await Promise.all(
-        this.sortedWorkspaces
-          .filter(({ permissions }) => permissions === 'ADMIN')
-          .map(async ({ id: workspaceId }) => {
-            const { data } = await WorkspaceService(this.$client).fetchAllUsers(
-              workspaceId
-            )
-            return [
-              workspaceId,
-              data.filter(({ user_id: userId }) => userId !== this.userId),
-            ]
-          })
-      )
-    )
   },
   computed: {
     ...mapGetters({
@@ -118,20 +91,48 @@ export default {
       settings: 'settings/get',
       sortedWorkspaces: 'workspace/getAllSorted',
     }),
+
     orphanWorkspaces() {
-      return this.sortedWorkspaces.filter(
-        ({ id: workspaceId }) =>
+      return this.sortedWorkspaces.filter(({ id: workspaceId }) => {
+        return (
           this.workspaceMembers[workspaceId] &&
           this.workspaceMembers[workspaceId].every(
             ({ permissions }) => permissions !== 'ADMIN'
           )
-      )
+        )
+      })
     },
   },
+  async mounted() {
+    try {
+      this.fetchPending = true
+      this.fetchError = null
+
+      this.workspaceMembers = Object.fromEntries(
+        await Promise.all(
+          this.sortedWorkspaces
+            .filter(({ permissions }) => permissions === 'ADMIN')
+            .map(async ({ id: workspaceId }) => {
+              const { data } = await WorkspaceService(
+                this.$client
+              ).fetchAllUsers(workspaceId)
+              return [
+                workspaceId,
+                data.filter(({ user_id: userId }) => userId !== this.userId),
+              ]
+            })
+        )
+      )
+    } catch (error) {
+      this.fetchError = error
+    } finally {
+      this.fetchPending = false
+    }
+  },
   methods: {
-    logoff() {
-      logoutAndRedirectToLogin(
-        this.$nuxt.$router,
+    async logoff() {
+      await logoutAndRedirectToLogin(
+        this.$router,
         this.$store,
         false,
         false,
@@ -169,7 +170,6 @@ export default {
     async deleteAccount() {
       this.loading = true
       this.hideError()
-
       try {
         await AuthService(this.$client).deleteAccount()
         this.success = true

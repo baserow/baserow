@@ -146,7 +146,7 @@ export default {
   beforeMount() {
     this.$bus.$on('invite-submitted', this.inviteSubmitted)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('invite-submitted', this.inviteSubmitted)
   },
   methods: {

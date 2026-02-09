@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from django.conf import settings
 
+from celery.exceptions import Ignore
+
 from baserow.config.celery import app
 
 EXPORT_SOFT_TIME_LIMIT = 60 * 60
@@ -23,8 +25,11 @@ def run_export_job(self, job_id):
     from baserow.contrib.database.export.handler import ExportHandler
     from baserow.contrib.database.export.models import ExportJob
 
-    job = ExportJob.objects.get(id=job_id)
-    ExportHandler.run_export_job(job)
+    try:
+        job = ExportJob.objects.get(id=job_id)
+        ExportHandler.run_export_job(job)
+    except ExportJob.DoesNotExist:
+        raise Ignore("Task obsolete")
 
 
 # noinspection PyUnusedLocal

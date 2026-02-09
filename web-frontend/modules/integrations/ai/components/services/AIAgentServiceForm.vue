@@ -353,7 +353,7 @@ export default {
       this.values.ai_choices.push('')
     },
     updateChoice(index, value) {
-      this.$set(this.values.ai_choices, index, value)
+      this.values.ai_choices[index] = value
     },
     removeChoice(index) {
       this.values.ai_choices.splice(index, 1)

@@ -79,3 +79,15 @@ ERROR_REFRESH_TOKEN_ALREADY_BLACKLISTED = (
     HTTP_400_BAD_REQUEST,
     "The provided refresh token is already blacklisted.",
 )
+
+ERROR_CHANGE_EMAIL_NOT_ALLOWED = (
+    "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
+    HTTP_400_BAD_REQUEST,
+    "Email changes are only allowed for password-based accounts.",
+)
+
+ERROR_EMAIL_ALREADY_CHANGED = (
+    "ERROR_EMAIL_ALREADY_CHANGED",
+    HTTP_400_BAD_REQUEST,
+    "The email address has already been changed to the requested address.",
+)

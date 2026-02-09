@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">{{ $t('createWorkspaceModal.createNew') }}</h2>
     <Error :error="error"></Error>
     <WorkspaceForm
@@ -30,11 +30,14 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 import WorkspaceForm from './WorkspaceForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'CreateWorkspaceModal',
   components: { WorkspaceForm },
   mixins: [modal, error],
+  emits: ['created'],
   data() {
     return {
       loading: false,
@@ -61,6 +64,8 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
+        await pageFinished()
+        await nextTick()
         this.$emit('created')
         this.hide()
       } catch (error) {

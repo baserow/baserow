@@ -31,7 +31,7 @@
           :disabled="loading"
         >
           {{ $t('action.add') }}
-          {{ databaseApplicationType.getName() | lowercase }}
+          {{ $filters.lowercase(databaseApplicationType.getName()) }}
         </Button>
       </div>
     </div>

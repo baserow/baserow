@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="$emit('hidden')">
+  <Modal ref="modal" @hidden="$emit('hidden')">
     <h2 class="box__title">
       {{ $t('webhookModal.title', { name: table.name }) }}
     </h2>
@@ -74,6 +74,7 @@ export default {
       default: null,
     },
   },
+  emits: ['hidden'],
   data() {
     return {
       loading: false,

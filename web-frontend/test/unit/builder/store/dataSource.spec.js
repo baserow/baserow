@@ -1,22 +1,26 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
+import { MockServer } from '@baserow/test/fixtures/mockServer'
+import MockAdapter from 'axios-mock-adapter'
 
 describe('dataSource store', () => {
   let testApp = null
   let store = null
   let mockServer = null
+  let mock = null
 
   beforeEach(() => {
-    testApp = new TestApp()
-    store = testApp.store
-    mockServer = testApp.mockServer
+    testApp = useNuxtApp()
+    const { $store, $client, $registry } = useNuxtApp()
+    store = $store
+    mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    mockServer = new MockServer(mock, $store)
   })
 
   afterEach(() => {
-    testApp.afterEach()
+    mock.restore()
   })
 
-  test('Test getPageDataSources', () => {
+  test('getPageDataSources', () => {
     const page = {
       id: 42,
       dataSources: [
@@ -32,7 +36,7 @@ describe('dataSource store', () => {
     expect(collectionDataSources.length).toBe(3)
   })
 
-  test('Test fetch', async () => {
+  test('fetch', async () => {
     const page = {
       id: 42,
       dataSources: [],

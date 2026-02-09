@@ -62,6 +62,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   data() {
     return {
       selectedDomain: { type: 'custom', domain: 'custom' },

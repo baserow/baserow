@@ -16,7 +16,7 @@ describe('Test premium licensing', () => {
       `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`,
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
   })
 
@@ -229,7 +229,7 @@ describe('Test premium licensing', () => {
       ],
     ]
 
-    test.each(testCases)('test %s', (name, testCaseSpecification) => {
+    test.each(testCases)('case %s', (name, testCaseSpecification) => {
       testApp.store.dispatch('auth/forceSetUserData', {
         ...fakeUserData,
         ...testCaseSpecification.whenUserDataIs,

@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="v$.values.styles.$model"
       style-key="input"
       :config-block-types="['input', 'typography']"
@@ -32,7 +32,9 @@
     <hr />
     <FormGroup
       :label="
-        $tc('fileInputElementForm.defaultUrlTitle', values.multiple ? 2 : 1)
+        $t('fileInputElementForm.defaultUrlTitle', {
+          count: values.multiple ? 2 : 1,
+        })
       "
       class="margin-bottom-2"
       required
@@ -41,7 +43,7 @@
       <InjectedFormulaInput
         v-model="v$.values.default_url.$model"
         :placeholder="
-          $tc(
+          $t(
             'fileInputElementForm.defaultUrlPlaceholder',
             values.multiple ? 2 : 1
           )
@@ -50,7 +52,9 @@
     </FormGroup>
     <FormGroup
       :label="
-        $tc('fileInputElementForm.defaultNameTitle', values.multiple ? 2 : 1)
+        $t('fileInputElementForm.defaultNameTitle', {
+          count: values.multiple ? 2 : 1,
+        })
       "
       class="margin-bottom-2"
       :helper-text="
@@ -62,10 +66,9 @@
       <InjectedFormulaInput
         v-model="v$.values.default_name.$model"
         :placeholder="
-          $tc(
-            'fileInputElementForm.defaultNamePlaceholder',
-            values.multiple ? 2 : 1
-          )
+          $t('fileInputElementForm.defaultNamePlaceholder', {
+            count: values.multiple ? 2 : 1,
+          })
         "
       />
     </FormGroup>
@@ -150,7 +153,7 @@
 
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import { useVuelidate } from '@vuelidate/core'
 import {
@@ -163,7 +166,7 @@ import {
 
 export default {
   name: 'FileInputElementForm',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [formElementForm],
   setup() {
     return { v$: useVuelidate() }
@@ -171,10 +174,10 @@ export default {
   data() {
     return {
       values: {
-        label: '',
-        default_name: '',
-        default_url: '',
-        help_text: '',
+        label: {},
+        default_name: {},
+        default_url: {},
+        help_text: {},
         required: false,
         multiple: false,
         max_filesize: 5,

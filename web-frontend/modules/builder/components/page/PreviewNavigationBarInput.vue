@@ -1,6 +1,7 @@
 <template>
   <input
     v-model="inputValue"
+    v-bind="$attrs"
     class="preview-navigation-bar-input"
     :class="{
       'preview-navigation-bar-input--invalid': invalidValueForType,
@@ -12,6 +13,7 @@
 import _ from 'lodash'
 
 export default {
+  inheritAttrs: false,
   props: {
     defaultValue: {
       type: [String, Number, Array],
@@ -23,6 +25,7 @@ export default {
       required: true,
     },
   },
+  emits: ['change'],
   data() {
     return {
       value: this.defaultValue,

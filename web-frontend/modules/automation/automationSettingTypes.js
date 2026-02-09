@@ -1,6 +1,10 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettings from '@baserow/modules/automation/components/settings/GeneralSettings'
-import IntegrationSettings from '@baserow/modules/automation/components/settings/IntegrationSettings'
+import GeneralSettingsComponent from '@baserow/modules/automation/components/settings/GeneralSettings'
+import IntegrationSettingsComponent from '@baserow/modules/automation/components/settings/IntegrationSettings'
+
+const GeneralSettings = markRaw(GeneralSettingsComponent)
+const IntegrationSettings = markRaw(IntegrationSettingsComponent)
 
 class AutomationSettingType extends Registerable {
   static getType() {
@@ -34,7 +38,7 @@ export class GeneralAutomationSettingsType extends AutomationSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.generalName')
+    return this.app.$i18n.t('builderSettingTypes.generalName')
   }
 
   get icon() {
@@ -42,7 +46,7 @@ export class GeneralAutomationSettingsType extends AutomationSettingType {
   }
 
   isDeactivated() {
-    return process.env.NODE_ENV !== 'development'
+    return import.meta.env.MODE !== 'development'
   }
 
   getOrder() {
@@ -60,7 +64,7 @@ export class IntegrationsAutomationSettingsType extends AutomationSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.integrationsName')
+    return this.app.$i18n.t('builderSettingTypes.integrationsName')
   }
 
   get icon() {

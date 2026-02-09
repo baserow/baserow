@@ -1,1 +1,35 @@
-modules/core/templates
+# Nuxt build outputs
+.nuxt/
+.output/
+.nitro/
+dist/
+
+# Dependencies
+node_modules/
+
+# Cache
+.cache/
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+
+# Lock files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Generated files
+**/generated/**
+
+# Project-specific
+modules/core/templates/
+modules/core/formula/parser/
+modules/core/assets/scss/vendor/
+**/locales/*.json
+
+# Storybook
+.nuxt-storybook/
+storybook-static/

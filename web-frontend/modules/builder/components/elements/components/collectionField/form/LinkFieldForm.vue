@@ -12,12 +12,13 @@
         :placeholder="$t('linkFieldForm.fieldLinkNamePlaceholder')"
       />
       <template #after-input>
-        <CustomStyle
+        <CustomStyleButton
           :key="values.variant"
           v-model="values.styles"
           style-key="cell"
           :config-block-types="linkFieldBlockTypes"
           :theme="baseTheme"
+          :on-styles-changed="onFieldStylesChanged"
           :extra-args="{ onlyCell: true, noAlignment: true }"
           variant="normal"
         />
@@ -45,7 +46,7 @@
 <script>
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
 
@@ -53,7 +54,7 @@ export default {
   name: 'LinkField',
   components: {
     InjectedFormulaInput,
-    CustomStyle,
+    CustomStyleButton,
     LinkNavigationSelectionForm,
   },
   mixins: [collectionFieldForm],

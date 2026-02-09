@@ -119,7 +119,7 @@
   "localBaserowGetRowForm": {
     "rowFieldLabel": "Row ID",
     "invalidFormula": "The formula is invalid",
-    "rowFieldPlaceHolder": "Select a row ID",
+    "rowFieldPlaceHolder": "Choose a single row ID",
     "rowFieldHelpText": "Leave this value empty to return the first row.",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
@@ -206,14 +206,14 @@
     "supportDescription": "If you need any assistance with pairing with your Slack app, please refer to the steps below.",
     "supportSetupHeading": "1. Setting up the app",
     "supportSetupDescription": "Depending on your Slack workspace settings, you may be able to create a new Slack app. Otherwise, an admin will need to do this for you. If you are re-using an existing app which can write messages, skip to the section called 'Pairing with your Slack app'.",
-    "supportSetupStep1": "Navigate to your workspace's <a href=\"https://api.slack.com/apps\" target=\"_blank\">apps page</a>.",
+    "supportSetupStep1": "Navigate to your workspace's &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;apps page&lt;/a&gt;.",
     "supportSetupStep2": "Create a new app, choose 'From scratch' and enter a name. Select the workspace your app should operate in, and click 'Create'.",
-    "supportSetupStep3": "In the left sidebar, navigate to 'OAuth & Permissions', scroll down to Scopes and under 'Bot Token Scopes', select 'Add an OAuth Scope'.",
-    "supportSetupStep4": "To allow your app to post messages, add the <pre>chat:write</pre> scope.",
+    "supportSetupStep3": "In the left sidebar, navigate to 'OAuth &amp; Permissions', scroll down to Scopes and under 'Bot Token Scopes', select 'Add an OAuth Scope'.",
+    "supportSetupStep4": "To allow your app to post messages, add the &lt;pre&gt;chat:write&lt;/pre&gt; scope.",
     "supportPairingHeading": "2. Pairing with your Slack app",
-    "supportPairingStep1": "If your app is new: navigate to the 'Settings' > 'Install App'. Click the green button to install the app to your workspace.",
+    "supportPairingStep1": "If your app is new: navigate to the 'Settings' &gt; 'Install App'. Click the green button to install the app to your workspace.",
     "supportPairingStep2": "Copy your 'Bot User OAuth Token' and store it in the 'Bot User Token' field in this form.",
-    "supportPairingStep3": "Finally, if your app is new: in Slack, invite your app to your chosen channel with <pre>/invite @yourAppName yourChannel</pre>"
+    "supportPairingStep3": "Finally, if your app is new: in Slack, invite your app to your chosen channel with &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;"
   },
   "slackWriteMessageServiceForm": {
     "alertMessage": "This action must be paired with a Slack app. Please follow the guide in the integrations popup to get started.",
@@ -229,7 +229,8 @@
     "tableFieldLabel": "Table",
     "chooseNoView": "Not selected",
     "databaseFieldLabel": "Database",
-    "dataSyncedTableDescription": "Data synced table"
+    "oneWayDataSyncedTableDescription": "One-way synced",
+    "twoWayDataSyncedTableDescription": "Two-way synced"
   },
   "smtpIntegrationType": {
     "smtpSummary": "SMTP - {host}:{port}"
@@ -241,22 +242,22 @@
     "portPlaceholder": "587",
     "useTls": "Use TLS",
     "username": "Username",
-    "usernamePlaceholder": "your-email@example.com",
+    "usernamePlaceholder": "your-email{'@'}example.com",
     "password": "Password",
     "passwordPlaceholder": "your-password"
   },
   "smtpEmailForm": {
     "integrationDropdownLabel": "Integration",
     "fromEmail": "From Email",
-    "fromEmailPlaceholder": "sender@example.com",
+    "fromEmailPlaceholder": "sender{'@'}example.com",
     "fromName": "From Name",
     "fromNamePlaceholder": "Your Name",
     "toEmails": "To Emails",
-    "toEmailsPlaceholder": "recipient1@example.com,recipient2@example.com",
+    "toEmailsPlaceholder": "recipient1{'@'}example.com,recipient2{'@'}example.com",
     "ccEmails": "CC Emails",
-    "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
+    "ccEmailsPlaceholder": "cc1{'@'}example.com,cc2{'@'}example.com",
     "bccEmails": "BCC Emails",
-    "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
+    "bccEmailsPlaceholder": "bcc1{'@'}example.com,bcc2{'@'}example.com",
     "subject": "Subject",
     "subjectPlaceholder": "Your email subject",
     "bodyType": "Body Type",
@@ -277,7 +278,7 @@
     "branchesDescription": "Branches allow you to only execute nodes when a condition is met. Branches are executed left to right until a condition is met, otherwise the default branch will be executed. ",
     "branchLabel": "Label",
     "branchConditionLabel": "Condition",
-    "branchConditionPlaceholder": "Enter condition...",
+    "branchConditionPlaceholder": "If true, we follow this branch.",
     "addEdge": "Add branch",
     "edgeDefaultName": "Branch",
     "noLabel": "No label",
@@ -309,5 +310,21 @@
     "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
+  },
+  "localBaserowServiceForm": {
+    "integrationDropdownLabel": "Integration",
+    "rowIdLabel": "Row ID",
+    "rowIdPlaceholder": "Choose a single row ID"
+  },
+  "localBaserowUpsertRowServiceForm": {
+    "fieldMappingPlaceholderArray": "Choose an array value, e.g [42]",
+    "fieldMappingPlaceholderString": "Choose a string value, e.g. \\'baserow\\'",
+    "fieldMappingPlaceholderNumber": "Choose a number value, e.g. 42",
+    "fieldMappingPlaceholderBoolean": "Choose a boolean value, e.g. true",
+    "fieldMappingPlaceholderDate": "Choose a date value, e.g. 2025-07-25",
+    "fieldMappingPlaceholderDecimal": "Choose a decimal value, e.g. 3.14",
+    "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
+    "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
+    "noWritableFields": "This table does not contain any writable fields."
   }
 }

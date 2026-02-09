@@ -9,6 +9,10 @@ from baserow.contrib.database.table.usage_types import (
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.table.tasks.update_table_usage.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 def test_table_workspace_storage_usage_item_type(data_fixture):

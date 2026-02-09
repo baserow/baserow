@@ -70,6 +70,7 @@ typings/
 
 # nuxt.js build output
 .nuxt
+.nuxtrc
 
 # Nuxt generate
 dist
@@ -95,7 +96,16 @@ docker-compose.override.yml
 
 # python
 venv/
+.venv/
 .profiles/
+
+# Media files
+backend/media/
+
+# Local environment files (not for Docker)
+.env.local
+**/.env.local
+.env.docker-dev
 
 web-frontend/plugins/
 backend/plugins/
@@ -124,6 +134,13 @@ out/
 .cursor-config/
 !config/cursor/.cursor-config/
 
+# Claude Code local settings
+.claude/settings.local.md
+
+# Personal justfile recipes (not tracked)
+local.just
+**/local.just
+
 # Pyright config file
 pyrightconfig.json
 
@@ -143,11 +160,10 @@ field-diagrams/
 
 *.http
 
-# Intellij needs this package.json to allow running tests from the IDE but this isn't
-# actually a node module and so we ignore it.
-premium/web-frontend/package.json
 .local/
 
 # Storybook
 web-frontend/.nuxt-storybook/
 web-frontend/storybook-static
+
+.agent

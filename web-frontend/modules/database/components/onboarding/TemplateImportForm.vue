@@ -37,6 +37,7 @@ import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'TemplateImportForm',
+  emits: ['selected-template'],
   data() {
     return {
       loading: true,

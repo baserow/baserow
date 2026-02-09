@@ -1,61 +1,59 @@
 <template>
-  <div>
-    <SidebarApplication
-      ref="sidebarApplication"
-      :workspace="workspace"
-      :application="application"
-      @selected="selected"
-    >
-      <template v-if="isAppSelected(application)" #body>
-        <ul class="tree__subs">
-          <SidebarItemBuilder
-            v-for="page in orderedPages"
-            :key="page.id"
-            v-sortable="{
-              id: page.id,
-              update: orderPages,
-              marginTop: -1.5,
-              enabled: $hasPermission(
-                'builder.order_pages',
-                application,
-                application.workspace.id
-              ),
-            }"
-            :builder="application"
-            :page="page"
-          ></SidebarItemBuilder>
-        </ul>
-        <ul v-if="pendingJobs.length" class="tree__subs">
-          <component
-            :is="getPendingJobComponent(job)"
-            v-for="job in pendingJobs"
-            :key="job.id"
-            :job="job"
-          >
-          </component>
-        </ul>
-        <a
-          v-if="
-            $hasPermission(
-              'builder.create_page',
+  <SidebarApplication
+    ref="sidebarApplication"
+    :workspace="workspace"
+    :application="application"
+    @selected="selected"
+  >
+    <template v-if="isAppSelected(application)" #body>
+      <ul class="tree__subs">
+        <SidebarItemBuilder
+          v-for="page in orderedPages"
+          :key="page.id"
+          v-sortable="{
+            id: page.id,
+            update: orderPages,
+            marginTop: -1.5,
+            enabled: $hasPermission(
+              'builder.order_pages',
               application,
               application.workspace.id
-            )
-          "
-          class="tree__sub-add"
-          @click="$refs.createPageModal.show()"
-        >
-          <i class="tree__sub-add-icon iconoir-plus"></i>
-          {{ $t('sidebarComponentBuilder.createPage') }}
-        </a>
-        <CreatePageModal
-          ref="createPageModal"
+            ),
+          }"
           :builder="application"
-          :workspace="application.workspace"
-        ></CreatePageModal>
-      </template>
-    </SidebarApplication>
-  </div>
+          :page="page"
+        ></SidebarItemBuilder>
+      </ul>
+      <ul v-if="pendingJobs.length" class="tree__subs">
+        <component
+          :is="getPendingJobComponent(job)"
+          v-for="job in pendingJobs"
+          :key="job.id"
+          :job="job"
+        >
+        </component>
+      </ul>
+      <a
+        v-if="
+          $hasPermission(
+            'builder.create_page',
+            application,
+            application.workspace.id
+          )
+        "
+        class="tree__sub-add"
+        @click="$refs.createPageModal.show()"
+      >
+        <i class="tree__sub-add-icon iconoir-plus"></i>
+        {{ $t('sidebarComponentBuilder.createPage') }}
+      </a>
+      <CreatePageModal
+        ref="createPageModal"
+        :builder="application"
+        :workspace="application.workspace"
+      ></CreatePageModal>
+    </template>
+  </SidebarApplication>
 </template>
 
 <script>
@@ -66,7 +64,7 @@ import SidebarItemBuilder from '@baserow/modules/builder/components/sidebar/Side
 import CreatePageModal from '@baserow/modules/builder/components/page/CreatePageModal'
 
 export default {
-  name: 'TemplateSidebar',
+  name: 'SidebarComponentBuilder',
   components: {
     CreatePageModal,
     SidebarItemBuilder,

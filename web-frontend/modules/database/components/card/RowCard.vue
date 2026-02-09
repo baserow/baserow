@@ -91,6 +91,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['mousedown', 'mouseenter', 'mousemove', 'row-context'],
   computed: {
     coverImageUrl() {
       const field = this.coverImageField

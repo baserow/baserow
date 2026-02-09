@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="button"
       :config-block-types="['button']"
@@ -22,14 +22,14 @@
 
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
 export default {
   name: 'ButtonElementForm',
   components: {
     InjectedFormulaInput,
-    CustomStyle,
+    CustomStyleButton,
   },
   mixins: [elementForm],
   data() {

@@ -37,6 +37,7 @@ class CreateDataSyncTableActionType(UndoableActionType):
         "database_id",
         "table_id",
         "data_sync_id",
+        "data_sync_type",
     ]
 
     @dataclasses.dataclass

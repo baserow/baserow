@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -112,6 +112,8 @@ class JobHandler:
         user: AbstractUser,
         filter_states: Optional[List[str]],
         filter_ids: Optional[List[int]],
+        base_model: Optional[Type[AnyJob]] = None,
+        type_filters: Optional[Dict[str, Any]] = None,
     ) -> QuerySet:
         """
         Returns all jobs belonging to the specified user.
@@ -120,8 +122,14 @@ class JobHandler:
         :param filter_states: A list of states that the jobs should have, or not
             have if prefixed with a !.
         :param filter_ids: A list of specific job ids to return.
+        :param base_model: An optional Job model.
+        :param type_filters: Optional type-specific filters (e.g., field_id for
+            GenerateAIValuesJob).
         :return: A QuerySet with the filtered jobs for the user.
         """
+
+        if base_model is None:
+            base_model = Job
 
         def get_job_states_filter(states):
             states_q = Q()
@@ -132,13 +140,16 @@ class JobHandler:
                     states_q |= Q(state=state)
             return states_q
 
-        queryset = Job.objects.filter(user=user).order_by("-updated_on")
+        queryset = base_model.objects.filter(user=user).order_by("-id")
 
         if filter_states:
             queryset = queryset.filter(get_job_states_filter(filter_states))
 
         if filter_ids:
             queryset = queryset.filter(id__in=filter_ids)
+
+        if type_filters:
+            queryset = queryset.filter(**type_filters)
 
         return queryset.select_related("content_type")
 

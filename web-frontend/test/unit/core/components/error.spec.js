@@ -1,11 +1,10 @@
 import Error from '@baserow/modules/core/components/Error'
 import { TestApp } from '@baserow/test/helpers/testApp'
-// import { bootstrapVueContext } from '@baserow/test/helpers/components'
 
 describe('Error Component Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -22,7 +21,7 @@ describe('Error Component Tests', () => {
       },
     }
   ) => {
-    return testApp.mount(Error, { propsData: props })
+    return testApp.mount(Error, { props })
   }
 
   test('When visible prop is true title and message are shown', async () => {
@@ -37,6 +36,6 @@ describe('Error Component Tests', () => {
   test('When visible prop is false no html is rendered', async () => {
     const wrapper = await mountComponent({ error: { visible: false } })
 
-    expect(wrapper.html()).toStrictEqual('')
+    expect(wrapper.text()).toStrictEqual('')
   })
 })

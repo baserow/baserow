@@ -21,7 +21,7 @@
       <ButtonIcon
         v-if="hasImage"
         icon="iconoir-bin"
-        @click="$emit('input', null)"
+        @click="$emit('update:modelValue', null)"
       />
     </div>
     <UserFilesModal
@@ -44,7 +44,7 @@ export default {
     UserFilesModal,
   },
   props: {
-    value: {
+    modelValue: {
       type: Object,
       required: false,
       default: null,
@@ -77,25 +77,26 @@ export default {
       default: null,
     },
   },
+  emits: ['update:modelValue'],
   data() {
     return {}
   },
   computed: {
     imageUrl() {
-      if (this.value === null) {
+      if (this.modelValue === null) {
         if (this.defaultImage) {
           return this.defaultImage
         } else {
           return null
         }
       }
-      return this.value.url
+      return this.modelValue.url
     },
     removable() {
-      return this.value !== null
+      return this.modelValue !== null
     },
     hasImage() {
-      return this.value !== null
+      return this.modelValue !== null
     },
   },
   methods: {
@@ -105,7 +106,7 @@ export default {
     fileUploaded([file]) {
       this.$refs.userFilesModal.hide()
       if (file?.name) {
-        this.$emit('input', file)
+        this.$emit('update:modelValue', file)
       }
     },
   },

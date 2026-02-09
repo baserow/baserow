@@ -1,10 +1,11 @@
 import EditUserContext from '@baserow/modules/core/components/admin/users/contexts/EditUserContext'
-import Error from '@baserow/modules/core/components/Error'
 import ChangeUserPasswordModal from '@baserow/modules/core/components/admin/users/modals/ChangeUserPasswordModal'
 import ChangePasswordForm from '@baserow/modules/core/components/admin/users/forms/ChangePasswordForm'
 import EditUserModal from '@baserow/modules/core/components/admin/users/modals/EditUserModal'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
+import { expect } from 'vitest'
+
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {
     this.c = userAdminComponent
@@ -116,6 +117,7 @@ export default class UserAdminUserHelpers {
     await this.clickChangeUserPassword(editUserContext)
 
     const changePasswordModal = this.c.findComponent(ChangeUserPasswordModal)
+
     const passwordInputs = changePasswordModal.findAll('input')
 
     passwordInputs.at(0).element.value = password
@@ -157,12 +159,15 @@ export default class UserAdminUserHelpers {
     await this.clickEditUser(editUserContext)
 
     const editUserModal = this.c.findComponent(EditUserModal)
+
     const userEditInputs = editUserModal.findAll('input')
 
     userEditInputs.at(inputIndex).element.value = newValue
     await userEditInputs.at(inputIndex).trigger('input')
 
-    await editUserModal.find('button').trigger('click')
+    if (clickSave) {
+      await editUserModal.find('button').trigger('click')
+    }
 
     if (exit) {
       await editUserModal.find('.modal__close').trigger('click')

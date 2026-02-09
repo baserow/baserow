@@ -1,31 +1,26 @@
-<template functional>
-  <!--  Vue 2 does not support nested importing of components other than this way -->
-  <component
-    :is="$options.components.FunctionalFormulaArrayItems"
+<template>
+  <FunctionalFormulaArrayItems
     class="grid-view__cell grid-view-array-field"
-    :class="[data.staticClass, data.class]"
-    :field="props.field"
-    :value="props.value"
-    :row="props.row"
-    :selected="props.selected"
-    v-on="listeners"
+    :field="field"
+    :value="value"
+    :row="row"
+    :selected="selected"
+    v-bind="containerAttrs"
+    v-on="listenerAttrs"
   >
     <div
-      v-if="$options.methods.shouldFetchRow(props)"
+      v-if="shouldFetchRow"
       class="array-field__item"
       :class="[
-        data.staticClass,
-        data.class,
-        $options.methods.isFetchingRow(props)
-          ? 'array-field__item--loading'
-          : '',
+        containerAttrs.class,
+        isFetchingRow ? 'array-field__item--loading' : '',
       ]"
     >
-      <div v-if="$options.methods.isFetchingRow(props)" class="loading"></div>
+      <div v-if="isFetchingRow" class="loading"></div>
       <span v-else>...</span>
     </div>
     <slot></slot>
-  </component>
+  </FunctionalFormulaArrayItems>
 </template>
 
 <script>
@@ -35,15 +30,52 @@ import { LINKED_ITEMS_DEFAULT_LOAD_COUNT } from '@baserow/modules/database/const
 export default {
   name: 'FunctionalGridViewFieldArray',
   components: { FunctionalFormulaArrayItems },
-  methods: {
-    shouldFetchRow(props) {
+  inheritAttrs: false,
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: Array,
+      default: () => [],
+    },
+    row: {
+      type: Object,
+      required: true,
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    containerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (!key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+    listenerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+    shouldFetchRow() {
       return (
-        props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !props.row._?.fullyLoaded
+        this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !this.row._?.fullyLoaded
       )
     },
-    isFetchingRow(props) {
-      return props.row._?.fetching
+    isFetchingRow() {
+      return this.row._?.fetching
     },
   },
 }

@@ -62,14 +62,26 @@ from baserow.contrib.database.table.operations import (
 )
 from baserow.contrib.database.table.signals import table_updated
 from baserow.contrib.database.trash.models import TrashedRows
+from baserow.contrib.database.views.operations import (
+    CreateViewRowOperationType,
+    DeleteViewRowOperationType,
+    ReadViewRowOperationType,
+    UpdateViewRowOperationType,
+)
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.core.db import (
     get_highest_order_of_queryset,
     get_unique_orders_before_item,
     recalculate_full_orders,
 )
-from baserow.core.exceptions import CannotCalculateIntermediateOrder, PermissionDenied
+from baserow.core.exceptions import (
+    CannotCalculateIntermediateOrder,
+    PermissionDenied,
+    PermissionException,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_unique_violation_error, sql
+from baserow.core.registries import OperationType
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -108,6 +120,7 @@ if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
 
     from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.views.models import View
 
 tracer = trace.get_tracer(__name__)
 
@@ -312,10 +325,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             field_obj = field_objects[field_ids[field_name]]
             field_type = field_obj["type"]
             field = field_obj["field"]
-            prepared_values_by_field[
-                field_name
-            ] = field_type.prepare_value_for_db_in_bulk(
-                field, batch_values, continue_on_error=generate_error_report
+            prepared_values_by_field[field_name] = (
+                field_type.prepare_value_for_db_in_bulk(
+                    field, batch_values, continue_on_error=generate_error_report
+                )
             )
 
         # replace original values to keep ordering
@@ -468,6 +481,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         model: Optional[Type[GeneratedTableModel]] = None,
         base_queryset: Optional[QuerySet] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModel:
         """
         Fetches a single row from the provided table.
@@ -479,23 +493,26 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             provided so that it does not have to be generated for a second time.
         :param base_queryset: A queryset that can be used to already pre-filter
             the results.
+        :param view: Optionally provide view, if the row is fetched in the view.
+            This can result in different permissions checks.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The requested row instance.
         """
+
+        self._check_permissions_with_view_fallback(
+            ReadDatabaseRowOperationType.type,
+            ReadViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row_id],
+        )
 
         if model is None:
             model = table.get_model()
 
         if base_queryset is None:
             base_queryset = model.objects
-
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
-            ReadDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
-        )
 
         try:
             row = base_queryset.get(id=row_id)
@@ -536,7 +553,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         if view is not None:
-            queryset = ViewHandler().get_queryset(view, model=table_model)
+            queryset = ViewHandler().get_queryset(None, view, model=table_model)
         else:
             queryset = table_model.objects.all().enhance_by_fields()
 
@@ -579,8 +596,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             WITH ordered AS ({sql})
             SELECT id FROM ordered
             WHERE row_nr = (SELECT row_nr FROM ordered WHERE id = %s)
-            {'-' if previous else '+'} 1
-        """  # nosec B608
+            {"-" if previous else "+"} 1
+        """  # noqa: S608
 
         return table_model.objects.filter(
             id=RawSQL(adjacent_id_subquery, (*params, row.id))  # nosec B611
@@ -695,6 +712,88 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         else:
             return row_exists
 
+    def _check_permissions_with_view_fallback(
+        self,
+        table_operation: OperationType,
+        view_operation: OperationType,
+        user: AbstractUser,
+        table: Table,
+        view: Optional["View"],
+        row_ids: Optional[List[int]] = None,
+    ):
+        """
+        Checks if the user has permission to the provided table object. If not, it will
+        fall back to the view permissions, if the view ownership type allows modifying
+        rows, the check if it has permissions to the view.
+
+        :param table_operation: The permission on table level to check. If this check
+            passes, then no exception will be raised.
+        :param view_operation: The permission on view level to check.  If this both
+            this check succeed and the view ownership type allows modifying rows, then
+            no exception will be raised.
+        :param user: The user on whose behalf the permissions are checked.
+        :param table: The table where to check the permissions for.
+        :param view: Optionally provide the view where to check permissions for as
+            fallback.
+        :param row_ids: Optionally the row ids that are modified.
+        :raises PermissionDenied: If the user does not have access to both the table
+            and view.
+        :return:
+        """
+
+        table_check = PermissionCheck(
+            user,
+            table_operation,
+            context=table,
+        )
+        view_check = PermissionCheck(
+            user,
+            view_operation,
+            context=view,
+        )
+
+        checks = [table_check]
+        if view is not None:
+            checks.append(view_check)
+
+        # Check multiple permissions regardless because if a view is provided, we don't
+        # want to execute multiple queries in order to check if the permission check
+        # should fall back on the view.
+        check_results = CoreHandler().check_multiple_permissions(
+            checks,
+            workspace=table.database.workspace,
+            return_permissions_exceptions=True,
+        )
+
+        if check_results[table_check] is True:
+            return
+
+        if (
+            view is not None
+            # Because the user wants to change rows in a specific table, we must make
+            # sure that the provided view belongs to that table. Otherwise, it would
+            # result in a security bug.
+            and view.table_id == table.id
+            # The view ownership type should also allow modifying rows directly in
+            # the view. The rows are provided because some additional permission
+            # checks might need to be done in order to make sure that the user is
+            # allowed to modify the provided rows.
+            and view_ownership_type_registry.get(view.ownership_type).can_modify_rows(
+                view,
+                row_ids,
+            )
+            and check_results[view_check] is True
+        ):
+            return
+
+        if isinstance(check_results[table_check], PermissionException):
+            raise check_results[table_check]
+
+        if isinstance(check_results[view_check], PermissionException):
+            raise check_results[view_check]
+
+        raise PermissionDenied(actor=user)
+
     def create_row(
         self,
         user: AbstractUser,
@@ -702,6 +801,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         values: Optional[Dict[str, Any]] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         before_row: Optional[GeneratedTableModel] = None,
+        view: Optional["View"] = None,
         user_field_names: bool = False,
         values_already_prepared: bool = False,
         send_webhook_events: bool = True,
@@ -718,6 +818,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             having to generate the model again.
         :param before_row: If provided the new row will be placed right before that row
             instance.
+        :param view: Optionally provide view, if the row is created in the view.
+            This can result in different permissions checks.
         :param user_field_names: Whether or not the values are keyed by the internal
             Baserow field name (field_1,field_2 etc) or by the user field names.
         :param values_already_prepared: Whether or not the values are already sanitized
@@ -731,11 +833,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if model is None:
             model = table.get_model()
 
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             CreateRowDatabaseTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
+            CreateViewRowOperationType.type,
+            user,
+            table,
+            view,
         )
 
         if not values:
@@ -942,6 +1045,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         values: Dict[str, Any],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         values_already_prepared: bool = False,
     ) -> GeneratedTableModelForUpdate:
         """
@@ -953,6 +1057,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param values: The values that must be updated. The keys must be the field ids.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is updated in the view.
+            This can result in different permissions checks.
         :param values_already_prepared: Whether or not the values are already sanitized
             and validated for every field and can be used directly by the handler
             without any further check.
@@ -973,6 +1079,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 row,
                 values,
                 model=model,
+                view=view,
                 values_already_prepared=values_already_prepared,
             )
 
@@ -983,6 +1090,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row: GeneratedTableModelForUpdate,
         values: Dict[str, Any],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         values_already_prepared: bool = False,
     ) -> GeneratedTableModelForUpdate:
         """
@@ -994,6 +1102,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param values: The values that must be updated. The keys must be the field ids.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is updated in the view.
+            This can result in different permissions checks.
         :param values_already_prepared: Whether or not the values are already sanitized
             and validated for every field and can be used directly by the handler
             without any further check.
@@ -1002,12 +1112,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The updated row instance.
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             UpdateDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
+            UpdateViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row.id],
         )
 
         if model is None:
@@ -1390,6 +1501,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         rows_values: List[Dict[str, Any]],
         before_row: Optional[GeneratedTableModel] = None,
+        view: Optional["View"] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
@@ -1406,6 +1518,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param rows_values: List of rows values for rows that need to be created.
         :param before_row: If provided the new rows will be placed right before
             the before_row.
+        :param view: Optionally provide view, if the rows were created in the view.
+            This can result in different permissions checks.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
         :param send_realtime_update: If set to false then it is up to the caller to
@@ -1421,12 +1535,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             CreateRowDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=table,
+            CreateViewRowOperationType.type,
+            user,
+            table,
+            view,
         )
 
         if model is None:
@@ -2237,9 +2351,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 to_add = new_set_of_values - original_set_of_values
                 to_delete = original_set_of_values - new_set_of_values
 
-                m2m_to_add, (
-                    row_column_name,
-                    value_column,
+                (
+                    m2m_to_add,
+                    (
+                        row_column_name,
+                        value_column,
+                    ),
                 ) = self._prepare_m2m_field_related_objects(
                     row, field_name, list(filter(lambda v: v in to_add, value_ids))
                 )
@@ -2418,6 +2535,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         rows_to_update: Optional[RowsForUpdate] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
@@ -2434,6 +2552,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param rows_values: The list of rows with new values that should be set.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the rows were updated in the view.
+            This can result in different permissions checks.
         :param rows_to_update: If the rows to update have already been generated
             it can be provided so that it does not have to be generated for a
             second time.
@@ -2453,11 +2573,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             instances, the original row values and the updated fields metadata.
         """
 
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             UpdateDatabaseRowOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
+            UpdateViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row["id"] for row in rows_values],
         )
 
         if model is None:
@@ -2639,6 +2761,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         row_id: int,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
     ) -> GeneratedTableModel:
@@ -2662,12 +2785,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             model = table.get_model()
 
         with transaction.atomic():
-            row = self.get_row(user, table, row_id, model=model)
+            row = self.get_row(user, table, row_id, model=model, view=view)
             self.delete_row(
                 user,
                 table,
                 row,
                 model=model,
+                view=view,
                 send_realtime_update=send_realtime_update,
                 send_webhook_events=send_webhook_events,
             )
@@ -2679,6 +2803,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         row: GeneratedTableModelForUpdate,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
     ) -> GeneratedTableModelForUpdate:
@@ -2690,6 +2815,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param row: The row that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the rows is deleted in the view.
+            This can result in different permissions checks.
         :param send_realtime_update: If set to false then it is up to the caller to
             send the rows_deleted or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
@@ -2697,12 +2824,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :returns GeneratedTableModelForUpdate: removed row
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             DeleteDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
+            DeleteViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row.id],
         )
 
         if model is None:
@@ -2712,6 +2840,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             self, rows=[row], user=user, table=table, model=model
         )
 
+        workspace = table.database.workspace
         TrashHandler.trash(user, workspace, table.database, row)
         rows_deleted_counter.add(1)
 
@@ -2793,6 +2922,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         row_ids: List[int],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         send_realtime_update: bool = True,
         send_webhook_events: bool = True,
         permanently_delete: bool = False,
@@ -2806,7 +2936,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param row_ids: The ids of the rows that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
-         :param send_realtime_update: If set to false then it is up to the caller to
+        :param view: Optionally provide view, if the rows are deleted in the view.
+            This can result in different permissions checks.
+        :param send_realtime_update: If set to false then it is up to the caller to
             send the rows_created or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
@@ -2815,12 +2947,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param signal_params: Additional parameters that are added to the signal.
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             DeleteDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
+            DeleteViewRowOperationType.type,
+            user,
+            table,
+            view,
+            row_ids,
         )
         return self.force_delete_rows(
             user,
@@ -3168,9 +3301,7 @@ class UpsertRowsMappingHandler:
                         OVER (PARTITION BY upsert_value ORDER BY id, upsert_value )
                         AS group_index
                 FROM subq ORDER BY id """
-        ).format(
-            columns, sql.Identifier(self.table_name)
-        )  # nosec B608
+        ).format(columns, sql.Identifier(self.table_name))  # noqa: S608
 
         self.execute(query)
 
@@ -3196,9 +3327,7 @@ class UpsertRowsMappingHandler:
             rows_placeholder = sql.SQL(",\n").join(rows_query)
             script_template = sql.SQL(
                 "INSERT INTO table_import (id, upsert_value) VALUES {};"
-            ).format(
-                rows_placeholder
-            )  # nosec B608
+            ).format(rows_placeholder)  # noqa: S608
             self.execute(script_template, query_params)
 
     def calculate_map(self) -> list[tuple[int, int]]:

@@ -55,6 +55,7 @@ export default {
       default: false,
     },
   },
+  emits: ['close'],
   data() {
     return {
       timer: null,
@@ -76,7 +77,7 @@ export default {
   mounted() {
     this.startTimer()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.clearTimer()
   },
   methods: {

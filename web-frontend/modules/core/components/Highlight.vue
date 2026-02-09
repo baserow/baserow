@@ -53,8 +53,11 @@ export default {
     this.resizeObserver.observe(parent)
     this.update()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     const parent = this._getParent()
+    if (!this.resizeObserver) {
+      return
+    }
     this.resizeObserver.unobserve(parent)
     this.clearScrollEvents()
   },

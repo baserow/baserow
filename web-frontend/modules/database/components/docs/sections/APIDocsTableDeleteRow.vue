@@ -101,6 +101,7 @@ export default {
     getDeleteListUrl: { type: Function, required: true },
     getBatchDeleteRequestExample: { type: Function, required: true },
   },
+  emits: ['input'],
   data() {
     return {
       batchMode: false,

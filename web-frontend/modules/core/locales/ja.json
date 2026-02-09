@@ -275,7 +275,7 @@
         "title": "ダッシュボード",
         "alertTitle": "皆さんの協力が必要です！",
         "alertText": "Baserow が役に立つと思って頂ける方は、スターを付けるかシェアしてもらえると幸いです。 Baserow をシェアしてもらうと、製品をよりよく便利に改良することが出来るようになります。",
-        "tweetContent": "Airtableライクな、オープン・ソースのノーコード・データベース・ツール、@baserow に注目して下さい！",
+        "tweetContent": "Airtableライクな、オープン・ソースのノーコード・データベース・ツール、{'@'}baserow に注目して下さい！",
         "redditTitle": "Baserow - オープン・ソース・ノーコード・データベース",
         "noWorkspaceTitle": "グループが見つかりません",
         "noWorkspaceText": "あなたはどのグループにも属していません。データベースなどのアプリケーションはグループの持ち物です。利用するには、グループを作成する必要があります。",
@@ -390,7 +390,7 @@
             "format": {
                 "title": "書式",
                 "description": "クエリ・パラメタの書式は以下のようになります：",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "例",

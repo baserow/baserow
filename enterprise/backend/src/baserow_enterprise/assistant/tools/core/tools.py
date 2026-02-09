@@ -28,7 +28,7 @@ def get_list_builders_tool(
         builder_types: list[
             Literal["database", "application", "automation", "dashboard"]
         ]
-        | None = None
+        | None = None,
     ) -> list[AnyBuilderItem] | str:
         """
         Lists all the builders the user can access (databases, applications,

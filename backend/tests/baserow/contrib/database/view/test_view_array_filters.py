@@ -153,7 +153,7 @@ def boolean_lookup_filter_proc(
         type_name=filter_type_name,
         value=test_value,
     )
-    q = test_setup.view_handler.get_queryset(test_setup.grid_view)
+    q = test_setup.view_handler.get_queryset(test_setup.user, test_setup.grid_view)
     assert len(q) == len(selected)
     assert set([r.id for r in q]) == set([r.id for r in selected])
 
@@ -3552,9 +3552,9 @@ def test_date_array_filter_types(
         mnem_keys = list(MNEMONIC_VALUES.keys())
         mnem_res_pos = [mnem_keys[v] for v in res_pos]
         mnem_exp_res = [mnem_keys[v] for v in expected]
-        assert res_pos == unordered(
-            expected
-        ), f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        assert res_pos == unordered(expected), (
+            f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        )
 
     # with date
     array_filter_type_has = SINGLE_TO_ARRAY_FILTER_TYPE_MAP[filter_type]["has"]

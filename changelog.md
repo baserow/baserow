@@ -1,5 +1,154 @@
 # Changelog
 
+## Released 2.0.6
+
+### New features
+* [Core] Added more advanced formulas. [#4318](https://github.com/baserow/baserow/-/issues/4318)
+* [Core] Allow array properties to be selected in the formula context when expert mode is selected. [#4485](https://github.com/baserow/baserow/-/issues/4485)
+
+### Bug fixes
+* [Builder] Resolve an issue with styling button fields in table elements. [#4494](https://github.com/baserow/baserow/-/issues/4494)
+* [Database] Ensure m2m field indexes are all set.
+* [Database] Prevent creating a new constraint when the enter key of the default value is pressed.
+
+
+## Released 2.0.5
+
+### Bug fixes
+* [Builder] Resolved a bug which prevented user sources from being created or updated with a user source table.
+
+
+## Released 2.0.4
+
+### New features
+* [Core] Allow setting multiple BASEROW_PUBLIC_URL #2593 [#2593](https://github.com/baserow/baserow/-/issues/2593)
+* [Database] Allow to add missing fields to date dependency configuration [#4228](https://gitlab.com/baserow/baserow/-/issues/4228)
+* [Builder] Added a 'Create new data source' link at the bottom of iterate/table element dropdowns for quicker data source creation.
+* [Integration] Improved the Local Baserow action fields so that they inform users about what data type they expect to receive.
+
+### Bug fixes
+* [Database] handle date overflow in postgresql -> python conversion [#3324](https://gitlab.com/baserow/baserow/-/issues/3324)
+* [Database] Timeline view - fetch all rows again if a filter is disabled. [#4136](https://github.com/baserow/baserow/-/issues/4136)
+* [Builder] Show a specific error when a page is being renamed to an existing page's name. [#4183](https://github.com/baserow/baserow/-/issues/4183)
+* [Automation] Show a specific error when a workflow is being renamed to an existing workflow's name. [#4183](https://github.com/baserow/baserow/-/issues/4183)
+* [Automation] Fixed a potential crash while deleting a workflow. [#4293](https://github.com/baserow/baserow/-/issues/4293)
+* [Database] Handle exceptions like GenerativeAIPromptError in UI [#4350](https://github.com/baserow/baserow/-/issues/4350)
+* [Core] Resolved a bug which prevented formula fields from working correctly with HTML content. [#4377](https://github.com/baserow/baserow/-/issues/4377)
+* [Builder] Gracefully handle fetching data source services when the specific instance is missing. [#4389](https://github.com/baserow/baserow/-/issues/4389)
+* [Builder] Fixed a bug where domain names were not correctly validated during domain creation. [#4399](https://github.com/baserow/baserow/-/issues/4399)
+* [Core] Improved error handling when FormulaField value is not JSON serializable. [#4402](https://github.com/baserow/baserow/-/issues/4402)
+* [Database] Do not fail hard when ArrayValueSerializer throws ConversionSyntax exception [#4424](https://github.com/baserow/baserow/-/issues/4424)
+* [Database] Fix an issue where "Rows enter view" webhook shows stale rows when webhook is deleted and recreated [#4437](https://github.com/baserow/baserow/-/issues/4437)
+* [Builder] Resolved a bug in element visibility which prevented form data from being used.
+* [Builder] Resolved a bug which prevented the table element fields from being styled.
+
+### Refactors
+* [Database] Optimize test suite by deferring heavy signals by default [#4373](https://github.com/baserow/baserow/-/issues/4373)
+* [Integration] Improved one-way and two-way data sync support in Local Baserow actions.
+
+
+## Released 2.0.3
+
+### New features
+* [Core] Allow changing account email address. [#1420](https://github.com/baserow/baserow/-/issues/1420)
+* [Database] Paste values from a single row into many rows [#3194](https://gitlab.com/baserow/baserow/-/issues/3194)
+* [Database] Run AI field generation in parallel [#4227](https://github.com/baserow/baserow/-/issues/4227)
+* [Database] Show jobs for AI Field in modal [#4264](https://github.com/baserow/baserow/-/issues/4264)
+* [Core] Synchronizes the dev docs with the assistant knowledge base documents.
+
+### Bug fixes
+* [Database] Fix OpenAPI spec for generate_table_ai_field_value [#4339](https://github.com/baserow/baserow/-/issues/4339)
+* [Core] Change WebSocket connection closed error message.
+* [Core] Fix backup_baserow management command by using correct pg3 dbname. [#4308](https://github.com/baserow/baserow/-/issues/4308)
+* [Builder] Fix bug in the Helm chart where the AI-assistant LLM model was always set.
+* [Database] Improve performance in the `database_pendingsearchvalueupdate` table with many entries.
+
+### Refactors
+* [Database] Improved storage usage performance.
+* [Builder] Refactored the element theme override form so that it works better on smaller screens.
+* [Core] Update email compiler dependencies
+* [Core] Update frontend dependencies 2025-12-03
+
+
+## Released 2.0.2
+
+### New features
+* [Integration] Allow the Local Baserow 'update row' service to update data synced tables with writable fields. [#3799](https://github.com/baserow/baserow/-/issues/3799)
+
+### Bug fixes
+* [Database] Adjust image orientation based on exif data [#4247](https://github.com/baserow/baserow/-/issues/4247)
+* [Automation] Fixed a bug where creating a workflow would cause a crash for another user viewing a different app. [#4293](https://github.com/baserow/baserow/-/issues/4293)
+* [Automation] Allow to duplicate nodes inside container nodes [#4294](https://github.com/baserow/baserow/-/issues/4294)
+* [Builder] Improve performances when editing a create/update workflow action with a lot of table fields
+* [Integration] Resolved BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN env variable bug.
+
+### Refactors
+* [Database] Make read/write DB routing consistent for http requests and background tasks [#3848](https://gitlab.com/baserow/baserow/-/issues/3848)
+* [Builder] Fix missing form data after first render (SSR) [#4268](https://github.com/baserow/baserow/-/issues/4268)
+* [Core] Improve formula editor
+
+### Breaking API changes
+* [Builder] Number field values returned by local baserow integrations are now actual numbers instead of string [#4219](https://github.com/baserow/baserow/-/issues/4219)
+
+
+## Released 2.0.1
+
+### Bug fixes
+* [Core] Don't show the Assistant panel if the LLM_MODEL env variable is not configured [#4280](https://github.com/baserow/baserow/-/issues/4280)
+* [Builder] Fix visibility condition not working if data property wasn't used in page
+* [Automation] Save data preparation for table that don't have trigger associated to it
+
+
+## Released 2.0.0
+
+### New features
+* [Builder] Element can be visually hidden on complex conditions [#2566](https://gitlab.com/baserow/baserow/-/issues/2566)
+* [Database]  Regenerate all table/view AI field values at once  [#2586](https://gitlab.com/baserow/baserow/-/issues/2586)
+* [Builder] Support advanced formulas. Formulas can now use functions and operators. [#3258](https://github.com/baserow/baserow/-/issues/3258)
+* [Database] Multiple collaborators lookup fields filters [#3450](https://gitlab.com/baserow/baserow/-/issues/3450)
+* [Database] Duration lookup field type filters [#3471](https://gitlab.com/baserow/baserow/-/issues/3471)
+* [Database] Ability to find items anywhere in the workspace [#3732](https://gitlab.com/baserow/baserow/-/issues/3732)
+* [Database] Add filters support for AI field [#3801](https://gitlab.com/baserow/baserow/-/issues/3801)
+* [Database] Workspace search [#3826](https://github.com/baserow/baserow/-/issues/3826)
+* [Database] Date dependencies in table [#3829](https://github.com/baserow/baserow/-/issues/3829)
+* [Database] AI field auto-update [#4115](https://gitlab.com/baserow/baserow/-/issues/4115)
+* [Builder] Added the AI agent workflow action. [#4116](https://github.com/baserow/baserow/-/issues/4116)
+* [Database] Show primary field value in workspace search result for RowSearchType [#4181](https://gitlab.com/baserow/baserow/-/issues/4181)
+* [Builder] Introduced the new 'Slack send message' workflow action. [#4237](https://github.com/baserow/baserow/-/issues/4237)
+* [Core] Add TOTP 2fa support [#725](https://gitlab.com/baserow/baserow/-/issues/725)
+* [Core] Added GitHub actions feature branch pipeline.
+* [Core] Introduced Kuma, an AI-powered assistant to help you manage your workspace. [#3676](https://github.com/baserow/baserow/-/issues/3676)
+* [Core] Introduced the ability to sync the knowledge base based on an exportable file.
+* [Automation] Introducing automation builder; automate repetitive tasks and workflows.
+* [Database] Show workspace settings modal if clicked on deactivated AI field.
+
+### Bug fixes
+* [Core] Only close the last opened modal when the esc key is pressed. [#3495](https://gitlab.com/baserow/baserow/-/issues/3495)
+* [Database] Hide tooltip when value dynamically changes to null [#3501](https://gitlab.com/baserow/baserow/-/issues/3501)
+* [Database] Log files that cannot be downloaaded during import [#3581](https://gitlab.com/baserow/baserow/-/issues/3581)
+* [Core] Close the dropdown when using the tab key to move out from the collaborators field [#3717](https://gitlab.com/baserow/baserow/-/issues/3717)
+* [Database] Long text boxes in forms don't maintain their expanded size. [#3801](https://gitlab.com/baserow/baserow/-/issues/3801)
+* [Database] Serialize create/update rows actions execution to keep store consistent [#3850](https://gitlab.com/baserow/baserow/-/issues/3850)
+* [Database] Allow formula field to reference AI field with choice output type [#3851](https://gitlab.com/baserow/baserow/-/issues/3851)
+* [Database] Allow create new entry in linked table using pop-up window [#4104](https://gitlab.com/baserow/baserow/-/issues/4104)
+* [Database] Fix CSV import throwing 'no fetchall attribute' error and respect primary field order [#4163](https://gitlab.com/baserow/baserow/-/issues/4163)
+* [Builder] Fix scope issue with form input and repeat elements [#4185](https://gitlab.com/baserow/baserow/-/issues/4185)
+* [Builder] Fix formula recursion error when the same data source is used twice in one formula of workflow action [#4195](https://gitlab.com/baserow/baserow/-/issues/4195)
+* [Builder] Fix synchronised button loading state in tables [#4268](https://github.com/baserow/baserow/-/issues/4268)
+* [Builder] Fix broken menu element
+* [Builder] Fix collection element broken when they are in container
+* [Database] Fix bug where the form validation does not work if iOS recognizes a phone number in the field name.
+* [Builder] Fix workflow action configuration broken
+* [Database] Added a tooltip to indicate that indexing is not available for this field type. [#3810](https://gitlab.com/baserow/baserow/-/issues/3810)
+* [Core] Allow setting custom base URL for OpenAI. [#4108](https://github.com/baserow/baserow/-/issues/4108)
+
+### Refactors
+* [Builder] Added support for Advanced Formulas. [#3258](https://github.com/baserow/baserow/-/issues/3258)
+
+### Breaking API changes
+* [Builder] Data source now return content with human property names instead of technical ones [#4135](https://gitlab.com/baserow/baserow/-/issues/4135)
+
+
 ## Released 1.35.3
 
 ### New features

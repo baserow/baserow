@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix AI field keyboard shortcuts",
+    "issue_origin": "github",
+    "issue_number": 4499,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-09"
+}

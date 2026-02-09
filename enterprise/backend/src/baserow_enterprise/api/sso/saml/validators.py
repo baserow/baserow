@@ -3,8 +3,6 @@ import io
 from django.db.models import QuerySet
 
 from rest_framework import serializers
-from saml2.xml.schema import XMLSchemaError
-from saml2.xml.schema import validate as validate_saml_metadata_schema
 
 from baserow_enterprise.sso.saml.exceptions import SamlProviderForDomainAlreadyExists
 from baserow_enterprise.sso.saml.models import SamlAuthProviderModel
@@ -27,6 +25,9 @@ def validate_unique_saml_domain(
 
 
 def validate_saml_metadata(value):
+    from saml2.xml.schema import XMLSchemaError
+    from saml2.xml.schema import validate as validate_saml_metadata_schema
+
     metadata = io.StringIO(value)
     try:
         validate_saml_metadata_schema(metadata)

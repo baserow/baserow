@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix Create row modal inside linked row field fails if the primary field is of type formula array",
+    "issue_origin": "github",
+    "issue_number": 4547,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-15"
+}

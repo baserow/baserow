@@ -142,6 +142,7 @@ export default {
           {
             roles: this.roles,
             workspaceId: this.workspace.id,
+            scopeType: 'workspace',
           },
           this.$t('teamsTable.roleHelpText')
         ),

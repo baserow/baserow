@@ -23,7 +23,9 @@
 
 .form-view-survey__center {
   opacity: 1;
-  transition: transform 600ms ease 0s, opacity 300ms ease 0s;
+  transition:
+    transform 600ms ease 0s,
+    opacity 300ms ease 0s;
   overflow-y: auto;
 
   @include absolute(0, 0, 0, 0);

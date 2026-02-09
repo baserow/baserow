@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{
         $t('createViewModal.createNew', {
@@ -58,6 +58,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   data() {
     return {
       loading: false,

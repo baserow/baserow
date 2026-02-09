@@ -87,6 +87,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   components: { SelectRowModal, ForeignRowEditModal },
   mixins: [rowEditField, linkRowField, arrayLoading],
+  emits: ['refresh-row'],
   data() {
     return {
       itemLoadingId: -1,
@@ -100,7 +101,7 @@ export default {
      */
     isInForeignRowEditModal() {
       let parent = this.$parent
-      while (parent !== undefined) {
+      while (parent) {
         if (parent.$options.name === ForeignRowEditModal.name) {
           return true
         }

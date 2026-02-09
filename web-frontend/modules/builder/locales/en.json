@@ -56,6 +56,7 @@
   },
   "pageErrors": {
     "errorNameNotUnique": "A page with this name already exists",
+    "errorNameNotUniqueDescription": "Please enter a unique name for the page",
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
@@ -493,6 +494,7 @@
     "numericName": "Numeric"
   },
   "pageEditor": {
+    "title": "Baserow | Application Builder",
     "pageNotFound": "Page not found"
   },
   "publicPage": {
@@ -908,15 +910,6 @@
     "dataSource": "Data source",
     "formulas": "Formulas"
   },
-  "localBaserowServiceForm": {
-    "integrationDropdownLabel": "Integration",
-    "rowIdLabel": "Row ID",
-    "rowIdPlaceholder": "Select a row ID"
-  },
-  "upsertRowWorkflowActionForm": {
-    "fieldMappingPlaceholder": "Choose a field value",
-    "noTableSelectedMessage": "Choose a table to begin configuring your fields."
-  },
   "fieldMappingContext": {
     "enableField": "Enable field",
     "disableField": "Disable field"
@@ -945,7 +938,8 @@
     "loggedInVisitors": "Logged-in visitors",
     "notLoggedInVisitors": "Logged-out visitors",
     "warningTitle": "This is a security feature",
-    "warningMessage": "Check the <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> to learn more about how we secure data.",
+    "warningMessage": "Check the {link} to learn more about how we secure data.",
+    "documentationLink": "documentation",
     "excludedRolesLabel": "all roles except",
     "switchAllowLabel": "Allow",
     "switchDisallowLabel": "Disallow",
@@ -987,7 +981,7 @@
     "fit": "Fit"
   },
   "customStyle": {
-    "themeOverrides": "Theme overrides",
+    "backToElement": "Back to element configuration",
     "configureThemeOverrides": "Configure theme overrides for this element"
   },
   "serviceSchemaPropertySelector": {
@@ -1004,7 +998,8 @@
     "noDataSources": "No data sources available",
     "noSharedDataSources": "No shared data sources available",
     "shared": "shared",
-    "pageOnly": "this page"
+    "pageOnly": "this page",
+    "addNew": "Add new data source"
   },
   "multiPageContainerElementForm": {
     "pagePosition": "Position",

@@ -508,10 +508,32 @@ class MoveRowQueryParamsSerializer(serializers.Serializer):
 
 class CreateRowQueryParamsSerializer(serializers.Serializer):
     before = serializers.IntegerField(required=False)
+    view = serializers.IntegerField(required=False)
 
 
 class BatchCreateRowsQueryParamsSerializer(serializers.Serializer):
     before = serializers.IntegerField(required=False)
+    view = serializers.IntegerField(required=False)
+
+
+class GetRowQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
+class UpdateRowQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
+class BatchUpdateRowsQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
+class DeleteRowQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
+class BatchDeleteRowsQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
 
 
 class ListRowsQueryParamsSerializer(

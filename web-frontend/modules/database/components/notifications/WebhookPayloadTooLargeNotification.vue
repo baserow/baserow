@@ -2,10 +2,10 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="webhookPayloadTooLargeNotification.body" tag="span">
+      <i18n-t keypath="webhookPayloadTooLargeNotification.body" tag="span">
         <template #name>
           <strong>{{ notification.data.webhook_name }}</strong>
         </template>
@@ -15,7 +15,7 @@
         <template #batch_limit>
           <strong>{{ notification.data.batch_limit }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -26,6 +26,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 export default {
   name: 'WebhookPayloadTooLargeNotification',
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick() {
       this.$emit('close-panel')

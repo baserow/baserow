@@ -9,6 +9,7 @@
         role="textbox"
         :class="classes"
         :editor="editor"
+        :style="{ '--formula-placeholder': `'${placeholder}'` }"
         @data-node-clicked="dataNodeClicked"
       />
     </div>
@@ -19,12 +20,14 @@
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
+      :has-value="value.length > 0"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
+      :enabled-modes="enabledModes"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown.native="onDataExplorerMouseDown"
+      @mousedown="onDataExplorerMouseDown"
     />
 
     <NodeHelpTooltip
@@ -36,28 +39,33 @@
 </template>
 
 <script>
-import { Editor, EditorContent, generateHTML, Node } from '@tiptap/vue-2'
-import { Placeholder } from '@tiptap/extension-placeholder'
+import { Editor, EditorContent, Node } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
 import { HardBreak } from '@tiptap/extension-hard-break'
-import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
+import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/extensions/ArrowKeyNavigationExtension'
+import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
+import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
+import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
   FunctionArgumentCommaNode,
   FunctionClosingParenNode,
+  GroupOpeningParenNode,
+  GroupClosingParenNode,
   OperatorFormulaComponentNode,
-} from '@baserow/modules/core/components/formula/FormulaInsertionExtension'
-import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/NodeSelectionExtension'
-import { ContextManagementExtension } from '@baserow/modules/core/components/formula/ContextManagementExtension'
-import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/FunctionDetectionExtension'
-import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/OperatorDetectionExtension'
+} from '@baserow/modules/core/components/formula/extensions/FormulaNodes'
+import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
+import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
+import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
+import { GroupDetectionExtension } from '@baserow/modules/core/components/formula/extensions/GroupDetectionExtension'
+import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
 import {
   createClipboardTextSerializer,
   createPasteHandler,
-} from '@baserow/modules/core/components/formula/FormulaClipboardHandler'
+} from '@baserow/modules/core/components/formula/extensions/FormulaClipboardHandler'
 import _ from 'lodash'
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
@@ -68,6 +76,7 @@ import FormulaInputContext from '@baserow/modules/core/components/formula/Formul
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputField',
@@ -132,7 +141,7 @@ export default {
       required: false,
       default: 'simple',
       validator: (value) => {
-        return ['advanced', 'simple', 'raw'].includes(value)
+        return BASEROW_FORMULA_MODES.includes(value)
       },
     },
     contextPosition: {
@@ -143,7 +152,17 @@ export default {
         return ['bottom', 'left', 'right'].includes(value)
       },
     },
+    /**
+     * An array of Baserow formula modes which the parent formula input
+     * component allows to be used. By default, we will allow all modes.
+     */
+    enabledModes: {
+      type: Array,
+      required: false,
+      default: () => BASEROW_FORMULA_MODES,
+    },
   },
+  emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
     return {
       editor: null,
@@ -157,6 +176,11 @@ export default {
     }
   },
   computed: {
+    isFormulaEmpty() {
+      if (!this.editor) return true
+      const formula = this.toFormula(this.wrapperContent)
+      return !formula || formula.length === 0
+    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
@@ -165,12 +189,8 @@ export default {
           !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
         'formula-input-field--error': this.isFormulaInvalid,
+        'formula-input-field--formula-empty': this.isFormulaEmpty,
       }
-    },
-    placeHolderExt() {
-      return Placeholder.configure({
-        placeholder: this.placeholder,
-      })
     },
     formulaComponents() {
       return Object.values(this.$registry.getAll('runtimeFormulaFunction'))
@@ -211,6 +231,26 @@ export default {
 
       return extract(this.nodesHierarchy)
     },
+    functionDefinitions() {
+      const definitions = {}
+      const extract = (nodes) => {
+        if (!nodes) {
+          return
+        }
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            definitions[node.name.toLowerCase()] = node
+          }
+          const children = node.nodes
+          if (children) {
+            extract(children)
+          }
+        }
+      }
+
+      extract(this.nodesHierarchy)
+      return definitions
+    },
     operators() {
       const extract = (nodes) => {
         let operators = []
@@ -242,7 +282,9 @@ export default {
         DocumentNode,
         this.wrapperNode,
         TextNode,
-        this.placeHolderExt,
+        ArrowKeyNavigationExtension,
+        SmartDeletionExtension,
+        ZWSManagementExtension,
         History.configure({
           depth: 100,
         }),
@@ -260,6 +302,7 @@ export default {
         }),
         FunctionHelpTooltipExtension.configure({
           vueComponent: this,
+          functionDefinitions: this.functionDefinitions,
         }),
         ...this.formulaComponents,
       ]
@@ -268,6 +311,8 @@ export default {
         extensions.push(FunctionFormulaComponentNode)
         extensions.push(FunctionArgumentCommaNode)
         extensions.push(FunctionClosingParenNode)
+        extensions.push(GroupOpeningParenNode)
+        extensions.push(GroupClosingParenNode)
         extensions.push(OperatorFormulaComponentNode)
         extensions.push(
           HardBreak.extend({
@@ -281,7 +326,10 @@ export default {
         extensions.push(
           FunctionDetectionExtension.configure({
             functionNames: this.functionNames,
-            vueComponent: this,
+            functionDefinitions: this.functionDefinitions,
+          }),
+          GroupDetectionExtension.configure({
+            functionNames: this.functionNames,
           }),
           OperatorDetectionExtension.configure({
             operators: this.operators,
@@ -291,15 +339,6 @@ export default {
       }
 
       return extensions
-    },
-    htmlContent() {
-      try {
-        return generateHTML(this.content, this.extensions)
-      } catch (e) {
-        console.error('Error while parsing formula content', this.value)
-        console.error(e)
-        return generateHTML(this.toContent(''), this.extensions)
-      }
     },
     wrapperContent() {
       return this.editor.getJSON()
@@ -330,7 +369,10 @@ export default {
     },
 
     value(value) {
-      if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
+      // Use editor.getJSON() directly instead of this.wrapperContent to avoid stale cached data
+      const editorContent = this.editor?.getJSON()
+      const currentFormula = this.toFormula(editorContent)
+      if (!_.isEqual(value, currentFormula)) {
         const content = this.toContent(value)
 
         if (!this.isFormulaInvalid) {
@@ -341,7 +383,7 @@ export default {
     content: {
       handler() {
         if (this.editor && !_.isEqual(this.content, this.editor.getJSON())) {
-          this.editor.commands.setContent(this.htmlContent, false, {
+          this.editor.commands.setContent(this.content, false, {
             preserveWhitespace: 'full',
             addToHistory: false,
           })
@@ -354,7 +396,7 @@ export default {
     this.createEditor()
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },
@@ -391,7 +433,7 @@ export default {
       // Use provided formula or fall back to the prop value
       this.content = this.toContent(formula || this.value)
       this.editor = new Editor({
-        content: this.htmlContent,
+        content: this.content,
         editable: !this.disabled && !this.readOnly,
         onUpdate: this.onUpdate,
         extensions: this.extensions,
@@ -419,17 +461,21 @@ export default {
     },
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      const formula = this.toFormula(this.wrapperContent)
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {
-        this.$emit('input', this.toFormula(this.wrapperContent))
+        this.$emit('input', formula)
       }
     },
     onUpdate() {
       this.emitChange()
     },
-    handleNodeSelected({ path, node }) {
+    handleNodeSelected(data) {
+      const { path, node } = data
       switch (node.type) {
         case 'data':
           this.editor.commands.insertDataComponent(path)
@@ -454,14 +500,43 @@ export default {
       if (!formula) {
         return {
           type: 'doc',
-          content: [{ type: 'wrapper' }],
+          content: [
+            {
+              type: 'wrapper',
+              content: [{ type: 'text', text: '\u200B' }],
+            },
+          ],
         }
       }
 
       try {
         const tree = parseBaserowFormula(formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
-        return new ToTipTapVisitor(functionCollection, this.mode).visit(tree)
+        const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
+          tree
+        )
+
+        // Ensure wrapper always starts with a ZWS
+        if (result && result.content && result.content[0]) {
+          const wrapper = result.content[0]
+          if (wrapper.type === 'wrapper') {
+            if (!wrapper.content || wrapper.content.length === 0) {
+              wrapper.content = [{ type: 'text', text: '\u200B' }]
+            } else {
+              const firstNode = wrapper.content[0]
+              // Add ZWS at the beginning if it's not already there
+              if (
+                !firstNode ||
+                firstNode.type !== 'text' ||
+                firstNode.text !== '\u200B'
+              ) {
+                wrapper.content.unshift({ type: 'text', text: '\u200B' })
+              }
+            }
+          }
+        }
+
+        return result
       } catch (error) {
         return null
       }

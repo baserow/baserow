@@ -312,6 +312,10 @@ class ServiceType(
         return resolved_values
 
     def prepare_value_path(self, service: Service, path: List[str]):
+        """
+        Allow to change the path inside a service before it's used.
+        """
+
         return path
 
     def dispatch_transform(

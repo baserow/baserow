@@ -2,6 +2,7 @@
   <nuxt-link
     v-if="hasPermission"
     v-slot="{ href, navigate, isExactActive }"
+    custom
     :to="{
       name: 'workspace-audit-log',
       params: {

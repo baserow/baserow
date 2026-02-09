@@ -1,7 +1,7 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
+<template>
+  <div ref="cell" class="grid-view__cell">
     <div class="grid-field-duration">
-      {{ $options.methods.formatValue(props.field, props.value) }}
+      {{ formatValue(field, value) }}
     </div>
   </div>
 </template>
@@ -11,7 +11,16 @@ import { formatDurationValue } from '@baserow/modules/database/utils/duration'
 
 export default {
   name: 'FunctionalGridViewFieldDuration',
-  functional: true,
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
   methods: {
     formatValue(field, value) {
       return formatDurationValue(value, field.duration_format)

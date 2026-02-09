@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Don't show the Assistant panel if the LLM_MODEL env variable is not configured",
+  "issue_origin": "github",
+  "issue_number": 4280,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2025-11-18"
+}

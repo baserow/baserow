@@ -10,17 +10,22 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('viewOwnershipType.personal')
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.personal')
+  }
+
+  getDescription() {
+    const { $i18n } = this.app
+    return $i18n.t('viewOwnershipType.personalDescription')
   }
 
   getFeatureName() {
-    const { i18n } = this.app
-    return i18n.t('premiumFeatures.personalViews')
+    const { $i18n } = this.app
+    return $i18n.t('premiumFeatures.personalViews')
   }
 
   getIconClass() {
-    return 'iconoir-lock'
+    return 'iconoir-user'
   }
 
   isDeactivated(workspaceId) {
@@ -28,7 +33,7 @@ export class PersonalViewOwnershipType extends ViewOwnershipType {
   }
 
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedModal() {

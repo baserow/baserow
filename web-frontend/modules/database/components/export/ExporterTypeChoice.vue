@@ -48,6 +48,7 @@ export default {
       type: Boolean,
     },
   },
+  emits: ['selected'],
   computed: {
     deactivatedText() {
       return this.$registry

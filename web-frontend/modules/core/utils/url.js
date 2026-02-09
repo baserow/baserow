@@ -33,3 +33,26 @@ export function ensureUrlProtocol(value) {
   }
   return value
 }
+
+/**
+ * Parses a comma-separated list of URLs and extracts their hostnames.
+ * @param {string} urlsString - Comma-separated list of URLs
+ * @returns {string[]} Array of hostnames extracted from valid URLs
+ */
+export function parseHostnamesFromUrls(urlsString) {
+  if (!urlsString) return []
+
+  return urlsString
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url !== '')
+    .map((url) => {
+      try {
+        return new URL(url).hostname
+      } catch (e) {
+        console.warn(`Invalid URL in BASEROW_EXTRA_PUBLIC_URLS: ${url}`)
+        return null
+      }
+    })
+    .filter((hostname) => hostname !== null)
+}

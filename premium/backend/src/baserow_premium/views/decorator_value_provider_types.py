@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, Optional, Set, Tuple
 from uuid import uuid4
 
-from baserow_premium.license.handler import LicenseHandler
 from loguru import logger
 
 from baserow.contrib.database.fields.field_types import SingleSelectFieldType
@@ -11,6 +10,7 @@ from baserow.contrib.database.views.registries import (
     DecoratorValueProviderType,
     view_filter_type_registry,
 )
+from baserow_premium.license.handler import LicenseHandler
 
 from ..license.features import PREMIUM
 from .decorator_types import BackgroundColorDecoratorType, LeftBorderColorDecoratorType

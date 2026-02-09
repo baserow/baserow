@@ -10,7 +10,7 @@ import { ExportsPaidFeature } from '@baserow_premium/paidFeatures'
 
 class PremiumTableExporterType extends TableExporterType {
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedClickModal() {
@@ -23,7 +23,7 @@ class PremiumTableExporterType extends TableExporterType {
   isDeactivated(workspaceId) {
     // If the user is looking a publicly shared view, then the feature must never be
     // deactivated because the check can't be done properly.
-    const isPublic = this.app.store.getters['page/view/public/getIsPublic']
+    const isPublic = this.app.$store.getters['page/view/public/getIsPublic']
     return (
       !this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId) && !isPublic
     )
@@ -40,8 +40,8 @@ export class JSONTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.json')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.json')
   }
 
   getFormComponent() {
@@ -67,8 +67,8 @@ export class XMLTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.xml')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.xml')
   }
 
   getFormComponent() {
@@ -98,8 +98,8 @@ export class ExcelTableExporterType extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.excel')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.excel')
   }
 
   getFormComponent() {
@@ -129,8 +129,8 @@ export class FileTableExporter extends PremiumTableExporterType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.exporterType.file')
+    const { $i18n } = this.app
+    return $i18n.t('premium.exporterType.file')
   }
 
   getFormComponent() {

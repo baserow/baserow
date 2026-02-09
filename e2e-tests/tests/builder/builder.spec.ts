@@ -13,7 +13,7 @@ test.describe("Builder application test suite", () => {
 
     await expect(
       page.locator(".page-editor").getByText("Page settings"),
-      "Check we see the default page."
+      "Check we see the default page.",
     ).toBeVisible();
   });
 
@@ -27,7 +27,7 @@ test.describe("Builder application test suite", () => {
 
     await expect(
       page.locator(".tree__link").getByText("My super application"),
-      "Checks the name of the application is displayed in the sidebar."
+      "Checks the name of the application is displayed in the sidebar.",
     ).toBeVisible();
   });
 });

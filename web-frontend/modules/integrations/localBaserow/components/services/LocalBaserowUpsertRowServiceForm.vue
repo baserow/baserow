@@ -1,29 +1,35 @@
 <template>
   <form @submit.prevent>
     <LocalBaserowServiceForm
+      :service-type="serviceType"
       :enable-row-id="enableRowId"
       :application="application"
       :enable-view-picker="false"
       :default-values="defaultValues"
-      disallow-data-synced-tables
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
     <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
     <p v-if="values.integration_id && !values.table_id">
-      {{ $t('upsertRowWorkflowActionForm.noTableSelectedMessage') }}
+      {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
-    <FieldMappingForm
+    <FieldMappingsForm
       v-if="!tableLoading"
       v-model="values.field_mappings"
-      :fields="getWritableSchemaFields"
-    ></FieldMappingForm>
+      :fields="writableSchemaFields"
+    ></FieldMappingsForm>
+    <Alert
+      v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
+      type="warning"
+    >
+      <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
+    </Alert>
   </form>
 </template>
 
 <script>
 import _ from 'lodash'
-import FieldMappingForm from '@baserow/modules/integrations/localBaserow/components/services/FieldMappingForm'
+import FieldMappingsForm from '@baserow/modules/integrations/localBaserow/components/services/FieldMappingsForm'
 import form from '@baserow/modules/core/mixins/form'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 
@@ -31,7 +37,7 @@ export default {
   name: 'LocalBaserowUpsertRowServiceForm',
   components: {
     LocalBaserowServiceForm,
-    FieldMappingForm,
+    FieldMappingsForm,
   },
   mixins: [form],
   props: {
@@ -51,7 +57,12 @@ export default {
     service: {
       type: Object,
       required: false,
-      default: null,
+      default: () => ({}),
+    },
+    serviceType: {
+      type: Object,
+      required: false,
+      default: () => ({}),
     },
     enableRowId: {
       type: Boolean,
@@ -59,6 +70,7 @@ export default {
       default: false,
     },
   },
+  emits: ['values-changed'],
   data() {
     return {
       allowedValues: ['field_mappings'],
@@ -75,7 +87,7 @@ export default {
      * Returns the writable fields in the schema, which the
      * `FieldMappingForm` can use to display the field mapping options.
      */
-    getWritableSchemaFields() {
+    writableSchemaFields() {
       if (
         this.service == null ||
         this.service.schema == null // have service, no table

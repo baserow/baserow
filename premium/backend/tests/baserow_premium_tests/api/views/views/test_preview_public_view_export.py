@@ -6,7 +6,6 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.api.views.signers import export_public_view_signer
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
@@ -15,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.export.models import ExportJob
+from baserow_premium.api.views.signers import export_public_view_signer
 
 
 @pytest.mark.django_db
@@ -167,7 +167,7 @@ def test_create_public_view_export(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id\n"
+        expected = "\ufeffid\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -230,7 +230,7 @@ def test_create_public_view_export_respecting_view_visible_fields(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field\n1,Something\n"
+        expected = "\ufeffid,text_field\n1,Something\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -294,7 +294,7 @@ def test_create_public_view_export_respecting_view_filters(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field\n2,world\n"
+        expected = "\ufeffid,text_field\n2,world\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -367,7 +367,7 @@ def test_create_public_view_export_respecting_ad_hoc_filters(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field\n2,world\n"
+        expected = "\ufeffid,text_field\n2,world\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -480,7 +480,7 @@ def test_create_public_view_export_respecting_ad_hoc_order_by(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field\n2,world\n1,hello\n"
+        expected = "\ufeffid,text_field\n2,world\n1,hello\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -587,7 +587,7 @@ def test_create_public_view_export_respecting_include_visible_fields_in_order(
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field2,text_field\n"
+        expected = "\ufeffid,text_field2,text_field\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 
@@ -644,7 +644,7 @@ def test_create_public_view_export_respecting_include_visible_fields_in_order_wr
 
         file_path = tmpdir.join(settings.EXPORT_FILES_DIRECTORY, filename)
         assert file_path.isfile()
-        expected = "\ufeff" "id,text_field2,text_field\n"
+        expected = "\ufeffid,text_field2,text_field\n"
         with open(file_path, "r", encoding="utf-8") as written_file:
             assert written_file.read() == expected
 

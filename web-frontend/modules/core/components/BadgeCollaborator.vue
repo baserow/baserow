@@ -49,6 +49,7 @@ export default {
       },
     },
   },
+  emits: ['remove'],
   computed: {
     classes() {
       const classObj = {

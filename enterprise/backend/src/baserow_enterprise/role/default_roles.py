@@ -1,14 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from baserow_premium.row_comments.operations import (
-    CreateRowCommentsOperationType,
-    DeleteRowCommentsOperationType,
-    ReadRowCommentsOperationType,
-    RestoreRowCommentOperationType,
-    UpdateRowCommentsOperationType,
-)
-
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
@@ -161,12 +153,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
     CreateViewOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -183,6 +177,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewFilterOperationType,
     ReadViewGroupByOperationType,
     ReadViewOperationType,
+    ReadViewRowOperationType,
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     RestoreViewOperationType,
@@ -193,6 +188,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -277,15 +273,18 @@ from baserow_enterprise.role.constants import (
     EDITOR_ROLE_UID,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
+    READ_ONLY_ROLE_UID,
     VIEWER_ROLE_UID,
 )
 from baserow_enterprise.role.operations import (
     AssignRoleWorkspaceOperationType,
     ReadRoleApplicationOperationType,
     ReadRoleTableOperationType,
+    ReadRoleViewOperationType,
     ReadRoleWorkspaceOperationType,
     UpdateRoleApplicationOperationType,
     UpdateRoleTableOperationType,
+    UpdateRoleViewOperationType,
 )
 from baserow_enterprise.teams.operations import (
     CreateTeamOperationType,
@@ -299,6 +298,16 @@ from baserow_enterprise.teams.operations import (
     RestoreTeamOperationType,
     UpdateTeamOperationType,
 )
+from baserow_enterprise.views.operations import (
+    ListenToAllRestrictedViewEventsOperationType,
+)
+from baserow_premium.row_comments.operations import (
+    CreateRowCommentsOperationType,
+    DeleteRowCommentsOperationType,
+    ReadRowCommentsOperationType,
+    RestoreRowCommentOperationType,
+    UpdateRowCommentsOperationType,
+)
 
 default_roles = {
     ADMIN_ROLE_UID: [],
@@ -306,9 +315,14 @@ default_roles = {
     EDITOR_ROLE_UID: [],
     COMMENTER_ROLE_UID: [],
     VIEWER_ROLE_UID: [],
+    READ_ONLY_ROLE_UID: [],
     NO_ACCESS_ROLE_UID: [],
     NO_ROLE_LOW_PRIORITY_ROLE_UID: [],
 }
+# Virtual roles are only used in-code, and it's not possible for the user to use these.
+# The READ_ONLY role is used give to the user when they don't have access to a lower
+# level object scope, but have access a higher one.
+hidden_roles = [READ_ONLY_ROLE_UID]
 
 if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:
     raise ImproperlyConfigured(
@@ -321,7 +335,12 @@ default_roles[settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED].append(
     CreateAndUsePersonalViewOperationType
 )
 
-default_roles[VIEWER_ROLE_UID].extend(
+# Note that the read only role can automatically be assigned to the user if they have a
+# role assigned on a higher scope. If the user for example has `NO_ACCESS` to a
+# database, but has been given `EDITOR` role to the table, then they will automatically
+# get the viewer role of the database. The individual endpoints or filter queryset
+# rules must prevent accidental data exposure.
+default_roles[READ_ONLY_ROLE_UID].extend(
     default_roles[NO_ACCESS_ROLE_UID]
     + [
         ReadWorkspaceOperationType,
@@ -332,7 +351,6 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
         ListRowsDatabaseTableOperationType,
-        ReadDatabaseRowOperationType,
         ReadViewOperationType,
         ReadFieldOperationType,
         ListViewSortOperationType,
@@ -347,7 +365,6 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadAdjacentRowDatabaseRowOperationType,
         ListRowNamesDatabaseTableOperationType,
         ReadViewFilterOperationType,
-        ListenToAllDatabaseTableEventsOperationType,
         ReadViewsOrderOperationType,
         ReadViewSortOperationType,
         ListViewGroupByOperationType,
@@ -359,7 +376,13 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListWidgetsOperationType,
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
-        DispatchDashboardDataSourceOperationType,
+    ]
+)
+default_roles[VIEWER_ROLE_UID].extend(
+    default_roles[READ_ONLY_ROLE_UID]
+    + [
+        ListenToAllRestrictedViewEventsOperationType,
+        ListenToAllDatabaseTableEventsOperationType,
         ReadMCPEndpointOperationType,
         CreateMCPEndpointOperationType,
         UpdateMCPEndpointOperationType,
@@ -367,6 +390,9 @@ default_roles[VIEWER_ROLE_UID].extend(
         ChatAssistantChatOperationType,
         ReadFieldRuleOperationType,
         ExportTableOperationType,
+        DispatchDashboardDataSourceOperationType,
+        ReadDatabaseRowOperationType,
+        ReadViewRowOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -393,6 +419,9 @@ default_roles[EDITOR_ROLE_UID].extend(
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
         CanReceiveNotificationOnSubmitFormViewOperationType,
+        CreateViewRowOperationType,
+        UpdateViewRowOperationType,
+        DeleteViewRowOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -569,5 +598,7 @@ default_roles[ADMIN_ROLE_UID].extend(
         DeleteApplicationSnapshotOperationType,
         RestoreDomainOperationType,
         ListWorkspaceAuditLogEntriesOperationType,
+        ReadRoleViewOperationType,
+        UpdateRoleViewOperationType,
     ]
 )

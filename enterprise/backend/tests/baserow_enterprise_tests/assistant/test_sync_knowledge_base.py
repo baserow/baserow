@@ -23,6 +23,17 @@ def handler_and_csv(tmp_path, monkeypatch):
     return handler, csv_path
 
 
+@pytest.fixture
+def handler_and_docs_root(tmp_path, monkeypatch):
+    docs_root = tmp_path / "docs"
+    docs_root.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(KnowledgeBaseHandler, "_get_docs_path", lambda self: docs_root)
+
+    handler = KnowledgeBaseHandler()
+    return handler, docs_root
+
+
 def write_csv(path: Path, rows: list[dict]):
     headers = [
         "id",
@@ -352,3 +363,145 @@ def test_sync_knowledge_base_with_real_file(monkeypatch):
 
     assert count_documents == KnowledgeBaseDocument.objects.all().count()
     assert count_chunks == KnowledgeBaseChunk.objects.all().count()
+
+
+@pytest.mark.django_db
+def test_sync_dev_docs_creates_documents_and_chunks(handler_and_docs_root, monkeypatch):
+    handler, docs_root = handler_and_docs_root
+
+    handler.load_categories(DEFAULT_CATEGORIES)
+    assert KnowledgeBaseCategory.objects.filter(name="dev_docs").exists()
+
+    dev_dir = docs_root / "development"
+    api_dir = dev_dir / "api"
+    dev_dir.mkdir()
+    api_dir.mkdir()
+
+    file1 = dev_dir / "ci-cd.md"
+    file1.write_text("# CI/CD guide", encoding="utf-8")
+
+    file2 = api_dir / "this-is-a-name.md"
+    file2.write_text("API doc body", encoding="utf-8")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
+
+    d1 = KnowledgeBaseDocument.objects.get(type=doc_type, slug="dev/development/ci-cd")
+    d2 = KnowledgeBaseDocument.objects.get(
+        type=doc_type, slug="dev/development/api/this-is-a-name"
+    )
+
+    assert d1.title == "Ci Cd"
+    assert d2.title == "This Is A Name"
+
+    assert d1.category.name == "dev_docs"
+    assert d2.category.name == "dev_docs"
+
+    assert d1.source_url == "https://baserow.io/docs/development/ci-cd"
+    assert d2.source_url == "https://baserow.io/docs/development/api/this-is-a-name"
+
+    assert KnowledgeBaseChunk.objects.filter(source_document=d1).count() == 1
+    assert KnowledgeBaseChunk.objects.filter(source_document=d2).count() == 1
+
+
+@pytest.mark.django_db
+def test_sync_dev_docs_no_reembedding_when_body_unchanged(
+    handler_and_docs_root, monkeypatch
+):
+    handler, docs_root = handler_and_docs_root
+
+    handler.load_categories(DEFAULT_CATEGORIES)
+
+    dev_dir = docs_root / "development"
+    dev_dir.mkdir()
+
+    doc_file = dev_dir / "ci-cd.md"
+    doc_file.write_text("Initial body", encoding="utf-8")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
+    doc = KnowledgeBaseDocument.objects.get(type=doc_type, slug="dev/development/ci-cd")
+    chunk_before = KnowledgeBaseChunk.objects.get(source_document=doc)
+    chunk_before_id = chunk_before.id
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    chunk_after = KnowledgeBaseChunk.objects.get(source_document=doc)
+    assert chunk_after.id == chunk_before_id
+
+
+@pytest.mark.django_db
+def test_sync_dev_docs_reembeds_on_body_change(handler_and_docs_root, monkeypatch):
+    handler, docs_root = handler_and_docs_root
+
+    handler.load_categories(DEFAULT_CATEGORIES)
+
+    dev_dir = docs_root / "development"
+    dev_dir.mkdir()
+
+    doc_file = dev_dir / "ci-cd.md"
+    doc_file.write_text("Original body", encoding="utf-8")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
+    doc = KnowledgeBaseDocument.objects.get(type=doc_type, slug="dev/development/ci-cd")
+    old_chunk = KnowledgeBaseChunk.objects.get(source_document=doc)
+    old_chunk_id = old_chunk.id
+    assert "Original body" in old_chunk.content
+
+    doc_file.write_text("Updated body text", encoding="utf-8")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    new_chunk = KnowledgeBaseChunk.objects.get(source_document=doc)
+    assert new_chunk.id != old_chunk_id
+    assert "Updated body text" in new_chunk.content
+
+
+@pytest.mark.django_db
+def test_sync_dev_docs_deletes_docs_when_file_removed(
+    handler_and_docs_root, monkeypatch
+):
+    handler, docs_root = handler_and_docs_root
+
+    handler.load_categories(DEFAULT_CATEGORIES)
+
+    dev_dir = docs_root / "development"
+    dev_dir.mkdir()
+
+    file1 = dev_dir / "ci-cd.md"
+    file2 = dev_dir / "other-page.md"
+    file1.write_text("A", encoding="utf-8")
+    file2.write_text("B", encoding="utf-8")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
+    assert KnowledgeBaseDocument.objects.filter(
+        type=doc_type, slug="dev/development/ci-cd"
+    ).exists()
+    assert KnowledgeBaseDocument.objects.filter(
+        type=doc_type, slug="dev/development/other-page"
+    ).exists()
+
+    file1.unlink()
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_dev_docs()
+
+    # Document for removed file should be deleted; other remains
+    assert not KnowledgeBaseDocument.objects.filter(
+        type=doc_type, slug="dev/development/ci-cd"
+    ).exists()
+    assert KnowledgeBaseDocument.objects.filter(
+        type=doc_type, slug="dev/development/other-page"
+    ).exists()

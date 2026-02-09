@@ -1,7 +1,5 @@
 from django.contrib.auth import get_user_model
 
-from sentry_sdk import set_user
-
 
 def setup_user_in_sentry(user):
     """
@@ -10,6 +8,8 @@ def setup_user_in_sentry(user):
 
     :param user: The user that needs to be set in the Sentry context.
     """
+
+    from sentry_sdk import set_user
 
     set_user({"id": user.id})
 

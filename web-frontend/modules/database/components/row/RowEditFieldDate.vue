@@ -13,7 +13,7 @@
         @keyup="updateDate(field, date)"
         @focus="focus($refs.dateContext, $event)"
         @blur="blur($refs.dateContext, $event)"
-      ></FormInput>
+      />
 
       <Context
         ref="dateContext"
@@ -26,11 +26,11 @@
             :inline="true"
             :monday-first="true"
             :use-utc="true"
-            :value="pickerDate"
-            :language="datePickerLang[$i18n.locale]"
+            :model-value="pickerDate"
+            :language="$i18n.locale"
             class="datepicker"
-            @input="chooseDate(field, $event)"
-          ></date-picker>
+            @update:model-value="chooseDate(field, $event)"
+          />
         </client-only>
       </Context>
     </FormGroup>
@@ -61,7 +61,7 @@
         :hide-on-click-outside="false"
         :notation="field.date_time_format"
         @input="chooseTime(field, $event)"
-      ></TimeSelectContext>
+      />
 
       <template #error>
         <span v-show="touched && !valid">
@@ -80,7 +80,8 @@ import TimeSelectContext from '@baserow/modules/core/components/TimeSelectContex
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG
 
 export default {
   components: { TimeSelectContext },
@@ -88,8 +89,8 @@ export default {
   data() {
     return {
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

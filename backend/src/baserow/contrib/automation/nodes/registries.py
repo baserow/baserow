@@ -46,8 +46,7 @@ class AutomationNodeType(
 
     is_container = False
 
-    class SerializedDict(AutomationNodeDict):
-        ...
+    class SerializedDict(AutomationNodeDict): ...
 
     @property
     def allowed_fields(self):
@@ -282,8 +281,7 @@ class AutomationNodeType(
 
         return values
 
-    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        ...
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]: ...
 
     def dispatch(
         self,

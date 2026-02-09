@@ -33,5 +33,6 @@ export default {
       required: true,
     },
   },
+  emits: ['delete-widget'],
 }
 </script>

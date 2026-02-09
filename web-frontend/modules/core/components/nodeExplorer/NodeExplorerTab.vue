@@ -2,9 +2,9 @@
   <div class="node-explorer-tab">
     <SelectSearch
       v-if="!hierarchyNode.empty"
-      :value="search"
+      :value="modelValue"
       :placeholder="$t('action.search')"
-      @input="$emit('update:search', $event)"
+      @input="$emit('update:modelValue', $event)"
       @clear="$emit('reset-search')"
     />
     <div class="node-explorer-tab__scrollable">
@@ -54,16 +54,12 @@ export default {
     SelectSearch,
     NodeExplorerContent,
   },
-  model: {
-    prop: 'search',
-    event: 'update:search',
-  },
   props: {
     hierarchyNode: {
       type: Object,
       required: true,
     },
-    search: {
+    modelValue: {
       type: String,
       required: false,
       default: null,
@@ -91,5 +87,6 @@ export default {
       required: true,
     },
   },
+  emits: ['node-selected', 'reset-search', 'toggle', 'update:modelValue'],
 }
 </script>

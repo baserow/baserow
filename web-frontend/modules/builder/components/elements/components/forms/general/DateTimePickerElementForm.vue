@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="input"
       :config-block-types="['input']"
@@ -85,12 +85,12 @@
 <script>
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
 
 export default {
   name: 'DateTimePickerElementForm',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [formElementForm],
   data() {
     return {

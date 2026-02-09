@@ -2,7 +2,7 @@
   <li
     class="tree__item"
     :class="{
-      'tree__item--loading': application._.loading,
+      'tree__item--loading': application._?.loading,
     }"
   >
     <div
@@ -18,7 +18,7 @@
         :aria-label="application.name"
         @click="$emit('selected', application)"
       >
-        <i class="tree__icon" :class="application._.type.iconClass"></i>
+        <i class="tree__icon" :class="application._?.type?.iconClass"></i>
         <span class="tree__link-text">
           <template v-if="application.name === ''">&nbsp;</template>
           <Editable
@@ -85,6 +85,7 @@ export default {
       default: false,
     },
   },
+  emits: ['selected'],
   data() {
     return {
       deleting: false,

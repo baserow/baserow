@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix an issue where \"Rows enter view\" webhook shows stale rows when webhook is deleted and recreated",
+    "issue_origin": "github",
+    "issue_number": 4437,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2025-12-12"
+}

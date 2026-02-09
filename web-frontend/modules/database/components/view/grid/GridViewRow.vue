@@ -86,7 +86,7 @@
               :row="row"
               :workspace-id="workspaceId"
               :table="view.table"
-              @edit-modal="$emit('edit-modal', row)"
+              @edit-modal="onEditModal"
             ></component>
             <component
               :is="dec.component"
@@ -118,6 +118,10 @@
           width: fieldWidths[field.id] + 'px',
           ...getSelectedCellStyle(field),
         }"
+        :is-selected="isCellSelected(field.id)"
+        :is-alive="isAlive(field.id)"
+        :add-keep-alive="addKeepAlive"
+        :remove-keep-alive="removeKeepAlive"
         @update="$emit('update', $event)"
         @paste="$emit('paste', $event)"
         @edit="$emit('edit', $event)"
@@ -133,6 +137,8 @@
         @cell-shift-click="$emit('cell-shift-click', { row, field })"
         @add-row-after="$emit('add-row-after', $event)"
         @edit-modal="$emit('edit-modal', row)"
+        @select-cell="selectCell"
+        @set-state="setState"
       ></GridViewCell>
     </div>
   </RecursiveWrapper>
@@ -216,7 +222,7 @@ export default {
     },
     rowIdentifierType: {
       type: String,
-      required: true,
+      required: false,
       default: 'count',
     },
     count: {
@@ -229,6 +235,27 @@ export default {
       default: () => true,
     },
   },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'cell-selected',
+    'selected',
+    'unselected',
+    'select',
+    'unselect',
+    'select-next',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+    'row-dragging',
+    'row-hover',
+    'row-context',
+  ],
   data() {
     return {
       // The state can be used by functional components to make changes to the dom.
@@ -240,9 +267,11 @@ export default {
       // for example used by the file field to finish the uploading task if the user
       // has selected another cell while uploading.
       alive: [],
-      rowExpandButton: this.$registry
-        .get('application', 'database')
-        .getRowExpandButtonComponent(),
+      rowExpandButton: markRaw(
+        this.$registry
+          .get('application', 'database')
+          .getRowExpandButtonComponent()
+      ),
     }
   },
   computed: {
@@ -302,12 +331,15 @@ export default {
     },
   },
   methods: {
+    onEditModal() {
+      this.$emit('edit-modal', this.row)
+    },
     isCheckboxDisabled(rowId) {
       const checkboxSelectedRows =
         this.$store.state[this.storePrefix + 'view/grid'].checkboxSelectedRows
       return (
         checkboxSelectedRows.length >=
-          this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT &&
+          this.$config.public.baserowRowPageSizeLimit &&
         !checkboxSelectedRows.includes(rowId)
       )
     },
@@ -326,6 +358,9 @@ export default {
     },
     isCellSelected(fieldId) {
       return this.row._.selected && this.row._.selectedFieldId === fieldId
+    },
+    isAlive(fieldId) {
+      return this.alive.includes(fieldId)
     },
     selectCell(fieldId, rowId = this.row.id) {
       this.$emit('cell-selected', { fieldId, rowId })

@@ -55,6 +55,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   computed: {
     tooltipText() {
       if (!this.viewType.isCompatibleWithDataSync(this.table.data_sync)) {

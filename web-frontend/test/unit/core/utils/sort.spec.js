@@ -1,5 +1,9 @@
 import { sortNumbersAndUuid1Asc } from '@baserow/modules/core/utils/sort'
-import { v1 as uuidv1 } from 'uuid'
+//import { uuid as uuidv1 } from '@baserow/modules/core/utils/string'
+
+import { monotonicFactory } from 'ulid'
+
+const uuidv1 = monotonicFactory()
 
 describe('sort', () => {
   it('should sort numbers correctly', () => {

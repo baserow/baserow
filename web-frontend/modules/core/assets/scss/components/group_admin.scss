@@ -7,6 +7,6 @@
 .group-admin-name__name {
   @extend %ellipsis;
 
-  word-wrap: break-word;
+  overflow-wrap: break-word;
   line-height: 24px;
 }

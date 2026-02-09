@@ -27,7 +27,7 @@
         class="snapshots-modal__delete"
         @click="cancelJob(job.id)"
       >
-        {{ $t('snapshotsModal.cancel') | lowercase }}
+        {{ $filters.lowercase($t('snapshotsModal.cancel')) }}
       </a>
       <a v-else class="snapshots-modal__delete" @click="showDelete">{{
         $t('snapshotListItem.delete')
@@ -60,6 +60,7 @@ export default {
       required: true,
     },
   },
+  emits: ['snapshot-deleted'],
   mounted() {
     if (!this.job) {
       this.restoreRunningState()

@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="input"
       :config-block-types="['input']"
@@ -18,7 +18,7 @@
         :user-sources="userSources"
       ></UserSourceDropdown>
     </FormGroup>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="login_button"
       :config-block-types="['button']"
@@ -40,7 +40,7 @@
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import UserSourceDropdown from '@baserow/modules/builder/components/userSource/UserSourceDropdown'
 
@@ -48,7 +48,7 @@ export default {
   name: 'AuthFormElementForm',
   components: {
     UserSourceDropdown,
-    CustomStyle,
+    CustomStyleButton,
     InjectedFormulaInput,
   },
   mixins: [elementForm],

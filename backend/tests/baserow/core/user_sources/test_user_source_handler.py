@@ -601,9 +601,12 @@ def test_update_all_user_source_counts(stub_user_source_registry):
         UserSourceHandler().update_all_user_source_counts()
 
     # When an exception raises, we can make it propagate.
-    with stub_user_source_registry(
-        update_user_count_return=mock_raise_update_user_count
-    ), pytest.raises(Exception) as exc:
+    with (
+        stub_user_source_registry(
+            update_user_count_return=mock_raise_update_user_count
+        ),
+        pytest.raises(Exception) as exc,
+    ):
         UserSourceHandler().update_all_user_source_counts(raise_on_error=True)
     assert str(exc.value) == "An error has occurred."
 

@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     :class="{ 'context--loading-overlay': view._.loading }"
     overflow-scroll
     max-height-if-outside-viewport
@@ -62,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['refresh', 'search-changed'],
   data() {
     return {
       activeSearchTerm: '',

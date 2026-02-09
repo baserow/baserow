@@ -1,10 +1,9 @@
 from typing import List
 
-from baserow_premium.license.registries import LicenseType
-
 from baserow.api.user.registries import UserDataType
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
+from baserow_premium.license.registries import LicenseType
 
 
 class ActiveLicensesDataType(UserDataType):

@@ -9,12 +9,12 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.db.models import QuerySet
 
-from baserow_premium.views.exceptions import CalendarViewHasNoDateField
-from baserow_premium.views.models import CalendarView
 from icalendar import Calendar, Event
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.db import specific_queryset
+from baserow_premium.views.exceptions import CalendarViewHasNoDateField
+from baserow_premium.views.models import CalendarView
 
 # required by https://icalendar.org/iCalendar-RFC-5545/3-7-3-product-identifier.html
 ICAL_PROD_ID = "Baserow / baserow.io"
@@ -43,7 +43,7 @@ def row_url_maker(view: CalendarView) -> typing.Callable[[str], str]:
 
         return urljoin(
             settings.PUBLIC_WEB_FRONTEND_URL,
-            f"/database/{database_id}" f"/table/{table_id}/{view_id}" f"/row/{row_id}",
+            f"/database/{database_id}/table/{table_id}/{view_id}/row/{row_id}",
         )
 
     return url_maker

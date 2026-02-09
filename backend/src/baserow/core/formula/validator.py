@@ -122,6 +122,9 @@ def ensure_string(value: Any, allow_empty: bool = True) -> str:
             raise ValidationError("A valid String is required.")
         return ""
 
+    if isinstance(value, bool):
+        # To match the frontend
+        return "true" if value else "false"
     if isinstance(value, list):
         results = [ensure_string(item) for item in value if item]
         return ",".join(results)

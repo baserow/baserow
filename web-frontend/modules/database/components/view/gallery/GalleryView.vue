@@ -5,11 +5,16 @@
         !readOnly &&
         // Can't create rows in a table data sync table.
         (!table.data_sync || table.data_sync.two_way_sync) &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       icon="iconoir-plus"
       position="fixed"
@@ -75,11 +80,16 @@
     <RowCreateModal
       v-if="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       ref="rowCreateModal"
       :database="database"
@@ -112,11 +122,16 @@
       :rows="allRows"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @hidden="$emit('selected-row', undefined)"
@@ -193,6 +208,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   data() {
     return {
       gutterSize: 30,
@@ -202,12 +218,23 @@ export default {
       buffer: [],
       showHiddenFieldsInRowModal: false,
       dragAndDropCloneClass: 'gallery-view__card--dragging-clone',
+      // Event handler and observer references for cleanup
+      scrollEvent: null,
+      resizeObserver: null,
     }
   },
   computed: {
     ...mapGetters({
       row: 'rowModalNavigation/getRow',
     }),
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/gallery/getRows']
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/gallery/getAllFieldOptions'
+      ]
+    },
     firstRows() {
       return this.allRows.slice(0, 200)
     },
@@ -253,10 +280,13 @@ export default {
         this.updateBuffer(true, false)
       })
     },
-    allRows() {
-      this.$nextTick(() => {
-        this.updateBuffer(true, false)
-      })
+    allRows: {
+      deep: true,
+      handler() {
+        this.$nextTick(() => {
+          this.updateBuffer(true, false)
+        })
+      },
     },
     row: {
       deep: true,
@@ -279,10 +309,10 @@ export default {
   },
   mounted() {
     this.updateBuffer()
-    this.$el.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       this.updateBuffer()
     })
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver.observe(this.$el)
 
     const fireUpdateBuffer = {
       last: Date.now(),
@@ -302,7 +332,7 @@ export default {
       this.updateBuffer(false, true)
     }, 110)
 
-    this.$el.scrollEvent = (event) => {
+    this.scrollEvent = (event) => {
       // Call the update order debounce function to simulate a stop scrolling event.
       updateOrderDebounced()
 
@@ -336,25 +366,18 @@ export default {
         this.updateBuffer(false, false)
       }
     }
-    this.$refs.scroll.addEventListener('scroll', this.$el.scrollEvent)
+    this.$refs.scroll.addEventListener('scroll', this.scrollEvent)
 
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
   },
-  beforeDestroy() {
-    this.$el.resizeObserver.unobserve(this.$el)
-    this.$refs.scroll.removeEventListener('scroll', this.$el.scrollEvent)
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        allRows: this.$options.propsData.storePrefix + 'view/gallery/getRows',
-        fieldOptions:
-          this.$options.propsData.storePrefix +
-          'view/gallery/getAllFieldOptions',
-      }),
+  beforeUnmount() {
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(this.$el)
+    }
+    if (this.$refs.scroll) {
+      this.$refs.scroll.removeEventListener('scroll', this.scrollEvent)
     }
   },
   methods: {
@@ -375,6 +398,8 @@ export default {
      */
     updateBuffer(dispatchVisibleRows = true, updateOrder = true) {
       const el = this.$refs.scroll
+
+      if (!el) return
 
       const gutterSize = this.gutterSize
       const containerWidth = el.clientWidth

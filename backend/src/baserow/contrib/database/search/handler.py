@@ -79,7 +79,7 @@ class SearchMode(str, Enum):
     FT_WITH_COUNT = "full-text-with-count"
 
 
-ALL_SEARCH_MODES = [getattr(mode, "value") for mode in SearchMode]
+ALL_SEARCH_MODES = [mode.value for mode in SearchMode]
 
 
 @lru_cache(maxsize=1024)
@@ -101,7 +101,7 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
                 WHERE table_schema = current_schema()
                 AND table_name = %s
             )
-        """  # nosec B608
+        """  # noqa: S608
         cursor.execute(raw_sql, [search_table_name])
         return cursor.fetchone()[0]
 
@@ -700,7 +700,7 @@ class SearchHandler(
                             WHERE d.field_id = p.field_id
                             AND {row_check}
                             AND p.deletion_workspace_id = %s;
-                        """  # nosec B608
+                        """  # noqa: S608
                         cursor.execute(raw_sql, (workspace_id,))
         except ProgrammingError as e:
             # It could be that the workspace search table has already been deleted,
@@ -833,7 +833,7 @@ class SearchHandler(
                 DO UPDATE SET
                     value = EXCLUDED.value,
                     updated_on = EXCLUDED.updated_on;
-            """  # nosec B608
+            """  # noqa: S608
             cursor.execute(raw_sql, params)
 
     @classmethod

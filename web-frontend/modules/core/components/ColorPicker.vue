@@ -64,7 +64,7 @@
 </template>
 
 <script>
-import { isEqual } from 'lodash'
+import _ from 'lodash'
 
 import { clone } from '@baserow/modules/core/utils/object'
 import { clamp } from '@baserow/modules/core/utils/number'
@@ -88,9 +88,19 @@ export const DEFAULT_COLOR_PICKER_COLOR = '#ffffffff'
 export default {
   name: 'ColorPicker',
   props: {
+    /**
+     * The model value of the textarea in Vue 3 style.
+     */
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
+    /**
+     * The model value of the textarea in Vue 2 style.
+     */
     value: {
       type: String,
-      default: '#ffffffff',
+      default: undefined,
     },
     allowOpacity: {
       type: Boolean,
@@ -98,6 +108,7 @@ export default {
       default: true,
     },
   },
+  emits: ['input', 'update:modelValue'],
   data() {
     return {
       // This variable is used to figure out whether a mouse/touch move event
@@ -114,9 +125,12 @@ export default {
   },
   computed: {
     MOVE_EVENT: () => MOVE_EVENT,
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
   },
   watch: {
-    value: {
+    currentValue: {
       handler(value) {
         this.setColorFromValue(value)
       },
@@ -133,7 +147,7 @@ export default {
     document.addEventListener('mouseup', this.stopMovingThumb)
     document.addEventListener('touchend', this.stopMovingThumb)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('mousemove', this.moveThumbWithMouse)
     document.removeEventListener('touchmove', this.moveThumbWithTouch)
     document.removeEventListener('mouseup', this.stopMovingThumb)
@@ -214,11 +228,14 @@ export default {
       }
     },
     setColor(format, color, emit = true) {
-      if (!isEqual(this.colors[format], color)) {
+      if (!_.isEqual(this.colors[format], color)) {
         this.applyColorUpdates(format, color)
       }
 
       if (emit) {
+        // emitting the updated value Vue 3 style.
+        this.$emit('update:modelValue', this.colors.hex)
+        // emitting the updated value Vue 2 style.
         this.$emit('input', this.colors.hex)
       }
     },

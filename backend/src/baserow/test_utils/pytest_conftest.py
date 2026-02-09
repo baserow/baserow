@@ -3,7 +3,7 @@ import contextlib
 import os
 import sys
 import threading
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
@@ -47,6 +47,22 @@ from baserow.test_utils.setup_formulas import iter_formula_pgsql_functions
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
 COMMAND_LINE_FLAG_PREFIX = "--run-"
+
+# List of heavy callables to defer by default during tests
+# Used by defer_heavy_signals fixture
+DEFAULT_DEFERRED_CALLABLES: List[str] = [
+    "baserow.ws.tasks.broadcast_to_channel_group.delay",
+    "baserow.ws.tasks.broadcast_to_users.delay",
+    "baserow.ws.tasks.broadcast_to_permitted_users.delay",
+    "baserow.ws.tasks.broadcast_to_group.delay",
+    "baserow.ws.tasks.broadcast_to_groups.delay",
+    "baserow.ws.tasks.broadcast_application_created.delay",
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+    "baserow.contrib.database.table.tasks.update_table_usage.delay",
+    "baserow.core.notifications.tasks.send_queued_notifications_to_users.delay",
+    "baserow.contrib.database.views.tasks.update_view_index.delay",
+]
 
 
 # Provides a new fake instance for each class. Solve uniqueness problem sometimes.
@@ -150,6 +166,41 @@ def clear_cache():
 
     # Thread-local cache
     with local_cache.context():
+        yield
+
+
+@pytest.fixture(autouse=True)
+def defer_heavy_signals(request):
+    """
+    Defer heavy callables by default to speed up tests.
+
+    Opt-out options:
+        @pytest.mark.enable_all_signals - Enable all deferred signals
+        @pytest.mark.enable_signals("path.to.callable") - Enable specific signal(s)
+    """
+
+    if request.node.get_closest_marker("enable_all_signals"):
+        yield
+        return
+
+    signals_to_defer = set(DEFAULT_DEFERRED_CALLABLES)
+
+    enable_signals_marker = request.node.get_closest_marker("enable_signals")
+    if enable_signals_marker:
+        signals_to_enable = set()
+        if enable_signals_marker.args:
+            signals_to_enable.update(enable_signals_marker.args)
+        if enable_signals_marker.kwargs.get("signals"):
+            signals_to_enable.update(enable_signals_marker.kwargs["signals"])
+        signals_to_defer -= signals_to_enable
+
+    if not signals_to_defer:
+        yield
+        return
+
+    with ExitStack() as stack:
+        for name in signals_to_defer:
+            stack.enter_context(patch(name, lambda *args, **kwargs: None))
         yield
 
 
@@ -414,9 +465,9 @@ def stub_user_source_registry(data_fixture, mutable_user_source_registry, fake):
             def get_roles(self):
                 return []
 
-        mutable_user_source_registry.registry[
-            user_source_type.type
-        ] = StubbedUserSourceType()
+        mutable_user_source_registry.registry[user_source_type.type] = (
+            StubbedUserSourceType()
+        )
         user_source_type_registry.get_for_class.cache_clear()
 
         yield user_source_type_registry
@@ -454,9 +505,9 @@ def patch_filefield_storage(tmpdir):
         for model in apps.get_models():
             filefields = (f for f in model._meta.fields if isinstance(f, FileField))
             for filefield in filefields:
-                previous_storages[
-                    f"{model._meta.label}_{filefield.name}"
-                ] = filefield.storage
+                previous_storages[f"{model._meta.label}_{filefield.name}"] = (
+                    filefield.storage
+                )
                 filefield.storage = new_storage
 
         yield new_storage
@@ -498,6 +549,14 @@ def pytest_configure(config):
                 f"{flag}: mark test so it only runs when the "
                 f"{COMMAND_LINE_FLAG_PREFIX}{flag} flag is provided to pytest",
             )
+        config.addinivalue_line(
+            "markers",
+            "enable_all_signals: Disables signal deferral for this test",
+        )
+        config.addinivalue_line(
+            "markers",
+            "enable_signals(callable_paths): Enables specific signals for this test",
+        )
         pytest_configure.already_run = True
 
 
@@ -606,9 +665,9 @@ def application_type_serialized_raising_operationalerror(
         stub_application_type = MaxLocksPerTransactionExceededApplicationType()
         stub_application_type.raise_transaction_exception = raise_transaction_exception
         mutable_application_registry.get_for_class.cache_clear()
-        mutable_application_registry.registry[
-            DatabaseApplicationType.type
-        ] = stub_application_type
+        mutable_application_registry.registry[DatabaseApplicationType.type] = (
+            stub_application_type
+        )
 
         yield stub_application_type
 
@@ -631,9 +690,9 @@ def trash_item_type_perm_delete_item_raising_operationalerror(
         stub_trash_item_type = MaxLocksPerTransactionExceededGroupTrashableItemType()
         stub_trash_item_type.raise_transaction_exception = raise_transaction_exception
         mutable_trash_item_type_registry.get_for_class.cache_clear()
-        mutable_trash_item_type_registry.registry[
-            WorkspaceTrashableItemType.type
-        ] = stub_trash_item_type
+        mutable_trash_item_type_registry.registry[WorkspaceTrashableItemType.type] = (
+            stub_trash_item_type
+        )
 
         yield stub_trash_item_type
 
@@ -671,9 +730,9 @@ def bypass_check_permissions(
     stub_core_permission_manager = StubbedCorePermissionManagerType()
 
     for perm_manager in django_settings.PERMISSION_MANAGERS:
-        mutable_permission_manager_registry.registry[
-            perm_manager
-        ] = stub_core_permission_manager
+        mutable_permission_manager_registry.registry[perm_manager] = (
+            stub_core_permission_manager
+        )
 
     yield stub_core_permission_manager
 
@@ -697,9 +756,9 @@ def stub_check_permissions() -> callable:
             raise_permission_denied
         )
         first_manager = django_settings.PERMISSION_MANAGERS[0]
-        permission_manager_type_registry.registry[
-            first_manager
-        ] = stub_core_permission_manager
+        permission_manager_type_registry.registry[first_manager] = (
+            stub_core_permission_manager
+        )
         yield stub_core_permission_manager
         permission_manager_type_registry.registry = before
 
@@ -769,6 +828,14 @@ def second_separate_database_for_migrations(
     _set_suffix_to_test_databases(suffix)
 
     with django_db_blocker.unblock():
+        # Clear ContentType cache before setting up the second database.
+        # The cache may contain IDs from the first test database, which would
+        # cause foreign key violations when post_migrate signals try to create
+        # records referencing ContentTypes in the new database.
+        from django.contrib.contenttypes.models import ContentType
+
+        ContentType.objects.clear_cache()
+
         db_cfg = setup_databases(
             verbosity=request.config.option.verbose,
             interactive=False,
@@ -1029,17 +1096,17 @@ def create_postgresql_test_table():
     create_table_sql = f"""
     CREATE TABLE {table_name} (
         id SERIAL PRIMARY KEY,
-        {', '.join([f"{col_name} {col_type}" for col_name, col_type in column_definitions.items()])}
+        {", ".join([f"{col_name} {col_type}" for col_name, col_type in column_definitions.items()])}
     )
     """
 
     # Inserts a couple of random rows for testing purposes.
     insert_sql = f"""
-    INSERT INTO {table_name} ({', '.join(column_definitions.keys())})
+    INSERT INTO {table_name} ({", ".join(column_definitions.keys())})
     VALUES (
         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
     )
-    """
+    """  # noqa: S608
 
     try:
         with connection.cursor() as cursor:

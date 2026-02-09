@@ -38,6 +38,7 @@ export default {
       required: true,
     },
   },
+  emits: ['focusOnTable'],
   data() {
     return {
       fieldsDefs: [],
@@ -52,6 +53,7 @@ export default {
       return this.database.tables[0]
     },
     fields() {
+      const { $registry } = useNuxtApp()
       const primaryTextField = populateField(
         {
           id: 0,
@@ -63,7 +65,7 @@ export default {
           read_only: false,
           text_default: '',
         },
-        this.$registry
+        $registry
       )
 
       const instances = [primaryTextField]
@@ -79,38 +81,35 @@ export default {
               hidden: false,
               ...field,
             },
-            this.$registry
+            $registry
           )
         )
       })
       return instances
     },
     views() {
-      const gridView1 = populateView(
-        {
-          id: 0,
-          table_id: this.table.id,
-          name: 'Grid',
-          order: 1,
-          type: GridViewType.getType(),
-          table: this.table,
-          filter_type: 'AND',
-          filters: [],
-          filter_groups: [],
-          sortings: [],
-          group_bys: [],
-          decorations: [],
-          filters_disabled: false,
-          public_view_has_password: false,
-          show_logo: true,
-          ownership_type: CollaborativeViewOwnershipType.getType(),
-          owned_by_id: null,
-          row_identifier_type: 'id',
-          public: false,
-          slug: '',
-        },
-        this.$registry
-      )
+      const gridView1 = populateView({
+        id: 0,
+        table_id: this.table.id,
+        name: 'Grid',
+        order: 1,
+        type: GridViewType.getType(),
+        table: this.table,
+        filter_type: 'AND',
+        filters: [],
+        filter_groups: [],
+        sortings: [],
+        group_bys: [],
+        decorations: [],
+        filters_disabled: false,
+        public_view_has_password: false,
+        show_logo: true,
+        ownership_type: CollaborativeViewOwnershipType.getType(),
+        owned_by_id: null,
+        row_identifier_type: 'id',
+        public: false,
+        slug: '',
+      })
       return [gridView1]
     },
     view() {

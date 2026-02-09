@@ -138,6 +138,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'GroupedAggregateRowsDataSourceForm',
+  emits: ['values-changed', 'widget-values-changed'],
   components: {
     AggregationSeriesForm,
     AggregationGroupByForm,
@@ -296,7 +297,7 @@ export default {
     canAddSeries() {
       return (
         this.values.aggregation_series.length <
-        this.$config.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES
+        this.$config.public.baserowPremiumGroupedAggregateServiceMaxSeries
       )
     },
   },

@@ -47,7 +47,7 @@ export class BaserowUpper extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.upperDescription')
   }
 
@@ -69,7 +69,7 @@ export class BaserowLower extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lowerDescription')
   }
 
@@ -92,7 +92,7 @@ export class BaserowSplitPart extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.splitPartDescription')
   }
 
@@ -115,7 +115,7 @@ export class BaserowConcat extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.concatDescription')
   }
 
@@ -138,7 +138,7 @@ export class BaserowAdd extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.addDescription')
   }
 
@@ -176,7 +176,7 @@ export class BaserowMinus extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.minusDescription')
   }
 
@@ -213,7 +213,7 @@ export class BaserowMultiply extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.multiplyDescription')
   }
 
@@ -249,7 +249,7 @@ export class BaserowDivide extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.divideDescription')
   }
 
@@ -284,7 +284,7 @@ export class BaserowEqual extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.equalDescription')
   }
 
@@ -315,7 +315,7 @@ export class BaserowHasOption extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.hasOptionDescription')
   }
 
@@ -348,7 +348,7 @@ export class BaserowIf extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.ifDescription')
   }
 
@@ -371,7 +371,7 @@ export class BaserowToText extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.toTextDescription')
   }
 
@@ -394,7 +394,7 @@ export class BaserowDatetimeFormat extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.datetimeFormatDescription')
   }
 
@@ -417,7 +417,7 @@ export class BaserowDatetimeFormatTz extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.datetimeFormatTzDescription')
   }
 
@@ -442,7 +442,7 @@ export class BaserowEncodeUri extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.encodeUriDescription')
   }
 
@@ -467,7 +467,7 @@ export class BaserowEncodeUriComponent extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.encodeUriComponentDescription')
   }
 
@@ -490,7 +490,7 @@ export class BaserowToNumber extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.toNumberDescription')
   }
 
@@ -513,7 +513,7 @@ export class BaserowField extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.fieldDescription')
   }
 
@@ -536,7 +536,7 @@ export class BaserowLookup extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lookupDescription')
   }
 
@@ -561,7 +561,7 @@ export class BaserowIsBlank extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.isBlankDescription')
   }
 
@@ -584,7 +584,7 @@ export class BaserowDurationToSeconds extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.durationToSecondsDescription')
   }
 
@@ -607,7 +607,7 @@ export class BaserowSecondsToDuration extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.secondsToDurationDescription')
   }
 
@@ -630,7 +630,7 @@ export class BaserowIsNull extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.isNullDescription')
   }
 
@@ -653,7 +653,7 @@ export class BaserowT extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.tDescription')
   }
 
@@ -676,7 +676,7 @@ export class BaserowNot extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.notDescription')
   }
 
@@ -699,7 +699,7 @@ export class BaserowGreaterThan extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.greaterThanDescription')
   }
 
@@ -733,7 +733,7 @@ export class BaserowGreaterThanOrEqual extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.greaterThanOrEqualDescription')
   }
 
@@ -767,7 +767,7 @@ export class BaserowLessThan extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lessThanDescription')
   }
 
@@ -801,7 +801,7 @@ export class BaserowLessThanOrEqual extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lessThanOrEqualDescription')
   }
 
@@ -835,7 +835,7 @@ export class BaserowNow extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.nowDescription')
   }
 
@@ -858,7 +858,7 @@ export class BaserowToday extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.todayDescription')
   }
 
@@ -881,7 +881,7 @@ export class BaserowToDate extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.toDateDescription')
   }
 
@@ -904,7 +904,7 @@ export class BaserowToDateTz extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.toDateTzDescription')
   }
 
@@ -927,7 +927,7 @@ export class BaserowDay extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.dayDescription')
   }
 
@@ -950,7 +950,7 @@ export class BaserowDateDiff extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.dateDiffDescription')
   }
 
@@ -976,7 +976,7 @@ export class BaserowAnd extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.andDescription')
   }
 
@@ -1007,7 +1007,7 @@ export class BaserowOr extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.orDescription')
   }
 
@@ -1034,7 +1034,7 @@ export class BaserowDateInterval extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.dateIntervalDescription')
   }
 
@@ -1057,7 +1057,7 @@ export class BaserowReplace extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.replaceDescription')
   }
 
@@ -1080,7 +1080,7 @@ export class BaserowSearch extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.searchDescription')
   }
 
@@ -1106,7 +1106,7 @@ export class BaserowRowId extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.rowIdDescription')
   }
 
@@ -1129,7 +1129,7 @@ export class BaserowLength extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lengthDescription')
   }
 
@@ -1152,7 +1152,7 @@ export class BaserowReverse extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.reverseDescription')
   }
 
@@ -1175,7 +1175,7 @@ export class BaserowNotEqual extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.notEqualDescription')
   }
 
@@ -1206,7 +1206,7 @@ export class BaserowCount extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.countDescription')
   }
 
@@ -1233,7 +1233,7 @@ export class BaserowContains extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.containsDescription')
   }
 
@@ -1256,7 +1256,7 @@ export class BaserowLeft extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.leftDescription')
   }
 
@@ -1283,7 +1283,7 @@ export class BaserowRight extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.rightDescription')
   }
 
@@ -1310,7 +1310,7 @@ export class BaserowTrim extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.trimDescription')
   }
 
@@ -1333,7 +1333,7 @@ export class BaserowRegexReplace extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.regexReplaceDescription')
   }
 
@@ -1356,7 +1356,7 @@ export class BaserowLink extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.linkDescription')
   }
 
@@ -1379,7 +1379,7 @@ export class BaserowButton extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.buttonDescription')
   }
 
@@ -1402,7 +1402,7 @@ export class BaserowGetLinkUrl extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getLinkUrlDescription')
   }
 
@@ -1427,7 +1427,7 @@ export class BaserowGetLinkLabel extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getLinkLabelDescription')
   }
 
@@ -1450,7 +1450,7 @@ export class BaserowGreatest extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.greatestDescription')
   }
 
@@ -1472,7 +1472,7 @@ export class BaserowRound extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.roundDescription')
   }
 
@@ -1501,7 +1501,7 @@ export class BaserowPower extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.powerDescription')
   }
 
@@ -1531,7 +1531,7 @@ export class BaserowLog extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.logDescription')
   }
 
@@ -1561,7 +1561,7 @@ export class BaserowMod extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.modDescription')
   }
 
@@ -1593,7 +1593,7 @@ export class BaserowAbs extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.absDescription')
   }
 
@@ -1623,7 +1623,7 @@ export class BaserowExp extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.expDescription')
   }
 
@@ -1652,7 +1652,7 @@ export class BaserowEven extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.evenDescription')
   }
 
@@ -1681,7 +1681,7 @@ export class BaserowOdd extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.oddDescription')
   }
 
@@ -1710,7 +1710,7 @@ export class BaserowLn extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.lnDescription')
   }
 
@@ -1740,7 +1740,7 @@ export class BaserowSign extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.signDescription')
   }
 
@@ -1769,7 +1769,7 @@ export class BaserowSqrt extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.sqrtDescription')
   }
 
@@ -1798,7 +1798,7 @@ export class BaserowFloor extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.floorDescription')
   }
 
@@ -1828,7 +1828,7 @@ export class BaserowCeil extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.ceilDescription')
   }
 
@@ -1858,7 +1858,7 @@ export class BaserowTrunc extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.truncDescription')
   }
 
@@ -1888,7 +1888,7 @@ export class BaserowIsNaN extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.isNanDescription')
   }
 
@@ -1911,7 +1911,7 @@ export class BaserowWhenNaN extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.whenNanDescription')
   }
 
@@ -1934,7 +1934,7 @@ export class BaserowLeast extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.leastDescription')
   }
 
@@ -1957,7 +1957,7 @@ export class BaserowMonth extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.monthDescription')
   }
 
@@ -1980,7 +1980,7 @@ export class BaserowYear extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.yearDescription')
   }
 
@@ -2003,7 +2003,7 @@ export class BaserowSecond extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.secondDescription')
   }
 
@@ -2025,7 +2025,7 @@ export class BaserowWhenEmpty extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.whenEmptyDescription')
   }
 
@@ -2048,7 +2048,7 @@ export class BaserowAny extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.anyDescription')
   }
 
@@ -2075,7 +2075,7 @@ export class BaserowEvery extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.everyDescription')
   }
 
@@ -2102,7 +2102,7 @@ export class BaserowMax extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.maxDescription')
   }
 
@@ -2134,7 +2134,7 @@ export class BaserowMin extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.minDescription')
   }
 
@@ -2166,7 +2166,7 @@ export class BaserowJoin extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.joinDescription')
   }
 
@@ -2193,7 +2193,7 @@ export class BaserowStddevPop extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.stddevPopDescription')
   }
 
@@ -2224,7 +2224,7 @@ export class BaserowStddevSample extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.stddevSampleDescription')
   }
 
@@ -2255,7 +2255,7 @@ export class BaserowVarianceSample extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.varianceSampleDescription')
   }
 
@@ -2286,7 +2286,7 @@ export class BaserowVariancePop extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.variancePopDescription')
   }
 
@@ -2317,7 +2317,7 @@ export class BaserowAvg extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.avgDescription')
   }
 
@@ -2348,7 +2348,7 @@ export class BaserowSum extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.sumDescription')
   }
 
@@ -2379,7 +2379,7 @@ export class BaserowFilter extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.filterDescription')
   }
 
@@ -2410,7 +2410,7 @@ export class BaserowGetFileVisibleName extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getFileVisibleNameDescription')
   }
 
@@ -2432,7 +2432,7 @@ export class BaserowGetFileMimeType extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getFileMimeTypeDescription')
   }
 
@@ -2455,7 +2455,7 @@ export class BaserowGetFileCount extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getFileCountDescription')
   }
 
@@ -2477,7 +2477,7 @@ export class BaserowGetFileSize extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getFileSizeDescription')
   }
 
@@ -2499,7 +2499,7 @@ export class BaserowGetImageWidth extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getImageWidthDescription')
   }
 
@@ -2521,7 +2521,7 @@ export class BaserowGetImageHeight extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getImageHeightDescription')
   }
 
@@ -2543,7 +2543,7 @@ export class BaserowIsImage extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getIsImageDescription')
   }
 
@@ -2565,7 +2565,7 @@ export class BaserowIndex extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.indexDescription')
   }
 
@@ -2588,7 +2588,7 @@ export class BaserowToUrl extends BaserowFunctionDefinition {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('formulaFunctions.getToUrlDescription')
   }
 

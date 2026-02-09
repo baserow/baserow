@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "Number field values returned by local baserow integrations are now actual numbers instead of string",
+    "domain": "builder",
+    "issue_number": 4219,
+    "issue_origin": "github",
+    "bullet_points": [],
+    "created_at": "2025-11-14"
+}

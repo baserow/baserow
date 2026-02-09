@@ -70,6 +70,7 @@ export default {
       default: '',
     },
   },
+  emits: ['selected', 'unselected', 'hidden'],
   methods: {
     /**
      * Hide the modal when a row has been selected.

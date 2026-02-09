@@ -401,7 +401,7 @@ describe('View Aggregation Tests', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
   })
@@ -410,7 +410,7 @@ describe('View Aggregation Tests', () => {
     testApp.afterEach()
   })
 
-  test('Test field value', () => {
+  test('field value', () => {
     store.$registry
       .getOrderedList('viewAggregation')
       .forEach((aggregationType) => {
@@ -428,7 +428,7 @@ describe('View Aggregation Tests', () => {
       })
   })
 
-  test('Test field empty value', () => {
+  test('field empty value', () => {
     store.$registry
       .getOrderedList('viewAggregation')
       .forEach((aggregationType) => {

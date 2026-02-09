@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     class="variables-context"
     overflow-scroll
     max-height-if-outside-viewport

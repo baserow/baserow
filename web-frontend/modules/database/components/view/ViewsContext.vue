@@ -1,6 +1,6 @@
 <template>
   <Context
-    ref="viewsContext"
+    ref="context"
     class="select"
     max-height-if-outside-viewport
     @shown="shown"
@@ -116,6 +116,7 @@ export default {
       default: true,
     },
   },
+  emits: ['selected-view'],
   data() {
     return {
       query: '',
@@ -142,11 +143,9 @@ export default {
       )
     },
     activeViewOwnershipTypes() {
-      return Object.values(this.viewOwnershipTypes)
-        .filter(
-          (type) => type.isDeactivated(this.database.workspace.id) === false
-        )
-        .sort((a, b) => a.getListViewTypeSort() - b.getListViewTypeSort())
+      return Object.values(this.viewOwnershipTypes).sort(
+        (a, b) => a.getListViewTypeSort() - b.getListViewTypeSort()
+      )
     },
   },
   methods: {

@@ -17,9 +17,13 @@
       >
         <i class="header__filter-icon iconoir-filter"></i>
         <span class="header__filter-name">{{
-          $tc('serviceRefinementForms.filterTabTitle', filterCount, {
-            count: filterCount,
-          })
+          $t(
+            'serviceRefinementForms.filterTabTitle',
+            {
+              count: filterCount,
+            },
+            filterCount
+          )
         }}</span>
       </a>
 
@@ -35,9 +39,13 @@
       >
         <i class="header__filter-icon iconoir-sort"></i>
         <span class="header__filter-name">{{
-          $tc('serviceRefinementForms.sortTabTitle', sortCount, {
-            count: sortCount,
-          })
+          $t(
+            'serviceRefinementForms.sortTabTitle',
+            {
+              count: sortCount,
+            },
+            sortCount
+          )
         }}</span>
       </a>
 
@@ -53,11 +61,9 @@
       >
         <i class="header__filter-icon iconoir-search"></i>
         <span class="header__filter-name">{{
-          $tc(
-            'serviceRefinementForms.searchTabTitle',
-            hasActiveSearch ? 1 : 0,
-            { count: 1 }
-          )
+          $t('serviceRefinementForms.searchTabTitle', {
+            count: hasActiveSearch ? 1 : 0,
+          })
         }}</span>
       </a>
 
@@ -74,13 +80,13 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $tc('serviceRefinementForms.filterTabTitle', 0, { count: 0 }) }}
+            {{ $t('serviceRefinementForms.filterTabTitle', { count: 0 }) }}
           </span>
           <LocalBaserowTableServiceConditionalForm
             v-if="values.table_id"
             v-model="values.filters"
+            v-model:filter-type="values.filter_type"
             :fields="tableFields"
-            :filter-type.sync="values.filter_type"
           />
           <p v-if="!values.table_id">
             {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
@@ -98,7 +104,7 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $tc('serviceRefinementForms.sortTabTitle', 0, { count: 0 }) }}
+            {{ $t('serviceRefinementForms.sortTabTitle', { count: 0 }) }}
           </span>
           <LocalBaserowTableServiceSortForm
             v-if="values.table_id"
@@ -121,7 +127,7 @@
       >
         <div class="service-form__context-content">
           <span class="service-form__context-title">
-            {{ $tc('serviceRefinementForms.searchTabTitle', 0, { count: 0 }) }}
+            {{ $t('serviceRefinementForms.searchTabTitle', { count: 0 }) }}
           </span>
           <InjectedFormulaInput
             v-model="values.search_query"
@@ -138,16 +144,14 @@
         <Tabs>
           <Tab
             v-if="showFilter"
-            :title="
-              $tc('serviceRefinementForms.filterTabTitle', 0, { count: 0 })
-            "
+            :title="$t('serviceRefinementForms.filterTabTitle', { count: 0 })"
             class="service-form__condition-form-tab"
           >
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
               v-model="values.filters"
+              v-model:filter-type="values.filter_type"
               :fields="tableFields"
-              :filter-type.sync="values.filter_type"
             />
             <p v-if="!values.table_id">
               {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
@@ -155,7 +159,7 @@
           </Tab>
           <Tab
             v-if="showSort"
-            :title="$tc('serviceRefinementForms.sortTabTitle', 0, { count: 0 })"
+            :title="$t('serviceRefinementForms.sortTabTitle', { count: 0 })"
             class="service-form__sort-form-tab"
           >
             <LocalBaserowTableServiceSortForm
@@ -169,9 +173,7 @@
           </Tab>
           <Tab
             v-if="showSearch"
-            :title="
-              $tc('serviceRefinementForms.searchTabTitle', 0, { count: 0 })
-            "
+            :title="$t('serviceRefinementForms.searchTabTitle', { count: 0 })"
             class="service-form__search-form-tab"
           >
             <FormGroup>

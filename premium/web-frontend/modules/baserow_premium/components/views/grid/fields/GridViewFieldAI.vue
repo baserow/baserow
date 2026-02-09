@@ -1,7 +1,7 @@
 <template>
   <div>
     <div
-      v-if="(!value || (!opened && generating)) && !readOnly"
+      v-if="(!value || generating) && !readOnly"
       ref="cell"
       class="grid-view__cell active"
     >
@@ -22,25 +22,35 @@
       :is="outputGridViewFieldComponent"
       v-else
       ref="cell"
+      :workspace-id="workspaceId"
+      :field="field"
+      :value="value"
+      :selected="selected"
+      :store-prefix="storePrefix"
       :read-only="readOnly || generating"
-      v-bind="$props"
-      v-on="$listeners"
+      :row="row"
+      :all-fields-in-table="allFieldsInTable"
+      v-bind="$attrs"
+      @editing-changed="(e) => (editing = e)"
+      @update="(...args) => $emit('update', ...args)"
+      @select-below="(...args) => $emit('selectBelow', ...args)"
+      @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
-      <template v-if="!readOnly && editing" #default="{ editing }">
+      <template v-if="!readOnly && editing" #default>
         <div style="background-color: #fff; padding: 8px">
           <ButtonText
             v-if="!isDeactivated"
             icon="iconoir-magic-wand"
             :disabled="!modelAvailable || generating"
             :loading="generating"
-            @click.prevent.stop="generate()"
+            @mousedown.prevent.stop="generate()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
           <ButtonText
             v-else
             icon="iconoir-lock"
-            @click.prevent.stop="$refs.clickModal.show()"
+            @mousedown.prevent.stop="$refs.clickModal.show()"
           >
             {{ $t('gridViewFieldAI.regenerate') }}
           </ButtonText>
@@ -61,12 +71,18 @@
 <script>
 import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
-import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import gridFieldAI from '@baserow_premium/mixins/gridFieldAI'
 
 export default {
   name: 'GridViewFieldAI',
-  mixins: [gridField, gridFieldInput, gridFieldAI],
+  mixins: [gridField, gridFieldAI],
+  emits: ['update', 'selectBelow', 'add-row-after'],
+  data() {
+    return {
+      editing: false,
+      keydownEventListener: null,
+    }
+  },
   computed: {
     fieldName() {
       return this.$registry.get('field', this.field.type).getName()
@@ -92,17 +108,51 @@ export default {
     },
   },
   methods: {
-    save() {
-      this.opened = false
-      this.editing = false
-      this.afterSave()
+    select() {
+      this.keydownEventListener = (event) => {
+        if (event.key === 'Enter') {
+          // When the field is selected but doesn't have any generated value yet,
+          // we want to trigger AI generation
+          if (!this.value && !this.readOnly) {
+            this.generate()
+          }
+        }
+      }
+      document.body.addEventListener('keydown', this.keydownEventListener)
     },
-    canSaveByPressingEnter(event) {
-      return this.$refs.cell.canSaveByPressingEnter(event)
+    beforeUnSelect() {
+      document.body.removeEventListener('keydown', this.keydownEventListener)
+    },
+    canKeyDown() {
+      if (this.$refs.cell && typeof this.$refs.cell.canKeyDown === 'function') {
+        return this.$refs.cell.canKeyDown()
+      }
+      return true
+    },
+    canKeyboardShortcut() {
+      // Since this component is based on gridField mixin
+      // we need to make sure that keyboard shortcuts are
+      // restricted only to non-editing mode
+      if (
+        this.$refs.cell &&
+        typeof this.$refs.cell.canKeyboardShortcut === 'function'
+      ) {
+        return this.$refs.cell.canKeyboardShortcut()
+      }
+      return true
     },
     canUnselectByClickingOutside(event) {
       if (this.isDeactivated && this.workspace) {
         return !isElement(this.$refs.clickModal.$el, event.target)
+      }
+      return true
+    },
+    canSelectNext(event) {
+      if (
+        this.$refs.cell &&
+        typeof this.$refs.cell.canSelectNext === 'function'
+      ) {
+        return this.$refs.cell.canSelectNext(event)
       }
       return true
     },

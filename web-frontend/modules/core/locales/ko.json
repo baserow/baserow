@@ -260,7 +260,7 @@
         "openRouterOrganization": "조직 (선택 사항)",
         "openRouterModelsLabel": "활성화된 모델",
         "openaiBaseUrl": "기본 URL",
-        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
+        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://&lt;your-resource-name&gt;.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -421,7 +421,7 @@
         "title": "대시보드",
         "alertTitle": "도움이 필요합니다!",
         "alertText": "Baserow를 공유함으로써 제품을 개선하고 당신에게 더 유용하게 만들 수 있습니다.",
-        "tweetContent": "오픈 소스 노코드 데이터베이스 도구이자 Airtable 대안인 @baserow를 확인해보세요!",
+        "tweetContent": "오픈 소스 노코드 데이터베이스 도구이자 Airtable 대안인 {'@'}baserow를 확인해보세요!",
         "redditTitle": "'Baserow - 오픈 소스 노코드 데이터베이스",
         "becomeGithubSponsor": "GitHub 후원자가 되기",
         "starOnGitlab": "GitLab에서 별표하기",
@@ -559,7 +559,7 @@
             "format": {
                 "title": "형식",
                 "description": "쿼리 매개변수의 형식은 다음과 같습니다:",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "예제",

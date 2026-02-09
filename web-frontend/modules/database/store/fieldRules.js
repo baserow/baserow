@@ -5,13 +5,14 @@ export const state = () => ({ tables: {} })
 
 export const actions = {
   async fetchInitial({ commit, dispatch, getters }, { tableId }) {
+    const { $registry, $client, $i18n, $config } = this
     if (getters.getLoading({ tableId }) === true) {
       return
     }
 
     commit('SET_LOADING', { tableId, value: true })
     try {
-      const { data } = await FieldRulesService(this.$client).getRules(tableId)
+      const { data } = await FieldRulesService($client).getRules(tableId)
 
       commit('CLEAR_RULES', { tableId })
       data.forEach((rule) => {
@@ -24,14 +25,15 @@ export const actions = {
     }
   },
   async addRule({ commit, dispatch, getters }, { tableId, rule }) {
+    const { $registry, $client, $i18n, $config, $bus } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
-      const { data } = await FieldRulesService(this.$client).createRule(
+      const { data } = await FieldRulesService($client).createRule(
         tableId,
         rule
       )
       commit('ADD_RULE', { tableId, rule: data })
-      this.$bus.$emit('fieldRules/updated', data)
+      $bus.$emit('fieldRules/updated', data)
       return getters.getRuleById({ tableId, ruleId: data.id })
     } finally {
       commit('SET_LOADING', { tableId, value: false })
@@ -40,14 +42,16 @@ export const actions = {
   /** this changes the rule locally. It is used in propagating changes from
    *  broadcast events */
   ruleChanged({ commit, dispatch, getters }, { tableId, ruleId, rule }) {
+    const { $registry, $client, $i18n, $config, $bus } = this
     commit('UPDATE_RULE', { tableId, ruleId, rule })
-    this.$bus.$emit('fieldRules/updated', rule)
+    $bus.$emit('fieldRules/updated', rule)
   },
 
   async updateRule({ commit, dispatch, getters }, { tableId, ruleId, rule }) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
-      const { data } = await FieldRulesService(this.$client).updateRule(
+      const { data } = await FieldRulesService($client).updateRule(
         tableId,
         ruleId,
         rule
@@ -60,9 +64,10 @@ export const actions = {
     }
   },
   async deleteRule({ commit, dispatch }, { tableId, ruleId }) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_LOADING', { tableId, value: true })
     try {
-      await FieldRulesService(this.$client).deleteRule(tableId, ruleId)
+      await FieldRulesService($client).deleteRule(tableId, ruleId)
 
       commit('REMOVE_RULE', { tableId, ruleId })
     } finally {

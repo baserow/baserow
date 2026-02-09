@@ -33,6 +33,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   data() {
     return {
       duplicating: false,

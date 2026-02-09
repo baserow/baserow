@@ -46,8 +46,8 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
 
     def get_two_factor_auth(self, object):
         try:
-            provider = object.user.two_factor_auth_providers.all()[0]
-        except IndexError:
+            provider = object.user.two_factor_auth_provider
+        except User.two_factor_auth_provider.RelatedObjectDoesNotExist:
             provider = None
 
         return TwoFactorAuthSerializer(provider).data

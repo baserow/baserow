@@ -25,7 +25,7 @@
           :class="{
             'sortings__item--loading': sort._.loading,
           }"
-          :set="(field = getField(sort.field))"
+          :set="field = getField(sort.field)"
         >
           <a
             v-if="!disableSort"
@@ -131,6 +131,7 @@ export default {
       required: true,
     },
   },
+  emits: ['changed'],
   computed: {
     availableFieldsLength() {
       return this.fields.filter(this.getCanSortInView).length

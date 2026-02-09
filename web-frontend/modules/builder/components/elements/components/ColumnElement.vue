@@ -86,6 +86,7 @@ export default {
       default: null,
     },
   },
+  emits: ['move'],
   computed: {
     flexAlignment() {
       const alignmentMapping = {

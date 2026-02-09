@@ -10,9 +10,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.db import models
-from django.db.models import BooleanField
+from django.db.models import BooleanField, JSONField, Q, QuerySet
 from django.db.models import Field as DjangoModelFieldClass
-from django.db.models import JSONField, Q, QuerySet
 
 from django_cte.cte import CTEManager, CTEQuerySet
 from opentelemetry import trace
@@ -531,7 +530,8 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
             # from_db_value function applied after performing and INSERT .. RETURNING
             # Instead for now we force a refresh to ensure these fields are converted
             # from their db representations correctly.
-            or isinstance(f, JSONField) and f.db_returning
+            or isinstance(f, JSONField)
+            and f.db_returning
         ]
 
     @classmethod
@@ -888,6 +888,20 @@ class Table(
         default=False,
         null=True,
         help_text="Indicates whether the table has had the field_rules_are_valid column added.",
+    )
+    # The m2m indexes of the foreign keys were not added before because the
+    # `schema_editor.add_field` does not add them. The `schema_editor.create_model`
+    # does add those. This problem has been addressed, but there are tables out there
+    # without those indexes.
+    missing_m2m_indexes_added = models.BooleanField(
+        # The `db_default` must be false because this is used when an entry is created
+        # no default value is set. This is what happens when the field index changes
+        # are not yet deployed, so index does not exist.
+        db_default=False,
+        # However, if the field index changes are deployed, this default value is used,
+        # and in that case, the index has been applied.
+        default=True,
+        help_text="Indicates whether potentially missing m2m foreign key indexes have been added.",
     )
 
     class Meta:

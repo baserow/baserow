@@ -40,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['change'],
   computed: {
     options() {
       return ['id', 'count']

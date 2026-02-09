@@ -1,1192 +1,1192 @@
 {
-    "webhookModal": {
-        "title": "{name} webhooks",
-        "createWebhook": "Webhook aanmaken",
-        "backToList": "Terug naar lijst"
-    },
-    "deleteWebhookModal": {
-        "title": "Verwijder {webhookName}",
-        "deleteButton": "Webhook verwijderen",
-        "body": "Weet je zeker dat je deze webhook wilt verwijderen? Je kunt deze dan later niet meer herstellen."
-    },
-    "webhookList": {
-        "noWebhooksMessage": "Je hebt nog geen webhooks aangemaakt. Webhooks kunnen worden gebruikt om systemen van derden te informeren wanneer een rij in Baserow is aangemaakt, bijgewerkt of verwijderd."
-    },
-    "testWebhookModal": {
-        "title": "Test webhook",
-        "unreachable": "Server onbereikbaar"
-    },
-    "webhookForm": {
-        "inputLabels": {
-            "name": "Naam",
-            "value": "Waarde",
-            "requestMethod": "Methode",
-            "url": "URL",
-            "userFieldNames": "Veldnamen gebruikers",
-            "events": "Welke gebeurtenissen moet deze webhook initiëren?",
-            "headers": "Extra kopteksten",
-            "example": "Voorbeeld werkbelasting"
-        },
-        "errors": {
-            "urlField": "Dit veld is verplicht en moet een geldige url zijn.",
-            "invalidHeaders": "Een van de headers is ongeldig."
-        },
-        "checkbox": {
-            "sendUserFieldNames": "Gebruik veldnaam in plaats van id"
-        },
-        "radio": {
-            "allEvents": "Stuur me alles",
-            "customEvents": "Laat me afzonderlijke gebeurtenissen selecteren"
-        },
-        "triggerButton": "Activeren bij test webhook",
-        "deactivated": {
-            "title": "Webhook is uitgeschakeld",
-            "content": "Deze webhook is uitgeschakeld omdat er te veel opeenvolgende mislukkingen zijn geweest. Controleer het call log voor meer details. Klik op de knop hieronder om de webhook weer te activeren. Vergeet niet om de webhook op te slaan na het activeren.",
-            "activate": "Activeren"
-        },
-        "deprecatedEventType": {
-            "title": "Verouderd gebeurtenistype",
-            "description": "Deze webhook ontvangt geen informatie over alle gewijzigde rijen tegelijk. Converteer het naar een batch-stijl evenement type. Dit verandert de JSON body payload naar een formaat dat meerdere rijen bevat.",
-            "convert": "Omzetten"
-        },
-        "triggerWhenFieldsHaveChanged": "Voer uit wanneer velden zijn veranderd",
-        "helpTriggerWhenFieldsHaveChanged": "Wordt alleen uitgevoerd als de celwaarde van de gekozen velden verandert."
-    },
-    "webhook": {
-        "details": "details",
-        "lastCall": "Laatste oproep: {lastCallTime}",
-        "noCalls": "Geen oproepen gedaan",
-        "callLog": "Call log",
-        "triggerDescription": "Activeren bij elke event | Activeren bij {count} events | Activeren bij {count} events"
-    },
-    "createWebhook": {
-        "errorTableWebhookMaxLimitExceededTitle": "Max webhooks overschreden",
-        "errorTableWebhookMaxLimitExceededDescription": "Kan de webhook niet aanmaken omdat het maximum aantal webhooks per tabel overschreden is."
-    },
-    "sidebar": {
-        "viewAPI": "API Documenten bekijken",
-        "createTable": "Tabel aanmaken"
-    },
-    "sidebarItem": {
-        "exportTable": "Tabel exporteren",
-        "webhooks": "Webhooks",
-        "lastSynced": "Laatst gesynchroniseerd",
-        "notSynced": "niet gesynchroniseerd",
-        "sync": "Sync tabel",
-        "updateSyncConfig": "Sync-configuratie bijwerken"
-    },
-    "apiToken": {
-        "create": "aanmaken",
-        "read": "lezen",
-        "update": "bijwerken",
-        "delete": "verwijderen",
-        "tokenPrefix": "Token:",
-        "viewAPIDocs": "API-documentatie bekijken",
-        "generateNewToken": "Nieuw token genereren",
-        "showOrHide": "Het token tonen of verbergen",
-        "copyToClipboard": "Naar klembord kopiëren",
-        "showDatabases": "databanken tonen"
-    },
-    "apiTokenSettings": {
-        "title": "Persoonlijke API tokens",
-        "createToken": "Token aanmaken",
-        "noTokensMessage": "Je hebt nog geen API token aangemaakt. Je kunt API tokens gebruiken om te authenticeren voor de REST API endpoints waar je rijen kunt aanmaken, lezen, bijwerken en verwijderen. Het is mogelijk om rechten in te stellen op tabelniveau.",
-        "hasFullPermissions": "Heeft volledige rechten, ook voor alle kinderen.",
-        "hasOnlySelectedPermissions": "Heeft alleen rechten op de geselecteerde kinderen.",
-        "noPermissions": "Heeft geen rechten.",
-        "createNewTitle": "Nieuw API token aanmaken",
-        "backToOverview": "Terug naar overzicht"
-    },
-    "apiTokenForm": {
-        "nameLabel": "Naam",
-        "workspaceLabel": "Werkruimte"
-    },
-    "apiDocsSelectDatabase": {
-        "needOneDatabase": "Je moet ten minste één databank hebben om de API documentatie te kunnen bekijken."
-    },
-    "apiDocsExample": {
-        "requestSample": "Voorbeeld aanvraag",
-        "responseSample": "Voorbeeld respons",
-        "userFieldNames": "Veldnamen gebruikers"
-    },
-    "apiDocsParameter": {
-        "optional": "optioneel",
-        "defaultValue": "Standaard: {value}"
-    },
-    "apiDocsTableGetRow": {
-        "description": "Haal een enkele rij {name} op.",
-        "rowId": "De unieke identifier van de rij die wordt opgevraagd."
-    },
-    "apiDocsErrors": {
-        "errorCode": "Foutcode",
-        "name": "Naam",
-        "description": "Beschrijving",
-        "okDescription": "Verzoek succesvol afgerond.",
-        "badRequestDescription": "Het verzoek bevat ongeldige waarden, of de JSON kon niet worden geparseerd.",
-        "unauthorizedDescription": "Wanneer je een eindpunt probeert te benaderen zonder geldig token.",
-        "notFoundDescription": "Rij of tabel is niet gevonden.",
-        "requestEntityTooLargeDescription": "Het verzoek overschreed de maximaal toegestane omvang van de werkbelasting.",
-        "internalErrorDescription": "De server heeft een onverwachte situatie aangetroffen.",
-        "badGatewayDescription": "Baserow is op dit moment aan het herstarten of er is een onverwachte uitval.",
-        "unavailableDescription": "De server kon je verzoek niet op tijd verwerken."
-    },
-    "apiDocsTableFields": {
-        "tableTitle": "{name} tabel",
-        "tableId": "De ID van deze tabel is:",
-        "description": "Elke rij in de {name} tabel bevat de volgende velden.",
-        "id": "ID",
-        "name": "Naam",
-        "type": "Type",
-        "compatibleFilters": "Compatibele filters"
-    },
-    "apiDocsTableListRows": {
-        "description": "Om rijen in de *{name}* tabel op te sommen moet een `GET` verzoek worden gedaan aan het *{name}* eindpunt. Het antwoord is gepagineerd en standaard wordt de eerste pagina geretourneerd. De juiste pagina kan worden opgehaald door de `page` en `size` query parameters mee te geven.",
-        "page": "Bepaalt welke pagina met rijen moet worden geretourneerd.",
-        "size": "Bepaalt hoeveel rijen per pagina moeten worden geretourneerd.",
-        "userFieldNames": "Wanneer een waarde wordt opgegeven voor de `user_field_names` GET parameter, dan zullen de veldnamen die worden geretourneerd door dit eindpunt de werkelijke namen van de velden zijn.\n\n Als de `user_field_names` GET parameter niet wordt opgegeven, dan zullen alle geretourneerde veldnamen `field_` zijn, gevolgd door de id van het veld. Bijvoorbeeld `field_1` verwijst naar het veld met de id `1`.\n\n Daarnaast verandert het gedrag van de andere GET parameters `order_by`, `include` en `exclude`, als `user_field_names` is ingesteld. Zij verwachten in plaats daarvan door komma's gescheiden lijsten met de werkelijke veldnamen.",
-        "search": "Indien opgegeven worden alleen rijen geretourneerd met gegevens die overeenkomen met de zoekopdracht.",
-        "orderBy": "Optioneel kunnen de rijen worden geordend op velden gescheiden door komma's. Standaard, of indien voorafgegaan door een '+', wordt een veld geordend in oplopende (A-Z) volgorde. Door het veld vooraf te laten gaan door een '-' kan het ook in aflopende (Z-A) volgorde worden geordend.\n\n#### Met `user_field_names`:\n\n`order_by` moet een door komma's gescheiden lijst van de veldnamen zijn om op te ordenen. Als je bijvoorbeeld de volgende GET parameter `order_by=My Field,-My Field 2` opgeeft, worden de rijen geordend op het veld genaamd `My Field` in oplopende volgorde. Als sommige velden dezelfde waarde hebben, wordt die sub-set geordend op het veld genaamd `My Field 2` in aflopende volgorde.\n\nZorg ervoor dat velden met namen die beginnen met een `+` of `-` expliciet worden voorafgegaan door een andere `+` of `-`. Bijv. `+-Name`\n\n#### Zonder `user_field_names`:\n\n`order_by` moet een door komma's gescheiden lijst van `field_` zijn, gevolgd door de id van het veld waarop gerangschikt moet worden. Als u bijvoorbeeld de volgende GET parameter `order_by=field_1,-field_2` opgeeft, zullen de rijen gerangschikt worden op `field_1` in oplopende volgorde. Als sommige velden dezelfde waarde hebben, zal die sub-set gerangschikt worden op `field_2` in aflopende volgorde.",
-        "filter": "De rijen kunnen optioneel worden gefilterd met dezelfde filters die beschikbaar zijn voor de weergaven. Meerdere filters kunnen worden opgegeven als ze hetzelfde formaat volgen. De `field` en `filter` variabelen geven aan hoe er gefilterd moet worden en de waarde geeft aan waarop er gefilterd moet worden.\n\n Als je bijvoorbeeld de volgende GET parameter `filter__field_1__equal=test` opgeeft, dan zullen alleen rijen worden geretourneerd waar de waarde van field_1 gelijk is aan test.",
-        "filterLink": "Een lijst van alle filters is hier beschikbaar.",
-        "filterType": "- `AND`: Geeft aan dat de rijen aan alle opgegeven filters moeten voldoen.\n- `OR`: Geeft aan dat de rijen slechts aan één van de filters hoeven te voldoen.\n\n Dit werkt alleen als er twee of meer filters zijn opgegeven.",
-        "include": "Alle velden worden standaard opgenomen in het antwoord. U kunt een sub-set van velden selecteren om op te nemen door de include query parameter op te geven.\n\n#### Met `user_field_names`:\n\n`include` moet een door komma's gescheiden lijst zijn van veldnamen die moeten worden opgenomen in de resultaten. Als u bijvoorbeeld de volgende GET-parameter opgeeft: `include=My Field,-My Field 2` dan zullen alleen die velden worden opgenomen (tenzij ze expliciet zijn uitgesloten)\n\n#### Zonder `user_field_names`:\n\n`include` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door de id van het veld dat moet worden meegenomen in de resultaten. Bijvoorbeeld: Als je de volgende GET parameter `exclude=field_1,field_2` opgeeft, dan worden alleen de velden met id `1` en id `2`meegenomen (tenzij ze expliciet worden uitgesloten).",
-        "exclude": "Alle velden worden standaard opgenomen in het antwoord. Je kunt een sub-set van velden selecteren voor uitsluiting door de exclude query parameter op te geven.\n\n#### Met `user_field_names`:\n\n`exclude` moet een door komma's gescheiden lijst zijn van veldnamen die moeten worden uitgesloten van de resultaten. Als je bijvoorbeeld de volgende GET-parameter opgeeft: `exclude=My Field,-My Field 2` dan zullen die velden worden uitgesloten\n\n#### Zonder `user_field_names`:\n\n`exclude` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door de id van het veld dat moet worden uitgesloten van de resultaten. Bijvoorbeeld: Als je de volgende GET parameter `exclude=field_1,field_2` opgeeft, dan worden de velden met id `1` en id `2` uitgesloten.",
-        "viewId": "Standaard worden geen filters en sorteringen toegepast die buiten de query parameters zijn gedefinieerd. U kunt de filters en sorteringen van een view toevoegen door zijn `id` in de `view_id` GET parameter op te geven. Bijvoorbeeld, als u de volgende GET parameter `view_id=1` opgeeft, dan zullen de filters en sorteringen die zijn gedefinieerd in de view met id `1` worden toegepast. U kunt de `view_id` vinden in het context menu van een gegeven view. Het is het getal tussen haakjes achter de view naam. \n\n #### Met `filter__{field}__{filter}` \n\n Zowel het filter dat in de query parameter is opgegeven als de filters die in de view zijn gedefinieerd zullen worden toegepast.\n\n #### Met `order_by` \n\n Als `order_by` wordt meegegeven dan zal de sortering gedefinieerd in de view worden genegeerd.",
-        "filtersBuilder": "Open filters parameter bouwer",
-        "filters": "Rijen kunnen optioneel worden gefilterd met dezelfde weergavefilters die beschikbaar zijn voor de weergaven. Deze parameter accepteert een JSON geserialiseerde string met de filterboom die moet worden toegepast op deze weergave. De filterboom is een geneste structuur die de filters bevat die moeten worden toegepast. \n\n#### Met `user_field_names`:\n\nEen voorbeeld van een geldige filterboom is de volgende: `{\"filter_type\":\"AND\",\"filters\": [{\"veld\":\"Naam\",\"type\":\"gelijk\",\"waarde\":\"test\"}]}.\n\n#### Zonder `user_field_names`:\n\nAls je bijvoorbeeld optioneel de volgende GET-parameter opgeeft: `{\"filter_type\": \"AND\", \"filters\": [{\"veld\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`\n\nHoud er rekening mee dat als deze parameter wordt opgegeven, alle andere `filter__{field}__{filter}` worden genegeerd, evenals de filter_type parameter.",
-        "join": "Maakt het mogelijk om een lookup aan te vragen van veldwaarden uit een doeltabel via bestaande linkrijvelden. De parameternaam moet de naam zijn van een bestaand veld in een linkrij, gevolgd door __join. De waarde moet een lijst met veldnamen zijn waarvoor we extra waarden willen opzoeken. Je kunt één of meerdere doelvelden opgeven. Het is niet mogelijk om een waarde van een veld in een linkrij in de doeltabel op te zoeken.\n\n #### Met `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van veldnamen die in de resultaten moeten worden opgenomen. Bijvoorbeeld: Als je de volgende GET-parameter `LinkRowField__join=MyField,MyField2` opgeeft, dan worden de waarden van `MyField` en `My Field2` in de door `LinkRowField` gekoppelde tabel opgenomen in de respons .\n\n#### Zonder `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door het id van het veld dat in de resultaten moet worden opgenomen. Bijvoorbeeld: Als u de volgende GET-parameter `field_1__join=field_2,field_3` opgeeft, dan worden de waarden van `field_2` en `field_3` in de tabel die is gekoppeld door `field_1` opgenomen in de respons."
-    },
-    "apiDocsIntro": {
-        "intro": "De {name} database biedt een gemakkelijke manier om de gegevens te integreren met elk extern systeem. De API volgt REST semantiek, gebruikt JSON om objecten te coderen, en is gebaseerd op standaard HTTP codes, machineleesbare en door mensen leesbare fouten om operatie-uitkomsten te signaleren.",
-        "autoDocDescription": "Deze documentatie wordt automatisch gegenereerd op basis van de tabellen en velden in je database. Als je wijzigingen aanbrengt in je database, tabel of velden kan het zijn dat ook de API interface is gewijzigd. Zorg er daarom voor dat je je API implementatie dienovereenkomstig bijwerkt.",
-        "databaseId": "De ID van deze database is:",
-        "jsClient": "Javascript voorbeeld API client:",
-        "pythonClient": "Python voorbeeld API client:"
-    },
-    "apiDocsTableListFields": {
-        "description": "Om velden van de {name} tabel op te sommen moet een `GET` verzoek gedaan worden aan het eindpunt van de {name} velden. Het is alleen mogelijk om de velden op te sommen als het token rechten geeft voor lezen, aanmaken of bijwerken.",
-        "resultFieldProperties": "Eigenschappen resultaatveld",
-        "id": "Field primary key (veld met primaire sleutel). Kan worden gebruikt om de database kolomnaam te genereren door het voorvoegsel `field_` toe te voegen.",
-        "name": "Naam van het veld.",
-        "tableId": "Verwante tabel id.",
-        "order": "Volgorde van de velden in de tabel. 0 voor het eerste veld.",
-        "primary": "Geeft aan of het veld een primair veld is. Indien `waar` (true) kan het veld niet worden verwijderd en moet de waarde de hele rij vertegenwoordigen.",
-        "type": "Type gedefinieerd voor dit veld.",
-        "extraProps": "Sommige extra eigenschappen worden hier niet beschreven omdat ze type-specifiek zijn.",
-        "readOnly": "Geeft aan of het veld een alleen-lezen veld is. Indien waar, is het niet mogelijk de celwaarde bij te werken.",
-        "descriptionField": "Veldbeschrijving"
-    },
-    "apiDocsTableDeleteRow": {
-        "description": "Verwijdert een bestaande {name} rij.",
-        "rowId": "De unieke identifier van de rij die moet worden verwijderd."
-    },
-    "apiDocsTableMoveRow": {
-        "description": "Verplaatst een bestaande {name} rij voor een andere rij. Als er geen `before_id` is opgegeven, dan wordt de rij verplaatst naar het einde van de tabel.",
-        "rowId": "Verplaatst de rij gerelateerd aan de waarde.",
-        "before": "Verplaatst de rij gerelateerd aan de opgegeven `rij_id` voor de rij gerelateerd aan de opgegeven waarde. Indien niet opgegeven, dan wordt de rij naar het einde verplaatst."
-    },
-    "apiDocsTableUpdateRow": {
-        "description": "Werkt een bestaande rij {name} bij.",
-        "rowId": "De unieke identifier van de rij die moet worden bijgewerkt.",
-        "before": "Indien opgegeven dan zal de nieuw aangemaakte rij voor de rij met het opgegeven id geplaatst worden."
-    },
-    "apiDocsTableCreateRow": {
-        "description": "Maak een nieuwe {name} rij.",
-        "before": "Indien opgegeven dan zal de nieuw aangemaakte rij voor de rij met het opgegeven id geplaatst worden."
-    },
-    "apiDocsAuth": {
-        "description": "Baserow gebruikt een eenvoudige authenticatie op basis van een token. Je moet ten minste één API token in je {settingsLink} genereren om de hieronder beschreven eindpunten te kunnen gebruiken. Het is mogelijk om per token rechten te geven voor lezen, aanmaken, bijwerken en verwijderen tot op tabelniveau. Je kunt je bij de API authenticeren door je API-token op te geven in de HTTP 'authorisation bearer' token header. Alle API-verzoeken moeten worden geauthenticeerd en over HTTPS worden gedaan.",
-        "settingsLink": "instellingen"
-    },
-    "apiDocsFilters": {
-        "filter": "Filter",
-        "exampleValue": "Voorbeeldwaarde",
-        "example": "Volledig voorbeeld",
-        "field": "veld {name}",
-        "deprecated": "verouderd"
-    },
-    "fieldTextSubForm": {
-        "placeholder": "Standaard tekst"
-    },
-    "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opties",
-        "defaultOptionLabel": "Standaardoptie"
-    },
-    "fieldSingleSelectDropdown": {
-        "notFound": "Optie niet gevonden"
-    },
-    "fieldDateSubForm": {
-        "dateFormatLabel": "Datum formaat",
-        "dateFormatEuropean": "Europees",
-        "dateFormatUS": "VS",
-        "dateFormatISO": "ISO",
-        "includeTimeLabel": "Tijd invoegen",
-        "timeFormatLabel": "Tijdformaat",
-        "24Hour": "24 uur",
-        "12Hour": "12 uur",
-        "showTimezoneLabel": "Toon tijdzone",
-        "forceTimezoneLabel": "Tijdzone instellen voor alle bijdragers",
-        "forceTimezoneValue": "Tijdzone",
-        "addTimezoneOffsetLabel": "Waarden converteren ({utcOffsetDiff} minuten toevoegen)",
-        "subTimezoneOffsetLabel": "Converteer waarden (trek {utcOffsetDiff} minuten af)"
-    },
-    "fieldLinkRowSubForm": {
-        "noTable": "Je hebt minstens één andere tabel in dezelfde database nodig om naar te linken.",
-        "selectTableLabel": "Selecteer een tabel om naar te linken",
-        "hasRelatedFieldLabel": "Maak gerelateerd veld",
-        "limitToView": "Selectie beperken tot weergave",
-        "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API.",
-        "allowMultipleRelations": "Meerdere relaties toestaan"
-    },
-    "fieldSelectOptions": {
-        "add": "Een optie toevoegen"
-    },
-    "fieldNumberSubForm": {
-        "typeLabel": "Nummertype",
-        "integer": "Heel getal",
-        "decimal": "Decimaal",
-        "decimalPlacesLabel": "Decimale plaatsen",
-        "allowNegative": "Sta negatief toe",
-        "separatorLabel": "Duizendtallen en decimaalscheidingsteken",
-        "suffixPlaceholder": "Achtervoegsel",
-        "prefixAndSuffixLabel": "Voorvoegsel / achtervoegsel",
-        "spaceComma": "Spatie, komma (1 000 000,00)",
-        "spacePeriod": "Spatie, punt (1 000 000.00)",
-        "commaPeriod": "Komma, punt (1,000,000.00)",
-        "periodComma": "Punt, komma (1.000.000,00)",
-        "prefixPlaceholder": "Voorvoegsel",
-        "noFormatting": "Geen opmaak",
-        "defaultValueLabel": "Standaardwaarde",
-        "defaultValuePlaceholder": "Voer een standaardwaarde in"
-    },
-    "fieldContext": {
-        "editField": "Veld bewerken",
-        "deleteField": "Veld verwijderen",
-        "hideField": "Veld verbergen",
-        "showField": "Toon veld",
-        "changePrimaryField": "Primair veld wijzigen"
-    },
-    "fieldForm": {
-        "name": "Naam",
-        "fieldAlreadyExists": "Een veld met deze naam bestaat al.",
-        "nameNotAllowed": "Deze veldnaam is niet toegestaan.",
-        "nameTooLong": "Deze veldnaam is te lang.",
-        "addDescription": "Beschrijving toevoegen",
-        "description": "Beschrijving",
-        "dbIndex": "Index",
-        "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
-        "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen.",
-        "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking",
-        "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype."
-    },
-    "fieldLookupSubForm": {
-        "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
-        "selectThroughFieldLabel": "Selecteer een link-rij veld",
-        "selectTargetFieldLabel": "Selecteer een veld om op te zoeken met lookup"
-    },
-    "fieldFormulaNumberSubForm": {
-        "typeLabel": "Nummertype",
-        "integer": "Heel getal",
-        "decimal": "Decimaal",
-        "decimalPlacesLabel": "Decimale plaatsen",
-        "allowNegative": "Sta negatief toe"
-    },
-    "fieldRatingSubForm": {
-        "maxValue": "Max",
-        "color": "Kleur",
-        "style": "Stijl"
-    },
-    "rowCreateModal": {
-        "addField": "veld toevoegen"
-    },
-    "selectRowContent": {
-        "search": "Zoek rijen",
-        "hideFields": "Velden verbergen"
-    },
-    "rowEditModal": {
-        "addField": "veld toevoegen",
-        "showHiddenFields": "Verborgen velden weergeven",
-        "hideHiddenFields": "Verborgen velden verbergen"
-    },
-    "rowEditFieldMultipleSelect": {
-        "addOption": "Een andere optie toevoegen"
-    },
-    "rowEditFieldFile": {
-        "addFile": "Een bestand toevoegen",
-        "sizes": {
-            "0": "Bytes",
-            "1": "KB",
-            "2": "MB",
-            "3": "GB",
-            "4": "TB",
-            "5": "PB"
-        }
-    },
-    "rowEditFieldLinkRow": {
-        "addLink": "Nog een link toevoegen",
-        "keepOnlyOneValue": "Bewaar slechts één waarde. Dit veld ondersteunt slechts één relatie. De waarde wordt bewaard als er nog maar één relatie is."
-    },
-    "tableCSVImporter": {
-        "chooseFileLabel": "Kies CSV-bestand",
-        "chooseFileDescription": "Je kunt een bestaand CSV-bestand importeren door het .CSV-bestand met gegevens in tabelvorm te uploaden. Met de meeste spreadsheetprogramma's kun je een spreadsheet als .CSV-bestand exporteren.",
-        "chooseFile": "Kies CSV-bestand",
-        "columnSeparator": "Kolomscheidingsteken",
-        "recordSeparator": "record-scheidingsteken",
-        "unitSeparator": "unit-scheidingsteken",
-        "encoding": "Codering",
-        "firstRowHeader": "Eerste rij is header",
-        "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
-        "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren.",
-        "emptyCSV": "Dit CSV-bestand is leeg."
-    },
-    "tableForm": {
-        "name": "Naam"
-    },
-    "tableXMLImporter": {
-        "fileLabel": "Kies XML-bestand",
-        "fileDescription": "Je kunt een bestaande XML importeren door het .XML-bestand met gegevens in tabelvorm te uploaden, d.w.z:",
-        "chooseButton": "Kies XML-bestand",
-        "processingError": "Er is een fout opgetreden tijdens het verwerken van XML: {errors}",
-        "emptyError": "Dit XML-bestand is leeg.",
-        "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
-        "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
-    },
-    "tableJSONImporter": {
-        "fileLabel": "Kies JSON bestand",
-        "fileDescription": "Je kunt een bestaand JSON-bestand importeren door het .json-bestand met gegevens in tabelvorm te uploaden, d.w.z:",
-        "chooseButton": "Kies JSON bestand",
-        "encodingLabel": "Codering",
-        "processingError": "Er is een fout opgetreden tijdens het parsen van JSON: {error}",
-        "arrayError": "Het JSON-bestand is geen array.",
-        "emptyError": "Dit JSON-bestand is leeg.",
-        "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
-        "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
-    },
-    "tablePasteImporter": {
-        "pasteLabel": "Plak de tabeldata",
-        "pasteDescription": "Je kunt de cellen uit een spreadsheet kopiëren en ze hieronder plakken.",
-        "firstRowHeader": "Eerste rij is header",
-        "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
-    },
-    "importFileModal": {
-        "title": "Nieuwe tabel maken",
-        "importLabel": "Wil je bestaande gegevens importeren?",
-        "newTable": "Begin met een nieuwe tabel",
-        "addButton": "Tabel toevoegen",
-        "uploading": "Uploaden...",
-        "preparing": "Voorbereiden van data...",
-        "showReport": "Foutrapport tonen",
-        "reportTitleFailure": "Mislukte rijen",
-        "openCreatedTable": "Open aangemaakte tabel",
-        "reportTitleSuccess": "Import succesvol, maar...",
-        "importError": "Er is iets misgegaan tijdens het importeren van het bestand",
-        "stateRowCreation": "Importeren...",
-        "reportMessage": "De volgende rij indexen konden niet worden geïmporteerd:",
-        "stateCreateTable": "Tabel maken...",
-        "statePreValidation": "Valideren van gegevens...",
-        "additionalImportTitle": "Importeren in {table}",
-        "showTable": "toon tabel",
-        "importButton": "Importeren",
-        "fieldMappingTitle": "Veld vertaling",
-        "fieldMappingDescription": "Wij hebben de kolommen van de Baserow-velden in uw tabel automatisch toegewezen. U kunt ze hieronder wijzigen. Elke niet-compatibele cel zal leeg blijven na de import.",
-        "selectImportMessage": "Selecteer gegevens om te importeren.",
-        "filePreview": "Voorbeeld van bestandsinhoud",
-        "importPreview": "Importvoorbeeld",
-        "changeImporterType": "Importtype wijzigen",
-        "defaultName": "Tabel",
-        "useUpsertField": "Rijen bijwerken als ze al bestaan",
-        "upsertTooltip": "Overeenkomen met bestaande rijen met behulp van een uniek veld om gegevens met geïmporteerde waarden te overschrijven."
-    },
-    "formulaAdvancedEditContext": {
-        "textAreaFormulaInputPlaceholder": "Klik om de formule te bewerken",
-        "fields": "Velden",
-        "functions": "Functies",
-        "operators": "Operators",
-        "fieldType": "Een {type} veld"
-    },
-    "fieldFormulaInitialSubForm": {
-        "formulaInputPlaceholder": "Klik om de formule te bewerken",
-        "refreshFormulaOptions": "Formule-opties vernieuwen"
-    },
-    "formulaFieldItemDescription": {
-        "syntax": "Syntax",
-        "examples": "Voorbeelden"
-    },
-    "viewSearchContext": {
-        "searchInRows": "Zoeken in alle rijen",
-        "hideNotMatching": "verberg rijen die niet overeenkomen"
-    },
-    "viewsContext": {
-        "searchView": "Zoek weergaven",
-        "noViews": "Geen weergaven gevonden",
-        "collaborative": "Samenwerkend"
-    },
-    "viewFilterTypeLinkRow": {
-        "unnamed": "onbenoemde rij {value}",
-        "choose": "Kies rij"
-    },
-    "viewFilterContext": {
-        "addFilter": "Filter toevoegen",
-        "disableAllFilters": "alle filters uitgeschakeld",
-        "noFilterTitle": "Je hebt nog geen filter aangemaakt",
-        "noFilterText": "Met filters kun je rijen tonen die aan je voorwaarden voldoen.",
-        "where": "Waar",
-        "and": "En",
-        "or": "Of",
-        "relatedFieldNotFound": "Het gerelateerde veld is niet gevonden.",
-        "filterTypeNotFound": "Het filtertype is niet compatibel.",
-        "noCompatibleFilterTypesErrorTitle": "Geen compatibele filtertypes",
-        "noCompatibleFilterTypesErrorMessage": "Geen van uw velden heeft een compatibel filtertype",
-        "addFilterGroup": "Filtergroep toevoegen"
-    },
-    "viewFilterTypeFileTypeDropdown": {
-        "image": "afbeelding",
-        "document": "document"
-    },
-    "createViewModal": {
-        "createNew": "Nieuwe {view} aanmaken",
-        "add": "{view} toevoegen"
-    },
-    "shareViewLink": {
-        "shareView": "Deel {viewTypeSharingLinkName}",
-        "shareViewTitle": "Maak een deelbare privé-link naar de {viewTypeSharingLinkName}",
-        "sharedViewTitle": "Deze {viewTypeSharingLinkName} wordt momenteel gedeeld via een privé-link",
-        "sharedViewDescription": "Mensen die de link hebben kunnen de {viewTypeSharingLinkName} zien.",
-        "disableLink": "gedeelde link uitschakelen",
-        "generateNewUrl": "nieuwe url genereren",
-        "copyURL": "URL kopiëren",
-        "ChangePassword": "Verander",
-        "EnablePassword": "Toegang beperken met een wachtwoord",
-        "DisablePassword": "Toegang is beveiligd met een wachtwoord",
-        "shareViewText": "Met een privé-deelbare link kan iedereen de gegevens in deze weergave bekijken.",
-        "shareViewLinkTitle": "Een privé link maken",
-        "notSharedYetText": "Laat iedereen de gegevens in deze weergave zien of sync gebeurtenissen met je externe agenda.",
-        "createPrivateLink": "Een privé link maken"
-    },
-    "viewSortContext": {
-        "noSortTitle": "Je hebt nog geen sortering",
-        "noSortText": "Met sorteren kun je rijen op een veld sorteren.",
-        "sortBy": "Sorteer op",
-        "thenBy": "Dan op",
-        "addSort": "kies een veld om op te sorteren"
-    },
-    "viewSort": {
-        "sort": "Sorteren | 1 Sorteren | {count} Sorteren"
-    },
-    "viewRotateSlugModal": {
-        "title": "URL vernieuwen",
-        "refreshWarning": "Weet je zeker dat je de URL van {viewName} wilt vernieuwen? Na het vernieuwen wordt een nieuwe URL gegenereerd. Het is dan niet mogelijk om de {viewTypeSharingLinkName} via de oude URL te benaderen. Iedereen waarmee je de URL gedeeld heeft, is dan niet in staat om de {viewTypeSharingLinkName} te benaderen.",
-        "generateNewURL": "Nieuwe URL genereren"
-    },
-    "viewFieldsContext": {
-        "coverField": "Voorbladveld",
-        "noCover": "Geen voorblad",
-        "search": "Zoekvelden",
-        "hideAll": "Alles verbergen",
-        "showAll": "Alles tonen"
-    },
-    "viewFilterTypeBoolean": {
-        "selected": "Geselecteerd"
-    },
-    "viewFilter": {
-        "filter": "Filter | 1 Filter | {count} Filters",
-        "hasAllValuesEqual": "heeft alle waarden gelijk",
-        "hasNotValueHigherThan": "geen hogere waarde heeft dan",
-        "hasNotValueHigherThanOrEqual": "heeft geen waarde hoger dan of gelijk aan",
-        "hasValueLowerThan": "heeft een waarde lager dan",
-        "hasValueLowerThanOrEqual": "heeft waarde lager dan of gelijk aan",
-        "hasValueHigherThanOrEqual": "heeft een waarde hoger dan of gelijk aan",
-        "hasNotValueLowerThan": "geen lagere waarde heeft dan",
-        "hasValueHigherThan": "heeft een waarde hoger dan",
-        "hasNotValueLowerThanOrEqual": "geen waarde heeft die lager is dan of gelijk is aan"
-    },
-    "viewContext": {
-        "exportView": "Weergave exporteren",
-        "renameView": "Weergave hernoemen",
-        "deleteView": "Weergave verwijderen",
-        "webhooks": "Webhooks",
-        "duplicateView": "View dupliceren",
-        "importFile": "Bestand importeren",
-        "toPersonal": "Naar persoonlijk",
-        "toCollaborative": "Naar gedeeld"
-    },
-    "deleteViewModal": {
-        "title": "Verwijder {name}",
-        "description": "Weet je zeker dat je de weergave {name} wilt verwijderen? De tabelgegevens blijven bewaard, maar de filters, sorteringen en veldbreedtes met betrekking tot de weergave worden verwijderd.",
-        "delete": "Weergave verwijderen"
-    },
-    "viewForm": {
-        "name": "Naam",
-        "whoCanEdit": "Wie kan bewerken"
-    },
-    "galleryViewHeader": {
-        "customizeCards": "Kaarten aanpassen"
-    },
-    "gridViewHide": {
-        "hideField": "Velden verbergen | 1 verborgen veld | {count} verborgen velden"
-    },
-    "gridViewFieldType": {
-        "createFilter": "Filter maken",
-        "sortField": "Sorteren",
-        "hideField": "Veld verbergen",
-        "insertLeft": "Links invoegen",
-        "insertRight": "Rechts invoegen",
-        "duplicate": "Dupliceer veld",
-        "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel.",
-        "noWriteValues": "Wijzigingen in dit veld zijn beperkt.",
-        "dataSyncFieldTwoWaySync": "Het veld wordt gesynchroniseerd met de gegevenssynchronisatie van de tabel."
-    },
-    "gridViewRow": {
-        "rowNotMatchingFilters": "Rij komt niet overeen met filters",
-        "rowNotMatchingSearch": "Rij komt niet overeen met zoekopdracht",
-        "rowHasMoved": "Rij is verplaatst"
-    },
-    "gridView": {
-        "insertRowAbove": "Rij hierboven invoegen",
-        "insertRowBelow": "Voeg rij hieronder in",
-        "enlargeRow": "Vergroot rij",
-        "deleteRow": "Rij verwijderen",
-        "rowCount": "Geen rijen | 1 rij | {count} rijen",
-        "duplicateRow": "Rij dupliceren",
-        "selectRow": "Rij selecteren",
-        "deleteRows": "Rijen verwijderen",
-        "copyCells": "Kopieer cellen",
-        "hiddenRowsInsertedMessage": "{number} nieuw toegevoegde rijen zijn toegevoegd, maar zijn niet zichtbaar vanwege de actieve filters.",
-        "hiddenRowsInsertedTitle": "Rijen toegevoegd",
-        "copiedRowURLMessage": "De URL van rij {id} is gekopieerd naar je klembord.",
-        "copiedRowURL": "Rij URL gekopieerd.",
-        "copyRowURL": "URL van rij kopiëren",
-        "tooManyItemsTitle": "Te veel items",
-        "tooManyItemsDescription": "Het is niet mogelijk om meer dan {limit} rijen tegelijk bij te werken, dus we hebben alleen de eerste bijgewerkt.",
-        "generateCellsValues": "Genereer waardes met AI",
-        "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
-        "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
-        "copyCellsWithHeader": "Cellen met koptekst kopiëren",
-        "generateAllAiValues": "Genereer alle AI-waarden"
-    },
-    "gridViewFieldLinkRow": {
-        "unnamed": "onbenoemde rij {value}",
-        "keepOnlyOneValue": "Slechts één waarde behouden"
-    },
-    "gridViewIdentifierOptions": {
-        "id": "Rij identificatie",
-        "count": "Tellen"
-    },
-    "previewAny": {
-        "externalWarning": "Als je een bestand opent via een externe dienst, wordt je bestand blootgesteld aan hun servers."
-    },
-    "exportTableModal": {
-        "failedTitle": "Export mislukt",
-        "failedDescription": "De export is mislukt door een serverfout.",
-        "cancelledTitle": "Export Geannuleerd",
-        "cancelledDescription": "De export werd geannuleerd.",
-        "title": "Exporteer {name}"
-    },
-    "exporterTypeChoices": {
-        "formatLabel": "Naar welk formaat wil je exporteren?"
-    },
-    "exportTableForm": {
-        "viewLabel": "Selecteer de weergave die je wil exporteren:",
-        "typeError": "Geen exporttype beschikbaar, kies een andere weergave of een volledige tabel."
-    },
-    "exportTableLoadingBar": {
-        "export": "Exporteren",
-        "download": "Downloaden"
-    },
-    "exportTableDropdown": {
-        "exportEntireTable": "Volledige tabel exporteren"
-    },
-    "tableCSVExporter": {
-        "columnSeparatorLabel": "Kolomscheidingsteken",
-        "recordSeparator": "record-scheidingsteken",
-        "unitSeparator": "unit-scheidingsteken",
-        "encodingLabel": "Codering",
-        "firstRowIsHeaderLabel": "Eerste rij is header",
-        "includeHeader": "Veldnamen opnemen als koptekst"
-    },
-    "apiDocsDatabase": {
-        "pageTitle": "{name} database API documentatie",
-        "back": "Terug naar dashboard",
-        "openDatabase": "open databank"
-    },
-    "apiDocsComponent": {
-        "title": "REST-API",
-        "intro": "Nadat je je databankschema en API-sleutel hebt aangemaakt in de {settingsLink}, biedt je Baserow database zijn eigen REST API endpoints voor het aanmaken, lezen, bijwerken en verwijderen van rijen.",
-        "settings": "instellingen",
-        "selectApplicationTitle": "Voor welke database wilt je de documentatie zien?",
-        "signIn": "Log in om te beginnen",
-        "back": "Terug naar dashboard"
-    },
-    "viewAggregationType": {
-        "emptyCount": "Leeg",
-        "notEmptyCount": "Gevuld",
-        "emptyPercentage": "Percentage leeg",
-        "notEmptyPercentage": "Percentage gevuld",
-        "latestDate": "Laatste datum",
-        "checkedPercentage": "Percentage aan",
-        "sum": "Som",
-        "earliestDateShort": "Vroegste",
-        "min": "Min",
-        "max": "Max",
-        "latestDateShort": "Laatste",
-        "uniqueCount": "Uniek",
-        "average": "Gemiddelde",
-        "variance": "Variantie",
-        "checkedCount": "Aangevinkt",
-        "notCheckedPercentage": "Percentage uit",
-        "notCheckedCount": "Uitgevinkt",
-        "earliestDate": "Vroegste datum",
-        "median": "Mediaan",
-        "stdDev": "Standaardafwijking",
-        "stdDevShort": "Std dev",
-        "count": "Tellen",
-        "distribution": "Distributie",
-        "othersCount": "Anderen"
-    },
-    "databaseForm": {
-        "importLabel": "Wilt u bestaande gegevens importeren?",
-        "emptyLabel": "Begin leeg",
-        "airtableLabel": "Importeren uit Airtable (beta)"
-    },
-    "importFromAirtable": {
-        "airtableShareLinkTitle": "Deel een link naar je Base",
-        "airtableShareLinkDescription": "Om uw Airtable basis te importeren, moet u een gedeelde link hebben naar uw volledige basis. In Airtable, klik op de share knop in de rechter bovenhoek na het openen van uw basis. Daarna moet u de optie \"Access to base\" kiezen. In de share-modal kunt u klikken op de \"Create a shared link to the whole base\" knop en vervolgens op \"Private read-only link\". Kopieer de publieke link en plak deze in de onderstaande invoer.",
-        "airtableShareLinkBeta": "Houd er rekening mee dat deze functie in bèta is, uw tabellen, velden (behalve formule, opzoeken en tellen) en gegevens worden geïmporteerd. Uw weergaven worden niet geïmporteerd.",
-        "airtableShareLinkPaste": "Plak de link hier",
-        "importButtonLabel": "Importeren uit Airtable",
-        "openButtonLabel": "Geïmporteerde database openen",
-        "importError": "Er is iets fout gegaan",
-        "statePending": "Wachten om te beginnen",
-        "stateFailed": "Mislukt",
-        "stateFinished": "Afgerond",
-        "stateDownloadingBase": "Basisschema downloaden",
-        "stateConverting": "Omzetten naar Baserow",
-        "stateDownloadingFiles": "Bestanden downloaden",
-        "stateImporting": "Importeren",
-        "stateImportingTable": "Importeren van tabel {table}",
-        "errorJobAlreadyRunningTitle": "Al bezig",
-        "errorJobAlreadyRunningDescription": "Er loopt al een andere import taak. U moet wachten tot die klaar is voordat u een andere start.",
-        "linkError": "De link moet er als volgt uitzien: https://airtable.com/shrxxxxxxxxxxxxxx",
-        "skipFiles": "Bestanden importeren overslaan",
-        "skipFilesHelper": "Een Airtable base met veel bestanden kan het importeren vertragen. Als je dit inschakelt, wordt het importeren van de bestanden overgeslagen.",
-        "sessionLabel": "Sessiecookie (__Host-airtable-session)",
-        "sessionDescription": "Als de import antwoordt met \"The Airtable base requires authentication.\", dan kan het zijn dat de organisatorische instellingen in Airtable de toegang tot de Airtable-basis verhinderen zonder eerst te authenticeren. Om dit te doen, moeten de sessie en handtekening handmatig worden geëxtraheerd. Bezoek de URL van de publiekelijk gedeelde basis in uw browser en meld u aan, indien nodig. Klik op het applicatiemenu door in de rechterbovenhoek te klikken -> \"More tools\" -> \"Developer tools\"\". Open het tabblad \"Toepassing\" (in Firefox \"Opslag\") en klik op \"https://airtable.com\". Zoek nu de cookiewaarden \"__Host-airtable-session\" en \"__Host-airtable-session.sig\" en plak deze in de onderstaande ingangen.",
-        "useSession": "Sessie-authenticatie",
-        "useSessionHelper": "Gebruik dit als de publiekelijk gedeelde basis verificatie vereist.",
-        "sessionSignatureLabel": "Cookie voor sessiehandtekening (__Host-airtable-session.sig)"
-    },
-    "chooseSingleSelectField": {
-        "addSelectField": "enkelvoudig keuzeveld toevoegen",
-        "warningWhenNothingToChooseOrCreate": "Er zijn geen enkele selectie velden om uit te kiezen en u hebt geen machtigingen om er een te maken."
-    },
-    "viewDecorator": {
-        "decorator": "Kleur | 1 Kleur | {tellen} Kleuren"
-    },
-    "viewDecoratorContext": {
-        "addDecorator": "decoratie toevoegen"
-    },
-    "shareViewEnablePasswordModal": {
-        "newPasswordTitle": "Voer een wachtwoord in",
-        "newPasswordSave": "Stel een wachtwoord in",
-        "changePasswordTitle": "Wijzig wachtwoord",
-        "changePasswordDescription": "Door het wachtwoord te wijzigen, zal het vorige niet meer werken. Dit wachtwoord wordt versleuteld opgeslagen.",
-        "changePasswordSave": "Wijzig wachtwoord",
-        "newPasswordDescription": "De openbare link is alleen toegankelijk na het invoeren van het wachtwoord. Dit wachtwoord wordt versleuteld opgeslagen."
-    },
-    "shareViewDisablePasswordModal": {
-        "title": "Wachtwoordbeveiliging uitschakelen",
-        "description": "Weet u zeker dat u de wachtwoordbeveiliging voor deze openbare link wilt uitschakelen? Door uit te schakelen, wordt het wachtwoord verwijderd en is het niet mogelijk om het te herstellen",
-        "disable": "Uitschakelen"
-    },
-    "publicViewAuthLogin": {
-        "title": "Deze pagina is beveiligd met een wachtwoord",
-        "description": "Voer het juiste wachtwoord in om toegang te krijgen tot de pagina.",
-        "enter": "Ga naar",
-        "error": {
-            "incorrectPasswordTitle": "Onjuist wachtwoord",
-            "incorrectPasswordText": "Het opgegeven wachtwoord is onjuist."
-        }
-    },
-    "apiDocsTableDeleteRows": {
-        "description": "Verwijdert bestaande {name} rijen.",
-        "items": "Een array van rij-ids die moeten worden verwijderd."
-    },
-    "apiDocsTableUpdateRows": {
-        "description": "Werkt bestaande {name} rijen bij.",
-        "id": "De rij id."
-    },
-    "apiDocsTableCreateRows": {
-        "description": "Maak nieuwe {name} rijen.",
-        "before": "Indien meegegeven dan zullen de nieuw aangemaakte rijen voor de rij met het meegegeven id geplaatst worden."
-    },
-    "importer": {
-        "decoding": "Gegevens decoderen",
-        "loading": "Bestand laden",
-        "inProgress": "In uitvoering...",
-        "parsing": "Gegevens parseren",
-        "preparing": "Gegevens voorbereiden",
-        "fieldDefaultName": "Veld {count}"
-    },
-    "databaseDashboardSidebarLinks": {
-        "apiDocumentation": "API-documentatie"
-    },
-    "formViewField": {
-        "required": "verplicht",
-        "showWhenMatchingConditions": "tonen wanneer aan de voorwaarden is voldaan",
-        "addCondition": "Voorwaarde toevoegen",
-        "descriptionPlaceholder": "Beschrijving",
-        "addConditionGroup": "Voorwaarde groep toevoegen",
-        "showFieldAs": "Toon veld als",
-        "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
-        "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
-        "includeAllSelectOptions": "inclusief alle keuzes",
-        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar.",
-        "cannotSumitValues": "Dit veld is alleen-lezen en wordt niet weergegeven in het formulier."
-    },
-    "duplicateFieldContext": {
-        "duplicate": "Dupliceer veld",
-        "cloneData": "Gegevens kopiëren",
-        "soon": "Binnenkort beschikbaar",
-        "readOnlyField": "De celwaarden worden automatisch ingevuld."
-    },
-    "formViewMeta": {
-        "includeRowId": "Gebruik {row_id} om de nieuw aangemaakte rij id in de URL op te nemen."
-    },
-    "snapshotsModal": {
-        "title": "snapshots",
-        "description": "Snapshots zijn een volledige kopie van uw database van het moment waarop ze werden aangemaakt. Een duplicaat van die gegevens wordt gemaakt bij het terugzetten. Snapshots worden na een jaar automatisch verwijderd.",
-        "descriptionLimits": "U kunt een maximum aan {n} snapshots per werkruimte hebben. | U kunt een maximum van {n} snapshot per werkruimte hebben. | U kunt een maximum aan {n} snapshots per werkruimte hebben.",
-        "reset": "Maak een andere",
-        "limitReached": "Het limiet van het maximum aantal snapshots is bereikt.",
-        "snapshotDeletedErrorMessage": "De momentopname kon niet worden verwijderd. probeer het later opnieuw.",
-        "snapshot": "Snapshot",
-        "snapshotRestoredErrorTitle": "Fout opgetreden",
-        "createLabel": "Maak een nieuwe snapshot",
-        "create": "Snapshot maken",
-        "snapshotRestoredErrorMessage": "De snapshot kan niet worden hersteld. probeer het later opnieuw.",
-        "snapshotDeletedErrorTitle": "Fout opgetreden",
-        "importingState": "Maken",
-        "cancel": "Annuleren",
-        "noSnapshots": "Er zijn nog geen snapshots voor deze applicatie.",
-        "nameAlreadyExists": "Er bestaat al een snapshot met deze naam."
-    },
-    "deleteSnapshotModal": {
-        "title": "Snapshot verwijderen",
-        "content": "Weet u zeker dat u momentopname {name} permanent wilt verwijderen?",
-        "confirm": "Verwijderen"
-    },
-    "snapshotListItem": {
-        "delete": "verwijderen",
-        "created": "gemaakt",
-        "restore": "herstellen"
-    },
-    "table": {
-        "chooseView": "Kies weergave",
-        "adjacentRow": {
-            "notification": {
-                "notFound": {
-                    "previous": {
-                        "message": "Er is geen vorige rij",
-                        "title": "Geen rijen meer"
-                    },
-                    "next": {
-                        "title": "Geen rijen meer",
-                        "message": "Er is geen volgende rij"
-                    }
-                },
-                "error": {
-                    "title": "Fout opgetreden",
-                    "message": "Er is een fout opgetreden tijdens het ophalen van de aangrenzende rij"
-                }
-            },
-            "toast": {
-                "notFound": {
-                    "next": {
-                        "title": "Geen rijen meer",
-                        "message": "Er is geen volgende rij"
-                    },
-                    "previous": {
-                        "title": "Geen rijen meer",
-                        "message": "Er is geen vorige rij"
-                    }
-                },
-                "error": {
-                    "title": "Fout opgetreden",
-                    "message": "Er is een fout opgetreden tijdens het ophalen van de aangrenzende rij"
-                }
-            }
-        }
-    },
-    "fieldmultipleCollaboratorsDropdown": {
-        "notFound": "Medewerker niet gevonden"
-    },
-    "formViewModeType": {
-        "form": "Formulier",
-        "formDescription": "Alle velden zijn zichtbaar en verticaal gestapeld."
-    },
-    "formViewHeader": {
-        "mode": "Modus",
-        "preview": "Voorbeeld",
-        "fields": "Velden"
-    },
-    "rowEditFieldMultipleCollaborators": {
-        "addCollaborator": "Een medewerker toevoegen"
-    },
-    "formViewModePreviewForm": {
-        "addCoverImage": "Een omslagafbeelding toevoegen",
-        "addLogo": "Logo toevoegen",
-        "noFields": "Dit formulier heeft nog geen velden. Klik op een veld in de linker zijbalk om er een toe te voegen.",
-        "descriptionPlaceholder": "Beschrijving",
-        "titlePlaceholder": "Titel",
-        "noFieldsTitle": "Dit formulier heeft geen velden",
-        "noFieldsContent": "Klik op een veld in de linkerzijbalk om er een toe te voegen."
-    },
-    "gridViewFieldFile": {
-        "dropHere": "Laat hier los",
-        "dropFileHere": "Laat bestanden hier los"
-    },
-    "apiDocsUploadFile": {
-        "file": "De `file` multipart met de inhoud van het bestand.",
-        "description": "Upload een bestand naar Baserow door de inhoud van het bestand direct te uploaden. Er wordt een `file` multipart verwacht met de inhoud van het bestand. Het antwoord kan vervolgens worden gebruikt om [een bestand naar een rij te uploaden]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
-    },
-    "apiDocsUploadFileViaURL": {
-        "url": "De URL die Baserow namens u moet downloaden en uploaden.",
-        "description": "Upload een bestand naar Baserow door het te downloaden van de opgegeven URL. Het antwoord kan vervolgens worden gebruikt om [een bestand naar een rij te uploaden]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
-    },
-    "duplicateTableJobType": {
-        "duplicatedTitle": "Tabel dupliceerd",
-        "duplicating": "Dupliceren",
-        "name": "Dupliceer tabel"
-    },
-    "fileField": {
-        "errorEmptyFileNameMessage": "U kunt geen lege naam voor een bestand instellen.",
-        "errorEmptyFileNameTitle": "Ongeldige bestandsnaam"
-    },
-    "viewOwnershipType": {
-        "collaborative": "Samenwerkend",
-        "personal": "Persoonlijk"
-    },
-    "gridViewRowsAddContext": {
-        "title": "Maak meerdere rijen",
-        "choice": "Voeg {rijAmountChoice} rijen toe"
-    },
-    "fieldRollupSubForm": {
-        "label": "Rollup functie",
-        "selectTargetFieldLabel": "Selecteer een veld om op te rollen"
-    },
-    "fieldSelectThroughFieldSubForm": {
-        "noTable": "Je hebt minstens één link naar tabel nodig om dit veld te creëren.",
-        "selectThroughFieldLabel": "Selecteer een link naar tabel veld"
-    },
-    "apiDocsFiltersBuilderModal": {
-        "userFieldNames": "Veldnamen gebruikers",
-        "json": "JSON",
-        "title": "Filters parameter bouwer",
-        "queryParameter": "Query-parameters"
-    },
-    "viewGroupBy": {
-        "groupBy": "Groep | Groep bij 1 veld | Groep per {aantal} velden"
-    },
-    "rowHistorySidebar": {
-        "you": "Jij",
-        "name": "Geschiedenis",
-        "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen.",
-        "created": "deze rij is aangemaakt",
-        "updated": "deze rij is bijgewerkt",
-        "submitted": "deze rij is ingediend",
-        "restored": "deze rij is hersteld",
-        "createdUndo": "rij maken ongedaan maken",
-        "updatedUndo": "rij update ongedaan maken",
-        "deletedUndo": "rij verwijderen ongedaan maken",
-        "deleted": "deze rij is verwijderd"
-    },
-    "viewGroupByContext": {
-        "groupBy": "Groepeer op",
-        "thenBy": "Dan door",
-        "addGroupBy": "kies een veld om op te sorteren",
-        "noGroupByTitle": "Je hebt nog geen groepen gemaakt",
-        "noGroupByText": "Groepeer rijen op een veld."
-    },
-    "collaboratorAddedToRowNotification": {
-        "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
-        "deletedUser": "Een verwijderde gebruiker",
-        "unknownUser": "Een onbekende gebruiker"
-    },
-    "fieldCollaboratorSubForm": {
-        "notifyUserWhenAdded": "Gebruiker op de hoogte stellen wanneer toegevoegd"
-    },
-    "viewFieldConditionsForm": {
-        "addCondition": "Voorwaarde toevoegen",
-        "addConditionGroup": "Voorwaarde groep toevoegen"
-    },
-    "formSubmittedNotification": {
-        "title": "{formName} is verstuurd in tabel {tableName}:",
-        "moreValues": "0 | en nog 1 veld. | en {count} meer velden."
-    },
-    "fieldDurationSubForm": {
-        "durationFormatLabel": "Duur format"
-    },
-    "fieldPasswordSubForm": {
-        "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer.",
-        "allowEndpointAuthentication": "API endpoint authenticatie toestaan",
-        "allowEndpointAuthenticationHelp": "Dit stelt een eindpunt beschikbaar waar de rij-ID en het wachtwoord kunnen worden gecontroleerd op juistheid. Hierdoor kan Baserow worden gebruikt als backend voor authenticatie."
-    },
-    "rowEditFieldPassword": {
-        "setPassword": "Stel een wachtwoord in"
-    },
-    "rowHistoryFieldPassword": {
-        "passwordSet": "Het wachtwoord is ingesteld",
-        "passwordUpdated": "Het wachtwoord is bijgewerkt",
-        "passwordDeleted": "Het wachtwoord is verwijderd"
-    },
-    "fieldLongTextSubForm": {
-        "enableRichTextFormatting": "Opmaak met rijke tekst inschakelen"
-    },
-    "dataProviderTypes": {
-        "fieldsName": "Velden"
-    },
-    "userMentionInRichTextFieldNotification": {
-        "title": "{sender} heeft u vermeld in veld {fieldName} van rij {rowId} in {tableName}",
-        "deletedUser": "Een verwijderde gebruiker"
-    },
-    "databaseScratchTrackStep": {
-        "teamsRow2": "HR",
-        "addYourOwn": "Voeg je eigen toe",
-        "tableName": "Tabel naam",
-        "rowName": "Naam rij",
-        "projects": "Projecten",
-        "thisIncludes": "Dit omvat:",
-        "productsRow1": "Rebranding website",
-        "productsRow3": "Betaalde advertentiecampagne",
-        "productsRow2": "Klantonderzoek",
-        "teams": "Teams",
-        "teamsRow1": "Verkoop",
-        "teamsRow3": "Marketing",
-        "tasksRow3": "Blogbericht schrijven",
-        "tasks": "Taken",
-        "tasksRow1": "Logo herontwerp",
-        "tasksRow2": "Stuur e-mail",
-        "campaignsRow2": "Loyaliteit beloningen",
-        "campaigns": "Campagnes",
-        "campaignsRow1": "Zomer uitverkoop",
-        "campaignsRow3": "Herlancering merk",
-        "title": "Wat wil je bijhouden?",
-        "description": "Kies uit populaire use cases of maak je eigen."
-    },
-    "databaseStep": {
-        "airtable": "Van Airtable",
-        "import": "Van bestand",
-        "title": "Je eerste database maken",
-        "description": "Laat ons weten waar je aan werkt.",
-        "databaseNameLabel": "Database naam",
-        "scratch": "Uit het niets",
-        "template": "Template"
-    },
-    "databaseImportStep": {
-        "description": "Verplaats je gegevens naar Baserow, in slechts een paar klikken.",
-        "tableNameLabel": "Tabel naam",
-        "title": "Importeer je gegevens"
-    },
-    "ViewFilterTypeDateUpgradeToMultiStep": {
-        "migrateButtonText": "Migreren naar meerstaps datumfilter",
-        "migrateButtonTooltip": "Nieuw filter beschikbaar. Klik om te upgraden. Het werkt hetzelfde."
-    },
-    "formViewMetaControls": {
-        "whenSubmittedLabel": "Wanneer het formulier is verzonden",
-        "showMessage": "Een bericht weergeven",
-        "theURL": "De URL",
-        "theMessage": "Het bericht",
-        "urlRedirect": "Doorverwijzen naar URL"
-    },
-    "databaseDashboardResourceLinks": {
-        "title": "API-documentatie",
-        "description": "Leer meer over onze code"
-    },
-    "changePrimaryFieldModal": {
-        "title": "Wijzig het primaire veld",
-        "change": "Wijzig",
-        "primaryFieldLabel": "Primair veld",
-        "existingPrimary": "\"{name}\" is momenteel het primaire veld."
-    },
-    "databaseScratchTrackFieldsStep": {
-        "campaignsDetailsRow1": "Laat je besparingen oplopen met onze zinderende zomeruitverkoop, met onverslaanbare kortingen op al je favoriete producten!",
-        "campaignsDetailsRow2": "Verhoog de klantenbinding en -betrokkenheid met ons verleidelijke loyaliteitsbeloningsprogramma, ontworpen om uw meest toegewijde klanten te belonen.",
-        "campaignsDetailsRow3": "Blaas je bedrijf nieuw leven in en verleid je publiek met een dynamische merkherlancering die perfect aansluit bij de huidige markttrends en klantwensen.",
-        "customFieldsDescriptionRow1": "Turpis massa tincidunt dui ut ornare lectus sit amet est.",
-        "customFieldsDescriptionRow2": "Vitae justo eget magna fermentum iaculis eu non diam.",
-        "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt.",
-        "title": "Kies velden voor elke rij",
-        "description": "Kies maximaal {selectedFieldsLimitCount} velden. Je kunt er later meer toevoegen.",
-        "fieldName": "Naam",
-        "fieldType": "Type veld",
-        "fieldDescription": "Beschrijving",
-        "fieldDetails": "Details",
-        "fieldNumber": "Nummer",
-        "fieldDate": "Datum",
-        "fieldBoolean": "Afgerond",
-        "fieldDuration": "Duur",
-        "fieldUrl": "URL",
-        "fieldEmail": "E-mail",
-        "projectsCategoryDesign": "Ontwerp",
-        "projectsNotesRow1": "Acme is op zoek naar een complete rebranding van hun website met de volgende richtlijnen.",
-        "fieldCategory": "Categorie",
-        "fieldDueDate": "Vervaldatum",
-        "fieldBudget": "Budget",
-        "fieldCompleted": "Voltooid",
-        "fieldRole": "Rol",
-        "fieldNotes": "Opmerkingen",
-        "fieldEstimatedDays": "Geschatte dagen",
-        "fieldEndDate": "Einddatum",
-        "projectsCategoryDevelopment": "Ontwikkeling",
-        "projectsNotesRow3": "Ik vraag me af of dit de moeite waard is na de Facebook-advertentieboycot. Studies tonen aan dat betaalde advertentiecampagnes steeds minder effectief worden.",
-        "teamsRoleDesigner": "Ontwerper",
-        "teamsRoleDeveloper": "Ontwikkelaar",
-        "teamsRoleMarketer": "Marketeer",
-        "tasksDetailsRow2": "De structuur klopt niet helemaal, dus misschien moeten we de sitemap hier ook aanpassen.",
-        "fieldRating": "Beoordeling",
-        "fieldKickoffDate": "Aftrapdatum",
-        "fieldPhone": "Telefoon",
-        "fieldActive": "Actief",
-        "fieldStartDate": "Startdatum",
-        "projectsCategoryMarketing": "Marketing",
-        "projectsNotesRow2": "Onderzoek of de huidige gebruikers van Soylent geïnteresseerd zijn in een nieuw gebruikersportaal.",
-        "tasksDetailsRow1": "Het logo moet worden verbeterd om de CTA duidelijker te maken.",
-        "tasksDetailsRow3": "De nieuwe voettekst moet onze contactgegevens bevatten en ook een kleine (maar duidelijke) CTA."
-    },
-    "createTableModal": {
-        "title": "Nieuwe tabel maken",
-        "importLabel": "Wil je bestaande gegevens importeren?",
-        "defaultName": "Tabel",
-        "newTable": "Begin met een nieuwe tabel"
-    },
-    "createTable": {
-        "showTable": "toon tabel",
-        "addButton": "Tabel toevoegen",
-        "uploading": "Uploaden...",
-        "stateRowCreation": "Importeren...",
-        "statePreValidation": "Valideren van gegevens...",
-        "importError": "Er is iets misgegaan tijdens het importeren van het bestand",
-        "preparing": "Voorbereiden van data...",
-        "stateCreateTable": "Tabel maken..."
-    },
-    "importErrorReport": {
-        "reportTitleFailure": "Mislukte rijen",
-        "reportTitleSuccess": "Import succesvol, maar...",
-        "reportMessage": "De volgende rij indexen konden'niet worden geïmporteerd:"
-    },
-    "dataSyncType": {
-        "icalCalendar": "Sync iCal feed",
-        "syncError": "Sync-fout",
-        "postgresql": "PostgreSQL tabel synchroniseren"
-    },
-    "iCalCalendarDataSync": {
-        "name": "iCal URL",
-        "description": "De iCal kalendersynchronisatie synchroniseert automatisch met de items in het kalenderbestand van de URL. Het ondersteunt alleen het ICS-bestandstype (Internet Calendar and Scheduling)."
-    },
-    "createDataSync": {
-        "fields": "Selecteer de velden die je wilt synchroniseren",
-        "create": "Tabel maken en synchroniseren",
-        "error": "Er is iets misgegaan tijdens de synchronisatie",
-        "next": "Volgende",
-        "autoAddLabel": "Automatisch nieuwe eigenschappen toevoegen",
-        "autoAddHelper": "Voegt automatisch nieuw beschikbare eigenschappen toe aan de tabel en synchroniseert deze. Merk op dat om dit te laten werken, alle eigenschappen gesynchroniseerd moeten zijn.",
-        "twoWaySyncLabel": "Bidirectionele synchronisatie"
-    },
-    "syncTableModal": {
-        "title": "Sync {name}",
-        "sync": "Sync tabel",
-        "hide": "Verberg",
-        "description": "Deze tabel is gekoppeld aan een gegevenssynchronisatie. Wanneer je op de sync knop klikt, worden de gegevens gesynchroniseerd met de bron. Tijdens dit proces wordt een slot geplaatst op de bijgewerkte rijen, wat API verzoeken of tabelwijzigingen tijdelijk kan vertragen."
-    },
-    "gridViewRowHeight": {
-        "name": "Hoogte",
-        "small": "Klein",
-        "medium": "Middel",
-        "large": "Groot"
-    },
-    "createViewLink": {
-        "inCompatibleWithDataSync": "Dit weergavetype is niet compatibel met een data sync tabel."
-    },
-    "postgreSQLDataSync": {
-        "host": "Host",
-        "username": "Gebruikersnaam",
-        "password": "Wachtwoord",
-        "database": "Database",
-        "table": "Tabel",
-        "sslMode": "SSL-modus",
-        "schema": "Schema",
-        "description": "Synchroniseert een PostgreSQL tabel met een Baserow tabel die overeenkomt met de onderstaande gegevens. Let op dat wanneer de synchronisatie start, het alle rijen in de opgegeven tabel zal selecteren. Hoewel Baserow alleen gegevens selecteert, raden we sterk aan om de gebruiker te beperken tot een alleen-lezen verbinding.",
-        "port": "Poort"
-    },
-    "configureDataSyncModal": {
-        "title": "Data sync",
-        "syncedFields": "Gesynchroniseerde velden",
-        "syncSettings": "Sync instellingen"
-    },
-    "configureDataSyncVisibleFields": {
-        "fields": "Gesynchroniseerde velden",
-        "syncTable": "Sync bij opslaan",
-        "title": "Gesynchroniseerde velden wijzigen"
-    },
-    "configureDataSyncSettings": {
-        "title": "Verander data sync",
-        "syncTable": "Sync bij opslaan"
-    },
-    "webhookPayloadTooLargeNotification": {
-        "body": "De payload voor de {name} webhook met event ID {event_id} was te groot. De inhoud is opgesplitst in meerdere batches, maar gegevens boven de batchnorm van {batch_limit} zijn weggegooid."
-    },
-    "viewFieldConditionItem": {
-        "filterMisconfigured": "Het veld waaraan deze filter is gekoppeld, is weggegooid."
-    },
-    "webhookDeactivatedNotification": {
-        "body": "{name} webhook is gedeactiveerd omdat het te vaak achter elkaar faalde."
-    },
-    "createFormViewGuidedTourStep": {
-        "title": "Een formulier maken",
-        "content": "Bouw snel formulieren vanuit je tabellen om reacties direct in je tabel te verzamelen, waardoor het verzamelen van gegevens wordt gestroomlijnd."
-    },
-    "tablesGuidedTourStep": {
-        "content": "Tabellen slaan je informatie netjes op. Maak een nieuwe tabel in je database om te beginnen met het structureren van je gegevens.",
-        "title": "Tabellen instellen"
-    },
-    "filterSortGroupGuidedTourStep": {
-        "title": "Je gegevens vinden en organiseren",
-        "content": "Vind snel informatie door te filteren en sorteren op je rijen. Groepeer direct op één van de velden om patronen duidelijk te visualiseren en je workflows te vereenvoudigen."
-    },
-    "addFieldGuidedTourStep": {
-        "content": "Klik op \"+\" om nieuwe velden (kolommen) toe te voegen. Kies uit verschillende veldtypes om precies vast te leggen wat belangrijk is voor je project.",
-        "title": "Je gegevens aanpassen"
-    },
-    "createViewGuidedTourStep": {
-        "content": "Maak aangepaste weergaven zoals raster, kalender, kanban of galerij om je gegevens precies te visualiseren zoals jij dat wilt.",
-        "title": "Personaliseer je weergaven"
-    },
-    "viewOptionsGuidedTourStep": {
-        "title": "Weergave opties",
-        "content": "Klik op de drie puntjes naast de weergave om een webhook te exporteren, importeren, dupliceren en configureren."
-    },
-    "fieldBooleanSubForm": {
-        "defaultValue": "Standaard"
-    },
-    "apiDocsListTables": {
-        "listTables": "Toon alle tabellen",
-        "listTablesDescription": "Dit eindpunt werkt alleen in combinatie met token authenticatie. Het geeft een overzicht van alle tabellen waartoe het token toegang heeft (maken, lezen, bijwerken of verwijderen)."
-    },
-    "fieldMultipleSelectSubForm": {
-        "optionsLabel": "Opties",
-        "defaultOptionsLabel": "Standaardopties"
-    },
-    "apiDocsPasswordFieldAuthentication": {
-        "title": "{name} authenticatie",
-        "description": "Controleert of het opgegeven wachtwoord en de rij overeenkomen met wat is opgeslagen in de cel.",
-        "fieldId": "De veld-ID waarop het wachtwoord moet worden gecontroleerd.",
-        "rowId": "De rij-ID waarvoor het wachtwoord moet worden gecontroleerd.",
-        "password": "Het wachtwoord waarvan gecontroleerd moet worden of het correct is."
-    },
-    "fieldRules": {
-        "errorTitle": "Fout tijdens verwerking veldregel",
-        "ruleDoesNotExist": "Regel bestaat niet",
-        "ruleTypeDoesNotExist": "Regeltype bestaat niet",
-        "ruleAlreadyExists": "Regel bestaat al"
+  "webhookModal": {
+    "title": "{name} webhooks",
+    "createWebhook": "Webhook aanmaken",
+    "backToList": "Terug naar lijst"
+  },
+  "deleteWebhookModal": {
+    "title": "Verwijder {webhookName}",
+    "deleteButton": "Webhook verwijderen",
+    "body": "Weet je zeker dat je deze webhook wilt verwijderen? Je kunt deze dan later niet meer herstellen."
+  },
+  "webhookList": {
+    "noWebhooksMessage": "Je hebt nog geen webhooks aangemaakt. Webhooks kunnen worden gebruikt om systemen van derden te informeren wanneer een rij in Baserow is aangemaakt, bijgewerkt of verwijderd."
+  },
+  "testWebhookModal": {
+    "title": "Test webhook",
+    "unreachable": "Server onbereikbaar"
+  },
+  "webhookForm": {
+    "inputLabels": {
+      "name": "Naam",
+      "value": "Waarde",
+      "requestMethod": "Methode",
+      "url": "URL",
+      "userFieldNames": "Veldnamen gebruikers",
+      "events": "Welke gebeurtenissen moet deze webhook initiëren?",
+      "headers": "Extra kopteksten",
+      "example": "Voorbeeld werkbelasting"
+    },
+    "errors": {
+      "urlField": "Dit veld is verplicht en moet een geldige url zijn.",
+      "invalidHeaders": "Een van de headers is ongeldig."
+    },
+    "checkbox": {
+      "sendUserFieldNames": "Gebruik veldnaam in plaats van id"
+    },
+    "radio": {
+      "allEvents": "Stuur me alles",
+      "customEvents": "Laat me afzonderlijke gebeurtenissen selecteren"
+    },
+    "triggerButton": "Activeren bij test webhook",
+    "deactivated": {
+      "title": "Webhook is uitgeschakeld",
+      "content": "Deze webhook is uitgeschakeld omdat er te veel opeenvolgende mislukkingen zijn geweest. Controleer het call log voor meer details. Klik op de knop hieronder om de webhook weer te activeren. Vergeet niet om de webhook op te slaan na het activeren.",
+      "activate": "Activeren"
+    },
+    "deprecatedEventType": {
+      "title": "Verouderd gebeurtenistype",
+      "description": "Deze webhook ontvangt geen informatie over alle gewijzigde rijen tegelijk. Converteer het naar een batch-stijl evenement type. Dit verandert de JSON body payload naar een formaat dat meerdere rijen bevat.",
+      "convert": "Omzetten"
+    },
+    "triggerWhenFieldsHaveChanged": "Voer uit wanneer velden zijn veranderd",
+    "helpTriggerWhenFieldsHaveChanged": "Wordt alleen uitgevoerd als de celwaarde van de gekozen velden verandert."
+  },
+  "webhook": {
+    "details": "details",
+    "lastCall": "Laatste oproep: {lastCallTime}",
+    "noCalls": "Geen oproepen gedaan",
+    "callLog": "Call log",
+    "triggerDescription": "Activeren bij elke event | Activeren bij {count} events | Activeren bij {count} events"
+  },
+  "createWebhook": {
+    "errorTableWebhookMaxLimitExceededTitle": "Max webhooks overschreden",
+    "errorTableWebhookMaxLimitExceededDescription": "Kan de webhook niet aanmaken omdat het maximum aantal webhooks per tabel overschreden is."
+  },
+  "sidebar": {
+    "viewAPI": "API Documenten bekijken",
+    "createTable": "Tabel aanmaken"
+  },
+  "sidebarItem": {
+    "exportTable": "Tabel exporteren",
+    "webhooks": "Webhooks",
+    "lastSynced": "Laatst gesynchroniseerd",
+    "notSynced": "niet gesynchroniseerd",
+    "sync": "Sync tabel",
+    "updateSyncConfig": "Sync-configuratie bijwerken"
+  },
+  "apiToken": {
+    "create": "aanmaken",
+    "read": "lezen",
+    "update": "bijwerken",
+    "delete": "verwijderen",
+    "tokenPrefix": "Token:",
+    "viewAPIDocs": "API-documentatie bekijken",
+    "generateNewToken": "Nieuw token genereren",
+    "showOrHide": "Het token tonen of verbergen",
+    "copyToClipboard": "Naar klembord kopiëren",
+    "showDatabases": "databanken tonen"
+  },
+  "apiTokenSettings": {
+    "title": "Persoonlijke API tokens",
+    "createToken": "Token aanmaken",
+    "noTokensMessage": "Je hebt nog geen API token aangemaakt. Je kunt API tokens gebruiken om te authenticeren voor de REST API endpoints waar je rijen kunt aanmaken, lezen, bijwerken en verwijderen. Het is mogelijk om rechten in te stellen op tabelniveau.",
+    "hasFullPermissions": "Heeft volledige rechten, ook voor alle kinderen.",
+    "hasOnlySelectedPermissions": "Heeft alleen rechten op de geselecteerde kinderen.",
+    "noPermissions": "Heeft geen rechten.",
+    "createNewTitle": "Nieuw API token aanmaken",
+    "backToOverview": "Terug naar overzicht"
+  },
+  "apiTokenForm": {
+    "nameLabel": "Naam",
+    "workspaceLabel": "Werkruimte"
+  },
+  "apiDocsSelectDatabase": {
+    "needOneDatabase": "Je moet ten minste één databank hebben om de API documentatie te kunnen bekijken."
+  },
+  "apiDocsExample": {
+    "requestSample": "Voorbeeld aanvraag",
+    "responseSample": "Voorbeeld respons",
+    "userFieldNames": "Veldnamen gebruikers"
+  },
+  "apiDocsParameter": {
+    "optional": "optioneel",
+    "defaultValue": "Standaard: {value}"
+  },
+  "apiDocsTableGetRow": {
+    "description": "Haal een enkele rij {name} op.",
+    "rowId": "De unieke identifier van de rij die wordt opgevraagd."
+  },
+  "apiDocsErrors": {
+    "errorCode": "Foutcode",
+    "name": "Naam",
+    "description": "Beschrijving",
+    "okDescription": "Verzoek succesvol afgerond.",
+    "badRequestDescription": "Het verzoek bevat ongeldige waarden, of de JSON kon niet worden geparseerd.",
+    "unauthorizedDescription": "Wanneer je een eindpunt probeert te benaderen zonder geldig token.",
+    "notFoundDescription": "Rij of tabel is niet gevonden.",
+    "requestEntityTooLargeDescription": "Het verzoek overschreed de maximaal toegestane omvang van de werkbelasting.",
+    "internalErrorDescription": "De server heeft een onverwachte situatie aangetroffen.",
+    "badGatewayDescription": "Baserow is op dit moment aan het herstarten of er is een onverwachte uitval.",
+    "unavailableDescription": "De server kon je verzoek niet op tijd verwerken."
+  },
+  "apiDocsTableFields": {
+    "tableTitle": "{name} tabel",
+    "tableId": "De ID van deze tabel is:",
+    "description": "Elke rij in de {name} tabel bevat de volgende velden.",
+    "id": "ID",
+    "name": "Naam",
+    "type": "Type",
+    "compatibleFilters": "Compatibele filters"
+  },
+  "apiDocsTableListRows": {
+    "description": "Om rijen in de *{name}* tabel op te sommen moet een `GET` verzoek worden gedaan aan het *{name}* eindpunt. Het antwoord is gepagineerd en standaard wordt de eerste pagina geretourneerd. De juiste pagina kan worden opgehaald door de `page` en `size` query parameters mee te geven.",
+    "page": "Bepaalt welke pagina met rijen moet worden geretourneerd.",
+    "size": "Bepaalt hoeveel rijen per pagina moeten worden geretourneerd.",
+    "userFieldNames": "Wanneer een waarde wordt opgegeven voor de `user_field_names` GET parameter, dan zullen de veldnamen die worden geretourneerd door dit eindpunt de werkelijke namen van de velden zijn.\n\n Als de `user_field_names` GET parameter niet wordt opgegeven, dan zullen alle geretourneerde veldnamen `field_` zijn, gevolgd door de id van het veld. Bijvoorbeeld `field_1` verwijst naar het veld met de id `1`.\n\n Daarnaast verandert het gedrag van de andere GET parameters `order_by`, `include` en `exclude`, als `user_field_names` is ingesteld. Zij verwachten in plaats daarvan door komma's gescheiden lijsten met de werkelijke veldnamen.",
+    "search": "Indien opgegeven worden alleen rijen geretourneerd met gegevens die overeenkomen met de zoekopdracht.",
+    "orderBy": "Optioneel kunnen de rijen worden geordend op velden gescheiden door komma's. Standaard, of indien voorafgegaan door een '+', wordt een veld geordend in oplopende (A-Z) volgorde. Door het veld vooraf te laten gaan door een '-' kan het ook in aflopende (Z-A) volgorde worden geordend.\n\n#### Met `user_field_names`:\n\n`order_by` moet een door komma's gescheiden lijst van de veldnamen zijn om op te ordenen. Als je bijvoorbeeld de volgende GET parameter `order_by=My Field,-My Field 2` opgeeft, worden de rijen geordend op het veld genaamd `My Field` in oplopende volgorde. Als sommige velden dezelfde waarde hebben, wordt die sub-set geordend op het veld genaamd `My Field 2` in aflopende volgorde.\n\nZorg ervoor dat velden met namen die beginnen met een `+` of `-` expliciet worden voorafgegaan door een andere `+` of `-`. Bijv. `+-Name`\n\n#### Zonder `user_field_names`:\n\n`order_by` moet een door komma's gescheiden lijst van `field_` zijn, gevolgd door de id van het veld waarop gerangschikt moet worden. Als u bijvoorbeeld de volgende GET parameter `order_by=field_1,-field_2` opgeeft, zullen de rijen gerangschikt worden op `field_1` in oplopende volgorde. Als sommige velden dezelfde waarde hebben, zal die sub-set gerangschikt worden op `field_2` in aflopende volgorde.",
+    "filter": "De rijen kunnen optioneel worden gefilterd met dezelfde filters die beschikbaar zijn voor de weergaven. Meerdere filters kunnen worden opgegeven als ze hetzelfde formaat volgen. De `field` en `filter` variabelen geven aan hoe er gefilterd moet worden en de waarde geeft aan waarop er gefilterd moet worden.\n\n Als je bijvoorbeeld de volgende GET parameter `filter__field_1__equal=test` opgeeft, dan zullen alleen rijen worden geretourneerd waar de waarde van field_1 gelijk is aan test.",
+    "filterLink": "Een lijst van alle filters is hier beschikbaar.",
+    "filterType": "- `AND`: Geeft aan dat de rijen aan alle opgegeven filters moeten voldoen.\n- `OR`: Geeft aan dat de rijen slechts aan één van de filters hoeven te voldoen.\n\n Dit werkt alleen als er twee of meer filters zijn opgegeven.",
+    "include": "Alle velden worden standaard opgenomen in het antwoord. U kunt een sub-set van velden selecteren om op te nemen door de include query parameter op te geven.\n\n#### Met `user_field_names`:\n\n`include` moet een door komma's gescheiden lijst zijn van veldnamen die moeten worden opgenomen in de resultaten. Als u bijvoorbeeld de volgende GET-parameter opgeeft: `include=My Field,-My Field 2` dan zullen alleen die velden worden opgenomen (tenzij ze expliciet zijn uitgesloten)\n\n#### Zonder `user_field_names`:\n\n`include` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door de id van het veld dat moet worden meegenomen in de resultaten. Bijvoorbeeld: Als je de volgende GET parameter `exclude=field_1,field_2` opgeeft, dan worden alleen de velden met id `1` en id `2`meegenomen (tenzij ze expliciet worden uitgesloten).",
+    "exclude": "Alle velden worden standaard opgenomen in het antwoord. Je kunt een sub-set van velden selecteren voor uitsluiting door de exclude query parameter op te geven.\n\n#### Met `user_field_names`:\n\n`exclude` moet een door komma's gescheiden lijst zijn van veldnamen die moeten worden uitgesloten van de resultaten. Als je bijvoorbeeld de volgende GET-parameter opgeeft: `exclude=My Field,-My Field 2` dan zullen die velden worden uitgesloten\n\n#### Zonder `user_field_names`:\n\n`exclude` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door het id van het veld dat moet worden uitgesloten van de resultaten. Bijvoorbeeld: Als je de volgende GET parameter `exclude=field_1,field_2` opgeeft, dan worden de velden met id `1` en id `2` uitgesloten.",
+    "viewId": "Standaard worden geen filters en sorteringen toegepast die buiten de query parameters zijn gedefinieerd. U kunt de filters en sorteringen van een view toevoegen door zijn `id` in de `view_id` GET parameter op te geven. Bijvoorbeeld, als u de volgende GET parameter `view_id=1` opgeeft, dan zullen de filters en sorteringen die zijn gedefinieerd in de view met id `1` worden toegepast. U kunt de `view_id` vinden in het context menu van een gegeven view. Het is het getal tussen haakjes achter de view naam. \n\n #### Met `filter__{field}__{filter}` \n\n Zowel het filter dat in de query parameter is opgegeven als de filters die in de view zijn gedefinieerd zullen worden toegepast.\n\n #### Met `order_by` \n\n Als `order_by` wordt meegegeven dan zal de sortering gedefinieerd in de view worden genegeerd.",
+    "filtersBuilder": "Open filters parameter bouwer",
+    "filters": "Rijen kunnen optioneel worden gefilterd met dezelfde weergavefilters die beschikbaar zijn voor de weergaven. Deze parameter accepteert een JSON geserialiseerde string met de filterboom die moet worden toegepast op deze weergave. De filterboom is een geneste structuur die de filters bevat die moeten worden toegepast. \\n\\n#### Met `user_field_names`:\\n\\nEen voorbeeld van een geldige filterboom is de volgende: `{'{'}\"filter_type\":\"AND\",\"filters\": [{'{'}\"veld\":\"Naam\",\"type\":\"gelijk\",\"waarde\":\"test\"{'}'}]{'}'}.\\n\\n#### Zonder `user_field_names`:\\n\\nAls je bijvoorbeeld optioneel de volgende GET-parameter opgeeft: `{'{'}{'{'}'filter_type': 'AND', 'filters': [{'{'}{'{'}'veld': 1, 'type': 'equal', 'value': 'test'{'}'}{'}'}{'}'}]{'}'}{'}'}`\\n\\nHoud er rekening mee dat als deze parameter wordt opgegeven, alle andere `filter__{field}__{filter}` worden genegeerd, evenals de filter_type parameter.",
+    "join": "Maakt het mogelijk om een lookup aan te vragen van veldwaarden uit een doeltabel via bestaande linkrijvelden. De parameternaam moet de naam zijn van een bestaand veld in een linkrij, gevolgd door __join. De waarde moet een lijst met veldnamen zijn waarvoor we extra waarden willen opzoeken. Je kunt één of meerdere doelvelden opgeven. Het is niet mogelijk om een waarde van een veld in een linkrij in de doeltabel op te zoeken.\n\n #### Met `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van veldnamen die in de resultaten moeten worden opgenomen. Bijvoorbeeld: Als je de volgende GET-parameter `LinkRowField__join=MyField,MyField2` opgeeft, dan worden de waarden van `MyField` en `My Field2` in de door `LinkRowField` gekoppelde tabel opgenomen in de respons .\n\n#### Zonder `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door het id van het veld dat in de resultaten moet worden opgenomen. Bijvoorbeeld: Als u de volgende GET-parameter `field_1__join=field_2,field_3` opgeeft, dan worden de waarden van `field_2` en `field_3` in de tabel die is gekoppeld door `field_1` opgenomen in de respons."
+  },
+  "apiDocsIntro": {
+    "intro": "De {name} database biedt een gemakkelijke manier om de gegevens te integreren met elk extern systeem. De API volgt REST semantiek, gebruikt JSON om objecten te coderen, en is gebaseerd op standaard HTTP codes, machineleesbare en door mensen leesbare fouten om operatie-uitkomsten te signaleren.",
+    "autoDocDescription": "Deze documentatie wordt automatisch gegenereerd op basis van de tabellen en velden in je database. Als je wijzigingen aanbrengt in je database, tabel of velden kan het zijn dat ook de API interface is gewijzigd. Zorg er daarom voor dat je je API implementatie dienovereenkomstig bijwerkt.",
+    "databaseId": "De ID van deze database is:",
+    "jsClient": "Javascript voorbeeld API client:",
+    "pythonClient": "Python voorbeeld API client:"
+  },
+  "apiDocsTableListFields": {
+    "description": "Om velden van de {name} tabel op te sommen moet een `GET` verzoek gedaan worden aan het eindpunt van de {name} velden. Het is alleen mogelijk om de velden op te sommen als het token rechten geeft voor lezen, aanmaken of bijwerken.",
+    "resultFieldProperties": "Eigenschappen resultaatveld",
+    "id": "Field primary key (veld met primaire sleutel). Kan worden gebruikt om de database kolomnaam te genereren door het voorvoegsel `field_` toe te voegen.",
+    "name": "Naam van het veld.",
+    "tableId": "Verwante tabel id.",
+    "order": "Volgorde van de velden in de tabel. 0 voor het eerste veld.",
+    "primary": "Geeft aan of het veld een primair veld is. Indien `waar` (true) kan het veld niet worden verwijderd en moet de waarde de hele rij vertegenwoordigen.",
+    "type": "Type gedefinieerd voor dit veld.",
+    "extraProps": "Sommige extra eigenschappen worden hier niet beschreven omdat ze type-specifiek zijn.",
+    "readOnly": "Geeft aan of het veld een alleen-lezen veld is. Indien waar, is het niet mogelijk de celwaarde bij te werken.",
+    "descriptionField": "Veldbeschrijving"
+  },
+  "apiDocsTableDeleteRow": {
+    "description": "Verwijdert een bestaande {name} rij.",
+    "rowId": "De unieke identifier van de rij die moet worden verwijderd."
+  },
+  "apiDocsTableMoveRow": {
+    "description": "Verplaatst een bestaande {name} rij voor een andere rij. Als er geen `before_id` is opgegeven, dan wordt de rij verplaatst naar het einde van de tabel.",
+    "rowId": "Verplaatst de rij gerelateerd aan de waarde.",
+    "before": "Verplaatst de rij gerelateerd aan de opgegeven `rij_id` voor de rij gerelateerd aan de opgegeven waarde. Indien niet opgegeven, dan wordt de rij naar het einde verplaatst."
+  },
+  "apiDocsTableUpdateRow": {
+    "description": "Werkt een bestaande rij {name} bij.",
+    "rowId": "De unieke identifier van de rij die moet worden bijgewerkt.",
+    "before": "Indien opgegeven dan zal de nieuw aangemaakte rij voor de rij met het opgegeven id geplaatst worden."
+  },
+  "apiDocsTableCreateRow": {
+    "description": "Maak een nieuwe {name} rij.",
+    "before": "Indien opgegeven dan zal de nieuw aangemaakte rij voor de rij met het opgegeven id geplaatst worden."
+  },
+  "apiDocsAuth": {
+    "description": "Baserow gebruikt een eenvoudige authenticatie op basis van een token. Je moet ten minste één API token in je {settingsLink} genereren om de hieronder beschreven eindpunten te kunnen gebruiken. Het is mogelijk om per token rechten te geven voor lezen, aanmaken, bijwerken en verwijderen tot op tabelniveau. Je kunt je bij de API authenticeren door je API-token op te geven in de HTTP 'authorisation bearer' token header. Alle API-verzoeken moeten worden geauthenticeerd en over HTTPS worden gedaan.",
+    "settingsLink": "instellingen"
+  },
+  "apiDocsFilters": {
+    "filter": "Filter",
+    "exampleValue": "Voorbeeldwaarde",
+    "example": "Volledig voorbeeld",
+    "field": "veld {name}",
+    "deprecated": "verouderd"
+  },
+  "fieldTextSubForm": {
+    "placeholder": "Standaard tekst"
+  },
+  "fieldSingleSelectSubForm": {
+    "optionsLabel": "Opties",
+    "defaultOptionLabel": "Standaardoptie"
+  },
+  "fieldSingleSelectDropdown": {
+    "notFound": "Optie niet gevonden"
+  },
+  "fieldDateSubForm": {
+    "dateFormatLabel": "Datum formaat",
+    "dateFormatEuropean": "Europees",
+    "dateFormatUS": "VS",
+    "dateFormatISO": "ISO",
+    "includeTimeLabel": "Tijd invoegen",
+    "timeFormatLabel": "Tijdformaat",
+    "24Hour": "24 uur",
+    "12Hour": "12 uur",
+    "showTimezoneLabel": "Toon tijdzone",
+    "forceTimezoneLabel": "Tijdzone instellen voor alle bijdragers",
+    "forceTimezoneValue": "Tijdzone",
+    "addTimezoneOffsetLabel": "Waarden converteren ({utcOffsetDiff} minuten toevoegen)",
+    "subTimezoneOffsetLabel": "Converteer waarden (trek {utcOffsetDiff} minuten af)"
+  },
+  "fieldLinkRowSubForm": {
+    "noTable": "Je hebt minstens één andere tabel in dezelfde database nodig om naar te linken.",
+    "selectTableLabel": "Selecteer een tabel om naar te linken",
+    "hasRelatedFieldLabel": "Maak gerelateerd veld",
+    "limitToView": "Selectie beperken tot weergave",
+    "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API.",
+    "allowMultipleRelations": "Meerdere relaties toestaan"
+  },
+  "fieldSelectOptions": {
+    "add": "Een optie toevoegen"
+  },
+  "fieldNumberSubForm": {
+    "typeLabel": "Nummertype",
+    "integer": "Heel getal",
+    "decimal": "Decimaal",
+    "decimalPlacesLabel": "Decimale plaatsen",
+    "allowNegative": "Sta negatief toe",
+    "separatorLabel": "Duizendtallen en decimaalscheidingsteken",
+    "suffixPlaceholder": "Achtervoegsel",
+    "prefixAndSuffixLabel": "Voorvoegsel / achtervoegsel",
+    "spaceComma": "Spatie, komma (1 000 000,00)",
+    "spacePeriod": "Spatie, punt (1 000 000.00)",
+    "commaPeriod": "Komma, punt (1,000,000.00)",
+    "periodComma": "Punt, komma (1.000.000,00)",
+    "prefixPlaceholder": "Voorvoegsel",
+    "noFormatting": "Geen opmaak",
+    "defaultValueLabel": "Standaardwaarde",
+    "defaultValuePlaceholder": "Voer een standaardwaarde in"
+  },
+  "fieldContext": {
+    "editField": "Veld bewerken",
+    "deleteField": "Veld verwijderen",
+    "hideField": "Veld verbergen",
+    "showField": "Toon veld",
+    "changePrimaryField": "Primair veld wijzigen"
+  },
+  "fieldForm": {
+    "name": "Naam",
+    "fieldAlreadyExists": "Een veld met deze naam bestaat al.",
+    "nameNotAllowed": "Deze veldnaam is niet toegestaan.",
+    "nameTooLong": "Deze veldnaam is te lang.",
+    "addDescription": "Beschrijving toevoegen",
+    "description": "Beschrijving",
+    "dbIndex": "Index",
+    "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
+    "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen.",
+    "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking",
+    "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype."
+  },
+  "fieldLookupSubForm": {
+    "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
+    "selectThroughFieldLabel": "Selecteer een link-rij veld",
+    "selectTargetFieldLabel": "Selecteer een veld om op te zoeken met lookup"
+  },
+  "fieldFormulaNumberSubForm": {
+    "typeLabel": "Nummertype",
+    "integer": "Heel getal",
+    "decimal": "Decimaal",
+    "decimalPlacesLabel": "Decimale plaatsen",
+    "allowNegative": "Sta negatief toe"
+  },
+  "fieldRatingSubForm": {
+    "maxValue": "Max",
+    "color": "Kleur",
+    "style": "Stijl"
+  },
+  "rowCreateModal": {
+    "addField": "veld toevoegen"
+  },
+  "selectRowContent": {
+    "search": "Zoek rijen",
+    "hideFields": "Velden verbergen"
+  },
+  "rowEditModal": {
+    "addField": "veld toevoegen",
+    "showHiddenFields": "Verborgen velden weergeven",
+    "hideHiddenFields": "Verborgen velden verbergen"
+  },
+  "rowEditFieldMultipleSelect": {
+    "addOption": "Een andere optie toevoegen"
+  },
+  "rowEditFieldFile": {
+    "addFile": "Een bestand toevoegen",
+    "sizes": {
+      "0": "Bytes",
+      "1": "KB",
+      "2": "MB",
+      "3": "GB",
+      "4": "TB",
+      "5": "PB"
     }
+  },
+  "rowEditFieldLinkRow": {
+    "addLink": "Nog een link toevoegen",
+    "keepOnlyOneValue": "Bewaar slechts één waarde. Dit veld ondersteunt slechts één relatie. De waarde wordt bewaard als er nog maar één relatie is."
+  },
+  "tableCSVImporter": {
+    "chooseFileLabel": "Kies CSV-bestand",
+    "chooseFileDescription": "Je kunt een bestaand CSV-bestand importeren door het .CSV-bestand met gegevens in tabelvorm te uploaden. Met de meeste spreadsheetprogramma's kun je een spreadsheet als .CSV-bestand exporteren.",
+    "chooseFile": "Kies CSV-bestand",
+    "columnSeparator": "Kolomscheidingsteken",
+    "recordSeparator": "record-scheidingsteken",
+    "unitSeparator": "unit-scheidingsteken",
+    "encoding": "Codering",
+    "firstRowHeader": "Eerste rij is header",
+    "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
+    "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren.",
+    "emptyCSV": "Dit CSV-bestand is leeg."
+  },
+  "tableForm": {
+    "name": "Naam"
+  },
+  "tableXMLImporter": {
+    "fileLabel": "Kies XML-bestand",
+    "fileDescription": "Je kunt een bestaande XML importeren door het .XML-bestand met gegevens in tabelvorm te uploaden, d.w.z:",
+    "chooseButton": "Kies XML-bestand",
+    "processingError": "Er is een fout opgetreden tijdens het verwerken van XML: {errors}",
+    "emptyError": "Dit XML-bestand is leeg.",
+    "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
+    "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
+  },
+  "tableJSONImporter": {
+    "fileLabel": "Kies JSON bestand",
+    "fileDescription": "Je kunt een bestaand JSON-bestand importeren door het .json-bestand met gegevens in tabelvorm te uploaden, d.w.z:",
+    "chooseButton": "Kies JSON bestand",
+    "encodingLabel": "Codering",
+    "processingError": "Er is een fout opgetreden tijdens het parsen van JSON: {error}",
+    "arrayError": "Het JSON-bestand is geen array.",
+    "emptyError": "Dit JSON-bestand is leeg.",
+    "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
+    "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
+  },
+  "tablePasteImporter": {
+    "pasteLabel": "Plak de tabeldata",
+    "pasteDescription": "Je kunt de cellen uit een spreadsheet kopiëren en ze hieronder plakken.",
+    "firstRowHeader": "Eerste rij is header",
+    "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren."
+  },
+  "importFileModal": {
+    "title": "Nieuwe tabel maken",
+    "importLabel": "Wil je bestaande gegevens importeren?",
+    "newTable": "Begin met een nieuwe tabel",
+    "addButton": "Tabel toevoegen",
+    "uploading": "Uploaden...",
+    "preparing": "Voorbereiden van data...",
+    "showReport": "Foutrapport tonen",
+    "reportTitleFailure": "Mislukte rijen",
+    "openCreatedTable": "Open aangemaakte tabel",
+    "reportTitleSuccess": "Import succesvol, maar...",
+    "importError": "Er is iets misgegaan tijdens het importeren van het bestand",
+    "stateRowCreation": "Importeren...",
+    "reportMessage": "De volgende rij indexen konden niet worden geïmporteerd:",
+    "stateCreateTable": "Tabel maken...",
+    "statePreValidation": "Valideren van gegevens...",
+    "additionalImportTitle": "Importeren in {table}",
+    "showTable": "toon tabel",
+    "importButton": "Importeren",
+    "fieldMappingTitle": "Veld vertaling",
+    "fieldMappingDescription": "Wij hebben de kolommen van de Baserow-velden in uw tabel automatisch toegewezen. U kunt ze hieronder wijzigen. Elke niet-compatibele cel zal leeg blijven na de import.",
+    "selectImportMessage": "Selecteer gegevens om te importeren.",
+    "filePreview": "Voorbeeld van bestandsinhoud",
+    "importPreview": "Importvoorbeeld",
+    "changeImporterType": "Importtype wijzigen",
+    "defaultName": "Tabel",
+    "useUpsertField": "Rijen bijwerken als ze al bestaan",
+    "upsertTooltip": "Overeenkomen met bestaande rijen met behulp van een uniek veld om gegevens met geïmporteerde waarden te overschrijven."
+  },
+  "formulaAdvancedEditContext": {
+    "textAreaFormulaInputPlaceholder": "Klik om de formule te bewerken",
+    "fields": "Velden",
+    "functions": "Functies",
+    "operators": "Operators",
+    "fieldType": "Een {type} veld"
+  },
+  "fieldFormulaInitialSubForm": {
+    "formulaInputPlaceholder": "Klik om de formule te bewerken",
+    "refreshFormulaOptions": "Formule-opties vernieuwen"
+  },
+  "formulaFieldItemDescription": {
+    "syntax": "Syntax",
+    "examples": "Voorbeelden"
+  },
+  "viewSearchContext": {
+    "searchInRows": "Zoeken in alle rijen",
+    "hideNotMatching": "verberg rijen die niet overeenkomen"
+  },
+  "viewsContext": {
+    "searchView": "Zoek weergaven",
+    "noViews": "Geen weergaven gevonden",
+    "collaborative": "Samenwerkend"
+  },
+  "viewFilterTypeLinkRow": {
+    "unnamed": "onbenoemde rij {value}",
+    "choose": "Kies rij"
+  },
+  "viewFilterContext": {
+    "addFilter": "Filter toevoegen",
+    "disableAllFilters": "alle filters uitgeschakeld",
+    "noFilterTitle": "Je hebt nog geen filter aangemaakt",
+    "noFilterText": "Met filters kun je rijen tonen die aan je voorwaarden voldoen.",
+    "where": "Waar",
+    "and": "En",
+    "or": "Of",
+    "relatedFieldNotFound": "Het gerelateerde veld is niet gevonden.",
+    "filterTypeNotFound": "Het filtertype is niet compatibel.",
+    "noCompatibleFilterTypesErrorTitle": "Geen compatibele filtertypes",
+    "noCompatibleFilterTypesErrorMessage": "Geen van uw velden heeft een compatibel filtertype",
+    "addFilterGroup": "Filtergroep toevoegen"
+  },
+  "viewFilterTypeFileTypeDropdown": {
+    "image": "afbeelding",
+    "document": "document"
+  },
+  "createViewModal": {
+    "createNew": "Nieuwe {view} aanmaken",
+    "add": "{view} toevoegen"
+  },
+  "shareViewLink": {
+    "shareView": "Deel {viewTypeSharingLinkName}",
+    "shareViewTitle": "Maak een deelbare privé-link naar de {viewTypeSharingLinkName}",
+    "sharedViewTitle": "Deze {viewTypeSharingLinkName} wordt momenteel gedeeld via een privé-link",
+    "sharedViewDescription": "Mensen die de link hebben kunnen de {viewTypeSharingLinkName} zien.",
+    "disableLink": "gedeelde link uitschakelen",
+    "generateNewUrl": "nieuwe url genereren",
+    "copyURL": "URL kopiëren",
+    "ChangePassword": "Verander",
+    "EnablePassword": "Toegang beperken met een wachtwoord",
+    "DisablePassword": "Toegang is beveiligd met een wachtwoord",
+    "shareViewText": "Met een privé-deelbare link kan iedereen de gegevens in deze weergave bekijken.",
+    "shareViewLinkTitle": "Een privé link maken",
+    "notSharedYetText": "Laat iedereen de gegevens in deze weergave zien of sync gebeurtenissen met je externe agenda.",
+    "createPrivateLink": "Een privé link maken"
+  },
+  "viewSortContext": {
+    "noSortTitle": "Je hebt nog geen sortering",
+    "noSortText": "Met sorteren kun je rijen op een veld sorteren.",
+    "sortBy": "Sorteer op",
+    "thenBy": "Dan op",
+    "addSort": "kies een veld om op te sorteren"
+  },
+  "viewSort": {
+    "sort": "Sorteren | 1 Sorteren | {count} Sorteren"
+  },
+  "viewRotateSlugModal": {
+    "title": "URL vernieuwen",
+    "refreshWarning": "Weet je zeker dat je de URL van {viewName} wilt vernieuwen? Na het vernieuwen wordt een nieuwe URL gegenereerd. Het is dan niet mogelijk om de {viewTypeSharingLinkName} via de oude URL te benaderen. Iedereen waarmee je de URL gedeeld heeft, is dan niet in staat om de {viewTypeSharingLinkName} te benaderen.",
+    "generateNewURL": "Nieuwe URL genereren"
+  },
+  "viewFieldsContext": {
+    "coverField": "Voorbladveld",
+    "noCover": "Geen voorblad",
+    "search": "Zoekvelden",
+    "hideAll": "Alles verbergen",
+    "showAll": "Alles tonen"
+  },
+  "viewFilterTypeBoolean": {
+    "selected": "Geselecteerd"
+  },
+  "viewFilter": {
+    "filter": "Filter | 1 Filter | {count} Filters",
+    "hasAllValuesEqual": "heeft alle waarden gelijk",
+    "hasNotValueHigherThan": "geen hogere waarde heeft dan",
+    "hasNotValueHigherThanOrEqual": "heeft geen waarde hoger dan of gelijk aan",
+    "hasValueLowerThan": "heeft een waarde lager dan",
+    "hasValueLowerThanOrEqual": "heeft waarde lager dan of gelijk aan",
+    "hasValueHigherThanOrEqual": "heeft een waarde hoger dan of gelijk aan",
+    "hasNotValueLowerThan": "geen lagere waarde heeft dan",
+    "hasValueHigherThan": "heeft een waarde hoger dan",
+    "hasNotValueLowerThanOrEqual": "geen waarde heeft die lager is dan of gelijk is aan"
+  },
+  "viewContext": {
+    "exportView": "Weergave exporteren",
+    "renameView": "Weergave hernoemen",
+    "deleteView": "Weergave verwijderen",
+    "webhooks": "Webhooks",
+    "duplicateView": "View dupliceren",
+    "importFile": "Bestand importeren",
+    "toPersonal": "Naar persoonlijk",
+    "toCollaborative": "Naar gedeeld"
+  },
+  "deleteViewModal": {
+    "title": "Verwijder {name}",
+    "description": "Weet je zeker dat je de weergave {name} wilt verwijderen? De tabelgegevens blijven bewaard, maar de filters, sorteringen en veldbreedtes met betrekking tot de weergave worden verwijderd.",
+    "delete": "Weergave verwijderen"
+  },
+  "viewForm": {
+    "name": "Naam",
+    "whoCanEdit": "Wie kan bewerken"
+  },
+  "galleryViewHeader": {
+    "customizeCards": "Kaarten aanpassen"
+  },
+  "gridViewHide": {
+    "hideField": "Velden verbergen | 1 verborgen veld | {count} verborgen velden"
+  },
+  "gridViewFieldType": {
+    "createFilter": "Filter maken",
+    "sortField": "Sorteren",
+    "hideField": "Veld verbergen",
+    "insertLeft": "Links invoegen",
+    "insertRight": "Rechts invoegen",
+    "duplicate": "Dupliceer veld",
+    "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel.",
+    "noWriteValues": "Wijzigingen in dit veld zijn beperkt.",
+    "dataSyncFieldTwoWaySync": "Het veld wordt gesynchroniseerd met de gegevenssynchronisatie van de tabel."
+  },
+  "gridViewRow": {
+    "rowNotMatchingFilters": "Rij komt niet overeen met filters",
+    "rowNotMatchingSearch": "Rij komt niet overeen met zoekopdracht",
+    "rowHasMoved": "Rij is verplaatst"
+  },
+  "gridView": {
+    "insertRowAbove": "Rij hierboven invoegen",
+    "insertRowBelow": "Voeg rij hieronder in",
+    "enlargeRow": "Vergroot rij",
+    "deleteRow": "Rij verwijderen",
+    "rowCount": "Geen rijen | 1 rij | {count} rijen",
+    "duplicateRow": "Rij dupliceren",
+    "selectRow": "Rij selecteren",
+    "deleteRows": "Rijen verwijderen",
+    "copyCells": "Kopieer cellen",
+    "hiddenRowsInsertedMessage": "{number} nieuw toegevoegde rijen zijn toegevoegd, maar zijn niet zichtbaar vanwege de actieve filters.",
+    "hiddenRowsInsertedTitle": "Rijen toegevoegd",
+    "copiedRowURLMessage": "De URL van rij {id} is gekopieerd naar je klembord.",
+    "copiedRowURL": "Rij URL gekopieerd.",
+    "copyRowURL": "URL van rij kopiëren",
+    "tooManyItemsTitle": "Te veel items",
+    "tooManyItemsDescription": "Het is niet mogelijk om meer dan {limit} rijen tegelijk bij te werken, dus we hebben alleen de eerste bijgewerkt.",
+    "generateCellsValues": "Genereer waardes met AI",
+    "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
+    "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
+    "copyCellsWithHeader": "Cellen met koptekst kopiëren",
+    "generateAllAiValues": "Genereer alle AI-waarden"
+  },
+  "gridViewFieldLinkRow": {
+    "unnamed": "onbenoemde rij {value}",
+    "keepOnlyOneValue": "Slechts één waarde behouden"
+  },
+  "gridViewIdentifierOptions": {
+    "id": "Rij identificatie",
+    "count": "Tellen"
+  },
+  "previewAny": {
+    "externalWarning": "Als je een bestand opent via een externe dienst, wordt je bestand blootgesteld aan hun servers."
+  },
+  "exportTableModal": {
+    "failedTitle": "Export mislukt",
+    "failedDescription": "De export is mislukt door een serverfout.",
+    "cancelledTitle": "Export Geannuleerd",
+    "cancelledDescription": "De export werd geannuleerd.",
+    "title": "Exporteer {name}"
+  },
+  "exporterTypeChoices": {
+    "formatLabel": "Naar welk formaat wil je exporteren?"
+  },
+  "exportTableForm": {
+    "viewLabel": "Selecteer de weergave die je wil exporteren:",
+    "typeError": "Geen exporttype beschikbaar, kies een andere weergave of een volledige tabel."
+  },
+  "exportTableLoadingBar": {
+    "export": "Exporteren",
+    "download": "Downloaden"
+  },
+  "exportTableDropdown": {
+    "exportEntireTable": "Volledige tabel exporteren"
+  },
+  "tableCSVExporter": {
+    "columnSeparatorLabel": "Kolomscheidingsteken",
+    "recordSeparator": "record-scheidingsteken",
+    "unitSeparator": "unit-scheidingsteken",
+    "encodingLabel": "Codering",
+    "firstRowIsHeaderLabel": "Eerste rij is header",
+    "includeHeader": "Veldnamen opnemen als koptekst"
+  },
+  "apiDocsDatabase": {
+    "pageTitle": "{name} database API documentatie",
+    "back": "Terug naar dashboard",
+    "openDatabase": "open databank"
+  },
+  "apiDocsComponent": {
+    "title": "REST-API",
+    "intro": "Nadat je je databankschema en API-sleutel hebt aangemaakt in de {settingsLink}, biedt je Baserow database zijn eigen REST API endpoints voor het aanmaken, lezen, bijwerken en verwijderen van rijen.",
+    "settings": "instellingen",
+    "selectApplicationTitle": "Voor welke database wilt je de documentatie zien?",
+    "signIn": "Log in om te beginnen",
+    "back": "Terug naar dashboard"
+  },
+  "viewAggregationType": {
+    "emptyCount": "Leeg",
+    "notEmptyCount": "Gevuld",
+    "emptyPercentage": "Percentage leeg",
+    "notEmptyPercentage": "Percentage gevuld",
+    "latestDate": "Laatste datum",
+    "checkedPercentage": "Percentage aan",
+    "sum": "Som",
+    "earliestDateShort": "Vroegste",
+    "min": "Min",
+    "max": "Max",
+    "latestDateShort": "Laatste",
+    "uniqueCount": "Uniek",
+    "average": "Gemiddelde",
+    "variance": "Variantie",
+    "checkedCount": "Aangevinkt",
+    "notCheckedPercentage": "Percentage uit",
+    "notCheckedCount": "Uitgevinkt",
+    "earliestDate": "Vroegste datum",
+    "median": "Mediaan",
+    "stdDev": "Standaardafwijking",
+    "stdDevShort": "Std dev",
+    "count": "Tellen",
+    "distribution": "Distributie",
+    "othersCount": "Anderen"
+  },
+  "databaseForm": {
+    "importLabel": "Wilt u bestaande gegevens importeren?",
+    "emptyLabel": "Begin leeg",
+    "airtableLabel": "Importeren uit Airtable (beta)"
+  },
+  "importFromAirtable": {
+    "airtableShareLinkTitle": "Deel een link naar je Base",
+    "airtableShareLinkDescription": "Om uw Airtable basis te importeren, moet u een gedeelde link hebben naar uw volledige basis. In Airtable, klik op de share knop in de rechter bovenhoek na het openen van uw basis. Daarna moet u de optie \"Access to base\" kiezen. In de share-modal kunt u klikken op de \"Create a shared link to the whole base\" knop en vervolgens op \"Private read-only link\". Kopieer de publieke link en plak deze in de onderstaande invoer.",
+    "airtableShareLinkBeta": "Houd er rekening mee dat deze functie in bèta is, uw tabellen, velden (behalve formule, opzoeken en tellen) en gegevens worden geïmporteerd. Uw weergaven worden niet geïmporteerd.",
+    "airtableShareLinkPaste": "Plak de link hier",
+    "importButtonLabel": "Importeren uit Airtable",
+    "openButtonLabel": "Geïmporteerde database openen",
+    "importError": "Er is iets fout gegaan",
+    "statePending": "Wachten om te beginnen",
+    "stateFailed": "Mislukt",
+    "stateFinished": "Afgerond",
+    "stateDownloadingBase": "Basisschema downloaden",
+    "stateConverting": "Omzetten naar Baserow",
+    "stateDownloadingFiles": "Bestanden downloaden",
+    "stateImporting": "Importeren",
+    "stateImportingTable": "Importeren van tabel {table}",
+    "errorJobAlreadyRunningTitle": "Al bezig",
+    "errorJobAlreadyRunningDescription": "Er loopt al een andere import taak. U moet wachten tot die klaar is voordat u een andere start.",
+    "linkError": "De link moet er als volgt uitzien: https://airtable.com/shrxxxxxxxxxxxxxx",
+    "skipFiles": "Bestanden importeren overslaan",
+    "skipFilesHelper": "Een Airtable base met veel bestanden kan het importeren vertragen. Als je dit inschakelt, wordt het importeren van de bestanden overgeslagen.",
+    "sessionLabel": "Sessiecookie (__Host-airtable-session)",
+    "sessionDescription": "Als de import antwoordt met \"The Airtable base requires authentication.\", dan kan het zijn dat de organisatorische instellingen in Airtable de toegang tot de Airtable-basis verhinderen zonder eerst te authenticeren. Om dit te doen, moeten de sessie en handtekening handmatig worden geëxtraheerd. Bezoek de URL van de publiekelijk gedeelde basis in uw browser en meld u aan, indien nodig. Klik op het applicatiemenu door in de rechterbovenhoek te klikken -> \"More tools\" -> \"Developer tools\"\". Open het tabblad \"Toepassing\" (in Firefox \"Opslag\") en klik op \"https://airtable.com\". Zoek nu de cookiewaarden \"__Host-airtable-session\" en \"__Host-airtable-session.sig\" en plak deze in de onderstaande ingangen.",
+    "useSession": "Sessie-authenticatie",
+    "useSessionHelper": "Gebruik dit als de publiekelijk gedeelde basis verificatie vereist.",
+    "sessionSignatureLabel": "Cookie voor sessiehandtekening (__Host-airtable-session.sig)"
+  },
+  "chooseSingleSelectField": {
+    "addSelectField": "enkelvoudig keuzeveld toevoegen",
+    "warningWhenNothingToChooseOrCreate": "Er zijn geen enkele selectie velden om uit te kiezen en u hebt geen machtigingen om er een te maken."
+  },
+  "viewDecorator": {
+    "decorator": "Kleur | 1 Kleur | {tellen} Kleuren"
+  },
+  "viewDecoratorContext": {
+    "addDecorator": "decoratie toevoegen"
+  },
+  "shareViewEnablePasswordModal": {
+    "newPasswordTitle": "Voer een wachtwoord in",
+    "newPasswordSave": "Stel een wachtwoord in",
+    "changePasswordTitle": "Wijzig wachtwoord",
+    "changePasswordDescription": "Door het wachtwoord te wijzigen, zal het vorige niet meer werken. Dit wachtwoord wordt versleuteld opgeslagen.",
+    "changePasswordSave": "Wijzig wachtwoord",
+    "newPasswordDescription": "De openbare link is alleen toegankelijk na het invoeren van het wachtwoord. Dit wachtwoord wordt versleuteld opgeslagen."
+  },
+  "shareViewDisablePasswordModal": {
+    "title": "Wachtwoordbeveiliging uitschakelen",
+    "description": "Weet u zeker dat u de wachtwoordbeveiliging voor deze openbare link wilt uitschakelen? Door uit te schakelen, wordt het wachtwoord verwijderd en is het niet mogelijk om het te herstellen",
+    "disable": "Uitschakelen"
+  },
+  "publicViewAuthLogin": {
+    "title": "Deze pagina is beveiligd met een wachtwoord",
+    "description": "Voer het juiste wachtwoord in om toegang te krijgen tot de pagina.",
+    "enter": "Ga naar",
+    "error": {
+      "incorrectPasswordTitle": "Onjuist wachtwoord",
+      "incorrectPasswordText": "Het opgegeven wachtwoord is onjuist."
+    }
+  },
+  "apiDocsTableDeleteRows": {
+    "description": "Verwijdert bestaande {name} rijen.",
+    "items": "Een array van rij-ids die moeten worden verwijderd."
+  },
+  "apiDocsTableUpdateRows": {
+    "description": "Werkt bestaande {name} rijen bij.",
+    "id": "De rij id."
+  },
+  "apiDocsTableCreateRows": {
+    "description": "Maak nieuwe {name} rijen.",
+    "before": "Indien meegegeven dan zullen de nieuw aangemaakte rijen voor de rij met het meegegeven id geplaatst worden."
+  },
+  "importer": {
+    "decoding": "Gegevens decoderen",
+    "loading": "Bestand laden",
+    "inProgress": "In uitvoering...",
+    "parsing": "Gegevens parseren",
+    "preparing": "Gegevens voorbereiden",
+    "fieldDefaultName": "Veld {count}"
+  },
+  "databaseDashboardSidebarLinks": {
+    "apiDocumentation": "API-documentatie"
+  },
+  "formViewField": {
+    "required": "verplicht",
+    "showWhenMatchingConditions": "tonen wanneer aan de voorwaarden is voldaan",
+    "addCondition": "Voorwaarde toevoegen",
+    "descriptionPlaceholder": "Beschrijving",
+    "addConditionGroup": "Voorwaarde groep toevoegen",
+    "showFieldAs": "Toon veld als",
+    "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
+    "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
+    "includeAllSelectOptions": "inclusief alle keuzes",
+    "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar.",
+    "cannotSumitValues": "Dit veld is alleen-lezen en wordt niet weergegeven in het formulier."
+  },
+  "duplicateFieldContext": {
+    "duplicate": "Dupliceer veld",
+    "cloneData": "Gegevens kopiëren",
+    "soon": "Binnenkort beschikbaar",
+    "readOnlyField": "De celwaarden worden automatisch ingevuld."
+  },
+  "formViewMeta": {
+    "includeRowId": "Gebruik {row_id} om de nieuw aangemaakte rij id in de URL op te nemen."
+  },
+  "snapshotsModal": {
+    "title": "snapshots",
+    "description": "Snapshots zijn een volledige kopie van uw database van het moment waarop ze werden aangemaakt. Een duplicaat van die gegevens wordt gemaakt bij het terugzetten. Snapshots worden na een jaar automatisch verwijderd.",
+    "descriptionLimits": "U kunt een maximum aan {n} snapshots per werkruimte hebben. | U kunt een maximum van {n} snapshot per werkruimte hebben. | U kunt een maximum aan {n} snapshots per werkruimte hebben.",
+    "reset": "Maak een andere",
+    "limitReached": "Het limiet van het maximum aantal snapshots is bereikt.",
+    "snapshotDeletedErrorMessage": "De momentopname kon niet worden verwijderd. probeer het later opnieuw.",
+    "snapshot": "Snapshot",
+    "snapshotRestoredErrorTitle": "Fout opgetreden",
+    "createLabel": "Maak een nieuwe snapshot",
+    "create": "Snapshot maken",
+    "snapshotRestoredErrorMessage": "De snapshot kan niet worden hersteld. probeer het later opnieuw.",
+    "snapshotDeletedErrorTitle": "Fout opgetreden",
+    "importingState": "Maken",
+    "cancel": "Annuleren",
+    "noSnapshots": "Er zijn nog geen snapshots voor deze applicatie.",
+    "nameAlreadyExists": "Er bestaat al een snapshot met deze naam."
+  },
+  "deleteSnapshotModal": {
+    "title": "Snapshot verwijderen",
+    "content": "Weet u zeker dat u momentopname {name} permanent wilt verwijderen?",
+    "confirm": "Verwijderen"
+  },
+  "snapshotListItem": {
+    "delete": "verwijderen",
+    "created": "gemaakt",
+    "restore": "herstellen"
+  },
+  "table": {
+    "chooseView": "Kies weergave",
+    "adjacentRow": {
+      "notification": {
+        "notFound": {
+          "previous": {
+            "message": "Er is geen vorige rij",
+            "title": "Geen rijen meer"
+          },
+          "next": {
+            "title": "Geen rijen meer",
+            "message": "Er is geen volgende rij"
+          }
+        },
+        "error": {
+          "title": "Fout opgetreden",
+          "message": "Er is een fout opgetreden tijdens het ophalen van de aangrenzende rij"
+        }
+      },
+      "toast": {
+        "notFound": {
+          "next": {
+            "title": "Geen rijen meer",
+            "message": "Er is geen volgende rij"
+          },
+          "previous": {
+            "title": "Geen rijen meer",
+            "message": "Er is geen vorige rij"
+          }
+        },
+        "error": {
+          "title": "Fout opgetreden",
+          "message": "Er is een fout opgetreden tijdens het ophalen van de aangrenzende rij"
+        }
+      }
+    }
+  },
+  "fieldmultipleCollaboratorsDropdown": {
+    "notFound": "Medewerker niet gevonden"
+  },
+  "formViewModeType": {
+    "form": "Formulier",
+    "formDescription": "Alle velden zijn zichtbaar en verticaal gestapeld."
+  },
+  "formViewHeader": {
+    "mode": "Modus",
+    "preview": "Voorbeeld",
+    "fields": "Velden"
+  },
+  "rowEditFieldMultipleCollaborators": {
+    "addCollaborator": "Een medewerker toevoegen"
+  },
+  "formViewModePreviewForm": {
+    "addCoverImage": "Een omslagafbeelding toevoegen",
+    "addLogo": "Logo toevoegen",
+    "noFields": "Dit formulier heeft nog geen velden. Klik op een veld in de linker zijbalk om er een toe te voegen.",
+    "descriptionPlaceholder": "Beschrijving",
+    "titlePlaceholder": "Titel",
+    "noFieldsTitle": "Dit formulier heeft geen velden",
+    "noFieldsContent": "Klik op een veld in de linkerzijbalk om er een toe te voegen."
+  },
+  "gridViewFieldFile": {
+    "dropHere": "Laat hier los",
+    "dropFileHere": "Laat bestanden hier los"
+  },
+  "apiDocsUploadFile": {
+    "file": "De `file` multipart met de inhoud van het bestand.",
+    "description": "Upload een bestand naar Baserow door de inhoud van het bestand direct te uploaden. Er wordt een `file` multipart verwacht met de inhoud van het bestand. Het antwoord kan vervolgens worden gebruikt om [een bestand naar een rij te uploaden]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
+  },
+  "apiDocsUploadFileViaURL": {
+    "url": "De URL die Baserow namens u moet downloaden en uploaden.",
+    "description": "Upload een bestand naar Baserow door het te downloaden van de opgegeven URL. Het antwoord kan vervolgens worden gebruikt om [een bestand naar een rij te uploaden]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row)."
+  },
+  "duplicateTableJobType": {
+    "duplicatedTitle": "Tabel dupliceerd",
+    "duplicating": "Dupliceren",
+    "name": "Dupliceer tabel"
+  },
+  "fileField": {
+    "errorEmptyFileNameMessage": "U kunt geen lege naam voor een bestand instellen.",
+    "errorEmptyFileNameTitle": "Ongeldige bestandsnaam"
+  },
+  "viewOwnershipType": {
+    "collaborative": "Samenwerkend",
+    "personal": "Persoonlijk"
+  },
+  "gridViewRowsAddContext": {
+    "title": "Maak meerdere rijen",
+    "choice": "Voeg {rijAmountChoice} rijen toe"
+  },
+  "fieldRollupSubForm": {
+    "label": "Rollup functie",
+    "selectTargetFieldLabel": "Selecteer een veld om op te rollen"
+  },
+  "fieldSelectThroughFieldSubForm": {
+    "noTable": "Je hebt minstens één link naar tabel nodig om dit veld te creëren.",
+    "selectThroughFieldLabel": "Selecteer een link naar tabel veld"
+  },
+  "apiDocsFiltersBuilderModal": {
+    "userFieldNames": "Veldnamen gebruikers",
+    "json": "JSON",
+    "title": "Filters parameter bouwer",
+    "queryParameter": "Query-parameters"
+  },
+  "viewGroupBy": {
+    "groupBy": "Groep | Groep bij 1 veld | Groep per {aantal} velden"
+  },
+  "rowHistorySidebar": {
+    "you": "Jij",
+    "name": "Geschiedenis",
+    "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen.",
+    "created": "deze rij is aangemaakt",
+    "updated": "deze rij is bijgewerkt",
+    "submitted": "deze rij is ingediend",
+    "restored": "deze rij is hersteld",
+    "createdUndo": "rij maken ongedaan maken",
+    "updatedUndo": "rij update ongedaan maken",
+    "deletedUndo": "rij verwijderen ongedaan maken",
+    "deleted": "deze rij is verwijderd"
+  },
+  "viewGroupByContext": {
+    "groupBy": "Groepeer op",
+    "thenBy": "Dan door",
+    "addGroupBy": "kies een veld om op te sorteren",
+    "noGroupByTitle": "Je hebt nog geen groepen gemaakt",
+    "noGroupByText": "Groepeer rijen op een veld."
+  },
+  "collaboratorAddedToRowNotification": {
+    "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
+    "deletedUser": "Een verwijderde gebruiker",
+    "unknownUser": "Een onbekende gebruiker"
+  },
+  "fieldCollaboratorSubForm": {
+    "notifyUserWhenAdded": "Gebruiker op de hoogte stellen wanneer toegevoegd"
+  },
+  "viewFieldConditionsForm": {
+    "addCondition": "Voorwaarde toevoegen",
+    "addConditionGroup": "Voorwaarde groep toevoegen"
+  },
+  "formSubmittedNotification": {
+    "title": "{formName} is verstuurd in tabel {tableName}:",
+    "moreValues": "0 | en nog 1 veld. | en {count} meer velden."
+  },
+  "fieldDurationSubForm": {
+    "durationFormatLabel": "Duur format"
+  },
+  "fieldPasswordSubForm": {
+    "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer.",
+    "allowEndpointAuthentication": "API endpoint authenticatie toestaan",
+    "allowEndpointAuthenticationHelp": "Dit stelt een eindpunt beschikbaar waar de rij-ID en het wachtwoord kunnen worden gecontroleerd op juistheid. Hierdoor kan Baserow worden gebruikt als backend voor authenticatie."
+  },
+  "rowEditFieldPassword": {
+    "setPassword": "Stel een wachtwoord in"
+  },
+  "rowHistoryFieldPassword": {
+    "passwordSet": "Het wachtwoord is ingesteld",
+    "passwordUpdated": "Het wachtwoord is bijgewerkt",
+    "passwordDeleted": "Het wachtwoord is verwijderd"
+  },
+  "fieldLongTextSubForm": {
+    "enableRichTextFormatting": "Opmaak met rijke tekst inschakelen"
+  },
+  "dataProviderTypes": {
+    "fieldsName": "Velden"
+  },
+  "userMentionInRichTextFieldNotification": {
+    "title": "{sender} heeft u vermeld in veld {fieldName} van rij {rowId} in {tableName}",
+    "deletedUser": "Een verwijderde gebruiker"
+  },
+  "databaseScratchTrackStep": {
+    "teamsRow2": "HR",
+    "addYourOwn": "Voeg je eigen toe",
+    "tableName": "Tabel naam",
+    "rowName": "Naam rij",
+    "projects": "Projecten",
+    "thisIncludes": "Dit omvat:",
+    "productsRow1": "Rebranding website",
+    "productsRow3": "Betaalde advertentiecampagne",
+    "productsRow2": "Klantonderzoek",
+    "teams": "Teams",
+    "teamsRow1": "Verkoop",
+    "teamsRow3": "Marketing",
+    "tasksRow3": "Blogbericht schrijven",
+    "tasks": "Taken",
+    "tasksRow1": "Logo herontwerp",
+    "tasksRow2": "Stuur e-mail",
+    "campaignsRow2": "Loyaliteit beloningen",
+    "campaigns": "Campagnes",
+    "campaignsRow1": "Zomer uitverkoop",
+    "campaignsRow3": "Herlancering merk",
+    "title": "Wat wil je bijhouden?",
+    "description": "Kies uit populaire use cases of maak je eigen."
+  },
+  "databaseStep": {
+    "airtable": "Van Airtable",
+    "import": "Van bestand",
+    "title": "Je eerste database maken",
+    "description": "Laat ons weten waar je aan werkt.",
+    "databaseNameLabel": "Database naam",
+    "scratch": "Uit het niets",
+    "template": "Template"
+  },
+  "databaseImportStep": {
+    "description": "Verplaats je gegevens naar Baserow, in slechts een paar klikken.",
+    "tableNameLabel": "Tabel naam",
+    "title": "Importeer je gegevens"
+  },
+  "ViewFilterTypeDateUpgradeToMultiStep": {
+    "migrateButtonText": "Migreren naar meerstaps datumfilter",
+    "migrateButtonTooltip": "Nieuw filter beschikbaar. Klik om te upgraden. Het werkt hetzelfde."
+  },
+  "formViewMetaControls": {
+    "whenSubmittedLabel": "Wanneer het formulier is verzonden",
+    "showMessage": "Een bericht weergeven",
+    "theURL": "De URL",
+    "theMessage": "Het bericht",
+    "urlRedirect": "Doorverwijzen naar URL"
+  },
+  "databaseDashboardResourceLinks": {
+    "title": "API-documentatie",
+    "description": "Leer meer over onze code"
+  },
+  "changePrimaryFieldModal": {
+    "title": "Wijzig het primaire veld",
+    "change": "Wijzig",
+    "primaryFieldLabel": "Primair veld",
+    "existingPrimary": "\"{name}\" is momenteel het primaire veld."
+  },
+  "databaseScratchTrackFieldsStep": {
+    "campaignsDetailsRow1": "Laat je besparingen oplopen met onze zinderende zomeruitverkoop, met onverslaanbare kortingen op al je favoriete producten!",
+    "campaignsDetailsRow2": "Verhoog de klantenbinding en -betrokkenheid met ons verleidelijke loyaliteitsbeloningsprogramma, ontworpen om uw meest toegewijde klanten te belonen.",
+    "campaignsDetailsRow3": "Blaas je bedrijf nieuw leven in en verleid je publiek met een dynamische merkherlancering die perfect aansluit bij de huidige markttrends en klantwensen.",
+    "customFieldsDescriptionRow1": "Turpis massa tincidunt dui ut ornare lectus sit amet est.",
+    "customFieldsDescriptionRow2": "Vitae justo eget magna fermentum iaculis eu non diam.",
+    "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt.",
+    "title": "Kies velden voor elke rij",
+    "description": "Kies maximaal {selectedFieldsLimitCount} velden. Je kunt er later meer toevoegen.",
+    "fieldName": "Naam",
+    "fieldType": "Type veld",
+    "fieldDescription": "Beschrijving",
+    "fieldDetails": "Details",
+    "fieldNumber": "Nummer",
+    "fieldDate": "Datum",
+    "fieldBoolean": "Afgerond",
+    "fieldDuration": "Duur",
+    "fieldUrl": "URL",
+    "fieldEmail": "E-mail",
+    "projectsCategoryDesign": "Ontwerp",
+    "projectsNotesRow1": "Acme is op zoek naar een complete rebranding van hun website met de volgende richtlijnen.",
+    "fieldCategory": "Categorie",
+    "fieldDueDate": "Vervaldatum",
+    "fieldBudget": "Budget",
+    "fieldCompleted": "Voltooid",
+    "fieldRole": "Rol",
+    "fieldNotes": "Opmerkingen",
+    "fieldEstimatedDays": "Geschatte dagen",
+    "fieldEndDate": "Einddatum",
+    "projectsCategoryDevelopment": "Ontwikkeling",
+    "projectsNotesRow3": "Ik vraag me af of dit de moeite waard is na de Facebook-advertentieboycot. Studies tonen aan dat betaalde advertentiecampagnes steeds minder effectief worden.",
+    "teamsRoleDesigner": "Ontwerper",
+    "teamsRoleDeveloper": "Ontwikkelaar",
+    "teamsRoleMarketer": "Marketeer",
+    "tasksDetailsRow2": "De structuur klopt niet helemaal, dus misschien moeten we de sitemap hier ook aanpassen.",
+    "fieldRating": "Beoordeling",
+    "fieldKickoffDate": "Aftrapdatum",
+    "fieldPhone": "Telefoon",
+    "fieldActive": "Actief",
+    "fieldStartDate": "Startdatum",
+    "projectsCategoryMarketing": "Marketing",
+    "projectsNotesRow2": "Onderzoek of de huidige gebruikers van Soylent geïnteresseerd zijn in een nieuw gebruikersportaal.",
+    "tasksDetailsRow1": "Het logo moet worden verbeterd om de CTA duidelijker te maken.",
+    "tasksDetailsRow3": "De nieuwe voettekst moet onze contactgegevens bevatten en ook een kleine (maar duidelijke) CTA."
+  },
+  "createTableModal": {
+    "title": "Nieuwe tabel maken",
+    "importLabel": "Wil je bestaande gegevens importeren?",
+    "defaultName": "Tabel",
+    "newTable": "Begin met een nieuwe tabel"
+  },
+  "createTable": {
+    "showTable": "toon tabel",
+    "addButton": "Tabel toevoegen",
+    "uploading": "Uploaden...",
+    "stateRowCreation": "Importeren...",
+    "statePreValidation": "Valideren van gegevens...",
+    "importError": "Er is iets misgegaan tijdens het importeren van het bestand",
+    "preparing": "Voorbereiden van data...",
+    "stateCreateTable": "Tabel maken..."
+  },
+  "importErrorReport": {
+    "reportTitleFailure": "Mislukte rijen",
+    "reportTitleSuccess": "Import succesvol, maar...",
+    "reportMessage": "De volgende rij indexen konden'niet worden geïmporteerd:"
+  },
+  "dataSyncType": {
+    "icalCalendar": "Sync iCal feed",
+    "syncError": "Sync-fout",
+    "postgresql": "PostgreSQL tabel synchroniseren"
+  },
+  "iCalCalendarDataSync": {
+    "name": "iCal URL",
+    "description": "De iCal kalendersynchronisatie synchroniseert automatisch met de items in het kalenderbestand van de URL. Het ondersteunt alleen het ICS-bestandstype (Internet Calendar and Scheduling)."
+  },
+  "createDataSync": {
+    "fields": "Selecteer de velden die je wilt synchroniseren",
+    "create": "Tabel maken en synchroniseren",
+    "error": "Er is iets misgegaan tijdens de synchronisatie",
+    "next": "Volgende",
+    "autoAddLabel": "Automatisch nieuwe eigenschappen toevoegen",
+    "autoAddHelper": "Voegt automatisch nieuw beschikbare eigenschappen toe aan de tabel en synchroniseert deze. Merk op dat om dit te laten werken, alle eigenschappen gesynchroniseerd moeten zijn.",
+    "twoWaySyncLabel": "Bidirectionele synchronisatie"
+  },
+  "syncTableModal": {
+    "title": "Sync {name}",
+    "sync": "Sync tabel",
+    "hide": "Verberg",
+    "description": "Deze tabel is gekoppeld aan een gegevenssynchronisatie. Wanneer je op de sync knop klikt, worden de gegevens gesynchroniseerd met de bron. Tijdens dit proces wordt een slot geplaatst op de bijgewerkte rijen, wat API verzoeken of tabelwijzigingen tijdelijk kan vertragen."
+  },
+  "gridViewRowHeight": {
+    "name": "Hoogte",
+    "small": "Klein",
+    "medium": "Middel",
+    "large": "Groot"
+  },
+  "createViewLink": {
+    "inCompatibleWithDataSync": "Dit weergavetype is niet compatibel met een data sync tabel."
+  },
+  "postgreSQLDataSync": {
+    "host": "Host",
+    "username": "Gebruikersnaam",
+    "password": "Wachtwoord",
+    "database": "Database",
+    "table": "Tabel",
+    "sslMode": "SSL-modus",
+    "schema": "Schema",
+    "description": "Synchroniseert een PostgreSQL tabel met een Baserow tabel die overeenkomt met de onderstaande gegevens. Let op dat wanneer de synchronisatie start, het alle rijen in de opgegeven tabel zal selecteren. Hoewel Baserow alleen gegevens selecteert, raden we sterk aan om de gebruiker te beperken tot een alleen-lezen verbinding.",
+    "port": "Poort"
+  },
+  "configureDataSyncModal": {
+    "title": "Data sync",
+    "syncedFields": "Gesynchroniseerde velden",
+    "syncSettings": "Sync instellingen"
+  },
+  "configureDataSyncVisibleFields": {
+    "fields": "Gesynchroniseerde velden",
+    "syncTable": "Sync bij opslaan",
+    "title": "Gesynchroniseerde velden wijzigen"
+  },
+  "configureDataSyncSettings": {
+    "title": "Verander data sync",
+    "syncTable": "Sync bij opslaan"
+  },
+  "webhookPayloadTooLargeNotification": {
+    "body": "De payload voor de {name} webhook met event ID {event_id} was te groot. De inhoud is opgesplitst in meerdere batches, maar gegevens boven de batchnorm van {batch_limit} zijn weggegooid."
+  },
+  "viewFieldConditionItem": {
+    "filterMisconfigured": "Het veld waaraan deze filter is gekoppeld, is weggegooid."
+  },
+  "webhookDeactivatedNotification": {
+    "body": "{name} webhook is gedeactiveerd omdat het te vaak achter elkaar faalde."
+  },
+  "createFormViewGuidedTourStep": {
+    "title": "Een formulier maken",
+    "content": "Bouw snel formulieren vanuit je tabellen om reacties direct in je tabel te verzamelen, waardoor het verzamelen van gegevens wordt gestroomlijnd."
+  },
+  "tablesGuidedTourStep": {
+    "content": "Tabellen slaan je informatie netjes op. Maak een nieuwe tabel in je database om te beginnen met het structureren van je gegevens.",
+    "title": "Tabellen instellen"
+  },
+  "filterSortGroupGuidedTourStep": {
+    "title": "Je gegevens vinden en organiseren",
+    "content": "Vind snel informatie door te filteren en sorteren op je rijen. Groepeer direct op één van de velden om patronen duidelijk te visualiseren en je workflows te vereenvoudigen."
+  },
+  "addFieldGuidedTourStep": {
+    "content": "Klik op \"+\" om nieuwe velden (kolommen) toe te voegen. Kies uit verschillende veldtypes om precies vast te leggen wat belangrijk is voor je project.",
+    "title": "Je gegevens aanpassen"
+  },
+  "createViewGuidedTourStep": {
+    "content": "Maak aangepaste weergaven zoals raster, kalender, kanban of galerij om je gegevens precies te visualiseren zoals jij dat wilt.",
+    "title": "Personaliseer je weergaven"
+  },
+  "viewOptionsGuidedTourStep": {
+    "title": "Weergave opties",
+    "content": "Klik op de drie puntjes naast de weergave om een webhook te exporteren, importeren, dupliceren en configureren."
+  },
+  "fieldBooleanSubForm": {
+    "defaultValue": "Standaard"
+  },
+  "apiDocsListTables": {
+    "listTables": "Toon alle tabellen",
+    "listTablesDescription": "Dit eindpunt werkt alleen in combinatie met token authenticatie. Het geeft een overzicht van alle tabellen waartoe het token toegang heeft (maken, lezen, bijwerken of verwijderen)."
+  },
+  "fieldMultipleSelectSubForm": {
+    "optionsLabel": "Opties",
+    "defaultOptionsLabel": "Standaardopties"
+  },
+  "apiDocsPasswordFieldAuthentication": {
+    "title": "{name} authenticatie",
+    "description": "Controleert of het opgegeven wachtwoord en de rij overeenkomen met wat is opgeslagen in de cel.",
+    "fieldId": "De veld-ID waarop het wachtwoord moet worden gecontroleerd.",
+    "rowId": "De rij-ID waarvoor het wachtwoord moet worden gecontroleerd.",
+    "password": "Het wachtwoord waarvan gecontroleerd moet worden of het correct is."
+  },
+  "fieldRules": {
+    "errorTitle": "Fout tijdens verwerking veldregel",
+    "ruleDoesNotExist": "Regel bestaat niet",
+    "ruleTypeDoesNotExist": "Regeltype bestaat niet",
+    "ruleAlreadyExists": "Regel bestaat al"
+  }
 }

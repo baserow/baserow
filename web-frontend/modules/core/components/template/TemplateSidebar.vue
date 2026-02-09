@@ -59,6 +59,7 @@ export default {
       required: true,
     },
   },
+  emits: ['collapse-toggled', 'selected-page'],
   computed: {
     sortedApplications() {
       return this.applications

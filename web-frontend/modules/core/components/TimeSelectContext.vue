@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     :hide-on-click-outside="hideOnClickOutside"
     class="time-select"
     max-height-if-outside-viewport
@@ -38,6 +39,7 @@ export default {
       default: '',
     },
   },
+  emits: ['input'],
   methods: {
     /**
      * Generates a list of times that the user can choose from. It ranges from 00:00

@@ -125,9 +125,9 @@ def test_0003_migrate_local_baserow_table_service_filter_values_to_formulas_forw
 
     filters_which_migrated = reduce_to_filter_types_to_migrate(all_filters)
     for filter_which_migrated in filters_which_migrated:
-        assert (
-            filter_which_migrated.value == "'dogs'"
-        ), f"Filter type={filter_which_migrated.type} field={filter_which_migrated.field} did not migrate correctly."  # noqa: E501
+        assert filter_which_migrated.value == "'dogs'", (
+            f"Filter type={filter_which_migrated.type} field={filter_which_migrated.field} did not migrate correctly."
+        )  # noqa: E501
 
     filters_which_did_not_migrate = [
         service_filter
@@ -135,9 +135,9 @@ def test_0003_migrate_local_baserow_table_service_filter_values_to_formulas_forw
         if service_filter not in filters_which_migrated
     ]
     for filter_which_did_not_migrate in filters_which_did_not_migrate:
-        assert (
-            filter_which_did_not_migrate.value != "'dogs'"
-        ), f"Filter type={filter_which_did_not_migrate.type} field={filter_which_did_not_migrate.field} migrated when it should not have."  # noqa: E501
+        assert filter_which_did_not_migrate.value != "'dogs'", (
+            f"Filter type={filter_which_did_not_migrate.type} field={filter_which_did_not_migrate.field} migrated when it should not have."
+        )  # noqa: E501
 
 
 @pytest.mark.once_per_day_in_ci
@@ -295,10 +295,10 @@ def test_0006_migrate_local_baserow_table_service_filter_formulas_to_value_is_fo
 
     for service_filter in LocalBaserowTableServiceFilter.objects.all():
         if value_parses_as_formula(service_filter.value):
-            assert (
-                service_filter.value_is_formula is True
-            ), "A valid formula was detected, but value_is_formula was not set to True."
+            assert service_filter.value_is_formula is True, (
+                "A valid formula was detected, but value_is_formula was not set to True."
+            )
         else:
-            assert (
-                service_filter.value_is_formula is False
-            ), "A invalid formula was detected, but value_is_formula was not set to False."  # noqa: E501
+            assert service_filter.value_is_formula is False, (
+                "A invalid formula was detected, but value_is_formula was not set to False."
+            )  # noqa: E501

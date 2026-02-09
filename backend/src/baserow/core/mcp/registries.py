@@ -1,11 +1,12 @@
-from typing import Any, Dict, List, Optional, Sequence, Union
-
-from mcp import Tool
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.utils import NameRoute
 from baserow.core.registry import Instance, Registry
+
+if TYPE_CHECKING:
+    from mcp import Tool
+    from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 
 class MCPTool(Instance):
@@ -23,7 +24,7 @@ class MCPTool(Instance):
             )
         return self.name
 
-    async def list(self, endpoint: MCPEndpoint) -> List[Tool]:
+    async def list(self, endpoint: MCPEndpoint) -> List["Tool"]:
         """
         :param endpoint: The endpoint related to the request. Can be used to
             dynamically check which tools the user has access to.
@@ -37,7 +38,7 @@ class MCPTool(Instance):
         endpoint: MCPEndpoint,
         name_parameters: Dict[str, Any],
         call_arguments: Dict[str, Any],
-    ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+    ) -> Sequence[Union["TextContent", "ImageContent", "EmbeddedResource"]]:
         """
 
         :param endpoint: The endpoint related to the authenticated user.
@@ -57,7 +58,7 @@ class MCPTool(Instance):
 class MCPToolRegistry(Registry[MCPTool]):
     name = "mcp_tools"
 
-    async def list_all_tools(self, endpoint: MCPEndpoint) -> List[Tool]:
+    async def list_all_tools(self, endpoint: MCPEndpoint) -> List["Tool"]:
         """
         :param endpoint: The endpoint related to the request. Can be used to
             dynamically check which tools the user has access to.

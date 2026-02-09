@@ -1,5 +1,5 @@
 <template>
-  <Context class="workflow-node__context">
+  <Context ref="context" class="workflow-node__context">
     <WorkflowAddNodeMenu
       :node="node"
       :only-trigger="onlyTrigger"
@@ -27,6 +27,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['change'],
   methods: {
     onChange(nodeType) {
       this.hide()

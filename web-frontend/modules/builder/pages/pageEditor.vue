@@ -1,5 +1,6 @@
 <template>
-  <div class="page-editor">
+  <!-- TODO MIG add a skeleton loader while the page is loading. -->
+  <div v-if="builder && currentPage && sharedPage" class="page-editor">
     <PageHeader />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
@@ -15,7 +16,10 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { useHead, useAsyncData } from '#imports'
+import { ref, computed, watch, provide } from 'vue'
+import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import PageHeader from '@baserow/modules/builder/components/page/header/PageHeader'
 import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
@@ -25,250 +29,238 @@ import { BuilderApplicationType } from '@baserow/modules/builder/applicationType
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 
-const mode = 'editing'
-
-export default {
-  name: 'PageEditor',
-  components: { PagePreview, PageHeader, PageSidePanels },
-  provide() {
-    return {
-      workspace: this.workspace,
-      builder: this.builder,
-      currentPage: this.currentPage,
-      mode,
-      formulaComponent: ApplicationBuilderFormulaInput,
-      applicationContext: this.applicationContext,
-    }
-  },
-
-  /**
-   * When the route is updated we want to unselect the element
-   */
-  beforeRouteUpdate(to, from, next) {
-    // Unselect previously selected element
-    const currentBuilder = this.$store.getters['application/get'](
-      parseInt(from.params.builderId)
-    )
-    this.$store.dispatch('element/select', {
-      builder: currentBuilder,
-      element: null,
-    })
-    if (from.params.builderId !== to.params?.builderId) {
-      // When we switch from one application to another we want to logoff the current
-      // user
-      if (currentBuilder) {
-        // We want to reload once only data for this builder next time
-        this.$store.dispatch('application/forceUpdate', {
-          application: currentBuilder,
-          data: { _loadedOnce: false },
-        })
-        this.$store.dispatch('userSourceUser/logoff', {
-          application: currentBuilder,
-        })
-      }
-    }
-    next()
-  },
-  /**
-   * When the user leaves to another page we want to unselect the selected page. This
-   * way it will not be highlighted the left sidebar.
-   */
-  beforeRouteLeave(to, from, next) {
-    this.$store.dispatch('page/unselect')
-
-    const builder = this.$store.getters['application/get'](
-      parseInt(from.params.builderId)
-    )
-
-    if (builder) {
-      // Unselect previously selected element
-      this.$store.dispatch('element/select', {
-        builder,
-        element: null,
-      })
-      // We want to reload once only data for this builder next time
-      this.$store.dispatch('application/forceUpdate', {
-        application: builder,
-        data: { _loadedOnce: false },
-      })
-      this.$store.dispatch('userSourceUser/logoff', { application: builder })
-    }
-
-    next()
-  },
+definePageMeta({
   layout: 'app',
-  async asyncData({ store, params, error, $registry, app }) {
-    const builderId = parseInt(params.builderId)
-    const pageId = parseInt(params.pageId)
+  middleware: [
+    'settings',
+    'authenticated',
+    'workspacesAndApplications',
+    'selectWorkspaceBuilderPage',
+    'pendingJobs',
+  ],
+})
 
-    const data = { panelWidth: 360 }
+const mode = 'editing'
+const route = useRoute()
+const { $store, $registry, $i18n } = useNuxtApp()
+
+const panelWidth = ref(360)
+/*const workspace = ref(null)
+const builder = ref(null)
+const currentPage = ref(null)*/
+
+// Provide values for child components
+const applicationContext = computed(() => ({
+  workspace: workspace.value,
+  builder: builder.value,
+  mode,
+}))
+
+useHead(() => ({
+  title: $i18n.t('pageEditor.title'),
+}))
+
+// Load page data
+const {
+  data: pageData,
+  error: pageError,
+  pending: pagePending,
+  refresh: refreshPage,
+} = await useAsyncData(
+  () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
+  async () => {
+    // The objects are selected by the middleware
+    const loadedBuilder = $store.getters['application/getSelected']
+    const loadedWorkspace = $store.getters['workspace/getSelected']
+    const page = $store.getters['page/getSelected']
 
     try {
-      const builder = await store.dispatch('application/selectById', builderId)
-      store.dispatch('userSourceUser/setCurrentApplication', {
-        application: builder,
+      $store.dispatch('userSourceUser/setCurrentApplication', {
+        application: loadedBuilder,
       })
-      const workspace = await store.dispatch(
-        'workspace/selectById',
-        builder.workspace.id
-      )
 
       const builderApplicationType = $registry.get(
         'application',
         BuilderApplicationType.getType()
       )
 
-      const page = store.getters['page/getById'](builder, pageId)
-
       if (page.shared) {
-        return error({
+        throw createError({
           statusCode: 404,
-          message: app.i18n.t('pageEditor.pageNotFound'),
+          message: $i18n.t('pageEditor.pageNotFound'),
         })
       }
 
-      await builderApplicationType.loadExtraData(builder, mode)
+      await builderApplicationType.loadExtraData(loadedBuilder, mode)
 
       await Promise.all([
-        store.dispatch('dataSource/fetch', {
-          page,
-        }),
-        store.dispatch('element/fetch', { builder, page }),
-        store.dispatch('builderWorkflowAction/fetch', { page }),
+        $store.dispatch('dataSource/fetch', { page }),
+        $store.dispatch('element/fetch', { builder: loadedBuilder, page }),
+        $store.dispatch('builderWorkflowAction/fetch', { page }),
       ])
 
       await DataProviderType.initAll($registry.getAll('builderDataProvider'), {
-        builder,
+        builder: loadedBuilder,
         page,
         mode,
       })
 
-      // And finally select the page to display it
-      await store.dispatch('page/selectById', {
-        builder,
-        pageId,
-      })
-
-      data.workspace = workspace
-      data.builder = builder
-      data.currentPage = page
+      return {
+        workspace: loadedWorkspace,
+        builder: loadedBuilder,
+        page,
+      }
     } catch (e) {
-      // In case of a network error we want to fail hard.
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
 
-      return error({
+      throw createError({
         statusCode: 404,
-        message: app.i18n.t('pageEditor.pageNotFound'),
+        message: $i18n.t('pageEditor.pageNotFound'),
       })
     }
+  }
+)
 
-    return data
+const workspace = computed(() => pageData.value?.workspace ?? null)
+const builder = computed(() => pageData.value?.builder ?? null)
+const currentPage = computed(() => pageData.value?.page ?? null)
+
+// Computed properties
+const dataSources = computed(() => {
+  return $store.getters['dataSource/getPageDataSources'](currentPage.value)
+})
+
+const sharedPage = computed(() => {
+  if (!builder.value) return null
+  return $store.getters['page/getSharedPage'](builder.value)
+})
+
+const sharedDataSources = computed(() => {
+  return $store.getters['dataSource/getPageDataSources'](sharedPage.value)
+})
+
+const dispatchContext = computed(() => {
+  if (!currentPage.value || !applicationContext.value) return {}
+  return DataProviderType.getAllDataSourceDispatchContext(
+    $registry.getAll('builderDataProvider'),
+    { ...applicationContext.value, page: currentPage.value }
+  )
+})
+
+const applicationDispatchContext = computed(() => {
+  if (!builder.value) return {}
+  return DataProviderType.getAllDataSourceDispatchContext(
+    $registry.getAll('builderDataProvider'),
+    { builder: builder.value, mode }
+  )
+})
+
+provide('workspace', workspace)
+provide('builder', builder)
+provide('currentPage', currentPage)
+provide('mode', mode)
+provide('formulaComponent', ApplicationBuilderFormulaInput)
+provide('applicationContext', applicationContext)
+
+// Watchers
+watch(
+  dataSources,
+  () => {
+    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+      page: currentPage.value,
+      data: dispatchContext.value,
+      mode,
+    })
   },
-  computed: {
-    applicationContext() {
-      return {
-        workspace: this.workspace,
-        builder: this.builder,
+  { deep: true }
+)
+
+watch(
+  sharedDataSources,
+  () => {
+    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+      page: sharedPage.value,
+      data: dispatchContext.value,
+    })
+  },
+  { deep: true }
+)
+
+watch(
+  dispatchContext,
+  (newDispatchContext, oldDispatchContext) => {
+    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: currentPage.value,
+        data: newDispatchContext,
         mode,
-      }
-    },
-    dataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](
-        this.currentPage
-      )
-    },
-    sharedPage() {
-      return this.$store.getters['page/getSharedPage'](this.builder)
-    },
-    sharedDataSources() {
-      return this.$store.getters['dataSource/getPageDataSources'](
-        this.sharedPage
-      )
-    },
-    dispatchContext() {
-      return DataProviderType.getAllDataSourceDispatchContext(
-        this.$registry.getAll('builderDataProvider'),
-        { ...this.applicationContext, page: this.currentPage }
-      )
-    },
-    // Separate dispatch context for application level shared data sources
-    // This one doesn't contain the page.
-    applicationDispatchContext() {
-      return DataProviderType.getAllDataSourceDispatchContext(
-        this.$registry.getAll('builderDataProvider'),
-        { builder: this.builder, mode }
-      )
-    },
+      })
+    }
   },
-  watch: {
-    dataSources: {
-      deep: true,
-      /**
-       * Update data source content on data source configuration changes
-       */
-      handler() {
-        this.$store.dispatch(
-          'dataSourceContent/debouncedFetchPageDataSourceContent',
-          {
-            page: this.currentPage,
-            data: this.dispatchContext,
-            mode: this.mode,
-          }
-        )
-      },
-    },
-    sharedDataSources: {
-      deep: true,
-      /**
-       * Update shared data source content on data source configuration changes
-       */
-      handler() {
-        this.$store.dispatch(
-          'dataSourceContent/debouncedFetchPageDataSourceContent',
-          {
-            page: this.sharedPage,
-            data: this.dispatchContext,
-          }
-        )
-      },
-    },
-    dispatchContext: {
-      deep: true,
-      /**
-       * Update data source content on backend context changes
-       */
-      handler(newDispatchContext, oldDispatchContext) {
-        if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
-          this.$store.dispatch(
-            'dataSourceContent/debouncedFetchPageDataSourceContent',
-            {
-              page: this.currentPage,
-              data: newDispatchContext,
-              mode: this.mode,
-            }
-          )
-        }
-      },
-    },
-    applicationDispatchContext: {
-      deep: true,
-      /**
-       * Update data source content on backend context changes
-       */
-      handler(newDispatchContext, oldDispatchContext) {
-        if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
-          this.$store.dispatch(
-            'dataSourceContent/debouncedFetchPageDataSourceContent',
-            {
-              page: this.sharedPage,
-              data: newDispatchContext,
-            }
-          )
-        }
-      },
-    },
+  { deep: true }
+)
+
+watch(
+  applicationDispatchContext,
+  (newDispatchContext, oldDispatchContext) => {
+    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: sharedPage.value,
+        data: newDispatchContext,
+      })
+    }
   },
-}
+  { deep: true }
+)
+
+// Navigation guards
+onBeforeRouteUpdate((to, from) => {
+  // Unselect previously selected element
+  const currentBuilder = $store.getters['application/get'](
+    parseInt(from.params.builderId)
+  )
+  if (currentBuilder) {
+    $store.dispatch('element/select', {
+      builder: currentBuilder,
+      element: null,
+    })
+  }
+  if (from.params.builderId !== to.params?.builderId) {
+    // When we switch from one application to another we want to logoff the current user
+    if (currentBuilder) {
+      // We want to reload once only data for this builder next time
+      $store.dispatch('application/forceUpdate', {
+        application: currentBuilder,
+        data: { _loadedOnce: false },
+      })
+      $store.dispatch('userSourceUser/logoff', {
+        application: currentBuilder,
+      })
+    }
+  }
+})
+
+onBeforeRouteLeave((to, from) => {
+  $store.dispatch('page/unselect')
+
+  const builderToLeave = $store.getters['application/get'](
+    parseInt(from.params.builderId)
+  )
+
+  if (builderToLeave) {
+    // Unselect previously selected element
+    $store.dispatch('element/select', {
+      builder: builderToLeave,
+      element: null,
+    })
+    // We want to reload once only data for this builder next time
+    $store.dispatch('application/forceUpdate', {
+      application: builderToLeave,
+      data: { _loadedOnce: false },
+    })
+    $store.dispatch('userSourceUser/logoff', { application: builderToLeave })
+  }
+})
 </script>

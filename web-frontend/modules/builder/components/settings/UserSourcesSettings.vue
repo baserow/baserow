@@ -164,7 +164,7 @@ export default {
       return this.$registry.get('userSource', userSource.type)
     },
     onValueChange() {
-      this.invalidForm = !this.$refs.userSourceForm.isFormValid()
+      this.invalidForm = !this.$refs.userSourceForm?.isFormValid()
     },
     async displayForm(userSourceToEdit) {
       if (userSourceToEdit) {

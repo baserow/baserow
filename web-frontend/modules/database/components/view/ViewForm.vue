@@ -24,19 +24,39 @@
     </FormGroup>
 
     <FormGroup small-label :label="$t('viewForm.whoCanEdit')" required>
-      <component
-        :is="type.getRadioComponent()"
-        v-for="type in availableViewOwnershipTypesForCreation"
-        :key="type.getType()"
-        class="margin-right-2"
-        :view-ownership-type="type"
-        :database="database"
-        :selected-type="values.ownershipType"
-        @input="(value) => (values.ownershipType = value)"
-      >
-      </component>
+      <Dropdown v-model="values.ownershipType" size="large" :fixed-items="true">
+        <DropdownItem
+          v-for="type in availableViewOwnershipTypesForCreation"
+          :key="type.getType()"
+          :name="type.getName()"
+          :value="type.getType()"
+          :icon="
+            type.isDeactivated(database.workspace.id)
+              ? 'iconoir-lock'
+              : type.getIconClass()
+          "
+          :description="type.getDescription()"
+          :disabled="type.isDeactivated(database.workspace.id)"
+          @click="clickOnDeactivatedItem($event, type)"
+        ></DropdownItem>
+      </Dropdown>
     </FormGroup>
-
+    <component
+      :is="
+        type.isDeactivated(database.workspace.id)
+          ? type.getDeactivatedModal()[0]
+          : null
+      "
+      v-for="type in availableViewOwnershipTypesForCreation"
+      :key="type.getType()"
+      :ref="'deactivatedClickModal-' + type.getType()"
+      v-bind="
+        type.isDeactivated(database.workspace.id)
+          ? type.getDeactivatedModal()[1]
+          : null
+      "
+      :workspace="database.workspace"
+    ></component>
     <slot></slot>
   </form>
 </template>
@@ -117,6 +137,11 @@ export default {
       return ownershipTypes
         .slice()
         .sort((a, b) => b.getListViewTypeSort() - a.getListViewTypeSort())
+    },
+    clickOnDeactivatedItem(event, type) {
+      if (type.isDeactivated(this.database.workspace.id)) {
+        this.$refs[`deactivatedClickModal-${type.getType()}`][0].show()
+      }
     },
   },
 }

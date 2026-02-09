@@ -1,18 +1,14 @@
-/**
- * @jest-environment jsdom
- */
-
 import importer from '@baserow/modules/database/mixins/importer'
 
 describe('test file importer', () => {
-  test('test field name id is invalid as is reserved by baserow', () => {
+  test('field name id is invalid as is reserved by baserow', () => {
     expect(importer.methods.makeHeaderUniqueAndValid(['id'])).toEqual(['id 2'])
     expect(importer.methods.makeHeaderUniqueAndValid(['id', 'id 2'])).toEqual([
       'id 3',
       'id 2',
     ])
   })
-  test('test field name order is invalid as is reserved by baserow', () => {
+  test('field name order is invalid as is reserved by baserow', () => {
     expect(importer.methods.makeHeaderUniqueAndValid(['order'])).toEqual([
       'order 2',
     ])

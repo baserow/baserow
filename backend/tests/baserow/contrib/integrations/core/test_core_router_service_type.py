@@ -47,13 +47,22 @@ def test_update_core_router_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_core_router_service_type_dispatch_data_with_a_truthful_edge(data_fixture):
+@pytest.mark.parametrize(
+    "truthful_condition",
+    [1, [1], True, "yes"],
+)
+def test_core_router_service_type_dispatch_data_with_a_truthful_edge(
+    data_fixture, truthful_condition
+):
     service = data_fixture.create_core_router_service()
     data_fixture.create_core_router_service_edge(
         service=service, label="Edge 1", condition="'false'", skip_output_node=True
     )
     edge2 = data_fixture.create_core_router_service_edge(
-        service=service, label="Edge 2", condition="'true'", skip_output_node=True
+        service=service,
+        label="Edge 2",
+        condition=f"'{truthful_condition}'",
+        skip_output_node=True,
     )
 
     service_type = service.get_type()

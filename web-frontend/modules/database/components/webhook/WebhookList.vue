@@ -47,5 +47,6 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted', 'updated'],
 }
 </script>

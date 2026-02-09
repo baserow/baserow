@@ -101,5 +101,6 @@ export default {
       default: false,
     },
   },
+  emits: ['query-change', 'scroll'],
 }
 </script>

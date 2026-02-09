@@ -3,7 +3,7 @@ import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewRow from '@baserow/modules/database/components/view/grid/GridViewRow'
 
 const baseMockConfig = {
-  BASEROW_ROW_PAGE_SIZE_LIMIT: 200,
+  baserowRowPageSizeLimit: 200,
 }
 
 describe('GridView checkbox selection', () => {
@@ -11,22 +11,19 @@ describe('GridView checkbox selection', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
+    store.$config = { public: { ...baseMockConfig } }
     mockServer = testApp.mockServer
   })
 
-  beforeEach(() => {
-    store.$config = { ...baseMockConfig }
-  })
-
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const mountComponent = (component, props, slots = {}) => {
-    return testApp.mount(component, { propsData: props, slots })
+    return testApp.mount(component, { props: props, slots })
   }
 
   const primary = {
@@ -117,8 +114,10 @@ describe('GridView checkbox selection', () => {
     const limit = 3
 
     store.$config = {
-      ...baseMockConfig,
-      BASEROW_ROW_PAGE_SIZE_LIMIT: limit,
+      public: {
+        ...baseMockConfig,
+        baserowRowPageSizeLimit: limit,
+      },
     }
 
     for (let i = 0; i < limit; i++) {
@@ -162,12 +161,10 @@ describe('GridView checkbox selection', () => {
       renderedFields: fields,
       visibleFields: fields,
       allFieldsInTable: fields,
-      leftOffset: 0,
       readOnly: false,
       includeRowDetails: true,
       storePrefix: 'page/',
       decorationsByPlace: {},
-      rowsAtEndOfGroups: new Set(),
       workspaceId: application.workspace.id,
       count: 1,
       canDrag: true,
@@ -277,14 +274,10 @@ describe('GridView checkbox selection', () => {
       storePrefix: 'page/',
     })
 
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: jest.fn(),
-      },
-    })
+    const spy = vi.spyOn(navigator.clipboard, 'write')
 
     await wrapper.vm.copySelection({ preventDefault: () => {} })
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalled()
+    expect(spy).toHaveBeenCalled()
   })
 })

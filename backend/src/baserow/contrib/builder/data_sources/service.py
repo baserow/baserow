@@ -272,10 +272,11 @@ class DataSourceService:
             context=data_source,
         )
 
+        data_source_id = data_source.id
         self.handler.delete_data_source(data_source)
 
         data_source_deleted.send(
-            self, data_source_id=data_source.id, page=page, user=user
+            self, data_source_id=data_source_id, page=page, user=user
         )
 
     def dispatch_data_sources(
@@ -322,12 +323,12 @@ class DataSourceService:
                 "external", {}
             ).get(data_source.service.id, [])
 
-            new_results[
-                data_source.id
-            ] = data_source.service.get_type().sanitize_result(
-                data_source.service.specific,
-                results[data_source.id],
-                allowed_field_names,
+            new_results[data_source.id] = (
+                data_source.service.get_type().sanitize_result(
+                    data_source.service.specific,
+                    results[data_source.id],
+                    allowed_field_names,
+                )
             )
 
         return new_results

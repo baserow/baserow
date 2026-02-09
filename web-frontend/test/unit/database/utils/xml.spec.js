@@ -1,11 +1,7 @@
-/**
- * @jest-environment jsdom
- */
-
 import { parseXML } from '@baserow/modules/database/utils/xml'
 
 describe('test xml utils', () => {
-  test('test xml parser', () => {
+  test('xml parser', () => {
     const [header, xmlData, errors] = parseXML(`
 <notes>
   <note>

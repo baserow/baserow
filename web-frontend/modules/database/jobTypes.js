@@ -8,12 +8,12 @@ export class DuplicateTableJobType extends JobType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateTableJobType.name')
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateTableJobType.duplicating') + '...'
   }
 
@@ -26,7 +26,7 @@ export class DuplicateTableJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     store.dispatch(
       'toast/error',
@@ -40,7 +40,7 @@ export class DuplicateTableJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
 
     const duplicatedTable = job.duplicated_table
     const database = store.getters['application/get'](
@@ -68,5 +68,35 @@ export class SyncDataSyncTableJobType extends JobType {
 
   getName() {
     return 'syncDataSyncTable'
+  }
+}
+
+export class FileImportJobType extends JobType {
+  static getType() {
+    return 'file_import'
+  }
+
+  getName() {
+    return 'fileImport'
+  }
+}
+
+export class DuplicateFieldJobType extends JobType {
+  static getType() {
+    return 'duplicate_field'
+  }
+
+  getName() {
+    return 'duplicate_field'
+  }
+}
+
+export class AirtableJobType extends JobType {
+  static getType() {
+    return 'airtable'
+  }
+
+  getName() {
+    return 'airtable'
   }
 }

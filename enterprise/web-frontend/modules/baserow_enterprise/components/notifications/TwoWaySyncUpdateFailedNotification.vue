@@ -2,17 +2,17 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="twoWaySyncUpdateFailed.title" tag="span">
+      <i18n-t keypath="twoWaySyncUpdateFailed.title" tag="span">
         <template #name>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
         <template #error>
           {{ notification.data.error }}
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -22,6 +22,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 
 export default {
   name: 'TwoWaySyncUpdateFailed',
+  emits: ['close-panel'],
   mixins: [notificationContent],
   methods: {
     handleClick() {

@@ -5,11 +5,11 @@ import {
 
 class WelcomeGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationWelcomeGuidedTourStep.title')
+    return this.app.$i18n.t('automationWelcomeGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationWelcomeGuidedTourStep.content')
+    return this.app.$i18n.t('automationWelcomeGuidedTourStep.content')
   }
 
   get selectors() {
@@ -23,11 +23,11 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
 class GraphGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationGraphGuidedTourStep.title')
+    return this.app.$i18n.t('automationGraphGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationGraphGuidedTourStep.content')
+    return this.app.$i18n.t('automationGraphGuidedTourStep.content')
   }
 
   get selectors() {
@@ -45,11 +45,11 @@ class GraphGuidedTourStep extends GuidedTourStep {
 
 class HistoryGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationHistoryGuidedTourStep.title')
+    return this.app.$i18n.t('automationHistoryGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationHistoryGuidedTourStep.content')
+    return this.app.$i18n.t('automationHistoryGuidedTourStep.content')
   }
 
   get selectors() {
@@ -63,11 +63,11 @@ class HistoryGuidedTourStep extends GuidedTourStep {
 
 class TestRunGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationTestRunGuidedTourStep.title')
+    return this.app.$i18n.t('automationTestRunGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationTestRunGuidedTourStep.content')
+    return this.app.$i18n.t('automationTestRunGuidedTourStep.content')
   }
 
   get selectors() {
@@ -81,11 +81,11 @@ class TestRunGuidedTourStep extends GuidedTourStep {
 
 class PublishGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationPublishGuidedTourStep.title')
+    return this.app.$i18n.t('automationPublishGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationPublishGuidedTourStep.content')
+    return this.app.$i18n.t('automationPublishGuidedTourStep.content')
   }
 
   get selectors() {
@@ -99,11 +99,11 @@ class PublishGuidedTourStep extends GuidedTourStep {
 
 class StateGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationWorkflowStateGuidedTourStep.title')
+    return this.app.$i18n.t('automationWorkflowStateGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationWorkflowStateGuidedTourStep.content')
+    return this.app.$i18n.t('automationWorkflowStateGuidedTourStep.content')
   }
 
   get selectors() {
@@ -117,11 +117,11 @@ class StateGuidedTourStep extends GuidedTourStep {
 
 class DocsGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('automationDocsGuidedTourStep.title')
+    return this.app.$i18n.t('automationDocsGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('automationDocsGuidedTourStep.content')
+    return this.app.$i18n.t('automationDocsGuidedTourStep.content')
   }
 
   get selectors() {
@@ -156,7 +156,7 @@ export class AutomationGuidedTourType extends GuidedTourType {
 
   isActive() {
     return (
-      this.app.store.getters['routeMounted/routeMounted']?.name ===
+      this.app.$store.getters['routeMounted/routeMounted']?.name ===
       'automation-workflow'
     )
   }

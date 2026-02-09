@@ -34,6 +34,7 @@ export default {
       required: true,
     },
   },
+  emits: ['close-modals', 'search-changed'],
   data: () => {
     return {
       headerSearchTerm: '',
@@ -47,7 +48,7 @@ export default {
       this.searchStarted
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {

@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 from django.contrib.auth.models import AbstractUser
 
@@ -36,7 +36,6 @@ class JobType(
     Instance,
     metaclass=baserow_trace_methods(tracer, only="do"),
 ):
-
     """
     This abstract class represents a custom job type that can be added to the
     job type registry. It must be extended so customization can be done. Each job
@@ -163,6 +162,20 @@ class JobType(
             base_class=JobSerializer,
             meta_ref_name=f"{self.__class__.__name__}ResponseSerializer",
         )
+
+    def get_filters_serializer(self) -> Type[serializers.Serializer] | None:
+        """
+        This method enables job types to define custom filters for job listing
+        operations. Since query parameters cannot utilize Discriminator fields and must
+        be flattened, all filter field names should be prefixed with the job type name
+        followed by an underscore to prevent naming conflicts between different job
+        types.
+
+        :return: A serializer class extending JobTypeFiltersSerializer, or None if no
+                 type-specific filters are needed.
+        """
+
+        return None
 
 
 class JobTypeRegistry(

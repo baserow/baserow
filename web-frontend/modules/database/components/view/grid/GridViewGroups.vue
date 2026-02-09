@@ -53,20 +53,26 @@ export default {
       required: true,
     },
   },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        rows: this.$options.propsData.storePrefix + 'view/grid/getRows',
-        allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-        rowHeight:
-          this.$options.propsData.storePrefix + 'view/grid/getRowHeight',
-        bufferStartIndex:
-          this.$options.propsData.storePrefix + 'view/grid/getBufferStartIndex',
-        activeGroupBys:
-          this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
-      }),
-    }
+  computed: {
+    rows() {
+      return this.$store.getters[`${this.storePrefix}view/grid/getRows`]
+    },
+    allRows() {
+      return this.$store.getters[`${this.storePrefix}view/grid/getAllRows`]
+    },
+    rowHeight() {
+      return this.$store.getters[`${this.storePrefix}view/grid/getRowHeight`]
+    },
+    bufferStartIndex() {
+      return this.$store.getters[
+        `${this.storePrefix}view/grid/getBufferStartIndex`
+      ]
+    },
+    activeGroupBys() {
+      return this.$store.getters[
+        `${this.storePrefix}view/grid/getActiveGroupBys`
+      ]
+    },
   },
 }
 </script>

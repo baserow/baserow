@@ -14,7 +14,7 @@
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
     />
-    <div class="formula-input-context__footer">
+    <div v-if="advancedModeEnabled" class="formula-input-context__footer">
       <ButtonText
         type="primary"
         icon="iconoir-input-field"
@@ -22,17 +22,20 @@
         @click="toggleMode"
         >{{
           isAdvancedMode
-            ? $t('formulaInputContext.useRegularInput')
+            ? $t('formulaInputContext.useSimpleInput')
             : $t('formulaInputContext.useAdvancedInput')
         }}</ButtonText
       >
     </div>
 
-    <Modal ref="advancedModeModal">
+    <Modal
+      ref="advancedModeModal"
+      class="formula-input-context__advanced-mode-modal"
+    >
       <h2 class="box__title">
         {{
           isAdvancedMode
-            ? $t('formulaInputContext.useRegularInputModalTitle')
+            ? $t('formulaInputContext.useSimpleInputModalTitle')
             : $t('formulaInputContext.useAdvancedInputModalTitle')
         }}
       </h2>
@@ -46,7 +49,7 @@
           <Button type="danger" size="large" @click="confirmModeChange">
             {{
               isAdvancedMode
-                ? $t('formulaInputContext.useRegularInput')
+                ? $t('formulaInputContext.useSimpleInput')
                 : $t('formulaInputContext.useAdvancedInput')
             }}
           </Button>
@@ -59,6 +62,7 @@
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputContext',
@@ -87,15 +91,35 @@ export default {
       required: false,
       default: 'advanced',
       validator: (value) => {
-        return ['advanced', 'simple'].includes(value)
+        return BASEROW_FORMULA_MODES.includes(value)
       },
+    },
+    /**
+     * Whether the formula input has a formula value set or not.
+     * Used to determine if we need to show a confirmation prompt
+     * or not when the mode changes from advanced to simple.
+     */
+    hasValue: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     allowNodeSelection: {
       type: Boolean,
       required: false,
       default: false,
     },
+    /**
+     * An array of Baserow formula modes which the parent formula input
+     * component allows to be used. By default, in `FormulaInputField`,
+     * we will allow all modes.
+     */
+    enabledModes: {
+      type: Array,
+      required: true,
+    },
   },
+  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   data() {
     return {
       searchQuery: '',
@@ -108,6 +132,9 @@ export default {
     }
   },
   computed: {
+    advancedModeEnabled() {
+      return this.enabledModes.includes('advanced')
+    },
     isAdvancedMode() {
       return this.mode === 'advanced'
     },
@@ -170,7 +197,14 @@ export default {
     },
     toggleMode() {
       if (this.mode === 'advanced') {
-        this.showAdvancedModeModal()
+        if (this.hasValue) {
+          // If we have a value then we want the user to confirm
+          // they're happy for the formula to be reset.
+          this.showAdvancedModeModal()
+        } else {
+          // If we have no value then we can safely switch modes.
+          this.$emit('mode-changed', 'simple')
+        }
       } else {
         this.$emit('mode-changed', 'advanced')
       }
@@ -221,11 +255,11 @@ export default {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
+      this.$refs.advancedModeModal.hide()
       this.$emit(
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
-      this.$refs.advancedModeModal.hide()
     },
     cancelModeChange() {
       this.$refs.advancedModeModal.hide()

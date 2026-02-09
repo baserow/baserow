@@ -21,9 +21,13 @@ from baserow.core.exceptions import (
 )
 
 from .exceptions import QueryParameterValidationException
-from .utils import ExceptionMappingType, get_request
+from .utils import (
+    ExceptionMappingType,
+    get_request,
+    validate_data,
+    validate_data_custom_fields,
+)
 from .utils import map_exceptions as map_exceptions_utility
-from .utils import validate_data, validate_data_custom_fields
 
 
 def map_exceptions(exceptions: ExceptionMappingType = None):

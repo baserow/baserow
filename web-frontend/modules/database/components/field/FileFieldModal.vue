@@ -136,6 +136,7 @@ export default {
       required: true,
     },
   },
+  emits: ['removed', 'renamed'],
   data() {
     return {
       renaming: false,

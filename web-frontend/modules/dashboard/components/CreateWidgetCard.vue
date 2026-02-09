@@ -43,6 +43,7 @@ export default {
       required: true,
     },
   },
+  emits: ['widget-variation-selected'],
   computed: {
     isWidgetAvailable() {
       return this.widgetType.isAvailable(this.dashboard.workspace.id)

@@ -22,6 +22,14 @@ import {
   aUser,
 } from '@baserow/test/fixtures/user'
 
+function base64url(obj) {
+  return Buffer.from(JSON.stringify(obj))
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+}
+
 /**
  * MockServer is responsible for being the single place where we mock out calls to the
  * baserow server API in tests. This way when an API change is made we should only
@@ -31,6 +39,34 @@ export class MockServer {
   constructor(mock, store) {
     this.mock = mock
     this.store = store
+  }
+
+  fakeSettings(result = {}) {
+    this.mock.onGet(`settings/`).reply(200, result)
+  }
+
+  fakeJobs(result = {}) {
+    this.mock.onGet(`jobs/`).reply(200, result)
+  }
+
+  fakeAuthentication(
+    userPayload = {
+      email: 'test@example.com',
+      iat: Math.floor(Date.now() / 1000),
+    }
+  ) {
+    const header = { alg: 'none', typ: 'JWT' }
+
+    const token = `${base64url(header)}.${base64url(userPayload)}.`
+
+    this.mock.onPost('/user/token-refresh/').reply(200, {
+      access_token: token,
+      refresh_token: token,
+      user_session: '',
+      user: {},
+      permissions: {},
+      tokenUpdatedAt: new Date(),
+    })
   }
 
   loadPermissions(workspace, result = {}) {

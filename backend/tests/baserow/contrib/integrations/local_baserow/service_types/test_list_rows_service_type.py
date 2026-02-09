@@ -329,8 +329,9 @@ def test_local_baserow_list_rows_service_dispatch_data_permission_denied(
     )
 
     dispatch_context = FakeDispatchContext()
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         LocalBaserowListRowsUserServiceType().dispatch_data(
             service, {"table": table}, dispatch_context
@@ -1121,8 +1122,8 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = []
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowListRowsUserServiceType()
@@ -1139,7 +1140,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
 
     assert results.data == {
         "has_next_page": False,
-        "results": mock_serializer_instance.data,
+        "results": mock_serializer.data,
     }
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],

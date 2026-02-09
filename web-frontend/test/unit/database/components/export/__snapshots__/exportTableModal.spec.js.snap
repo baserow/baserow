@@ -1,26 +1,22 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Preview exportTableModal Modal with no view 1`] = `
+exports[`Preview exportTableModal > Modal with no view 1`] = `
 <div
   class="modal__wrapper"
 >
   <div
     class="modal__box"
   >
-    <!---->
-     
-    <!---->
-     
+    <!--v-if-->
+    
+    
+    <!--v-if-->
     <h2
       class="box__title"
     >
-      
-    exportTableModal.title
-  
+      exportTableModal.title
     </h2>
-     
-    <!---->
-     
+    <!--v-if-->
     <form>
       <div
         class="row"
@@ -30,24 +26,20 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
         >
           <div
             class="control margin-bottom-2"
+            data-form-error="false"
           >
+            
             <label
               class="control__label control__label--small"
-              for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+              for="v-0-0-0"
             >
               <span>
                 exportTableForm.viewLabel
               </span>
-               
-              <!---->
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
+              <!--v-if-->
             </label>
-             
-            <!---->
-             
             <div
               class="control__wrapper"
             >
@@ -57,31 +49,32 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 <div
                   class="control__elements-wrapper"
                 >
+                  
                   <div
                     class="dropdown"
-                    id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                    id="v-0-0-0"
                     role="list"
                     tabindex="0"
                   >
                     <a
                       class="dropdown__selected"
                     >
-                      <!---->
-                       
-                      <!---->
-                       
+                      
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                       <span
                         class="dropdown__selected-text"
                         title="exportTableDropdown.exportEntireTable"
                       >
                         exportTableDropdown.exportEntireTable
                       </span>
-                       
+                      
+                      
                       <i
                         class="dropdown__toggle-icon iconoir-nav-arrow-down"
                       />
                     </a>
-                     
                     <div
                       class="dropdown__items hidden"
                     >
@@ -91,7 +84,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                         <i
                           class="select__search-icon iconoir-search"
                         />
-                         
                         <input
                           class="select__search-input"
                           placeholder="action.search"
@@ -99,12 +91,11 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                           type="text"
                         />
                       </div>
-                       
                       <ul
                         class="select__items"
-                        style=""
                         tabindex="-1"
                       >
+                        
                         <li
                           class="select__item select__item--no-options visible active hover"
                           role="listitem"
@@ -115,28 +106,25 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                             <div
                               class="select__item-name"
                             >
-                              <!---->
-                               
-                              <!---->
-                               
-                              <!---->
-                               
+                              <!--v-if-->
+                              
+                              <!--v-if-->
+                              <!--v-if-->
                               <span
                                 class="select__item-name-text"
                                 title="exportTableDropdown.exportEntireTable"
                               >
                                 exportTableDropdown.exportEntireTable
                               </span>
+                              
                             </div>
-                             
-                            <!---->
+                            <!--v-if-->
                           </a>
-                           
                           <i
                             class="select__item-active-icon iconoir-check"
                           />
                         </li>
-                         
+                        
                         <li
                           class="select__item select__item--no-options visible"
                           role="listitem"
@@ -147,66 +135,60 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                             <div
                               class="select__item-name"
                             >
-                              <!---->
-                               
+                              <!--v-if-->
+                              
                               <i
                                 class="select__item-icon iconoir-menu"
                               />
-                               
-                              <!---->
-                               
+                              <!--v-if-->
                               <span
                                 class="select__item-name-text"
                                 title="mock_view_1"
                               >
                                 mock_view_1
                               </span>
+                              
                             </div>
-                             
-                            <!---->
+                            <!--v-if-->
                           </a>
-                           
                           <i
                             class="select__item-active-icon iconoir-check"
                           />
                         </li>
+                        
+                        
                       </ul>
-                       
-                      <!---->
-                       
-                      <!---->
+                      <!--v-if-->
+                      <!--v-if-->
                     </div>
                   </div>
+                  
                 </div>
-                 
-                <!---->
-                 
+                <!--v-if-->
+                
+                
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
+            
           </div>
-           
+          
           <div
             class="control margin-bottom-2"
+            data-form-error="false"
           >
+            
             <label
               class="control__label control__label--small"
-              for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+              for="v-0-0-1"
             >
               <span>
                 exporterTypeChoices.formatLabel
               </span>
-               
-              <!---->
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
+              <!--v-if-->
             </label>
-             
-            <!---->
-             
             <div
               class="control__wrapper"
             >
@@ -216,9 +198,11 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                 <div
                   class="control__elements-wrapper"
                 >
+                  
                   <ul
                     class="choice-items"
                   >
+                    
                     <li>
                       <a
                         class="choice-items__link active"
@@ -226,35 +210,131 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                         <i
                           class="choice-items__icon baserow-icon-file-csv"
                         />
-                         
                         <span>
                           exporterType.csv
                         </span>
-                         
-                        <!---->
-                         
+                        <!--v-if-->
                         <i
                           class="choice-items__icon-active iconoir-check-circle"
                         />
                       </a>
-                       
-                      <!---->
+                      <!--v-if-->
                     </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.json
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.xml
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-excel"
+                        />
+                        <span>
+                          premium.exporterType.excel
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.file
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    
                   </ul>
+                  
                 </div>
-                 
-                <!---->
-                 
+                <!--v-if-->
+                
+                
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
+            
           </div>
-           
-          <!---->
+          <!-- &lt;div v-if="exporterTypes.length &gt; 0" class="control"&gt;
+    &lt;label class="control__label"&gt;{{
+      $t('exporterTypeChoices.formatLabel')
+    }}&lt;/label&gt;
+    &lt;div class="control__elements"&gt;
+      &lt;ul class="choice-items"&gt;
+        &lt;ExporterTypeChoice
+          v-for="exporterType in exporterTypes"
+          :key="exporterType.type"
+          :exporter-type="exporterType"
+          :active="value !== null && value === exporterType.type"
+          :disabled="loading"
+          :database="database"
+          @selected="switchToExporterType(exporterType.type)"
+        &gt;
+        &lt;/ExporterTypeChoice&gt;
+      &lt;/ul&gt;
+    &lt;/div&gt;
+  &lt;/div&gt; -->
+          
+          <!--v-if-->
         </div>
       </div>
-       
       <div>
         <div
           class="row"
@@ -264,24 +344,20 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
           >
             <div
               class="control margin-bottom-2"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-2"
               >
                 <span>
                   tableCSVExporter.columnSeparatorLabel
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -291,31 +367,32 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="dropdown"
-                      id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                      id="v-0-0-2"
                       role="list"
                       tabindex="0"
                     >
                       <a
                         class="dropdown__selected"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
+                        
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="dropdown__selected-text"
                           title=","
                         >
                           ,
                         </span>
-                         
+                        
+                        
                         <i
                           class="dropdown__toggle-icon iconoir-nav-arrow-down"
                         />
                       </a>
-                       
                       <div
                         class="dropdown__items hidden"
                       >
@@ -325,7 +402,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                           <i
                             class="select__search-icon iconoir-search"
                           />
-                           
                           <input
                             class="select__search-input"
                             placeholder="action.search"
@@ -333,12 +409,11 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                             type="text"
                           />
                         </div>
-                         
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
+                          
                           <li
                             class="select__item select__item--no-options visible active"
                             role="listitem"
@@ -349,28 +424,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title=","
                                 >
                                   ,
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -381,28 +452,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title=";"
                                 >
                                   ;
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -413,28 +480,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="|"
                                 >
                                   |
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -445,28 +508,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
-                                  title=<tab>
+                                  title="<tab>"
                                 >
                                   &lt;tab&gt;
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -477,28 +536,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="tableCSVExporter.recordSeparator (30)"
                                 >
                                   tableCSVExporter.recordSeparator (30)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -509,68 +564,60 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="tableCSVExporter.unitSeparator (31)"
                                 >
                                   tableCSVExporter.unitSeparator (31)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
+                          
                         </ul>
-                         
-                        <!---->
-                         
-                        <!---->
+                        <!--v-if-->
+                        <!--v-if-->
                       </div>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
-           
           <div
             class="col col-8"
           >
             <div
               class="control margin-bottom-2"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-3"
               >
                 <span>
                   tableCSVExporter.encodingLabel
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -580,31 +627,32 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="dropdown"
-                      id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                      id="v-0-0-3"
                       role="list"
                       tabindex="0"
                     >
                       <a
                         class="dropdown__selected"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
+                        
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="dropdown__selected-text"
                           title="Unicode (UTF-8)"
                         >
                           Unicode (UTF-8)
                         </span>
-                         
+                        
+                        
                         <i
                           class="dropdown__toggle-icon iconoir-nav-arrow-down"
                         />
                       </a>
-                       
                       <div
                         class="dropdown__items hidden"
                       >
@@ -614,7 +662,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                           <i
                             class="select__search-icon iconoir-search"
                           />
-                           
                           <input
                             class="select__search-input"
                             placeholder="action.search"
@@ -622,12 +669,11 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                             type="text"
                           />
                         </div>
-                         
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
+                          
                           <li
                             class="select__item select__item--no-options visible active"
                             role="listitem"
@@ -638,28 +684,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Unicode (UTF-8)"
                                 >
                                   Unicode (UTF-8)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -670,28 +712,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Arabic (ISO-8859-6)"
                                 >
                                   Arabic (ISO-8859-6)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -702,28 +740,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Arabic (Windows-1256)"
                                 >
                                   Arabic (Windows-1256)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -734,28 +768,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Baltic (ISO-8859-4)"
                                 >
                                   Baltic (ISO-8859-4)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -766,28 +796,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Baltic (windows-1257)"
                                 >
                                   Baltic (windows-1257)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -798,28 +824,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Celtic (ISO-8859-14)"
                                 >
                                   Celtic (ISO-8859-14)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -830,28 +852,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Central European (ISO-8859-2)"
                                 >
                                   Central European (ISO-8859-2)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -862,28 +880,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Central European (Windows-1250)"
                                 >
                                   Central European (Windows-1250)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -894,28 +908,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese, Simplified (GBK)"
                                 >
                                   Chinese, Simplified (GBK)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -926,28 +936,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese (GB18030)"
                                 >
                                   Chinese (GB18030)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -958,28 +964,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese Traditional (Big5)"
                                 >
                                   Chinese Traditional (Big5)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -990,28 +992,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (KOI8-R)"
                                 >
                                   Cyrillic (KOI8-R)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1022,28 +1020,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (KOI8-U)"
                                 >
                                   Cyrillic (KOI8-U)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1054,28 +1048,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (ISO-8859-5)"
                                 >
                                   Cyrillic (ISO-8859-5)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1086,28 +1076,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (Windows-1251)"
                                 >
                                   Cyrillic (Windows-1251)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1118,28 +1104,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic Mac OS (x-mac-cyrillic)"
                                 >
                                   Cyrillic Mac OS (x-mac-cyrillic)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1150,28 +1132,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Greek (ISO-8859-7)"
                                 >
                                   Greek (ISO-8859-7)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1182,28 +1160,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Greek (Windows-1253)"
                                 >
                                   Greek (Windows-1253)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1214,28 +1188,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Hebrew (ISO-8859-8)"
                                 >
                                   Hebrew (ISO-8859-8)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1246,28 +1216,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Hebrew (Windows-1255)"
                                 >
                                   Hebrew (Windows-1255)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1278,28 +1244,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (EUC-JP)"
                                 >
                                   Japanese (EUC-JP)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1310,28 +1272,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (ISO-2022-JP)"
                                 >
                                   Japanese (ISO-2022-JP)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1342,28 +1300,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (Shift-JIS)"
                                 >
                                   Japanese (Shift-JIS)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1374,28 +1328,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Korean (EUC-KR)"
                                 >
                                   Korean (EUC-KR)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1406,28 +1356,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Macintosh"
                                 >
                                   Macintosh
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1438,28 +1384,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Nordic (ISO-8859-10)"
                                 >
                                   Nordic (ISO-8859-10)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1470,28 +1412,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="South-Eastern European (ISO-8859-16)"
                                 >
                                   South-Eastern European (ISO-8859-16)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1502,28 +1440,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Thai (Windows-874)"
                                 >
                                   Thai (Windows-874)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1534,28 +1468,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Turkish (Windows-1254)"
                                 >
                                   Turkish (Windows-1254)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1566,28 +1496,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Vietnamese (Windows-1258)"
                                 >
                                   Vietnamese (Windows-1258)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1598,28 +1524,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Western European (ISO-8859-1)"
                                 >
                                   Western European (ISO-8859-1)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1630,28 +1552,24 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Western European (Windows-1252)"
                                 >
                                   Western European (Windows-1252)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -1662,46 +1580,42 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Latin 3 (ISO-8859-3)"
                                 >
                                   Latin 3 (ISO-8859-3)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
+                          
                         </ul>
-                         
-                        <!---->
-                         
-                        <!---->
+                        <!--v-if-->
+                        <!--v-if-->
                       </div>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
         </div>
-         
         <div
           class="row"
         >
@@ -1710,24 +1624,20 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
           >
             <div
               class="control"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-4"
               >
                 <span>
                   tableCSVExporter.includeHeader
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -1737,6 +1647,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="checkbox checkbox--checked"
                     >
@@ -1752,7 +1663,7 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <g
-                            clip-path="url(#clip8bc60af5-c9d8-4370-a4cf-55634b98360d)"
+                            clip-path="url(#clip00000000-0000-0000-0000-000000000001)"
                           >
                             <path
                               d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -1762,10 +1673,9 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                               stroke-width="2"
                             />
                           </g>
-                           
                           <defs>
                             <clippath
-                              id="clip8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                              id="clip00000000-0000-0000-0000-000000000001"
                             >
                               <rect
                                 fill="white"
@@ -1776,7 +1686,6 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                             </clippath>
                           </defs>
                         </svg>
-                         
                         <svg
                           class="checkbox__tick-indeterminate"
                           fill="none"
@@ -1795,49 +1704,52 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
                           />
                         </svg>
                       </div>
-                       
                       <label
                         class="checkbox__label"
                       >
+                        
                         common.yes
+                        
                       </label>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
         </div>
       </div>
-       
+      
       <div
         class="modal-progress__actions"
       >
-        <!---->
-         
+        <!--v-if-->
         <button
-          class="button modal-progress__export-button button--large button--full-width"
+          class="button button--large button--full-width modal-progress__export-button"
+          disabled=""
         >
-          <!---->
-           
+          <!--v-if-->
           <span
             class="button__label"
           >
             
-    exportTableLoadingBar.export
-  
+            exportTableLoadingBar.export
+            
           </span>
-           
-          <!---->
+          <!--v-if-->
         </button>
       </div>
-    </form>
       
+    </form>
+    
+    
+    
     <div
       class="modal__actions"
     >
@@ -1848,33 +1760,31 @@ exports[`Preview exportTableModal Modal with no view 1`] = `
           class="iconoir-cancel"
         />
       </a>
-       
+      
+      
     </div>
+    
   </div>
 </div>
 `;
 
-exports[`Preview exportTableModal Modal with view 1`] = `
+exports[`Preview exportTableModal > Modal with view 1`] = `
 <div
   class="modal__wrapper"
 >
   <div
     class="modal__box"
   >
-    <!---->
-     
-    <!---->
-     
+    <!--v-if-->
+    
+    
+    <!--v-if-->
     <h2
       class="box__title"
     >
-      
-    exportTableModal.title
-  
+      exportTableModal.title
     </h2>
-     
-    <!---->
-     
+    <!--v-if-->
     <form>
       <div
         class="row"
@@ -1884,24 +1794,20 @@ exports[`Preview exportTableModal Modal with view 1`] = `
         >
           <div
             class="control margin-bottom-2"
+            data-form-error="false"
           >
+            
             <label
               class="control__label control__label--small"
-              for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+              for="v-0-0-0"
             >
               <span>
                 exportTableForm.viewLabel
               </span>
-               
-              <!---->
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
+              <!--v-if-->
             </label>
-             
-            <!---->
-             
             <div
               class="control__wrapper"
             >
@@ -1911,33 +1817,34 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 <div
                   class="control__elements-wrapper"
                 >
+                  
                   <div
                     class="dropdown"
-                    id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                    id="v-0-0-0"
                     role="list"
                     tabindex="0"
                   >
                     <a
                       class="dropdown__selected"
                     >
+                      
+                      
                       <i
                         class="dropdown__selected-icon iconoir-menu"
                       />
-                       
-                      <!---->
-                       
+                      <!--v-if-->
                       <span
                         class="dropdown__selected-text"
                         title="mock_view_1"
                       >
                         mock_view_1
                       </span>
-                       
+                      
+                      
                       <i
                         class="dropdown__toggle-icon iconoir-nav-arrow-down"
                       />
                     </a>
-                     
                     <div
                       class="dropdown__items hidden"
                     >
@@ -1947,7 +1854,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                         <i
                           class="select__search-icon iconoir-search"
                         />
-                         
                         <input
                           class="select__search-input"
                           placeholder="action.search"
@@ -1955,12 +1861,11 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                           type="text"
                         />
                       </div>
-                       
                       <ul
                         class="select__items"
-                        style=""
                         tabindex="-1"
                       >
+                        
                         <li
                           class="select__item select__item--no-options visible hover"
                           role="listitem"
@@ -1971,28 +1876,25 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                             <div
                               class="select__item-name"
                             >
-                              <!---->
-                               
-                              <!---->
-                               
-                              <!---->
-                               
+                              <!--v-if-->
+                              
+                              <!--v-if-->
+                              <!--v-if-->
                               <span
                                 class="select__item-name-text"
                                 title="exportTableDropdown.exportEntireTable"
                               >
                                 exportTableDropdown.exportEntireTable
                               </span>
+                              
                             </div>
-                             
-                            <!---->
+                            <!--v-if-->
                           </a>
-                           
                           <i
                             class="select__item-active-icon iconoir-check"
                           />
                         </li>
-                         
+                        
                         <li
                           class="select__item select__item--no-options visible active"
                           role="listitem"
@@ -2003,66 +1905,60 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                             <div
                               class="select__item-name"
                             >
-                              <!---->
-                               
+                              <!--v-if-->
+                              
                               <i
                                 class="select__item-icon iconoir-menu"
                               />
-                               
-                              <!---->
-                               
+                              <!--v-if-->
                               <span
                                 class="select__item-name-text"
                                 title="mock_view_1"
                               >
                                 mock_view_1
                               </span>
+                              
                             </div>
-                             
-                            <!---->
+                            <!--v-if-->
                           </a>
-                           
                           <i
                             class="select__item-active-icon iconoir-check"
                           />
                         </li>
+                        
+                        
                       </ul>
-                       
-                      <!---->
-                       
-                      <!---->
+                      <!--v-if-->
+                      <!--v-if-->
                     </div>
                   </div>
+                  
                 </div>
-                 
-                <!---->
-                 
+                <!--v-if-->
+                
+                
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
+            
           </div>
-           
+          
           <div
             class="control margin-bottom-2"
+            data-form-error="false"
           >
+            
             <label
               class="control__label control__label--small"
-              for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+              for="v-0-0-1"
             >
               <span>
                 exporterTypeChoices.formatLabel
               </span>
-               
-              <!---->
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
+              <!--v-if-->
             </label>
-             
-            <!---->
-             
             <div
               class="control__wrapper"
             >
@@ -2072,9 +1968,11 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                 <div
                   class="control__elements-wrapper"
                 >
+                  
                   <ul
                     class="choice-items"
                   >
+                    
                     <li>
                       <a
                         class="choice-items__link active"
@@ -2082,35 +1980,131 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                         <i
                           class="choice-items__icon baserow-icon-file-csv"
                         />
-                         
                         <span>
                           exporterType.csv
                         </span>
-                         
-                        <!---->
-                         
+                        <!--v-if-->
                         <i
                           class="choice-items__icon-active iconoir-check-circle"
                         />
                       </a>
-                       
-                      <!---->
+                      <!--v-if-->
                     </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.json
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.xml
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-excel"
+                        />
+                        <span>
+                          premium.exporterType.excel
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        class="choice-items__link"
+                      >
+                        <i
+                          class="choice-items__icon baserow-icon-file-code"
+                        />
+                        <span>
+                          premium.exporterType.file
+                        </span>
+                        <div
+                          class="deactivated-label"
+                        >
+                          <i
+                            class="iconoir-lock"
+                          />
+                        </div>
+                        <!--v-if-->
+                      </a>
+                    </li>
+                    
                   </ul>
+                  
                 </div>
-                 
-                <!---->
-                 
+                <!--v-if-->
+                
+                
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
+            
           </div>
-           
-          <!---->
+          <!-- &lt;div v-if="exporterTypes.length &gt; 0" class="control"&gt;
+    &lt;label class="control__label"&gt;{{
+      $t('exporterTypeChoices.formatLabel')
+    }}&lt;/label&gt;
+    &lt;div class="control__elements"&gt;
+      &lt;ul class="choice-items"&gt;
+        &lt;ExporterTypeChoice
+          v-for="exporterType in exporterTypes"
+          :key="exporterType.type"
+          :exporter-type="exporterType"
+          :active="value !== null && value === exporterType.type"
+          :disabled="loading"
+          :database="database"
+          @selected="switchToExporterType(exporterType.type)"
+        &gt;
+        &lt;/ExporterTypeChoice&gt;
+      &lt;/ul&gt;
+    &lt;/div&gt;
+  &lt;/div&gt; -->
+          
+          <!--v-if-->
         </div>
       </div>
-       
       <div>
         <div
           class="row"
@@ -2120,24 +2114,20 @@ exports[`Preview exportTableModal Modal with view 1`] = `
           >
             <div
               class="control margin-bottom-2"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-2"
               >
                 <span>
                   tableCSVExporter.columnSeparatorLabel
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -2147,31 +2137,32 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="dropdown"
-                      id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                      id="v-0-0-2"
                       role="list"
                       tabindex="0"
                     >
                       <a
                         class="dropdown__selected"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
+                        
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="dropdown__selected-text"
                           title=","
                         >
                           ,
                         </span>
-                         
+                        
+                        
                         <i
                           class="dropdown__toggle-icon iconoir-nav-arrow-down"
                         />
                       </a>
-                       
                       <div
                         class="dropdown__items hidden"
                       >
@@ -2181,7 +2172,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                           <i
                             class="select__search-icon iconoir-search"
                           />
-                           
                           <input
                             class="select__search-input"
                             placeholder="action.search"
@@ -2189,12 +2179,11 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                             type="text"
                           />
                         </div>
-                         
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
+                          
                           <li
                             class="select__item select__item--no-options visible active"
                             role="listitem"
@@ -2205,28 +2194,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title=","
                                 >
                                   ,
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2237,28 +2222,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title=";"
                                 >
                                   ;
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2269,28 +2250,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="|"
                                 >
                                   |
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2301,28 +2278,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
-                                  title=<tab>
+                                  title="<tab>"
                                 >
                                   &lt;tab&gt;
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2333,28 +2306,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="tableCSVExporter.recordSeparator (30)"
                                 >
                                   tableCSVExporter.recordSeparator (30)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2365,68 +2334,60 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="tableCSVExporter.unitSeparator (31)"
                                 >
                                   tableCSVExporter.unitSeparator (31)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
+                          
                         </ul>
-                         
-                        <!---->
-                         
-                        <!---->
+                        <!--v-if-->
+                        <!--v-if-->
                       </div>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
-           
           <div
             class="col col-8"
           >
             <div
               class="control margin-bottom-2"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-3"
               >
                 <span>
                   tableCSVExporter.encodingLabel
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -2436,31 +2397,32 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="dropdown"
-                      id="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                      id="v-0-0-3"
                       role="list"
                       tabindex="0"
                     >
                       <a
                         class="dropdown__selected"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
+                        
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="dropdown__selected-text"
                           title="Unicode (UTF-8)"
                         >
                           Unicode (UTF-8)
                         </span>
-                         
+                        
+                        
                         <i
                           class="dropdown__toggle-icon iconoir-nav-arrow-down"
                         />
                       </a>
-                       
                       <div
                         class="dropdown__items hidden"
                       >
@@ -2470,7 +2432,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                           <i
                             class="select__search-icon iconoir-search"
                           />
-                           
                           <input
                             class="select__search-input"
                             placeholder="action.search"
@@ -2478,12 +2439,11 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                             type="text"
                           />
                         </div>
-                         
                         <ul
                           class="select__items"
-                          style=""
                           tabindex="-1"
                         >
+                          
                           <li
                             class="select__item select__item--no-options visible active"
                             role="listitem"
@@ -2494,28 +2454,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Unicode (UTF-8)"
                                 >
                                   Unicode (UTF-8)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2526,28 +2482,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Arabic (ISO-8859-6)"
                                 >
                                   Arabic (ISO-8859-6)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2558,28 +2510,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Arabic (Windows-1256)"
                                 >
                                   Arabic (Windows-1256)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2590,28 +2538,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Baltic (ISO-8859-4)"
                                 >
                                   Baltic (ISO-8859-4)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2622,28 +2566,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Baltic (windows-1257)"
                                 >
                                   Baltic (windows-1257)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2654,28 +2594,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Celtic (ISO-8859-14)"
                                 >
                                   Celtic (ISO-8859-14)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2686,28 +2622,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Central European (ISO-8859-2)"
                                 >
                                   Central European (ISO-8859-2)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2718,28 +2650,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Central European (Windows-1250)"
                                 >
                                   Central European (Windows-1250)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2750,28 +2678,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese, Simplified (GBK)"
                                 >
                                   Chinese, Simplified (GBK)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2782,28 +2706,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese (GB18030)"
                                 >
                                   Chinese (GB18030)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2814,28 +2734,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Chinese Traditional (Big5)"
                                 >
                                   Chinese Traditional (Big5)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2846,28 +2762,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (KOI8-R)"
                                 >
                                   Cyrillic (KOI8-R)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2878,28 +2790,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (KOI8-U)"
                                 >
                                   Cyrillic (KOI8-U)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2910,28 +2818,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (ISO-8859-5)"
                                 >
                                   Cyrillic (ISO-8859-5)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2942,28 +2846,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic (Windows-1251)"
                                 >
                                   Cyrillic (Windows-1251)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -2974,28 +2874,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Cyrillic Mac OS (x-mac-cyrillic)"
                                 >
                                   Cyrillic Mac OS (x-mac-cyrillic)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3006,28 +2902,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Greek (ISO-8859-7)"
                                 >
                                   Greek (ISO-8859-7)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3038,28 +2930,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Greek (Windows-1253)"
                                 >
                                   Greek (Windows-1253)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3070,28 +2958,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Hebrew (ISO-8859-8)"
                                 >
                                   Hebrew (ISO-8859-8)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3102,28 +2986,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Hebrew (Windows-1255)"
                                 >
                                   Hebrew (Windows-1255)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3134,28 +3014,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (EUC-JP)"
                                 >
                                   Japanese (EUC-JP)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3166,28 +3042,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (ISO-2022-JP)"
                                 >
                                   Japanese (ISO-2022-JP)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3198,28 +3070,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Japanese (Shift-JIS)"
                                 >
                                   Japanese (Shift-JIS)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3230,28 +3098,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Korean (EUC-KR)"
                                 >
                                   Korean (EUC-KR)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3262,28 +3126,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Macintosh"
                                 >
                                   Macintosh
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3294,28 +3154,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Nordic (ISO-8859-10)"
                                 >
                                   Nordic (ISO-8859-10)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3326,28 +3182,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="South-Eastern European (ISO-8859-16)"
                                 >
                                   South-Eastern European (ISO-8859-16)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3358,28 +3210,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Thai (Windows-874)"
                                 >
                                   Thai (Windows-874)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3390,28 +3238,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Turkish (Windows-1254)"
                                 >
                                   Turkish (Windows-1254)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3422,28 +3266,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Vietnamese (Windows-1258)"
                                 >
                                   Vietnamese (Windows-1258)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3454,28 +3294,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Western European (ISO-8859-1)"
                                 >
                                   Western European (ISO-8859-1)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3486,28 +3322,24 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Western European (Windows-1252)"
                                 >
                                   Western European (Windows-1252)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
-                           
                           <li
                             class="select__item select__item--no-options visible"
                             role="listitem"
@@ -3518,46 +3350,42 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               <div
                                 class="select__item-name"
                               >
-                                <!---->
-                                 
-                                <!---->
-                                 
-                                <!---->
-                                 
+                                <!--v-if-->
+                                
+                                <!--v-if-->
+                                <!--v-if-->
                                 <span
                                   class="select__item-name-text"
                                   title="Latin 3 (ISO-8859-3)"
                                 >
                                   Latin 3 (ISO-8859-3)
                                 </span>
+                                
                               </div>
-                               
-                              <!---->
+                              <!--v-if-->
                             </a>
-                             
                             <i
                               class="select__item-active-icon iconoir-check"
                             />
                           </li>
+                          
                         </ul>
-                         
-                        <!---->
-                         
-                        <!---->
+                        <!--v-if-->
+                        <!--v-if-->
                       </div>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
         </div>
-         
         <div
           class="row"
         >
@@ -3566,24 +3394,20 @@ exports[`Preview exportTableModal Modal with view 1`] = `
           >
             <div
               class="control"
+              data-form-error="false"
             >
+              
               <label
                 class="control__label control__label--small"
-                for="8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                for="v-0-0-4"
               >
                 <span>
                   tableCSVExporter.includeHeader
                 </span>
-                 
-                <!---->
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
+                <!--v-if-->
               </label>
-               
-              <!---->
-               
               <div
                 class="control__wrapper"
               >
@@ -3593,6 +3417,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                   <div
                     class="control__elements-wrapper"
                   >
+                    
                     <div
                       class="checkbox checkbox--checked"
                     >
@@ -3608,7 +3433,7 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <g
-                            clip-path="url(#clip8bc60af5-c9d8-4370-a4cf-55634b98360d)"
+                            clip-path="url(#clip00000000-0000-0000-0000-000000000001)"
                           >
                             <path
                               d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -3618,10 +3443,9 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                               stroke-width="2"
                             />
                           </g>
-                           
                           <defs>
                             <clippath
-                              id="clip8bc60af5-c9d8-4370-a4cf-55634b98360d"
+                              id="clip00000000-0000-0000-0000-000000000001"
                             >
                               <rect
                                 fill="white"
@@ -3632,7 +3456,6 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                             </clippath>
                           </defs>
                         </svg>
-                         
                         <svg
                           class="checkbox__tick-indeterminate"
                           fill="none"
@@ -3651,49 +3474,52 @@ exports[`Preview exportTableModal Modal with view 1`] = `
                           />
                         </svg>
                       </div>
-                       
                       <label
                         class="checkbox__label"
                       >
+                        
                         common.yes
+                        
                       </label>
                     </div>
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
+                  
+                  
                 </div>
-                 
-                <!---->
+                <!--v-if-->
               </div>
+              
             </div>
           </div>
         </div>
       </div>
-       
+      
       <div
         class="modal-progress__actions"
       >
-        <!---->
-         
+        <!--v-if-->
         <button
-          class="button modal-progress__export-button button--large button--full-width"
+          class="button button--large button--full-width modal-progress__export-button"
+          disabled=""
         >
-          <!---->
-           
+          <!--v-if-->
           <span
             class="button__label"
           >
             
-    exportTableLoadingBar.export
-  
+            exportTableLoadingBar.export
+            
           </span>
-           
-          <!---->
+          <!--v-if-->
         </button>
       </div>
-    </form>
       
+    </form>
+    
+    
+    
     <div
       class="modal__actions"
     >
@@ -3704,8 +3530,10 @@ exports[`Preview exportTableModal Modal with view 1`] = `
           class="iconoir-cancel"
         />
       </a>
-       
+      
+      
     </div>
+    
   </div>
 </div>
 `;

@@ -805,19 +805,19 @@ def test_duration_field_view_filters(data_fixture):
         view=view, field=field, type="equal", value="0:0:1.123"
     )
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [rows[1].id, rows[2].id]
 
     view_filter.value = "1.123"  # it will be considered as a number of seconds
     view_filter.save(update_fields=["value"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [rows[1].id, rows[2].id]
 
     view_filter.type = "not_equal"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [
         rows[0].id,
         rows[3].id,
@@ -830,13 +830,13 @@ def test_duration_field_view_filters(data_fixture):
     view_filter.type = "empty"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [rows[0].id]
 
     view_filter.type = "not_empty"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [
         rows[1].id,
         rows[2].id,
@@ -851,7 +851,7 @@ def test_duration_field_view_filters(data_fixture):
     view_filter.value = "3600"  # 1 hour
     view_filter.save()
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [
         rows[4].id,
         rows[5].id,
@@ -862,7 +862,7 @@ def test_duration_field_view_filters(data_fixture):
     view_filter.value = "1:00:00"
     view_filter.save()
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [
         rows[4].id,
         rows[5].id,
@@ -872,7 +872,7 @@ def test_duration_field_view_filters(data_fixture):
     view_filter.type = "lower_than"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [
         rows[1].id,
         rows[2].id,

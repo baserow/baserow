@@ -1,4 +1,4 @@
-.custom-style {
+.custom-style-button__wrapper {
   position: relative;
 }
 
@@ -17,25 +17,22 @@
 
 .custom-style__header {
   font-size: 13px;
+  color: $palette-neutral-800;
   font-weight: 500;
   display: flex;
   height: 40px;
   align-items: center;
   position: relative;
-  border-bottom: 1px solid $color-neutral-100;
   cursor: pointer;
 }
 
 .custom-style__title-icon {
   font-size: 16px;
-  position: absolute;
-  left: 16px;
-  top: 12px;
+  margin-right: 10px;
 }
 
 .custom-style__title {
   flex: 1;
-  text-align: center;
 }
 
 .custom-style__config-blocks {
@@ -49,14 +46,15 @@
 }
 
 .custom-style__config-block {
-  // Width of sidebar - 2 x padding - left border
-  width: calc(400px - 40px - 1px);
-  overflow-y: auto;
-
-  // 100% - tab header height
-  height: calc(100% - 40px);
+  padding-left: 0;
 }
 
 .custom-style__context .tabs__header {
   background-color: $color-neutral-50;
+}
+
+.custom-style__form {
+  .tabs__header {
+    padding: 0;
+  }
 }

@@ -164,7 +164,7 @@ export default {
       return this.values.interval === 'MINUTE'
     },
     minimumMinuteFrequency() {
-      return this.$config.BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN
+      return this.$config.public.baserowIntegrationsPeriodicMinuteMin
     },
     showHourField() {
       return ['DAY', 'WEEK', 'MONTH'].includes(this.values.interval)

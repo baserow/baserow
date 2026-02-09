@@ -549,9 +549,9 @@ def test_file_field_type_in_formulas(data_fixture, api_client):
         response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
         response_json = response.json()
         assert response.status_code == HTTP_200_OK, response_json
-        assert (
-            response_json["results"][0][formula_field.db_column] == expected
-        ), f"Failed for {formula} but was " + str(response_json["results"][0])
+        assert response_json["results"][0][formula_field.db_column] == expected, (
+            f"Failed for {formula} but was " + str(response_json["results"][0])
+        )
 
     formula_field3 = FieldHandler().create_field(
         user,

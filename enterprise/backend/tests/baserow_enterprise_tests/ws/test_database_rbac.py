@@ -14,7 +14,7 @@ from baserow.core.trash.trash_types import (
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
-from tests.baserow.contrib.database.utils import get_message, received_message
+from tests.baserow.contrib.database.utils import get_message
 
 
 @pytest.fixture(autouse=True)
@@ -54,7 +54,7 @@ async def test_database_updated_message_not_leaking(data_fixture):
         user=user, application=database, name="Test"
     )
 
-    assert await received_message(communicator, "application_updated") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -85,7 +85,7 @@ async def test_database_deleted_message_not_leaking(data_fixture):
         user=user, application=database
     )
 
-    assert await received_message(communicator, "application_deleted") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -120,13 +120,14 @@ async def test_database_created_message_not_leaking(data_fixture):
         user, ApplicationTrashableItemType.type, database.id
     )
 
-    assert await received_message(communicator, "application_created") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 @pytest.mark.websockets
+@pytest.mark.enable_all_signals
 async def test_workspace_restored_applications_arent_leaked(data_fixture):
     user_excluded, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user_excluded)

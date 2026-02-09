@@ -101,15 +101,24 @@ export class JobType extends Registerable {
   async beforeUpdate(job, data) {}
 
   async afterUpdate(job, data) {
-    if (job.state === 'finished') {
-      await this.onJobDone(job, data)
-    } else if (job.state === 'failed') {
-      await this.onJobFailed(job, data)
+    switch (job.state) {
+      case 'cancelled':
+        await this.onJobCancelled(job, data)
+        break
+      case 'failed':
+        await this.onJobFailed(job, data)
+        break
+      case 'finished':
+        await this.onJobDone(job, data)
+        break
+      default:
+        break
     }
   }
 
-  async onJobDone(job) {}
-  async onJobFailed(job) {}
+  async onJobDone(job, data) {}
+  async onJobFailed(job, data) {}
+  async onJobCancelled(job, data) {}
 }
 
 export class DuplicateApplicationJobType extends JobType {
@@ -127,7 +136,7 @@ export class DuplicateApplicationJobType extends JobType {
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateApplicationJobType.duplicating') + '... '
   }
 
@@ -144,7 +153,7 @@ export class DuplicateApplicationJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
     const application = job.duplicated_application
     try {
       await store.dispatch('application/forceCreate', application)
@@ -160,7 +169,7 @@ export class DuplicateApplicationJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
     await store.dispatch(
       'toast/error',
       {
@@ -169,7 +178,7 @@ export class DuplicateApplicationJobType extends JobType {
       },
       { root: true }
     )
-    await this.app.store.dispatch('job/forceDelete', job)
+    await store.dispatch('job/forceDelete', job)
   }
 }
 
@@ -188,7 +197,7 @@ export class InstallTemplateJobType extends JobType {
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('InstallTemplateJobType.installing') + '... '
   }
 
@@ -201,7 +210,7 @@ export class InstallTemplateJobType extends JobType {
   }
 
   async onJobDone(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
     // Installing a template has just created a couple of applications in the
     // workspace. The response contains those applications and we can add them to the
     // store so that the user can view the installed template right away.
@@ -222,7 +231,7 @@ export class InstallTemplateJobType extends JobType {
   }
 
   async onJobFailed(job) {
-    const { i18n, store } = this.app
+    const { $i18n: i18n, $store: store } = this.app
     await store.dispatch(
       'toast/error',
       {
@@ -231,7 +240,7 @@ export class InstallTemplateJobType extends JobType {
       },
       { root: true }
     )
-    await this.app.store.dispatch('job/forceDelete', job)
+    await store.dispatch('job/forceDelete', job)
   }
 }
 

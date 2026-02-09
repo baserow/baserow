@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hidden">
+  <Modal ref="modal" @hidden="hidden">
     <h2 class="box__title">{{ $t('auditLogExportModal.title') }}</h2>
     <Error :error="error"></Error>
     <AuditLogExportForm ref="form" :loading="loading" @submitted="submitted">
@@ -128,7 +128,7 @@ export default {
       selectedTableViews: (state) => state.view.items,
     }),
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -149,7 +149,7 @@ export default {
     },
     humanExportedAt(timestamp) {
       const { period, count } = getHumanPeriodAgoCount(timestamp)
-      return this.$tc(`datetime.${period}Ago`, count)
+      return this.$t(`datetime.${period}Ago`, { count }, count)
     },
     hidden() {
       this.stopPollIfRunning()

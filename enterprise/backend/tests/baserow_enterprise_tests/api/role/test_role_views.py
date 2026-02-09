@@ -10,6 +10,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.subjects import UserSubjectType
+from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 
@@ -551,6 +552,58 @@ def test_batch_assign_role(data_fixture, api_client):
         },
         None,
         None,
+    ]
+
+
+@pytest.mark.django_db
+def test_batch_assign_role_to_database_view(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    user2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[user2])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    view = data_fixture.create_grid_view(table=table)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+
+    assert len(RoleAssignment.objects.all()) == 0
+
+    url = reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id})
+
+    response = api_client.post(
+        url,
+        {
+            "items": [
+                {
+                    "scope_id": view.id,
+                    "scope_type": "database_view",
+                    "subject_id": user2.id,
+                    "subject_type": UserSubjectType.type,
+                    "role": editor_role.uid,
+                },
+            ]
+        },
+        format="json",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == [
+        {
+            "id": AnyInt(),
+            "role": editor_role.uid,
+            "scope_id": view.id,
+            "scope_type": "database_view",
+            "subject_id": user2.id,
+            "subject_type": UserSubjectType.type,
+            "subject": {
+                "email": user2.email,
+                "first_name": user2.first_name,
+                "id": user2.id,
+                "username": user2.username,
+            },
+        },
     ]
 
 

@@ -21,7 +21,7 @@ class AIFileManager:
 
         storage = get_default_storage()
 
-        all_cell_files = getattr(row, f"field_{ai_field.ai_file_field.id}")
+        all_cell_files = getattr(row, f"field_{ai_field.ai_file_field_id}")
         if not isinstance(all_cell_files, list):
             # just a single file
             all_cell_files = [all_cell_files] if all_cell_files else []

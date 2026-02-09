@@ -1,12 +1,12 @@
 <template>
-  <Modal @show="init()">
+  <Modal ref="modal" @show="init()">
     <h2 class="box__title">{{ $t('fieldPermissionModal.title') }}</h2>
     <p>
-      <i18n path="fieldPermissionModal.description" tag="span">
+      <i18n-t keypath="fieldPermissionModal.description" tag="span">
         <template #fieldName>
           <strong>{{ field.name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </p>
     <div class="margin-bottom-2" :style="{ fontWeight: '500' }">
       {{ $t('fieldPermissionModal.question') }}
@@ -107,7 +107,7 @@ export default {
   mounted() {
     this.$bus.$on('field-permissions-updated', this.forceUpdate)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('field-permissions-updated', this.forceUpdate)
   },
   methods: {

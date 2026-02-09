@@ -169,6 +169,7 @@ export default {
     getFieldMapping: { type: Function, required: true },
     getRequestExample: { type: Function, required: true },
   },
+  emits: ['input'],
   data() {
     return {
       batchMode: false,

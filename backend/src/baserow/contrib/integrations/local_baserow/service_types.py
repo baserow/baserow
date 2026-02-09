@@ -18,6 +18,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 from django.dispatch import Signal
+from django.utils.translation import gettext as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -240,6 +241,34 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 break
 
         return [human_name, *rest]
+
+    def _prepare_one_row(self, mapping, row):
+        def convert(key, value):
+            if key in mapping:
+                return mapping[key]["type"].to_runtime_formula_value(
+                    mapping[key]["field"], value
+                )
+            return value
+
+        return {key: convert(key, value) for key, value in row.items()}
+
+    def _prepare_result(self, table_model, dispatch_result):
+        mapping = {
+            field_obj["field"].name: field_obj
+            for field_obj in table_model.get_field_objects() or []
+        }
+
+        if self.returns_list:
+            return {
+                **dispatch_result,
+                "results": [
+                    self._prepare_one_row(mapping, r)
+                    for r in dispatch_result["results"]
+                ],
+            }
+
+        else:
+            return self._prepare_one_row(mapping, dispatch_result)
 
     def build_queryset(
         self,
@@ -1093,12 +1122,15 @@ class LocalBaserowListRowsUserServiceType(
             user_field_names=True,
         )
 
-        return DispatchResult(
-            data={
+        result = self._prepare_result(
+            dispatch_data["baserow_table_model"],
+            {
                 "results": serializer(dispatch_data["results"], many=True).data,
                 "has_next_page": dispatch_data["has_next_page"],
-            }
+            },
         )
+
+        return DispatchResult(data=result)
 
     def get_record_names(
         self,
@@ -1611,6 +1643,55 @@ class LocalBaserowGetRowUserServiceType(
 
         return self.import_path(path, id_mapping)
 
+    def dispatch_data(
+        self,
+        service: LocalBaserowGetRow,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        """
+        Returns the row targeted by the `row_id` formula from the table stored in the
+        service instance.
+
+        :param service: the local baserow get row service.
+        :param resolved_values: If the service has any formulas, this dictionary will
+            contain their resolved values.
+        :param dispatch_context: The context used for the dispatch.
+        :raises ServiceImproperlyConfiguredDispatchException: When no rows are found.
+        :return: The rows.
+        """
+
+        table = service.table
+        only_field_names = self.get_used_field_names(service, dispatch_context)
+
+        table_model = self.get_table_model(service)
+
+        queryset = self.build_queryset(service, table, dispatch_context, table_model)
+
+        # If no row id is provided return the first item from the queryset
+        # This is useful when we want to use filters to specifically choose one
+        # row by setting the right condition
+        if "row_id" not in resolved_values:
+            if not queryset.exists():
+                raise ServiceImproperlyConfiguredDispatchException(_("No rows found"))
+            return {
+                "data": queryset.first(),
+                "baserow_table_model": table_model,
+                "public_allowed_properties": only_field_names,
+            }
+
+        try:
+            row = queryset.get(pk=resolved_values["row_id"])
+            return {
+                "data": row,
+                "baserow_table_model": table_model,
+                "public_allowed_properties": only_field_names,
+            }
+        except table_model.DoesNotExist:
+            raise ServiceImproperlyConfiguredDispatchException(
+                _(f"Row {resolved_values['row_id']} does not exist.")
+            )
+
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
         Responsible for serializing the `dispatch_data` row.
@@ -1633,55 +1714,11 @@ class LocalBaserowGetRowUserServiceType(
             user_field_names=True,
         )
 
-        serialized_row = serializer(dispatch_data["data"]).data
+        serialized_row = self._prepare_result(
+            dispatch_data["baserow_table_model"], serializer(dispatch_data["data"]).data
+        )
 
         return DispatchResult(data=serialized_row)
-
-    def dispatch_data(
-        self,
-        service: LocalBaserowGetRow,
-        resolved_values: Dict[str, Any],
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        """
-        Returns the row targeted by the `row_id` formula from the table stored in the
-        service instance.
-
-        :param service: the local baserow get row service.
-        :param resolved_values: If the service has any formulas, this dictionary will
-            contain their resolved values.
-        :param dispatch_context: The context used for the dispatch.
-        :return: The rows.
-        """
-
-        table = service.table
-        only_field_names = self.get_used_field_names(service, dispatch_context)
-
-        table_model = self.get_table_model(service)
-
-        queryset = self.build_queryset(service, table, dispatch_context, table_model)
-
-        # If no row id is provided return the first item from the queryset
-        # This is useful when we want to use filters to specifically choose one
-        # row by setting the right condition
-        if "row_id" not in resolved_values:
-            if not queryset.exists():
-                raise DoesNotExist()
-            return {
-                "data": queryset.first(),
-                "baserow_table_model": table_model,
-                "public_allowed_properties": only_field_names,
-            }
-
-        try:
-            row = queryset.get(pk=resolved_values["row_id"])
-            return {
-                "data": row,
-                "baserow_table_model": table_model,
-                "public_allowed_properties": only_field_names,
-            }
-        except table_model.DoesNotExist:
-            raise DoesNotExist()
 
 
 class LocalBaserowUpsertRowServiceType(
@@ -2123,7 +2160,10 @@ class LocalBaserowUpsertRowServiceType(
             field_ids=field_ids,
             user_field_names=True,
         )
-        serialized_row = serializer(dispatch_data["data"]).data
+
+        serialized_row = self._prepare_result(
+            dispatch_data["baserow_table_model"], serializer(dispatch_data["data"]).data
+        )
 
         return DispatchResult(data=serialized_row)
 
@@ -2283,18 +2323,24 @@ class LocalBaserowRowsSignalServiceType(
         model: "GeneratedTableModel",
         **kwargs,
     ):
-        serializer = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=True
-        )
+        def get_data():
+            # Make sure we have an up to date model
+            local_model = model.baserow_table.get_model()
 
-        data_to_process = {
-            "results": serializer(rows, many=True).data,
-            "has_next_page": False,
-        }
+            serializer = get_row_serializer_class(
+                local_model, RowSerializer, is_response=True, user_field_names=True
+            )
+
+            data_to_process = {
+                "results": serializer(rows, many=True).data,
+                "has_next_page": False,
+            }
+
+            return self._prepare_result(local_model, data_to_process)
 
         self._process_event(
             self.model_class.objects.filter(table=table),
-            data_to_process,
+            get_data,
             user=user,
         )
 

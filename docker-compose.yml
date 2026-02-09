@@ -32,6 +32,7 @@ x-backend-variables:
   # If you manually change this line make sure you also change the duplicate line in
   # the web-frontend service.
   BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+  BASEROW_EXTRA_PUBLIC_URLS:
 
   # Set these if you want to use an external postgres instead of the db service below.
   DATABASE_USER: ${DATABASE_USER:-baserow}
@@ -97,6 +98,7 @@ x-backend-variables:
   BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
+  BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
@@ -211,6 +213,7 @@ x-backend-variables:
   BASEROW_MISTRAL_MODELS:
   BASEROW_OLLAMA_HOST:
   BASEROW_OLLAMA_MODELS:
+  BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
   BASEROW_SERVE_FILES_THROUGH_BACKEND:
   BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION:
   BASEROW_SERVE_FILES_THROUGH_BACKEND_EXPIRE_SECONDS:
@@ -244,7 +247,7 @@ services:
   # requests to either the backend or web-frontend and also serving user uploaded files
   # from the media volume.
   caddy:
-    image: caddy:2
+    image: caddy:2.10.2
     restart: unless-stopped
     environment:
       # Controls what port the Caddy server binds to inside its container.
@@ -264,7 +267,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.35.3
+    image: baserow/backend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
 
     environment:
@@ -278,10 +281,11 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.35.3
+    image: baserow/web-frontend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
+      BASEROW_EXTRA_PUBLIC_URLS:
       PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
       PUBLIC_BACKEND_URL:
       PUBLIC_WEB_FRONTEND_URL:
@@ -315,14 +319,17 @@ services:
       BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
+      BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
+      BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+      BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:1.35.3
+    image: baserow/backend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -336,14 +343,15 @@ services:
           "/baserow/backend/docker/docker-entrypoint.sh celery-worker-healthcheck",
         ]
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.35.3
+    image: baserow/backend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -357,22 +365,33 @@ services:
           "/baserow/backend/docker/docker-entrypoint.sh celery-exportworker-healthcheck",
         ]
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.35.3
+    image: baserow/backend:${BASEROW_VERSION:-2.0.6}
     restart: unless-stopped
     command: celery-beat
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh celery-beat-healthcheck"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       <<: *backend-variables
     # See https://github.com/sibson/redbeat/issues/129#issuecomment-1057478237
     stop_signal: SIGQUIT
     depends_on:
-      - backend
+      - db
+      - redis
     volumes:
       - media:/baserow/media
     networks:

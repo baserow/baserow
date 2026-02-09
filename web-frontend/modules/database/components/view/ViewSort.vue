@@ -10,7 +10,7 @@
     >
       <i class="header__filter-icon iconoir-sort"></i>
       <span class="header__filter-name">{{
-        $tc('viewSort.sort', view.sortings.length, {
+        $t('viewSort.sort', {
           count: view.sortings.length,
         })
       }}</span>
@@ -51,5 +51,6 @@ export default {
       default: false,
     },
   },
+  emits: ['changed'],
 }
 </script>

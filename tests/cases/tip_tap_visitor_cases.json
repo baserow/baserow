@@ -14,7 +14,12 @@
     "formula": "'hello'",
     "content": {
       "type": "doc",
-      "content": [{ "text": "hello", "type": "text" }]
+      "content": [
+        {
+          "type": "wrapper",
+          "content": [{ "text": "hello", "type": "text" }]
+        }
+      ]
     }
   },
   {
@@ -54,8 +59,24 @@
       "type": "doc",
       "content": [
         {
-          "type": "get-formula-component",
-          "attrs": { "path": "data_source.hello.there", "isSelected": false }
+          "type": "wrapper",
+          "content": [
+            {
+              "type": "text",
+              "text": "\u200B"
+            },
+            {
+              "type": "get-formula-component",
+              "attrs": {
+                "path": "data_source.hello.there",
+                "isSelected": false
+              }
+            },
+            {
+              "type": "text",
+              "text": "\u200B"
+            }
+          ]
         }
       ]
     }
@@ -69,11 +90,19 @@
           "type": "wrapper",
           "content": [
             {
+              "type": "text",
+              "text": "\u200B"
+            },
+            {
               "type": "get-formula-component",
               "attrs": {
                 "path": "data_source.hello.there",
                 "isSelected": false
               }
+            },
+            {
+              "type": "text",
+              "text": "\u200B"
             },
             { "type": "text", "text": "friend :)" }
           ]
@@ -126,11 +155,19 @@
           "type": "wrapper",
           "content": [
             {
+              "type": "text",
+              "text": "\u200B"
+            },
+            {
               "type": "get-formula-component",
               "attrs": {
                 "path": "data_source.hello.there",
                 "isSelected": false
               }
+            },
+            {
+              "type": "text",
+              "text": "\u200B"
             }
           ]
         }

@@ -6,7 +6,7 @@ import re
 import secrets
 from io import BytesIO
 from os.path import join
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -19,7 +19,6 @@ from django.utils.http import parse_header_parameters
 import advocate
 from advocate.exceptions import UnacceptableAddressException
 from loguru import logger
-from PIL import Image, ImageOps
 from requests.exceptions import RequestException
 
 from baserow.core.import_export.utils import file_chunk_generator
@@ -40,6 +39,9 @@ from .exceptions import (
 )
 from .models import deconstruct_user_file_regex
 
+if TYPE_CHECKING:
+    from PIL import Image
+
 MIME_TYPE_UNKNOWN = "application/octet-stream"
 
 
@@ -56,7 +58,7 @@ class UserFileHandler:
         """Returns user file url"""
 
         storage = get_default_storage()
-        name = getattr(user_file, "name")
+        name = user_file.name
         path = UserFileHandler().user_file_path(name)
         url = storage.url(path)
         return url
@@ -167,7 +169,7 @@ class UserFileHandler:
 
     def generate_and_save_image_thumbnails(
         self,
-        image: Image,
+        image: "Image",
         user_file_name: str,
         storage: Storage | None = None,
         only_with_name: str | None = None,
@@ -186,7 +188,17 @@ class UserFileHandler:
         :raises ValueError: If the provided user file is not a valid image.
         """
 
+        from PIL import Image, ImageOps
+
         storage = storage or get_default_storage()
+
+        # adjust image orientation, if exif data differs from the image data
+        try:
+            ImageOps.exif_transpose(image, in_place=True)
+        # ignore cases of incomplete images
+        except OSError:
+            pass
+
         image_width = image.width
         image_height = image.height
 
@@ -238,6 +250,8 @@ class UserFileHandler:
         :rtype: UserFile
         """
 
+        from PIL import Image
+
         if not hasattr(stream, "read"):
             raise InvalidFileStreamError("The provided stream is not readable.")
 
@@ -254,7 +268,9 @@ class UserFileHandler:
         file_name = truncate_middle(file_name, 64)
 
         existing_user_file = UserFile.objects.filter(
-            original_name=file_name, sha256_hash=stream_hash
+            original_name=file_name,
+            sha256_hash=stream_hash,
+            deleted_at__isnull=True,
         ).first()
 
         if existing_user_file:

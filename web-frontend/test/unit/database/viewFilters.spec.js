@@ -12,7 +12,7 @@ describe('View Filter Tests', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
     store = testApp.store

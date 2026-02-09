@@ -1,10 +1,10 @@
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import FormView
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
 @pytest.mark.django_db

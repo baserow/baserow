@@ -39,6 +39,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleteCustomColor', 'input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

@@ -19,7 +19,7 @@
         ></PaginatedDropdown>
       </div>
       {{
-        $tc('license.seatLeft', leftSeats, {
+        $t('license.seatLeft', {
           count: leftSeats,
         })
       }}

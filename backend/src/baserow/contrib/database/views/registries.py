@@ -25,7 +25,11 @@ from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
-from baserow.core.registries import OperationType
+from baserow.core.registries import (
+    ImportExportConfig,
+    OperationType,
+    serialization_processor_registry,
+)
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -219,6 +223,7 @@ class ViewType(
     def export_serialized(
         self,
         view: "View",
+        import_export_config: ImportExportConfig,
         cache: Optional[Dict] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
@@ -228,6 +233,9 @@ class ViewType(
         `import_serialized` method. This dict is also JSON serializable.
 
         :param view: The view instance that must be exported.
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
+        :param cache: A cache to use for storing temporary data.
         :param files_zip: A zip file buffer where the files related to the export
             must be copied into.
         :param storage: The storage where the files can be loaded from.
@@ -298,12 +306,24 @@ class ViewType(
         if self.can_share:
             serialized["public"] = view.public
 
+        # It could be that there is no `table` related to the view when doing an
+        # Airtable export, for example. That means it's not part of a workspace, so we
+        # can't enhance the export with the `serialization_processor_registry`.
+        if view.table_id is not None:
+            for serialized_structure in serialization_processor_registry.get_all():
+                extra_data = serialized_structure.export_serialized(
+                    view.table.database.workspace, view, import_export_config
+                )
+                if extra_data is not None:
+                    serialized.update(**extra_data)
+
         return serialized
 
     def import_serialized(
         self,
         table: "Table",
         serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -316,6 +336,8 @@ class ViewType(
         :param table: The table where the view should be added to.
         :param serialized_values: The exported serialized view values that need to
             be imported.
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
         :param files_zip: A zip file buffer where files related to the export can be
@@ -364,9 +386,9 @@ class ViewType(
                 ).select_related("user")
 
                 for workspaceuser in workspaceusers_from_workspace:
-                    id_mapping["owned_by"][
-                        workspaceuser.user.email
-                    ] = workspaceuser.user
+                    id_mapping["owned_by"][workspaceuser.user.email] = (
+                        workspaceuser.user
+                    )
 
         try:
             ownership_type = view_ownership_type_registry.get(
@@ -399,7 +421,15 @@ class ViewType(
         decorations = (
             serialized_copy.pop("decorations", []) if self.can_decorate else []
         )
-        view = self.model_class.objects.create(table=table, **serialized_copy)
+
+        view = self.model_class(table=table)
+        # Only set the properties that are actually accepted by the view type's model
+        # class.
+        for key, value in serialized_copy.items():
+            if hasattr(view, key):
+                setattr(view, key, value)
+        view.save()
+
         id_mapping["database_views"][view_id] = view.id
 
         if self.can_filter:
@@ -414,9 +444,9 @@ class ViewType(
                 filter_group_object = ViewFilterGroup.objects.create(
                     view=view, **filter_group_copy
                 )
-                id_mapping["database_view_filter_groups"][
-                    filter_group_id
-                ] = filter_group_object.id
+                id_mapping["database_view_filter_groups"][filter_group_id] = (
+                    filter_group_object.id
+                )
 
             for view_filter in filters:
                 view_filter_type = view_filter_type_registry.get(view_filter["type"])
@@ -425,10 +455,10 @@ class ViewType(
                 view_filter_copy["field_id"] = id_mapping["database_fields"][
                     view_filter_copy["field_id"]
                 ]
-                view_filter_copy[
-                    "value"
-                ] = view_filter_type.set_import_serialized_value(
-                    view_filter_copy["value"], id_mapping
+                view_filter_copy["value"] = (
+                    view_filter_type.set_import_serialized_value(
+                        view_filter_copy["value"], id_mapping
+                    )
                 )
                 if view_filter.get("group", None):
                     view_filter_copy["group_id"] = id_mapping[
@@ -437,9 +467,9 @@ class ViewType(
                 view_filter_object = ViewFilter.objects.create(
                     view=view, **view_filter_copy
                 )
-                id_mapping["database_view_filters"][
-                    view_filter_id
-                ] = view_filter_object.id
+                id_mapping["database_view_filters"][view_filter_id] = (
+                    view_filter_object.id
+                )
 
         if self.can_sort:
             for view_sorting in sortings:
@@ -461,9 +491,9 @@ class ViewType(
                 view_group_by_object = ViewGroupBy.objects.create(
                     view=view, **view_group_by_copy
                 )
-                id_mapping["database_view_group_bys"][
-                    view_group_by_id
-                ] = view_group_by_object.id
+                id_mapping["database_view_group_bys"][view_group_by_id] = (
+                    view_group_by_object.id
+                )
 
         if self.can_decorate:
             for view_decoration in decorations:
@@ -489,9 +519,16 @@ class ViewType(
                 view_decoration_object = ViewDecoration.objects.create(
                     view=view, **view_decoration_copy
                 )
-                id_mapping["database_view_decorations"][
-                    view_decoration_id
-                ] = view_decoration_object.id
+                id_mapping["database_view_decorations"][view_decoration_id] = (
+                    view_decoration_object.id
+                )
+
+        for (
+            serialized_structure_processor
+        ) in serialization_processor_registry.get_all():
+            serialized_structure_processor.import_serialized(
+                table.database.workspace, view, serialized_copy, import_export_config
+            )
 
         return view
 
@@ -793,8 +830,7 @@ class ViewType(
         """
 
         raise NotImplementedError(
-            "An exportable or publicly sharable view must implement "
-            "`get_hidden_fields`"
+            "An exportable or publicly sharable view must implement `get_hidden_fields`"
         )
 
     def after_field_moved_between_tables(self, field: "Field", original_table_id: int):
@@ -1333,7 +1369,7 @@ class ViewOwnershipType(Instance):
 
     def should_broadcast_signal_to(
         self, view: "View"
-    ) -> Tuple[Literal["table", "users", ""], Optional[List[int]]]:
+    ) -> Tuple[Literal["table", "users", "refresh", ""], Optional[List[int]]]:
         """
         Returns a tuple that represent the kind of signaling that must be done for the
         given view.
@@ -1341,7 +1377,8 @@ class ViewOwnershipType(Instance):
         :param view: the view we want to send the signal for.
         :return: The first element of the tuple must be "" if no signaling is needed,
             "users" if signal has to be send to a list of users and "table" if the
-            signal can be send to all the users of the view table.
+            signal can be send to all the users of the view table. "refresh" if the
+            view and table data must be refreshed.
             The second member of the tuple can be any object necessary for the signal
             depending of the type.
             If the signal type is "users", it must be a list of user ids.
@@ -1406,6 +1443,62 @@ class ViewOwnershipType(Instance):
 
         raise PermissionDenied()
 
+    def view_created(self, user: AbstractUser, view: "View", workspace: Workspace):
+        """
+        Hook that is called after a view is created. This can be used to introduce
+        additional permissions checks, for example.
+
+        :param user: The user that created the view.
+        :param view: The view that was created.
+        :param workspace: The workspace where the view was created in.
+        """
+
+    def enforce_apply_filters(self, user: Optional[AbstractUser], view: "View") -> bool:
+        """
+        A hook that if it returns `True`, enforces the filters of the view to be
+        applied, regardless any other settings like adhoc filters. This can be used to
+        ensure that unfiltered rows are never exposed.
+
+        :param user: The user on whose behalf the rows are requested.
+        :param view: The related view.
+        :return: Boolean indicating whether the apply filters should be enforced.
+        """
+
+        return False
+
+    def prepare_views_for_user(
+        self, user: Optional[AbstractUser], views: List["View"]
+    ) -> List["View"]:
+        """
+        A hook that can be used to make changes to the provided view objects `views` if
+        needed for the view ownership type. Only views of the related type are provided
+        here. This can be used to add or remove properties from the object if needed.
+
+        :param user: The user on whose behalf the view objects are enhanced. Can be
+            used for permission checking. Note that it's not always provided.
+        :param views: The views to enhance.
+        :return: The enhanced views.
+        """
+
+        return views
+
+    def can_modify_rows(
+        self, view: "View", row_ids: Optional[List[int]] = None
+    ) -> bool:
+        """
+        Indicates whether it's possible to modify rows in the view, even if the user
+        does not have permissions to the table. The role that the user has on view
+        level must of course include the `CreateViewRowOperationType`,
+        `UpdateViewRowOperationType`, and `DeleteViewRowOperationType` operations.
+
+        :param view: The view where to check the permissions for.
+        :param row_ids: Optionally a list of row ids that are modified. This way, an
+            extra check can be performed.
+        :return: Returns true if it's possible to modify rows in the view.
+        """
+
+        return False
+
 
 class ViewOwnershipTypeRegistry(Registry):
     """
@@ -1414,6 +1507,38 @@ class ViewOwnershipTypeRegistry(Registry):
 
     name = "view_ownership_type"
     does_not_exist_exception_class = ViewOwnershipTypeDoesNotExist
+
+    def prepare_views_of_different_types_for_user(
+        self, user: AbstractUser, views: List["View"]
+    ) -> List["View"]:
+        """
+        Loops over the provided views and per ownership type, calls the
+        `enhance_view_objects` method.
+
+        :param user: The user on whose behalf the views are requested. Can be used for
+            permission checks.
+        :param views: The views that must be enhanced.
+        :return: The enhanced views.
+        """
+
+        for view_ownership_type in self.get_all():
+            views_of_type = [
+                view
+                for view in views
+                if view.ownership_type == view_ownership_type.type
+            ]
+            views_of_type = view_ownership_type.prepare_views_for_user(
+                user, views_of_type
+            )
+            # Put the enhanced view back into the original list at the right index so
+            # that the order is not changed.
+            for view_of_type in views_of_type:
+                for index, view in enumerate(views):
+                    if view.id == view_of_type.id:
+                        views[index] = view_of_type
+                        break
+
+        return views
 
 
 # A default view type registry is created here, this is the one that is used

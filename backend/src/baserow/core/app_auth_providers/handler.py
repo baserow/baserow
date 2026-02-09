@@ -102,8 +102,8 @@ class AppAuthProviderHandler(BaseAuthProviderHandler):
             cache=cache,
         )
 
-        id_mapping["app_auth_providers"][
-            serialized_app_auth_provider["id"]
-        ] = app_auth_provider.id
+        id_mapping["app_auth_providers"][serialized_app_auth_provider["id"]] = (
+            app_auth_provider.id
+        )
 
         return app_auth_provider

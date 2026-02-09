@@ -1,16 +1,11 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
 
-// Assign a static uuid for the Checkbox clip path ID.
-jest.mock('@baserow/modules/core/utils/string', () => ({
-  uuid: () => '8bc60af5-c9d8-4370-a4cf-55634b98360d',
-}))
-
 describe('Preview exportTableModal', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })

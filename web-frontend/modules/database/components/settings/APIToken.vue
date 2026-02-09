@@ -196,6 +196,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted'],
   data() {
     return {
       open: false,
