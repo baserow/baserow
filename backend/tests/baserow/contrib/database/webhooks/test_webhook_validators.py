@@ -1,6 +1,5 @@
 import re
 from ipaddress import ip_network
-from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import override_settings
@@ -9,14 +8,12 @@ import pytest
 import responses
 
 from baserow.contrib.database.webhooks.validators import url_validator
-from baserow.test_utils.helpers import stub_getaddrinfo
 
 URL_BLACKLIST_ONLY_ALLOWING_GOOGLE_WEBHOOKS = re.compile(r"(?!(www\.)?google\.com).*")
 
 
 @responses.activate
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blocks_internal_address(mock):
+def test_advocate_blocks_internal_address():
     responses.add(responses.GET, "https://1.1.1.1/", status=200)
     responses.add(responses.GET, "https://2.2.2.2/", status=200)
     responses.add(responses.GET, "http://127.0.0.1/", status=200)
@@ -30,8 +27,7 @@ def test_advocate_blocks_internal_address(mock):
 
 
 @responses.activate
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blocks_invalid_urls(mock):
+def test_advocate_blocks_invalid_urls():
     responses.add(responses.GET, "https://1.1.1.1/", status=200)
     responses.add(responses.GET, "https://2.2.2.2/", status=200)
     responses.add(responses.GET, "http://127.0.0.1/", status=200)
@@ -50,8 +46,7 @@ def test_advocate_blocks_invalid_urls(mock):
 
 @responses.activate
 @override_settings(BASEROW_WEBHOOKS_IP_WHITELIST=[ip_network("127.0.0.1/32")])
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_whitelist_rules(mock):
+def test_advocate_whitelist_rules():
     responses.add(responses.GET, "http://127.0.0.1/", status=200)
     responses.add(responses.GET, "http://10.0.0.1/", status=200)
 
@@ -66,8 +61,7 @@ def test_advocate_whitelist_rules(mock):
 
 @responses.activate
 @override_settings(BASEROW_WEBHOOKS_IP_BLACKLIST=[ip_network("1.1.1.1/32")])
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_blacklist_rules(mock):
+def test_advocate_blacklist_rules():
     responses.add(responses.GET, "https://1.1.1.1", status=200)
     responses.add(responses.GET, "http://127.0.0.1/", status=200)
     responses.add(responses.GET, "https://2.2.2.2/", status=200)
@@ -90,8 +84,7 @@ def test_advocate_blacklist_rules(mock):
 @override_settings(
     BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST=[re.compile(r"(?:www\.?)?google.com")]
 )
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_hostname_blacklist_rules(patched_addr_info):
+def test_hostname_blacklist_rules():
     responses.add(responses.GET, "https://google.com", status=200)
     responses.add(responses.GET, "http://1.1.1.1", status=200)
 
@@ -111,8 +104,7 @@ def test_hostname_blacklist_rules(patched_addr_info):
 @override_settings(
     BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST=[URL_BLACKLIST_ONLY_ALLOWING_GOOGLE_WEBHOOKS]
 )
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_hostname_blacklist_rules_only_allow_one_host(patched_addr_info):
+def test_hostname_blacklist_rules_only_allow_one_host():
     responses.add(responses.GET, "https://google.com", status=200)
     responses.add(responses.GET, "http://google.com", status=200)
     responses.add(responses.GET, "http://1.1.1.1", status=200)
@@ -162,10 +154,7 @@ def test_advocate_combination_of_whitelist_blacklist_rules():
     BASEROW_WEBHOOKS_IP_BLACKLIST=[ip_network("1.0.0.0/8")],
     BASEROW_WEBHOOKS_IP_WHITELIST=[ip_network("1.1.1.1/32")],
 )
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
-def test_advocate_hostname_blacklist_overrides_ip_lists(
-    mock,
-):
+def test_advocate_hostname_blacklist_overrides_ip_lists():
     responses.add(responses.GET, "https://1.1.1.1", status=200)
     responses.add(responses.GET, "https://1.1.1.2", status=200)
     responses.add(responses.GET, "http://127.0.0.1/", status=200)

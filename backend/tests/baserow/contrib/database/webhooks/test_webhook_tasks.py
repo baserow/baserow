@@ -21,7 +21,6 @@ from baserow.contrib.database.webhooks.tasks import (
 from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.models import Notification
 from baserow.core.redis import WebhookRedisQueue
-from baserow.test_utils.helpers import stub_getaddrinfo
 
 
 @pytest.mark.django_db(transaction=True)
@@ -292,15 +291,11 @@ def test_call_webhook_next_item_scheduled(mock_schedule, data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=0,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=0,
 )
-@responses.activate
 @patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
 def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
-    patched_getaddrinfo,
     data_fixture,
 ):
-    responses.add(responses.POST, "http://127.0.0.1", status=200)
     webhook = data_fixture.create_table_webhook()
 
     assert webhook.active

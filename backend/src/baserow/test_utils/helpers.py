@@ -4,8 +4,6 @@ import uuid
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta, timezone
 from decimal import Decimal
-from ipaddress import ip_network
-from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM
 from typing import Any, Dict, Generator, List, Optional, Type, Union
 from unittest.mock import patch
 
@@ -598,20 +596,6 @@ def assert_serialized_rows_contain_same_values(row_1, row_2):
         assert_serialized_field_values_are_the_same(
             row_1_value, row_2_value, field_name=field_name
         )
-
-
-# The httpretty stub implementation of socket.getaddrinfo is incorrect and doesn't
-# return an IP causing advocate to fail, instead we patch to fix this.
-def stub_getaddrinfo(host, port, family=None, socktype=None, proto=None, flags=None):
-    try:
-        ip_network(host)
-        ip = host
-    except ValueError:
-        ip = "1.1.1.1"
-    return [
-        (AF_INET, SOCK_STREAM, IPPROTO_TCP, host, (ip, port)),
-        (AF_INET6, SOCK_STREAM, IPPROTO_TCP, "", (ip, port)),
-    ]
 
 
 class AnyInt(int):
