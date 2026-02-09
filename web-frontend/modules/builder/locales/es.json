@@ -674,7 +674,7 @@
         "loggedInVisitors": "Visitantes registrados",
         "notLoggedInVisitors": "Visitantes no registrados",
         "warningTitle": "Esto es una característica de seguridad",
-        "warningMessage": "Revisa la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentación</a> para aprender más sobre cómo aseguramos los datos.",
+        "warningMessage": "Revisa la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentación&lt;/a&gt; para aprender más sobre cómo aseguramos los datos.",
         "excludedRolesLabel": "todos los roles excepto",
         "switchAllowLabel": "Permitir",
         "switchDisallowLabel": "No permitir",
