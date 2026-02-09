@@ -80,20 +80,10 @@ import TimeSelectContext from '@baserow/modules/core/components/TimeSelectContex
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-// import { en, fr } from 'vuejs-datepicker/dist/locale'
-// TODO MIG
 
 export default {
   components: { TimeSelectContext },
   mixins: [rowEditField, rowEditFieldInput, dateField],
-  data() {
-    return {
-      datePickerLang: {
-        en: {},
-        fr: {},
-      },
-    }
-  },
   methods: {
     focus(...args) {
       this.select()

@@ -151,7 +151,6 @@ export function getValueAtPath(context, path) {
 /**
  * Deeply sets a value in an object (or array) from a dotted path string.
  * Creates any missing intermediate parts if necessary.
- * TODO MIG Use Vue.set to keep reactivity.
  *
  * @param {Object} obj - The object we want to update.
  * @param {String} path - The path, delimited by periods, to the value.
@@ -169,13 +168,11 @@ export function setValueAtPath(obj, path, value) {
     // If we are at the last key, set the value
     if (i === keys.length - 1) {
       current[key] = value
-      // Vue.set(current, key, value)
     } else {
       // If the key does not exist or is not an object, create an empty object or array
       if (!(key in current) || typeof current[key] !== 'object') {
         // Check if the next key is a number to decide between object or array
         current[key] = isNaN(keys[i + 1]) ? {} : []
-        //Vue.set(current, key, isNaN(keys[i + 1]) ? {} : [])
       }
       // Move to the next level in the object
       current = current[key]

@@ -141,10 +141,8 @@ export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
     const metaDataCopy = clone(row._.metadata)
     metaDataCopy[rowMetadataType] = newValue
     row._['metadata'] = metaDataCopy
-    // TODO MIG Vue.set(row._, 'metadata', metaDataCopy)
   } else {
     row._.metadata[rowMetadataType] = newValue
-    //Vue.set(row._.metadata, rowMetadataType, newValue)
   }
 }
 

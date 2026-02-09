@@ -18,7 +18,6 @@ import integrationStoreModule from '../store/integration'
 export default defineNuxtPlugin({
   name: 'create-store',
   async setup(nuxtApp) {
-    // TODO MIG check this is not executed twice
     const store = createStore({
       modules: {
         undoRedo: undoRedoStoreModule,

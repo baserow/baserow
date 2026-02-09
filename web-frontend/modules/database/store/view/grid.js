@@ -1,4 +1,3 @@
-// TODO MIG import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
@@ -353,7 +352,6 @@ export const mutations = {
           }
         })
       } else {
-        // Vue.set(state.fieldOptions, key, fieldOptions[key])
         state.fieldOptions[key] = fieldOptions[key]
       }
     })
@@ -363,7 +361,6 @@ export const mutations = {
       const exists = Object.prototype.hasOwnProperty.call(fieldOptions, key)
       if (!exists) {
         delete state.fieldOptions[key]
-        // Vue.delete(state.fieldOptions, key)
       }
     })
   },
@@ -379,7 +376,6 @@ export const mutations = {
   DELETE_FIELD_OPTIONS(state, fieldId) {
     if (Object.prototype.hasOwnProperty.call(state.fieldOptions, fieldId)) {
       delete state.fieldOptions[fieldId]
-      //Vue.delete(state.fieldOptions, fieldId)
     }
   },
   SET_ROW_HOVER(state, { row, value }) {
@@ -451,7 +447,6 @@ export const mutations = {
   },
   SET_MULTISELECT_ACTIVE(state, value) {
     state.multiSelectActive = value
-    //Vue.set(state, 'multiSelectActive', value)
   },
   CLEAR_AREA_SELECTION(state) {
     state.multiSelectHolding = false
@@ -661,7 +656,6 @@ export const mutations = {
         )
 
         if (existingIndex !== -1) {
-          // Vue.set(existingMetadata[newGroupField], existingIndex, newGroupEntry)
           existingMetadata[newGroupField][existingIndex] = newGroupEntry
         } else {
           existingMetadata[newGroupField].push(newGroupEntry)
@@ -708,7 +702,6 @@ export const mutations = {
             count -= 1
           }
 
-          //Vue.set(entry, 'count', count)
           entry.count = count
           updated = true
         }
@@ -728,12 +721,10 @@ export const mutations = {
   SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
     const addKey = (fieldId, rowId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      //Vue.set(state.pendingFieldOps, key, [fieldId, rowId])
       state.pendingFieldOps[key] = [fieldId, rowId]
     }
     const deleteKey = (fieldId, rowId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      //Vue.delete(state.pendingFieldOps, key)
       delete state.pendingFieldOps[key]
     }
     const operation = value ? addKey : deleteKey
@@ -743,7 +734,6 @@ export const mutations = {
   CLEAR_PENDING_FIELD_OPERATIONS(state, { fieldIds, rowId }) {
     fieldIds.forEach((fieldId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      // Vue.delete(state.pendingFieldOps, key)
       delete state.pendingFieldOps[key]
     })
   },
