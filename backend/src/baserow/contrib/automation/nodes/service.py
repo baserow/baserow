@@ -6,7 +6,6 @@ from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMissingOutput,
-    AutomationNodeReferenceNodeInvalid,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -30,13 +29,14 @@ from baserow.contrib.automation.nodes.signals import (
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeMove,
-    NodePositionType,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.core.cache import global_cache
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
@@ -104,7 +104,7 @@ class AutomationNodeService:
         self,
         workflow: AutomationWorkflow,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -115,7 +115,7 @@ class AutomationNodeService:
             return
 
         if reference_node.workflow_id != workflow.id:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node.id} doesn't exist"
             )
 
@@ -127,7 +127,7 @@ class AutomationNodeService:
             )
 
         if position == "child" and not reference_node.get_type().is_container:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node.id} can't have child"
             )
 
@@ -137,7 +137,7 @@ class AutomationNodeService:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         reference_node_id: int | None = None,
-        position: NodePositionType = "south",  # south, child
+        position: GraphPointPositionType = "south",  # south, child
         output: str = "",
         **kwargs,
     ) -> AutomationNode:
@@ -168,7 +168,7 @@ class AutomationNodeService:
                 self.handler.get_node(reference_node_id) if reference_node_id else None
             )
         except AutomationNodeDoesNotExist as e:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node_id} doesn't exist"
             ) from e
 
@@ -450,7 +450,7 @@ class AutomationNodeService:
         user: AbstractUser,
         node_id_to_move: int,
         reference_node_id: int | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ) -> AutomationNodeMove:
         """
@@ -481,14 +481,14 @@ class AutomationNodeService:
                 self.handler.get_node(reference_node_id) if reference_node_id else None
             )
         except AutomationNodeDoesNotExist as e:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node_id} doesn't exist"
             ) from e
 
         self._check_position(workflow, reference_node, position, output)
 
         if reference_node.id == node_to_move.id:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 "The reference node and the moved node must be different"
             )
 
