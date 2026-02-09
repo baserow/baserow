@@ -43,7 +43,8 @@ const renderMarkdown = () => {
   htmlContent.value = md.render(props.content)
 }
 
-// Render immediately and watch for changes
-renderMarkdown()
-watch(() => [props.content, props.rules], renderMarkdown, { deep: true })
+watch(() => [props.content, props.rules], renderMarkdown, {
+  deep: true,
+  immediate: true,
+})
 </script>
