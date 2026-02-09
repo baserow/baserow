@@ -19,22 +19,3 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo({ name: 'login', query })
   }
 })
-
-/*
-Previous Nuxt 2 middleware:
-export default function ({ req, store, route, redirect }) {
-  // If nuxt generate, pass this middleware
-  if (import.meta.server && !req) return
-
-  if (!store.getters['auth/isAuthenticated']) {
-    const query = {}
-    if (req) {
-      query.original = encodeURI(req.originalUrl)
-    } else {
-      query.original = route.path
-    }
-
-    return redirect({ name: 'login', query })
-  }
-}
-*/

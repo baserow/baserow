@@ -161,18 +161,6 @@ export default defineNuxtPlugin({
     const { $store, $registry, $clientErrorMap, $i18n } = nuxtApp
     const context = { app: nuxtApp }
 
-    // Merge builder translations into i18n
-    /*if ($i18n) {
-      $i18n.mergeLocaleMessage('en', en)
-      $i18n.mergeLocaleMessage('fr', fr)
-      $i18n.mergeLocaleMessage('nl', nl)
-      $i18n.mergeLocaleMessage('de', de)
-      $i18n.mergeLocaleMessage('es', es)
-      $i18n.mergeLocaleMessage('it', it)
-      $i18n.mergeLocaleMessage('pl', pl)
-      $i18n.mergeLocaleMessage('ko', ko)
-    }*/
-
     $clientErrorMap.setError(
       'ERROR_PAGE_NAME_NOT_UNIQUE',
       $i18n.t('pageErrors.errorNameNotUnique'),

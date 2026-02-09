@@ -15,16 +15,3 @@ export default defineNuxtRouteMiddleware(() => {
     throw createError({ statusCode: 403, message: 'Forbidden.' })
   }
 })
-
-/*
-Previous Nuxt 2 middleware:
-export default function ({ store, req, error }) {
-  // If nuxt generate, pass this middleware
-  if (import.meta.server && !req) return
-
-  // If the user is not staff we want to show a forbidden error.
-  if (!store.getters['auth/isStaff']) {
-    return error({ statusCode: 403, message: 'Forbidden.' })
-  }
-}
-*/

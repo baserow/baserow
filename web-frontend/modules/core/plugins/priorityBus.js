@@ -1,19 +1,3 @@
-/**
- * Priority bus is a bus with the same API as $bus but with
- * the ability to specify a priority for the callback.
- *
- * This makes it possible to register multiple callbacks such as
- * "start search" callbacks and invoke only one based on its priority.
- */
-
-/*
-  Tracking global list of listeners per event.
-
-  'event': [{
-    priority: Number, (preference given to higher)
-    callback: Function,
-  }]
-*/
 const listeners = {}
 
 const priorityBus = {
