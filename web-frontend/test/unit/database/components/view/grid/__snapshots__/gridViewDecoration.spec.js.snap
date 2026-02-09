@@ -390,9 +390,7 @@ exports[`GridView component with decoration > Default component with first_cell 
     are not re-rendered when functional component changes position in the DOM.
   -->
               <div
-                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
-                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
@@ -418,9 +416,7 @@ exports[`GridView component with decoration > Default component with first_cell 
     are not re-rendered when functional component changes position in the DOM.
   -->
               <div
-                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
-                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
@@ -946,9 +942,7 @@ exports[`GridView component with decoration > Default component with row wrapper
     are not re-rendered when functional component changes position in the DOM.
   -->
                   <div
-                    add-keep-alive="function () { [native code] }"
                     class="grid-view__column"
-                    remove-keep-alive="function () { [native code] }"
                     style="width: 200px;"
                   >
                     <div
@@ -974,9 +968,7 @@ exports[`GridView component with decoration > Default component with row wrapper
     are not re-rendered when functional component changes position in the DOM.
   -->
                   <div
-                    add-keep-alive="function () { [native code] }"
                     class="grid-view__column"
-                    remove-keep-alive="function () { [native code] }"
                     style="width: 200px;"
                   >
                     <div
@@ -1488,9 +1480,7 @@ exports[`GridView component with decoration > Default component with unavailable
     are not re-rendered when functional component changes position in the DOM.
   -->
               <div
-                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
-                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div
@@ -1516,9 +1506,7 @@ exports[`GridView component with decoration > Default component with unavailable
     are not re-rendered when functional component changes position in the DOM.
   -->
               <div
-                add-keep-alive="function () { [native code] }"
                 class="grid-view__column"
-                remove-keep-alive="function () { [native code] }"
                 style="width: 200px;"
               >
                 <div

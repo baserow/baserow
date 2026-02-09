@@ -23,9 +23,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -51,9 +49,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -91,9 +87,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -119,9 +113,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -161,9 +153,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -187,9 +177,7 @@ exports[`GridViewRows component > Default component 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -271,9 +259,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -299,9 +285,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -371,9 +355,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -399,9 +381,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -473,9 +453,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div
@@ -499,9 +477,7 @@ exports[`GridViewRows component > With row details 1`] = `
     are not re-rendered when functional component changes position in the DOM.
   -->
     <div
-      add-keep-alive="function () { [native code] }"
       class="grid-view__column"
-      remove-keep-alive="function () { [native code] }"
       style="width: 200px;"
     >
       <div

@@ -197,7 +197,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
     The :key property must be set here because it makes sure that the child components
     are not re-rendered when functional component changes position in the DOM.
   -->
-                    <div class="grid-view__column" style="width: 200px;" add-keep-alive="function () { [native code] }" remove-keep-alive="function () { [native code] }">
+                    <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
@@ -206,7 +206,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
     The :key property must be set here because it makes sure that the child components
     are not re-rendered when functional component changes position in the DOM.
   -->
-                    <div class="grid-view__column" style="width: 200px;" add-keep-alive="function () { [native code] }" remove-keep-alive="function () { [native code] }">
+                    <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
                       </div>
@@ -458,7 +458,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
     The :key property must be set here because it makes sure that the child components
     are not re-rendered when functional component changes position in the DOM.
   -->
-                    <div class="grid-view__column" style="width: 200px;" add-keep-alive="function () { [native code] }" remove-keep-alive="function () { [native code] }">
+                    <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
@@ -467,7 +467,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
     The :key property must be set here because it makes sure that the child components
     are not re-rendered when functional component changes position in the DOM.
   -->
-                    <div class="grid-view__column" style="width: 200px;" add-keep-alive="function () { [native code] }" remove-keep-alive="function () { [native code] }">
+                    <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
                       </div>
