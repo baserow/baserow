@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
+from baserow.contrib.automation.history.models import AutomationNodeResult
 from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.services.dispatch_context import DispatchContext
@@ -18,6 +19,8 @@ class AutomationDispatchContext(DispatchContext):
         workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
+        history_id: Optional[int] = None,
+        current_iterations: Optional[Dict[int, int]] = None,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
@@ -35,6 +38,12 @@ class AutomationDispatchContext(DispatchContext):
         self.previous_nodes_results: Dict[int, Any] = {}
         self.simulate_until_node = simulate_until_node
         self.current_iterations: Dict[int, int] = {}
+
+        if current_iterations:
+            self.current_iterations = current_iterations
+
+        if history_id:
+            self._update_previous_results(history_id)
 
         services = (
             [self.simulate_until_node.service.specific]
@@ -60,6 +69,13 @@ class AutomationDispatchContext(DispatchContext):
         new_context.previous_nodes_results = {**self.previous_nodes_results}
         new_context.current_iterations = {**self.current_iterations}
         return new_context
+
+    def _update_previous_results(self, history_id: int):
+        previous_results = AutomationNodeResult.objects.filter(
+            node_history__workflow_history_id=history_id
+        ).select_related("node_history__node")
+        for result in previous_results:
+            self.previous_nodes_results[result.node_history.node_id] = result.result
 
     @property
     def data_provider_registry(self):
