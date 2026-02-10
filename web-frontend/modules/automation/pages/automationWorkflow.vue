@@ -317,11 +317,15 @@ onBeforeRouteUpdate((to, from) => {
   onRouteChange(from)
 })
 
+const leavingRoute = ref(false)
 onBeforeRouteLeave((to, from) => {
   onRouteChange(from)
+  leavingRoute.value = true
 })
 
 onUnmounted(() => {
-  $store.dispatch('automationWorkflow/unselect')
+  if (leavingRoute.value) {
+    $store.dispatch('automationWorkflow/unselect')
+  }
 })
 </script>

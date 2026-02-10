@@ -1,5 +1,5 @@
 <template>
-  <li class="tree__sub" :class="{ active: workflow?._?.selected }">
+  <li class="tree__sub" :class="{ active: workflow?._.selected }">
     <a
       class="tree__sub-link"
       :title="workflow.name"
@@ -152,6 +152,9 @@ export default {
       })
     },
     async selectWorkflow(automation, workflow) {
+      if (workflow?._.selected) {
+        return
+      }
       this.setLoading(automation, true)
       try {
         await this.$nuxt.$router.push({

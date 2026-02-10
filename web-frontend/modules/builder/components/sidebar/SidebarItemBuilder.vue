@@ -146,6 +146,9 @@ export default {
       })
     },
     async selectPage(builder, page) {
+      if (page._.selected) {
+        return
+      }
       this.setLoading(builder, true)
       try {
         await this.$nuxt.$router.push({
