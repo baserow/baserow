@@ -32,7 +32,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       await store.dispatch('auth/refresh', refreshToken)
     } catch (error) {
       if (error.response?.status === 401) {
-        return navigateTo({ name: 'login' })
+        return navigateTo({ name: 'login' }, { external: true })
       }
     }
   }
