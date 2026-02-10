@@ -174,7 +174,7 @@ export default {
       icon: null,
       query: '',
       hasItems: true,
-      hasDropdownItem: true,
+      hasDropdownItem: false,
       focusedDropdownItem: null,
       opening: false,
       fixedItemsImmutable: this.fixedItems,
