@@ -1299,7 +1299,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param dispatch_context: The context in which the service is being dispatched.
         """
 
-        if dispatch_context.event_payload is not None:
+        if dispatch_context.event_payload:
             return dispatch_context.event_payload
 
         return self._get_payload()
