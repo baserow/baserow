@@ -59,7 +59,7 @@ export default {
   },
   computed: {
     currentValue() {
-      return this.modelValue !== undefined ? this.modelValue : (this.value || {})
+      return this.modelValue !== undefined ? this.modelValue : this.value || {}
     },
   },
   methods: {
