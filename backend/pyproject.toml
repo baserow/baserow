@@ -10,7 +10,7 @@ description = """Baserow is an open source no-code database tool and Airtable \
                     technical expertise. Build a table and define custom fields \
                     like text, number, file and many more."""
 license = { file = "../LICENSE" }
-requires-python = "==3.11.*"
+requires-python = "==3.13.*"
 dynamic = ["version"]
 classifiers = []
 
@@ -81,7 +81,7 @@ dependencies = [
     "django-cachalot==2.8.0",
     "celery-singleton==0.3.1",
     "posthog==7.4.2",
-    "prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip",
+    "prosemirror==0.5.2",
     "rich==14.3.2",
     "tzdata==2025.3",
     "sentry-sdk==2.48.0",

@@ -6,7 +6,7 @@ ARG GID="9999"
 # Builder for su-exec (replaces gosu, safer with smaller footprint)
 # Pinned to v0.2 (commit 212b75144bbc) with SHA256 verification
 # =============================================================================
-FROM debian:bookworm-slim AS tool-builder
+FROM debian:trixie-slim AS tool-builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # Production base builder stage: builds runtime dependencies only
 # =============================================================================
-FROM python:3.11.14-slim-bookworm AS builder-prod-base
+FROM python:3.13.12-slim-trixie AS builder-prod-base
 ARG UID
 ARG GID
 
@@ -38,7 +38,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-    build-essential
+    build-essential \
+    libpq-dev
 
 ENV UV_PYTHON_DOWNLOADS=0 \
     UV_COMPILE_BYTECODE=1 \
@@ -158,22 +159,22 @@ COPY --chown=$UID:$GID enterprise/backend /baserow/enterprise/backend
 RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh \
     && chmod a+x /baserow/backend/docker/docker-entrypoint.sh
 
-# Install the project with premium and enterprise workspaces, removing tests and unneeded files
+# Install the project with premium and enterprise workspaces
 RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
     uv sync --frozen --no-dev \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
     # Keep botocore/docs and boto3/docs - they're imported at runtime
-    && (find /baserow/ -type d \( -name "test" -o -name "tests" -o -name "email_compiler" \) \
+    && (find /baserow/venv/lib -type d \( -name "test" -o -name "tests" \) \
         -not -path "*/django/*" -not -path "*/rest_framework/*" -prune -exec rm -rf {} \; || true) \
-    && (find /baserow/ -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
+    && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
         -not -path "*/botocore/*" -not -path "*/boto3/*" -prune -exec rm -rf {} \; || true)
 
 
 # =============================================================================
 # CI Target - lightweight image for pytest and E2E tests
 # =============================================================================
-FROM python:3.11.14-slim-bookworm AS ci
+FROM python:3.13.12-slim-trixie AS ci
 ARG UID
 ARG GID
 
@@ -221,7 +222,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-
 # Only works mounting the source code as a bind mount. See docker-compose.dev.yml for usage.
 # =============================================================================
 
-FROM python:3.11.14-slim-bookworm AS dev
+FROM python:3.13.12-slim-trixie AS dev
 ARG UID="9999"
 ARG GID="9999"
 
@@ -316,7 +317,7 @@ CMD ["django-dev"]
 # =============================================================================
 # Production target
 # =============================================================================
-FROM python:3.11.14-slim-bookworm AS local 
+FROM python:3.13.12-slim-trixie AS local 
 ARG UID
 ARG GID
 
@@ -334,12 +335,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    postgresql-client-${POSTGRES_VERSION} \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     xmlsec1 \
-    gettext
+    gettext \
+    postgresql-client-${POSTGRES_VERSION}
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
       useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
@@ -359,6 +362,10 @@ COPY --chown=$UID:$GID --from=builder-prod /baserow/backend /baserow/backend/
 COPY --chown=$UID:$GID --from=builder-prod /baserow/premium /baserow/premium/
 COPY --chown=$UID:$GID --from=builder-prod /baserow/enterprise /baserow/enterprise/
 COPY --chown=$UID:$GID ./docs /baserow/docs/
+
+# Remove application tests and dev-only directories
+RUN rm -rf /baserow/backend/tests /baserow/premium/backend/tests \ 
+        /baserow/enterprise/backend/tests /baserow/backend/email_compiler
 
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
 

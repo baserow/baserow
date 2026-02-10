@@ -3,15 +3,25 @@ ARG GID="9999"
 
 ARG BACKEND_IMAGE=baserow/backend
 ARG WEBFRONTEND_IMAGE=baserow/web-frontend
+ARG CADDY_VERSION=2.11.0-beta.2
 # hadolint ignore=DL3006
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
 FROM ${WEBFRONTEND_IMAGE} AS web_frontend_image
 
 # =============================================================================
+# Caddy builder - compile from source so the Go stdlib and dependencies are
+# always at the latest patch level, eliminating CVEs from stale pre-built
+# release binaries.
+# =============================================================================
+FROM golang:1.25.7-trixie AS caddy-builder
+ARG CADDY_VERSION
+RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v${CADDY_VERSION}
+
+# =============================================================================
 # Base - system dependencies (cached independently of source images)
 # =============================================================================
-FROM python:3.11.14-slim-bookworm AS base
+FROM python:3.13.12-slim-trixie AS base
 ARG UID
 ARG GID
 
@@ -23,21 +33,18 @@ ENV DOCKER_USER=baserow_docker_user \
     DATA_DIR=/baserow/data \
     BASEROW_PLUGIN_DIR=/baserow/data/plugins
 
-# Caddy checksums for v2.10.2
-ENV CADDY_VERSION=2.10.2 \
-    CADDY_SHA256_AMD64=5c218bc34c9197369263da7e9317a83acdbd80ef45d94dca5eff76e727c67cdd \
-    CADDY_SHA256_ARM64=501e955fa634c5aab63247458c3ac655cfdd6cbf1e0436528f41248451c190ac
-
 # Runtime dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
+    curl gnupg2 ca-certificates && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     supervisor \
-    curl \
-    gnupg2 \
-    ca-certificates \
     psmisc \
     gawk \
     postgresql-client-"${POSTGRES_VERSION}" \
@@ -45,23 +52,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     gettext \
     tini \
     && \
-    # Install Caddy with checksum verification
-    ARCH=$(dpkg --print-architecture) && \
-    curl -o caddy.tar.gz -sL "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_${ARCH}.tar.gz" && \
-    if [ "$ARCH" = "amd64" ]; then \
-        echo "${CADDY_SHA256_AMD64}  caddy.tar.gz" | sha256sum -c -; \
-    elif [ "$ARCH" = "arm64" ]; then \
-        echo "${CADDY_SHA256_ARM64}  caddy.tar.gz" | sha256sum -c -; \
-    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    tar -xf caddy.tar.gz && mv caddy /usr/bin/ && rm caddy.tar.gz && \
     # Setup user and group with fixed UID/GID for volume permission consistency
     getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}" && \
     useradd --shell /bin/bash -l -u "$UID" -g "$GID" -o -c "" -d /baserow -m "${DOCKER_USER}" && \
+    chmod 755 /baserow && \
     # Setup supervisor
     ln -sf /dev/stdout /var/log/supervisor/supervisord.log && \
     # Create data and plugin directories with correct ownership
     mkdir -p "${DATA_DIR}" "${BASEROW_PLUGIN_DIR}" && \
     chown -R "$UID:$GID" "${DATA_DIR}" "${BASEROW_PLUGIN_DIR}"
+
+COPY --from=caddy-builder /go/bin/caddy /usr/bin/caddy
 
 # Copy Node.js, npm, and yarn from web-frontend image (avoids insecure curl|bash from NodeSource)
 COPY --from=web_frontend_image /usr/local/bin/node /usr/local/bin/node
@@ -122,12 +123,9 @@ ARG GID
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Add PostgreSQL repo (for pgvector) and install postgres + redis
+# Install postgres + redis (PGDG repo already added in base stage)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/postgresql.list && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     "postgresql-${POSTGRES_VERSION}" \

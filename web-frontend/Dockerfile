@@ -6,7 +6,7 @@ ARG GID="9999"
 # Builder for su-exec (replaces gosu, smaller footprint)
 # Pinned to v0.2 (commit 212b75144bbc) with SHA256 verification
 # =============================================================================
-FROM debian:bookworm-slim AS tool-builder
+FROM debian:trixie-slim AS tool-builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # CI builder stage
 # =============================================================================
-FROM node:24.13-bookworm-slim AS builder-ci
+FROM node:24.13.0-trixie-slim AS builder-ci
 ARG UID
 ARG GID
 
@@ -51,7 +51,7 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
 # =============================================================================
 # Production builder stage
 # =============================================================================
-FROM node:24.13-bookworm-slim AS builder-prod
+FROM node:24.13.0-trixie-slim AS builder-prod
 ARG UID
 ARG GID
 
@@ -99,7 +99,7 @@ FROM busybox:musl AS busybox-helper
 # =============================================================================
 # CI target - used in CI pipelines
 # =============================================================================
-FROM node:24.13-bookworm-slim AS ci
+FROM node:24.13.0-trixie-slim AS ci
 ARG UID
 ARG GID
 
@@ -150,7 +150,7 @@ CMD ["nuxt-prod"]
 # =============================================================================
 # Development target - used for local development with live reload
 # =============================================================================
-FROM node:24.13-bookworm-slim AS dev
+FROM node:24.13.0-trixie-slim AS dev
 ARG UID
 ARG GID
 
@@ -238,7 +238,7 @@ CMD ["nuxt-dev"]
 # =============================================================================
 # Production target - minimal image with only runtime requirements
 # =============================================================================
-FROM node:24.13-bookworm-slim AS local
+FROM node:24.13.0-trixie-slim AS local
 ARG UID
 ARG GID
 
@@ -253,6 +253,9 @@ COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
+
+# Update npm to patch CVEs in its bundled deps (glob, tar, @isaacs/brace-expansion)
+RUN npm install -g npm@latest
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
