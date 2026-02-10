@@ -32,37 +32,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
       await store.dispatch('auth/refresh', refreshToken)
     } catch (error) {
       if (error.response?.status === 401) {
-        return navigateTo({ name: 'login' }, { external: true })
+        return navigateTo({ name: 'login' }, { external: true }) // force browser 302 redirect to get rid of the jwt cookie in the request headers
       }
     }
   }
 })
-
-/*
-Previous Nuxt 2 middleware:
-export default function ({ store, req, app, route, redirect }) {
-  // If nuxt generate or already authenticated, pass this middleware
-  if ((import.meta.server && !req) || store.getters['auth/isAuthenticated']) return
-
-  const userSession = route.query.user_session
-  if (userSession) {
-    setUserSessionCookie(app, userSession)
-  }
-
-  // token can be in the query string (SSO) or in the cookies (previous session)
-  let refreshToken = route.query.token
-  if (refreshToken) {
-    setToken(app, refreshToken)
-  } else {
-    refreshToken = getTokenIfEnoughTimeLeft(app)
-  }
-
-  if (refreshToken) {
-    return store.dispatch('auth/refresh', refreshToken).catch((error) => {
-      if (error.response?.status === 401) {
-        return redirect({ name: 'login' })
-      }
-    })
-  }
-}
-*/
