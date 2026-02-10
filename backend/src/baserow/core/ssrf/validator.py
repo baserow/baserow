@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import socket
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from ipaddress import (
     IPv4Address,
     IPv4Network,
@@ -124,15 +123,12 @@ class SSRFValidator:
         self,
         hostname: str,
         port: int,
-        timeout: Optional[float] = None,
     ) -> tuple[str, int]:
         """
         Resolve a hostname and validate the resulting IP address(es).
 
         Returns the first allowed (ip_string, port) tuple.
         Raises InvalidSSRFAddress if no resolved address passes validation.
-
-        :param timeout: Optional DNS resolution timeout in seconds.
         """
 
         # Check hostname against regex blacklist first
@@ -143,16 +139,7 @@ class SSRFValidator:
             )
 
         try:
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(
-                    socket.getaddrinfo, hostname, port, 0, socket.SOCK_STREAM
-                )
-                results = future.result(timeout=timeout)
-        except TimeoutError as e:
-            raise InvalidSSRFAddress(
-                address=hostname,
-                message=f"DNS resolution for {hostname!r} timed out after {timeout}s",
-            ) from e
+            results = socket.getaddrinfo(hostname, port, 0, socket.SOCK_STREAM)
         except socket.gaierror as e:
             raise InvalidSSRFAddress(
                 address=hostname,

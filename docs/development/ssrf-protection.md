@@ -26,7 +26,7 @@ The module consists of four components:
 
 ```
 baserow/core/ssrf/
-    __init__.py       # Public API: ssrf_safe_request(), validate_url()
+    __init__.py       # Public API: ssrf_safe_request client, validate_url()
     exceptions.py     # InvalidSSRFAddress exception
     validator.py      # SSRFValidator: IP and hostname validation rules
     adapter.py        # SSRFSafeAdapter: requests HTTPAdapter with validation
@@ -124,7 +124,6 @@ SSRF protection is controlled by these environment variables:
 | `BASEROW_WEBHOOKS_IP_BLACKLIST` | Comma-separated CIDR ranges to block (e.g., `1.2.3.0/24,5.6.7.8/32`) | Empty |
 | `BASEROW_WEBHOOKS_IP_WHITELIST` | Comma-separated CIDR ranges to allow (overrides blacklist and defaults) | Empty |
 | `BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST` | Comma-separated regex patterns to block hostnames | Empty |
-| `BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS` | Timeout for pre-flight URL validation | `10` |
 
 **Note:** The IP whitelist takes precedence over the blacklist. If an IP matches
 both, it is allowed. This lets administrators whitelist specific internal services
