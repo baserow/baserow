@@ -977,17 +977,20 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = original_workflow == workflow
 
-        history_handler = AutomationHistoryHandler()
-        history: Optional[AutomationWorkflowHistory] = None
+        simulate_until_node = (
+            AutomationNode.objects.get(id=simulate_until_node_id)
+            if simulate_until_node_id
+            else None
+        )
 
-        if not simulate_until_node_id:
-            # No history stored in simulation, we want to populate the node sample data
-            history = history_handler.create_workflow_history(
-                original_workflow,
-                started_on=start_time,
-                is_test_run=is_test_run,
-                event_payload=event_payload,
-            )
+        history_handler = AutomationHistoryHandler()
+        history = history_handler.create_workflow_history(
+            original_workflow,
+            started_on=start_time,
+            is_test_run=is_test_run,
+            event_payload=event_payload,
+            simulate_until_node=simulate_until_node,
+        )
 
         error: Optional[str] = None
         try:
@@ -1011,6 +1014,5 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         dispatch_node_celery_task.delay(
             workflow.get_trigger().id,
-            history.id if history else None,
-            simulate_until_node_id,
+            history.id,
         )
