@@ -47,6 +47,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 1`] = 
               <!--v-if-->
               <ul
                 class="select__items"
+                style="display: none;"
                 tabindex="-1"
               >
                 
@@ -64,7 +65,13 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 1`] = 
                 </section>
                 
               </ul>
-              <!--v-if-->
+              <div
+                class="select__items--empty"
+              >
+                
+                recordSelectorElement.emptyState
+                
+              </div>
               <!--v-if-->
             </div>
           </div>
@@ -130,6 +137,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 2`] = 
               <!--v-if-->
               <ul
                 class="select__items"
+                style="display: none;"
                 tabindex="-1"
               >
                 
@@ -147,7 +155,13 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 2`] = 
                 </section>
                 
               </ul>
-              <!--v-if-->
+              <div
+                class="select__items--empty"
+              >
+                
+                recordSelectorElement.emptyState
+                
+              </div>
               <!--v-if-->
             </div>
           </div>
@@ -213,6 +227,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 3`] = 
               <!--v-if-->
               <ul
                 class="select__items"
+                style="display: none;"
                 tabindex="-1"
               >
                 
@@ -230,7 +245,13 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 3`] = 
                 </section>
                 
               </ul>
-              <!--v-if-->
+              <div
+                class="select__items--empty"
+              >
+                
+                recordSelectorElement.emptyState
+                
+              </div>
               <!--v-if-->
             </div>
           </div>
