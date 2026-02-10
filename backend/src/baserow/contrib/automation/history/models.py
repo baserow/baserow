@@ -25,6 +25,13 @@ class AutomationWorkflowHistory(AutomationHistory):
         on_delete=models.CASCADE,
         related_name="workflow_histories",
     )
+    simulate_until_node = models.ForeignKey(
+        "automation.AutomationNode",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="simulation_histories",
+    )
 
     is_test_run = models.BooleanField(
         default=False,
