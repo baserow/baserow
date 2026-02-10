@@ -42,12 +42,10 @@ definePageMeta({
 
 const mode = 'editing'
 const route = useRoute()
+const { t } = useI18n()
 const { $store, $registry, $i18n } = useNuxtApp()
 
 const panelWidth = ref(360)
-/*const workspace = ref(null)
-const builder = ref(null)
-const currentPage = ref(null)*/
 
 // Provide values for child components
 const applicationContext = computed(() => ({
@@ -57,7 +55,7 @@ const applicationContext = computed(() => ({
 }))
 
 useHead(() => ({
-  title: $i18n.t('pageEditor.title'),
+  title: t('pageEditor.title'),
 }))
 
 // Load page data

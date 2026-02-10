@@ -63,6 +63,12 @@ definePageMeta({
   ],
 })
 
+const { t } = useI18n()
+
+useHead(() => ({
+  title: t('automationWorkflow.title'),
+}))
+
 const route = useRoute()
 const { $store, $registry } = useNuxtApp()
 

@@ -1,4 +1,7 @@
 {
+  "automationWorkflow": {
+    "title": "Worflow"
+  },
   "automationWelcomeGuidedTourStep": {
     "title": "Welcome to Baserow Automations!",
     "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
