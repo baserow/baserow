@@ -3,7 +3,6 @@
     <div class="formula-input-field__editor" @click="handleEditorClick">
       <EditorContent
         :id="forInput"
-        :key="key"
         ref="editor"
         class="form-input formula-input-field"
         role="textbox"
@@ -75,7 +74,6 @@ import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
-import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
@@ -87,12 +85,7 @@ export default {
   },
 
   provide() {
-    return fixPropertyReactivityForProvide(
-      {},
-      {
-        nodesHierarchy: () => this.nodesHierarchy,
-      }
-    )
+    return { nodesHierarchy: computed(() => this.nodesHierarchy) }
   },
   inject: {
     forInput: { from: 'forInput', default: null },
@@ -172,7 +165,6 @@ export default {
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
-      key: 0,
     }
   },
   computed: {
@@ -348,11 +340,6 @@ export default {
     },
   },
   watch: {
-    nodesHierarchy() {
-      // fixes reactivity issue with components in tiptap by forcing the input to
-      // render.
-      this.key += 1
-    },
     disabled(newValue) {
       this.editor.setOptions({ editable: !newValue && !this.readOnly })
     },
