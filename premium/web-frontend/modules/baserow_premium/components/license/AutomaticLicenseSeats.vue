@@ -26,12 +26,13 @@
         {{ licenseType.getLicenseSeatOverflowWarning(license) }}
       </p>
       <Button
+        v-if="moreSeatsButton"
         type="secondary"
         tag="a"
-        href="https://baserow.io/contact-sales"
+        :href="moreSeatsButton.href"
         target="_blank"
       >
-        {{ $t('license.contactSalesMoreSeats') }}
+        {{ moreSeatsButton.text }}
       </Button>
     </div>
   </div>
@@ -64,6 +65,9 @@ export default {
     },
     licenseType() {
       return this.$registry.get('license', this.license.product_code)
+    },
+    moreSeatsButton() {
+      return this.licenseType.getLicenseSeatOverflowButton(this.license)
     },
   },
 }

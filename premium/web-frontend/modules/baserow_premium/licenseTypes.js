@@ -117,4 +117,11 @@ export class PremiumLicenseType extends LicenseType {
   getLicenseSeatOverflowWarning(license) {
     return ''
   }
+
+  /**
+   * Can optionally return an object like `{"href": "https://", "text": "Click here"}`.
+   */
+  getLicenseSeatOverflowButton(license) {
+    return null
+  }
 }

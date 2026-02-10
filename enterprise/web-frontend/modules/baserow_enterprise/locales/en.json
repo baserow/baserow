@@ -4,7 +4,8 @@
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."
   },
   "advanced": {
-    "license": "Advanced"
+    "license": "Advanced",
+    "openSubscriptions": "Open subscriptions for more seats"
   },
   "enterprise": {
     "license": "Enterprise",

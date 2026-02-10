@@ -88,6 +88,13 @@ export class AdvancedLicenseType extends LicenseType {
     const { $i18n } = this.app
     return $i18n.t('enterprise.overflowWarning')
   }
+
+  getLicenseSeatOverflowButton(license) {
+    return {
+      href: 'https://baserow.io/subscriptions',
+      text: this.app.$i18n.t('advanced.openSubscriptions'),
+    }
+  }
 }
 
 export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
@@ -120,6 +127,13 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
 
   getLicenseBadgeColor() {
     return 'neutral'
+  }
+
+  getLicenseSeatOverflowButton(license) {
+    return {
+      href: 'https://baserow.io/contact-sales',
+      text: this.app.$i18n.t('license.contactSalesMoreSeats'),
+    }
   }
 }
 

@@ -177,6 +177,11 @@
               {{ $t('license.disconnectLicense') }}
             </div>
             <i18n-t keypath="license.disconnectDescription" tag="p">
+              <template #subscriptions>
+                <a href="https://baserow.io/subscriptions" target="_blank"
+                  >baserow.io/subscriptions</a
+                >
+              </template>
               <template #contact>
                 <a href="https://baserow.io/contact" target="_blank"
                   >baserow.io/contact</a

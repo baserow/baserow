@@ -76,8 +76,7 @@
     }
   },
   "disconnectLicenseModal": {
-    "disconnectLicense": "Disconnect license",
-    "disconnectDescription": "Are you sure that you want to disconnect this license? If you disconnect this license while it's active, the related users won’t have access to the plan anymore. It will effectively remove the license. Please contact our support team at {contact} if you want to use this license in another self hosted instance."
+    "disconnectLicense": "Disconnect license"
   },
   "registerLicenseForm": {
     "licenseKey": "License key"
@@ -240,7 +239,7 @@
     "rowUsage": "Row usage",
     "storeUsage": "Storage usage",
     "disconnectLicense": "Disconnect license",
-    "disconnectDescription": "If you disconnect this license while it's active, the related users won’t have access to the plan anymore. It will effectively remove the license. Please contact our support team at {contact} if you want to use this license in another self hosted instance.",
+    "disconnectDescription": "Are you sure that you want to disconnect this license? If you disconnect this license while it's active, the related users won’t have access to the plan anymore. It will effectively remove the license form this instance. You can change the instance ID of your subscription via the subscriptions page on {subscriptions} or by contacting our support team at {contact} if you're on enterprise.",
     "moreSeatsNeededTitle": "More Seats Needed",
     "contactSalesMoreSeats": "Contact Sales for more seats",
     "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} paid seats and {free_users_count} free seats in use",
