@@ -12,11 +12,9 @@ import {
   install,
 } from '@nuxt/kit'
 import { routes } from './routes'
-import { setDefaultResultOrder } from 'node:dns'
 import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
-import page from '../builder/services/page'
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -102,6 +100,8 @@ export default defineNuxtModule({
     nuxt.options.runtimeConfig.public = defu(
       nuxt.options.runtimeConfig.public,
       {
+        buildDate: new Date().toISOString(),
+        gitCommit: process.env.GITHUB_SHA?.slice(0, 7),
         downloadFileViaXhr: '0',
         baserowDisablePublicUrlCheck: false,
         publicBackendUrl: 'http://localhost:8000',

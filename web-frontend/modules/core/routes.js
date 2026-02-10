@@ -1,7 +1,7 @@
 import path from 'path'
 
 // Note that routes can't start with `/api/`, `/ws/` or `/media/` because they are
-// reserved for the backend. In some cases, for example with the Heroku or Clouron
+// reserved for the backend. In some cases, for example with the Heroku or Cloudron
 // deployment, the Baserow installation will share a single domain and port and then
 // those URLS are forwarded to the backend or media files server. The rest is
 // forwarded to the web-frontend.
@@ -10,6 +10,11 @@ export const routes = [
     name: 'index',
     path: '',
     file: path.resolve(__dirname, 'pages/index.vue'),
+  },
+  {
+    name: 'debug',
+    path: '/debug',
+    file: path.resolve(__dirname, 'pages/debug.vue'),
   },
   {
     name: 'login-pages',
