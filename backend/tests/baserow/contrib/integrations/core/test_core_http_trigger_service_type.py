@@ -149,6 +149,30 @@ def test_process_webhook_request_calls_on_event(data_fixture, is_public, simulat
 
 
 @pytest.mark.django_db
+def test_process_webhook_request_normalizes_msgpack_unsafe_payload(data_fixture):
+    trigger_node = data_fixture.create_http_trigger_node(service_kwargs={"is_public": True})
+    service = trigger_node.service
+
+    service_type = CoreHTTPTriggerServiceType()
+    service_type.on_event = MagicMock()
+
+    request_data = {
+        "method": "POST",
+        "body": {"overflow": 18446744073709551616},
+    }
+
+    service_type.process_webhook_request(service.uid, request_data, simulate=False)
+
+    service_type.on_event.assert_called_once_with(
+        [service],
+        {
+            "method": "POST",
+            "body": {"overflow": "18446744073709551616"},
+        },
+    )
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "is_publishing",
     [True, False],

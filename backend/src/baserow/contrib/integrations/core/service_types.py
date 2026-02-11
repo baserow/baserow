@@ -62,6 +62,7 @@ from baserow.core.formula.validator import (
     ensure_email,
     ensure_string,
 )
+from baserow.core.msgpack import normalize_msgpack_unsafe_values
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -1500,10 +1501,12 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         if not service:
             raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
 
-        if request_data["method"] == "GET" and service.exclude_get:
+        normalized_request_data = normalize_msgpack_unsafe_values(request_data)
+
+        if normalized_request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPTriggerServiceMethodNotAllowed()
 
-        self.on_event([service], request_data)
+        self.on_event([service], normalized_request_data)
 
     def generate_schema(
         self,

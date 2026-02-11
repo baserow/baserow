@@ -2,13 +2,18 @@ import pytest
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
+from django.urls import reverse
+from rest_framework.status import HTTP_204_NO_CONTENT
 
 from baserow.config.asgi import application
-from baserow.ws.tasks import (
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.msgpack import (
     MSG_PACK_MAX_INT,
     MSG_PACK_MAX_UINT,
     MSG_PACK_MIN_INT,
-    _normalize_websocket_message_value,
+    normalize_msgpack_unsafe_values,
+)
+from baserow.ws.tasks import (
     broadcast_to_channel_group,
     broadcast_to_group,
     broadcast_to_groups,
@@ -18,92 +23,92 @@ from baserow.ws.tasks import (
 )
 
 
-# Unit tests for _normalize_websocket_message_value function
+# Unit tests for normalize_msgpack_unsafe_values function
 
 
 def test_normalize_none():
     """Test that None values are preserved."""
-    assert _normalize_websocket_message_value(None) is None
+    assert normalize_msgpack_unsafe_values(None) is None
 
 
 def test_normalize_boolean():
     """Test that boolean values are preserved (not converted to integers)."""
-    assert _normalize_websocket_message_value(True) is True
-    assert _normalize_websocket_message_value(False) is False
+    assert normalize_msgpack_unsafe_values(True) is True
+    assert normalize_msgpack_unsafe_values(False) is False
 
 
 def test_normalize_integers_within_range():
     """Test that integers within msgpack range are preserved."""
     # Test signed 64-bit boundaries
-    assert _normalize_websocket_message_value(MSG_PACK_MIN_INT) == MSG_PACK_MIN_INT
-    assert _normalize_websocket_message_value(MSG_PACK_MAX_INT) == MSG_PACK_MAX_INT
+    assert normalize_msgpack_unsafe_values(MSG_PACK_MIN_INT) == MSG_PACK_MIN_INT
+    assert normalize_msgpack_unsafe_values(MSG_PACK_MAX_INT) == MSG_PACK_MAX_INT
     
     # Test unsigned 64-bit boundary
-    assert _normalize_websocket_message_value(MSG_PACK_MAX_UINT) == MSG_PACK_MAX_UINT
+    assert normalize_msgpack_unsafe_values(MSG_PACK_MAX_UINT) == MSG_PACK_MAX_UINT
     
     # Test zero and common values
-    assert _normalize_websocket_message_value(0) == 0
-    assert _normalize_websocket_message_value(1) == 1
-    assert _normalize_websocket_message_value(-1) == -1
-    assert _normalize_websocket_message_value(42) == 42
-    assert _normalize_websocket_message_value(-42) == -42
+    assert normalize_msgpack_unsafe_values(0) == 0
+    assert normalize_msgpack_unsafe_values(1) == 1
+    assert normalize_msgpack_unsafe_values(-1) == -1
+    assert normalize_msgpack_unsafe_values(42) == 42
+    assert normalize_msgpack_unsafe_values(-42) == -42
 
 
 def test_normalize_integers_out_of_range():
     """Test that integers outside msgpack range are converted to strings."""
     # Test overflow (greater than max unsigned 64-bit)
     overflow_value = MSG_PACK_MAX_UINT + 1
-    assert _normalize_websocket_message_value(overflow_value) == str(overflow_value)
+    assert normalize_msgpack_unsafe_values(overflow_value) == str(overflow_value)
     
     # Test large overflow
     large_overflow = 2**64
-    assert _normalize_websocket_message_value(large_overflow) == str(large_overflow)
+    assert normalize_msgpack_unsafe_values(large_overflow) == str(large_overflow)
     
     # Test underflow (less than min signed 64-bit)
     underflow_value = MSG_PACK_MIN_INT - 1
-    assert _normalize_websocket_message_value(underflow_value) == str(underflow_value)
+    assert normalize_msgpack_unsafe_values(underflow_value) == str(underflow_value)
     
     # Test large underflow
     large_underflow = -(2**63) - 1
-    assert _normalize_websocket_message_value(large_underflow) == str(large_underflow)
+    assert normalize_msgpack_unsafe_values(large_underflow) == str(large_underflow)
     
     # Test the specific value from the bug report
     bug_value = 18446744073709551616  # 2^64
-    assert _normalize_websocket_message_value(bug_value) == str(bug_value)
+    assert normalize_msgpack_unsafe_values(bug_value) == str(bug_value)
 
 
 def test_normalize_strings():
     """Test that strings are preserved."""
-    assert _normalize_websocket_message_value("") == ""
-    assert _normalize_websocket_message_value("hello") == "hello"
-    assert _normalize_websocket_message_value("123") == "123"
-    assert _normalize_websocket_message_value("true") == "true"
+    assert normalize_msgpack_unsafe_values("") == ""
+    assert normalize_msgpack_unsafe_values("hello") == "hello"
+    assert normalize_msgpack_unsafe_values("123") == "123"
+    assert normalize_msgpack_unsafe_values("true") == "true"
 
 
 def test_normalize_floats():
     """Test that float values are preserved."""
-    assert _normalize_websocket_message_value(0.0) == 0.0
-    assert _normalize_websocket_message_value(1.5) == 1.5
-    assert _normalize_websocket_message_value(-1.5) == -1.5
-    assert _normalize_websocket_message_value(3.14159) == 3.14159
+    assert normalize_msgpack_unsafe_values(0.0) == 0.0
+    assert normalize_msgpack_unsafe_values(1.5) == 1.5
+    assert normalize_msgpack_unsafe_values(-1.5) == -1.5
+    assert normalize_msgpack_unsafe_values(3.14159) == 3.14159
 
 
 def test_normalize_lists():
     """Test that lists are recursively normalized."""
     # Simple list with valid integers
-    assert _normalize_websocket_message_value([1, 2, 3]) == [1, 2, 3]
+    assert normalize_msgpack_unsafe_values([1, 2, 3]) == [1, 2, 3]
     
     # List with overflow integers
-    assert _normalize_websocket_message_value([2**64, 1, 2]) == [str(2**64), 1, 2]
+    assert normalize_msgpack_unsafe_values([2**64, 1, 2]) == [str(2**64), 1, 2]
     
     # Nested lists
-    assert _normalize_websocket_message_value([[1, 2**64], [3, 4]]) == [
+    assert normalize_msgpack_unsafe_values([[1, 2**64], [3, 4]]) == [
         [1, str(2**64)],
         [3, 4],
     ]
     
     # Mixed types
-    assert _normalize_websocket_message_value([1, "hello", 2**64, True, None]) == [
+    assert normalize_msgpack_unsafe_values([1, "hello", 2**64, True, None]) == [
         1,
         "hello",
         str(2**64),
@@ -112,29 +117,29 @@ def test_normalize_lists():
     ]
     
     # Empty list
-    assert _normalize_websocket_message_value([]) == []
+    assert normalize_msgpack_unsafe_values([]) == []
 
 
 def test_normalize_tuples():
     """Test that tuples are recursively normalized and type is preserved."""
     # Simple tuple with valid integers
-    result = _normalize_websocket_message_value((1, 2, 3))
+    result = normalize_msgpack_unsafe_values((1, 2, 3))
     assert result == (1, 2, 3)
     assert isinstance(result, tuple)
     
     # Tuple with overflow integers
-    result = _normalize_websocket_message_value((2**64, 1, 2))
+    result = normalize_msgpack_unsafe_values((2**64, 1, 2))
     assert result == (str(2**64), 1, 2)
     assert isinstance(result, tuple)
     
     # Nested tuples
-    result = _normalize_websocket_message_value(((1, 2**64), (3, 4)))
+    result = normalize_msgpack_unsafe_values(((1, 2**64), (3, 4)))
     assert result == ((1, str(2**64)), (3, 4))
     assert isinstance(result, tuple)
     assert isinstance(result[0], tuple)
     
     # Empty tuple
-    result = _normalize_websocket_message_value(())
+    result = normalize_msgpack_unsafe_values(())
     assert result == ()
     assert isinstance(result, tuple)
 
@@ -142,17 +147,17 @@ def test_normalize_tuples():
 def test_normalize_sets():
     """Test that sets are converted to lists and normalized."""
     # Set with valid integers
-    result = _normalize_websocket_message_value({1, 2, 3})
+    result = normalize_msgpack_unsafe_values({1, 2, 3})
     assert isinstance(result, list)
     assert set(result) == {1, 2, 3}
     
     # Set with overflow integer
-    result = _normalize_websocket_message_value({2**64, 1})
+    result = normalize_msgpack_unsafe_values({2**64, 1})
     assert isinstance(result, list)
     assert set(result) == {str(2**64), 1}
     
     # Frozenset
-    result = _normalize_websocket_message_value(frozenset({1, 2, 3}))
+    result = normalize_msgpack_unsafe_values(frozenset({1, 2, 3}))
     assert isinstance(result, list)
     assert set(result) == {1, 2, 3}
 
@@ -160,25 +165,25 @@ def test_normalize_sets():
 def test_normalize_dicts():
     """Test that dictionaries are recursively normalized (both keys and values)."""
     # Simple dict with valid integers
-    assert _normalize_websocket_message_value({"a": 1, "b": 2}) == {"a": 1, "b": 2}
+    assert normalize_msgpack_unsafe_values({"a": 1, "b": 2}) == {"a": 1, "b": 2}
     
     # Dict with overflow integer values
-    assert _normalize_websocket_message_value({"overflow": 2**64, "normal": 1}) == {
+    assert normalize_msgpack_unsafe_values({"overflow": 2**64, "normal": 1}) == {
         "overflow": str(2**64),
         "normal": 1,
     }
     
     # Dict with overflow integer keys
-    result = _normalize_websocket_message_value({2**64: "value", 1: "normal"})
+    result = normalize_msgpack_unsafe_values({2**64: "value", 1: "normal"})
     assert result == {str(2**64): "value", 1: "normal"}
     
     # Nested dicts
-    assert _normalize_websocket_message_value(
+    assert normalize_msgpack_unsafe_values(
         {"outer": {"inner": 2**64, "normal": 1}, "value": 2}
     ) == {"outer": {"inner": str(2**64), "normal": 1}, "value": 2}
     
     # Mixed types in dict
-    assert _normalize_websocket_message_value(
+    assert normalize_msgpack_unsafe_values(
         {
             "int": 42,
             "overflow": 2**64,
@@ -199,7 +204,7 @@ def test_normalize_dicts():
     }
     
     # Empty dict
-    assert _normalize_websocket_message_value({}) == {}
+    assert normalize_msgpack_unsafe_values({}) == {}
 
 
 def test_normalize_complex_nested_structure():
@@ -254,7 +259,7 @@ def test_normalize_complex_nested_structure():
         },
     }
     
-    result = _normalize_websocket_message_value(complex_data)
+    result = normalize_msgpack_unsafe_values(complex_data)
     
     # Compare everything except the set (which becomes a list with unpredictable order)
     assert result["users"][0] == expected["users"][0]
@@ -267,13 +272,13 @@ def test_normalize_complex_nested_structure():
 def test_normalize_edge_case_boundary_values():
     """Test exact boundary values for msgpack limits."""
     # Test exact boundaries (should NOT be converted)
-    assert _normalize_websocket_message_value(-(2**63)) == -(2**63)
-    assert _normalize_websocket_message_value(2**63 - 1) == 2**63 - 1
-    assert _normalize_websocket_message_value(2**64 - 1) == 2**64 - 1
+    assert normalize_msgpack_unsafe_values(-(2**63)) == -(2**63)
+    assert normalize_msgpack_unsafe_values(2**63 - 1) == 2**63 - 1
+    assert normalize_msgpack_unsafe_values(2**64 - 1) == 2**64 - 1
     
     # Test one beyond boundaries (should be converted)
-    assert _normalize_websocket_message_value(-(2**63) - 1) == str(-(2**63) - 1)
-    assert _normalize_websocket_message_value(2**64) == str(2**64)
+    assert normalize_msgpack_unsafe_values(-(2**63) - 1) == str(-(2**63) - 1)
+    assert normalize_msgpack_unsafe_values(2**64) == str(2**64)
 
 
 def test_normalize_issue_4309_exact_bug_value():
@@ -289,13 +294,13 @@ def test_normalize_issue_4309_exact_bug_value():
     bug_value = 18446744073709551616  # 2^64 from the bug report
     
     # The normalization function should convert this to a string
-    result = _normalize_websocket_message_value(bug_value)
+    result = normalize_msgpack_unsafe_values(bug_value)
     assert result == "18446744073709551616"
     assert isinstance(result, str)
     
     # Test in a nested structure (as it would appear in HTTP trigger payload)
     payload = {"overflow": bug_value}
-    normalized = _normalize_websocket_message_value(payload)
+    normalized = normalize_msgpack_unsafe_values(payload)
     assert normalized["overflow"] == "18446744073709551616"
     assert isinstance(normalized["overflow"], str)
 
@@ -326,9 +331,9 @@ def test_msgpack_serialization_would_fail_without_normalization():
         msgpack.packb({"value": bug_report_value}, use_bin_type=True)
     
     # But after normalization, it should work fine
-    normalized_overflow = _normalize_websocket_message_value({"value": overflow_value})
-    normalized_underflow = _normalize_websocket_message_value({"value": underflow_value})
-    normalized_bug = _normalize_websocket_message_value({"value": bug_report_value})
+    normalized_overflow = normalize_msgpack_unsafe_values({"value": overflow_value})
+    normalized_underflow = normalize_msgpack_unsafe_values({"value": underflow_value})
+    normalized_bug = normalize_msgpack_unsafe_values({"value": bug_report_value})
     
     # These should NOT raise OverflowError
     msgpack.packb(normalized_overflow, use_bin_type=True)
@@ -475,7 +480,9 @@ async def test_broadcast_to_users_sanitizes_out_of_range_msgpack_integers(data_f
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_issue_4309_http_trigger_with_unsigned_64bit_integer(data_fixture):
+async def test_issue_4309_http_trigger_with_unsigned_64bit_integer(
+    data_fixture, api_client
+):
     """
     Regression test for issue #4309.
     
@@ -489,7 +496,25 @@ async def test_issue_4309_http_trigger_with_unsigned_64bit_integer(data_fixture)
     File "msgpack/_packer.pyx", line 171, in msgpack._cmsgpack.Packer._pack_inner
     OverflowError: Python int too large to convert to C unsigned long
     """
+    from baserow.contrib.automation.workflows.models import WorkflowState
+
     user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user, automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(
+        workflow=workflow, service_kwargs={"is_public": False}
+    )
+
+    # Put the workflow in "waiting for test trigger" mode so a ?test=true webhook call
+    # runs a simulation and broadcasts automation_node_updated with sample_data.
+    await sync_to_async(AutomationWorkflowHandler().toggle_test_run)(
+        workflow, simulate_until_node=trigger_node
+    )
 
     communicator = WebsocketCommunicator(
         application,
@@ -499,20 +524,30 @@ async def test_issue_4309_http_trigger_with_unsigned_64bit_integer(data_fixture)
     await communicator.connect()
     await communicator.receive_json_from()
 
-    # This is the exact value from the bug report that caused the issue
-    payload = {"overflow": 18446744073709551616}  # 2^64
+    url = reverse("api:http_trigger", kwargs={"webhook_uid": trigger_node.service.uid})
+    overflow_payload = {"overflow": 18446744073709551616}
 
-    # Without the fix, this line would raise OverflowError when trying to
-    # serialize the message with msgpack in channel_layer.group_send()
-    await sync_to_async(broadcast_to_users)([user.id], payload)
-    
-    response = await communicator.receive_json_from(0.1)
+    response = await sync_to_async(api_client.post)(
+        f"{url}?test=true",
+        overflow_payload,
+        format="json",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
 
-    # The out-of-range integer should be converted to a string
-    assert response["overflow"] == "18446744073709551616"
-    assert isinstance(response["overflow"], str)
+    # There can be intermediary websocket events, so consume until we find node update.
+    node_updated_event = None
+    for _ in range(6):
+        event = await communicator.receive_json_from(1)
+        if event.get("type") == "automation_node_updated":
+            node_updated_event = event
+            break
 
-    assert communicator.output_queue.qsize() == 0
+    assert node_updated_event is not None
+    sample_data = node_updated_event["node"]["service"]["sample_data"]["data"]["body"]
+
+    assert sample_data["overflow"] == "18446744073709551616"
+    assert isinstance(sample_data["overflow"], str)
+
     await communicator.disconnect()
 
 

@@ -1,10 +1,12 @@
 from typing import Any, Dict, Iterable, List, Optional
 
 from baserow.config.celery import app
-
-MSG_PACK_MAX_INT = 2**63 - 1
-MSG_PACK_MIN_INT = -(2**63)
-MSG_PACK_MAX_UINT = 2**64 - 1
+from baserow.core.msgpack import (
+    MSG_PACK_MAX_INT,
+    MSG_PACK_MAX_UINT,
+    MSG_PACK_MIN_INT,
+    normalize_msgpack_unsafe_values,
+)
 
 
 def _normalize_websocket_message_value(value: Any) -> Any:
@@ -24,41 +26,7 @@ def _normalize_websocket_message_value(value: Any) -> Any:
     :return: The normalized value with out-of-range integers converted to strings
     """
 
-    # Handle None explicitly
-    if value is None:
-        return value
-
-    # Booleans must be checked before integers since bool is a subclass of int
-    if isinstance(value, bool):
-        return value
-
-    # Check if integer is within msgpack's serializable range
-    if isinstance(value, int):
-        if value < MSG_PACK_MIN_INT or value > MSG_PACK_MAX_UINT:
-            return str(value)
-        return value
-
-    # Recursively process list elements
-    if isinstance(value, list):
-        return [_normalize_websocket_message_value(v) for v in value]
-
-    # Recursively process tuple elements (preserving tuple type)
-    if isinstance(value, tuple):
-        return tuple(_normalize_websocket_message_value(v) for v in value)
-
-    # Recursively process set elements (converting to list for JSON compatibility)
-    if isinstance(value, (set, frozenset)):
-        return [_normalize_websocket_message_value(v) for v in value]
-
-    # Recursively process dictionary keys and values
-    if isinstance(value, dict):
-        return {
-            _normalize_websocket_message_value(k): _normalize_websocket_message_value(v)
-            for k, v in value.items()
-        }
-
-    # Return all other types unchanged (strings, floats, bytes, etc.)
-    return value
+    return normalize_msgpack_unsafe_values(value)
 
 
 @app.task(bind=True)

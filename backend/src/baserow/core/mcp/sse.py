@@ -39,6 +39,8 @@ from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
+from baserow.core.msgpack import normalize_msgpack_unsafe_values
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,9 +55,7 @@ async def _send_to_channel_group_safe(channel_layer, group_name: str, message: d
     :param group_name: The name of the channel group to send to
     :param message: The message dict to send
     """
-    from baserow.ws.tasks import _normalize_websocket_message_value
-    
-    normalized_message = _normalize_websocket_message_value(message)
+    normalized_message = normalize_msgpack_unsafe_values(message)
     await channel_layer.group_send(group_name, normalized_message)
 
 if TYPE_CHECKING:
