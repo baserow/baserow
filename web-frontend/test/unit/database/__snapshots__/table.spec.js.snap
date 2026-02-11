@@ -19,9 +19,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
         </li>
         <li class="header__filter-item">
-          <!-- toolbar icon -->
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a><!-- modal -->
-          </div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
         </li>
         <li class="header__filter-item">
           <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
@@ -106,11 +104,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                         <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
                       </div>
                     </div>
-                    <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 72px; height: 33px;">
@@ -188,24 +181,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
-                    <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
-                    <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                     <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
-                    <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                     <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
@@ -280,9 +260,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
         </li>
         <li class="header__filter-item">
-          <!-- toolbar icon -->
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a><!-- modal -->
-          </div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
         </li>
         <li class="header__filter-item">
           <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
@@ -367,11 +345,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                         <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
                       </div>
                     </div>
-                    <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 72px; height: 33px;">
@@ -449,24 +422,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
-                    <!--
-      Somehow re-declaring all the events instead of using v-on="$listeners" speeds
-      everything up because the rows don't need to be updated everytime a new one is
-      rendered, which happens a lot when scrolling.
-      -->
-                    <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                     <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
-                    <!--
-    The :key property must be set here because it makes sure that the child components
-    are not re-rendered when functional component changes position in the DOM.
-  -->
                     <div class="grid-view__column" style="width: 200px;">
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
