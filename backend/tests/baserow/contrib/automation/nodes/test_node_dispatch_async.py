@@ -426,3 +426,92 @@ def test_dispatch_node_async_dispatches_trigger_simulation(
 
     # There are no next nodes
     mock_dispatch_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_async_dispatches_action_simulation(
+    mock_automation_node_updated,
+    mock_dispatch_task,
+    data_fixture,
+):
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    action_table_field = data["action_table_field"]
+    trigger_table_field_a = data["trigger_table_field_a"]
+    trigger_table_field_b = data["trigger_table_field_b"]
+
+    workflow_history = data["workflow_history"]
+    workflow_history.simulate_until_node = action_node
+    workflow_history.save()
+
+    assert action_node.service.specific.sample_data is None
+
+    # Simulate the trigger first so that the dispatch context can populate
+    # previous_node_results from the database.
+    AutomationNodeHandler().dispatch_node_async(
+        trigger_node.id,
+        history_id=workflow_history.id,
+        allowed_node_ids=None,
+    )
+
+    # Make sure the trigger node simulation saves a history entry
+    node_history = AutomationNodeHistory.objects.get(workflow_history=workflow_history)
+    assert node_history.message == ""
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.iteration == 0
+    assert node_result.result == {
+        "results": [
+            {
+                "id": AnyInt(),
+                "order": AnyStr(),
+                trigger_table_field_a.name: "Apple",
+                trigger_table_field_b.name: "Red",
+            },
+            {
+                "id": AnyInt(),
+                "order": AnyStr(),
+                trigger_table_field_a.name: "Banana",
+                trigger_table_field_b.name: "Yellow",
+            },
+        ],
+        "has_next_page": False,
+    }
+
+    # Now simulate the action
+    mock_dispatch_task.reset_mock()
+    AutomationNodeHandler().dispatch_node_async(
+        action_node.id,
+        history_id=workflow_history.id,
+        allowed_node_ids=None,
+    )
+
+    # Ensure the sample data is saved
+    action_node.service.specific.refresh_from_db()
+    assert action_node.service.specific.sample_data == {
+        "data": {
+            action_table_field.name: "Apple",
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
+    }
+
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=action_node
+    )
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
+
+    # Ensure workflow history is deleted, since we don't want history
+    # entries for simulations.
+    assert (
+        AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
+        is False
+    )
