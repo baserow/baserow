@@ -34,7 +34,7 @@ Install the following tools:
        select `module settings`:
         1. Make sure the `backend` module SDK is set to the python virtualenv you just
            made (`.venv/bin/python`).
-        1. There will most likely be an existing `Python 3.11 (baserow)` virtualenv SDK
+        1. There will most likely be an existing `Python 3.14 (baserow)` virtualenv SDK
            which is red. Delete this first.
         1. Then you will most likely need to add it as a new SDK by navigating to
             1. F4 → SDK
@@ -42,7 +42,7 @@ Install the following tools:
             1. Add New Python SDK
             1. Existing Interpreter
             1. Find and select your virtualenvs `bin/python` executable (`.venv/bin/python`)
-            1. call this new SDK `Python 3.11 (baserow)` so you don't make an accidental
+            1. call this new SDK `Python 3.14 (baserow)` so you don't make an accidental
                change to the `backend.iml` file:
 1. Install and get a postgresql database running locally:
     1. The easiest way is to use Docker:

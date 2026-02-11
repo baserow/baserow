@@ -8,15 +8,7 @@ ARG CADDY_VERSION=2.10.2
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
 FROM ${WEBFRONTEND_IMAGE} AS web_frontend_image
-
-# =============================================================================
-# Caddy builder - compile from source so the Go stdlib and dependencies are
-# always at the latest patch level, eliminating CVEs from stale pre-built
-# release binaries.
-# =============================================================================
-FROM golang:1.26-trixie AS caddy-builder
-ARG CADDY_VERSION
-RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v${CADDY_VERSION}
+FROM caddy:${CADDY_VERSION} AS caddy_image
 
 # =============================================================================
 # Base - system dependencies (cached independently of source images)
@@ -62,7 +54,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     mkdir -p "${DATA_DIR}" "${BASEROW_PLUGIN_DIR}" && \
     chown -R "$UID:$GID" "${DATA_DIR}" "${BASEROW_PLUGIN_DIR}"
 
-COPY --from=caddy-builder /go/bin/caddy /usr/bin/caddy
+COPY --from=caddy_image /usr/bin/caddy /usr/bin/caddy
 
 # Copy Node.js, npm, and yarn from web-frontend image (avoids insecure curl|bash from NodeSource)
 COPY --from=web_frontend_image /usr/local/bin/node /usr/local/bin/node
