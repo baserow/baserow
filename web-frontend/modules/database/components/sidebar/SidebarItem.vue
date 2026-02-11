@@ -321,7 +321,7 @@ export default {
             tableId: table.id,
           },
         })
-        if (!failure) {
+        if (failure === undefined) {
           await pageFinished()
           await nextTick()
         }

@@ -574,10 +574,6 @@
       border-radius: $rounded-md;
 
       @include absolute(-1px, -2px, -2px, -1px);
-
-      .grid-view__right & {
-        left: 0;
-      }
     }
 
     &.editing::before {
