@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import {
   onBeforeRouteLeave,
   onBeforeRouteUpdate,
@@ -77,6 +77,8 @@ function parseIntOrNull(x) {
   return x != null ? parseInt(x) : null
 }
 
+const shouldCleanup = ref(false)
+
 // Database and table is selected by the middleware
 const database = computed(() => $store.getters['application/getSelected'])
 const table = computed(() => $store.getters['table/getSelected'])
@@ -95,7 +97,9 @@ const { data, error, pending, status, refresh } = await useAsyncData(
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
 
-    await $store.dispatch('view/fetchAll', currentTable)
+    if ($store.state.view.tableId !== currentTable.id) {
+      await $store.dispatch('view/fetchAll', currentTable)
+    }
 
     // No viewId → redirect to default view
     if (viewId === null) {
@@ -167,18 +171,6 @@ const { data, error, pending, status, refresh } = await useAsyncData(
   }
 )
 
-// Watch for route changes and refresh data
-watch(
-  () => [route.params.tableId, route.params.viewId],
-  async ([newTableId, newViewId], [oldTableId, oldViewId]) => {
-    if (newTableId && (newTableId !== oldTableId || newViewId !== oldViewId)) {
-      // Set loading state immediately to hide old content before refresh
-      $store.dispatch('table/setLoading', true)
-      await refresh()
-    }
-  }
-)
-
 if (error.value) {
   // If we have an error we want to display it.
   throw error.value
@@ -219,17 +211,20 @@ onBeforeUnmount(() => {
   if (table.value) {
     $realtime.unsubscribe('table', { table_id: table.value.id })
   }
+  if (shouldCleanup.value) {
+    $store.dispatch('view/unselect')
+    $store.dispatch('table/unselect')
+    $store.dispatch('application/unselect')
+  }
 })
 
 /**
  * beforeRouteLeave()
  *
- * Unselect when leaving page.
+ * Mark for cleanup when leaving page.
  */
 onBeforeRouteLeave((_to, _from) => {
-  $store.dispatch('view/unselect')
-  $store.dispatch('table/unselect')
-  $store.dispatch('application/unselect')
+  shouldCleanup.value = true
 })
 
 onBeforeRouteUpdate(async (to, from, next) => {
