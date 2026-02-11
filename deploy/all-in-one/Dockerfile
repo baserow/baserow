@@ -3,7 +3,7 @@ ARG GID="9999"
 
 ARG BACKEND_IMAGE=baserow/backend
 ARG WEBFRONTEND_IMAGE=baserow/web-frontend
-ARG CADDY_VERSION=2.11.0-beta.2
+ARG CADDY_VERSION=2.10.2
 # hadolint ignore=DL3006
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
@@ -14,7 +14,7 @@ FROM ${WEBFRONTEND_IMAGE} AS web_frontend_image
 # always at the latest patch level, eliminating CVEs from stale pre-built
 # release binaries.
 # =============================================================================
-FROM golang:1.25.7-trixie AS caddy-builder
+FROM golang:1.26-trixie AS caddy-builder
 ARG CADDY_VERSION
 RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v${CADDY_VERSION}
 
@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     curl gnupg2 ca-certificates && \
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     supervisor \

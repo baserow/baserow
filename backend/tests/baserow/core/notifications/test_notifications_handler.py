@@ -290,7 +290,7 @@ def test_queued_notifications_are_not_visible_to_the_users(
     assert user_notifications.count() == 0
     assert other_user_notifications.count() == 0
 
-    assert mocked_send_queued_notifications_to_users.called_once()
+    mocked_send_queued_notifications_to_users.assert_called_once()
 
     qs = NotificationRecipient.objects.filter(queued=True)
     assert qs.filter(recipient=user).count() == 2

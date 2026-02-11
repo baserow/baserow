@@ -495,7 +495,7 @@ class AdvocateWrapperTests(unittest.TestCase):
             local_wrapper.get("http://127.0.0.1:1/")
         # Check that we got a connection exception instead of a validation one
         # This might be either exception depending on the requests version
-        self.assertRegexpMatches(
+        self.assertRegex(
             cm.exception.__class__.__name__,
             r"\A(Connection|Protocol)Error",
         )
@@ -518,7 +518,7 @@ class AdvocateWrapperTests(unittest.TestCase):
 
         with self.assertRaises(Exception) as cm:
             sess_instance.get("http://127.0.0.1:1/")
-        self.assertRegexpMatches(
+        self.assertRegex(
             cm.exception.__class__.__name__,
             r"\A(Connection|Protocol)Error",
         )
@@ -534,7 +534,7 @@ class AdvocateWrapperTests(unittest.TestCase):
 
             with self.assertRaises(Exception) as cm:
                 instance.get("http://127.0.0.1:1/")
-            self.assertRegexpMatches(
+            self.assertRegex(
                 cm.exception.__class__.__name__,
                 r"\A(Connection|Protocol)Error",
             )
@@ -671,7 +671,7 @@ class AdvocateFuturesTest(unittest.TestCase):
             sess.get("http://127.0.0.1:1/").result()
         # Check that we got a connection exception instead of a validation one
         # This might be either exception depending on the requests version
-        self.assertRegexpMatches(
+        self.assertRegex(
             cm.exception.__class__.__name__,
             r"\A(Connection|Protocol)Error",
         )

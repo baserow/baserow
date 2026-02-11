@@ -46,7 +46,7 @@ def test_notification_creation_on_creating_group_invitation(
     response_json = response.json()
     invitation_id = response_json["id"]
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     assert args == call(
         sender=NotificationHandler,
@@ -119,7 +119,7 @@ def test_notification_creation_on_accepting_group_invitation(
 
     assert response.status_code == HTTP_200_OK
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     assert args == call(
         sender=NotificationHandler,
@@ -192,7 +192,7 @@ def test_notification_creation_on_rejecting_group_invitation(
 
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     assert args == call(
         sender=NotificationHandler,
@@ -254,7 +254,7 @@ def test_baserow_version_upgrade_is_sent_as_broadcast_notification(
             "1.19", "/blog/release-notes/1.19"
         )
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     notification = NotificationHandler.get_notification_by(user_1, broadcast=True)
     assert args == call(
