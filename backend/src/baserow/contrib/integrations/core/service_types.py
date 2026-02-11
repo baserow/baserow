@@ -13,8 +13,6 @@ from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from dateutil.relativedelta import relativedelta
-from advocate.connection import UnacceptableAddressException
 from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
