@@ -17,7 +17,7 @@ FROM python:3.14.3-slim-trixie
 COPY --from=builder /model /model
 
 RUN pip install --no-cache-dir \
-    onnxruntime==1.20.1 \
+    onnxruntime==1.24.1 \
     transformers==4.53.0 \
     starlette==0.48.0 \
     uvicorn==0.37.0 && \
