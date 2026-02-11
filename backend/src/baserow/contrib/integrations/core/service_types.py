@@ -1,7 +1,7 @@
 import json
 import socket
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone as dt_timezone
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
@@ -9,14 +9,12 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import DurationField, ExpressionWrapper, F, Q, Value
-from django.db.models.functions import Coalesce, NullIf
+from django.db.models import Case, DateTimeField, Q, Value, When
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
-from dateutil.relativedelta import relativedelta
 from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
@@ -32,6 +30,7 @@ from baserow.contrib.integrations.core.constants import (
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_DAY,
+    PERIODIC_FIXED_TIME_INTERVALS,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
     PERIODIC_INTERVAL_MONTH,
@@ -1283,6 +1282,96 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         now = now if now else timezone.now()
         return {"triggered_at": now.isoformat()}
 
+    @staticmethod
+    def _to_scheduler_timezone(now: datetime) -> datetime:
+        """
+        Converts timestamps to the project's default timezone so wall-clock schedule
+        checks (minute/hour/day) are deterministic regardless of worker timezone.
+        """
+
+        if timezone.is_naive(now):
+            now = timezone.make_aware(now, dt_timezone.utc)
+        return timezone.localtime(now, timezone.get_default_timezone()).replace(
+            second=0, microsecond=0
+        )
+
+    @staticmethod
+    def _has_schedule_time_passed(service: CorePeriodicService, now: datetime) -> bool:
+        return (now.hour, now.minute) >= (service.hour, service.minute)
+
+    def _get_candidate_periodic_services(self, now: datetime) -> QuerySet[CorePeriodicService]:
+        """
+        Fetches only services that can possibly be due at `now`, leaving the final
+        due decision to `_get_scheduled_run_for_service`.
+        """
+
+        has_passed = Q(hour__lt=now.hour) | Q(hour=now.hour, minute__lte=now.minute)
+
+        query_conditions = Q(interval=PERIODIC_INTERVAL_MINUTE)
+        query_conditions |= Q(
+            interval=PERIODIC_INTERVAL_HOUR,
+            minute__lte=now.minute,
+        )
+        query_conditions |= Q(
+            interval=PERIODIC_INTERVAL_DAY,
+        ) & has_passed
+        query_conditions |= Q(
+            interval=PERIODIC_INTERVAL_WEEK,
+            day_of_week=now.weekday(),
+        ) & has_passed
+        query_conditions |= Q(
+            interval=PERIODIC_INTERVAL_MONTH,
+            day_of_month=now.day,
+        ) & has_passed
+
+        return (
+            CorePeriodicService.objects.filter(query_conditions)
+            .select_for_update(
+                of=("self",),
+                skip_locked=True,
+            )
+            .using(router.db_for_write(CorePeriodicService))
+            .order_by("id")
+        )
+
+    def _get_scheduled_run_for_service(
+        self, service: CorePeriodicService, now: datetime
+    ) -> datetime | None:
+        """
+        Returns the latest wall-clock schedule slot (in scheduler timezone) that
+        should have fired by `now`, or `None` if no slot is due yet.
+        """
+
+        if service.interval == PERIODIC_INTERVAL_MINUTE:
+            every_n_minutes = service.minute_interval_value
+            return now.replace(minute=(now.minute // every_n_minutes) * every_n_minutes)
+
+        if service.interval == PERIODIC_INTERVAL_HOUR:
+            if now.minute < service.minute:
+                return None
+            return now.replace(minute=service.minute)
+
+        if service.interval == PERIODIC_INTERVAL_DAY:
+            if not self._has_schedule_time_passed(service, now):
+                return None
+            return now.replace(hour=service.hour, minute=service.minute)
+
+        if service.interval == PERIODIC_INTERVAL_WEEK:
+            if now.weekday() != service.day_of_week:
+                return None
+            if not self._has_schedule_time_passed(service, now):
+                return None
+            return now.replace(hour=service.hour, minute=service.minute)
+
+        if service.interval == PERIODIC_INTERVAL_MONTH:
+            if now.day != service.day_of_month:
+                return None
+            if not self._has_schedule_time_passed(service, now):
+                return None
+            return now.replace(hour=service.hour, minute=service.minute)
+
+        return None
+
     def dispatch_data(
         self,
         service: CorePeriodicService,
@@ -1312,94 +1401,55 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param now: The current datetime.
         """
 
-        # Truncate to minute precision for consistent interval calculations
-        # Note: we replace the seconds and microseconds due to jitter that
-        # can exist between when the Celery task is scheduled, and when the
-        # services were actually processed. For example:
-        #
-        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
-        # - Celery runs at 12:00:00.500 (half a second delay)
-        # - Service is triggered, last_periodic_run = 12:00:00.500
-        # Next checks:
-        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
-        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
-        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
-        now = now.replace(second=0, microsecond=0)
+        scheduler_now = self._to_scheduler_timezone(now)
+        periodic_services = self._get_candidate_periodic_services(scheduler_now)
 
-        query_conditions = Q()
-        is_null = Q(last_periodic_run__isnull=True)
+        due_service_ids = []
+        last_run_updates: dict[int, datetime] = {}
+        for service in periodic_services:
+            scheduled_run = self._get_scheduled_run_for_service(service, scheduler_now)
+            if scheduled_run is None:
+                continue
 
-        # MINUTE
-        minute_condition = Q(
-            is_null
-            | Q(
-                last_periodic_run__lte=now
-                - ExpressionWrapper(
-                    Coalesce(NullIf(F("minute"), 0), Value(1)) * timedelta(minutes=1),
-                    output_field=DurationField(),
-                )
-            ),
-            interval=PERIODIC_INTERVAL_MINUTE,
-        )
-        query_conditions |= minute_condition
-
-        # HOUR
-        hour_ago = now - timedelta(hours=1)
-        hour_condition = Q(
-            is_null | Q(last_periodic_run__lt=hour_ago),
-            interval=PERIODIC_INTERVAL_HOUR,
-            minute__lte=now.minute,
-        )
-        query_conditions |= hour_condition
-
-        # DAY
-        day_ago = now - timedelta(days=1)
-        day_condition = Q(
-            is_null | Q(last_periodic_run__lt=day_ago),
-            interval=PERIODIC_INTERVAL_DAY,
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= day_condition
-
-        # WEEK
-        week_ago = now - timedelta(weeks=1)
-        week_condition = Q(
-            is_null | Q(last_periodic_run__lt=week_ago),
-            interval=PERIODIC_INTERVAL_WEEK,
-            day_of_week=now.weekday(),
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= week_condition
-
-        # MONTH
-        month_ago = now - relativedelta(months=1)
-        month_condition = Q(
-            is_null | Q(last_periodic_run__lt=month_ago),
-            interval=PERIODIC_INTERVAL_MONTH,
-            day_of_month=now.day,
-            hour__lte=now.hour,
-            minute__lte=now.minute,
-        )
-        query_conditions |= month_condition
-
-        periodic_services = (
-            CorePeriodicService.objects.filter(query_conditions)
-            .select_for_update(
-                of=("self",),
-                skip_locked=True,
+            previous_run = service.last_periodic_run
+            previous_run_in_scheduler_tz = (
+                timezone.localtime(previous_run, scheduler_now.tzinfo)
+                if previous_run is not None
+                else None
             )
-            .using(router.db_for_write(CorePeriodicService))
-            .order_by("id")
-        )
+
+            # Drift used to happen because we persisted the actual processing timestamp.
+            # Persisting the schedule slot keeps the trigger anchored to wall-clock time.
+            if previous_run_in_scheduler_tz is None and (
+                service.interval == PERIODIC_INTERVAL_MINUTE
+                or service.interval in PERIODIC_FIXED_TIME_INTERVALS
+            ):
+                due_service_ids.append(service.id)
+                last_run_updates[service.id] = scheduled_run.astimezone(dt_timezone.utc)
+            elif (
+                previous_run_in_scheduler_tz is not None
+                and previous_run_in_scheduler_tz < scheduled_run
+            ):
+                due_service_ids.append(service.id)
+                last_run_updates[service.id] = scheduled_run.astimezone(dt_timezone.utc)
+
+        if not due_service_ids:
+            return
+
+        due_periodic_services = periodic_services.filter(id__in=due_service_ids)
 
         self.on_event(
-            periodic_services,
-            self._get_payload(now),
+            due_periodic_services,
+            self._get_payload(scheduler_now),
         )
 
-        periodic_services.update(last_periodic_run=now)
+        when_statements = [
+            When(id=service_id, then=Value(last_run_updates[service_id]))
+            for service_id in due_service_ids
+        ]
+        due_periodic_services.update(
+            last_periodic_run=Case(*when_statements, output_field=DateTimeField())
+        )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"

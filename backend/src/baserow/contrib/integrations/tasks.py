@@ -1,3 +1,5 @@
+from datetime import timezone as dt_timezone
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -15,6 +17,8 @@ def call_periodic_services_that_are_due(self):
     from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 
     with transaction.atomic():
+        # Pass a timezone-aware UTC timestamp so scheduling behaves consistently
+        # regardless of the worker process local timezone.
         service_type_registry.get(
             CorePeriodicServiceType.type
-        ).call_periodic_services_that_are_due(timezone.now())
+        ).call_periodic_services_that_are_due(timezone.now().astimezone(dt_timezone.utc))

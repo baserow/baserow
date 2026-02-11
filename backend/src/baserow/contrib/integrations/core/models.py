@@ -234,6 +234,15 @@ class CorePeriodicService(Service):
         "intervals.",
     )
 
+    @property
+    def minute_interval_value(self) -> int:
+        """
+        Returns the configured minute interval while preserving compatibility with
+        legacy records that might still contain `0` (treated as every minute).
+        """
+
+        return max(self.minute or 0, 1)
+
 
 class CoreHTTPTriggerService(Service):
     """

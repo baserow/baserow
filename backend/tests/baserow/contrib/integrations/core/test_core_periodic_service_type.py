@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, call, patch
 
 from django.db import transaction
@@ -683,3 +683,42 @@ def test_call_periodic_services_that_are_due(
 
     if should_be_called:
         assert service.last_periodic_run == target_date
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hourly_periodic_schedule_does_not_drift_when_worker_runs_late(data_fixture):
+    """
+    Regression test:
+    We intentionally execute the scheduler one minute late for 24 consecutive hours.
+    `last_periodic_run` must remain anchored to the configured wall-clock slot (:00),
+    instead of drifting to the delayed execution timestamp (:01, :02, ...).
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger = data_fixture.create_periodic_trigger_node(
+        workflow=workflow,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_HOUR,
+            "minute": 0,
+            "last_periodic_run": None,
+        },
+    )
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type.on_event = MagicMock()
+
+    first_scheduler_run = datetime(2025, 2, 15, 0, 1, tzinfo=timezone.utc)
+    for run_number in range(24):
+        run_at = first_scheduler_run + timedelta(hours=run_number)
+        expected_slot = run_at.replace(minute=0, second=0, microsecond=0)
+
+        with freeze_time(run_at):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due(now())
+
+        trigger.service.specific.refresh_from_db()
+        assert trigger.service.specific.last_periodic_run == expected_slot
