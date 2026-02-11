@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 
@@ -6,6 +6,7 @@ from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationNodeResult,
+    AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -361,3 +362,67 @@ def test_dispatch_node_async_dispatches_children(mock_dispatch_task, data_fixtur
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_async_dispatches_trigger_simulation(
+    mock_automation_node_updated,
+    mock_dispatch_task,
+    data_fixture,
+):
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    trigger_table_field_a = data["trigger_table_field_a"]
+    trigger_table_field_b = data["trigger_table_field_b"]
+
+    workflow_history = data["workflow_history"]
+    workflow_history.simulate_until_node = trigger_node
+    workflow_history.save()
+
+    assert trigger_node.service.specific.sample_data is None
+
+    AutomationNodeHandler().dispatch_node_async(
+        trigger_node.id,
+        history_id=workflow_history.id,
+        allowed_node_ids=None,
+    )
+
+    # Ensure workflow history is deleted, since we don't want history
+    # entries for simulations.
+    assert (
+        AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
+        is False
+    )
+
+    # Ensure the sample data is saved
+    trigger_node.service.specific.refresh_from_db()
+    assert trigger_node.service.specific.sample_data == {
+        "data": {
+            "results": [
+                {
+                    "id": AnyInt(),
+                    "order": AnyStr(),
+                    trigger_table_field_a.name: "Apple",
+                    trigger_table_field_b.name: "Red",
+                },
+                {
+                    "id": AnyInt(),
+                    "order": AnyStr(),
+                    trigger_table_field_a.name: "Banana",
+                    trigger_table_field_b.name: "Yellow",
+                },
+            ],
+            "has_next_page": False,
+        },
+        "status": 200,
+        "output_uid": "",
+    }
+
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=trigger_node
+    )
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
