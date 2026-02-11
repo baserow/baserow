@@ -27,7 +27,7 @@ export default {
   mixins: [domainForm],
   emits: ['error'],
   setup() {
-    return { v$: useVuelidate() }
+    return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
@@ -46,9 +46,6 @@ export default {
             : ''
         : ''
     },
-  },
-  mounted() {
-    this.$refs.domainName.focus()
   },
   methods: {
     handleInput() {
