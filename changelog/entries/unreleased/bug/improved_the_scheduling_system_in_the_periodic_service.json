@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Improved the scheduling system in the periodic service.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-02-11"
+}
