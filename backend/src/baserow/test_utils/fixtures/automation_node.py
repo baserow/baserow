@@ -235,12 +235,12 @@ class AutomationNodeFixtures:
                     "data": {
                         "results": [
                             {
-                                trigger_table_fields[0].db_column: "Apple",
-                                trigger_table_fields[1].db_column: "Red",
+                                trigger_table_fields[0].name: "Apple",
+                                trigger_table_fields[1].name: "Red",
                             },
                             {
-                                trigger_table_fields[0].db_column: "Banana",
-                                trigger_table_fields[1].db_column: "Yellow",
+                                trigger_table_fields[0].name: "Banana",
+                                trigger_table_fields[1].name: "Yellow",
                             },
                         ]
                     }
@@ -274,7 +274,7 @@ class AutomationNodeFixtures:
         )
         iterator_child_1_node.service.specific.field_mappings.create(
             field=iterator_child_1_table_fields[0],
-            value=f'get("current_iteration.{iterator_node.id}.item.{trigger_table_fields[0].db_column}")',
+            value=f'get("current_iteration.{iterator_node.id}.item.{trigger_table_fields[0].name}")',
         )
 
         iterator_child_2_node = self.create_local_baserow_create_row_action_node(
@@ -290,7 +290,7 @@ class AutomationNodeFixtures:
         )
         iterator_child_2_node.service.specific.field_mappings.create(
             field=iterator_child_2_table_fields[0],
-            value=f'get("current_iteration.{iterator_node.id}.item.{trigger_table_fields[1].db_column}")',
+            value=f'get("current_iteration.{iterator_node.id}.item.{trigger_table_fields[1].name}")',
         )
 
         after_iteration_node = self.create_local_baserow_create_row_action_node(
@@ -303,7 +303,7 @@ class AutomationNodeFixtures:
         )
         after_iteration_node.service.specific.field_mappings.create(
             field=after_iteration_table_fields[0],
-            value=f'get("previous_node.{iterator_node.id}.*.{trigger_table_fields[0].db_column}")',
+            value=f'get("previous_node.{iterator_node.id}.*.{trigger_table_fields[0].name}")',
         )
 
         return {

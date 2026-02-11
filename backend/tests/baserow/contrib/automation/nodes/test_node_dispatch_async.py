@@ -49,30 +49,11 @@ def create_workflow(data_fixture, user=None):
     )
     action_node.service.field_mappings.create(
         field=action_table_field,
-        value=f"get('previous_node.{trigger.id}.0.{trigger_table_field_a.db_column}')",
+        value=f"get('previous_node.{trigger.id}.0.{trigger_table_field_a.name}')",
     )
 
-    # history = create_workflow_history(data_fixture, workflow, [trigger_table_field_a, trigger_table_field_b])
-    original_workflow = AutomationWorkflowHandler().get_original_workflow(workflow)
-    history = data_fixture.create_automation_workflow_history(
-        workflow=original_workflow,
-        event_payload={
-            "results": [
-                {
-                    "id": 100,
-                    "order": "10.00000000000000000000",
-                    trigger_table_field_a.name: "Apple",
-                    trigger_table_field_b.name: "Red",
-                },
-                {
-                    "id": 101,
-                    "order": "10.00000000000000000000",
-                    trigger_table_field_a.name: "Banana",
-                    trigger_table_field_b.name: "Yellow",
-                },
-            ],
-            "has_next_page": False,
-        },
+    history = create_workflow_history(
+        data_fixture, workflow, [trigger_table_field_a, trigger_table_field_b]
     )
 
     return {
@@ -97,14 +78,14 @@ def create_workflow_history(data_fixture, workflow, trigger_table_fields):
                 {
                     "id": 100,
                     "order": "10.00000000000000000000",
-                    trigger_table_fields[0].db_column: "Apple",
-                    trigger_table_fields[1].db_column: "Red",
+                    trigger_table_fields[0].name: "Apple",
+                    trigger_table_fields[1].name: "Red",
                 },
                 {
                     "id": 101,
                     "order": "10.00000000000000000000",
-                    trigger_table_fields[0].db_column: "Banana",
-                    trigger_table_fields[1].db_column: "Yellow",
+                    trigger_table_fields[0].name: "Banana",
+                    trigger_table_fields[1].name: "Yellow",
                 },
             ],
             "has_next_page": False,
