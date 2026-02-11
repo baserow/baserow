@@ -364,7 +364,7 @@ COPY --chown=$UID:$GID --from=builder-prod /baserow/enterprise /baserow/enterpri
 COPY --chown=$UID:$GID ./docs /baserow/docs/
 
 # Remove application tests and dev-only directories
-RUN rm -rf /baserow/backend/tests /baserow/premium/backend/tests \ 
+RUN rm -rf /baserow/backend/tests /baserow/premium/backend/tests \
         /baserow/enterprise/backend/tests /baserow/backend/email_compiler
 
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
