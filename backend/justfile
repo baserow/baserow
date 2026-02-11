@@ -64,7 +64,7 @@ alias dev := run-dev-server
 alias serve := run-dev-server
 
 # Variables
-python_version := "3.11"
+python_version := "3.13"
 
 # Venv location: use UV_PROJECT_ENVIRONMENT if set (e.g., in Docker), otherwise default to project root
 venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")
@@ -137,7 +137,7 @@ activate:
     @echo ""
     @echo "  source {{ venv_dir }}/bin/activate"
 
-# Create Python 3.11 virtual environment with uv
+# Create Python virtual environment with uv
 _create-venv:
     #!/usr/bin/env bash
     set -euo pipefail

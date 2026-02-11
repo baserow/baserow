@@ -235,7 +235,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    python3.11-dev \
+    python3.13-dev \
     ca-certificates \
     postgresql-client-15 \
     gettext \
