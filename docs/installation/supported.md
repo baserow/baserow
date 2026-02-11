@@ -16,7 +16,7 @@ Software versions are divided into the following groups:
 | Firefox        | Latest             | Latest          | Latest               |
 | Chrome         | Latest             | Latest          | Latest               |
 | Edge           | Latest             | Latest          | Latest               |
-| Python         | >=3.13.0           | 3.13.12          | latest 3.13.x        |
+| Python         | >=3.14.0           | 3.14.3          | latest 3.14.x        |
 | Node.js        | >= 24.0.0          | 24.0.0          | >= 24.0.0            |
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |

@@ -1933,7 +1933,7 @@ def test_runtime_contains_execute(args, expected):
     if expected is None:
         with pytest.raises(TypeError) as e:
             RuntimeContains().execute({}, parsed_args)
-        assert "is not iterable" in str(e)
+        assert "iterable" in str(e)
     else:
         result = RuntimeContains().execute({}, parsed_args)
         assert result == expected

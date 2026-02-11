@@ -21,7 +21,7 @@ RUN go install github.com/caddyserver/caddy/v2/cmd/caddy@v${CADDY_VERSION}
 # =============================================================================
 # Base - system dependencies (cached independently of source images)
 # =============================================================================
-FROM python:3.13.12-slim-trixie AS base
+FROM python:3.14.3-slim-trixie AS base
 ARG UID
 ARG GID
 

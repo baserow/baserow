@@ -10,7 +10,7 @@ description = """Baserow is an open source no-code database tool and Airtable \
                     technical expertise. Build a table and define custom fields \
                     like text, number, file and many more."""
 license = { file = "../LICENSE" }
-requires-python = "==3.13.*"
+requires-python = "==3.14.*"
 dynamic = ["version"]
 classifiers = []
 

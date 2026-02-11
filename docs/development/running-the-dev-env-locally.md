@@ -18,13 +18,13 @@ This guide covers running Baserow's backend and frontend natively on your machin
    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
    ```
 
-3. **Python 3.13** - For the backend
+3. **Python 3.14** - For the backend
    ```bash
    # macOS
-   brew install python@3.13
+   brew install python@3.14
 
    # Linux (Ubuntu/Debian)
-   sudo apt install python3.13 python3.13-dev
+   sudo apt install python3.14 python3.14-dev
    ```
 4. **uv** - Fast Python package manager
    ```bash

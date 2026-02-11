@@ -64,7 +64,7 @@ alias dev := run-dev-server
 alias serve := run-dev-server
 
 # Variables
-python_version := "3.13"
+python_version := "3.14"
 
 # Venv location: use UV_PROJECT_ENVIRONMENT if set (e.g., in Docker), otherwise default to project root
 venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")

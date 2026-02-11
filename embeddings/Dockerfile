@@ -1,4 +1,4 @@
-FROM python:3.13.12-slim-trixie AS builder
+FROM python:3.14.3-slim-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git && rm -rf /var/lib/apt/lists/*
@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir \
     python _download_model.py && \
     rm _download_model.py
 
-FROM python:3.13.12-slim-trixie
+FROM python:3.14.3-slim-trixie
 
 COPY --from=builder /model /model
 

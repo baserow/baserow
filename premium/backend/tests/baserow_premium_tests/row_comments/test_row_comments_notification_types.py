@@ -129,6 +129,7 @@ def test_notify_only_new_mentions_when_updating_a_comment(
         comment = RowCommentHandler.create_comment(
             user_1, table.id, rows[0].id, message
         )
+    mocked_notification_created.reset_mock()
     new_message = premium_data_fixture.create_comment_message_with_mentions(
         [user_1, user_2]
     )

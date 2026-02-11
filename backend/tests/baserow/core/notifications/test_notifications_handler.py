@@ -251,7 +251,7 @@ def test_all_users_can_see_and_clear_broadcast_notifications(
     assert NotificationRecipient.objects.count() == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @patch("baserow.core.notifications.tasks.send_queued_notifications_to_users.delay")
 def test_queued_notifications_are_not_visible_to_the_users(
     mocked_send_queued_notifications_to_users,
