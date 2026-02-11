@@ -14,15 +14,13 @@ from baserow.contrib.builder.data_providers.data_provider_types import (
     DataSourceContextDataProviderType,
     DataSourceDataProviderType,
     DataSourceHandler,
-)
-from baserow.contrib.builder.data_providers.data_provider_types import (
-    ElementHandler as ElementHandlerToMock,
-)
-from baserow.contrib.builder.data_providers.data_provider_types import (
     FormDataProviderType,
     PageParameterDataProviderType,
     PreviousActionProviderType,
     UserDataProviderType,
+)
+from baserow.contrib.builder.data_providers.data_provider_types import (
+    ElementHandler as ElementHandlerToMock,
 )
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,

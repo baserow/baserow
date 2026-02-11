@@ -60,6 +60,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete'],
   computed: {
     domainType() {
       return this.$registry.get('domain', this.domain.type)

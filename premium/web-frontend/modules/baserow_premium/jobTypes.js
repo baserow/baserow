@@ -10,8 +10,8 @@ export class GenerateAIValuesJobType extends JobType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('jobType.generateAIValues')
+    const { $i18n } = this.app
+    return $i18n.t('jobType.generateAIValues')
   }
 
   /**
@@ -19,14 +19,14 @@ export class GenerateAIValuesJobType extends JobType {
    * This ensures spinners are removed from cells even if job was cancelled.
    */
   async _clearPendingOperations(job) {
-    const { store } = this.app
+    const { $store } = this.app
     // If the job has row_ids, clear pending state for those specific rows
     if (job.row_ids && job.row_ids.length > 0 && job.field_id) {
       // We need to find all store prefixes that might have this pending state
       // Grid views typically use 'page/view/grid' as the store prefix
       const storePrefix = 'page/'
       try {
-        await store.dispatch(
+        await $store.dispatch(
           `${storePrefix}view/grid/setPendingFieldOperations`,
           {
             fieldId: job.field_id,

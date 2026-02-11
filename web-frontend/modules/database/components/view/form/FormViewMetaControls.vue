@@ -27,7 +27,7 @@
           submitActions.findIndex((s) => s.type === view.submit_action)
         "
         :segments="submitActions"
-        @update:activeIndex="
+        @update:active-index="
           $emit('updated-form', { submit_action: submitActions[$event].type })
         "
       ></SegmentControl>
@@ -110,6 +110,7 @@ export default {
       required: true,
     },
   },
+  emits: ['updated-form'],
   setup() {
     const instance = getCurrentInstance()
 

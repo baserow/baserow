@@ -1,6 +1,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
+  emits: ['refresh'],
+
   methods: {
     /**
      * Must be called when a new field is created. It emits the refresh event when

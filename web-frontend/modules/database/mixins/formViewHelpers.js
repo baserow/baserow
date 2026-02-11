@@ -9,6 +9,13 @@ export default {
       required: true,
     },
   },
+  computed: {
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/form/getAllFieldOptions`
+      ]
+    },
+  },
   methods: {
     async updateForm(values) {
       const view = this.view
@@ -75,14 +82,5 @@ export default {
         notifyIf(error, 'view')
       }
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        fieldOptions:
-          this.$options.propsData.storePrefix + 'view/form/getAllFieldOptions',
-      }),
-    }
   },
 }

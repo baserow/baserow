@@ -1,46 +1,47 @@
 <template>
   <div>
     <h1>{{ $t('moreStep.title') }}</h1>
-
     <FormGroup
-      small-label
-      :label="$t('moreStep.roleOrJob')"
+      :label="$t('moreStep.how')"
+      :error="v$.how.$error"
       required
-      :error="v$.role.$error"
-      class="margin-bottom-3"
+      small-label
+      class="margin-bottom-2"
     >
-      <FormInput
-        v-model="role"
-        :placeholder="$t('moreStep.roleOrJob') + '...'"
+      <Dropdown
+        v-model="how"
+        :error="v$.how.$error"
         size="large"
-        :error="v$.role.$error"
-        @blur="v$.role.$touch"
-      />
-
-      <template #error>
-        {{ v$.role.$errors[0].$message }}
-      </template>
+        @hide="v$.how.$touch"
+      >
+        <DropdownItem
+          v-for="howName in hows"
+          :key="howName"
+          :name="howName"
+          :value="howName"
+        ></DropdownItem>
+      </Dropdown>
     </FormGroup>
     <FormGroup
-      :label="$t('moreStep.people')"
-      :error="v$.companySize.$error"
-      class="margin-bottom-3"
+      :label="$t('teamStep.description')"
+      :error="v$.team.$error"
       required
       small-label
+      class="margin-bottom-2"
     >
-      <div class="flex flex-wrap" style="--gap: 8px">
-        <Chips
-          v-for="size in sizes"
-          :key="size"
-          :active="companySize === size"
-          @click="selectSize(size)"
-          >{{ size }}</Chips
-        >
-      </div>
-
-      <template #error>
-        {{ v$.companySize.$errors[0]?.$message }}
-      </template>
+      <Dropdown
+        v-model="team"
+        :error="v$.team.$error"
+        size="large"
+        @hide="v$.team.$touch"
+      >
+        <DropdownItem
+          v-for="teamName in teams"
+          :key="teamName"
+          :name="teamName"
+          :value="teamName"
+        ></DropdownItem>
+      </Dropdown>
     </FormGroup>
     <FormGroup
       :label="$t('moreStep.country')"
@@ -75,34 +76,63 @@ import { countryList } from '@baserow/modules/core/utils/countries'
 
 export default {
   name: 'MoreStep',
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
     return {
-      role: '',
-      companySize: '',
+      how: '',
+      team: '',
       country: '',
       share: true,
     }
   },
   computed: {
+    hows() {
+      return [
+        this.$t('moreStep.howSearchEngine'),
+        this.$t('moreStep.howSocialMedia'),
+        this.$t('moreStep.howOnlineAds'),
+        this.$t('moreStep.howContent'),
+        this.$t('moreStep.howReviewSite'),
+        this.$t('moreStep.howFriend'),
+        this.$t('moreStep.howColleague'),
+        this.$t('moreStep.howEvent'),
+        this.$t('moreStep.howSales'),
+        this.$t('moreStep.howOther'),
+      ]
+    },
     countries() {
       return countryList
     },
-    sizes() {
-      return ['0 - 10', '11 - 50', '51 - 200', '201 - 500', '500+']
+    teams() {
+      const teams = [
+        this.$t('teamStep.marketingTeam'),
+        this.$t('teamStep.productAndDesignTeam'),
+        this.$t('teamStep.engineeringTeam'),
+        this.$t('teamStep.operationsTeam'),
+        this.$t('teamStep.itAndSupportTeam'),
+        this.$t('teamStep.hrAndLegalTeam'),
+        this.$t('teamStep.financeTeam'),
+        this.$t('teamStep.creativeProductionTeam'),
+        this.$t('teamStep.salesAndAccountManagementTeam'),
+        this.$t('teamStep.customerServiceTeam'),
+        this.$t('teamStep.manufacturingTeam'),
+        this.$t('teamStep.otherPersonalTeam'),
+      ]
+      return teams
     },
   },
 
   watch: {
-    role() {
+    how() {
+      this.updateValue()
+    },
+    team() {
       this.updateValue()
     },
     country() {
-      this.updateValue()
-    },
-    share() {
       this.updateValue()
     },
   },
@@ -113,15 +143,10 @@ export default {
     isValid() {
       return !this.v$.$invalid && this.v$.$dirty
     },
-    selectSize(size) {
-      this.v$.companySize.$touch()
-      this.companySize = size
-      this.updateValue()
-    },
     updateValue() {
       this.$emit('update-data', {
-        role: this.role,
-        companySize: this.companySize,
+        how: this.how,
+        team: this.team,
         country: this.country,
         share: this.share,
       })
@@ -129,10 +154,10 @@ export default {
   },
   validations() {
     return {
-      role: {
+      how: {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       },
-      companySize: {
+      team: {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       },
       country: {

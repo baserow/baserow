@@ -1,9 +1,8 @@
 from django.urls import include, path
 
+from baserow.core.registries import Plugin
 from baserow_premium.api import urls as api_urls
 from baserow_premium.license.plugin import LicensePlugin
-
-from baserow.core.registries import Plugin
 
 
 class PremiumPlugin(Plugin):

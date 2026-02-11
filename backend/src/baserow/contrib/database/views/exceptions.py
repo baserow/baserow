@@ -198,8 +198,7 @@ class FormViewReadOnlyFieldIsNotSupported(Exception):
     def __init__(self, field_name, *args, **kwargs):
         self.field_name = field_name
         super().__init__(
-            f"The field {field_name} is read only and compatible with the form"
-            f"view.",
+            f"The field {field_name} is read only and compatible with the formview.",
             *args,
             **kwargs,
         )

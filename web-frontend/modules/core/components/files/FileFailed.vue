@@ -50,5 +50,6 @@ export default {
       default: null,
     },
   },
+  emits: ['delete'],
 }
 </script>

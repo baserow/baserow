@@ -489,9 +489,10 @@ def test_create_table_with_data_sync(api_client, data_fixture, patch_filefield_s
     database = data_fixture.create_database_application(user=user)
     url = reverse("api:database:tables:list", kwargs={"database_id": database.id})
 
-    with override_settings(
-        BASEROW_INITIAL_CREATE_SYNC_TABLE_DATA_LIMIT=2
-    ), patch_filefield_storage():
+    with (
+        override_settings(BASEROW_INITIAL_CREATE_SYNC_TABLE_DATA_LIMIT=2),
+        patch_filefield_storage(),
+    ):
         response = api_client.post(
             url,
             {

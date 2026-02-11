@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Replace Python linting and formatting toolchain (autopep8, black, flake8, isort, bandit) with ruff",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-01-16"
+}

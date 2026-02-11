@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="section"
     v-auto-scroll="{
       enabled: () => isMultiSelectHolding,
       orientation: 'horizontal',
@@ -47,8 +48,8 @@
         @refresh="$emit('refresh', $event)"
         @dragging="
           canOrderFields &&
-            !$event.field.primary &&
-            $refs.fieldDragging.start($event.field, $event.event)
+          !$event.field.primary &&
+          $refs.fieldDragging.start($event.field, $event.event)
         "
       ></GridViewHead>
       <div
@@ -101,7 +102,25 @@
               )
             "
             :store-prefix="storePrefix"
-            v-on="$listeners"
+            @update="$emit('update', $event)"
+            @paste="$emit('paste', $event)"
+            @edit="$emit('edit', $event)"
+            @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+            @cell-mouseover="$emit('cell-mouseover', $event)"
+            @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+            @cell-shift-click="$emit('cell-shift-click', $event)"
+            @cell-selected="$emit('cell-selected', $event)"
+            @selected="$emit('selected', $event)"
+            @unselected="$emit('unselected', $event)"
+            @select="$emit('select', $event)"
+            @unselect="$emit('unselect', $event)"
+            @select-next="$emit('select-next', $event)"
+            @add-row-after="$emit('add-row-after', $event)"
+            @edit-modal="$emit('edit-modal', $event)"
+            @refresh-row="$emit('refresh-row', $event)"
+            @row-dragging="$emit('row-dragging', $event)"
+            @row-hover="$emit('row-hover', $event)"
+            @row-context="$emit('row-context', $event)"
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
@@ -122,14 +141,15 @@
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
             :store-prefix="storePrefix"
-            v-on="$listeners"
+            @add-row="$emit('add-row', $event)"
+            @add-rows="$emit('add-rows', $event)"
           ></GridViewRowAdd>
           <div v-else class="grid-view__row-placeholder"></div>
         </div>
       </div>
       <div class="grid-view__foot">
         <div v-if="includeRowDetails" class="grid-view__foot-info">
-          {{ $tc('gridView.rowCount', count, { count }) }}
+          {{ $t('gridView.rowCount', { count }) }}
         </div>
         <div
           v-for="field in visibleFields"
@@ -160,13 +180,13 @@
         )
       "
       :store-prefix="storePrefix"
+      :get-scroll-element="getScrollElement"
       @scroll="$emit('scroll', $event)"
     ></GridViewFieldDragging>
   </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import debounce from 'lodash/debounce'
 import ResizeObserver from 'resize-observer-polyfill'
 
@@ -259,6 +279,32 @@ export default {
       required: true,
     },
   },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'cell-selected',
+    'selected',
+    'unselected',
+    'select',
+    'unselect',
+    'select-next',
+    'add-row',
+    'add-rows',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+    'row-dragging',
+    'row-hover',
+    'row-context',
+    'scroll',
+    'field-created',
+    'refresh',
+  ],
   data() {
     return {
       // Render the first 20 fields by default so that there's at least some data when
@@ -266,6 +312,8 @@ export default {
       fieldsToRender: this.visibleFields.slice(0, 20),
       // Indicates the offset
       fieldsLeftOffset: 0,
+      resizeObserver: null,
+      horizontalScrollEvent: null,
     }
   },
   computed: {
@@ -451,6 +499,22 @@ export default {
     rowsAtEndOfGroups() {
       return this.groupBySetsAndRowsAtEndOfGroups.rowsAtEndOfGroups
     },
+    isMultiSelectHolding() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/isMultiSelectHolding'
+      ]
+    },
+    count() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getCount']
+    },
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
+    },
+    groupByMetadata() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByMetadata'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -466,7 +530,7 @@ export default {
       },
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -479,7 +543,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getGroupByMetadata',
       }),
     }
-  },
+  },*/
   mounted() {
     // When the component first loads, we need to check
     this.updateVisibleFieldsInRow()
@@ -488,12 +552,14 @@ export default {
       this.updateVisibleFieldsInRow()
     }, 50)
 
+    const sectionElement = this.$refs.section
+
     // When the viewport resizes, we need to check if there are fields that must be
     // rendered.
-    this.$el.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       updateDebounced()
     })
-    this.$el.resizeObserver.observe(this.$el)
+    this.resizeObserver.observe(sectionElement)
 
     // When the user scrolls horizontally, we need to check if there fields/cells that
     // have moved into the viewport and must be rendered.
@@ -501,7 +567,7 @@ export default {
       last: Date.now(),
       distance: 0,
     }
-    this.$el.horizontalScrollEvent = (event) => {
+    this.horizontalScrollEvent = (event) => {
       // Call the update order debounce function to simulate a stop scrolling event.
       updateDebounced()
 
@@ -523,11 +589,16 @@ export default {
         }
       }
     }
-    this.$el.addEventListener('scroll', this.$el.horizontalScrollEvent)
+    sectionElement.addEventListener('scroll', this.horizontalScrollEvent)
   },
-  beforeDestroy() {
-    this.$el.resizeObserver.unobserve(this.$el)
-    this.$el.removeEventListener('scroll', this.$el.horizontalScrollEvent)
+  beforeUnmount() {
+    const sectionElement = this.$refs.section
+    if (this.resizeObserver !== null) {
+      this.resizeObserver.unobserve(sectionElement)
+    }
+    if (this.horizontalScrollEvent !== null) {
+      sectionElement.removeEventListener('scroll', this.horizontalScrollEvent)
+    }
   },
   methods: {
     /**
@@ -537,6 +608,7 @@ export default {
      * field changes.
      */
     updateVisibleFieldsInRow() {
+      if (!this.$el) return
       const width = this.$el.clientWidth
       const scrollLeft = this.$el.scrollLeft
       // The padding is added to the start and end of the viewport to make sure that
@@ -569,6 +641,9 @@ export default {
       if (leftOffset !== this.fieldsLeftOffset) {
         this.fieldsLeftOffset = leftOffset
       }
+    },
+    getScrollElement() {
+      return this.$refs.section
     },
   },
 }

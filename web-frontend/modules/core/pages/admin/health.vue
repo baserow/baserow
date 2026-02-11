@@ -65,36 +65,44 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed } from 'vue'
+import { useHead } from '#imports'
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
-export default {
-  components: { EmailTester },
+// Page meta
+definePageMeta({
   layout: 'app',
   middleware: 'staff',
-  async asyncData({ app }) {
-    const { data } = await HealthService(app.$client).getAll()
-    return {
-      healthChecks: data.checks,
-      celeryQueueSize: data.celery_queue_size,
-      celeryExportQueueSize: data.celery_export_queue_size,
-    }
-  },
-  methods: {
-    camelCaseToSpaceSeparated(camelCaseString) {
-      if (!camelCaseString) {
-        return 'unknown'
-      } else {
-        camelCaseString = camelCaseString.toString()
-      }
-      return camelCaseString.replace(/([A-Z])/g, ' $1')
-    },
-    error() {
-      setTimeout(() => {
-        throw new Error('Health check error')
-      }, 1)
-    },
-  },
+})
+
+// Access Baserow client from Nuxt app
+const { $client, $i18n } = useNuxtApp()
+
+useHead({ title: $i18n.t('health.title') })
+
+// Fetch data (equivalent to asyncData)
+const { data } = await useAsyncData('health', async () => {
+  const res = await HealthService($client).getAll()
+  return res.data
+})
+
+const healthChecks = computed(() => data.value?.checks ?? [])
+const celeryQueueSize = computed(() => data.value?.celery_queue_size ?? 0)
+const celeryExportQueueSize = computed(
+  () => data.value?.celery_export_queue_size ?? 0
+)
+
+// Methods
+function camelCaseToSpaceSeparated(str) {
+  if (!str) return 'unknown'
+  return str.toString().replace(/([A-Z])/g, ' $1')
+}
+
+function error() {
+  setTimeout(() => {
+    throw new Error('Health check error')
+  }, 1)
 }
 </script>

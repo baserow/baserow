@@ -1,6 +1,6 @@
 # ============== "Abstract" ci stages used by real stages =======================
 
-# Builds a dev version of a specific Dockerfile (--target dev) using a previous CI
+# Builds a dev version of a specific Dockerfile (--target ci) using a previous CI
 # image or the latest develop image as a cache to speed up the build. Tags and pushes
 # the resulting dev image for later stages in the pipeline to use.
 #
@@ -149,7 +149,7 @@
         $EXTRA_BUILD_ARGS \
         $IMAGE_LABELS \
         --push \
-        --target dev \
+        --target ci \
         --tag $CI_IMAGE_PATH \
         -f $DOCKERFILE_PATH .;
 

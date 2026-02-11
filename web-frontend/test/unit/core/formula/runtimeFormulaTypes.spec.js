@@ -47,7 +47,7 @@ import {
   RuntimeAt,
   RuntimeToArray,
 } from '@baserow/modules/core/runtimeFormulaTypes'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 
 /** Tests for the RuntimeConcat class. */
 describe('RuntimeConcat', () => {
@@ -1110,12 +1110,12 @@ describe('RuntimeSecond', () => {
 
 describe('RuntimeNow', () => {
   beforeAll(() => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2025-11-11T10:40:33.638Z'))
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-11-11T10:40:33.638Z'))
   })
 
   afterAll(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('execute returns expected value', () => {
@@ -1137,12 +1137,12 @@ describe('RuntimeNow', () => {
 
 describe('RuntimeToday', () => {
   beforeAll(() => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2025-11-11T10:40:33.638Z'))
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-11-11T10:40:33.638Z'))
   })
 
   afterAll(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   test('execute returns expected value', () => {

@@ -57,12 +57,12 @@
 
     <FieldConstraintItems
       v-if="hasAvailableConstraints && !hasDisabledFieldConstraints"
-      :value="value"
+      :value="modelValue"
       :field="field"
       :disabled="disabled"
       :error="error"
       :field-default-value="fieldDefaultValue"
-      @input="$emit('input', $event)"
+      @input="$emit('update:modelValue', $event)"
     />
   </div>
 </template>
@@ -77,7 +77,7 @@ export default {
   name: 'FieldConstraintsSubForm',
   components: { ButtonText, FormGroup, FieldConstraintItems },
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -101,6 +101,7 @@ export default {
       default: null,
     },
   },
+  emits: ['update:modelValue'],
   computed: {
     constraintTypes() {
       return this.$registry.getAll('fieldConstraint')
@@ -119,7 +120,7 @@ export default {
       return false
     },
     allConstraintsAdded() {
-      const addedConstraintNames = this.value.map(
+      const addedConstraintNames = this.modelValue.map(
         (constraint) => constraint.type_name
       )
       return this.allowedConstraintTypes.every((constraintType) =>
@@ -146,7 +147,7 @@ export default {
   },
   methods: {
     addConstraint() {
-      const hasEmptyConstraint = this.value.some(
+      const hasEmptyConstraint = this.modelValue.some(
         (constraint) => constraint.type_name === ''
       )
       if (hasEmptyConstraint) {
@@ -165,11 +166,11 @@ export default {
       const newConstraint = {
         type_name: firstAvailableType.getTypeName(),
       }
-      const updatedConstraints = [...this.value, newConstraint]
-      this.$emit('input', updatedConstraints)
+      const updatedConstraints = [...this.modelValue, newConstraint]
+      this.$emit('update:modelValue', updatedConstraints)
     },
     getAvailableConstraintTypesForNewConstraint() {
-      const selectedNames = this.value
+      const selectedNames = this.modelValue
         .map((constraint) => constraint.type_name)
         .filter((name) => name)
 

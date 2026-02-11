@@ -1,3 +1,5 @@
-@import '~normalize-scss/sass/normalize/import-now';
-@import '~/.nuxt/baserow/iconoir';
+@import 'normalize.css';
+
+// Omit .css file so that it's parsed as scss and the selectors can be extended.
+@import 'iconoir/css/iconoir';
 @import 'highlight.js/styles/github.css';

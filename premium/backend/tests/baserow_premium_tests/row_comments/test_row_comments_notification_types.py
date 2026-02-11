@@ -5,14 +5,6 @@ from django.shortcuts import reverse
 from django.test import override_settings
 
 import pytest
-from baserow_premium.row_comments.handler import (
-    RowCommentHandler,
-    RowCommentsNotificationModes,
-)
-from baserow_premium.row_comments.notification_types import (
-    RowCommentMentionNotificationType,
-    RowCommentNotificationType,
-)
 from freezegun import freeze_time
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
@@ -21,6 +13,14 @@ from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.test_utils.helpers import AnyInt
+from baserow_premium.row_comments.handler import (
+    RowCommentHandler,
+    RowCommentsNotificationModes,
+)
+from baserow_premium.row_comments.notification_types import (
+    RowCommentMentionNotificationType,
+    RowCommentNotificationType,
+)
 
 
 @pytest.mark.django_db
@@ -56,7 +56,7 @@ def test_notification_creation_on_creating_row_comment_mention(
     assert response.status_code == HTTP_200_OK
     comment_id = response.json()["id"]
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     assert args == call(
         sender=NotificationHandler,
@@ -129,6 +129,7 @@ def test_notify_only_new_mentions_when_updating_a_comment(
         comment = RowCommentHandler.create_comment(
             user_1, table.id, rows[0].id, message
         )
+    mocked_notification_created.reset_mock()
     new_message = premium_data_fixture.create_comment_message_with_mentions(
         [user_1, user_2]
     )
@@ -147,7 +148,7 @@ def test_notify_only_new_mentions_when_updating_a_comment(
     assert response.status_code == HTTP_200_OK
     comment_id = response.json()["id"]
 
-    assert mocked_notification_created.called_once()
+    mocked_notification_created.assert_called_once()
     args = mocked_notification_created.call_args
     assert args == call(
         sender=NotificationHandler,

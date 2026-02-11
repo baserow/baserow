@@ -12,7 +12,7 @@
             :index="filterIndex"
             :filter-type="groupNode.group.filter_type"
             :disable-filter="disableFilter"
-            @updateFilterType="
+            @update-filter-type="
               $emit('updateFilterType', {
                 value: $event,
                 filterGroup: groupNode.group,
@@ -27,14 +27,14 @@
             :fields="fields"
             :disable-filter="disableFilter"
             :read-only="readOnly"
-            @updateFilter="$emit('updateFilter', { filter, values: $event })"
-            @deleteFilter="$emit('deleteFilter', { filter, event: $event })"
+            @update-filter="$emit('updateFilter', { filter, values: $event })"
+            @delete-filter="$emit('deleteFilter', { filter, event: $event })"
           >
             <template #filterInputComponent="{ slotProps }">
-              <slot name="filterInputComponent" :slot-props="slotProps"></slot>
+              <slot name="filterInputComponent" :slot-props="slotProps" />
             </template>
             <template #afterValueInput="{ slotProps }">
-              <slot name="afterValueInput" :slot-props="slotProps"></slot>
+              <slot name="afterValueInput" :slot-props="slotProps" />
             </template>
           </ViewFieldConditionItem>
         </div>
@@ -49,7 +49,7 @@
         :index="groupNode.filters.length + subGroupIndex"
         :filter-type="groupNode.group.filter_type"
         :disable-filter="disableFilter"
-        @updateFilterType="
+        @update-filter-type="
           $emit('updateFilterType', {
             value: $event,
             filterGroup: groupNode.group,
@@ -66,13 +66,12 @@
         :can-add-filter-groups="false"
         :add-condition-string="addConditionString"
         :add-condition-group-string="addConditionGroupString"
-        @addFilter="$emit('addFilter', $event)"
-        @addFilterGroup="$emit('addFilterGroup', $event)"
-        @updateFilter="$emit('updateFilter', $event)"
-        @deleteFilter="$emit('deleteFilter', $event)"
-        @updateFilterType="$emit('updateFilterType', $event)"
-      >
-      </ViewFieldConditionGroup>
+        @add-filter="$emit('addFilter', $event)"
+        @add-filter-group="$emit('addFilterGroup', $event)"
+        @update-filter="$emit('updateFilter', $event)"
+        @delete-filter="$emit('deleteFilter', $event)"
+        @update-filter-type="$emit('updateFilterType', $event)"
+      />
     </div>
     <div v-if="!disableFilter" class="filters__group-item-actions">
       <ButtonText
@@ -90,7 +89,7 @@
         icon="iconoir-plus"
         @click.prevent="
           $emit('addFilterGroup', {
-            filterGroupId: uuidv1(),
+            filterGroupId: sortableUid(),
             parentGroupId: groupNode.group.id,
           })
         "
@@ -102,7 +101,7 @@
 </template>
 
 <script>
-import { v1 as uuidv1 } from 'uuid'
+import { ulid } from 'ulid'
 import ViewFilterFormOperator from '@baserow/modules/database/components/view/ViewFilterFormOperator'
 import ViewFieldConditionItem from '@baserow/modules/database/components/view/ViewFieldConditionItem'
 
@@ -156,6 +155,13 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'updateFilterType',
+    'updateFilter',
+    'deleteFilter',
+    'addFilter',
+    'addFilterGroup',
+  ],
   computed: {
     addConditionLabel() {
       return (
@@ -171,7 +177,9 @@ export default {
     },
   },
   methods: {
-    uuidv1,
+    sortableUid() {
+      return ulid()
+    },
   },
 }
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{
         create
@@ -70,6 +70,7 @@ export default {
       default: false,
     },
   },
+  emits: ['created'],
   data() {
     return { loading: false }
   },

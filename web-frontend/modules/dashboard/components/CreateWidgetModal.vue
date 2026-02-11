@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('createWidgetModal.title') }}
     </h2>
@@ -31,6 +31,7 @@ export default {
       required: true,
     },
   },
+  emits: ['widget-variation-selected'],
   computed: {
     widgetTypes() {
       return this.$registry.getOrderedList('dashboardWidget')

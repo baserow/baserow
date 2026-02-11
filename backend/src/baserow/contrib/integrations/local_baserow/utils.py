@@ -43,7 +43,7 @@ from baserow.core.user_files.handler import UserFileHandler
 
 
 def guess_json_type_from_response_serializer_field(
-    serializer_field: Union[Field, Serializer]
+    serializer_field: Union[Field, Serializer],
 ) -> Dict[str, Any]:
     """
     Responsible for taking a serializer field, and guessing what its JSON

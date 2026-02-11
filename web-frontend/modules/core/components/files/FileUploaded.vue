@@ -74,6 +74,7 @@ export default {
       default: null,
     },
   },
+  emits: ['delete', 'click', 'rename'],
   methods: {
     resetName() {
       this.$refs.nameEditable.set()
@@ -82,7 +83,7 @@ export default {
       return moment.utc(value).format('MMM Do YYYY [at] H:mm')
     },
     formatSize(size) {
-      return formatFileSize(this.$i18n, size)
+      return formatFileSize(size)
     },
   },
 }

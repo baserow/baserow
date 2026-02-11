@@ -203,14 +203,15 @@ from .field_filters import (
 )
 from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
-from .fields import BaserowExpressionField, BaserowLastModifiedField
-from .fields import DurationField as DurationModelField
 from .fields import (
+    BaserowExpressionField,
+    BaserowLastModifiedField,
     IntegerFieldWithSequence,
     MultipleSelectManyToManyField,
     SingleSelectForeignKey,
     SyncedUserForeignKeyField,
 )
+from .fields import DurationField as DurationModelField
 from .handler import FieldHandler
 from .models import (
     AbstractSelectOption,
@@ -1808,7 +1809,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         sql = (
             f"""
             p_in = NULL;
-            """  # nosec b608
+            """  # noqa: S608
         )
         # fmt: on
         return sql, {}
@@ -1827,7 +1828,7 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
             sql = (
                 f"""
                 p_in = NULL;
-                """  # nosec b608
+                """  # noqa: S608
             )
             # fmt: on
             return sql, {}
@@ -2034,7 +2035,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
         sql = (
             f"""
             p_in = NULL;
-            """  # nosec b608
+            """  # noqa: S608
         )
         # fmt: on
         return sql, {}
@@ -2053,7 +2054,7 @@ class CreatedByFieldType(ReadOnlyFieldType):
             sql = (
                 f"""
                 p_in = NULL;
-                """  # nosec b608
+                """  # noqa: S608
             )
             # fmt: on
             return sql, {}
@@ -2463,7 +2464,7 @@ class LinkRowFieldType(
                 filter=Q(
                     **{f"{field_name}__isnull": False, f"{field_name}__trashed": False}
                 ),
-                ordering=(f"{field_name}__order", f"{field_name}__id"),
+                order_by=(f"{field_name}__order", f"{field_name}__id"),
             )
 
         value_query = get_array_agg(sortable_column_expr)
@@ -3404,13 +3405,13 @@ class LinkRowFieldType(
         serialized = super().export_serialized(field, False)
         serialized["link_row_table_id"] = field.link_row_table_id
         serialized["link_row_related_field_id"] = field.link_row_related_field_id
-        serialized[
-            "link_row_limit_selection_view_id"
-        ] = field.link_row_limit_selection_view_id
+        serialized["link_row_limit_selection_view_id"] = (
+            field.link_row_limit_selection_view_id
+        )
         serialized["has_related_field"] = field.link_row_table_has_related_field
-        serialized[
-            "link_row_multiple_relationships"
-        ] = field.link_row_multiple_relationships
+        serialized["link_row_multiple_relationships"] = (
+            field.link_row_multiple_relationships
+        )
         return serialized
 
     def import_serialized(
@@ -3893,7 +3894,7 @@ class FileFieldType(FieldType):
             return [{"visible_name": f["visible_name"], "url": f["url"]} for f in files]
         else:
             return list_to_comma_separated_string(
-                [f'{file["visible_name"]} ({file["url"]})' for file in files]
+                [f"{file['visible_name']} ({file['url']})" for file in files]
             )
 
     def get_human_readable_value(self, value, field_object):
@@ -4190,11 +4191,13 @@ class SelectOptionBaseFieldType(FieldType):
                 break
 
         if not select_model_prefetch:
-            select_model_prefetch = CombinedForeignKeyAndManyToManyMultipleFieldPrefetch(
-                SelectOption,
-                # Must skip because the multiple_select works with dynamically
-                # generated models.
-                skip_target_check=True,
+            select_model_prefetch = (
+                CombinedForeignKeyAndManyToManyMultipleFieldPrefetch(
+                    SelectOption,
+                    # Must skip because the multiple_select works with dynamically
+                    # generated models.
+                    skip_target_check=True,
+                )
             )
             queryset = queryset.multi_field_prefetch(select_model_prefetch)
 
@@ -4236,7 +4239,7 @@ class SelectOptionBaseFieldType(FieldType):
         except ValueError:
             # Happens when the instance does not yet have a primary key.
             return self.get_serializer_help_text(instance)
-        return f"(in format option_id=option_value): " f"{select_option_pair}"
+        return f"(in format option_id=option_value): {select_option_pair}"
 
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
@@ -4553,7 +4556,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                     VALUES {','.join(values_mapping)}
                 ) AS values (key, value)
                 WHERE key = p_in);
-                """  # nosec b608
+                """  # noqa: S608
             )
             # fmt: on
             return sql, variables
@@ -4588,11 +4591,11 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             return (
                 f"""p_in = (
                 SELECT value FROM (
-                    VALUES {','.join(values_mapping)}
+                    VALUES {",".join(values_mapping)}
                 ) AS values (key, value)
                 WHERE key = lower(p_in)
             );
-            """,  # nosec
+            """,  # noqa: S608
                 variables,
             )
 
@@ -4953,10 +4956,10 @@ class MultipleSelectFieldType(
                     # Replace values by error for failing rows
                     for invalid_name in invalid_ids:
                         for row_index in id_map[invalid_name]:
-                            values_by_row[
-                                row_index
-                            ] = AllProvidedMultipleSelectValuesMustBeSelectOption(
-                                invalid_name
+                            values_by_row[row_index] = (
+                                AllProvidedMultipleSelectValuesMustBeSelectOption(
+                                    invalid_name
+                                )
                             )
                 else:
                     # or fail fast
@@ -4976,10 +4979,10 @@ class MultipleSelectFieldType(
                     # Replace values by error for failing rows
                     for invalid_name in invalid_names:
                         for row_index in name_map[invalid_name]:
-                            values_by_row[
-                                row_index
-                            ] = AllProvidedMultipleSelectValuesMustBeSelectOption(
-                                invalid_name
+                            values_by_row[row_index] = (
+                                AllProvidedMultipleSelectValuesMustBeSelectOption(
+                                    invalid_name
+                                )
                             )
 
                 else:
@@ -5289,7 +5292,7 @@ class MultipleSelectFieldType(
         agg_expr = JSONBAgg(
             get_select_option_extractor(db_column, model_field),
             filter=Q(**{f"{db_column}__isnull": False}),
-            ordering=(f"{db_column}__order", f"{db_column}__id"),
+            order_by=(f"{db_column}__order", f"{db_column}__id"),
         )
         if already_in_subquery:
             return Coalesce(agg_expr, Value([], output_field=JSONField()))
@@ -6741,17 +6744,12 @@ class MultipleCollaboratorsFieldType(
         return True
 
     def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.pop("required", False)
-        field_serializer = CollaboratorSerializer(
-            **{
-                "required": required,
-                "allow_null": False,
-                **kwargs,
-            }
+        from baserow.contrib.database.api.fields.serializers import (
+            CollaboratorRequestSerializer,
         )
-        return serializers.ListSerializer(
-            child=field_serializer, required=required, **kwargs
-        )
+
+        kwargs.setdefault("required", False)
+        return CollaboratorRequestSerializer(**kwargs)
 
     def get_search_expression(
         self, field: MultipleCollaboratorsField, queryset: QuerySet
@@ -6841,9 +6839,9 @@ class MultipleCollaboratorsFieldType(
             if continue_on_error:
                 for invalid_id in invalid_ids:
                     for row_index in rows_by_value[invalid_id]:
-                        values_by_row[
-                            row_index
-                        ] = AllProvidedCollaboratorIdsMustBeValidUsers(invalid_id)
+                        values_by_row[row_index] = (
+                            AllProvidedCollaboratorIdsMustBeValidUsers(invalid_id)
+                        )
             else:
                 # or fail fast
                 raise AllProvidedCollaboratorIdsMustBeValidUsers(invalid_ids)
@@ -7383,7 +7381,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
                 SET {field.db_column} = ordered.row_nr
                 FROM ordered
                 WHERE t.id = ordered.id;
-                """,  # nosec B608
+                """,  # noqa: S608
                 params,
             )
 
@@ -7417,7 +7415,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
                 f"""
                 WITH count AS (SELECT COUNT(*) FROM {db_table})
                 SELECT setval('{db_column}_seq', count) FROM count WHERE count > 0;
-                """  # nosec B608
+                """  # noqa: S608
             )
 
     def drop_field_sequence(

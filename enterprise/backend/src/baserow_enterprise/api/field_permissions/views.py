@@ -2,7 +2,6 @@ from urllib.request import Request
 
 from django.db import transaction
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
@@ -22,6 +21,7 @@ from baserow_enterprise.field_permissions.actions import (
     UpdateFieldPermissionsActionType,
 )
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
+from baserow_premium.license.handler import LicenseHandler
 
 from .serializers import (
     UpdateFieldPermissionsRequestSerializer,

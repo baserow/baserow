@@ -12,7 +12,7 @@
           class="margin-bottom-2"
         >
           <FormInput
-            ref="password"
+            ref="passwordInput"
             v-model="v$.values.password.$model"
             size="large"
             :error="fieldHasErrors('password')"
@@ -41,91 +41,103 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useHead } from '#imports'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive, getCurrentInstance } from 'vue'
-import form from '@baserow/modules/core/mixins/form'
-import error from '@baserow/modules/core/mixins/error'
 import { required, helpers } from '@vuelidate/validators'
-import { mapActions } from 'vuex'
+
+import Error from '@baserow/modules/core/components/Error'
 import { isRelativeUrl } from '@baserow/modules/core/utils/url'
-import languageDetection from '@baserow/modules/core/mixins/languageDetection'
 
-export default {
-  mixins: [form, error, languageDetection],
+definePageMeta({
   layout: 'login',
-  setup() {
-    const instance = getCurrentInstance()
-    const values = reactive({ password: '' })
+})
 
-    const rules = {
-      values: {
-        password: {
-          required: helpers.withMessage(
-            instance.proxy.$t('error.requiredField'),
-            required
-          ),
-        },
-      },
-    }
+const route = useRoute()
+const router = useRouter()
+const nuxtApp = useNuxtApp()
+const { $store, $client, $i18n } = nuxtApp
 
-    const v$ = useVuelidate(rules, { values }, { $lazy: true })
+// Language detection (replaces languageDetection mixin)
+const originalLanguageBeforeDetect = ref(null)
+originalLanguageBeforeDetect.value = $i18n.locale
+$i18n.locale = $i18n.getBrowserLocale()
 
-    return { values, v$ }
-  },
-  data() {
-    return {
-      loading: false,
-      allowedValues: ['password'],
-    }
-  },
-  head() {
-    return {
-      title: 'Password protected view',
-    }
-  },
-  mounted() {
-    this.$nextTick(() => {
-      this.$refs.password.focus()
-    })
-  },
-  methods: {
-    async authorizeView() {
-      this.hideError()
-      this.loading = true
+// Page title
+useHead({
+  title: 'Password protected view',
+})
 
-      try {
-        const slug = this.$route.params.slug
-        const rsp = await this.$client.post(
-          `/database/views/${slug}/public/auth/`,
-          { password: this.values.password }
-        )
-        await this.setPublicAuthToken({ slug, token: rsp.data.access_token })
+// Form state
+const loading = ref(false)
+const error = ref({ visible: false, title: '', message: '' })
+const passwordInput = ref(null)
 
-        // Redirect to the original view.
-        // Subsequent requests will use the token saved into the store.
-        const { original } = this.$route.query
-        if (original && isRelativeUrl(original)) {
-          await this.$router.push(original)
-        }
-      } catch (e) {
-        const statusCode = e.response?.status
-        // hide the authorization error here and show the correct error message
-        if (statusCode === 401) {
-          this.$store.dispatch('toast/setAuthorizationError', false)
-          this.showError(
-            this.$t('publicViewAuthLogin.error.incorrectPasswordTitle'),
-            this.$t('publicViewAuthLogin.error.incorrectPasswordText')
-          )
-        } else {
-          this.handleError(e, 'auth')
-        }
-        this.loading = false
-      }
+// Vuelidate setup
+const values = reactive({ password: '' })
+const rules = {
+  values: {
+    password: {
+      required: helpers.withMessage($i18n.t('error.requiredField'), required),
     },
-    ...mapActions({
-      setPublicAuthToken: 'page/view/public/setAuthToken',
-    }),
   },
 }
+const v$ = useVuelidate(rules, { values }, { $lazy: true })
+
+function fieldHasErrors(fieldName) {
+  return v$.value.values[fieldName]?.$error || false
+}
+
+function showError(title, message) {
+  error.value = { visible: true, title, message }
+}
+
+function hideError() {
+  error.value = { visible: false, title: '', message: '' }
+}
+
+async function authorizeView() {
+  hideError()
+  loading.value = true
+
+  try {
+    const slug = route.params.slug
+    const rsp = await $client.post(`/database/views/${slug}/public/auth/`, {
+      password: values.password,
+    })
+
+    await $store.dispatch('page/view/public/setAuthToken', {
+      slug,
+      token: rsp.data.access_token,
+    })
+
+    const { original } = route.query
+    if (original && isRelativeUrl(original)) {
+      router.push(original)
+    }
+  } catch (e) {
+    const statusCode = e.response?.status
+    if (statusCode === 401) {
+      $store.dispatch('toast/setAuthorizationError', false)
+      showError(
+        $i18n.t('publicViewAuthLogin.error.incorrectPasswordTitle'),
+        $i18n.t('publicViewAuthLogin.error.incorrectPasswordText')
+      )
+    } else {
+      showError(
+        $i18n.t('error.errorTitle'),
+        e.message || $i18n.t('error.errorMessage')
+      )
+    }
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  nextTick(() => {
+    passwordInput.value?.focus()
+  })
+})
 </script>

@@ -6,6 +6,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'paginatedDropdown',
   mixins: [dropdown],
+  emits: ['hide'],
   props: {
     // The attribute name that contains the identifier in the fetched results.
     idName: {

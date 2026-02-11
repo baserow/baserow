@@ -28,7 +28,7 @@ The template will look something like this:
 </mj-section>
 ```
 
-If you are using the Baserow docker compose development environment started by `./dev.sh` script, the new template should be automatically compiled into its HTML version, resulting in a new file. If that's not the case, follow the instructions in `backend/email_compiler` to compile the template manually.
+If you are using the Baserow Docker Compose development environment (`just dc-dev up -d`), the new template should be automatically compiled into its HTML version, resulting in a new file. If that's not the case, follow the instructions in `backend/email_compiler` to compile the template manually.
 
 ### Do
 
@@ -51,4 +51,14 @@ Subclass `BaseEmailMessage` to define an email message with the correct template
 
 ## Testing
 
-The Baserow dev environment (using the `./dev.sh` script) automatically starts an instance of [MailHog](https://github.com/mailhog/MailHog) at [http://localhost:8025/](http://localhost:8025/). You can verify that the emails are formatted and sent correctly there.
+The Baserow dev environment automatically starts an instance of [MailHog](https://github.com/mailhog/MailHog) at [http://localhost:8025/](http://localhost:8025/). You can verify that the emails are formatted and sent correctly there.
+
+**Docker development:**
+```bash
+just dc-dev up -d    # MailHog is included
+```
+
+**Local development:**
+```bash
+just dev up          # MailHog runs via Docker
+```

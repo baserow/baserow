@@ -881,7 +881,7 @@ def test_update_rows_created_on_and_last_modified(data_fixture):
         result = handler.update_rows(
             user,
             table,
-            [{"id": row.id, f"field_" f"{field.id}": "Test"}],
+            [{"id": row.id, f"field_{field.id}": "Test"}],
         )
         row = result.updated_rows[0]
         assert row.created_on == datetime(2020, 1, 1, 12, 0, tzinfo=timezone.utc)

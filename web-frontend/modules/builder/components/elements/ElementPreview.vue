@@ -97,6 +97,7 @@ export default {
       default: false,
     },
   },
+  emits: ['move'],
   data() {
     return {
       isDuplicating: false,
@@ -119,7 +120,7 @@ export default {
       }
     },
     pageTop() {
-      return this.pageTopData.value
+      return this.pageTopData?.value ?? 0
     },
     elementSelected() {
       return this.getElementSelected(this.builder)
@@ -266,7 +267,7 @@ export default {
     }
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.observer) {
       this.observer.disconnect()
     }

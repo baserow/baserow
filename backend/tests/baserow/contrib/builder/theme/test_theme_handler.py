@@ -40,7 +40,9 @@ def test_update_theme(data_fixture):
 
 # Gitlab issue #3320
 @pytest.mark.django_db
-@override_settings(DEFAULT_FILE_STORAGE="django.core.files.storage.InMemoryStorage")
+@override_settings(
+    STORAGES={"default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
+)
 def test_theme_with_page_background_file_can_be_exported(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application()

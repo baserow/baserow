@@ -220,7 +220,7 @@ describe('test key press event helper', () => {
   let platformGetter
 
   beforeEach(() => {
-    platformGetter = jest.spyOn(window.navigator, 'platform', 'get')
+    platformGetter = vi.spyOn(window.navigator, 'platform', 'get')
   })
 
   test.each(allCharacters)('non control keys should return true', (value) => {

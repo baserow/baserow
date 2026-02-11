@@ -1,13 +1,14 @@
 """
 Tests for GenerateAIValuesJob execution in all modes.
 """
+
 from unittest.mock import patch
 
 import pytest
-from baserow_premium.fields.models import GenerateAIValuesJob
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.jobs.handler import JobHandler
+from baserow_premium.fields.models import GenerateAIValuesJob
 
 
 @pytest.mark.django_db
@@ -289,9 +290,9 @@ def test_job_execution_empty_string_vs_null(patched_rows_updated, premium_data_f
     rows[2].refresh_from_db()
     value_after_job = getattr(rows[2], field.db_column)
     # If only_empty works, this should still be "Has value", not the generated value
-    assert (
-        value_after_job == "Has value"
-    ), f"Expected 'Has value' but got '{value_after_job}'"
+    assert value_after_job == "Has value", (
+        f"Expected 'Has value' but got '{value_after_job}'"
+    )
 
 
 @pytest.mark.django_db

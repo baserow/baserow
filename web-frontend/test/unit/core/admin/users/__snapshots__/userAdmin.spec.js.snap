@@ -1,0 +1,391 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`User Admin Component Tests > A users attributes will be displayed 1`] = `
+"<div class="data-table">
+  <header class="data-table__header">
+    <h1 class="data-table__title">usersAdminTable.allUsers</h1>
+    <div class="data-table__actions">
+      <form>
+        <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
+          <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </form>
+    </div>
+  </header>
+  <div class="data-table__body">
+    <table class="data-table__table">
+      <thead>
+        <tr class="data-table__table-row">
+          <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.username</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.name</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div>usersAdminTable.workspaces
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.lastLogin</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.dateJoined</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">user.active</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
+            <div class="data-table__table-cell-head">
+              <div>
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="data-table__table-row">
+          <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
+            <div class="data-table__table-cell-content">
+              <div class="user-admin-username" column="[object Object]">
+                <div class="avatar avatar--rounded avatar--large avatar--blue user-admin-username__avatar">
+                  <!--v-if-->
+                  <!--v-if--><span class="avatar__initials">UN</span>
+                </div>
+                <div class="user-admin-username__name" title="user@baserow.io">user@baserow.io</div><i class="user-admin-username__icon iconoir-user-crown"></i>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--name">
+            <div class="data-table__table-cell-content">
+              <div title="user name">user name</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--workspaces">
+            <div class="data-table__table-cell-content">
+              <div class="expand-overflow-list">
+                <div class="expand-overflow-list__container">
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">users's workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><span class="expand-overflow-list__item" style="order: 1;">other_workspace </span><a class="expand-overflow-list__expand" style="order: 1; display: none;">+0</a>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--last_login">
+            <div class="data-table__table-cell-content">
+              <div>04/26/2021 7:50 AM</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--date_joined">
+            <div class="data-table__table-cell-content">
+              <div>04/21/2021 12:04 PM</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--is_active">
+            <div class="data-table__table-cell-content">
+              <div>
+                <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i> user.active</div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
+            <div class="data-table__table-cell-content">
+              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="data-table__footer">
+    <div class="paginator"><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
+      <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
+    </div>
+  </div>
+</div>"
+`;
+
+exports[`User Admin Component Tests > you can sort by multiple columns which will pass the sorts to the server 1`] = `
+"<div class="data-table">
+  <header class="data-table__header">
+    <h1 class="data-table__title">usersAdminTable.allUsers</h1>
+    <div class="data-table__actions">
+      <form>
+        <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
+          <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
+            <!--v-if-->
+          </div>
+          <!--v-if-->
+        </div>
+      </form>
+    </div>
+  </header>
+  <div class="data-table__body">
+    <table class="data-table__table">
+      <thead>
+        <tr class="data-table__table-row">
+          <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.username</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.name</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div>usersAdminTable.workspaces
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.lastLogin</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">usersAdminTable.dateJoined</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header">
+            <div class="data-table__table-cell-head">
+              <div><a class="data-table__table-cell-head-link">user.active</a>
+                <!--v-if-->
+              </div>
+              <div class="data-table__table-cell-head-sort-icon">
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+          <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-right">
+            <div class="data-table__table-cell-head">
+              <div>
+                <!--v-if-->
+              </div>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="data-table__table-row">
+          <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
+            <div class="data-table__table-cell-content">
+              <div class="user-admin-username" column="[object Object]">
+                <div class="avatar avatar--rounded avatar--large avatar--blue user-admin-username__avatar">
+                  <!--v-if-->
+                  <!--v-if--><span class="avatar__initials">U</span>
+                </div>
+                <div class="user-admin-username__name" title="firstUser@example.com">firstUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--name">
+            <div class="data-table__table-cell-content">
+              <div title="user_name">user_name</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--workspaces">
+            <div class="data-table__table-cell-content">
+              <div class="expand-overflow-list">
+                <div class="expand-overflow-list__container">
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--last_login">
+            <div class="data-table__table-cell-content">
+              <div>26-04-2021 07:50</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--date_joined">
+            <div class="data-table__table-cell-content">
+              <div>21-04-2021 12:04</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--is_active">
+            <div class="data-table__table-cell-content">
+              <div>
+                <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i> user.active</div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
+            <div class="data-table__table-cell-content">
+              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+            </div>
+          </td>
+        </tr>
+        <tr class="data-table__table-row">
+          <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
+            <div class="data-table__table-cell-content">
+              <div class="user-admin-username" column="[object Object]">
+                <div class="avatar avatar--rounded avatar--large avatar--blue user-admin-username__avatar">
+                  <!--v-if-->
+                  <!--v-if--><span class="avatar__initials">U</span>
+                </div>
+                <div class="user-admin-username__name" title="secondUser@example.com">secondUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--name">
+            <div class="data-table__table-cell-content">
+              <div title="user_name">user_name</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--workspaces">
+            <div class="data-table__table-cell-content">
+              <div class="expand-overflow-list">
+                <div class="expand-overflow-list__container">
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--last_login">
+            <div class="data-table__table-cell-content">
+              <div>26-04-2021 07:50</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--date_joined">
+            <div class="data-table__table-cell-content">
+              <div>21-04-2021 12:04</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--is_active">
+            <div class="data-table__table-cell-content">
+              <div>
+                <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i> user.active</div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
+            <div class="data-table__table-cell-content">
+              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+            </div>
+          </td>
+        </tr>
+        <tr class="data-table__table-row">
+          <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
+            <div class="data-table__table-cell-content">
+              <div class="user-admin-username" column="[object Object]">
+                <div class="avatar avatar--rounded avatar--large avatar--blue user-admin-username__avatar">
+                  <!--v-if-->
+                  <!--v-if--><span class="avatar__initials">U</span>
+                </div>
+                <div class="user-admin-username__name" title="thirdUser@example.com">thirdUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--name">
+            <div class="data-table__table-cell-content">
+              <div title="user_name">user_name</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--workspaces">
+            <div class="data-table__table-cell-content">
+              <div class="expand-overflow-list">
+                <div class="expand-overflow-list__container">
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--last_login">
+            <div class="data-table__table-cell-content">
+              <div>26-04-2021 07:50</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--date_joined">
+            <div class="data-table__table-cell-content">
+              <div>21-04-2021 12:04</div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--is_active">
+            <div class="data-table__table-cell-content">
+              <div>
+                <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i> user.active</div>
+              </div>
+            </div>
+          </td>
+          <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
+            <div class="data-table__table-cell-content">
+              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="data-table__footer">
+    <div class="paginator"><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-left"></i></a>
+      <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
+    </div>
+  </div>
+</div>"
+`;

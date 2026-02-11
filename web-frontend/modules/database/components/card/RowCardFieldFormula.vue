@@ -1,10 +1,10 @@
-<template functional>
+<template>
   <component
-    :is="$options.methods.getComponent(props.field, parent.$registry)"
-    v-if="$options.methods.getComponent(props.field, parent.$registry)"
-    :row="props.row"
-    :field="props.field"
-    :value="props.value"
+    :is="componentType"
+    v-if="componentType"
+    :row="row"
+    :field="field"
+    :value="value"
   ></component>
   <div v-else class="card-text">Unknown Field Type</div>
 </template>
@@ -13,11 +13,30 @@
 export default {
   height: 22,
   name: 'RowCardFieldFormula',
-  components: {},
-  methods: {
-    getComponent(field, $registry) {
-      const formulaType = $registry.get('formula_type', field.formula_type)
-      return formulaType.getCardComponent(field)
+  props: {
+    row: {
+      type: Object,
+      required: true,
+    },
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
+  computed: {
+    componentType() {
+      if (!this.$registry) {
+        return null
+      }
+      const formulaType = this.$registry.get(
+        'formula_type',
+        this.field.formula_type
+      )
+      return formulaType.getCardComponent(this.field)
     },
   },
 }

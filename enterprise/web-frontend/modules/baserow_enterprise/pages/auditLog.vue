@@ -24,7 +24,7 @@
         <Button
           type="primary"
           size="large"
-          @click.prevent="$refs.exportModal.show()"
+          @click.prevent="exportModal?.show()"
         >
           {{ $t('auditLog.exportToCsv') }}</Button
         >
@@ -96,252 +96,270 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useStore } from 'vuex'
+import {
+  useRoute,
+  useRouter,
+  useNuxtApp,
+  createError,
+  definePageMeta,
+  useI18n,
+  useHead,
+} from '#imports'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
+
+// Components
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
-import AuditLogService from '@baserow_enterprise/services/auditLog'
 import DateFilter from '@baserow_enterprise/components/crudTable/filters/DateFilter'
 import FilterWrapper from '@baserow_enterprise/components/crudTable/filters/FilterWrapper'
+import AuditLogExportModal from '@baserow_enterprise/components/admin/modals/AuditLogExportModal'
+
+// Services & utilities
+import AuditLogService from '@baserow_enterprise/services/auditLog'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import LocalDateField from '@baserow/modules/core/components/crudTable/fields/LocalDateField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import LongTextField from '@baserow_enterprise/components/crudTable/fields/LongTextField'
-import AuditLogExportModal from '@baserow_enterprise/components/admin/modals/AuditLogExportModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 
-function initFilters(workspaceId = null) {
-  const filters = {}
-  if (workspaceId !== null) {
-    filters.workspace_id = workspaceId
-  }
-  return filters
-}
-
-export default {
-  name: 'AuditLog',
-  components: {
-    AuditLogExportModal,
-    CrudTable,
-    PaginatedDropdown,
-    DateFilter,
-    FilterWrapper,
-  },
+// Page meta
+definePageMeta({
   layout: 'app',
   middleware: 'authenticated',
-  asyncData({ app, error, route, store }) {
-    const workspaceId = route.params.workspaceId
-      ? parseInt(route.params.workspaceId)
-      : null
-    if (workspaceId) {
-      if (!app.$hasFeature(EnterpriseFeatures.AUDIT_LOG, workspaceId)) {
-        return error({
-          statusCode: 401,
-          message: 'Available in the advanced/enterprise version',
-        })
-      } else if (
-        !app.$hasPermission(
-          'workspace.list_audit_log_entries',
-          store.getters['workspace/get'](workspaceId),
-          workspaceId
-        )
-      ) {
-        return error({ statusCode: 404, message: 'Page not found' })
-      }
-    } else if (!app.$hasFeature(EnterpriseFeatures.AUDIT_LOG)) {
-      return error({
-        statusCode: 401,
-        message: 'Available in the advanced/enterprise version',
-      })
-    } else if (!store.getters['auth/isStaff']) {
-      return error({ statusCode: 403, message: 'Forbidden.' })
-    }
+})
 
-    return { workspaceId }
-  },
-  data() {
-    const params = this.$route.params
-    const workspaceId = params.workspaceId ? parseInt(params.workspaceId) : null
-    const filters = initFilters(workspaceId)
+// Composables
+const store = useStore()
+const route = useRoute()
+const router = useRouter()
+const { $client, $hasFeature, $hasPermission } = useNuxtApp()
+const { t: $t } = useI18n()
 
-    const columns = [
-      new CrudTableColumn(
-        'user',
-        () => this.$t('auditLog.user'),
-        SimpleField,
-        true,
-        false,
-        false,
-        {},
-        '15'
-      ),
-    ]
+useHead({ title: $t('auditLog.adminTitle') })
 
-    if (!workspaceId) {
-      columns.push(
-        new CrudTableColumn(
-          'workspace',
-          () => this.$t('auditLog.workspace'),
-          SimpleField,
-          true,
-          false,
-          false,
-          {},
-          '15'
-        )
-      )
-    }
+// Helper function
+function initFilters(wsId = null) {
+  const f = {}
+  if (wsId !== null) {
+    f.workspace_id = wsId
+  }
+  return f
+}
 
-    columns.push(
-      ...[
-        new CrudTableColumn(
-          'type',
-          () => this.$t('auditLog.actionType'),
-          SimpleField,
-          true,
-          false,
-          false,
-          {},
-          '10'
-        ),
-        new CrudTableColumn(
-          'description',
-          () => this.$t('auditLog.description'),
-          LongTextField,
-          false,
-          false,
-          false,
-          {},
-          '40'
-        ),
-        new CrudTableColumn(
-          'timestamp',
-          () => this.$t('auditLog.timestamp'),
-          LocalDateField,
-          true,
-          false,
-          false,
-          { dateTimeFormat: 'L LTS' },
-          '10'
-        ),
-        new CrudTableColumn(
-          'ip_address',
-          () => this.$t('auditLog.ip_address'),
-          SimpleField,
-          true,
-          false,
-          false,
-          {},
-          '10'
-        ),
-      ]
+// Parse workspaceId from route
+const workspaceId = route.params.workspaceId
+  ? parseInt(route.params.workspaceId)
+  : null
+
+// Permission checks (equivalent to asyncData)
+if (workspaceId) {
+  if (!$hasFeature(EnterpriseFeatures.AUDIT_LOG, workspaceId)) {
+    throw createError({
+      statusCode: 401,
+      message: 'Available in the advanced/enterprise version',
+    })
+  } else if (
+    !$hasPermission(
+      'workspace.list_audit_log_entries',
+      store.getters['workspace/get'](workspaceId),
+      workspaceId
     )
+  ) {
+    throw createError({ statusCode: 404, message: 'Page not found' })
+  }
+} else if (!$hasFeature(EnterpriseFeatures.AUDIT_LOG)) {
+  throw createError({
+    statusCode: 401,
+    message: 'Available in the advanced/enterprise version',
+  })
+} else if (!store.getters['auth/isStaff']) {
+  throw createError({ statusCode: 403, message: 'Forbidden.' })
+}
 
-    this.columns = columns
-    this.service = AuditLogService(this.$client)
+// Template refs
+const exportModal = ref(null)
+const userFilter = ref(null)
+const workspaceFilter = ref(null)
+const typeFilter = ref(null)
+const fromTimestampFilter = ref(null)
+const toTimestampFilter = ref(null)
 
-    return {
-      filters,
-      dateTimeFormat: 'YYYY-MM-DDTHH:mm:ss.SSSZ',
+// Reactive state
+const filters = ref(initFilters(workspaceId))
+const dateTimeFormat = 'YYYY-MM-DDTHH:mm:ss.SSSZ'
+
+// Build columns
+const columns = [
+  new CrudTableColumn(
+    'user',
+    () => $t('auditLog.user'),
+    SimpleField,
+    true,
+    false,
+    false,
+    {},
+    '15'
+  ),
+]
+
+if (!workspaceId) {
+  columns.push(
+    new CrudTableColumn(
+      'workspace',
+      () => $t('auditLog.workspace'),
+      SimpleField,
+      true,
+      false,
+      false,
+      {},
+      '15'
+    )
+  )
+}
+
+columns.push(
+  new CrudTableColumn(
+    'type',
+    () => $t('auditLog.actionType'),
+    SimpleField,
+    true,
+    false,
+    false,
+    {},
+    '10'
+  ),
+  new CrudTableColumn(
+    'description',
+    () => $t('auditLog.description'),
+    LongTextField,
+    false,
+    false,
+    false,
+    {},
+    '40'
+  ),
+  new CrudTableColumn(
+    'timestamp',
+    () => $t('auditLog.timestamp'),
+    LocalDateField,
+    true,
+    false,
+    false,
+    { dateTimeFormat: 'L LTS' },
+    '10'
+  ),
+  new CrudTableColumn(
+    'ip_address',
+    () => $t('auditLog.ip_address'),
+    SimpleField,
+    true,
+    false,
+    false,
+    {},
+    '10'
+  )
+)
+
+// Service
+const service = AuditLogService($client)
+
+// Computed
+const workspaceName = computed(() => {
+  const ws = store.getters['workspace/get'](workspaceId)
+  return ws ? ws.name : ''
+})
+
+const disableDates = computed(() => {
+  const minimumDate = moment('2023-01-01', 'YYYY-MM-DD')
+  const maximumDate = moment().add(1, 'day').endOf('day')
+  return {
+    to: minimumDate.toDate(),
+    from: maximumDate.toDate(),
+  }
+})
+
+const selectedWorkspaceId = computed(() => {
+  const selected = store.getters['workspace/getSelected']
+  return selected?.id || null
+})
+
+// Watch
+watch(selectedWorkspaceId, (newValue, oldValue) => {
+  if (newValue !== oldValue && workspaceId) {
+    router.push({
+      name: newValue ? 'workspace-audit-log' : 'dashboard',
+      params: { workspaceId: newValue },
+    })
+  }
+})
+
+// Methods
+function setFilter(key, value) {
+  if (value == null) {
+    if (filters.value[key] !== undefined) {
+      filters.value = _.pickBy(filters.value, (v, k) => k !== key)
     }
-  },
-  computed: {
-    workspaceName() {
-      const selectedWorkspace = this.$store.getters['workspace/get'](
-        this.workspaceId
-      )
-      return selectedWorkspace ? selectedWorkspace.name : ''
-    },
-    disableDates() {
-      const minimumDate = moment('2023-01-01', 'YYYY-MM-DD')
-      const maximumDate = moment().add(1, 'day').endOf('day')
-      return {
-        to: minimumDate.toDate(),
-        from: maximumDate.toDate(),
-      }
-    },
-    selectedWorkspaceId() {
-      try {
-        return this.$store.getters['workspace/selectedId']
-      } catch (e) {
-        return null
-      }
-    },
-  },
-  watch: {
-    selectedWorkspaceId(newValue, oldValue) {
-      if (newValue !== oldValue && this.workspaceId) {
-        this.$router.push({
-          name: newValue ? 'workspace-audit-log' : 'dashboard',
-          params: { workspaceId: newValue },
-        })
-      }
-    },
-  },
-  methods: {
-    clearFilters() {
-      for (const filterRef of [
-        'userFilter',
-        'workspaceFilter',
-        'typeFilter',
-        'fromTimestampFilter',
-        'toTimestampFilter',
-      ]) {
-        this.$refs[filterRef]?.clear()
-      }
-      this.filters = initFilters(this.workspaceId)
-    },
-    setFilter(key, value) {
-      // Remove or add the filter reactively.
-      if (value == null) {
-        if (this.filters[key] !== undefined) {
-          this.filters = _.pickBy(this.filters, (v, k) => {
-            return key !== k
-          })
-        }
-      } else {
-        this.filters = { ...this.filters, [key]: value }
-      }
-    },
-    filterUser(userId) {
-      this.setFilter('user_id', userId)
-    },
-    fetchUsers(page, search) {
-      return this.service.fetchUsers(page, search, this.workspaceId)
-    },
-    filterWorkspace(workspaceId) {
-      this.setFilter('workspace_id', workspaceId)
-    },
-    fetchWorkspaces(page, search) {
-      return this.service.fetchWorkspaces(page, search)
-    },
-    fetchActionTypes(page, search) {
-      return this.service.fetchActionTypes(page, search, this.workspaceId)
-    },
-    filterActionType(actionTypeId) {
-      this.setFilter('action_type', actionTypeId)
-    },
-    filterFromTimestamp(fromTimestamp) {
-      if (fromTimestamp && moment(fromTimestamp).isValid()) {
-        this.setFilter(
-          'from_timestamp',
-          moment(fromTimestamp).startOf('day').format(this.dateTimeFormat)
-        )
-      } else if (!fromTimestamp) {
-        this.setFilter('from_timestamp', null)
-      }
-    },
-    filterToTimestamp(toTimestamp) {
-      if (toTimestamp && moment(toTimestamp).isValid()) {
-        this.setFilter(
-          'to_timestamp',
-          moment(toTimestamp).endOf('day').format(this.dateTimeFormat)
-        )
-      } else if (!toTimestamp) {
-        this.setFilter('to_timestamp', null)
-      }
-    },
-  },
+  } else {
+    filters.value = { ...filters.value, [key]: value }
+  }
+}
+
+function clearFilters() {
+  userFilter.value?.clear()
+  workspaceFilter.value?.clear()
+  typeFilter.value?.clear()
+  fromTimestampFilter.value?.clear()
+  toTimestampFilter.value?.clear()
+  filters.value = initFilters(workspaceId)
+}
+
+function filterUser(userId) {
+  setFilter('user_id', userId)
+}
+
+function fetchUsers(page, search) {
+  return service.fetchUsers(page, search, workspaceId)
+}
+
+function filterWorkspace(wsId) {
+  setFilter('workspace_id', wsId)
+}
+
+function fetchWorkspaces(page, search) {
+  return service.fetchWorkspaces(page, search)
+}
+
+function fetchActionTypes(page, search) {
+  return service.fetchActionTypes(page, search, workspaceId)
+}
+
+function filterActionType(actionTypeId) {
+  setFilter('action_type', actionTypeId)
+}
+
+function filterFromTimestamp(fromTimestamp) {
+  if (fromTimestamp && moment(fromTimestamp).isValid()) {
+    setFilter(
+      'from_timestamp',
+      moment(fromTimestamp).startOf('day').format(dateTimeFormat)
+    )
+  } else if (!fromTimestamp) {
+    setFilter('from_timestamp', null)
+  }
+}
+
+function filterToTimestamp(toTimestamp) {
+  if (toTimestamp && moment(toTimestamp).isValid()) {
+    setFilter(
+      'to_timestamp',
+      moment(toTimestamp).endOf('day').format(dateTimeFormat)
+    )
+  } else if (!toTimestamp) {
+    setFilter('to_timestamp', null)
+  }
 }
 </script>

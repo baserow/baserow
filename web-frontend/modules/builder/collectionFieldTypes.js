@@ -84,7 +84,7 @@ export class BooleanCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.boolean')
+    return this.app.$i18n.t('collectionFieldType.boolean')
   }
 
   get component() {
@@ -105,7 +105,7 @@ export class BooleanCollectionFieldType extends CollectionFieldType {
 
   getErrorMessage({ field, element, builder }) {
     if (!field.value) {
-      return this.app.i18n.t('collectionFieldType.errorValueMissing')
+      return this.app.$i18n.t('collectionFieldType.errorValueMissing')
     }
     return super.getErrorMessage({ field, element, builder })
   }
@@ -121,7 +121,7 @@ export class TextCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.text')
+    return this.app.$i18n.t('collectionFieldType.text')
   }
 
   get component() {
@@ -134,7 +134,7 @@ export class TextCollectionFieldType extends CollectionFieldType {
 
   getErrorMessage({ field, element, builder }) {
     if (!field.value) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({ field, element, builder })
   }
@@ -154,7 +154,7 @@ export class LinkCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.link')
+    return this.app.$i18n.t('collectionFieldType.link')
   }
 
   get component() {
@@ -181,7 +181,7 @@ export class LinkCollectionFieldType extends CollectionFieldType {
         url: resolveElementUrl(
           field,
           builder,
-          this.app.store.getters['page/getVisiblePages'](builder),
+          this.app.$store.getters['page/getVisiblePages'](builder),
           resolveFormula,
           mode
         ),
@@ -203,18 +203,18 @@ export class LinkCollectionFieldType extends CollectionFieldType {
   getErrorMessage({ field, element, builder }) {
     if (field.navigation_type === 'page') {
       if (!field.navigate_to_page_id) {
-        return this.app.i18n.t('elementType.errorNavigateToPageMissing')
+        return this.app.$i18n.t('elementType.errorNavigateToPageMissing')
       }
       if (
         pathParametersInError(
           field,
-          this.app.store.getters['page/getVisiblePages'](builder)
+          this.app.$store.getters['page/getVisiblePages'](builder)
         )
       ) {
-        return this.app.i18n.t('elementType.errorPageParameterInError')
+        return this.app.$i18n.t('elementType.errorPageParameterInError')
       }
     } else if (field.navigation_type === 'custom' && !field.navigate_to_url) {
-      return this.app.i18n.t('elementType.errorNavigationUrlMissing')
+      return this.app.$i18n.t('elementType.errorNavigationUrlMissing')
     }
 
     return super.getErrorMessage({ field, element, builder })
@@ -227,7 +227,7 @@ export class TagsCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.tags')
+    return this.app.$i18n.t('collectionFieldType.tags')
   }
 
   get component() {
@@ -240,7 +240,7 @@ export class TagsCollectionFieldType extends CollectionFieldType {
 
   getErrorMessage({ field, element, builder }) {
     if (!field.values) {
-      return this.app.i18n.t('elementType.errorValueMissing')
+      return this.app.$i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({ field, element, builder })
   }
@@ -268,7 +268,7 @@ export class ButtonCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.button')
+    return this.app.$i18n.t('collectionFieldType.button')
   }
 
   get component() {
@@ -294,7 +294,7 @@ export class ImageCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.image')
+    return this.app.$i18n.t('collectionFieldType.image')
   }
 
   get component() {
@@ -307,7 +307,7 @@ export class ImageCollectionFieldType extends CollectionFieldType {
 
   getErrorMessage({ field, element, builder }) {
     if (!field.src) {
-      return this.app.i18n.t('elementType.errorImageUrlMissing')
+      return this.app.$i18n.t('elementType.errorImageUrlMissing')
     }
     return super.getErrorMessage({ field, element, builder })
   }
@@ -329,7 +329,7 @@ export class RatingCollectionFieldType extends CollectionFieldType {
   }
 
   get name() {
-    return this.app.i18n.t('collectionFieldType.rating')
+    return this.app.$i18n.t('collectionFieldType.rating')
   }
 
   get component() {
@@ -342,7 +342,7 @@ export class RatingCollectionFieldType extends CollectionFieldType {
 
   getErrorMessage({ field, element, builder }) {
     if (!field.value) {
-      return this.app.i18n.t('collectionFieldType.errorValueMissing')
+      return this.app.$i18n.t('collectionFieldType.errorValueMissing')
     }
     return super.getErrorMessage({ field, element, builder })
   }

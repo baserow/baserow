@@ -30,7 +30,7 @@ images:
 * `baserow/backend:2.0.6` (default command is `gunicorn`)
 * `baserow/backend:2.0.6` with command `celery-worker`
 * `baserow/backend:2.0.6` with command `celery-export-worker`
-* `baserow/web-frontend:2.0.6` (default command is `nuxt-local`)
+* `baserow/web-frontend:2.0.6` (default command is `nuxt-prod`)
 * A postgres database 
 * A redis server
 

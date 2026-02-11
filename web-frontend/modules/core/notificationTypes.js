@@ -5,7 +5,7 @@ import WorkspaceInvitationAcceptedNotification from '@baserow/modules/core/compo
 import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification'
 import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
-import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg'
+import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
 export class NotificationType extends Registerable {
   getIconComponent() {
@@ -43,6 +43,10 @@ export class WorkspaceInvitationCreatedNotificationType extends NotificationType
 
   getContentComponent() {
     return WorkspaceInvitationCreatedNotification
+  }
+
+  getRoute(notificationData) {
+    return { name: 'dashboard' }
   }
 }
 

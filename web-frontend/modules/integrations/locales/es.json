@@ -16,7 +16,11 @@
         "searchFieldPlaceHolder": "Introduce un término de búsqueda...",
         "noTableChosenForFiltering": "Elige una tabla para empezar a utilizar los filtros de fuentes de datos.",
         "sortTabTitle": "Ordenar",
-        "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos."
+        "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
+        "advancedConfig": "Avanzado",
+        "defaultResultCount": "Cantidad de resultados predeterminada",
+        "defaultResultCountHelp": "El número predeterminado de registros que esta fuente de datos obtendrá en tu página. Si estableces el valor en 0 y lo utilizas en un elemento de colección, mejorarás el rendimiento al cargar la página porque sólo se recuperarán los registros cuando el elemento se pagine.",
+        "defaultResultCountPlaceholder": "Valor predeterminado…"
     },
     "localBaserowTableServiceConditionalForm": {
         "addFilter": "Añadir filtro adicional",
@@ -24,11 +28,12 @@
         "filterTypeNotFound": "El tipo de filtro no es compatible.",
         "noCompatibleFilterTypesErrorTitle": "No hay tipos de filtro compatibles",
         "noCompatibleFilterTypesErrorMessage": "Ninguno de tus campos tiene ningún tipo de filtro compatible",
-        "formulaFilterInputPlaceholder": "Introducir texto...",
+        "formulaFilterInputPlaceholder": "Elige una fórmula…",
         "useFormulaForValue": "Utiliza una fórmula para este filtro",
         "noFilterTitle": "Aún no has creado un filtro de fuente de datos",
         "noFilterText": "Los filtros de fuente de datos le permiten mostrar las filas de la tabla Baserow que se aplican a tus condiciones.",
-        "useDefaultForValue": "Utiliza el filtro por defecto para este campo"
+        "useDefaultForValue": "Utiliza el filtro por defecto para este campo",
+        "textFilterInputPlaceholder": "Escribe el texto…"
     },
     "localBaserowTableServiceSortForm": {
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
@@ -36,39 +41,98 @@
         "noSortTitle": "Aún no has creado un tipo de fuente de datos",
         "sortBy": "Ordenar por",
         "thenBy": "Luego por",
-        "addSort": "Añadir ordenación adicional"
+        "addSort": "Añadir ordenación adicional",
+        "sortMisconfigured": "El campo con el que está asociado este orden ha sido enviado a la papelera."
     },
     "dataProviderType": {
-        "dataSource": "Origen de los datos",
+        "dataSource": "Fuente de datos",
         "pageParameter": "Parámetro"
     },
     "localBaserowTableSelector": {
         "chooseNoView": "No seleccionado",
         "viewFieldLabel": "Vista",
         "tableFieldLabel": "Tabla",
-        "databaseFieldLabel": "Base de datos"
+        "databaseFieldLabel": "Base de datos",
+        "dataSyncedTableDescription": "Tabla sincronizada de dato"
     },
     "integrationType": {
         "localBaserow": "Baserow local",
         "localBaserowSummary": "Baserow local - {name}, {username}",
-        "localBaserowWarning": "Autorizar su cuenta les otorga a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que usted tiene acceso. Es posible crear un segundo usuario, otorgarle los permisos correctos y usarlo."
+        "localBaserowWarning": "Autorizar su cuenta les otorga a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que usted tiene acceso. Es posible crear un segundo usuario, otorgarle los permisos correctos y usarlo.",
+        "smtp": "Correo electrónico SMTP",
+        "slackBot": "Bot de Slack",
+        "ai": "IA"
     },
     "serviceType": {
         "localBaserowGetRow": "Obtener una sola fila",
         "localBaserowListRows": "Enumerar varias filas",
-        "localBaserowAggregateRows": "Resumir campo"
+        "localBaserowAggregateRows": "Resumir campo",
+        "localBaserowGetRowDescription": "Leer una única fila de una tabla de Baserow.",
+        "localBaserowListRowsDescription": "Lee varias filas de una tabla de Baserow.",
+        "localBaserowAggregateRowsDescription": "Resume un campo de una tabla de Baserow.",
+        "localBaserowCreateRow": "Crea una fila",
+        "localBaserowCreateRowDescription": "Crea una fila nueva en una tabla de Baserow.",
+        "localBaserowUpdateRow": "Actualiza una fila",
+        "localBaserowUpdateRowDescription": "Actualiza una fila existente en una tabla de Baserow.",
+        "localBaserowDeleteRow": "Elimina una fila",
+        "localBaserowDeleteRowDescription": "Elimina una fila en una tabla de Baserow.",
+        "localBaserowRowsCreated": "Se crean filas",
+        "localBaserowRowsCreatedDescription": "Se activa cuando se crean filas en una tabla de Baserow.",
+        "localBaserowRowsUpdated": "Se actualizan filas",
+        "localBaserowRowsUpdatedDescription": "Se activa cuando se actualizan filas en una tabla de Baserow.",
+        "localBaserowRowsDeleted": "Se eliminan filas",
+        "localBaserowRowsDeletedDescription": "Se activa cuando se eliminan filas en una tabla de Baserow.",
+        "coreHTTPTrigger": "Recibe una solicitud HTTP",
+        "coreHTTPTriggerDescription": "Se activa cuando se recibe una solicitud HTTP.",
+        "coreHTTPRequest": "Envía una solicitud HTTP",
+        "coreHTTPRequestDescription": "Envía una solicitud HTTP a un punto final especificado.",
+        "coreSMTPEmail": "Envía un correo electrónico",
+        "coreRouter": "Enrutador",
+        "coreRouterEdgesRequired": "Se requiere al menos un borde",
+        "coreRouterEdgeLabelRequired": "Se requiere una etiqueta de rama.",
+        "coreRouterEdgeConditionRequired": "Se requiere una condición de rama.",
+        "coreRouterDescription": "Dirige el flujo de trabajo a la siguiente rama basándote en una condición.",
+        "coreSMTPEmailDescription": "Envía un correo electrónico usando la configuración SMTP.",
+        "coreIteration": "Iterador",
+        "coreIterationDescription": "Itera sobre los elementos.",
+        "errorFromEmailMissing": "No se ha especificado la dirección del Remitente del correo",
+        "errorToEmailsMissing": "No se ha especificado la dirección del Destinatario del correo",
+        "misconfigured": "Configurado incorrectamente",
+        "trashedField": "Campo eliminado",
+        "errorUrlMissing": "No se ha especificado la Url",
+        "errorNoTableSelected": "No se ha seleccionado una tabla",
+        "errorFilterInError": "Al menos un filtro está mal configurado",
+        "errorSortingInError": "Al menos uno de los criterios de ordenación está mal configurado",
+        "errorNoFieldSelected": "No se ha seleccionado un campo",
+        "errorNoAggregationTypeSelected": "No se ha seleccionado un tipo de agregación",
+        "corePeriodic": "Disparador periódico",
+        "corePeriodicDescription": "Dispara el flujo de trabajo de forma periódica en intervalos especificados",
+        "corePeriodicErrorIntervalMissing": "Se requiere un intervalo.",
+        "errorIterationSourceMissing": "No se ha especificado la propiedad de origen",
+        "aiAgent": "Solicitud de IA",
+        "aiAgentDescription": "Ejecuta las solicitudes de IA usando los modelos generativos de IA configurados.",
+        "errorNoIntegrationSelected": "No se ha seleccionado una integración",
+        "errorNoAIProviderSelected": "No se ha seleccionado un proveedor de IA",
+        "errorNoAIModelSelected": "No se ha seleccionado un modelo de IA",
+        "errorNoPromptProvided": "No has proporcionado una solicitud de IA",
+        "errorNoChoicesProvided": "No se ha proporcionado opciones para el tipo de salida de elección",
+        "slackWriteMessage": "Envía un mensaje de Slack",
+        "slackWriteMessageDescription": "Envías un mensaje a un #canal específico de Slack",
+        "slackWriteMessageMissingChannel": "Se requiere un canal.",
+        "slackWriteMessageMissingMessage": "Se requiere un mensaje.",
+        "slackWriteMessageMissingIntegration": "No se ha seleccionado una integración de Slack."
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
     },
     "localBaserowForm": {
         "user": "Usuario",
-        "userMessage": "Al crear esta conexión, está autorizando a la aplicación a utilizar su cuenta para realizar cambios en su espacio de trabajo local Baserow."
+        "userMessage": "Al crear esta conexión, estás autorizando a la aplicación a usar tu cuenta para realizar cambios en tu espacio de trabajo local de Baserow."
     },
     "localBaserowIntegrationType": {
         "localBaserowNoUser": "Baserow local - No configurado",
         "localBaserowSummary": "Baserow local - {name}, {username}",
-        "localBaserowWarning": "Autorizar tu cuenta da a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que tú tienes acceso. Es posible crear un segundo usuario, darle los permisos adecuados y utilizarlo."
+        "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario."
     },
     "integrationsCommon": {
         "singleRow": "una sola fila",
@@ -81,5 +145,178 @@
         "noTableChosenForFiltering": "Seleccione una tabla para comenzar a utilizar filtros de fuente de datos.",
         "filterTabTitle": "Filtros",
         "searchFieldPlaceHolder": "Introduzca un término de búsqueda..."
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "Bot de Slack",
+        "slackBotNoToken": "Bot de Slack – No configurado"
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "Configuración heredada de IA del espacio de trabajo",
+        "overridingProviders": "Sobrescribiendo {count} proveedor|Sobrescribiendo {count} proveedores"
+    },
+    "aiForm": {
+        "description": "Configura los ajustes del proveedor de IA para esta integración. Por defecto, se heredan los ajustes de IA del espacio de trabajo.",
+        "workspaceSettingsTitle": "Ajustes de IA del espacio de trabajo",
+        "workspaceSettingsDescription": "Esta integración hereda los ajustes del proveedor de IA de tu espacio de trabajo por defecto. Puedes reemplazar los proveedores específicos a continuación.",
+        "overrideWorkspaceSettings": "Sobrescribe la configuración del espacio de trabajo para este proveedor",
+        "inherited": "Heredado",
+        "overridden": "Sobrescrito"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "Integración",
+        "providerLabel": "Proveedor de IA",
+        "providerPlaceholder": "Selecciona un proveedor de IA…",
+        "modelLabel": "Modelo de IA",
+        "modelPlaceholder": "Selecciona un modelo…",
+        "outputTypeLabel": "Tipo de salida",
+        "outputTypeHelp": "Elige cómo debe formatear la IA su respuesta. Si defines opciones, obligas al modelo a responder únicamente con una de esas opciones.",
+        "outputTypeText": "Texto",
+        "outputTypeChoice": "Elección",
+        "temperatureLabel": "Temperatura",
+        "temperaturePlaceholder": "ej. 0.7",
+        "temperatureHelp": "Controla la aleatoriedad. Los valores bajos (0‑0.3) son más centrados y deterministas. Los valores altos (0.7‑2.0) son más creativos y variados.",
+        "promptLabel": "Solicitud",
+        "promptPlaceholder": "Introduce tu solicitud aquí…",
+        "choicesLabel": "Opciones",
+        "choicePlaceholder": "Introduce una opción de elección aquí…",
+        "addChoice": "Añade una opción",
+        "choicesRequired": "Al menos se requiere una opción"
+    },
+    "serviceRefinementForms": {
+        "filterTabTitle": "Filtrar | 1 Filtro | {count} Filtros",
+        "sortTabTitle": "Ordenar | 1 Orden | {count} Ordenamientos",
+        "searchTabTitle": "Buscar | 1 Búsqueda | {count} Búsquedas",
+        "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
+        "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
+        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
+        "refinements": "Configuración detallada"
+    },
+    "slackBotForm": {
+        "supportSetupDescription": "Según la configuración de tu espacio de trabajo de Slack, es posible que puedas crear una nueva aplicación de Slack. De lo contrario, un administrador tendrá que hacerlo por ti. Si estás reutilizando una aplicación existente que pueda escribir mensajes, pasa a la sección titulada «Emparejamiento con tu aplicación de Slack».",
+        "tokenLabel": "Token de usuario bot",
+        "tokenPlaceholder": "xoxb‑1234‑…",
+        "tokenMustStartWith": "El token debe comenzar con «xoxb-»",
+        "supportHeading": "¿Necesitas ayuda?",
+        "supportDescription": "Si necesitas cualquier asistencia para conectar tu aplicación Slack, por favor consulta los pasos a continuación.",
+        "supportSetupHeading": "1. Configuración de la aplicación",
+        "supportSetupStep1": "Navega a la &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;página de aplicaciones&lt;/a&gt; de tu espacio de trabajo.",
+        "supportSetupStep2": "Crea una nueva aplicación, elige «Desde cero» e ingresa un nombre. Selecciona el espacio de trabajo en el que tu aplicación debe operar y haz clic en «Crear».",
+        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth y Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
+        "supportSetupStep4": "Para permitir que tu aplicación publique mensajes, añade el alcance &lt;pre&gt;chat:write&lt;/pre&gt;.",
+        "supportPairingHeading": "2. Conexión de tu aplicación Slack",
+        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
+        "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
+        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con &lt;pre&gt;/invite {'@'}nombreDeTuApp nombreDeTuCanal&lt;/pre&gt;"
+    },
+    "coreHTTPRequestServiceForm": {
+        "httpMethod": "Método HTTP",
+        "url": "URL del destino (API endpoint)",
+        "queryParams": "Parámetros de consulta",
+        "name": "Nombre",
+        "value": "Valor",
+        "namePlaceholder": "Nombre...",
+        "valuePlaceholder": "Valor...",
+        "headers": "Encabezados",
+        "addQueryParam": "añadir parámetro de consulta",
+        "addHeader": "añadir encabezado",
+        "formData": "Datos del formulario",
+        "addFormData": "añadir datos del formulario",
+        "bodyType": "Tipo de cuerpo",
+        "bodyContent": "Contenido del cuerpo",
+        "urlPlaceholder": "Introducir la URL del destino (API endpoint)…",
+        "bodyPlaceholder": "Añadir cuerpo de la solicitud…",
+        "timeoutPlaceholder": "Introducir tiempo de espera (API timeout)…",
+        "nameFieldRequired": "La propiedad «nombre» es obligatoria.",
+        "seconds": "segundos",
+        "nameFieldInvalid": "El nombre debe contener sólo caracteres alfanuméricos, guiones o guiones bajos, y no debe comenzar con un guión ni con un guión bajo.",
+        "timeout": "Tiempo de espera"
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "Esta acción debe estar emparejada con una aplicación de Slack. Por favor, sigue la guía en la ventana emergente de integraciones para comenzar.",
+        "integrationLabel": "Integración",
+        "channelLabel": "Canal",
+        "channelPlaceholder": "Introducir un nombre de canal",
+        "messageLabel": "Mensaje",
+        "messagePlaceholder": "Escribe un mensaje…",
+        "channelNoPrefix": "Elimina el ‘#’ antes del nombre del canal."
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP - {host}:{port}"
+    },
+    "smtpForm": {
+        "host": "Servidor SMTP",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "Puerto SMTP",
+        "portPlaceholder": "587",
+        "useTls": "Usar TLS",
+        "username": "Nombre de usuario",
+        "usernamePlaceholder": "tu-correo{'@'}ejemplo.com",
+        "password": "Contraseña",
+        "passwordPlaceholder": "tu-contraseña"
+    },
+    "smtpEmailForm": {
+        "integrationDropdownLabel": "Integración",
+        "fromEmail": "Dirección del remitente (From)",
+        "fromEmailPlaceholder": "remitente{'@'}ejemplo.com",
+        "fromName": "Nombre del remitente",
+        "fromNamePlaceholder": "Tu nombre",
+        "toEmails": "Dirección de los destinatarios (To)",
+        "toEmailsPlaceholder": "destinatario1{'@'}ejemplo.com, destinatario2{'@'}ejemplo.com",
+        "ccEmails": "Correos en copia (CC)",
+        "bccEmails": "Correos en copia oculta (BCC)",
+        "ccEmailsPlaceholder": "destinatarioencopia1{'@'}ejemplo.com, destinatarioencopia2{'@'}ejemplo.com",
+        "bccEmailsPlaceholder": "destinatarioencopiaoculta1{'@'}ejemplo.com, destinatarioencopiaoculta2{'@'}ejemplo.com",
+        "subject": "Asunto",
+        "subjectPlaceholder": "Asunto del mensaje de correo",
+        "bodyType": "Tipo de contenido",
+        "bodyTypePlain": "Texto plano",
+        "bodyTypeHtml": "HTML",
+        "body": "Contenido",
+        "bodyPlaceholder": "Tu contenido de correo…"
+    },
+    "routerForm": {
+        "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada",
+        "defaultEdgeLabelPlaceholder": "Predeterminado",
+        "defaultEdgeLabelDescription": "Opcionalmente elige la etiqueta para mostrar en la rama predeterminada.",
+        "branchesHeading": "Ramas",
+        "branchesDescription": "Las ramas te permiten ejecutar nodos solo cuando se cumple una condición. Las ramas se ejecutan de izquierda a derecha hasta que se cumpla una condición; de lo contrario, se ejecutará la rama predeterminada. ",
+        "branchLabel": "Etiqueta",
+        "branchConditionLabel": "Condición",
+        "branchConditionPlaceholder": "Introduce una condición…",
+        "addEdge": "Añadir rama",
+        "edgeDefaultName": "Rama",
+        "noLabel": "Sin etiqueta",
+        "edgeDeletionLastEdge": "No puedes eliminar la última rama.",
+        "edgeDeletionHasOutput": "No se puede eliminar una rama si tiene una salida."
+    },
+    "coreIterationServiceForm": {
+        "source": "Fuente",
+        "sourcePlaceholder": "Selecciona una fuente…"
+    },
+    "periodicForm": {
+        "intervalLabel": "Intervalo",
+        "intervalHelper": "Elige con qué frecuencia quieres que este flujo de trabajo se ejecute",
+        "everyMinute": "Cada {minute} minutos",
+        "everyMinuteDefault": "Cada minutos especificados",
+        "everyHour": "Cada hora",
+        "everyDay": "Cada día",
+        "everyWeek": "Cada semana",
+        "everyMonth": "Cada mes",
+        "hour": "Hora",
+        "minute": "Minuto",
+        "minuteFrequency": "Cada minutos",
+        "dayOfWeek": "Día de la semana",
+        "dayOfMonth": "Día del mes",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "minuteFrequencyPlaceholder": "15",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Este flujo de trabajo se ejecutará cada minutos especificados",
+        "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado en tu zona horaria local ({timezone})",
+        "dayHelper": "Este flujo de trabajo se ejecutará todos los días a la hora especificada en tu zona horaria local ({timezone})",
+        "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados en tu zona horaria local ({timezone})",
+        "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y la hora especificados en tu zona horaria local ({timezone})",
+        "deactivatedTitle": "Disparador periódico desactivado",
+        "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos."
     }
 }

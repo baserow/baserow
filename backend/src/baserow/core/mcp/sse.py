@@ -33,22 +33,16 @@ See SseServerTransport class documentation for more details.
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
-import anyio
-import mcp.types as types
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from channels.layers import get_channel_layer
-from mcp.shared.message import SessionMessage
 from pydantic import ValidationError
-from sse_starlette import EventSourceResponse
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.types import Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from starlette.types import Receive, Scope, Send
 
 
 class DjangoChannelsSseServerTransport:
@@ -73,7 +67,17 @@ class DjangoChannelsSseServerTransport:
         )
 
     @asynccontextmanager
-    async def connect_sse(self, scope: Scope, receive: Receive, send: Send):
+    async def connect_sse(self, scope: "Scope", receive: "Receive", send: "Send"):
+        import anyio
+        import mcp.types as types
+        from anyio.streams.memory import (
+            MemoryObjectReceiveStream,
+            MemoryObjectSendStream,
+        )
+        from channels.layers import get_channel_layer
+        from mcp.shared.message import SessionMessage
+        from sse_starlette import EventSourceResponse
+
         if scope["type"] != "http":
             logger.error("connect_sse received non-HTTP request")
             raise ValueError("connect_sse can only handle HTTP requests")
@@ -156,8 +160,14 @@ class DjangoChannelsSseServerTransport:
             yield (read_stream, write_stream)
 
     async def handle_post_message(
-        self, scope: Scope, receive: Receive, send: Send
+        self, scope: "Scope", receive: "Receive", send: "Send"
     ) -> None:
+        import mcp.types as types
+        from channels.layers import get_channel_layer
+        from mcp.shared.message import SessionMessage
+        from starlette.requests import Request
+        from starlette.responses import Response
+
         logger.debug("Handling POST message")
         request = Request(scope, receive)
 

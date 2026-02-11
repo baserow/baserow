@@ -2,6 +2,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import { DecoratorValueProviderType } from '@baserow/modules/database/decoratorValueProviders'
 import { ViewDecoratorType } from '@baserow/modules/database/viewDecorators'
+import { h } from 'vue'
 
 export class FakeDecoratorType extends ViewDecoratorType {
   static getType() {
@@ -17,14 +18,7 @@ export class FakeDecoratorType extends ViewDecoratorType {
   }
 
   getComponent() {
-    const component = {
-      functional: true,
-
-      render(h, ctx) {
-        return h('div', `fake_decoration: ${ctx.props.value}`)
-      },
-    }
-    return component
+    return (props) => h('div', `fake_decoration: ${props.value}`)
   }
 }
 
@@ -37,15 +31,8 @@ export class FakeValueProviderType extends DecoratorValueProviderType {
     return 'fake_value'
   }
 
-  getFormComponent() {
-    const component = {
-      functional: true,
-
-      render(h) {
-        return h('div', 'fake_value_provider_form')
-      },
-    }
-    return component
+  getComponent() {
+    return () => h('div', `fake_value_provider_form`)
   }
 }
 
@@ -95,28 +82,39 @@ describe('GridView component with decoration', () => {
   let mockServer = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
     mockServer = testApp.mockServer
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
     // Clean up potentially registered stuff
     try {
       store.$registry.unregister('viewDecorator', 'fake_decorator')
-    } catch {}
+    } catch {
+      /* empty */
+    }
     try {
       store.$registry.unregister(
         'decoratorValueProvider',
         'fake_value_provider_type'
       )
-    } catch {}
+    } catch {
+      /* empty */
+    }
   })
 
-  const mountComponent = (props, slots = {}) => {
-    return testApp.mount(GridView, { propsData: props, slots })
+  const mountComponent = async (props, slots = {}) => {
+    const attachTo = document.body
+    const result = await testApp.mount(GridView, {
+      attachTo,
+      props,
+      slots,
+    })
+    await nextTick()
+    return result
   }
 
   const populateStore = async (decorations) => {
@@ -192,18 +190,17 @@ describe('GridView component with decoration', () => {
 
     fakeDecorator.getPlace = () => 'wrapper'
     fakeDecorator.getComponent = () => {
-      const component = {
-        functional: true,
-
-        render(h, ctx) {
-          return h(
-            'div',
-            { class: { 'test-wrapper': true } },
-            ctx.slots().default
-          )
+      return {
+        name: 'FakeDecorator',
+        setup(_, { slots }) {
+          return () =>
+            h(
+              'div',
+              { class: 'test-wrapper' },
+              slots.default ? slots.default() : []
+            )
         },
       }
-      return component
     }
 
     store.$registry.register('viewDecorator', fakeDecorator)

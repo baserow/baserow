@@ -5,13 +5,13 @@ from django.contrib.auth.models import AbstractUser
 
 # noinspection PyUnresolvedReferences
 import pytest
+
+from baserow.core.cache import local_cache
+from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401
 from baserow_premium.license.license_types import PremiumLicenseType
 from baserow_premium.license.plugin import LicensePlugin
 from baserow_premium.license.registries import LicenseType, license_type_registry
 from baserow_premium.plugins import PremiumPlugin
-
-from baserow.core.cache import local_cache
-from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401
 
 
 @pytest.fixture

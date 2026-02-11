@@ -147,6 +147,7 @@ export default {
       default: '',
     },
   },
+  emits: ['hide'],
   data() {
     return {
       // Indicates if we're loading new rows.
@@ -247,7 +248,9 @@ export default {
           this.persistentFieldOptionsKey,
           value
         )
-      } catch (error) {}
+      } catch (error) {
+        /* empty */
+      }
     },
   },
   async mounted() {
@@ -277,7 +280,7 @@ export default {
       this.focusSearch
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.focusSearch)
   },
   methods: {
@@ -288,8 +291,9 @@ export default {
     async fetchFields(tableId) {
       try {
         const { data } = await FieldService(this.$client).fetchAll(tableId)
+        const { $registry } = useNuxtApp()
         data.forEach((part, index, d) => {
-          populateField(data[index], this.$registry)
+          populateField(data[index], $registry)
         })
         const primaryIndex = data.findIndex((item) => item.primary === true)
         this.primary =

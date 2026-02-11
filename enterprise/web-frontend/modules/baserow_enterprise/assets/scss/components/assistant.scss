@@ -427,8 +427,6 @@
   border: 1px solid $palette-neutral-200;
   border-radius: 12px;
   padding: 12px 16px;
-  word-wrap: break-word;
-  word-break: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
   min-width: 0;
@@ -609,8 +607,6 @@
     }
   }
 
-  word-wrap: break-word;
-  word-break: break-word;
   overflow-wrap: break-word;
   white-space: wrap;
 

@@ -1,5 +1,5 @@
 <template>
-  <Modal :can-close="!jobIsRunning" @hidden="hidden">
+  <Modal ref="modal" :can-close="!jobIsRunning" @hidden="hidden">
     <template #content>
       <div class="import-modal__header">
         <h2 class="import-modal__title">

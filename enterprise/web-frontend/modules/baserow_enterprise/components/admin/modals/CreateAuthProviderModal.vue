@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{
         $t('createSettingsAuthProviderModal.title', {
@@ -36,6 +36,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'CreateAuthProviderModal',
+  emits: ['cancel', 'created'],
   mixins: [modal],
   props: {
     authProviderType: {

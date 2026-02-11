@@ -169,6 +169,7 @@ export default {
     getBatchResponseItem: { type: Function, required: true },
     getFieldMapping: { type: Function, required: true },
   },
+  emits: ['input'],
   data() {
     return {
       batchMode: false,

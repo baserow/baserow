@@ -9,18 +9,14 @@
     <a class="elements-list-item__link" @click="$emit('select', element)">
       <span class="elements-list-item__name">
         <i :class="`${elementType.iconClass} elements-list-item__icon`"></i>
-        <span class="elements-list-item__name-text">{{
-          elementType.getDisplayName(element, applicationContext)
-        }}</span>
+        <span class="elements-list-item__name-text">
+          {{ elementType.getDisplayName(element, applicationContext) }}
+        </span>
       </span>
     </a>
-    <ElementsList
-      v-if="filteredChildren.length"
-      name="nested-elements-list"
-      :elements="filteredChildren"
-      :filtered-search-elements="filteredSearchElements"
-      @select="$emit('select', $event)"
-    ></ElementsList>
+
+    <!-- Let the parent decide how to render children -->
+    <slot name="children" :children="filteredChildren" />
   </li>
 </template>
 
@@ -29,10 +25,6 @@ import { mapGetters } from 'vuex'
 
 export default {
   name: 'ElementsListItem',
-  components: {
-    ElementsList: () =>
-      import('@baserow/modules/builder/components/elements/ElementsList'),
-  },
   inject: ['builder', 'mode'],
   props: {
     element: {
@@ -45,6 +37,7 @@ export default {
       default: () => [],
     },
   },
+  emits: ['select'],
   computed: {
     ...mapGetters({
       getElementSelected: 'element/getSelected',

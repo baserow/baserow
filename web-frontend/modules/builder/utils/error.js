@@ -1,6 +1,6 @@
 export const handleDispatchError = (err, instance, context = '') => {
   const $t = (...params) => {
-    return instance.i18n ? instance.i18n.t(...params) : instance.$t(...params)
+    return !instance.$t ? instance.$i18n.t(...params) : instance.$t(...params)
   }
 
   const $store = instance.store || instance.$store

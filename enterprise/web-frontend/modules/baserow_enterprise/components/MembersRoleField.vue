@@ -50,6 +50,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'MembersRoleField',
+  emits: ['refresh', 'row-update'],
   components: { EditRoleContext },
   props: {
     row: {

@@ -1,0 +1,283 @@
+name: Database Team PR Automation
+
+env:
+  PROJECT_NUMBER: '3'
+  DOMAIN_LABELS: '["domain::database", "domain::core"]'
+  STATUS_FIELD_NAME: 'Status'
+  REVIEW_STATUS_FIELD_NAME: 'Review Status'
+  STATUS_IN_PROGRESS: 'In Progress'
+  STATUS_IN_REVIEW: 'In Review'
+  STATUS_DONE: 'Done'
+  REVIEW_AWAITING: 'Awaiting'
+  REVIEW_FEEDBACK: 'Feedback'
+  REVIEW_MERGE: 'Merge'
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested, review_request_removed, synchronize, labeled, closed]
+  pull_request_review:
+    types: [submitted, dismissed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to process'
+        required: true
+        type: number
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PR Project Status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const prNumber = context.eventName === 'workflow_dispatch'
+              ? ${{ github.event.inputs.pr_number || 0 }}
+              : context.payload.pull_request.number;
+
+            console.log(`Processing PR #${prNumber} (event: ${context.eventName}/${context.payload.action || 'manual'})`);
+
+            // ============================================================
+            // FETCH ALL DATA WITH SINGLE GRAPHQL QUERY
+            // ============================================================
+
+            const data = await github.graphql(`
+              query($owner: String!, $repo: String!, $pr: Int!, $projectNumber: Int!) {
+                organization(login: $owner) {
+                  projectV2(number: $projectNumber) {
+                    id
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id, name }
+                        }
+                      }
+                    }
+                  }
+                }
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    id
+                    isDraft
+                    merged
+                    mergeable
+                    reviewDecision
+                    labels(first: 20) {
+                      nodes { name }
+                    }
+                    reviewRequests(first: 10) {
+                      nodes {
+                        requestedReviewer {
+                          ... on User { login }
+                          ... on Team { name }
+                        }
+                      }
+                    }
+                    latestOpinionatedReviews(first: 10) {
+                      nodes {
+                        state
+                        author { login }
+                      }
+                    }
+                    closingIssuesReferences(first: 10) {
+                      nodes { id, number }
+                    }
+                  }
+                }
+              }
+            `, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pr: prNumber,
+              projectNumber: parseInt('${{ env.PROJECT_NUMBER }}')
+            });
+
+            const project = data.organization.projectV2;
+            const pr = data.repository.pullRequest;
+
+            // ============================================================
+            // CHECK DOMAIN LABELS (early exit if not relevant)
+            // ============================================================
+
+            const labels = pr.labels.nodes.map(l => l.name);
+            const domainLabels = ${{ env.DOMAIN_LABELS }};
+            const hasDomainLabel = labels.some(label =>
+              domainLabels.some(domain => label.startsWith(domain))
+            );
+
+            if (!hasDomainLabel) {
+              console.log(`PR #${prNumber} has no domain label (${labels.join(', ') || 'none'}), skipping`);
+              return;
+            }
+
+            console.log(`PR has domain label: ${labels.filter(l => l.startsWith('domain::')).join(', ')}`);
+
+            const statusField = project.fields.nodes.find(f => f.name === '${{ env.STATUS_FIELD_NAME }}');
+            const reviewStatusField = project.fields.nodes.find(f => f.name === '${{ env.REVIEW_STATUS_FIELD_NAME }}');
+
+            const fieldOptions = {
+              status: {
+                id: statusField.id,
+                'In Progress': statusField.options.find(o => o.name === '${{ env.STATUS_IN_PROGRESS }}')?.id,
+                'In Review': statusField.options.find(o => o.name === '${{ env.STATUS_IN_REVIEW }}')?.id,
+                'Done': statusField.options.find(o => o.name === '${{ env.STATUS_DONE }}')?.id
+              },
+              reviewStatus: {
+                id: reviewStatusField.id,
+                'Awaiting': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_AWAITING }}')?.id,
+                'Feedback': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_FEEDBACK }}')?.id,
+                'Merge': reviewStatusField.options.find(o => o.name === '${{ env.REVIEW_MERGE }}')?.id
+              }
+            };
+
+            console.log(`PR state: isDraft=${pr.isDraft}, merged=${pr.merged}, reviewDecision=${pr.reviewDecision}, mergeable=${pr.mergeable}`);
+
+            // ============================================================
+            // HELPER FUNCTIONS
+            // ============================================================
+
+            async function getProjectItem(contentId) {
+              const result = await github.graphql(`
+                query($contentId: ID!) {
+                  node(id: $contentId) {
+                    ... on Issue { projectItems(first: 10) { nodes { id, project { id } } } }
+                    ... on PullRequest { projectItems(first: 10) { nodes { id, project { id } } } }
+                  }
+                }
+              `, { contentId });
+              const item = result.node.projectItems.nodes.find(i => i.project.id === project.id);
+              return item ? item.id : null;
+            }
+
+            async function addToProject(contentId) {
+              const result = await github.graphql(`
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }
+              `, { projectId: project.id, contentId });
+              return result.addProjectV2ItemById.item.id;
+            }
+
+            async function ensureInProject(contentId) {
+              let itemId = await getProjectItem(contentId);
+              if (!itemId) {
+                console.log('Adding item to project...');
+                itemId = await addToProject(contentId);
+              }
+              return itemId;
+            }
+
+            async function updateField(itemId, fieldId, optionId) {
+              if (!optionId) return console.log('Warning: Option ID undefined, skipping');
+              await github.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value
+                  }) { projectV2Item { id } }
+                }
+              `, { projectId: project.id, itemId, fieldId, value: { singleSelectOptionId: optionId } });
+            }
+
+            async function clearField(itemId, fieldId) {
+              await github.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+                  clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId })
+                  { projectV2Item { id } }
+                }
+              `, { projectId: project.id, itemId, fieldId });
+            }
+
+            // ============================================================
+            // CALCULATE STATE
+            // ============================================================
+
+            let status, reviewStatus;
+
+            // Check if PR was merged
+            if (pr.merged) {
+              status = 'Done';
+              reviewStatus = null;
+              console.log('PR merged → Done, clear Review Status');
+            } else if (pr.isDraft) {
+              status = 'In Progress';
+              reviewStatus = null;
+              console.log('Draft PR → In Progress, clear Review Status');
+            } else {
+              status = 'In Review';
+
+              // Get pending reviewer identifiers (login for users, name for teams)
+              const pendingReviewers = pr.reviewRequests.nodes
+                .map(r => r.requestedReviewer?.login || r.requestedReviewer?.name)
+                .filter(Boolean);
+
+              // Get reviewers who requested changes
+              const changesRequestedBy = pr.latestOpinionatedReviews.nodes
+                .filter(r => r.state === 'CHANGES_REQUESTED')
+                .map(r => r.author.login);
+
+              // Check if any "changes requested" reviewer has been re-requested
+              const changesRequestedReviewerReRequested = changesRequestedBy.some(
+                reviewer => pendingReviewers.includes(reviewer)
+              );
+
+              if (pr.reviewDecision === 'CHANGES_REQUESTED' && changesRequestedReviewerReRequested) {
+                reviewStatus = 'Awaiting';
+                console.log(`Changes requested but reviewer re-requested (${changesRequestedBy.join(', ')}) → Awaiting`);
+              } else if (pr.reviewDecision === 'CHANGES_REQUESTED') {
+                reviewStatus = 'Feedback';
+                console.log('Changes requested → Feedback');
+              } else if (pendingReviewers.length > 0) {
+                reviewStatus = 'Awaiting';
+                console.log(`Has pending reviewers (${pendingReviewers.join(', ')}) → Awaiting`);
+              } else {
+                // No pending reviewers - check if at least one approval exists
+                const hasApproval = pr.latestOpinionatedReviews.nodes.some(r => r.state === 'APPROVED');
+                if (hasApproval) {
+                  reviewStatus = 'Merge';
+                  console.log('No pending reviewers + has approval → Merge');
+                } else {
+                  reviewStatus = 'Awaiting';
+                  console.log('No pending reviewers, no approval yet → Awaiting');
+                }
+              }
+            }
+
+            // ============================================================
+            // UPDATE PROJECT FIELDS
+            // ============================================================
+
+            const prItemId = await ensureInProject(pr.id);
+            console.log(`PR project item: ${prItemId}`);
+
+            await updateField(prItemId, fieldOptions.status.id, fieldOptions.status[status]);
+            console.log(`Status → ${status}`);
+
+            if (reviewStatus) {
+              await updateField(prItemId, fieldOptions.reviewStatus.id, fieldOptions.reviewStatus[reviewStatus]);
+              console.log(`Review Status → ${reviewStatus}`);
+            } else {
+              await clearField(prItemId, fieldOptions.reviewStatus.id);
+              console.log('Review Status → cleared');
+            }
+
+            // ============================================================
+            // UPDATE LINKED ISSUES
+            // ============================================================
+
+            const linkedIssues = pr.closingIssuesReferences.nodes;
+            if (linkedIssues.length > 0) {
+              console.log(`Updating ${linkedIssues.length} linked issue(s)...`);
+              for (const issue of linkedIssues) {
+                const itemId = await ensureInProject(issue.id);
+                await updateField(itemId, fieldOptions.status.id, fieldOptions.status[status]);
+                console.log(`  Issue #${issue.number} → ${status}`);
+              }
+            }
+
+            console.log('Completed!');

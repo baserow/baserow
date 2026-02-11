@@ -1,10 +1,14 @@
 services:
   db:
     # use lowest supported version for dev to check compatibility
-    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}
+    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     command: "${POSTGRES_DEV_EXTRA_ARGS}"
+    volumes:
+      # Use a different volume in case the Major version is different from the
+      # production one to avoid issues.
+      - pgdatadev:/var/lib/postgresql/data
 
   redis:
     ports:
@@ -16,15 +20,18 @@ services:
   caddy:
     volumes:
       - $PWD/Caddyfile.dev:/etc/caddy/Caddyfile
+      # For local development, mount the local backend/media folder so Caddy can
+      # serve files uploaded by the native backend process.
+      - $PWD/backend/media:/baserow/media
 
   backend:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
     environment:
-      - BASEROW_BACKEND_DEBUGGER_ENABLED=${BASEROW_BACKEND_DEBUGGER_ENABLED:-True}
+      - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-http://embeddings:80}
+      - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -38,10 +45,11 @@ services:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
-      - ./deploy/plugins/install_plugin.sh:/baserow/plugins/install_plugin.sh
+      - ./deploy/plugins/:/baserow/plugins/
       - ./tests:/baserow/tests
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
@@ -50,7 +58,7 @@ services:
       - otel-collector
 
   web-frontend:
-    image: baserow_web-frontend_dev:latest
+    image: baserow_web-frontend:dev
     build:
       dockerfile: ./web-frontend/Dockerfile
       context: .
@@ -60,70 +68,39 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
+    command: "nuxt-dev-with-storybook"
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
-    volumes:
-      - ./web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
-      - ./premium/web-frontend/:/baserow/premium/web-frontend
-      - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
-      - ./tests/:/baserow/tests
-    # Open stdin and tty so when attaching key input works as expected.
-    stdin_open: true
-    tty: true
-
-  web-frontend-storybook:
-    image: baserow_web-frontend_dev:latest
-    restart: unless-stopped
-    environment:
-      FEATURE_FLAGS:
-    networks:
-      local:
-    build:
-      dockerfile: ./web-frontend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "storybook-dev"
-    ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
       - ./premium/web-frontend/:/baserow/premium/web-frontend
       - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - ./tests/:/baserow/tests
+      - ./deploy/plugins:/baserow/plugins
+      # dev volumes to avoid polluting your local filesystem with build files or
+      # overwriting existing node_modules.
+      - node_modules:/baserow/web-frontend/node_modules
+      - nuxt:/baserow/web-frontend/.nuxt/
+      - storybook:/baserow/web-frontend/.nuxt-storybook/
+      - cache:/baserow/web-frontend/.cache/
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
 
   celery:
-    image: baserow_backend_dev:latest
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+    image: baserow_backend:dev
+    user: "${UID}:${GID}"
     command: "watch-py celery-worker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -131,24 +108,18 @@ services:
       - otel-collector
 
   celery-export-worker:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
+    user: "${UID}:${GID}"
+    command: "watch-py celery-exportworker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "watch-py celery-exportworker"
     volumes:
+      - ./docs:/baserow/docs
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -156,40 +127,32 @@ services:
       - otel-collector
 
   celery-beat-worker:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
+    user: "${UID}:${GID}"
+    command: "watch-py celery-beat"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "watch-py celery-beat"
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
 
   celery-flower:
-    image: baserow_backend_dev:latest
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+    image: baserow_backend:dev
+    user: "${UID}:${GID}"
+    profiles: ["optional"]
     restart: unless-stopped
     stop_signal: SIGQUIT
+    command: "celery-flower"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:5555 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     environment:
       REDIS_HOST:
       REDIS_PORT:
@@ -197,13 +160,14 @@ services:
       REDIS_URL:
       REDIS_USER:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
-    depends_on:
-      - backend
     volumes:
+      - ./backend:/baserow/backend
+      - ./premium/backend/:/baserow/premium/backend
+      - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
       - media:/baserow/media
     ports:
       - "5555:5555" # web ui
-    command: "celery-flower"
     networks:
       local:
     # Open stdin and tty so when attaching key input works as expected.
@@ -211,19 +175,17 @@ services:
     tty: true
 
   mjml-email-compiler:
-    build:
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-      context: .
-      dockerfile: ./web-frontend/Dockerfile
-    image: baserow_web-frontend:latest
+    image: baserow_web-frontend:dev
+    depends_on:
+      - web-frontend
+    user: "${UID}:${GID}"
     command: "bash -c 'cd /baserow/backend/email_compiler/ && yarn install && yarn run watch'"
+    healthcheck:
+      disable: true
     volumes:
       - ./backend:/baserow/backend
+      - ./web-frontend/docker:/baserow/web-frontend/docker
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -233,6 +195,7 @@ services:
     logging:
       driver: "none" # disable saving logs
     ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:1025:1025" # smtp
       - "8025:8025" # web ui
     networks:
       local:
@@ -242,7 +205,7 @@ services:
   # environment here.
   volume-permissions-fixer:
     image: bash:4.4
-    command: chown ${UID:-1000}:${GID:-1000} -R /baserow/media
+    command: chown ${UID:-9999}:${GID:-9999}  -R /baserow/media
     volumes:
       - media:/baserow/media
       - caddy_config:/config
@@ -262,3 +225,32 @@ services:
       local:
     ports:
       - "4318:4318"
+
+  embeddings:
+    profiles: ["ai"]
+    build:
+      context: ./embeddings
+      dockerfile: Dockerfile
+    ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:7999:80"
+    networks:
+      local:
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost/health').raise_for_status()",
+        ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  pgdatadev:
+  node_modules:
+  nuxt:
+  storybook:
+  cache:

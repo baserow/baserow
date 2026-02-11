@@ -1,14 +1,12 @@
-import Vue from 'vue'
 import flushPromises from 'flush-promises'
+import { nextTick } from 'vue'
 
-export default function (context, inject) {
+export default defineNuxtPlugin((nuxtApp) => {
   const ensureRender = async () => {
-    // Ensure the dom is up to date
-    await Vue.nextTick()
-    // Wait until the browser has had a chance to repaint the UI
+    await nextTick()
     await new Promise((resolve) => requestAnimationFrame(resolve))
-    // And purge all promises created in the meantime
     await flushPromises()
   }
-  inject('ensureRender', ensureRender)
-}
+
+  nuxtApp.provide('ensureRender', ensureRender)
+})

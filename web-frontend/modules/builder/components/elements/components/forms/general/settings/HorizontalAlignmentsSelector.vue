@@ -31,6 +31,7 @@ export default {
       default: () => HORIZONTAL_ALIGNMENTS,
     },
   },
+  emits: ['input'],
   data() {
     return {
       selected: this.value,

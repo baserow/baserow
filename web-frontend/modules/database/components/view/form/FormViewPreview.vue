@@ -43,6 +43,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ordered-fields'],
   computed: {
     component() {
       return this.$registry

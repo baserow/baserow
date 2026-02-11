@@ -1,37 +1,36 @@
-<template functional>
+<template>
   <div
-    :class="[data.staticClass, data.class]"
     :title="
-      parent.$t('subjectSampleField.titleAttr', {
-        subjectCount: props.row.subject_count,
+      $t('subjectSampleField.titleAttr', {
+        subjectCount: row.subject_count,
       })
     "
-    v-on="listeners"
   >
-    <div v-if="!props.row[props.column.key].length">-</div>
+    <div v-if="!row[column.key].length">-</div>
 
     <Avatar
-      v-for="(sample, index) in props.row[props.column.key]"
+      v-for="(sample, index) in row[column.key]"
       :key="index"
       class="subject-sample-field-list__avatar"
       rounded
       size="large"
-      :initials="sample.subject_label | nameAbbreviation"
+      :initials="nameAbbreviation(sample.subject_label)"
     ></Avatar>
 
     <div
-      v-if="props.row.subject_count > 10"
+      v-if="row.subject_count > 10"
       class="subject_sample_field-list__user-initials extras"
     >
-      +{{ props.row.subject_count - props.row[props.column.key].length }}
+      +{{ row.subject_count - row[column.key].length }}
     </div>
   </div>
 </template>
 
 <script>
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
+
 export default {
   name: 'SubjectSampleField',
-  functional: true,
   props: {
     row: {
       required: true,
@@ -41,6 +40,9 @@ export default {
       required: true,
       type: Object,
     },
+  },
+  methods: {
+    nameAbbreviation,
   },
 }
 </script>

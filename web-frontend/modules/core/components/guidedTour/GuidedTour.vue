@@ -44,6 +44,9 @@ export default {
   computed: {
     activeGuidedTours() {
       return Object.values(this.$registry.getAll('guidedTour'))
+        .filter(() => {
+          return this.authenticated
+        })
         .filter((type) => {
           return !this.completed.includes(type.getType())
         })
@@ -60,6 +63,7 @@ export default {
       return this.allSteps[this.stepIndex]
     },
     ...mapGetters({
+      authenticated: 'auth/isAuthenticated',
       completed: 'auth/getCompletedGuidedTour',
     }),
   },

@@ -49,10 +49,10 @@
 </template>
 
 <script>
+import { useStore } from 'vuex'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { defineComponent, ref, computed, onMounted, toRefs } from 'vue'
-import { useStore, useContext } from '@nuxtjs/composition-api'
 
 export default defineComponent({
   name: 'IntegrationSettings',
@@ -67,7 +67,7 @@ export default defineComponent({
   setup(props) {
     const { automation } = toRefs(props)
     const store = useStore()
-    const { app } = useContext()
+    const app = useNuxtApp()
     const state = ref('loaded')
 
     const integrationTypes = computed(() => {

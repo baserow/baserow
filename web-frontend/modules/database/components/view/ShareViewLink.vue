@@ -109,7 +109,7 @@
                     @input="toggleShareViewPassword"
                   >
                     <i
-                      class="view-sharing__option-icon"
+                      class="switch__icon view-sharing__option-icon"
                       :class="[
                         view.public_view_has_password
                           ? 'iconoir-lock'
@@ -221,7 +221,7 @@ export default {
   computed: {
     shareUrl() {
       return (
-        this.$config.BASEROW_EMBEDDED_SHARE_URL +
+        this.$config.public.baserowEmbeddedShareUrl +
         this.$router.resolve({
           name: this.viewType.getPublicRoute(),
           params: { slug: this.view.slug },

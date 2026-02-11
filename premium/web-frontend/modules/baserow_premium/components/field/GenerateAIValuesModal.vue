@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hideError">
+  <Modal ref="modal" @hidden="hideError">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('generateAIValuesModal.title', { name: field.name }) }}
@@ -116,7 +116,8 @@ export default {
           return (
             job.type === GenerateAIValuesJobType.getType() &&
             job.field_id === this.field.id &&
-            job.row_ids === null
+            job.row_ids === null &&
+            job.is_auto_update === false
           )
         }
       )
@@ -206,19 +207,19 @@ export default {
         this.handleError(error)
       }
     },
-    // eslint-disable-next-line require-await
+
     async onJobFinished() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+
     async onJobFailed() {
       this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
-    // eslint-disable-next-line require-await
+
     async onJobCancelled() {
       this.previousJobs.unshift(this.job)
       this.job = null

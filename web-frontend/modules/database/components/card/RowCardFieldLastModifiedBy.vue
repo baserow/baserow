@@ -1,17 +1,15 @@
-<template functional>
+<template>
   <div class="field-last-modified-by field-last-modified-by--card">
     <div
-      v-if="props.value"
+      v-if="value"
       class="field-last-modified-by__name background-color--light-gray"
     >
       <span class="field-last-modified-by__name-text">{{
-        $options.methods.getCollaboratorName(props.value, parent.$store)
+        getCollaboratorName(value, $store)
       }}</span>
     </div>
-    <div v-if="props.value" class="field-last-modified-by__initials">
-      {{
-        $options.methods.getCollaboratorNameInitials(props.value, parent.$store)
-      }}
+    <div v-if="value" class="field-last-modified-by__initials">
+      {{ getCollaboratorNameInitials(value, $store) }}
     </div>
   </div>
 </template>
@@ -20,7 +18,14 @@
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
+  name: 'RowCardFieldLastModifiedBy',
   height: 30,
   mixins: [collaboratorName],
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
 }
 </script>

@@ -70,6 +70,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete-widget'],
   computed: {
     dataSource() {
       return this.$store.getters[

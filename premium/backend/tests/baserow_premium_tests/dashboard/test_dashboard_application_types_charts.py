@@ -6,13 +6,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.dashboard.widgets.models import ChartSeriesConfig, ChartWidget
-from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
 
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
@@ -25,6 +18,13 @@ from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
 from baserow.core.utils import ChildProgressBuilder, Progress
 from baserow.test_utils.helpers import AnyInt
+from baserow_premium.dashboard.widgets.models import ChartSeriesConfig, ChartWidget
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
 
 
 @pytest.mark.django_db

@@ -107,6 +107,8 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 import DataSyncService from '@baserow/modules/database/services/dataSync'
 import { clone } from '@baserow/modules/core/utils/object'
 import dataSync from '@baserow/modules/database/mixins/dataSync'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'CreateDataSync',
@@ -122,6 +124,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       formValues: null,
@@ -231,13 +234,15 @@ export default {
       }
     },
     async onJobDone() {
-      await this.$nuxt.$router.push({
+      await this.$router.push({
         name: 'database-table',
         params: {
           databaseId: this.database.id,
           tableId: this.createdTable.id,
         },
       })
+      await pageFinished()
+      await nextTick()
       this.$emit('hide')
     },
     clickTwoWaySync() {

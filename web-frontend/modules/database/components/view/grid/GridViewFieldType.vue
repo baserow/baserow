@@ -303,6 +303,7 @@ import DuplicateFieldModal from '@baserow/modules/database/components/field/Dupl
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import fieldOptions from '~/modules/database/store/view/fieldOptions'
 
 export default {
   name: 'GridViewFieldType',
@@ -343,6 +344,7 @@ export default {
       required: true,
     },
   },
+  emits: ['dragging', 'field-created', 'move-field', 'refresh', 'updated'],
   data() {
     return {
       dragging: false,
@@ -413,8 +415,13 @@ export default {
         .get('field', this.field.type)
         .canWriteFieldValues(this.field)
     },
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getAllFieldOptions'
+      ]
+    },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -422,7 +429,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getAllFieldOptions',
       }),
     }
-  },
+  },*/
   methods: {
     moveField($event) {
       this.$emit('move-field', $event)

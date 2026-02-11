@@ -2,8 +2,9 @@ from typing import Callable
 
 from django.conf import settings
 
-import advocate
 import requests
+
+import advocate
 
 
 def get_http_request_function() -> Callable:

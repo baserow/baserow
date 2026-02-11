@@ -11,12 +11,12 @@ import {
 } from '@baserow/modules/core/utils/string'
 
 describe('test string utils', () => {
-  test('test uuid', () => {
+  test('uuid', () => {
     const value = uuid()
     expect(typeof value).toBe('string')
   })
 
-  test('test upperCaseFirst', () => {
+  test('upperCaseFirst', () => {
     expect(upperCaseFirst('test string')).toBe('Test string')
     expect(upperCaseFirst('Test string')).toBe('Test string')
     expect(upperCaseFirst('TEST string')).toBe('TEST string')
@@ -27,7 +27,7 @@ describe('test string utils', () => {
     expect(upperCaseFirst('')).toBe('')
   })
 
-  test('test slugify', () => {
+  test('slugify', () => {
     expect(slugify('')).toBe('')
     expect(slugify('test')).toBe('test')
     expect(slugify('This is A test')).toBe('this-is-a-test')
@@ -35,7 +35,7 @@ describe('test string utils', () => {
     expect(slugify('/a&--b/')).toBe('a-and-b')
   })
 
-  test('test isValidURL', () => {
+  test('isValidURL', () => {
     const validURLs = [
       'baserow.io',
       'ftp://baserow.io',
@@ -84,7 +84,7 @@ describe('test string utils', () => {
     }
   })
 
-  test('test isValidEmail', () => {
+  test('isValidEmail', () => {
     const invalidEmails = [
       'test@' + 'a'.repeat(246) + '.com',
       '@a',
@@ -122,7 +122,7 @@ describe('test string utils', () => {
     }
   })
 
-  test('test isSecureURL', () => {
+  test('isSecureURL', () => {
     expect(isSecureURL('test')).toBe(false)
     expect(isSecureURL('http://test.nl')).toBe(false)
     expect(isSecureURL('https://test.nl')).toBe(true)
@@ -130,7 +130,7 @@ describe('test string utils', () => {
     expect(isSecureURL('https://test.domain.nl?test=test')).toBe(true)
   })
 
-  test('test isNumeric', () => {
+  test('isNumeric', () => {
     expect(isNumeric('a')).toBe(false)
     expect(isNumeric('1.2')).toBe(true)
     expect(isNumeric('1,2')).toBe(false)
@@ -142,7 +142,7 @@ describe('test string utils', () => {
     expect(isNumeric('-100')).toBe(true)
   })
 
-  test('test isInteger', () => {
+  test('isInteger', () => {
     expect(isInteger('a')).toBe(false)
     expect(isInteger('1.2')).toBe(false)
     expect(isInteger('1,2')).toBe(false)
@@ -153,7 +153,7 @@ describe('test string utils', () => {
     expect(isInteger('9999')).toBe(true)
     expect(isInteger('-100')).toBe(true)
   })
-  test('test isSubstringOfStrings', () => {
+  test('isSubstringOfStrings', () => {
     expect(isSubstringOfStrings(['hello'], 'hell')).toBe(true)
     expect(isSubstringOfStrings(['test'], 'hell')).toBe(false)
     expect(isSubstringOfStrings(['hello', 'test'], 'hell')).toBe(true)

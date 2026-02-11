@@ -52,6 +52,7 @@ export default {
   name: 'ViewFilterTypeLinkRow',
   components: { PaginatedDropdown, SelectRowModal },
   mixins: [viewFilter],
+  emits: ['input'],
   data() {
     return {
       name: '',

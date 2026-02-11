@@ -145,7 +145,7 @@
         "email": "Courriel",
         "file": "Fichier",
         "singleSelect": "Liste déroulante",
-        "multipleSelect": "Selection multiple",
+        "multipleSelect": "Sélection multiple",
         "phoneNumber": "Téléphone",
         "formula": "Formule",
         "lookup": "Champ rapporté",

@@ -17,14 +17,14 @@
   gap: $gap;
 }
 
-@mixin loading($size: 1.4rem) {
+@mixin loading($size: 1.4rem, $color: $color-primary-500) {
   position: relative;
   display: block;
   width: $size;
   height: $size;
   border-radius: 50%;
   border: 0.25em solid;
-  border-color: $color-primary-500 transparent $color-primary-500 transparent;
+  border-color: $color transparent $color transparent;
   animation: spin infinite 1800ms;
   animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
 }

@@ -32,7 +32,7 @@
         "
       >
         <Avatar
-          :initials="selectedWorkspace.name || name | nameAbbreviation"
+          :initials="$filters.nameAbbreviation(selectedWorkspace.name || name)"
         ></Avatar>
         <span
           v-show="!collapsed"
@@ -135,6 +135,7 @@ export default {
       default: false,
     },
   },
+  emits: ['open-workspace-search', 'set-col1-width'],
   data() {
     return {
       showAdmin: false,

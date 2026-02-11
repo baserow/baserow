@@ -212,7 +212,9 @@ def test_check_permissions(data_fixture, enterprise_data_fixture):
                 try:
                     assert perm_manager.check_permissions(
                         user, permission.type, workspace=workspace, context=context
-                    ), f"User {user} should have permission {permission.type} on context {context}"
+                    ), (
+                        f"User {user} should have permission {permission.type} on context {context}"
+                    )
                 except PermissionException:
                     print(
                         f"User {user} should have permission {permission.type} on context {context}"

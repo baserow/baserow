@@ -67,7 +67,7 @@ export default {
     this.ready = Object.prototype.hasOwnProperty.call(window, '$chatwoot')
     window.addEventListener('chatwoot:ready', this.onReady)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('chatwoot:ready', this.onReady)
   },
   methods: {

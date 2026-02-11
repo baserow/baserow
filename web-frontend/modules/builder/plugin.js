@@ -154,294 +154,261 @@ import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
 import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
-export default (context) => {
-  const { store, app, isDev } = context
+export default defineNuxtPlugin({
+  name: 'builder',
+  dependsOn: ['core', 'store'],
+  async setup(nuxtApp) {
+    const { $store, $registry, $clientErrorMap, $i18n } = nuxtApp
+    const context = { app: nuxtApp }
 
-  // Allow locale file hot reloading in dev
-  if (isDev && app.i18n) {
-    const { i18n } = app
-    i18n.mergeLocaleMessage('en', en)
-    i18n.mergeLocaleMessage('fr', fr)
-    i18n.mergeLocaleMessage('nl', nl)
-    i18n.mergeLocaleMessage('de', de)
-    i18n.mergeLocaleMessage('es', es)
-    i18n.mergeLocaleMessage('it', it)
-    i18n.mergeLocaleMessage('pl', pl)
-    i18n.mergeLocaleMessage('ko', ko)
-  }
+    $clientErrorMap.setError(
+      'ERROR_PAGE_NAME_NOT_UNIQUE',
+      $i18n.t('pageErrors.errorNameNotUnique'),
+      $i18n.t('pageErrors.errorNameNotUniqueDescription')
+    )
 
-  registerRealtimeEvents(app.$realtime)
+    $store.registerModuleNuxtSafe('page', pageStore)
+    $store.registerModuleNuxtSafe('element', elementStore)
+    $store.registerModuleNuxtSafe('domain', domainStore)
+    $store.registerModuleNuxtSafe('publicBuilder', publicBuilderStore)
+    $store.registerModuleNuxtSafe('dataSource', dataSourceStore)
+    $store.registerModuleNuxtSafe('pageParameter', pageParameterStore)
+    $store.registerModuleNuxtSafe('dataSourceContent', dataSourceContentStore)
+    $store.registerModuleNuxtSafe('elementContent', elementContentStore)
+    $store.registerModuleNuxtSafe('theme', themeStore)
+    $store.registerModuleNuxtSafe(
+      'builderWorkflowAction',
+      builderWorkflowActionStore
+    )
+    $store.registerModuleNuxtSafe('formData', formDataStore)
+    $store.registerModuleNuxtSafe('builderToast', builderToast)
 
-  app.$clientErrorMap.setError(
-    'ERROR_PAGE_NAME_NOT_UNIQUE',
-    app.i18n.t('pageErrors.errorNameNotUnique'),
-    app.i18n.t('pageErrors.errorNameNotUniqueDescription')
-  )
+    $registry.registerNamespace('builderSettings')
+    $registry.registerNamespace('element')
+    $registry.registerNamespace('device')
+    $registry.registerNamespace('pageHeaderItem')
+    $registry.registerNamespace('domain')
+    $registry.registerNamespace('pageSettings')
+    $registry.registerNamespace('pathParamType')
+    $registry.registerNamespace('builderDataProvider')
+    $registry.registerNamespace('themeConfigBlock')
+    $registry.registerNamespace('fontFamily')
+    $registry.registerNamespace('builderPageDecorator')
+    $registry.registerNamespace('pageSidePanel')
+    $registry.registerNamespace('queryParamType')
+    $registry.registerNamespace('pageAction')
+    $registry.registerNamespace('collectionField')
 
-  store.registerModule('page', pageStore)
-  store.registerModule('element', elementStore)
-  store.registerModule('domain', domainStore)
-  store.registerModule('publicBuilder', publicBuilderStore)
-  store.registerModule('dataSource', dataSourceStore)
-  store.registerModule('pageParameter', pageParameterStore)
-  store.registerModule('dataSourceContent', dataSourceContentStore)
-  store.registerModule('elementContent', elementContentStore)
-  store.registerModule('theme', themeStore)
-  store.registerModule('builderWorkflowAction', builderWorkflowActionStore)
-  store.registerModule('formData', formDataStore)
-  store.registerModule('builderToast', builderToast)
+    $registry.register('application', new BuilderApplicationType(context))
+    $registry.register('job', new DuplicatePageJobType(context))
+    $registry.register('job', new PublishBuilderJobType(context))
 
-  app.$registry.registerNamespace('builderSettings')
-  app.$registry.registerNamespace('element')
-  app.$registry.registerNamespace('device')
-  app.$registry.registerNamespace('pageHeaderItem')
-  app.$registry.registerNamespace('domain')
-  app.$registry.registerNamespace('pageSettings')
-  app.$registry.registerNamespace('pathParamType')
-  app.$registry.registerNamespace('builderDataProvider')
-  app.$registry.registerNamespace('themeConfigBlock')
-  app.$registry.registerNamespace('fontFamily')
-  app.$registry.registerNamespace('builderPageDecorator')
+    $registry.register(
+      'builderSettings',
+      new GeneralBuilderSettingsType(context)
+    )
+    $registry.register(
+      'builderSettings',
+      new IntegrationsBuilderSettingsType(context)
+    )
+    $registry.register('builderSettings', new ThemeBuilderSettingsType(context))
+    $registry.register(
+      'builderSettings',
+      new DomainsBuilderSettingsType(context)
+    )
 
-  app.$registry.register('application', new BuilderApplicationType(context))
-  app.$registry.register('job', new DuplicatePageJobType(context))
-  app.$registry.register('job', new PublishBuilderJobType(context))
+    $registry.register(
+      'builderSettings',
+      new UserSourcesBuilderSettingsType(context)
+    )
 
-  app.$registry.register(
-    'builderSettings',
-    new GeneralBuilderSettingsType(context)
-  )
-  app.$registry.register(
-    'builderSettings',
-    new IntegrationsBuilderSettingsType(context)
-  )
-  app.$registry.register(
-    'builderSettings',
-    new ThemeBuilderSettingsType(context)
-  )
-  app.$registry.register(
-    'builderSettings',
-    new DomainsBuilderSettingsType(context)
-  )
+    $registry.register('errorPage', new PublicSiteErrorPageType(context))
 
-  app.$registry.register(
-    'builderSettings',
-    new UserSourcesBuilderSettingsType(context)
-  )
+    $registry.register('element', new HeadingElementType(context))
+    $registry.register('element', new TextElementType(context))
+    $registry.register('element', new ImageElementType(context))
+    $registry.register('element', new IFrameElementType(context))
+    $registry.register('element', new LinkElementType(context))
+    $registry.register('element', new ButtonElementType(context))
+    $registry.register('element', new RatingElementType(context))
+    $registry.register('element', new TableElementType(context))
+    $registry.register('element', new SimpleContainerElementType(context))
+    $registry.register('element', new ColumnElementType(context))
+    $registry.register('element', new HeaderElementType(context))
+    $registry.register('element', new FooterElementType(context))
+    $registry.register('element', new FormContainerElementType(context))
+    $registry.register('element', new InputTextElementType(context))
+    $registry.register('element', new ChoiceElementType(context))
+    $registry.register('element', new CheckboxElementType(context))
+    $registry.register('element', new DateTimePickerElementType(context))
+    $registry.register('element', new RecordSelectorElementType(context))
+    $registry.register('element', new RepeatElementType(context))
+    $registry.register('element', new RatingInputElementType(context))
+    $registry.register('element', new MenuElementType(context))
 
-  app.$registry.register('errorPage', new PublicSiteErrorPageType(context))
+    $registry.register('device', new DesktopDeviceType(context))
+    $registry.register('device', new TabletDeviceType(context))
+    $registry.register('device', new SmartphoneDeviceType(context))
 
-  app.$registry.register('element', new HeadingElementType(context))
-  app.$registry.register('element', new TextElementType(context))
-  app.$registry.register('element', new ImageElementType(context))
-  app.$registry.register('element', new IFrameElementType(context))
-  app.$registry.register('element', new LinkElementType(context))
-  app.$registry.register('element', new ButtonElementType(context))
-  app.$registry.register('element', new RatingElementType(context))
-  app.$registry.register('element', new TableElementType(context))
-  app.$registry.register('element', new SimpleContainerElementType(context))
-  app.$registry.register('element', new ColumnElementType(context))
-  app.$registry.register('element', new HeaderElementType(context))
-  app.$registry.register('element', new FooterElementType(context))
-  app.$registry.register('element', new FormContainerElementType(context))
-  app.$registry.register('element', new InputTextElementType(context))
-  app.$registry.register('element', new ChoiceElementType(context))
-  app.$registry.register('element', new CheckboxElementType(context))
-  app.$registry.register('element', new DateTimePickerElementType(context))
-  app.$registry.register('element', new RecordSelectorElementType(context))
-  app.$registry.register('element', new RepeatElementType(context))
-  app.$registry.register('element', new RatingInputElementType(context))
-  app.$registry.register('element', new MenuElementType(context))
+    $registry.register(
+      'pageHeaderItem',
+      new ElementsPageHeaderItemType(context)
+    )
+    $registry.register(
+      'pageHeaderItem',
+      new DataSourcesPageHeaderItemType(context)
+    )
+    $registry.register(
+      'pageHeaderItem',
+      new SettingsPageHeaderItemType(context)
+    )
+    $registry.register('pageSidePanel', new GeneralPageSidePanelType(context))
+    $registry.register('pageSidePanel', new StylePageSidePanelType(context))
+    $registry.register(
+      'pageSidePanel',
+      new VisibilityPageSidePanelType(context)
+    )
+    $registry.register('pageSidePanel', new EventsPageSidePanelType(context))
 
-  app.$registry.register('device', new DesktopDeviceType(context))
-  app.$registry.register('device', new TabletDeviceType(context))
-  app.$registry.register('device', new SmartphoneDeviceType(context))
+    $registry.register('domain', new CustomDomainType(context))
+    $registry.register('domain', new SubDomainType(context))
 
-  app.$registry.register(
-    'pageHeaderItem',
-    new ElementsPageHeaderItemType(context)
-  )
-  app.$registry.register(
-    'pageHeaderItem',
-    new DataSourcesPageHeaderItemType(context)
-  )
-  app.$registry.register(
-    'pageHeaderItem',
-    new SettingsPageHeaderItemType(context)
-  )
-  app.$registry.register('pageSidePanel', new GeneralPageSidePanelType(context))
-  app.$registry.register('pageSidePanel', new StylePageSidePanelType(context))
-  app.$registry.register(
-    'pageSidePanel',
-    new VisibilityPageSidePanelType(context)
-  )
-  app.$registry.register('pageSidePanel', new EventsPageSidePanelType(context))
+    $registry.register('pageSettings', new PagePageSettingsType(context))
+    $registry.register('pageSettings', new PageVisibilitySettingsType(context))
 
-  app.$registry.register('domain', new CustomDomainType(context))
-  app.$registry.register('domain', new SubDomainType(context))
+    $registry.register('pathParamType', new TextPathParamType(context))
+    $registry.register('pathParamType', new NumericPathParamType(context))
 
-  app.$registry.register('pageSettings', new PagePageSettingsType(context))
-  app.$registry.register(
-    'pageSettings',
-    new PageVisibilitySettingsType(context)
-  )
+    $registry.register('queryParamType', new TextQueryParamType(context))
+    $registry.register('queryParamType', new NumericQueryParamType(context))
 
-  app.$registry.register('pathParamType', new TextPathParamType(context))
-  app.$registry.register('pathParamType', new NumericPathParamType(context))
+    $registry.register('pageAction', new PublishPageActionType(context))
+    $registry.register('pageAction', new PreviewPageActionType(context))
 
-  app.$registry.register('queryParamType', new TextQueryParamType(context))
-  app.$registry.register('queryParamType', new NumericQueryParamType(context))
+    $registry.register('builderDataProvider', new UserDataProviderType(context))
+    $registry.register(
+      'builderDataProvider',
+      new CurrentRecordDataProviderType(context)
+    )
+    $registry.register(
+      'builderDataProvider',
+      new DataSourceDataProviderType(context)
+    )
+    $registry.register(
+      'builderDataProvider',
+      new DataSourceContextDataProviderType(context)
+    )
+    $registry.register(
+      'builderDataProvider',
+      new PageParameterDataProviderType(context)
+    )
+    $registry.register('builderDataProvider', new FormDataProviderType(context))
+    $registry.register(
+      'builderDataProvider',
+      new PreviousActionDataProviderType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new ColorThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new TypographyThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new ButtonThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new LinkThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new ImageThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new PageThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new InputThemeConfigBlockType(context)
+    )
+    $registry.register(
+      'themeConfigBlock',
+      new TableThemeConfigBlockType(context)
+    )
 
-  app.$registry.register('pageAction', new PublishPageActionType(context))
-  app.$registry.register('pageAction', new PreviewPageActionType(context))
+    $registry.register(
+      'workflowAction',
+      new NotificationWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new OpenPageWorkflowActionType(context)
+    )
+    $registry.register('workflowAction', new LogoutWorkflowActionType(context))
+    $registry.register(
+      'workflowAction',
+      new RefreshDataSourceWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new CoreHTTPRequestWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new CoreSMTPEmailWorkflowActionType(context)
+    )
+    $registry.register('workflowAction', new AIAgentWorkflowActionType(context))
+    $registry.register(
+      'workflowAction',
+      new CreateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new UpdateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new DeleteRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new SlackWriteMessageWorkflowActionType(context)
+    )
 
-  app.$registry.register(
-    'builderDataProvider',
-    new UserDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new CurrentRecordDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new DataSourceDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new DataSourceContextDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new PageParameterDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new FormDataProviderType(context)
-  )
-  app.$registry.register(
-    'builderDataProvider',
-    new PreviousActionDataProviderType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new ColorThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new TypographyThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new ButtonThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new LinkThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new ImageThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new PageThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new InputThemeConfigBlockType(context)
-  )
-  app.$registry.register(
-    'themeConfigBlock',
-    new TableThemeConfigBlockType(context)
-  )
+    $registry.register(
+      'collectionField',
+      new BooleanCollectionFieldType(context)
+    )
+    $registry.register('collectionField', new TextCollectionFieldType(context))
+    $registry.register('collectionField', new LinkCollectionFieldType(context))
+    $registry.register('collectionField', new TagsCollectionFieldType(context))
+    $registry.register(
+      'collectionField',
+      new ButtonCollectionFieldType(context)
+    )
+    $registry.register('collectionField', new ImageCollectionFieldType(context))
+    $registry.register(
+      'collectionField',
+      new RatingCollectionFieldType(context)
+    )
 
-  app.$registry.register(
-    'workflowAction',
-    new NotificationWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new OpenPageWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new LogoutWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new RefreshDataSourceWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new CoreHTTPRequestWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new CoreSMTPEmailWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new AIAgentWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new CreateRowWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new UpdateRowWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new DeleteRowWorkflowActionType(context)
-  )
-  app.$registry.register(
-    'workflowAction',
-    new SlackWriteMessageWorkflowActionType(context)
-  )
+    $registry.register('fontFamily', new InterFontFamilyType(context))
+    $registry.register('fontFamily', new ArialFontFamilyType(context))
+    $registry.register('fontFamily', new VerdanaFontFamilyType(context))
+    $registry.register('fontFamily', new TahomaFontFamilyType(context))
+    $registry.register('fontFamily', new TrebuchetMSFontFamilyType(context))
+    $registry.register('fontFamily', new TimesNewRomanFontFamilyType(context))
+    $registry.register('fontFamily', new GeorgiaFontFamilyType(context))
+    $registry.register('fontFamily', new GaramondFontFamilyType(context))
+    $registry.register('fontFamily', new CourierNewFontFamilyType(context))
+    $registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
 
-  app.$registry.register(
-    'collectionField',
-    new BooleanCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new TextCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new LinkCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new TagsCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new ButtonCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new ImageCollectionFieldType(context)
-  )
-  app.$registry.register(
-    'collectionField',
-    new RatingCollectionFieldType(context)
-  )
+    $registry.register('guidedTour', new BuilderGuidedTourType(context))
 
-  app.$registry.register('fontFamily', new InterFontFamilyType(context))
-  app.$registry.register('fontFamily', new ArialFontFamilyType(context))
-  app.$registry.register('fontFamily', new VerdanaFontFamilyType(context))
-  app.$registry.register('fontFamily', new TahomaFontFamilyType(context))
-  app.$registry.register('fontFamily', new TrebuchetMSFontFamilyType(context))
-  app.$registry.register('fontFamily', new TimesNewRomanFontFamilyType(context))
-  app.$registry.register('fontFamily', new GeorgiaFontFamilyType(context))
-  app.$registry.register('fontFamily', new GaramondFontFamilyType(context))
-  app.$registry.register('fontFamily', new CourierNewFontFamilyType(context))
-  app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
-
-  app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
-
-  searchTypeRegistry.register(new BuilderSearchType())
-}
+    searchTypeRegistry.register(new BuilderSearchType(context))
+  },
+})

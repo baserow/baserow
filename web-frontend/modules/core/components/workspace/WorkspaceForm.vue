@@ -60,7 +60,7 @@ export default {
     }
   },
 
-  mounted() {
+  async mounted() {
     this.$refs.name.focus()
   },
 }

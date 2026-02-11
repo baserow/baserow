@@ -2,14 +2,14 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="webhookDeactivatedNotification.body" tag="span">
+      <i18n-t keypath="webhookDeactivatedNotification.body" tag="span">
         <template #name>
           <strong>{{ notification.data.webhook_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -20,6 +20,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 export default {
   name: 'WebhookDeactivatedNotification',
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick() {
       this.$emit('close-panel')

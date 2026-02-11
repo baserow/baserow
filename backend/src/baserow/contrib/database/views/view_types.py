@@ -172,9 +172,9 @@ class GridViewType(ViewType):
                 field_option_object = GridViewFieldOptions.objects.create(
                     grid_view=grid_view, **field_option_copy
                 )
-                id_mapping["database_grid_view_field_options"][
-                    field_option_id
-                ] = field_option_object.id
+                id_mapping["database_grid_view_field_options"][field_option_id] = (
+                    field_option_object.id
+                )
 
         return grid_view
 
@@ -490,9 +490,9 @@ class GalleryViewType(ViewType):
                 field_option_object = GalleryViewFieldOptions.objects.create(
                     gallery_view=gallery_view, **field_option_copy
                 )
-                id_mapping["database_gallery_view_field_options"][
-                    field_option_id
-                ] = field_option_object.id
+                id_mapping["database_gallery_view_field_options"][field_option_id] = (
+                    field_option_object.id
+                )
 
         return gallery_view
 
@@ -1018,9 +1018,7 @@ class FormViewType(ViewType):
             field_option__in=updated_field_options
         ).annotate(
             count=Count("conditions") + Count("formviewfieldoptionsconditiongroup")
-        ).filter(
-            count=0
-        ).delete()
+        ).filter(count=0).delete()
 
         self._update_field_options_allowed_select_options(
             view, field_options, updated_field_options_by_field_id
@@ -1304,9 +1302,9 @@ class FormViewType(ViewType):
                     )
 
                     field_option_object.id
-                id_mapping["database_form_view_field_options"][
-                    field_option_id
-                ] = field_option_object.id
+                id_mapping["database_form_view_field_options"][field_option_id] = (
+                    field_option_object.id
+                )
 
             # Create the objects in bulk to improve performance.
             FormViewFieldOptionsCondition.objects.bulk_create(condition_objects)

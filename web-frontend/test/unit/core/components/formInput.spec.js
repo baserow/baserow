@@ -1,11 +1,11 @@
-import { shallowMount } from '@vue/test-utils'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 import FormInput from '@baserow/modules/core/components/FormInput.vue'
 
 describe('FormInput.vue', () => {
-  it('renders the input with the correct attributes when props are provided', () => {
-    const wrapper = shallowMount(FormInput, {
-      propsData: {
+  it('renders the input with the correct attributes when props are provided', async () => {
+    const wrapper = await mountSuspended(FormInput, {
+      props: {
         type: 'text',
         disabled: true,
         monospace: true,
@@ -15,10 +15,11 @@ describe('FormInput.vue', () => {
         required: true,
       },
     })
+
     expect(wrapper.find('.form-input__input').attributes('type')).toBe('text')
-    expect(wrapper.find('.form-input__input').attributes('disabled')).toBe(
-      'disabled'
-    )
+    expect(
+      wrapper.find('.form-input__input').attributes('disabled')
+    ).toBeDefined()
     expect(wrapper.find('.form-input').classes()).toContain(
       'form-input--monospace'
     )
@@ -40,8 +41,8 @@ describe('FormInput.vue', () => {
     expect(wrapper.find('.control__required').exists()).toBe(false)
   })
 
-  it('emits the "input" event when the input value changes', () => {
-    const wrapper = shallowMount(FormInput, {
+  it('emits the "input" event when the input value changes', async () => {
+    const wrapper = await mountSuspended(FormInput, {
       propsData: { label: 'Name', type: 'text' },
     })
     const inputElement = wrapper.find('.form-input__input')

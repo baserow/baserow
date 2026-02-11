@@ -150,9 +150,9 @@ def update_related_tables_entries(
             ]
             if not linked_diff:
                 linked_diff = _init_linked_row_diff(linked_field_id)
-                related_rows_diff[linked_table_id][linked_row_id][
-                    linked_field_name
-                ] = linked_diff
+                related_rows_diff[linked_table_id][linked_row_id][linked_field_name] = (
+                    linked_diff
+                )
             linked_diff[key].append(row_id)
             linked_diff["metadata"]["linked_rows"][row_id] = {
                 "value": field_metadata["primary_value"]

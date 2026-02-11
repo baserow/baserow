@@ -12,7 +12,7 @@
         :class="{ 'row-comments__comment-head-details--right': ownComment }"
       >
         <div v-if="!ownComment" class="row-comments__comment-head-initial">
-          {{ firstName | nameAbbreviation }}
+          {{ $filters.nameAbbreviation(firstName) }}
         </div>
         <div class="row-comments__comment-head-name">
           {{ ownComment ? $t('rowComment.you') : firstName }}
@@ -80,6 +80,7 @@
 import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { clone } from '@baserow/modules/core/utils/object'
 import RowCommentContext from '@baserow_premium/components/row_comments/RowCommentContext'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 
@@ -109,12 +110,14 @@ export default {
       required: true,
     },
   },
+  emits: ['stop-edit'],
   data() {
     return {
       editing: false,
       updating: false,
       deleting: false,
       message: this.cloneCommentMessage(),
+      onClickOutsideHandler: null,
     }
   },
   computed: {
@@ -175,7 +178,16 @@ export default {
       },
     },
   },
+  beforeUnmount() {
+    this.cleanupClickOutside()
+  },
   methods: {
+    cleanupClickOutside() {
+      if (this.onClickOutsideHandler) {
+        document.removeEventListener('click', this.onClickOutsideHandler)
+        this.onClickOutsideHandler = null
+      }
+    },
     getLocalizedMoment(timestamp) {
       return moment.utc(timestamp).tz(moment.tz.guess())
     },
@@ -190,13 +202,14 @@ export default {
       }
     },
     cloneCommentMessage() {
-      return structuredClone(this.comment.message)
+      // Use clone() instead of structuredClone to handle Vue 3 Proxy objects
+      return clone(this.comment.message)
     },
     startEdit() {
       this.$refs.commentContext.hide()
       this.editing = true
 
-      const onClickOutside = (evt) => {
+      this.onClickOutsideHandler = (evt) => {
         if (
           !this.$el.contains(evt.target) &&
           !this.$refs.commentContext.$el.contains(evt.target) &&
@@ -205,16 +218,14 @@ export default {
           this.stopEdit()
         }
       }
-      document.addEventListener('click', onClickOutside)
-      for (const evt of ['stop-edit', 'hook:beforeDestroy']) {
-        this.$once(evt, () => {
-          document.removeEventListener('click', onClickOutside)
-        })
-      }
+
+      document.addEventListener('click', this.onClickOutsideHandler)
     },
+
     async stopEdit(save = false) {
       this.$emit('stop-edit')
       this.editing = false
+      this.cleanupClickOutside()
 
       if (save) {
         await this.updateComment()
@@ -222,6 +233,7 @@ export default {
         this.message = this.cloneCommentMessage()
       }
     },
+
     async updateComment() {
       if (!this.message) {
         return

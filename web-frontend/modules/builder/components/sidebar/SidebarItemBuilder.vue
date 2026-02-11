@@ -85,6 +85,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
 import { VISIBILITY_LOGGED_IN } from '@baserow/modules/builder/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItemBuilder',
@@ -143,23 +145,24 @@ export default {
         value,
       })
     },
-    selectPage(builder, page) {
+    async selectPage(builder, page) {
+      if (page._.selected) {
+        return
+      }
       this.setLoading(builder, true)
-      this.$nuxt.$router.push(
-        {
+      try {
+        await this.$nuxt.$router.push({
           name: 'builder-page',
           params: {
             builderId: builder.id,
             pageId: page.id,
           },
-        },
-        () => {
-          this.setLoading(builder, false)
-        },
-        () => {
-          this.setLoading(builder, false)
-        }
-      )
+        })
+        await pageFinished()
+        await nextTick()
+      } finally {
+        this.setLoading(builder, false)
+      }
     },
     resolvePageHref(builder, page) {
       const props = this.$nuxt.$router.resolve({

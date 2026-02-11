@@ -1,5 +1,5 @@
 <template>
-  <Modal left-sidebar left-sidebar-scrollable>
+  <Modal ref="modal" left-sidebar left-sidebar-scrollable>
     <template #sidebar>
       <div class="modal-sidebar__title">
         {{ page.name }}

@@ -30,7 +30,7 @@
       :active-index="orderDirectionIndex"
       :segments="orderDirectionOptions"
       :initial-active-index="orderDirectionIndex"
-      @update:activeIndex="orderByChangedByUser"
+      @update:active-index="orderByChangedByUser"
     ></SegmentControl>
   </FormSection>
 </template>
@@ -47,6 +47,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregationSortByForm',
+  emits: ['value-changed'],
   props: {
     allowedSortReferences: {
       type: Array,

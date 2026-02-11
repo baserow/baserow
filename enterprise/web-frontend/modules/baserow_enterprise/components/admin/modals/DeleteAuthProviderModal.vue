@@ -1,5 +1,5 @@
 <template>
-  <Modal small>
+  <Modal ref="modal" small>
     <h2 class="box__title">
       {{ $t('deleteAuthProviderModal.title', { name: getProviderName() }) }}
     </h2>
@@ -35,6 +35,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'DeleteAuthProviderModal',
+  emits: ['cancel', 'provider-deleted'],
   mixins: [modal],
   props: {
     authProvider: {

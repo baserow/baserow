@@ -4,8 +4,6 @@ from django.conf import settings
 from django.http import FileResponse
 from django.utils.encoding import smart_str
 
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.utils import extend_schema
 from rest_framework.renderers import BaseRenderer
 from rest_framework.views import APIView
@@ -19,6 +17,8 @@ from baserow_enterprise.features import SECURE_FILE_SERVE
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
 from baserow_enterprise.secure_file_serve.exceptions import SecureFileServeException
 from baserow_enterprise.secure_file_serve.handler import SecureFileServeHandler
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.handler import LicenseHandler
 
 from .errors import ERROR_SECURE_FILE_SERVE_EXCEPTION
 

@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.14.3-slim-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git && rm -rf /var/lib/apt/lists/*
@@ -12,12 +12,12 @@ RUN pip install --no-cache-dir \
     python _download_model.py && \
     rm _download_model.py
 
-FROM python:3.11-slim-bookworm
+FROM python:3.14.3-slim-trixie
 
 COPY --from=builder /model /model
 
 RUN pip install --no-cache-dir \
-    onnxruntime==1.20.1 \
+    onnxruntime==1.24.1 \
     transformers==4.53.0 \
     starlette==0.48.0 \
     uvicorn==0.37.0 && \

@@ -25,6 +25,15 @@
   width: 320px;
 }
 
+.onboarding__waiting-message {
+  margin-top: 20px;
+  font-size: 14px;
+  width: 320px;
+  text-align: center;
+  line-height: 1.6;
+  color: $palette-neutral-900;
+}
+
 .onboarding__form {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,5 @@
 from django.db import transaction
 
-from advocate import UnacceptableAddressException
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from requests import RequestException
@@ -8,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from advocate import UnacceptableAddressException
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema

@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="$refs.form && $refs.form.reset()">
+  <Modal ref="modal" @hidden="$refs.form && $refs.form.reset()">
     <h2 class="box__title">
       {{ $t('editUserModal.edit', { username: user.username }) }}
     </h2>
@@ -45,6 +45,7 @@ export default {
       required: true,
     },
   },
+  emits: ['delete-user', 'update'],
   data() {
     return {
       loading: false,

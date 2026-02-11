@@ -60,6 +60,7 @@ export default {
       required: true,
     },
   },
+  emits: ['refresh'],
   computed: {
     ...mapState({
       tableLoading: (state) => state.table.loading,

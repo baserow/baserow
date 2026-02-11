@@ -1,17 +1,6 @@
-<template functional>
+<template>
   <div class="data-table__more-wrapper">
-    <a
-      class="data-table__more"
-      @click.prevent="
-        listeners['row-context'] &&
-          listeners['row-context']({
-            row: props.row,
-            event: $event,
-            target: $event.currentTarget,
-            time: Date.now(),
-          })
-      "
-    >
+    <a class="data-table__more" @click.prevent="onClick">
       <i class="data-table__more-icon baserow-icon-more-horizontal"></i>
     </a>
   </div>
@@ -20,11 +9,21 @@
 <script>
 export default {
   name: 'MoreField',
-  functional: true,
   props: {
     row: {
       required: true,
       type: Object,
+    },
+  },
+  emits: ['row-context'],
+  methods: {
+    onClick(event) {
+      this.$emit('row-context', {
+        row: this.row,
+        event,
+        target: event.currentTarget,
+        time: Date.now(),
+      })
     },
   },
 }

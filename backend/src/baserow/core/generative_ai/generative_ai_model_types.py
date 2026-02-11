@@ -3,15 +3,6 @@ import re
 
 from django.conf import settings
 
-from anthropic import Anthropic, APIStatusError
-from mistralai import Mistral
-from mistralai.models import HTTPValidationError, SDKError
-from ollama import Client as OllamaClient
-from ollama import RequestError as OllamaRequestError
-from ollama import ResponseError as OllamaResponseError
-from openai import APIStatusError as OpenAIAPIStatusError
-from openai import OpenAI, OpenAIError
-
 from baserow.core.generative_ai.exceptions import AIFileError, GenerativeAIPromptError
 from baserow.core.generative_ai.types import FileId
 
@@ -49,6 +40,8 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         )
 
     def get_client(self, workspace=None, settings_override=None):
+        from openai import OpenAI
+
         api_key = self.get_api_key(workspace, settings_override)
         organization = self.get_organization(workspace, settings_override)
         base_url = self.get_base_url(workspace, settings_override)
@@ -62,6 +55,9 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
     def prompt(
         self, model, prompt, workspace=None, temperature=None, settings_override=None
     ):
+        from openai import APIStatusError as OpenAIAPIStatusError
+        from openai import OpenAIError
+
         try:
             client = self.get_client(workspace, settings_override)
             kwargs = {}
@@ -118,6 +114,9 @@ class OpenAIGenerativeAIModelType(
         return min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB)
 
     def upload_file(self, file_name: str, file: bytes, workspace=None) -> FileId:
+        from openai import APIStatusError as OpenAIAPIStatusError
+        from openai import OpenAIError
+
         try:
             client = self.get_client(workspace=workspace)
             openai_file = client.files.create(
@@ -128,6 +127,9 @@ class OpenAIGenerativeAIModelType(
             raise AIFileError(str(exc)) from exc
 
     def delete_files(self, file_ids: list[FileId], workspace=None):
+        from openai import APIStatusError as OpenAIAPIStatusError
+        from openai import OpenAIError
+
         try:
             client = self.get_client(workspace=workspace)
             for file_id in file_ids:
@@ -138,6 +140,9 @@ class OpenAIGenerativeAIModelType(
     def prompt_with_files(
         self, model, prompt, file_ids: list[FileId], workspace=None, temperature=None
     ):
+        from openai import APIStatusError as OpenAIAPIStatusError
+        from openai import OpenAIError
+
         run, thread, assistant = None, None, None
         try:
             client = self.get_client(workspace)
@@ -229,6 +234,8 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         )
 
     def get_client(self, workspace=None, settings_override=None):
+        from anthropic import Anthropic
+
         api_key = self.get_api_key(workspace, settings_override)
         return Anthropic(api_key=api_key)
 
@@ -240,6 +247,8 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     def prompt(
         self, model, prompt, workspace=None, temperature=None, settings_override=None
     ):
+        from anthropic import APIStatusError
+
         try:
             client = self.get_client(workspace, settings_override)
             kwargs = {}
@@ -286,6 +295,8 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
         )
 
     def get_client(self, workspace=None, settings_override=None):
+        from mistralai import Mistral
+
         api_key = self.get_api_key(workspace, settings_override)
         return Mistral(api_key=api_key)
 
@@ -297,6 +308,8 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
     def prompt(
         self, model, prompt, workspace=None, temperature=None, settings_override=None
     ):
+        from mistralai.models import HTTPValidationError, SDKError
+
         try:
             client = self.get_client(workspace, settings_override)
             kwargs = {}
@@ -339,12 +352,17 @@ class OllamaGenerativeAIModelType(GenerativeAIModelType):
         )
 
     def get_client(self, workspace=None, settings_override=None):
+        from ollama import Client as OllamaClient
+
         ollama_host = self.get_host(workspace, settings_override)
         return OllamaClient(host=ollama_host)
 
     def prompt(
         self, model, prompt, workspace=None, temperature=None, settings_override=None
     ):
+        from ollama import RequestError as OllamaRequestError
+        from ollama import ResponseError as OllamaResponseError
+
         client = self.get_client(workspace, settings_override)
         options = {}
         if temperature:

@@ -7,13 +7,10 @@
     @click.stop="onClick"
   >
     <div class="add-element-card__element-type">
-      <div
+      <img
         class="add-element-card__element-type-icon"
-        :test="elementType.image"
-        :style="{
-          backgroundImage: `url(${elementType.image})`,
-        }"
-      ></div>
+        :src="elementType.image"
+      />
     </div>
     <div v-if="loading" class="loading"></div>
     <span v-else class="add-element-card__label">{{ elementType.name }}</span>
@@ -74,6 +71,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click'],
   computed: {
     disallowedClickModal() {
       return this.elementType.getDeactivatedClickModal({

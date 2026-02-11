@@ -376,7 +376,7 @@ def test_can_filter_on_uuid_field(api_client, data_fixture):
     get_params = [f"filter__field_{field.id}__equal={row_1.uuid}"]
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         {},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -402,7 +402,7 @@ def test_can_sort_on_uuid_field(api_client, data_fixture):
     get_params = [f"sort=field_{field.id}1"]
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}',
+        f"{url}?{'&'.join(get_params)}",
         {},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

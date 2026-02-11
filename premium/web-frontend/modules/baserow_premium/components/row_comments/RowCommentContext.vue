@@ -32,6 +32,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'RowCommentContext',
+  emits: ['delete', 'edit'],
   mixins: [context],
   props: {
     canEdit: {

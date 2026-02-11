@@ -1,18 +1,28 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
+// import { TestApp } from '@baserow/test/helpers/testApp'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+//import axios from 'axios'
+
+import { MockServer } from '@baserow/test/fixtures/mockServer'
+import MockAdapter from 'axios-mock-adapter'
 
 describe('View store - decorator', () => {
   let testApp = null
   let store = null
   let mockServer = null
+  let mock = null
 
   beforeEach(() => {
-    testApp = new TestApp()
-    store = testApp.store
-    mockServer = testApp.mockServer
+    //testApp = new TestApp()
+    // mockServer = testApp.mockServer
+    const { $store, $client: axios } = useNuxtApp()
+    store = $store
+    mock = new MockAdapter(axios, { onNoMatch: 'throwException' })
+    mockServer = new MockServer(mock, $store)
   })
 
   afterEach(() => {
-    testApp.afterEach()
+    mock.restore()
+    //testApp.afterEach()
   })
 
   test('create decoration', async () => {

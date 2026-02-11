@@ -524,7 +524,7 @@ def test_two_way_sync_update_without_valid_license(
 
     with connection.cursor() as cursor:
         cursor.execute(
-            f"SELECT count(*) " f"FROM {create_postgresql_test_table}",
+            f"SELECT count(*) FROM {create_postgresql_test_table}",
         )
         result = cursor.fetchone()
         # Should be equal to the old number because no rows should have been created.

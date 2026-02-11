@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('exportWorkspaceModal.title') }} {{ workspace.name }}
     </h2>
@@ -165,7 +165,6 @@ export default {
       }
     },
 
-    // eslint-disable-next-line require-await
     async onJobFailed() {
       this.createLoading = false
       this.showError(

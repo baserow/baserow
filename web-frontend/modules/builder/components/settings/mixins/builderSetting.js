@@ -5,6 +5,8 @@
  * have to click a "New" button.
  */
 export default {
+  emits: ['hide-modal'],
+
   props: {
     builder: {
       type: Object,

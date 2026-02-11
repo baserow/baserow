@@ -50,7 +50,7 @@ export class HistoryRowModalSidebarType extends RowModalSidebarType {
   }
 
   getName() {
-    return this.app.i18n.t('rowHistorySidebar.name')
+    return this.app.$i18n.t('rowHistorySidebar.name')
   }
 
   getComponent() {

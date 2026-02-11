@@ -24,7 +24,7 @@
           "
           @input="
             coverImageField !== $event &&
-              $emit('update-cover-image-field', $event)
+            $emit('update-cover-image-field', $event)
           "
         >
           <DropdownItem
@@ -142,6 +142,12 @@ export default {
       default: true,
     },
   },
+  emits: [
+    'update-all-field-options',
+    'update-cover-image-field',
+    'update-field-options-of-field',
+    'update-order',
+  ],
   data() {
     return {
       query: '',

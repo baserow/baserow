@@ -408,7 +408,12 @@ def get_table_rows_tools(
         Create new rows in the specified table.
         """
 
-        nonlocal user, workspace, tool_helpers, row_model_for_create, row_model_for_response
+        nonlocal \
+            user, \
+            workspace, \
+            tool_helpers, \
+            row_model_for_create, \
+            row_model_for_response
 
         if not rows:
             return []

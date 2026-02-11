@@ -6,7 +6,7 @@
       href="https://baserow.io/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes"
       target="_blank"
     >
-      <Badge v-if="role.isBillable" color="cyan" class="margin-left-1"
+      <Badge v-if="roleIsBillable" color="cyan" class="margin-left-1"
         >{{ $t('highestPaidRoleField.billable') }}
       </Badge>
     </a>
@@ -33,6 +33,9 @@ export default {
     roleName() {
       return this.role ? this.role.name : ''
     },
+    roleIsBillable() {
+      return this.role ? this.role.isBillable : false
+    },
     role() {
       return this.roles.find((r) => r.uid === this.roleUID)
     },
@@ -43,7 +46,7 @@ export default {
     },
     roles() {
       // filters out role not for Team subject and not for workspace level
-      return this.workspace ? this.workspace._.roles : []
+      return this.workspace?._.roles || []
     },
     showBillable() {
       return this.$hasPermission(

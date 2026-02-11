@@ -24,7 +24,7 @@ export default {
   name: 'CustomStyle',
   inject: ['openCustomStyleForm'],
   props: {
-    value: {
+    modelValue: {
       type: Object,
       required: false,
       default: () => undefined,
@@ -66,7 +66,7 @@ export default {
         extraArgs: this.extraArgs,
         onStylesChanged: this.onStylesChanged,
         configBlockTypes: this.configBlockTypes,
-        defaultStyleValues: this.value?.[this.styleKey],
+        defaultStyleValues: this.modelValue?.[this.styleKey],
       })
     },
   },

@@ -2,6 +2,7 @@ from django.db import DatabaseError, connections, transaction
 
 import pyotp
 import pytest
+from freezegun import freeze_time
 
 from baserow.core.two_factor_auth.exceptions import (
     TwoFactorAuthCannotBeConfigured,
@@ -144,9 +145,13 @@ def test_verify_no_provider(data_fixture):
 
 @pytest.mark.django_db
 def test_verify(data_fixture):
-    user = data_fixture.create_user(password="password")
-    provider = data_fixture.configure_totp(user)
-    totp = pyotp.TOTP(provider.secret)
-    code = totp.now()
+    with freeze_time("2020-02-01 00:00"):
+        user = data_fixture.create_user(password="password")
+        provider = data_fixture.configure_totp(user)
+        totp = pyotp.TOTP(provider.secret)
 
-    assert TwoFactorAuthHandler().verify("totp", email=user.email, code=code) is True
+    with freeze_time("2020-02-01 00:05"):
+        code = totp.now()
+        assert (
+            TwoFactorAuthHandler().verify("totp", email=user.email, code=code) is True
+        )

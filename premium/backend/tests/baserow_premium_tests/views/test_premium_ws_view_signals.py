@@ -3,12 +3,12 @@ from unittest.mock import patch
 from django.db import transaction
 
 import pytest
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 from baserow.contrib.database.api.views.serializers import ViewSerializer
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 
 @pytest.mark.django_db(transaction=True)

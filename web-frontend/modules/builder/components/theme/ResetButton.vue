@@ -14,25 +14,33 @@ import _ from 'lodash'
 export default {
   inject: ['builder'],
   props: {
-    value: { required: true, validator: (v) => true },
+    value: { default: undefined, validator: (v) => true },
+    modelValue: { default: undefined, validator: (v) => true },
     defaultValue: {
       required: false,
       validator: (v) => true,
       default: undefined,
     },
   },
+  emits: ['input', 'update:modelValue'],
   data() {
     return {}
+  },
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
   },
   methods: {
     propertyModified() {
       return (
         this.defaultValue !== undefined &&
-        !_.isEqual(this.value, this.defaultValue)
+        !_.isEqual(this.currentValue, this.defaultValue)
       )
     },
     resetProperty() {
       this.$emit('input', this.defaultValue)
+      this.$emit('update:modelValue', this.defaultValue)
     },
   },
 }

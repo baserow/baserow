@@ -14,7 +14,7 @@ export class SSOPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.sso')
+    return this.app.$i18n.t('enterpriseFeatures.sso')
   }
 
   getImage() {
@@ -22,7 +22,7 @@ export class SSOPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.ssoContent')
+    return this.app.$i18n.t('enterpriseFeatures.ssoContent')
   }
 }
 
@@ -40,7 +40,7 @@ export class AuditLogPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.auditLogs')
+    return this.app.$i18n.t('enterpriseFeatures.auditLogs')
   }
 
   getImage() {
@@ -48,7 +48,7 @@ export class AuditLogPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.auditLogsContent')
+    return this.app.$i18n.t('enterpriseFeatures.auditLogsContent')
   }
 }
 
@@ -66,7 +66,7 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.rbac')
+    return this.app.$i18n.t('enterpriseFeatures.rbac')
   }
 
   getImage() {
@@ -74,7 +74,7 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.rbacContent')
+    return this.app.$i18n.t('enterpriseFeatures.rbacContent')
   }
 }
 
@@ -92,7 +92,7 @@ export class DataSyncPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.dataSync')
+    return this.app.$i18n.t('enterpriseFeatures.dataSync')
   }
 
   getImage() {
@@ -100,7 +100,7 @@ export class DataSyncPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.dataSyncContent')
+    return this.app.$i18n.t('enterpriseFeatures.dataSyncContent')
   }
 }
 
@@ -118,7 +118,7 @@ export class AdvancedWebhooksPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.advancedWebhooks')
+    return this.app.$i18n.t('enterpriseFeatures.advancedWebhooks')
   }
 
   getImage() {
@@ -126,7 +126,7 @@ export class AdvancedWebhooksPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.advancedWebhooksContent')
+    return this.app.$i18n.t('enterpriseFeatures.advancedWebhooksContent')
   }
 }
 
@@ -144,7 +144,7 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissions')
+    return this.app.$i18n.t('enterpriseFeatures.fieldLevelPermissions')
   }
 
   getImage() {
@@ -152,7 +152,7 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissionsContent')
+    return this.app.$i18n.t('enterpriseFeatures.fieldLevelPermissionsContent')
   }
 }
 
@@ -170,7 +170,7 @@ export class CoBrandingPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.coBranding')
+    return this.app.$i18n.t('enterpriseFeatures.coBranding')
   }
 
   getImage() {
@@ -178,7 +178,7 @@ export class CoBrandingPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.coBrandingContent')
+    return this.app.$i18n.t('enterpriseFeatures.coBrandingContent')
   }
 }
 
@@ -196,7 +196,7 @@ export class SupportPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.support')
+    return this.app.$i18n.t('enterpriseFeatures.support')
   }
 
   getImage() {
@@ -204,7 +204,7 @@ export class SupportPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.supportContent')
+    return this.app.$i18n.t('enterpriseFeatures.supportContent')
   }
 }
 
@@ -222,7 +222,7 @@ export class BuilderBrandingPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.builderBranding')
+    return this.app.$i18n.t('enterpriseFeatures.builderBranding')
   }
 
   getImage() {
@@ -230,7 +230,7 @@ export class BuilderBrandingPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.builderBrandingContent')
+    return this.app.$i18n.t('enterpriseFeatures.builderBrandingContent')
   }
 }
 
@@ -248,7 +248,7 @@ export class BuilderFileInputElementPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.builderFileInputElement')
+    return this.app.$i18n.t('enterpriseFeatures.builderFileInputElement')
   }
 
   getImage() {
@@ -256,7 +256,7 @@ export class BuilderFileInputElementPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.builderFileInputElementContent')
+    return this.app.$i18n.t('enterpriseFeatures.builderFileInputElementContent')
   }
 }
 
@@ -274,7 +274,7 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.builderCustomCode')
+    return this.app.$i18n.t('enterpriseFeatures.builderCustomCode')
   }
 
   getImage() {
@@ -282,7 +282,7 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
+    return this.app.$i18n.t('enterpriseFeatures.builderCustomCodeContent')
   }
 }
 
@@ -300,7 +300,7 @@ export class DateDependencyPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.dateDependency')
+    return this.app.$i18n.t('enterpriseFeatures.dateDependency')
   }
 
   getImage() {
@@ -308,6 +308,6 @@ export class DateDependencyPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.dateDependencyContent')
+    return this.app.$i18n.t('enterpriseFeatures.dateDependencyContent')
   }
 }

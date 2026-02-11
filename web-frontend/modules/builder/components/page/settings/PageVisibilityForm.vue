@@ -8,25 +8,24 @@
     >
       <div>
         <Alert v-if="showLoginPageAlert && showLogInPageWarning" type="warning">
-          <slot name="title">{{
+          <template #title>{{
             $t('pageVisibilitySettingsTypes.logInPageWarningTitle')
-          }}</slot>
-          <p>{{ $t('pageVisibilitySettingsTypes.logInPagewarningMessage') }}</p>
+          }}</template>
+          {{ $t('pageVisibilitySettingsTypes.logInPagewarningMessage') }}
         </Alert>
         <Alert
           v-else-if="showLoginPageAlert && !showLogInPageWarning"
           type="info-primary"
         >
-          <slot name="title">{{
+          <template #title>{{
             $t('pageVisibilitySettingsTypes.logInPageInfoTitle')
-          }}</slot>
-          <p>
-            {{
-              $t('pageVisibilitySettingsTypes.logInPageInfoMessage', {
-                logInPageName: loginPageName,
-              })
-            }}
-          </p>
+          }}</template>
+
+          {{
+            $t('pageVisibilitySettingsTypes.logInPageInfoMessage', {
+              logInPageName: loginPageName,
+            })
+          }}
         </Alert>
       </div>
       <div class="margin-top-1 visibility-form__visibility-all">

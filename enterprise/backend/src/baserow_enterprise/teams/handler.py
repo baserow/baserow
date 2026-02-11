@@ -8,8 +8,6 @@ from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.tokens.models import Token
 from baserow.core.models import Workspace
 from baserow.core.trash.handler import TrashHandler
@@ -33,6 +31,7 @@ from baserow_enterprise.teams.exceptions import (
     TeamSubjectNotInGroup,
     TeamSubjectTypeUnsupported,
 )
+from baserow_premium.license.handler import LicenseHandler
 
 from ..features import TEAMS
 

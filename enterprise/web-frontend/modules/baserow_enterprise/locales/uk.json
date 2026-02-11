@@ -1,1 +1,698 @@
-{}
+{
+    "assistantMessageSources": {
+        "sources": "{count} джерело | {count} джерел"
+    },
+    "clientHandler": {
+        "cannotDisableAllAuthProvidersTitle": "Останній увімкнений провайдер",
+        "cannotDisableAllAuthProvidersDescription": "Неможливо вимкнути або видалити останнього увімкненого провайдера."
+    },
+    "advanced": {
+        "license": "Розширена"
+    },
+    "enterprise": {
+        "license": "Enterprise",
+        "sidebarTooltip": "Ваш обліковий запис має глобальний доступ до функцій Enterprise",
+        "rbac": "RBAC",
+        "sso": "SSO",
+        "licenseDescription": "Роль глядача безкоштовна в Baserow Enterprise. Якщо користувач має будь-яку іншу роль у будь-якому робочому просторі, він автоматично займе платне місце.",
+        "overflowWarning": "У вас занадто багато користувачів, які не є глядачами, і ви використали всі платні місця. Змініть користувачів на глядачів на сторінці учасників кожного робочого простору.",
+        "deactivated": "Доступно у версії Advanced/Enterprise"
+    },
+    "trashType": {
+        "team": "команда"
+    },
+    "createTeamModal": {
+        "title": "Створити команду",
+        "invalidNameTitle": "Будь ласка, використайте іншу назву",
+        "invalidNameMessage": "Ця назва команди вже використовується у вказаному робочому просторі."
+    },
+    "updateTeamModal": {
+        "title": "Оновити {teamName}",
+        "invalidNameTitle": "Будь ласка, використайте іншу назву",
+        "invalidNameMessage": "Ця назва команди вже використовується у вказаному робочому просторі."
+    },
+    "manageTeamModals": {
+        "subheading": "Команди дозволяють надавати або обмежувати дозволи для кількох людей одночасно."
+    },
+    "manageTeamForm": {
+        "submit": "Зберегти",
+        "nameTitle": "Назва",
+        "roleTitle": "Роль за замовчуванням",
+        "inviteMembers": "Додати учасників",
+        "membersTitle": "Учасники",
+        "noSubjectsSelected": "Натисніть '{buttonLabel}', щоб додати користувачів до команди.",
+        "roleHelpText": "Індивідуальні ролі користувачів завжди переважають ролі команди."
+    },
+    "editTeamContext": {
+        "edit": "Редагувати команду",
+        "remove": "Видалити команду"
+    },
+    "teamsTable": {
+        "title": "{teamCount} команд у {workspaceName}",
+        "createNew": "Створити команду",
+        "nameColumn": "Назва",
+        "createdColumn": "Дата створення",
+        "subjectsColumn": "Учасники",
+        "roleColumn": "Роль за замовчуванням",
+        "roleHelpText": "Може бути перевизначено ролями на базах даних і таблицях."
+    },
+    "subjectSampleField": {
+        "titleAttr": "{subjectCount} учасників у цій команді."
+    },
+    "teamsSettings": {
+        "teamsTabTitle": "Команди"
+    },
+    "adminType": {
+        "AuditLog": "Журнал аудиту",
+        "Authentication": "Автентифікація"
+    },
+    "auditLog": {
+        "adminTitle": "Журнал аудиту",
+        "workspaceTitle": "Журнал аудиту - {workspaceName}",
+        "filterUserTitle": "Користувач",
+        "filterWorkspaceTitle": "Робочий простір",
+        "filterActionTypeTitle": "Тип події",
+        "filterFromTimestampTitle": "З дати",
+        "filterFromTimestamp": "З дати",
+        "filterToTimestampTitle": "До дати",
+        "filterToTimestamp": "До дати",
+        "user": "Користувач",
+        "workspace": "Робочий простір",
+        "actionType": "Тип події",
+        "description": "Опис",
+        "timestamp": "Мітка часу",
+        "ip_address": "IP-адреса",
+        "exportToCsv": "Експортувати в CSV",
+        "exportModalTitle": "Експортувати в CSV",
+        "clearFilters": "Очистити",
+        "allUsers": "Всі користувачі",
+        "allWorkspaces": "Всі робочі простори",
+        "allActionTypes": "Всі типи подій"
+    },
+    "auditLogExportModal": {
+        "title": "Експортувати в CSV",
+        "exportFilename": "Експорт журналу аудиту адміністратора - {date}",
+        "exportWorkspaceFilename": " Експорт журналу аудиту робочого простору ({workspaceId}) - {date}",
+        "cancelledTitle": "Помилка експорту",
+        "cancelledDescription": "Виникла помилка під час експорту журналу аудиту. Будь ласка, спробуйте ще раз."
+    },
+    "authProviders": {
+        "title": "Провайдери автентифікації",
+        "noProviders": "Провайдери автентифікації ще не налаштовані.",
+        "addProvider": "Додати провайдера"
+    },
+    "authProviderTypes": {
+        "password": "Автентифікація за допомогою email та пароля",
+        "saml": "SSO SAML провайдер",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "Неналаштований SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "Неналаштований OpenID Connect"
+    },
+    "editAuthProviderMenuContext": {
+        "edit": "Редагувати",
+        "delete": "Видалити"
+    },
+    "samlSettingsForm": {
+        "domain": "SAML домен",
+        "domainPlaceholder": "Введіть доменне ім'я компанії...",
+        "invalidDomain": "Недійсне доменне ім'я",
+        "domainAlreadyExists": "SAML провайдер для цього домену вже існує",
+        "metadata": "Метадані",
+        "metadataPlaceholder": "Вставте метадані провайдера ідентифікації...",
+        "invalidMetadata": "Недійсні XML метадані для провайдера ідентифікації",
+        "relayStateUrl": "URL Relay State за замовчуванням",
+        "acsUrl": "URL єдиного входу",
+        "providerIsVerified": "Провайдера перевірено",
+        "samlResponseSettings": "Атрибути відповіді SAML",
+        "defaultAttrs": "За замовчуванням",
+        "customAttrs": "Користувацькі",
+        "emailAttrKey": "Email",
+        "emailAttrKeyHelper": "Адреса електронної пошти, яка буде використовуватися як ім'я користувача.",
+        "firstNameAttrKey": "Ім'я",
+        "firstNameAttrKeyHelper": "Ім'я користувача або повне ім'я, якщо \"Прізвище\" не вказано.",
+        "lastNameAttrKey": "Прізвище",
+        "lastNameAttrKeyHelper": "Прізвище користувача (необов'язково). Очистіть це значення, щоб вказати повне ім'я через поле \"Ім'я\"."
+    },
+    "createSettingsAuthProviderModal": {
+        "title": "Додати новий {type}"
+    },
+    "updateSettingsAuthProviderModal": {
+        "title": "Редагувати {name}"
+    },
+    "deleteAuthProviderModal": {
+        "title": "Видалити {name}",
+        "comment": "Ви дійсно хочете видалити цей {type}?"
+    },
+    "loginWithSaml": {
+        "signInWithSaml": "Увійти через SAML SSO",
+        "redirecting": "Перенаправлення до провайдера ідентифікації...",
+        "continueWithSaml": "Продовжити з SAML SSO провайдером",
+        "requestError": "Цей домен не налаштований для SAML SSO",
+        "loginText": "Вже маєте пароль?"
+    },
+    "loginError": {
+        "title": "Щось пішло не так:",
+        "loginText": "Вже маєте обліковий запис?",
+        "help": "Зверніться до адміністратора за допомогою.",
+        "defaultErrorMessage": "не вдалося завершити процес входу через SSO.",
+        "errorSsoFeatureNotActive": "Функція SSO неактивна. Зверніться до адміністратора.",
+        "errorInvalidSamlRequest": "SAML запит недійсний.",
+        "errorInvalidSamlResponse": "SAML відповідь недійсна.",
+        "errorUserDeactivated": "користувача деактивовано.",
+        "errorProviderDoesNotExist": "цей провайдер автентифікації не існує або недоступний.",
+        "errorAuthFlowError": "виникла помилка під час автентифікації з обраним провайдером.",
+        "errorDifferentProvider": "будь ласка, використовуйте провайдера, з яким ви спочатку зареєструвалися.",
+        "errorWorkspaceInvitationEmailMismatch": "ваша адреса електронної пошти не відповідає запрошенню.",
+        "errorSignupDisabled": "реєстрацію вимкнено адміністратором."
+    },
+    "roles": {
+        "admin": {
+            "name": "Адміністратор",
+            "description": "Може повністю налаштовувати та редагувати робочі простори та застосунки."
+        },
+        "builder": {
+            "name": "Розробник",
+            "description": "Може повністю налаштовувати та редагувати застосунки."
+        },
+        "editor": {
+            "name": "Редактор",
+            "description": "Може повністю редагувати дані, але не може налаштовувати застосунки або робочі простори."
+        },
+        "commenter": {
+            "name": "Коментатор",
+            "description": "Може лише читати та коментувати дані."
+        },
+        "viewer": {
+            "name": "Глядач",
+            "description": "Може лише читати дані."
+        },
+        "noAccess": {
+            "name": "Без доступу",
+            "description": "Не має доступу ні до чого."
+        },
+        "noRoleLowPriority": {
+            "name": "Без ролі",
+            "description": "Отримує роль робочого простору за замовчуванням від своїх команд."
+        }
+    },
+    "memberRolesModal": {
+        "memberRolesDatabaseTabTitle": "База даних",
+        "memberRolesTableTabTitle": "Поточна таблиця",
+        "error": {
+            "title": "Не вдалося отримати дані",
+            "description": "Виникла помилка під час отримання даних учасників."
+        }
+    },
+    "memberRolesTab": {
+        "database": {
+            "title": "База даних {name}",
+            "selectMembers": "Вибрати учасників",
+            "everyoneHasAccess": "Усі учасники робочого простору {name} мають доступ до цієї бази даних.",
+            "onlyYouHaveAccess": "Лише ви маєте доступ до цієї бази даних.",
+            "warningTitle": "Інші користувачі можуть успадкувати доступ!",
+            "warningMessage": "Інші користувачі можуть успадкувати доступ через свої ролі в батьківському робочому просторі.",
+            "headerTooltip": "Ролі бази даних перевизначають ролі робочого простору."
+        },
+        "table": {
+            "title": "Таблиця {name}",
+            "selectMembers": "Вибрати учасників",
+            "everyoneHasAccess": "Усі учасники робочого простору {name} мають доступ до цієї таблиці.",
+            "onlyYouHaveAccess": "Лише ви маєте доступ до цієї таблиці.",
+            "warningTitle": "Інші користувачі можуть успадкувати доступ!",
+            "warningMessage": "Інші користувачі можуть успадкувати доступ через свої ролі в батьківській базі даних або робочому просторі.",
+            "headerTooltip": "Ролі таблиці перевизначають ролі робочого простору та бази даних."
+        }
+    },
+    "memberRolesShareToggle": {
+        "label": "Поділитися з усіма в {name}",
+        "subLabel": "{totalUserAmount} учасників робочого простору"
+    },
+    "memberRolesDatabaseContexItem": {
+        "label": "Керувати учасниками",
+        "additionalRoles": "Додаткові ролі"
+    },
+    "memberRolesTableContexItem": {
+        "label": "Керувати учасниками",
+        "additionalRoles": "Додаткові ролі"
+    },
+    "memberRolesMembersList": {
+        "remove": "Видалити",
+        "teamMembersCount": "{count} учасників команди",
+        "adminHelpText": "Адміністратори можуть обмежувати ролі інших адміністраторів.",
+        "noMembers": "Учасників не вибрано. Використовуйте кнопку вибору, щоб додати."
+    },
+    "roleAssignmentModal": {
+        "membersTab": "Учасники",
+        "teamsTab": "Команди",
+        "subjectTypeNameMembers": "учасників",
+        "subjectTypeNameTeams": "команд"
+    },
+    "selectMembersList": {
+        "searchPlaceholder": "Знайти учасників...",
+        "selectedAmountLabel": "{count} учасників вибрано"
+    },
+    "selectTeamsList": {
+        "searchPlaceholder": "Знайти команди...",
+        "selectedAmountLabel": "{count} команд вибрано"
+    },
+    "selectSubjectsListFooter": {
+        "invite": "Запросити {count} {type}",
+        "types": {
+            "members": "учасників",
+            "teams": "команд"
+        },
+        "helpTooltip": "Призначення ролей учасників перевизначають призначення ролей команд."
+    },
+    "membersRoleField": {
+        "noAccessHelpText": "Цьому користувачу потрібен явний доступ до ресурсів.",
+        "adminHelpText": "Адміністратори можуть обмежувати ролі інших адміністраторів."
+    },
+    "membersPagePlugin": {
+        "roleHelpText": "Може бути перевизначено ролями на базах даних і таблицях."
+    },
+    "oauthSettingsForm": {
+        "providerName": "Назва",
+        "providerNamePlaceholder": "Назва користувацького провайдера",
+        "clientId": "Client ID",
+        "clientIdPlaceholder": "Client ID провайдера",
+        "secret": "Секрет",
+        "secretPlaceholder": "Секрет провайдера",
+        "baseUrl": "URL",
+        "baseUrlPlaceholder": "Базовий URL провайдера",
+        "duplicateBaseUrl": "Введений URL вже існує в іншого провайдера",
+        "invalidBaseUrl": "Введений URL не є дійсним URL провайдера",
+        "useIdToken": "Використовувати id token для отримання інформації про користувача",
+        "responseSettings": "Атрибути відповіді OIDC",
+        "defaultAttrs": "За замовчуванням",
+        "customAttrs": "Користувацькі",
+        "emailAttrKey": "Email",
+        "emailAttrKeyHelper": "Адреса електронної пошти, яка буде використовуватися як ім'я користувача. ",
+        "firstNameAttrKey": "Ім'я",
+        "lastNameAttrKey": "Прізвище",
+        "firstNameAttrKeyHelper": "Ім'я користувача або повне ім'я, якщо \"Прізвище\" не вказано.",
+        "lastNameAttrKeyHelper": "Прізвище користувача (необов'язково). Очистіть це значення, щоб вказати повне ім'я через поле \"Ім'я\".",
+        "callbackUrl": "URL зворотного виклику"
+    },
+    "loginButton": {
+        "continueWith": "Продовжити з"
+    },
+    "enterpriseFeatures": {
+        "sso": "Єдиний вхід (SSO)",
+        "ssoContent": "Увімкніть безпечний та безперебійний вхід через SAML, Google, Facebook, GitHub, GitLab або OpenID Connect. Підтримує кілька провайдерів одночасно. Зверніть увагу, що як Baserow як інструмент, так і система автентифікації конструктора застосунків підтримують SSO.",
+        "rbac": "Контроль доступу на основі ролей",
+        "rbacContent": "Керуйте дозволами з точністю. Призначайте ролі, такі як адміністратор, розробник, редактор, коментатор або глядач на рівні робочого простору, бази даних або таблиці. Ви також можете керувати доступом за командами.",
+        "auditLogs": "Журнали аудиту",
+        "auditLogsContent": "Відстежуйте все, що відбувається. Переглядайте повну історію дій у вашому екземплярі або робочому просторі з можливістю фільтрації за користувачем, дією тощо.",
+        "dataSync": "Синхронізація даних",
+        "dataSyncContent": "Автоматично підтримуйте таблиці в актуальному стані, синхронізуючи з іншими таблицями Baserow або зовнішніми джерелами, такими як Jira, GitHub, GitLab або HubSpot. Також дозволяє періодичну синхронізацію та двосторонню синхронізацію даних для підтримуваних типів.",
+        "coBranding": "Заміна логотипу для кобрендингу",
+        "coBrandingContent": "Налаштуйте інтерфейс Baserow за допомогою власного логотипу. Зверніть увагу, що додається напис \"powered by Baserow\".",
+        "support": "Пряма підтримка",
+        "supportContent": "Отримуйте допомогу, коли вона вам потрібна. Зв'яжіться з командою Baserow безпосередньо з платформи.",
+        "advancedWebhooks": "Розширені вебхуки",
+        "advancedWebhooksContent": "Запускайте вебхуки, коли рядок потрапляє до певного представлення — чудово підходить для автоматизації робочих процесів на основі умов фільтрації.",
+        "fieldLevelPermissions": "Дозволи на рівні полів",
+        "fieldLevelPermissionsContent": "Контролюйте, хто може редагувати певні поля в таблиці. Встановлюйте дозволи для редакторів, розробників, адміністраторів або повністю вимикайте можливість зміни значень полів.",
+        "builderBranding": "Брендування застосунку",
+        "builderBrandingContent": "Створіть застосунок під власним брендом, видаливши напис \"Made with Baserow\" у нижньому колонтитулі вашого застосунку.",
+        "builderFileInputElement": "Елемент введення файлу",
+        "builderFileInputElementContent": "Елемент введення файлу дозволяє додати поле на сторінки вашого застосунку для завантаження файлів. Надайте користувачам можливість зберігати важливі документи або зображення.",
+        "builderCustomCode": "Користувацький код для застосунків",
+        "builderCustomCodeContent": "Ви можете додати користувацький CSS/JavaScript код для подальшого налаштування вигляду та поведінки вашого застосунку. Наприклад, ви можете інтегрувати зовнішні сервіси, такі як аналітика або соціальні мережі.",
+        "dateDependency": "Залежність дат",
+        "dateDependencyContent": "Ви можете визначити залежність між двома датами та тривалістю як дата початку/закінчення та тривалість. При залежності дат, якщо одне значення змінюється, інші значення будуть відповідно скориговані."
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma AI"
+    },
+    "assistantPanel": {
+        "title": "AI-асистент",
+        "close": "Закрити AI-асистента",
+        "history": "Історія чату",
+        "back": "Назад"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Привіт, {name}",
+        "question": "мене звати Kuma!",
+        "promptCreateDatabaseTitle": "Створити базу даних",
+        "promptCreateDatabasePrompt": "Створити базу даних для управління проєктами.",
+        "promptCreateAutomationTitle": "Створити автоматизацію",
+        "promptCreateAutomationPrompt": "Створити автоматизацію, яка кожного вівторка вранці запитує в Slack-каналі розробників, чи є що продемонструвати.",
+        "promptInviteUsersTitle": "Запросити користувачів",
+        "promptInviteUsersPrompt": "Як запросити користувачів до мого робочого простору?",
+        "promptCreateTableTitle": "Створити таблицю",
+        "promptCreateTablePrompt": "Створити нову таблицю з назвою \"завдання\".",
+        "promptWhichTablesTitle": "Які таблиці",
+        "promptWhichTablesPrompt": "Які таблиці є в цій базі даних?",
+        "promptCreateFormTitle": "Створити форму",
+        "promptCreateFormPrompt": "Створити форму для цієї таблиці.",
+        "promptCreateFilterTitle": "Створити фільтр",
+        "promptCreateFilterPrompt": "Показати лише рядки, де основне поле порожнє.",
+        "subtitle": "Я допоможу вам нести навантаження, щоб воно ніколи не здавалося важким. Оберіть з підказок нижче або просто скажіть, що вам потрібно!",
+        "subtitleWithoutSuggestions": "Я допоможу вам нести навантаження, щоб воно ніколи не здавалося важким. Просто скажіть, що вам потрібно!"
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "Асистент готовий допомогти",
+        "statusRunning": "Виконується...",
+        "placeholder": "Запитайте мене про що завгодно...",
+        "send": "Надіслати повідомлення",
+        "stop": "Зупинити генерацію"
+    },
+    "assistant": {
+        "statusThinking": "Думаю...",
+        "statusAnswering": "Відповідаю...",
+        "statusCancelling": "Скасовую...",
+        "messageCancelled": "Повідомлення скасовано"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Історія чату недоступна",
+        "loading": "Завантаження історії чату..."
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma може помилятися, будь ласка, перевіряйте відповіді"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Допоможіть нам покращитись",
+        "feedbackContextPlaceholder": "Що ми могли б покращити? (необов'язково)",
+        "copiedToClipboard": "Скопійовано до буфера обміну",
+        "copiedContentToast": "Відповідь асистента скопійовано до буфера обміну",
+        "copyFailed": "Не вдалося скопіювати до буфера обміну"
+    },
+    "chatwootSupportSidebarWorkspace": {
+        "directSupport": "Пряма підтримка"
+    },
+    "userTeamsField": {
+        "no_records": "Немає команд"
+    },
+    "snapshotModalWarning": {
+        "message": "Зверніть увагу, що знімок включатиме всі дозволи, встановлені для застосунку та його таблиць."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Зверніть увагу, що експорт не включатиме дозволи, встановлені для застосунку та його таблиць."
+    },
+    "auditLogSidebarWorkspace": {
+        "title": "Журнал аудиту"
+    },
+    "localBaserowUserSourceType": {
+        "notConfigured": "Не налаштовано"
+    },
+    "localBaserowUserSourceForm": {
+        "description": "Кожен рядок у таблиці є обліковим записом користувача. Виберіть відповідні поля в таблиці. Поле email буде використовуватися для ідентифікації.",
+        "emailFieldLabel": "Виберіть поле email",
+        "emailFieldLabelPlaceholder": "Виберіть поле...",
+        "noFields": "Немає полів",
+        "nameFieldLabel": "Виберіть поле імені",
+        "nameFieldPlaceholder": "Виберіть поле...",
+        "roleFieldLabel": "Виберіть поле ролі",
+        "roleFieldPlaceholder": "Виберіть поле..."
+    },
+    "appAuthProviderType": {
+        "localBaserowPassword": "Email/Пароль",
+        "commonSaml": "SAML SSO",
+        "openIdConnect": "OpenID Connect"
+    },
+    "localBaserowPasswordAppAuthProviderForm": {
+        "passwordFieldLabel": "Виберіть поле пароля",
+        "noFields": "Немає сумісних полів"
+    },
+    "commonSamlSettingForm": {
+        "relayStateTitle": "URL Relay State за замовчуванням (Натисніть, щоб скопіювати)",
+        "acsTitle": "URL єдиного входу (Натисніть, щоб скопіювати)",
+        "addDomainNotice": "Доступно після додавання одного або кількох доменів"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "URL зворотних викликів (Натисніть, щоб скопіювати)",
+        "callbackHelperText": "Додайте ці URL до налаштувань URI перенаправлення вашого провайдера OpenID Connect.",
+        "preview": "Попередній перегляд"
+    },
+    "enterpriseSettings": {
+        "branding": "Брендування",
+        "showBaserowHelpMessage": "Показувати повідомлення довідки",
+        "showBaserowHelpMessageDescription": "Вказує, чи потрібно показувати повідомлення запиту допомоги на панелі керування.",
+        "deactivated": "Доступно в Enterprise",
+        "coBrandingLogo": "Логотип",
+        "coBrandingLogoDescription": "Замінює логотип Baserow на користувацький кобрендовий альтернативний варіант (176x29). Якщо встановлено, також видаляє опис Baserow у нижньому колонтитулі всіх листів.",
+        "uploadFileButton": "Завантажити зображення"
+    },
+    "authFormElementForm": {
+        "userSource": "Джерело користувачів",
+        "loginButtonLabel": "Текст кнопки входу",
+        "loginButtonLabelPlaceholder": "Введіть текст..."
+    },
+    "authFormElement": {
+        "email": "Email",
+        "password": "Пароль",
+        "emailPlaceholder": "Введіть ваш email...",
+        "passwordPlaceholder": "Введіть ваш пароль...",
+        "selectOrConfigureUserSourceFirst": "Виберіть джерело користувачів, щоб почати використовувати цей елемент входу."
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Синхронізувати таблицю Baserow",
+        "jiraIssues": "Синхронізувати задачі Jira",
+        "githubIssues": "Синхронізувати задачі GitHub",
+        "gitlabIssues": "Синхронізувати задачі GitLab",
+        "hubspotContacts": "Синхронізувати контакти HubSpot"
+    },
+    "localBaserowTableDataSync": {
+        "name": "ID вихідної таблиці",
+        "authorizing": "Ви авторизуєте свій обліковий запис для вибору даних з вихідної таблиці.",
+        "workspace": "Робочий простір",
+        "database": "База даних",
+        "table": "Таблиця",
+        "view": "Представлення",
+        "viewHelper": "Синхронізуються лише видимі поля та рядки, що відповідають фільтрам."
+    },
+    "jiraIssuesDataSync": {
+        "jiraUrl": "URL екземпляра Jira",
+        "urlHelper": "Базовий URL вашого екземпляра Jira (напр., https://your-domain.atlassian.net).",
+        "authenticationLabel": "Автентифікація",
+        "authenticationHelper": "Виберіть спосіб автентифікації з Jira.",
+        "projectKey": "Ключ проєкту Jira (необов'язково)",
+        "projectKeyHelper": "Ключ проєкту Jira (напр., PROJ). Можна знайти, натиснувши `Налаштування проєкту` в Jira. Якщо не вказано, буде повернуто всі задачі.",
+        "jiraUsername": "Ім'я користувача Jira",
+        "usernameHelper": "Ім'я користувача облікового запису Jira для автентифікації. Це email, який ви використовуєте для входу.",
+        "apiToken": "API токен Jira",
+        "apiTokenHelper": "API токен облікового запису Jira для автентифікації. Можна створити за адресою https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "personalAccessToken": "Персональний токен доступу Jira",
+        "personalAccessTokenHelper": "API токен облікового запису Jira для автентифікації. Можна створити за адресою https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
+    },
+    "githubIssuesDataSync": {
+        "owner": "Власник",
+        "ownerHelper": "Ім'я користувача або власник репозиторію. Зазвичай у верхньому лівому куті `власник / репо`",
+        "repo": "Репозиторій",
+        "repoHelper": "Назва репозиторію. Зазвичай у верхньому лівому куті `власник / репо`",
+        "apiToken": "API токен",
+        "apiTokenHelper": "Можна згенерувати тут https://github.com/settings/tokens, натиснувши `Generate new token`, виберіть `All repositories`, потім у `Repository permissions` встановіть `Issues` на `read-only`."
+    },
+    "gitlabIssuesDataSync": {
+        "url": "Базовий URL",
+        "urlHelper": "Базовий URL вашого екземпляра GitLab. (напр. https://gitlab.com)",
+        "projectId": "ID проєкту",
+        "projectIdHelper": "ID проєкту, з якого потрібно синхронізувати задачі. Можна знайти, перейшовши на сторінку проєкту (напр. https://gitlab.com/baserow/baserow), натиснувши на три крапки у верхньому правому куті, а потім на \"Copy project ID: 12345678\".",
+        "accessToken": "Токен доступу",
+        "accessTokenHelper": "Можна згенерувати тут https://gitlab.com/-/user_settings/personal_access_tokens, натиснувши `Add new token`, виберіть `read_api`."
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Токен доступу приватного застосунку",
+        "accessTokenHelper": "Щоб згенерувати токен доступу приватного застосунку в HubSpot, натисніть Налаштування у верхній панелі, перейдіть до Інтеграції > Приватні застосунки та створіть новий приватний застосунок. Призначте наступні області: crm.objects.contacts.read, crm.schemas.contacts.read та crm.objects.custom.read. Нарешті, натисніть Створити застосунок, щоб згенерувати токен."
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} через SAML",
+        "provideEmail": "Вкажіть email вашого облікового запису SAML",
+        "emailPlaceholder": "Введіть ваш email..."
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Налаштування періодичності"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Налаштування періодичності",
+        "saved": "Збережено",
+        "deactivatedTitle": "Періодичну синхронізацію даних деактивовано",
+        "deactivatedText": "Періодичну синхронізацію даних було деактивовано через занадто багато послідовних помилок. Спробуйте синхронізувати вручну, і якщо все працює як очікувалося, натисніть кнопку активації.",
+        "activate": "Активувати періодичну синхронізацію",
+        "enterprise": "Періодична синхронізація даних є функцією Advanced/Enterprise.",
+        "more": "Більше інформації"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "Інтервал",
+        "intervalHelper": "Як часто синхронізація даних повинна виконуватися автоматично.",
+        "manual": "Вручну",
+        "daily": "Щоденно",
+        "hourly": "Щогодини",
+        "whenHelper": "Вкажіть точну годину, хвилину та секунду, коли має виконуватися синхронізація даних.",
+        "whenHourlyHelper": "Вкажіть точну хвилину та секунду, коли має виконуватися синхронізація даних.",
+        "hour": "Година",
+        "minute": "Хвилина",
+        "second": "Секунда"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} через {provider}"
+    },
+    "chartWidget": {
+        "name": "Діаграма",
+        "bar": "Стовпчикова діаграма",
+        "line": "Лінійна діаграма"
+    },
+    "pieChartWidget": {
+        "name": "Кругова діаграма",
+        "pie": "Кругова діаграма",
+        "doughnut": "Кільцева діаграма",
+        "polarArea": "Полярна діаграма"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Серія",
+        "addSeries": "Додати серію",
+        "data": "Дані",
+        "sourceFieldLabel": "Джерело",
+        "viewFieldLabel": "Представлення",
+        "notSelected": "Не вибрано"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Поле",
+        "aggregationTypeLabel": "Підсумок",
+        "deleteSeries": "Видалити серію",
+        "chartType": "Тип діаграми",
+        "barChart": "Стовпчики",
+        "lineChart": "Лінія",
+        "pieChart": "Кругова",
+        "doughnutChart": "Кільцева",
+        "polarAreaChart": "Полярна"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Групувати за",
+        "groupByNone": "Без групування",
+        "groupByRowId": "ID рядка"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Сортувати за",
+        "none": "Без сортування",
+        "ascending": "За зростанням",
+        "descending": "За спаданням"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "Періодичну синхронізацію даних {name} деактивовано через занадто багато послідовних помилок.",
+        "licenseUnavailable": "Періодичну синхронізацію даних {name} вимкнено, оскільки робочий простір більше не має дійсної ліцензії. Оновіть ліцензію для відновлення автоматичної синхронізації."
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Помилка оновлення двосторонньої синхронізації {name}: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Двосторонню синхронізацію {name} деактивовано через занадто багато послідовних помилок оновлення. Синхронізуйте вручну та повторно активуйте після вирішення проблеми."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Рядки потрапляють до представлення"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Запускається, коли рядки потрапляють до представлення.",
+        "helpTriggerWhenRowsEnterView": "Запускається лише коли вибрано `Рядки потрапляють до представлення` та рядки, що тепер відповідають фільтрам, потрапляють до представлення."
+    },
+    "fileInputElementForm": {
+        "defaultNameTitle": "Початкова назва файлу|Початкові назви файлів",
+        "defaultNamePlaceholder": "Введіть назву файлу...|Введіть назви файлів...",
+        "defaultNameHelp": "Кількість назв повинна відповідати кількості URL.",
+        "defaultUrlTitle": "Початковий URL файлу|Початкові URL файлів",
+        "defaultUrlPlaceholder": "Введіть URL за замовчуванням...|Введіть URL за замовчуванням...",
+        "helpTextTitle": "Текст довідки",
+        "helpTextPlaceholder": "Залиште порожнім для значення за замовчуванням...",
+        "multiple": "Кілька файлів?",
+        "required": "Обов'язкове",
+        "fileTypes": "Типи файлів",
+        "fileTypesHelper": "Виберіть дозволені розширення файлів (по одному на рядок) для поля введення файлу (напр. jpg, png, svg, pdf). Можна вказати image/*, video/* або audio/*, щоб дозволити всі файли цих типів. Залиште порожнім, щоб дозволити всі типи файлів.",
+        "preview": "Попередній перегляд зображень?",
+        "maxFileSize": "Максимальний розмір файлу",
+        "maxFileSizePlaceholder": "Введіть число...",
+        "addFileType": "Додати тип файлу"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Перетягніть файли сюди або натисніть, щоб вибрати",
+        "fileSizeExceeded": "Файл занадто великий. Максимум {max}МБ."
+    },
+    "fieldPermissionModal": {
+        "title": "Редагувати дозволи поля",
+        "description": "Виберіть, хто може редагувати значення в {fieldName}.",
+        "question": "Хто може редагувати це поле?",
+        "editorTitle": "Редактори та вище (за замовчуванням)",
+        "editorDescription": "Користувачі з ролями Редактор, Розробник та Адміністратор",
+        "builderTitle": "Розробники та вище",
+        "builderDescription": "Користувачі з ролями Розробник та Адміністратор",
+        "adminTitle": "Лише адміністратори",
+        "adminDescription": "Користувачі з роллю Адміністратор",
+        "nobodyTitle": "Ніхто",
+        "nobodyDescription": "Жодних користувачів",
+        "allowInForms": "Дозволити встановлювати це поле в рядках, створених через форми",
+        "linkRowWarning": "Це поле \"Посилання на таблицю\". Щоб переконатися, що значення не можуть бути змінені з пов'язаної таблиці, встановіть відповідні дозволи також на пов'язаній таблиці."
+    },
+    "builderSettingTypes": {
+        "customCode": "Користувацький CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Користувацький CSS",
+        "customJS": "Користувацький JavaScript",
+        "customCSSPlaceholder": "Введіть користувацький CSS код...",
+        "customJSPlaceholder": "Введіть користувацький JS код...",
+        "externalScripts": "Зовнішні скрипти / стилі",
+        "noScript": "Покращуйте свій застосунок за допомогою зовнішніх скриптів або стилів",
+        "customCodeTitle": "Користувацький код",
+        "customCodeHelp": "Користувацький код видимий лише в попередньому перегляді або опублікованих застосунках. Результати не відображаються в редакторі.",
+        "addExternalScript": "Додати зовнішній скрипт"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Тип",
+        "loadType": "Тип завантаження",
+        "url": "URL",
+        "urlPlaceholder": "Введіть URL скрипта...",
+        "crossorigin": "Cross origin",
+        "includeCredentials": "Включити облікові дані",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Звичайний",
+        "loadTypeDefer": "Відкладений",
+        "loadTypeAsync": "Асинхронний",
+        "crossoriginTypeNone": "Звичайний",
+        "crossoriginTypeAnonymous": "Анонімний",
+        "crossoriginTypeCredentials": "Використовувати облікові дані"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "Вибране джерело користувачів не має опції входу",
+        "errorUserSourceMissing": "Джерело користувачів не вибрано"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Редагувати дозволи поля"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Дозволяє редагувати значення комірок безпосередньо в Baserow та передавати їх у реальному часі до джерела синхронізації даних. Зверніть увагу, що зміни не витягуються в реальному часі, оскільки вони залежать від завершення (періодичної) дії синхронізації. Настійно рекомендується створювати резервні копії бази даних PostgreSQL, щоб уникнути випадкових змін."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Залежність дат",
+        "dependencyFieldTooltip": "Налаштувати залежності дат",
+        "dependencyFieldTooltipError": "Правило поля містить помилку",
+        "contextMenuItemLabel": "Налаштувати залежності дат",
+        "title": "Залежність дат для {tableName}",
+        "description": "Вкажіть, які рядки залежать від інших. Коли рядок переплановано, залежні рядки автоматично коригуються.",
+        "enableDateDependency": "Увімкнути залежності дат для проєктів",
+        "startDateFieldLabel": "Дата початку",
+        "endDateFieldLabel": "Дата завершення",
+        "durationFieldLabel": "Тривалість",
+        "dependencyLinkrowFieldLabel": "Попередники",
+        "dependencyLinkrowFieldHint": "Використовуйте поле \"Посилання на таблицю\", щоб з'єднати рядок з його попередниками.",
+        "dependencyBufferTypeLabel": "Логіка перепланування",
+        "durationBufferLabel": "Часовий буфер",
+        "dependencyConnectionTypeLabel": "Тип",
+        "advancedSettingsLabel": "Розширені налаштування",
+        "includeWeekendsLabel": "Включати вихідні при обчисленні тривалості",
+        "dependencyFieldForReaderTooltip": "Це поле включено до правила залежності дат",
+        "fieldInvalidTitle": "Помилка поля залежності дат",
+        "durationFieldHint": "Це поле повинно використовувати формат \"д г\"."
+    },
+    "dateDependency": {
+        "invalidChildRow": "Рядок-наступник недійсний",
+        "invalidParentRow": "Рядок-попередник недійсний",
+        "invalidParentEndDateAfterChildStartDate": "Дата завершення рядка-попередника пізніше дати початку наступника",
+        "invalidStartDateEmpty": "Дата початку порожня",
+        "invalidEndDateEmpty": "Дата завершення порожня",
+        "invalidEndDateBeforeStartDate": "Дата завершення раніше дати початку",
+        "invalidDurationEmpty": "Тривалість порожня",
+        "invalidDurationValue": "Значення тривалості недійсне",
+        "invalidDurationMismatch": "Невідповідність значення тривалості"
+    }
+}

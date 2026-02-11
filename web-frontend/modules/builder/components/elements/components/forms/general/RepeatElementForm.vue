@@ -194,7 +194,7 @@ export default {
     PaddingSelector,
   },
   mixins: [collectionElementForm],
-  inject: ['applicationContext'],
+  emits: ['input', 'values-changed'],
   setup() {
     return { v$: useVuelidate() }
   },

@@ -28,7 +28,10 @@
       >
     </div>
 
-    <Modal ref="advancedModeModal">
+    <Modal
+      ref="advancedModeModal"
+      class="formula-input-context__advanced-mode-modal"
+    >
       <h2 class="box__title">
         {{
           isAdvancedMode
@@ -116,6 +119,7 @@ export default {
       required: true,
     },
   },
+  emits: ['mode-changed', 'node-selected', 'node-unselected'],
   data() {
     return {
       searchQuery: '',
@@ -251,11 +255,11 @@ export default {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
+      this.$refs.advancedModeModal.hide()
       this.$emit(
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
-      this.$refs.advancedModeModal.hide()
     },
     cancelModeChange() {
       this.$refs.advancedModeModal.hide()

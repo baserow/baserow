@@ -8,7 +8,7 @@ import {
   ensurePositiveInteger,
   ensureDate,
 } from '@baserow/modules/core/utils/validator'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import { DateOnly } from '@baserow/modules/core/utils/date'
 
@@ -86,6 +86,43 @@ describe('ensurePositiveInteger', () => {
   test('allowNull defaults to false', () => {
     expect(() => ensurePositiveInteger(null)).toThrow()
     expect(() => ensurePositiveInteger('')).toThrow()
+  })
+
+  it('should convert a string representation of a positive integer', () => {
+    expect(ensurePositiveInteger('15')).toBe(15)
+    expect(ensurePositiveInteger('0')).toBe(0)
+    expect(ensurePositiveInteger('1000')).toBe(1000)
+  })
+
+  it('should throw an error for negative integers', () => {
+    expect(() => ensurePositiveInteger(-1)).toThrow(
+      'Value is not a positive integer.'
+    )
+    expect(() => ensurePositiveInteger('-5')).toThrow(
+      'Value is not a positive integer.'
+    )
+  })
+
+  it('should throw an error for non-integer values', () => {
+    expect(() => ensurePositiveInteger('abc')).toThrow(
+      "Value 'abc' is not a valid integer or convertible to an integer."
+    )
+    expect(() => ensurePositiveInteger('12.34')).toThrow(
+      "Value '12.34' is not a valid integer or convertible to an integer."
+    )
+    expect(() => ensurePositiveInteger(true)).toThrow(
+      "Value 'true' is not a valid integer or convertible to an integer."
+    )
+    expect(() => ensurePositiveInteger([])).toThrow(
+      "Value '' is not a valid integer or convertible to an integer."
+    )
+  })
+
+  it('should handle null values according to options', () => {
+    expect(() => ensurePositiveInteger(null)).toThrow(
+      "Value 'null' is not a valid integer or convertible to an integer."
+    )
+    expect(ensurePositiveInteger(null, { allowNull: true })).toBe(null)
   })
 })
 
@@ -252,51 +289,6 @@ describe('ensureArray', () => {
     expect(ensureArray('one,two,,')).toStrictEqual(['one', 'two', '', ''])
     expect(ensureArray([1, 2, 3])).toStrictEqual([1, 2, 3])
     expect(ensureArray({ key: 'value' })).toStrictEqual([{ key: 'value' }])
-  })
-})
-
-describe('ensurePositiveInteger', () => {
-  it('should return the value as a positive integer if it is already a positive integer', () => {
-    expect(ensurePositiveInteger(5)).toBe(5)
-    expect(ensurePositiveInteger(0)).toBe(0)
-    expect(ensurePositiveInteger(1000)).toBe(1000)
-  })
-
-  it('should convert a string representation of a positive integer', () => {
-    expect(ensurePositiveInteger('15')).toBe(15)
-    expect(ensurePositiveInteger('0')).toBe(0)
-    expect(ensurePositiveInteger('1000')).toBe(1000)
-  })
-
-  it('should throw an error for negative integers', () => {
-    expect(() => ensurePositiveInteger(-1)).toThrow(
-      'Value is not a positive integer.'
-    )
-    expect(() => ensurePositiveInteger('-5')).toThrow(
-      'Value is not a positive integer.'
-    )
-  })
-
-  it('should throw an error for non-integer values', () => {
-    expect(() => ensurePositiveInteger('abc')).toThrow(
-      "Value 'abc' is not a valid integer or convertible to an integer."
-    )
-    expect(() => ensurePositiveInteger('12.34')).toThrow(
-      "Value '12.34' is not a valid integer or convertible to an integer."
-    )
-    expect(() => ensurePositiveInteger(true)).toThrow(
-      "Value 'true' is not a valid integer or convertible to an integer."
-    )
-    expect(() => ensurePositiveInteger([])).toThrow(
-      "Value '' is not a valid integer or convertible to an integer."
-    )
-  })
-
-  it('should handle null values according to options', () => {
-    expect(() => ensurePositiveInteger(null)).toThrow(
-      "Value 'null' is not a valid integer or convertible to an integer."
-    )
-    expect(ensurePositiveInteger(null, { allowNull: true })).toBe(null)
   })
 })
 

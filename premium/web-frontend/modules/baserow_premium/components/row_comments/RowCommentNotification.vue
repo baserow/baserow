@@ -2,10 +2,10 @@
   <nuxt-link
     class="notification-panel__notification-link"
     :to="route"
-    @click.native="markAsReadAndHandleClick"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="rowCommentNotification.title" tag="span">
+      <i18n-t keypath="rowCommentNotification.title" tag="span">
         <template #sender>
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else
@@ -20,7 +20,7 @@
         <template #table>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
     <RichTextEditor
       :editable="false"
@@ -40,6 +40,7 @@ export default {
     RichTextEditor,
   },
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick(evt) {
       this.$emit('close-panel')

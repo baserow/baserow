@@ -14,14 +14,9 @@
           </div>
           <div class="admin-settings__control">
             {{ instanceId }}
-            <a
-              class="licenses__instance-id-copy"
-              @click.prevent="
-                ;[copyToClipboard(instanceId), $refs.instanceIdCopied.show()]
-              "
-            >
+            <a class="licenses__instance-id-copy" @click.prevent="handleCopy()">
               {{ $t('action.copy') }}
-              <Copied ref="instanceIdCopied"></Copied>
+              <Copied ref="instanceIdCopied" />
             </a>
           </div>
         </div>
@@ -117,8 +112,9 @@
             <SwitchInput
               :value="settings.allow_reset_password"
               @input="updateSettings({ allow_reset_password: $event })"
-              >{{ $t('settings.enabled') }}</SwitchInput
             >
+              {{ $t('settings.enabled') }}
+            </SwitchInput>
             <div v-show="!settings.allow_reset_password" class="warning">
               {{ $t('settings.settingAllowResetPasswordWarning') }}
             </div>
@@ -191,7 +187,7 @@
           <div class="admin-settings__control">
             <FormGroup :error="v$.values.account_deletion_grace_delay.$error">
               <FormInput
-                v-model="v$.values.account_deletion_grace_delay.$model"
+                :value="v$.values.account_deletion_grace_delay.$model"
                 :error="v$.values.account_deletion_grace_delay.$error"
                 type="number"
                 size="large"
@@ -237,143 +233,133 @@
     </div>
   </div>
 </template>
-
-<script>
+<script setup>
+import {
+  ref,
+  reactive,
+  computed,
+  watch,
+  getCurrentInstance,
+  onMounted,
+} from 'vue'
+import { useAsyncData, useNuxtApp, useHead } from '#app'
+import { useStore } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
-
-import { reactive, getCurrentInstance } from 'vue'
 import { required, integer, between, helpers } from '@vuelidate/validators'
-import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
-export default {
-  layout: 'app',
-  middleware: 'staff',
-  setup() {
-    const instance = getCurrentInstance()
-    const values = reactive({
-      account_deletion_grace_delay: null,
-    })
+const { $registry, $client, $baserowVersion, $i18n } = useNuxtApp()
+const { t: $t } = useI18n()
+const store = useStore()
 
-    const rules = {
-      values: {
-        account_deletion_grace_delay: {
-          required: helpers.withMessage(
-            instance.proxy.$t('error.requiredField'),
-            required
-          ),
-          between: helpers.withMessage(
-            instance.proxy.$t('settings.invalidAccountDeletionGraceDelay'),
-            between(0, 32000)
-          ),
-          integer: helpers.withMessage(
-            instance.proxy.$t('settings.invalidAccountDeletionGraceDelay'),
-            integer
-          ),
-        },
+useHead({ title: $i18n.t('settings.settingsTitle') })
+
+const instanceIdCopied = ref(null)
+
+const values = reactive({
+  account_deletion_grace_delay: null,
+})
+
+const settings = computed(() => store.getters['settings/get'])
+
+const emailVerificationOptions = computed(() => [
+  {
+    label: $t('settings.emailVerificationNoVerification'),
+    value: EMAIL_VERIFICATION_OPTIONS.NO_VERIFICATION,
+  },
+  {
+    label: $t('settings.emailVerificationRecommended'),
+    value: EMAIL_VERIFICATION_OPTIONS.RECOMMENDED,
+  },
+  {
+    label: $t('settings.emailVerificationEnforced'),
+    value: EMAIL_VERIFICATION_OPTIONS.ENFORCED,
+  },
+])
+
+const rules = computed(() => {
+  return {
+    values: {
+      account_deletion_grace_delay: {
+        required: helpers.withMessage($t('error.requiredField'), required),
+        between: helpers.withMessage(
+          $t('settings.invalidAccountDeletionGraceDelay'),
+          between(0, 32000)
+        ),
+        integer: helpers.withMessage(
+          $t('settings.invalidAccountDeletionGraceDelay'),
+          integer
+        ),
       },
-    }
+    },
+  }
+})
 
-    const v$ = useVuelidate(rules, { values }, { $lazy: true })
+const v$ = useVuelidate(rules, { values }, { $lazy: true })
 
-    return { values, v$, loading: false }
-  },
+const { data: instanceData } = await useAsyncData('instance-id', async () => {
+  const { data } = await SettingsService($client).getInstanceID()
+  return data
+})
 
-  async asyncData({ app }) {
-    const { data } = await SettingsService(app.$client).getInstanceID()
-    return { instanceId: data.instance_id }
-  },
+const instanceId = computed(() => instanceData.value?.instance_id ?? '')
 
-  data() {
-    return {
-      emailVerificationOptions: [
-        {
-          label: this.$t('settings.emailVerificationNoVerification'),
-          value: EMAIL_VERIFICATION_OPTIONS.NO_VERIFICATION,
-        },
-        {
-          label: this.$t('settings.emailVerificationRecommended'),
-          value: EMAIL_VERIFICATION_OPTIONS.RECOMMENDED,
-        },
-        {
-          label: this.$t('settings.emailVerificationEnforced'),
-          value: EMAIL_VERIFICATION_OPTIONS.ENFORCED,
-        },
-      ],
-    }
-  },
-  computed: {
-    additionalSettingsComponents() {
-      return Object.values(this.$registry.getAll('plugin'))
-        .reduce(
-          (components, plugin) =>
-            components.concat(plugin.getSettingsPageComponents()),
-          []
-        )
-        .filter((component) => component !== null)
-    },
-    ...mapGetters({
-      settings: 'settings/get',
-    }),
-    EMAIL_VERIFICATION_OPTIONS() {
-      return EMAIL_VERIFICATION_OPTIONS
-    },
-    baserowVersion() {
-      return this.$baserowVersion
-    },
-  },
-  watch: {
-    'settings.account_deletion_grace_delay'(value) {
-      this.values.account_deletion_grace_delay = value
-    },
-    'values.account_deletion_grace_delay'(value) {
-      if (this.dataInitialized) {
-        this.updateSettings({ account_deletion_grace_delay: value })
-      }
-    },
-  },
-  mounted() {
-    this.values.account_deletion_grace_delay =
-      this.settings.account_deletion_grace_delay
-  },
-  methods: {
-    async updateSettings(values) {
-      this.v$.$touch()
-      if (this.v$.$invalid) {
-        return
-      }
-      try {
-        await this.$store.dispatch('settings/update', values)
-      } catch (error) {
-        notifyIf(error, 'settings')
-      }
-    },
-    copyToClipboard(value) {
-      copyToClipboard(value)
-    },
-    updateAccountDeletionGraceDelay() {
-      const existingValue = this.settings.account_deletion_grace_delay
+const additionalSettingsComponents = computed(() => {
+  return Object.values($registry.getAll('plugin'))
+    .reduce(
+      (components, plugin) =>
+        components.concat(plugin.getSettingsPageComponents()),
+      []
+    )
+    .filter((component) => component !== null)
+})
 
-      if (
-        !this.v$.values.account_deletion_grace_delay.$error &&
-        existingValue !== parseInt(this.values.account_deletion_grace_delay)
-      ) {
-        this.updateSettings({
-          account_deletion_grace_delay: parseInt(
-            this.values.account_deletion_grace_delay
-          ),
-        })
-      }
-    },
-    handleAccountDeletionGraceDelayInput(event) {
-      this.v$.values.account_deletion_grace_delay.$touch()
-      this.updateAccountDeletionGraceDelay(event)
-    },
-  },
+const baserowVersion = computed(() => $baserowVersion)
+
+function handleCopy() {
+  copyToClipboard(instanceId.value)
+  instanceIdCopied.value?.show()
 }
+
+async function updateSettings(payload) {
+  v$.value.$touch()
+  if (v$.value.$invalid) return
+  try {
+    await store.dispatch('settings/update', payload)
+  } catch (error) {
+    notifyIf(error, 'settings')
+  }
+}
+
+function updateAccountDeletionGraceDelay() {
+  const existing = settings.value.account_deletion_grace_delay
+  const parsed = parseInt(v$.value.values.account_deletion_grace_delay.$model)
+  if (
+    !v$.value.values.account_deletion_grace_delay.$error &&
+    existing !== parsed
+  ) {
+    updateSettings({ account_deletion_grace_delay: parsed })
+  }
+}
+
+function handleAccountDeletionGraceDelayInput(event) {
+  v$.value.values.account_deletion_grace_delay.$model = event
+  updateAccountDeletionGraceDelay()
+}
+
+watch(
+  () => settings.value.account_deletion_grace_delay,
+  (val) => {
+    v$.value.values.account_deletion_grace_delay.$model = val
+  }
+)
+
+onMounted(() => {
+  v$.value.values.account_deletion_grace_delay.$model =
+    settings.value.account_deletion_grace_delay
+})
 </script>

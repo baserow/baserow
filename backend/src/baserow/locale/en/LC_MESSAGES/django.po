@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-17 15:17+0000\n"
+"POT-Creation-Date: 2026-01-09 16:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,15 +35,15 @@ msgstr ""
 #: src/baserow/contrib/automation/action_scopes.py:14
 #, python-format
 msgid ""
-"of type (%(node_type)s) in automation \"%(automation_name)s\" "
-"(%(automation_id)s)."
+"of type (%(node_type)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/actions.py:8
 #, python-format
 msgid ""
-"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
-"(%(automation_id)s)."
+"in workflow (%(workflow_id)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/automation_init_application.py:29
@@ -219,6 +219,14 @@ msgstr ""
 
 #: src/baserow/contrib/integrations/core/service_types.py:1418
 msgid "Triggered at"
+msgstr ""
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1676
+msgid "No rows found"
+msgstr ""
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1692
+msgid "Row {resolved_values['row_id']} does not exist."
 msgstr ""
 
 #: src/baserow/contrib/integrations/slack/service_types.py:166

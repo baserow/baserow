@@ -471,3 +471,7 @@ class ShareOnboardingDetailsWithBaserowSerializer(serializers.Serializer):
         help_text="The country that the user has chosen during the onboarding.",
         required=True,
     )
+    how = serializers.CharField(
+        help_text="How the user found Baserow.",
+        required=True,
+    )

@@ -1,4 +1,5 @@
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
+import viewStore from '@baserow/modules/database/store/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { ContainsViewFilterType } from '@baserow/modules/database/viewFilters'
 import { createPrimaryField } from '@baserow/test/fixtures/fields'
@@ -6,11 +7,20 @@ import { createView } from '@baserow/test/fixtures/view'
 
 describe('Buffered rows view store helper', () => {
   let testApp = null
-  let store = null
+  let createStore = null
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    createStore = (storeConfig, initialState) => {
+      const testStore = bufferedRows(storeConfig)
+      const state = Object.assign(testStore.state(), initialState)
+      return testApp.createStore({
+        modules: {
+          test: { ...testStore, state: () => state },
+          view: viewStore,
+        },
+      })
+    }
   })
 
   afterEach(() => {
@@ -40,9 +50,8 @@ describe('Buffered rows view store helper', () => {
       row._ = {}
       return row
     }
-    const testStore = bufferedRows({ service, populateRow })
 
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -66,9 +75,9 @@ describe('Buffered rows view store helper', () => {
         null,
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service, populateRow }, state)
 
     await store.dispatch('test/fetchMissingRowsInNewRange', {
       startIndex: 0,
@@ -195,9 +204,8 @@ describe('Buffered rows view store helper', () => {
       row._ = {}
       return row
     }
-    const testStore = bufferedRows({ service, populateRow })
 
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 10,
         endIndex: 13,
@@ -226,9 +234,9 @@ describe('Buffered rows view store helper', () => {
         { id: 19 },
         { id: 20 },
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service, populateRow }, state)
 
     await store.dispatch('test/refresh', {})
     const rowsInStore = store.getters['test/getRows']
@@ -279,9 +287,8 @@ describe('Buffered rows view store helper', () => {
       row._ = {}
       return row
     }
-    const testStore = bufferedRows({ service, populateRow })
 
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 9,
         endIndex: 12,
@@ -310,9 +317,9 @@ describe('Buffered rows view store helper', () => {
         { id: 19 },
         { id: 20 },
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service, populateRow }, state)
 
     await store.dispatch('test/refresh', {})
     const rowsInStore = store.getters['test/getRows']
@@ -343,9 +350,8 @@ describe('Buffered rows view store helper', () => {
       row._ = {}
       return row
     }
-    const testStore = bufferedRows({ service, populateRow })
 
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 1,
@@ -353,9 +359,8 @@ describe('Buffered rows view store helper', () => {
       requestSize: 2,
       viewId: 1,
       rows: [{ id: 1 }, { id: 2 }, null, null],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+    const store = createStore({ service, populateRow }, state)
 
     await store.dispatch('test/refresh', {})
     expect(store.getters['test/getRows'].length).toBe(0)
@@ -387,8 +392,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -409,9 +413,9 @@ describe('Buffered rows view store helper', () => {
         { id: 12, order: '12.00000000000000000000', field_1: 'Row 12' },
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     let index = await store.dispatch('test/findIndexOfNotExistingRow', {
       view,
@@ -491,8 +495,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -515,9 +518,9 @@ describe('Buffered rows view store helper', () => {
         null,
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     let index = await store.dispatch('test/findIndexOfNotExistingRow', {
       view,
@@ -586,8 +589,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -608,9 +610,9 @@ describe('Buffered rows view store helper', () => {
         { id: 12, order: '12.00000000000000000000', field_1: 'Row 12' },
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     let index = await store.dispatch('test/findIndexOfExistingRow', {
       view,
@@ -713,8 +715,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -737,9 +738,9 @@ describe('Buffered rows view store helper', () => {
         null,
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     let index = await store.dispatch('test/findIndexOfExistingRow', {
       view,
@@ -808,7 +809,7 @@ describe('Buffered rows view store helper', () => {
     expect(index).toStrictEqual({ index: 13, isCertain: false })
   })
 
-  test('test row matches filters', async () => {
+  test('row matches filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -834,8 +835,7 @@ describe('Buffered rows view store helper', () => {
       },
     ]
 
-    const testStore = bufferedRows({ service: null, populateRow: null })
-    store.registerModule('test', testStore)
+    const store = createStore({ service: null, populateRow: null }, {})
 
     expect(
       await store.dispatch('test/rowMatchesFilters', {
@@ -881,7 +881,7 @@ describe('Buffered rows view store helper', () => {
     ).toBe(true)
   })
 
-  test('test created new row', async () => {
+  test('created new row', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -903,8 +903,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -924,9 +923,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterNewRowCreated', {
       view,
@@ -1101,7 +1100,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[16].id).toBe(17)
   })
 
-  test('test created new row ignored if filtered', async () => {
+  test('created new row ignored if filtered', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1131,8 +1130,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1152,9 +1150,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterNewRowCreated', {
       view,
@@ -1179,7 +1177,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[10]).toBe(null)
   })
 
-  test('test updated existing row without filters', async () => {
+  test('updated existing row without filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1201,8 +1199,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1228,9 +1225,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowUpdated', {
       view,
@@ -1337,7 +1334,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11]).toBe(null)
   })
 
-  test('test updated existing row with filters', async () => {
+  test('updated existing row with filters', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1367,8 +1364,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1389,9 +1385,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowUpdated', {
       view,
@@ -1499,7 +1495,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11].id).toBe(14)
   })
 
-  test('test updated existing row with sorting', async () => {
+  test('updated existing row with sorting', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1529,8 +1525,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1543,9 +1538,9 @@ describe('Buffered rows view store helper', () => {
         { id: 3, order: '3.00000000000000000000', field_1: 'C' },
         { id: 4, order: '4.00000000000000000000', field_1: 'D' },
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowUpdated', {
       view,
@@ -1668,7 +1663,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[3].id).toBe(3)
   })
 
-  test('test updated existing with sorting from null', async () => {
+  test('updated existing with sorting from null', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1698,8 +1693,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1716,9 +1710,9 @@ describe('Buffered rows view store helper', () => {
         null,
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowUpdated', {
       view,
@@ -1743,7 +1737,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[7]).toBe(null)
   })
 
-  test('test deleted existing row', async () => {
+  test('deleted existing row', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1765,8 +1759,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1787,9 +1780,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowDeleted', {
       view,
@@ -1888,7 +1881,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[6].id).toBe(12)
   })
 
-  test('test deleted existing row ignored if filtered', async () => {
+  test('deleted existing row ignored if filtered', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -1918,8 +1911,7 @@ describe('Buffered rows view store helper', () => {
       return row
     }
 
-    const testStore = bufferedRows({ service: null, populateRow })
-    const state = Object.assign(testStore.state(), {
+    const state = {
       visibleRange: {
         startIndex: 0,
         endIndex: 0,
@@ -1940,9 +1932,9 @@ describe('Buffered rows view store helper', () => {
         { id: 14, order: '14.00000000000000000000', field_1: 'Row 14' },
         null,
       ],
-    })
-    testStore.state = () => state
-    store.registerModule('test', testStore)
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
 
     await store.dispatch('test/afterExistingRowDeleted', {
       view,
@@ -1973,16 +1965,24 @@ describe('Buffered rows view store helper', () => {
 
 describe('Buffered rows search', () => {
   let testApp = null
-  let store = null
-  let bufferedRowsModule = null
+  let createStore = null
   let view = null
   const storeName = 'test'
   const activeSearchTerm = 'searchterm'
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
-    bufferedRowsModule = bufferedRows({ service: null, populateRow: null })
+
+    createStore = (storeConfig, initialState) => {
+      const testStore = bufferedRows(storeConfig)
+      const state = Object.assign(testStore.state(), initialState)
+      return testApp.createStore({
+        modules: {
+          test: { ...testStore, state: () => state },
+          view: viewStore,
+        },
+      })
+    }
     view = createView()
   })
 
@@ -2032,17 +2032,19 @@ describe('Buffered rows search', () => {
         },
       }
     }
-    bufferedRowsModule = bufferedRows({
-      service: serviceStub,
-      populateRow: null,
-    })
-    const state = Object.assign(bufferedRowsModule.state(), {
+    const state = {
       viewId: view.id,
       rows: [],
       activeSearchTerm,
-    })
-    bufferedRowsModule.state = () => state
-    store.registerModule(storeName, bufferedRowsModule)
+    }
+
+    const store = createStore(
+      {
+        service: serviceStub,
+        populateRow: null,
+      },
+      state
+    )
 
     await store.dispatch(`${storeName}/refresh`, {
       fields: [createPrimaryField()],
@@ -2053,13 +2055,19 @@ describe('Buffered rows search', () => {
   })
 
   test('A new row matching search has been added', async () => {
-    const state = Object.assign(bufferedRowsModule.state(), {
+    const state = {
       viewId: view.id,
       rows: [{ id: 2, order: '2.00000000000000000000', field_1: 'Row 2' }],
       activeSearchTerm,
-    })
-    bufferedRowsModule.state = () => state
-    store.registerModule(storeName, bufferedRowsModule)
+    }
+
+    const store = createStore(
+      {
+        service: null,
+        populateRow: null,
+      },
+      state
+    )
 
     const newMatchingRow = {
       id: 1,
@@ -2078,13 +2086,18 @@ describe('Buffered rows search', () => {
   })
 
   test('A new row not matching search has not been added', async () => {
-    const state = Object.assign(bufferedRowsModule.state(), {
+    const state = {
       viewId: view.id,
       rows: [{ id: 2, order: '2.00000000000000000000', field_1: 'Row 2' }],
       activeSearchTerm,
-    })
-    bufferedRowsModule.state = () => state
-    store.registerModule(storeName, bufferedRowsModule)
+    }
+    const store = createStore(
+      {
+        service: null,
+        populateRow: null,
+      },
+      state
+    )
 
     const newNotMatchingRow = {
       id: 1,
@@ -2108,13 +2121,18 @@ describe('Buffered rows search', () => {
       order: '2.00000000000000000000',
       field_1: `matching the ${activeSearchTerm}`,
     }
-    const state = Object.assign(bufferedRowsModule.state(), {
+    const state = {
       viewId: view.id,
       rows: [matchingRow],
       activeSearchTerm,
-    })
-    bufferedRowsModule.state = () => state
-    store.registerModule(storeName, bufferedRowsModule)
+    }
+    const store = createStore(
+      {
+        service: null,
+        populateRow: null,
+      },
+      state
+    )
 
     const newValues = {
       field_1: 'not matching',

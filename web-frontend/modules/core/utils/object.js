@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import Vue from 'vue'
 
 /**
  * Clones the provided JavaScript object and returns that one.
@@ -152,7 +151,6 @@ export function getValueAtPath(context, path) {
 /**
  * Deeply sets a value in an object (or array) from a dotted path string.
  * Creates any missing intermediate parts if necessary.
- * Use Vue.set to keep reactivity.
  *
  * @param {Object} obj - The object we want to update.
  * @param {String} path - The path, delimited by periods, to the value.
@@ -169,42 +167,15 @@ export function setValueAtPath(obj, path, value) {
 
     // If we are at the last key, set the value
     if (i === keys.length - 1) {
-      Vue.set(current, key, value)
+      current[key] = value
     } else {
       // If the key does not exist or is not an object, create an empty object or array
       if (!(key in current) || typeof current[key] !== 'object') {
         // Check if the next key is a number to decide between object or array
-        Vue.set(current, key, isNaN(keys[i + 1]) ? {} : [])
+        current[key] = isNaN(keys[i + 1]) ? {} : []
       }
       // Move to the next level in the object
       current = current[key]
     }
   }
-}
-
-/**
- * Uses Object.defineProperty to make Vue provide/inject reactive.
- *
- * @param staticProperties The original object
- * @param reactiveProperties An object containing the properties and values to
- *                           become reactive
- * @return {object} The original object with the updated properties
- * @see https://stackoverflow.com/questions/65718651/how-do-i-make-vue-2-provide-inject-api-reactive
- *
- * @example
- * const obj = { a: "A", b: "B" }
- * fixPropertyReactivityForProvide(obj, { c: () => "C" }
- * console.log(obj.c) // "c" property is now reactive and will return "C"
- */
-export function fixPropertyReactivityForProvide(
-  staticProperties,
-  reactiveProperties
-) {
-  Object.entries(reactiveProperties).forEach(([propertyName, getValue]) => {
-    Object.defineProperty(staticProperties, propertyName, {
-      enumerable: true,
-      get: () => getValue(),
-    })
-  })
-  return staticProperties
 }

@@ -28,11 +28,11 @@
           :inline="true"
           :monday-first="true"
           :use-utc="true"
-          :value="dateObject"
-          :language="datePickerLang[$i18n.locale]"
+          :model-value="dateObject"
+          :language="$i18n.locale"
           :disabled-dates="disableDates"
           class="datepicker"
-          @input="
+          @update:model-value="
             ;[
               setCopy($event, 'dateObject'),
               $emit('input', copy),
@@ -52,10 +52,12 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG
+//import { en, fr } from 'vuejs3-datepicker'
 
 export default {
   name: 'DateFilter',
+  emits: ['input'],
   props: {
     value: {
       type: String,
@@ -83,8 +85,8 @@ export default {
       dateString: '',
       dateObject: '',
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

@@ -2,10 +2,10 @@
   <div :class="{ 'color-input--small': small }">
     <ColorPickerContext
       ref="colorPicker"
-      :value="value"
+      :value="currentValue"
       :variables="localColorVariables"
       :allow-opacity="allowOpacity"
-      @input="$emit('input', $event)"
+      @input="onValueChange($event)"
     />
     <div
       :id="forInput"
@@ -39,7 +39,11 @@ export default {
     value: {
       type: String,
       required: false,
-      default: 'primary',
+      default: undefined,
+    },
+    modelValue: {
+      type: String,
+      default: undefined,
     },
     colorVariables: {
       type: Array,
@@ -62,7 +66,13 @@ export default {
       default: true,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
+    currentValue() {
+      return this.modelValue !== undefined
+        ? this.modelValue
+        : this.value || 'primary'
+    },
     variablesMap() {
       return Object.fromEntries(
         this.localColorVariables.map((v) => [v.value, v])
@@ -84,18 +94,24 @@ export default {
     },
     displayValue() {
       const found = this.localColorVariables.find(
-        ({ value }) => value === this.value
+        ({ value }) => value === this.currentValue
       )
       if (found) {
         return found.name
       } else {
-        return this.value.toUpperCase()
+        return this.currentValue.toUpperCase()
       }
     },
     actualValue() {
-      return resolveColor(this.value, this.variablesMap)
+      return resolveColor(this.currentValue, this.variablesMap)
     },
   },
-  methods: { resolveColor },
+  methods: {
+    resolveColor,
+    onValueChange(event) {
+      this.$emit('input', event)
+      this.$emit('update:modelValue', event)
+    },
+  },
 }
 </script>

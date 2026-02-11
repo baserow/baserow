@@ -19,6 +19,7 @@
     <List
       class="margin-top-2 select-members-list__items"
       :items="usersFiltered"
+      :selected-items="usersSelected"
       :attributes="['email']"
       selectable
       @selected="userSelected"
@@ -28,7 +29,7 @@
           class="margin-left-1"
           rounded
           size="medium"
-          :initials="item.name | nameAbbreviation"
+          :initials="nameAbbreviation(item.name)"
         ></Avatar>
 
         <span
@@ -52,9 +53,11 @@
 
 <script>
 import SelectSubjectsListFooter from '@baserow_enterprise/components/rbac/SelectSubjectsListFooter'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'SelectMembersList',
+  emits: ['invite'],
   components: { SelectSubjectsListFooter },
   props: {
     users: {
@@ -106,6 +109,7 @@ export default {
         this.usersSelected.splice(index, 1)
       }
     },
+    nameAbbreviation,
   },
 }
 </script>

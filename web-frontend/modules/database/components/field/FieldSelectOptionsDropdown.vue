@@ -133,22 +133,21 @@ export default {
       default: 'regular',
     },
   },
+  emits: ['create-option'],
   data() {
     return {
       createOptionLoading: false,
+      selectedColor: null,
     }
   },
   computed: {
     canCreateOption() {
       return this.allowCreateOption && this.query !== '' && !this.hasItems
     },
-    selectedColor() {
-      return this.getSelectedProperty(this.value, 'color')
-    },
   },
   methods: {
     forceRefreshSelectedValue() {
-      this._computedWatchers.selectedColor.run()
+      this.selectedColor = this.getSelectedProperty(this.value, 'color')
       dropdown.methods.forceRefreshSelectedValue.call(this)
     },
     createOption(value) {

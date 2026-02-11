@@ -44,6 +44,7 @@ export default {
       default: false,
     },
   },
+  emits: ['click-item', 'hover-item'],
   methods: {
     getFilterIndicator(unfilteredList, filteredList) {
       const numFiltered = unfilteredList.length - filteredList.length

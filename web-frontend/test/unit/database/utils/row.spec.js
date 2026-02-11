@@ -9,13 +9,13 @@ describe('Row utilities', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
   })
 
-  afterEach((done) => {
-    testApp.afterEach().then(done)
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   describe('prepareRowForRequest', () => {
@@ -107,7 +107,7 @@ describe('Row utilities', () => {
     ]
 
     test.each(rowsToTest)(
-      'Test that %o is correctly prepared for request',
+      'that %o is correctly prepared for request',
       ({ input, output }) => {
         expect(
           prepareRowForRequest(input.row, input.fields, store.$registry)
@@ -185,7 +185,7 @@ describe('Row utilities', () => {
     })
   })
 
-  test('prepareNewOldAndUpdateRequestValues', () => {
+  test('extractRowReadOnlyValues', () => {
     const row = {
       id: 1,
       field_2: '2024-01-04T15:15:59.163126Z',

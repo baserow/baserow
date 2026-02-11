@@ -25,8 +25,8 @@ export class AIFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premiumFieldType.ai')
+    const { $i18n } = this.app
+    return $i18n.t('premiumFieldType.ai')
   }
 
   isReadOnlyField(field) {
@@ -91,8 +91,8 @@ export class AIFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    const { i18n } = this.app
-    return i18n.t('premiumFieldType.aiDescription')
+    const { $i18n } = this.app
+    return $i18n.t('premiumFieldType.aiDescription')
   }
 
   getDocsRequestExample(field) {

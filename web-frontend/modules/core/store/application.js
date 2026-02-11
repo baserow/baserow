@@ -36,7 +36,9 @@ export const mutations = {
     state.loaded = value
   },
   SET_ITEM_LOADING(state, { application, value }) {
-    application._.loading = value
+    if (application?._) {
+      application._.loading = value
+    }
   },
   ADD_ITEM(state, item) {
     state.items.push(item)
@@ -106,9 +108,10 @@ export const actions = {
    */
   async fetchAll({ commit, dispatch }) {
     commit('SET_LOADING', true)
+    const { $client } = this
 
     try {
-      const { data } = await ApplicationService(this.$client).fetchAll()
+      const { data } = await ApplicationService($client).fetchAll()
       await dispatch('forceSetAll', { applications: data })
     } catch (error) {
       commit('SET_ITEMS', [])
@@ -118,8 +121,9 @@ export const actions = {
     }
   },
   forceSetAll({ commit }, { applications }) {
+    const { $registry } = this
     const apps = applications.map((application) =>
-      populateApplication(application, this.$registry)
+      populateApplication(application, $registry)
     )
     commit('SET_ITEMS', apps)
     commit('SET_LOADING', false)
@@ -139,17 +143,21 @@ export const actions = {
    * If called all the applications that are in the state will clear their
    * children active state if they have one.
    */
-  clearChildrenSelected({ commit, getters }) {
+  // TODO MIG see other comment where this action is used
+  /*clearChildrenSelected({ commit, getters }) {
+    const { $registry } = this
     Object.values(getters.getAll).forEach((application) => {
-      const type = this.$registry.get('application', application.type)
+      const type = $registry.get('application', application.type)
       commit('CLEAR_CHILDREN_SELECTED', { type, application })
     })
-  },
+  },*/
   /**
    * Creates a new application with the given type and values for the currently
    * selected workspace.
    */
   async create({ dispatch }, { type, workspace, values, initWithData = true }) {
+    const { $registry, $client } = this
+
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
       throw new Error(
         'The key "type" is a reserved, but is already set on the ' +
@@ -157,7 +165,7 @@ export const actions = {
       )
     }
 
-    if (!this.$registry.exists('application', type)) {
+    if (!$registry.exists('application', type)) {
       throw new StoreItemLookupError(
         `An application type with type "${type}" doesn't exist.`
       )
@@ -167,7 +175,7 @@ export const actions = {
     postData.type = type
     postData.init_with_data = initWithData
 
-    const { data } = await ApplicationService(this.$client).create(
+    const { data } = await ApplicationService($client).create(
       workspace.id,
       postData
     )
@@ -177,7 +185,9 @@ export const actions = {
    * Forcefully create an item in the store without making a call to the server.
    */
   forceCreate({ commit, state, getters }, data) {
-    const app = populateApplication(data, this.$registry)
+    const { $registry, $client } = this
+
+    const app = populateApplication(data, $registry)
     const index = state.items.findIndex((item) => item.id === app.id)
     if (index === -1) {
       commit('ADD_ITEM', app)
@@ -190,7 +200,9 @@ export const actions = {
    * Updates the values of an existing application.
    */
   async update({ dispatch }, { application, values }) {
-    const { data } = await ApplicationService(this.$client).update(
+    const { $registry, $client } = this
+
+    const { data } = await ApplicationService($client).update(
       application.id,
       values
     )
@@ -207,7 +219,9 @@ export const actions = {
    * Forcefully update an item in the store without making a call to the server.
    */
   forceUpdate({ commit }, { application, data }) {
-    const type = this.$registry.get('application', application.type)
+    const { $registry, $client } = this
+
+    const type = $registry.get('application', application.type)
     data = type.prepareForStoreUpdate(application, data)
 
     commit('UPDATE_ITEM', { id: application.id, values: data })
@@ -219,10 +233,12 @@ export const actions = {
     { commit, getters },
     { workspace, order, oldOrder, isHashed = false }
   ) {
+    const { $registry, $client } = this
+
     commit('ORDER_ITEMS', { workspace, order, isHashed })
 
     try {
-      await ApplicationService(this.$client).order(workspace.id, order)
+      await ApplicationService($client).order(workspace.id, order)
     } catch (error) {
       commit('ORDER_ITEMS', { workspace, order: oldOrder, isHashed })
       throw error
@@ -233,8 +249,10 @@ export const actions = {
    * Deletes an existing application.
    */
   async delete({ commit, dispatch, getters }, application) {
+    const { $registry, $client } = this
+
     try {
-      await ApplicationService(this.$client).delete(application.id)
+      await ApplicationService($client).delete(application.id)
       dispatch('forceDelete', application)
     } catch (error) {
       if (error.response && error.response.status === 404) {
@@ -248,7 +266,9 @@ export const actions = {
    * Forcefully delete an item in the store without making a call to the server.
    */
   forceDelete({ commit, dispatch }, application) {
-    const type = this.$registry.get('application', application.type)
+    const { $registry, $client } = this
+
+    const type = $registry.get('application', application.type)
     dispatch('job/deleteForApplication', application, { root: true })
     type.delete(application, this)
     commit('DELETE_ITEM', application.id)
@@ -305,8 +325,19 @@ export const getters = {
   get: (state) => (id) => {
     return state.items.find((item) => item.id === id)
   },
-  getSelected: (state) => {
-    return state.selected
+  selectedId(state) {
+    if (!Object.prototype.hasOwnProperty.call(state.selected, 'id')) {
+      throw new Error('There is no selected application.')
+    }
+
+    return state.selected.id
+  },
+  getSelected(state, getters) {
+    if (state.selected?.id) {
+      return getters.get(getters.selectedId)
+    } else {
+      return null
+    }
   },
   getAll(state) {
     return state.items

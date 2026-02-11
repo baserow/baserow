@@ -6,6 +6,7 @@
           name: 'application-builder-page',
           params: { pathMatch: '/' },
         }"
+        custom
       >
         <Logo class="placeholder__logo-image" />
       </nuxt-link>

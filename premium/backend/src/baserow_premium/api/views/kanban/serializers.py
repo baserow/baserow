@@ -1,10 +1,10 @@
-from baserow_premium.views.models import KanbanViewFieldOptions
 from rest_framework import serializers
 
 from baserow.contrib.database.api.rows.serializers import (
     get_example_multiple_rows_metadata_serializer,
     get_example_row_serializer_class,
 )
+from baserow_premium.views.models import KanbanViewFieldOptions
 
 
 class KanbanViewFieldOptionsSerializer(serializers.ModelSerializer):

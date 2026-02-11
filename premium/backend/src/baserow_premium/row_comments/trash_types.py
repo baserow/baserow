@@ -2,13 +2,12 @@ from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.row_comments.models import RowComment
-from baserow_premium.row_comments.operations import RestoreRowCommentOperationType
-from baserow_premium.row_comments.signals import row_comment_restored
-
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import TrashItemDoesNotExist
 from baserow.core.trash.registries import TrashableItemType
+from baserow_premium.row_comments.models import RowComment
+from baserow_premium.row_comments.operations import RestoreRowCommentOperationType
+from baserow_premium.row_comments.signals import row_comment_restored
 
 
 class RowCommentTrashableItemType(TrashableItemType):

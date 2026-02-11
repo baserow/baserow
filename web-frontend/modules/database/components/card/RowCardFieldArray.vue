@@ -1,30 +1,24 @@
-<template functional>
+<template>
   <div class="card-array__wrapper">
-    <component
-      :is="$options.components.FunctionalFormulaArrayItems"
+    <FunctionalFormulaArrayItems
       class="card-array"
-      :class="data.staticClass || ''"
-      :row="props.row"
-      :field="props.field"
-      :value="props.value"
+      :row="row"
+      :field="field"
+      :value="value"
       :selected="true"
+      v-bind="containerAttrs"
+      v-on="listenerAttrs"
     >
       <div
-        v-if="$options.methods.shouldFetchRow(props)"
+        v-if="shouldFetchRow"
         class="array-field__item"
-        :class="[
-          data.staticClass,
-          data.class,
-          $options.methods.isFetchingRow(props)
-            ? 'array-field__item--loading'
-            : '',
-        ]"
+        :class="placeholderClasses"
       >
-        <div v-if="$options.methods.isFetchingRow(props)" class="loading"></div>
+        <div v-if="isFetchingRow" class="loading"></div>
         <span v-else>...</span>
       </div>
       <slot></slot>
-    </component>
+    </FunctionalFormulaArrayItems>
   </div>
 </template>
 
@@ -36,15 +30,54 @@ export default {
   height: 22,
   name: 'RowCardFieldArray',
   components: { FunctionalFormulaArrayItems },
-  methods: {
-    shouldFetchRow(props) {
+  inheritAttrs: false,
+  props: {
+    row: {
+      type: Object,
+      required: true,
+    },
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  computed: {
+    containerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (!key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+    listenerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+    shouldFetchRow() {
       return (
-        props.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
-        !props.row._?.fullyLoaded
+        this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !this.row._?.fullyLoaded
       )
     },
-    isFetchingRow(props) {
-      return props.row._?.fetching
+    isFetchingRow() {
+      return this.row._?.fetching
+    },
+    placeholderClasses() {
+      return [
+        this.containerAttrs.class,
+        this.isFetchingRow ? 'array-field__item--loading' : '',
+      ]
     },
   },
 }

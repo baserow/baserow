@@ -23,7 +23,11 @@
         </div>
         <div class="workflow-node__edges">
           <WorkflowEdge
-            ref="child-edge"
+            :ref="
+              (el) => {
+                childEdge = el
+              }
+            "
             class="workflow-node__edge"
             :node="node"
             :is-child="true"
@@ -54,7 +58,11 @@
     <div class="workflow-node__edges">
       <WorkflowEdge
         v-for="edge in nodeEdges"
-        :ref="`edge-${edge.uid}`"
+        :ref="
+          (el) => {
+            if (el) edgeRefs[edge.uid] = el
+          }
+        "
         :key="edge.uid"
         class="workflow-node__edge"
         :node="node"
@@ -76,12 +84,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
-import {
-  useContext,
-  computed,
-  getCurrentInstance,
-} from '@nuxtjs/composition-api'
+import { nextTick, ref, watch, onMounted, reactive } from 'vue'
 import WorkflowNodeContent from '@baserow/modules/automation/components/workflow/WorkflowNodeContent'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
 import WorkflowConnector from '@baserow/modules/automation/components/workflow/WorkflowConnector'
@@ -117,15 +120,14 @@ const emit = defineEmits([
   'duplicate-node',
 ])
 
-const { app } = useContext()
-
-const instance = getCurrentInstance()
-const refs = instance.proxy.$refs
+const app = useNuxtApp()
 
 const workflowNode = ref()
 const children = ref()
 const nodeComponent = ref()
+const childEdge = ref()
 const coordsPerEdge = ref([])
+const edgeRefs = reactive({})
 
 const nodeType = computed(() => app.$registry.get('node', props.node.type))
 const nodeEdges = computed(() => nodeType.value.getEdges({ node: props.node }))
@@ -143,37 +145,43 @@ const computeEdgeCoords = (wrapper, edgeElt, multiple = false) => {
 }
 
 /**
- * Compute all connector coordinates per edge on edge changes
+ * Recompute connector coordinates for all edges
  */
-watch(
-  nodeEdges,
-  async () => {
-    await nextTick()
-    coordsPerEdge.value = nodeEdges.value.map((edge) => {
-      const wrap = workflowNode.value
-      if (Array.isArray(refs[`edge-${edge.uid}`])) {
-        const edgeElt = refs[`edge-${edge.uid}`][0].$el
+const updateEdgeCoords = async () => {
+  await nextTick()
+  const wrap = workflowNode.value
+  // Defensive code: skip if the wrapper ref isn't available yet
+  if (!wrap) {
+    return
+  }
+  coordsPerEdge.value = nodeEdges.value.map((edge) => {
+    const edgeComponent = edgeRefs[edge.uid]
+    if (edgeComponent?.$el) {
+      return [
+        edge.uid,
+        computeEdgeCoords(wrap, edgeComponent.$el, hasMultipleEdges.value),
+      ]
+    } else {
+      // We might have a delay between the edge addition
+      // and the branch being visible
+      return [edge.uid, { startX: 0, startY: 0, endX: 0, endY: 0 }]
+    }
+  })
+}
 
-        return [
-          edge.uid,
-          computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value),
-        ]
-      } else {
-        // We might have a delay between the edge addition
-        // and the branch being visible
-        return [edge.uid, { startX: 0, startY: 0, endX: 0, endY: 0 }]
-      }
-    })
-  },
-  { immediate: true }
-)
+watch(nodeEdges, updateEdgeCoords, { immediate: true })
+
+watch(edgeRefs, updateEdgeCoords, { deep: true })
+
+onMounted(updateEdgeCoords)
 
 const childEdgeCoords = computed(() => {
   if (nodeType.value.isContainer) {
     if (!children.value) return { startX: 0, startY: 0, endX: 0, endY: 0 }
+    if (!childEdge.value?.$el) return { startX: 0, startY: 0, endX: 0, endY: 0 }
 
     const wrap = children.value
-    const edgeElt = refs['child-edge'].$el
+    const edgeElt = childEdge.value.$el
 
     return computeEdgeCoords(wrap, edgeElt)
   }

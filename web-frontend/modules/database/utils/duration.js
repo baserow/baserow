@@ -315,7 +315,9 @@ export const parseDurationValue = (
     // exec may be null, which will throw an exception
     try {
       matchedGroups = fmtRegExp.exec(inputValue).groups
-    } catch (err) {}
+    } catch (err) {
+      /* empty */
+    }
 
     const match = inputValue.match(fmtRegExp)
     const formatFunc = formatFuncs[format] || formatFuncs.default

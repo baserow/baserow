@@ -116,8 +116,9 @@ const actions = {
     { dispatch },
     { page, workflowActionType, eventType, configuration = null }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowAction } = await WorkflowActionService(
-      this.$client
+      $client
     ).create(page.id, workflowActionType, eventType, configuration)
 
     await dispatch('forceCreate', { page, workflowAction })
@@ -125,24 +126,27 @@ const actions = {
     return workflowAction
   },
   async fetch({ commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowActions } = await WorkflowActionService(
-      this.$client
+      $client
     ).fetchAll(page.id)
 
     commit('SET_ITEMS', { page, workflowActions })
   },
   async fetchPublished({ commit }, { page }) {
+    const { $registry, $i18n, $client, $config } = this
     const { data: workflowActions } = await PublishedBuilderService(
-      this.$client
+      $client
     ).fetchWorkflowActions(page.id)
 
     commit('SET_ITEMS', { page, workflowActions })
   },
   async delete({ dispatch }, { page, workflowAction }) {
+    const { $registry, $i18n, $client, $config } = this
     dispatch('forceDelete', { page, workflowActionId: workflowAction.id })
 
     try {
-      await WorkflowActionService(this.$client).delete(workflowAction.id)
+      await WorkflowActionService($client).delete(workflowAction.id)
     } catch (error) {
       await dispatch('forceCreate', { page, workflowAction })
       throw error
@@ -152,6 +156,7 @@ const actions = {
     { dispatch, commit },
     { page, workflowAction, values }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     // These values should not be updated via a regular update request
     const excludeValues = ['order']
 
@@ -163,10 +168,11 @@ const actions = {
       ) {
         oldValues[name] = workflowAction[name]
         // Accumulate the changed values to send all the ongoing changes with the
-        // final request. Ensure that the values are cloned by calling `structuredClone`,
+        // final request. Ensure that the values are cloned by calling `_.cloneDeep`,
         // as there is a (currently) unexplained issue with an `OpenPage` workflow action
-        // `page_parameter` not being cloned properly.
-        updateContext.valuesToUpdate[name] = structuredClone(values[name])
+        // `page_parameter` not being cloned properly. Using lodash instead of
+        // structuredClone because Vue reactive proxies can't be structuredClone'd.
+        updateContext.valuesToUpdate[name] = _.cloneDeep(values[name])
       }
     })
 
@@ -183,7 +189,7 @@ const actions = {
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
-          const { data } = await WorkflowActionService(this.$client).update(
+          const { data } = await WorkflowActionService($client).update(
             workflowAction.id,
             toUpdate
           )
@@ -228,7 +234,8 @@ const actions = {
     })
   },
   async dispatchAction({ dispatch }, { workflowActionId, data, files }) {
-    const { data: result } = await WorkflowActionService(this.$client).dispatch(
+    const { $registry, $i18n, $client, $config } = this
+    const { data: result } = await WorkflowActionService($client).dispatch(
       workflowActionId,
       data,
       files
@@ -236,6 +243,7 @@ const actions = {
     return result
   },
   async order({ commit, getters }, { page, order, element = null }) {
+    const { $registry, $i18n, $client, $config } = this
     const workflowActions =
       element !== null
         ? getters.getElementWorkflowActions(page, element.id)
@@ -246,11 +254,7 @@ const actions = {
     commit('ORDER_ITEMS', { page, order })
 
     try {
-      await WorkflowActionService(this.$client).order(
-        page.id,
-        order,
-        element.id
-      )
+      await WorkflowActionService($client).order(page.id, order, element.id)
     } catch (error) {
       commit('ORDER_ITEMS', { page, order: oldOrder })
       throw error

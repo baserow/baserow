@@ -114,7 +114,7 @@ export class CountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.count')
   }
 
@@ -164,7 +164,7 @@ export class EmptyCountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.emptyCount')
   }
 
@@ -212,7 +212,7 @@ export class NotEmptyCountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notEmptyCount')
   }
 
@@ -265,7 +265,7 @@ export class NotCheckedCountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notCheckedCount')
   }
 
@@ -288,7 +288,7 @@ export class CheckedCountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.checkedCount')
   }
 
@@ -318,12 +318,12 @@ export class EmptyPercentageViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.emptyPercentage')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.emptyCount')
   }
 
@@ -385,12 +385,12 @@ export class NotEmptyPercentageViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notEmptyPercentage')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notEmptyCount')
   }
 
@@ -452,12 +452,12 @@ export class NotCheckedPercentageViewAggregationType extends ViewAggregationType
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notCheckedPercentage')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.notCheckedCount')
   }
 
@@ -494,12 +494,12 @@ export class CheckedPercentageViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.checkedPercentage')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.checkedCount')
   }
 
@@ -532,7 +532,7 @@ export class UniqueCountViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.uniqueCount')
   }
 
@@ -569,7 +569,7 @@ export class MinViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.min')
   }
 
@@ -601,7 +601,7 @@ export class MaxViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.max')
   }
 
@@ -637,12 +637,12 @@ export class EarliestDateViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.earliestDate')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.earliestDateShort')
   }
 
@@ -677,12 +677,12 @@ export class LatestDateViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.latestDate')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.latestDateShort')
   }
 
@@ -713,7 +713,7 @@ export class SumViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.sum')
   }
 
@@ -743,7 +743,7 @@ export class AverageViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.average')
   }
 
@@ -773,12 +773,12 @@ export class StdDevViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.stdDev')
   }
 
   getShortName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.stdDevShort')
   }
 
@@ -808,7 +808,7 @@ export class VarianceViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.variance')
   }
 
@@ -838,7 +838,7 @@ export class MedianViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.median')
   }
 
@@ -868,7 +868,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewAggregationType.distribution')
   }
 

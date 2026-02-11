@@ -3,14 +3,6 @@ from urllib.request import Request
 
 from django.db import transaction
 
-from baserow_premium.api.views.errors import (
-    ERROR_CANNOT_UPDATE_PREMIUM_ATTRIBUTES_ON_TEMPLATE,
-)
-from baserow_premium.api.views.exceptions import CannotUpdatePremiumAttributesOnTemplate
-from baserow_premium.api.views.serializers import UpdatePremiumViewAttributesSerializer
-from baserow_premium.api.views.signers import export_public_view_signer
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from itsdangerous.exc import BadData
@@ -59,6 +51,14 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow_premium.api.views.errors import (
+    ERROR_CANNOT_UPDATE_PREMIUM_ATTRIBUTES_ON_TEMPLATE,
+)
+from baserow_premium.api.views.exceptions import CannotUpdatePremiumAttributesOnTemplate
+from baserow_premium.api.views.serializers import UpdatePremiumViewAttributesSerializer
+from baserow_premium.api.views.signers import export_public_view_signer
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 
 class PremiumViewAttributesView(APIView):

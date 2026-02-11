@@ -22,6 +22,7 @@ class UserFile(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     sha256_hash = models.CharField(max_length=64, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
     objects = UserFileQuerySet.as_manager()
 

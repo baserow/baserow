@@ -7,14 +7,14 @@ from django.urls import reverse
 
 import pytest
 import responses
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.models import License
 from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.core.db import specific_iterator
 from baserow_enterprise.data_sync.models import GitLabIssuesDataSync
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.models import License
 
 SINGLE_ISSUE = {
     "id": 1,

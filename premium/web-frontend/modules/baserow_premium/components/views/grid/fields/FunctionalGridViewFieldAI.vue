@@ -1,36 +1,26 @@
-<template functional>
-  <div
-    v-if="
-      (!props.value || $options.methods.isGenerating(parent, props)) &&
-      !props.readOnly
-    "
-    class="grid-view__cell"
-  >
+<template>
+  <div v-if="shouldShowGenerateButton" class="grid-view__cell">
     <div class="grid-field-button">
       <Button
         tag="a"
         size="tiny"
         type="secondary"
-        :loading="$options.methods.isGenerating(parent, props)"
-        :disabled="!$options.methods.isModelAvailable(parent, props)"
-        :icon="
-          $options.methods.isDeactivatedFunctional(parent, props)
-            ? 'iconoir-lock'
-            : ''
-        "
+        :loading="generating"
+        :disabled="!modelAvailable"
+        :icon="isDeactivatedFunctional ? 'iconoir-lock' : ''"
       >
-        <i18n path="functionalGridViewFieldAI.generate" tag="span" />
+        <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />
       </Button>
     </div>
   </div>
   <component
-    :is="$options.methods.getFunctionalOutputFieldComponent(parent, props)"
+    :is="functionalOutputFieldComponent"
     v-else
-    :workspace-id="props.workspaceId"
-    :field="props.field"
-    :value="props.value"
-    :state="props.state"
-    :read-only="props.readOnly"
+    :workspace-id="workspaceId"
+    :field="field"
+    :value="value"
+    :state="state"
+    :read-only="readOnly"
   />
 </template>
 
@@ -41,17 +31,50 @@ import { AIFieldType } from '@baserow_premium/fieldTypes'
 export default {
   name: 'FunctionalGridViewFieldAI',
   mixins: [gridFieldAI],
-  methods: {
-    isDeactivatedFunctional(parent, props) {
-      return parent.$registry
-        .get('field', AIFieldType.getType())
-        .isDeactivated(props.workspaceId)
+  props: {
+    row: {
+      type: Object,
+      required: true,
     },
-    getFunctionalOutputFieldComponent(parent, props) {
-      return parent.$registry
-        .get('aiFieldOutputType', props.field.ai_output_type)
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+    state: {
+      type: Object,
+      required: true,
+    },
+    workspaceId: {
+      type: [Number, String],
+      required: true,
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
+    },
+    storePrefix: {
+      type: String,
+      default: '',
+    },
+  },
+  computed: {
+    shouldShowGenerateButton() {
+      return (!this.value || this.generating) && !this.readOnly
+    },
+    functionalOutputFieldComponent() {
+      return this.$registry
+        .get('aiFieldOutputType', this.field.ai_output_type)
         .getBaserowFieldType()
-        .getFunctionalGridViewFieldComponent(props.field)
+        .getFunctionalGridViewFieldComponent(this.field)
+    },
+    isDeactivatedFunctional() {
+      return this.$registry
+        .get('field', AIFieldType.getType())
+        .isDeactivated(this.workspaceId)
     },
   },
 }

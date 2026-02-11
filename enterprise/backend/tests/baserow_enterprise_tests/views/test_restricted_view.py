@@ -5,11 +5,6 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from baserow_premium.views.view_types import (
-    CalendarViewType,
-    KanbanViewType,
-    TimelineViewType,
-)
 from starlette.status import HTTP_200_OK
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
@@ -26,6 +21,11 @@ from baserow.core.utils import get_value_at_path
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+from baserow_premium.views.view_types import (
+    CalendarViewType,
+    KanbanViewType,
+    TimelineViewType,
+)
 
 
 @pytest.mark.django_db

@@ -60,7 +60,7 @@ class Command(BaseCommand):
             sys.exit(1)
 
         html_url = f"{AIRTABLE_BASE_URL}/templates"
-        html_response = requests.get(html_url, headers=BASE_HEADERS)  # nosec
+        html_response = requests.get(html_url, headers=BASE_HEADERS)  # noqa: S113
 
         if not html_response.ok:
             raise Exception("test")

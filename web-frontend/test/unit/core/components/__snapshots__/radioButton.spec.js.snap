@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RadioButton.vue > passes the correct props to the button 1`] = `
+"<button class="button button--regular button--secondary button--loading button--active" disabled="" title="test-title"><i class="button__icon test-icon"></i>
+  <!--v-if-->
+  <!--v-if-->
+</button>"
+`;
+
+exports[`RadioButton.vue > renders the button 1`] = `
+"<button class="button button--regular button--secondary button--active" title="">
+  <!--v-if-->
+  <!--v-if-->
+  <!--v-if-->
+</button>"
+`;

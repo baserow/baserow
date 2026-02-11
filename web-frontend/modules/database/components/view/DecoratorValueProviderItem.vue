@@ -1,15 +1,15 @@
-<template functional>
+<template>
   <div class="value-provider-item">
     <div class="value-provider-item__title">
       <i
-        :class="`${props.valueProviderType.getIconClass()} value-provider-item__icon`"
+        :class="`${valueProviderType.getIconClass()} value-provider-item__icon`"
       />
       <span class="value-provider-item__title-text">{{
-        props.valueProviderType.getName()
+        valueProviderType.getName()
       }}</span>
     </div>
     <div class="value-provider-item__description">
-      {{ props.valueProviderType.getDescription() }}
+      {{ valueProviderType.getDescription() }}
     </div>
   </div>
 </template>

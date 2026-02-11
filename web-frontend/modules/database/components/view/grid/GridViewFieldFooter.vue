@@ -7,12 +7,7 @@
     }"
     @click.prevent="
       userCanMakeAggregations &&
-        $refs[`fieldContext`].toggle(
-          $refs.fieldContextAnchor,
-          'top',
-          'right',
-          10
-        )
+      $refs[`fieldContext`].toggle($refs.fieldContextAnchor, 'top', 'right', 10)
     "
   >
     <component
@@ -151,6 +146,19 @@ export default {
     fieldType() {
       return this.$registry.get('field', this.field.type)
     },
+    fieldAggregationData() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getAllFieldAggregationData'
+      ]
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getAllFieldOptions'
+      ]
+    },
+    rowCount() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getCount']
+    },
   },
   watch: {
     aggregationRawType(value) {
@@ -168,7 +176,7 @@ export default {
       }
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -180,7 +188,7 @@ export default {
         rowCount: this.$options.propsData.storePrefix + 'view/grid/getCount',
       }),
     }
-  },
+  },*/
   methods: {
     async selectAggregation(newType) {
       this.$refs.fieldContext.hide()

@@ -7,14 +7,6 @@ from django.db.models.deletion import ProtectedError
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.dashboard.widgets.models import (
-    PieChartSeriesConfig,
-    PieChartWidget,
-)
-from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationSeries,
-)
 
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
@@ -29,6 +21,14 @@ from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, Progress
+from baserow_premium.dashboard.widgets.models import (
+    PieChartSeriesConfig,
+    PieChartWidget,
+)
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationSeries,
+)
 
 
 @pytest.mark.django_db

@@ -26,6 +26,7 @@ export default {
       default: () => Object.values(WIDTHS),
     },
   },
+  emits: ['input'],
   computed: {
     widthOptions() {
       return this.widths.map((width) => {

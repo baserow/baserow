@@ -22,8 +22,8 @@ export class AuthProvidersType extends EnterpriseAdminType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('adminType.Authentication')
+    const { $i18n } = this.app
+    return $i18n.t('adminType.Authentication')
   }
 
   getRouteName() {
@@ -56,8 +56,8 @@ export class AuditLogType extends EnterpriseAdminType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('adminType.AuditLog')
+    const { $i18n } = this.app
+    return $i18n.t('adminType.AuditLog')
   }
 
   getRouteName() {

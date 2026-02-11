@@ -127,7 +127,7 @@ def test_get_elements(data_fixture, django_assert_num_queries):
         elements = ElementHandler().get_elements(page)
 
     # Cache of specific elements is set.
-    assert getattr(page, "_page_elements_specific") == elements
+    assert page._page_elements_specific == elements
 
     assert [e.id for e in elements] == [
         element1.id,
@@ -142,24 +142,24 @@ def test_get_elements(data_fixture, django_assert_num_queries):
     # Cache of specific elements is re-used.
     with django_assert_num_queries(0):
         elements = ElementHandler().get_elements(page)
-    assert getattr(page, "_page_elements_specific") == elements
+    assert page._page_elements_specific == elements
 
     # We request non-specific records, the cache changes.
     with django_assert_num_queries(1):
         elements = list(ElementHandler().get_elements(page, specific=False))
-        assert getattr(page, "_page_elements") == elements
+        assert page._page_elements == elements
 
     # We request non-specific records, the cache is reused.
     with django_assert_num_queries(0):
         elements = list(ElementHandler().get_elements(page, specific=False))
-    assert getattr(page, "_page_elements") == elements
+    assert page._page_elements == elements
 
     # We pass in a base queryset, no caching strategy is available.
     base_queryset = Element.objects.filter(page=page, visibility="all")
     with django_assert_num_queries(3):
         ElementHandler().get_elements(page, base_queryset)
-    assert getattr(page, "_page_elements") is None
-    assert getattr(page, "_page_elements_specific") is None
+    assert page._page_elements is None
+    assert page._page_elements_specific is None
 
 
 @pytest.mark.django_db

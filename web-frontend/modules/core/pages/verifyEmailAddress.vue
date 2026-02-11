@@ -20,70 +20,75 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed } from 'vue'
 import AuthService from '@baserow/modules/core/services/auth'
-import { setToken } from '@baserow/modules/core/utils/auth'
+import {
+  setToken,
+  setUserSessionCookie,
+} from '@baserow/modules/core/utils/auth'
 
-export default {
+definePageMeta({
   layout: 'login',
-  async asyncData({ store, params, error, app, redirect }) {
-    const { token } = params
-    try {
-      const isAuthenticated = store.getters['auth/isAuthenticated']
-      const shouldLoginUser = !isAuthenticated
-      const { data } = await AuthService(app.$client).verifyEmail(
-        token,
-        shouldLoginUser
-      )
-      if (shouldLoginUser) {
-        store.dispatch('auth/setUserData', data)
-        setToken(app, data.refresh_token)
+})
+
+const nuxtApp = useNuxtApp()
+const { $store: store, $client } = nuxtApp
+const route = useRoute()
+const { t } = useI18n()
+
+const { data: result, error } = await useAsyncData('verify-email', async () => {
+  const token = route.params.token
+  try {
+    const isAuthenticated = store.getters['auth/isAuthenticated']
+    const { data } = await AuthService($client).verifyEmail(token)
+
+    if (!isAuthenticated) {
+      store.dispatch('auth/setUserData', data)
+      await setToken(nuxtApp, data.refresh_token)
+      await setUserSessionCookie(nuxtApp, data.user_session)
+    } else {
+      const loggedInUserEmail = store.getters['auth/getUserObject'].username
+      if (data.email !== loggedInUserEmail) {
+        return { emailMismatch: true }
       } else {
-        const loggedInUserEmail = store.getters['auth/getUserObject'].username
-        if (data.email !== loggedInUserEmail) {
-          return {
-            emailMismatchWarning: true,
-          }
-        } else {
-          store.dispatch('auth/forceUpdateUserData', {
-            user: {
-              email_verified: true,
-            },
+        store.dispatch('auth/forceUpdateUserData', {
+          user: {
+            email_verified: true,
+          },
+        })
+      }
+    }
+    return { emailMismatch: false }
+  } catch (err) {
+    if (err.handler) {
+      const response = err.handler.response
+      if (response && response.status === 401) {
+        if (response.data?.error === 'ERROR_DEACTIVATED_USER') {
+          throw createError({
+            statusCode: 401,
+            message: t('error.disabledAccountMessage'),
+          })
+        } else if (response.data?.error === 'ERROR_AUTH_PROVIDER_DISABLED') {
+          throw createError({
+            statusCode: 401,
+            message: t('verifyEmailAddress.disabledPasswordProvider'),
           })
         }
       }
-    } catch (err) {
-      if (err.handler) {
-        const response = err.handler.response
-        if (response && response.status === 401) {
-          if (response.data?.error === 'ERROR_DEACTIVATED_USER') {
-            return error({
-              statusCode: 401,
-              message: app.i18n.t('error.disabledAccountMessage'),
-              content: '',
-            })
-          } else if (response.data?.error === 'ERROR_AUTH_PROVIDER_DISABLED') {
-            return error({
-              statusCode: 401,
-              message: app.i18n.t(
-                'verifyEmailAddress.disabledPasswordProvider'
-              ),
-              content: '',
-            })
-          }
-        }
-      }
-      return error({
-        statusCode: 404,
-        message: app.i18n.t('verifyEmailAddress.invalidToken'),
-        content: '',
-      })
     }
-  },
-  data() {
-    return {
-      emailMismatchWarning: false,
-    }
-  },
+    throw createError({
+      statusCode: 404,
+      message: t('verifyEmailAddress.invalidToken'),
+    })
+  }
+})
+
+if (error.value) {
+  throw error.value
 }
+
+const emailMismatchWarning = computed(
+  () => result.value?.emailMismatch === true
+)
 </script>

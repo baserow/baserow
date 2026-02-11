@@ -14,7 +14,7 @@ export default {
       gridViewRowDetailsWidth: 72,
     }
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -25,7 +25,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
       }),
     }
-  },
+  },*/
   computed: {
     activeGroupByWidth() {
       return this.activeGroupBys.reduce(
@@ -35,6 +35,19 @@ export default {
     },
     GRID_VIEW_MIN_FIELD_WIDTH() {
       return GRID_VIEW_MIN_FIELD_WIDTH
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getAllFieldOptions'
+      ]
+    },
+    publicGrid() {
+      return this.$store.getters['page/view/public/getIsPublic']
+    },
+    activeGroupBys() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getActiveGroupBys'
+      ]
     },
   },
   methods: {

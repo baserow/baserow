@@ -1,5 +1,5 @@
 <template>
-  <Modal @show="onShow()">
+  <Modal ref="modal" @show="onShow()">
     <h2 class="box__title">
       {{ $t('publishActionModal.title') }}
     </h2>
@@ -138,7 +138,7 @@ export default {
       }
     },
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.stopPollIfRunning()
   },
   methods: {
@@ -197,7 +197,7 @@ export default {
       this.loading = false
     },
     getDomainUrl(domain) {
-      const url = new URL(this.$config.PUBLIC_WEB_FRONTEND_URL)
+      const url = new URL(this.$config.public.publicWebFrontendUrl)
       return `${url.protocol}//${domain.domain_name}${
         url.port ? `:${url.port}` : ''
       }`

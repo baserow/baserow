@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { firstBy } from 'thenby'
 
@@ -36,8 +35,8 @@ const tableRows = [
   {
     id: 7,
     order: '6.00000000000000000000',
-    field: 1.12
-  }
+    field: 1.12,
+  },
 ]
 
 describe('LastModifiedByFieldType.getSort()', () => {
@@ -65,36 +64,16 @@ describe('LastModifiedByFieldType.getSort()', () => {
 
     tableRows.sort(sortASC)
 
-    const sorted = tableRows.map((obj) =>
-      obj.field
-    )
-    const expected = [
-      null,
-      1.12,
-      60,
-      120,
-      3600,
-      7200.123,
-      86400,
-    ]
+    const sorted = tableRows.map((obj) => obj.field)
+    const expected = [null, 1.12, 60, 120, 3600, 7200.123, 86400]
 
     expect(sorted).toEqual(expected)
 
     tableRows.sort(sortDESC)
 
-    const sortedReversed = tableRows.map((obj) =>
-      obj.field
-    )
+    const sortedReversed = tableRows.map((obj) => obj.field)
 
-    const expectedReversed = [
-      86400,
-      7200.123,
-      3600,
-      120,
-      60,
-      1.12,
-      null,
-    ]
+    const expectedReversed = [86400, 7200.123, 3600, 120, 60, 1.12, null]
 
     expect(sortedReversed).toEqual(expectedReversed)
   })

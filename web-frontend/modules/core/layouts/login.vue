@@ -2,23 +2,21 @@
   <div>
     <Toasts></Toasts>
     <div class="auth__container">
-      <nuxt />
+      <slot />
     </div>
   </div>
 </template>
 
 <script>
+import { useHead } from '#imports'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 
 export default {
   components: { Toasts },
-  middleware: ['settings', 'urlCheck'],
-  head() {
-    return {
-      bodyAttrs: {
-        class: 'auth__body',
-      },
-    }
+  setup() {
+    useHead({
+      bodyAttrs: { class: 'auth__body' },
+    })
   },
 }
 </script>

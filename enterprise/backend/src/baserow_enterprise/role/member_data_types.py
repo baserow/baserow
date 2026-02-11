@@ -3,7 +3,6 @@ from typing import Dict, List, OrderedDict, Union
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.plugins import PremiumPlugin
 from rest_framework import serializers
 
 from baserow.api.user.registries import MemberDataType
@@ -14,6 +13,7 @@ from baserow.core.registries import permission_manager_type_registry, plugin_reg
 from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from baserow_premium.plugins import PremiumPlugin
 
 
 class EnterpriseRolesDataType(MemberDataType):

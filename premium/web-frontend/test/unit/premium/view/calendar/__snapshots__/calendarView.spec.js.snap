@@ -1,4 +1,1914 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CalendarView component > CalendarView allows deleting row with context menu 1`] = `
+<div
+  class="calendar-view"
+>
+  <div
+    class="calendar-month-wrapper"
+  >
+    <div
+      class="calendar-month"
+    >
+      <div
+        class="calendar-month__header"
+      >
+        <div
+          class="view-date-indicator calendar-month__header-selected-month"
+        >
+          July 2024
+        </div>
+        <div
+          class="view-date-selector"
+        >
+          <a
+            class="view-date-selector__prev"
+          >
+            <i
+              class="iconoir-nav-arrow-left"
+            />
+          </a>
+          <a
+            class="view-date-selector__next"
+          >
+            <i
+              class="iconoir-nav-arrow-right"
+            />
+          </a>
+          <button
+            class="button button--large button--secondary"
+          >
+            <!--v-if-->
+            <span
+              class="button__label"
+            >
+              
+              viewDateSelector.today
+              
+            </span>
+            <!--v-if-->
+          </button>
+        </div>
+      </div>
+      <ol
+        class="calendar-month__days-grid"
+      >
+        <!--v-if-->
+        
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Mon
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Tue
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Wed
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Thu
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Fri
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Sat
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Sun
+        </li>
+        
+        
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            1
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  01/07/2024 - 1nd field text
+                </div>
+              </div>
+              
+            </div>
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            2
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            3
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            4
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  04/07/2024 - 3th field text
+                </div>
+              </div>
+              
+            </div>
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  04/07/2024 - 2rd field text
+                </div>
+              </div>
+              
+            </div>
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--today"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            5
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            6
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            7
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            8
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            9
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            10
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            11
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            12
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            13
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            14
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            15
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            16
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            17
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            18
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            19
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            20
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            21
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            22
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            23
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            24
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            25
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            26
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            27
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            28
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            29
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            30
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            31
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            1
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            2
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            3
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            4
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        
+      </ol>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CalendarView component > CalendarView row is restored when server fails to delete it 1`] = `
+<div
+  class="calendar-view"
+>
+  <div
+    class="calendar-month-wrapper"
+  >
+    <div
+      class="calendar-month"
+    >
+      <div
+        class="calendar-month__header"
+      >
+        <div
+          class="view-date-indicator calendar-month__header-selected-month"
+        >
+          July 2024
+        </div>
+        <div
+          class="view-date-selector"
+        >
+          <a
+            class="view-date-selector__prev"
+          >
+            <i
+              class="iconoir-nav-arrow-left"
+            />
+          </a>
+          <a
+            class="view-date-selector__next"
+          >
+            <i
+              class="iconoir-nav-arrow-right"
+            />
+          </a>
+          <button
+            class="button button--large button--secondary"
+          >
+            <!--v-if-->
+            <span
+              class="button__label"
+            >
+              
+              viewDateSelector.today
+              
+            </span>
+            <!--v-if-->
+          </button>
+        </div>
+      </div>
+      <ol
+        class="calendar-month__days-grid"
+      >
+        <!--v-if-->
+        
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Mon
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Tue
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Wed
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Thu
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Fri
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Sat
+        </li>
+        <li
+          class="calendar-month-day__week-day"
+        >
+          Sun
+        </li>
+        
+        
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            1
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  01/07/2024 - 1nd field text
+                </div>
+              </div>
+              
+            </div>
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            2
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            3
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            4
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  04/07/2024 - 3th field text
+                </div>
+              </div>
+              
+            </div>
+            <div
+              class="calendar-card"
+            >
+              
+              <div
+                class="calendar-card__content"
+              >
+                
+                
+                <div
+                  class="calendar-card__labels"
+                >
+                  04/07/2024 - 2rd field text
+                </div>
+              </div>
+              
+            </div>
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--today"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            5
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            6
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            7
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            8
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            9
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            10
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            11
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            12
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            13
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            14
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            15
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            16
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            17
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            18
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            19
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            20
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            21
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            22
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            23
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            24
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            25
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            26
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            27
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            28
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            29
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            30
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            31
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            1
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            2
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            3
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        <li
+          class="calendar-month-day calendar-month-day--not-current calendar-month-day--weekend"
+        >
+          <a
+            class="calendar-month-day__create-row-btn"
+          >
+            <i
+              class="iconoir-plus"
+            />
+          </a>
+          <span
+            class="calendar-month-day__date-label"
+          >
+            4
+          </span>
+          <div
+            class="calendar-month-day__cards"
+          >
+            
+            
+          </div>
+          <!--v-if-->
+        </li>
+        
+      </ol>
+    </div>
+  </div>
+</div>
+`;
 
 exports[`CalendarView component CalendarView allows deleting row with context menu 1`] = `
 <div

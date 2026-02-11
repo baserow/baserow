@@ -44,6 +44,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   computed: {
     dropdownValue() {
       return this.value.length === 0 ? false : this.value[0].id

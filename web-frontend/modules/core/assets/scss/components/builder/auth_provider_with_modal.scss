@@ -11,3 +11,8 @@
     border-color: $palette-red-600;
   }
 }
+
+.auth-provider-with-modal__actions {
+  display: flex;
+  gap: 5px;
+}

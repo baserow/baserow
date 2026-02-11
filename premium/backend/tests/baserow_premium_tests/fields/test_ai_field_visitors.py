@@ -1,7 +1,7 @@
 import pytest
-from baserow_premium.fields.visitors import replace_field_id_references
 
 from baserow.core.formula import BaserowFormulaSyntaxError
+from baserow_premium.fields.visitors import replace_field_id_references
 
 
 @pytest.mark.field_ai

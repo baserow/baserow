@@ -12,19 +12,12 @@
 </template>
 
 <script setup>
-import {
-  inject,
-  computed,
-  useContext,
-  ref,
-  watch,
-} from '@nuxtjs/composition-api'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 const props = defineProps({
-  value: { type: [Object, String], required: false, default: () => ({}) },
+  modelValue: { type: [Object, String], required: false, default: () => ({}) },
   dataProvidersAllowed: { type: Array, required: false, default: () => [] },
 })
 
@@ -33,11 +26,11 @@ const applicationContext = inject('applicationContext')
 const emit = defineEmits(['input'])
 
 // Local mode state
-const localMode = ref(props.value.mode || 'simple')
+const localMode = ref(props.modelValue?.mode || 'simple')
 
 // Watch for external changes to the mode
 watch(
-  () => props.value.mode,
+  () => props.modelValue?.mode,
   (newMode) => {
     if (newMode !== undefined && newMode !== localMode.value) {
       localMode.value = newMode
@@ -45,7 +38,7 @@ watch(
   }
 )
 
-const { app } = useContext()
+const app = useNuxtApp()
 
 const dataProviders = computed(() => {
   return props.dataProvidersAllowed.map((dataProviderName) =>
@@ -62,12 +55,12 @@ const nodesHierarchy = computed(() => {
   )
 
   hierarchy.push({
-    name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
+    name: app.$i18n.t('runtimeFormulaTypes.formulaTypeData'),
     type: 'data',
     icon: 'iconoir-database',
     nodes: filteredDataNodes,
     empty: filteredDataNodes.length === 0,
-    emptyText: app.i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
+    emptyText: app.$i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
   })
 
   // Add functions and operators from the registry
@@ -83,7 +76,7 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The formula string.
  */
 const formulaStr = computed(() => {
-  return props.value.formula
+  return props.modelValue?.formula
 })
 
 /**
@@ -93,7 +86,7 @@ const formulaStr = computed(() => {
  */
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
-    ...props.value,
+    ...props.modelValue,
     formula: newFormulaStr,
     mode: localMode.value,
   })

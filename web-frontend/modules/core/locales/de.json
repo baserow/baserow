@@ -235,7 +235,7 @@
         "title": "Dashboard",
         "alertTitle": "Wir benötigen Ihre Hilfe!",
         "alertText": "Indem Sie Baserow teilen, helfen Sie uns, das Produkt weiter zu verbessern und für Ihre Zwecke nützlicher zu machen.",
-        "tweetContent": "Entdecken Sie @baserow, ein Open-Source-Datenbank-Tool ohne Code und eine Alternative zu Airtable!",
+        "tweetContent": "Entdecken Sie {'@'}baserow, ein Open-Source-Datenbank-Tool ohne Code und eine Alternative zu Airtable!",
         "redditTitle": "Baserow - Eine Open-Source No-Code-Datenbank",
         "noWorkspaceTitle": "Keine Arbeitsbereiche gefunden",
         "noWorkspaceText": "Sie sind kein Mitglied eines Arbeitsbereichs. Anwendungen wie Datenbanken gehören zu einem Arbeitsbereich. Um sie zu erstellen, müssen Sie also einen Arbeitsbereich erstellen.",
@@ -386,7 +386,7 @@
             "format": {
                 "title": "Format",
                 "description": "Das Format der Query Parameter is das Folgende:",
-                "codeSnippet": "?prefill_<feld_name>=<wert>"
+                "codeSnippet": "?prefill_&lt;feld_name&gt;=&lt;wert&gt;"
             },
             "example": {
                 "title": "Beispiel",

@@ -1,35 +1,10 @@
-<template functional>
-  <span
-    v-if="
-      props.column.additionalProps.userId === props.row.user_id ||
-      !parent.$hasPermission(
-        'workspace_user.update',
-        props.row,
-        props.column.additionalProps.workspaceId
-      )
-    "
-  >
-    {{
-      $options.methods.roleName(props.column.additionalProps.roles, props.row)
-    }}
+<template>
+  <span v-if="isReadOnly">
+    {{ roleName(column.additionalProps.roles, row) }}
   </span>
-  <a
-    v-else
-    class="member-role-field__link"
-    @click.prevent="
-      listeners['edit-role-context'] &&
-        listeners['edit-role-context']({
-          row: props.row,
-          event: $event,
-          target: $event.currentTarget,
-          time: Date.now(),
-        })
-    "
-  >
-    <span
-      >{{
-        $options.methods.roleName(props.column.additionalProps.roles, props.row)
-      }}
+  <a v-else class="member-role-field__link" @click.prevent="onClick">
+    <span>
+      {{ roleName(column.additionalProps.roles, row) }}
     </span>
     <i class="iconoir-nav-arrow-down"></i>
   </a>
@@ -38,12 +13,43 @@
 <script>
 export default {
   name: 'MemberRoleField',
-  functional: true,
+  props: {
+    row: {
+      type: Object,
+      required: true,
+    },
+    column: {
+      type: Object,
+      required: true,
+    },
+  },
+  emits: ['edit-role-context'],
+  computed: {
+    isReadOnly() {
+      const { additionalProps } = this.column
+      return (
+        additionalProps.userId === this.row.user_id ||
+        !this.$hasPermission(
+          'workspace_user.update',
+          this.row,
+          additionalProps.workspaceId
+        )
+      )
+    },
+  },
   methods: {
     roleName(roles, row) {
       const permissions = row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'
       const role = roles.find((r) => r.uid === permissions)
       return role?.name || ''
+    },
+    onClick(event) {
+      this.$emit('edit-role-context', {
+        row: this.row,
+        event,
+        target: event.currentTarget,
+        time: Date.now(),
+      })
     },
   },
 }

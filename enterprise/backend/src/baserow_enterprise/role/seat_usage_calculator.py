@@ -5,8 +5,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Case, F, Q, TextField, Value, When
 
-from baserow_premium.license.registries import SeatUsageSummary
-
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.models import (
@@ -19,6 +17,7 @@ from baserow_enterprise.role.constants import BUILDER_ROLE_UID, FREE_ROLE_UIDS
 from baserow_enterprise.role.default_roles import default_roles
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.models import Team
+from baserow_premium.license.registries import SeatUsageSummary
 
 User = get_user_model()
 

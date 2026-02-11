@@ -81,10 +81,12 @@ https://api.baserow.io/api/schema.json.
 
 If you want to contribute to Baserow you can setup a development environment like so:
 
-```
-$ git clone https://github.com/baserow/baserow.git
-$ cd baserow
-$ ./dev.sh --build
+```bash
+git clone https://github.com/baserow/baserow.git
+cd baserow
+
+just dc-dev build --parallel
+just dc-dev up -d
 ```
 
 The Baserow development environment is now running.
@@ -92,9 +94,7 @@ Visit [http://localhost:3000](http://localhost:3000) in your browser to see a wo
 version in development mode with hot code reloading and other dev features enabled.
 
 More detailed instructions and more information about the development environment can be
-found
-at [https://baserow.io/docs/development/development-environment](./docs/development/development-environment.md)
-.
+found at [https://baserow.io/docs/development/development-environment](./docs/development/development-environment.md).
 
 ## Why Baserow?
 

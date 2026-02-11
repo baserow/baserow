@@ -31,7 +31,9 @@
           :read-only="readOnly"
           :table="table"
           :view="view"
-          v-on="$listeners"
+          @edit-row="$emit('edit-row', $event)"
+          @row-context="$emit('row-context', $event)"
+          @create-row="$emit('create-row', $event)"
         >
         </CalendarMonthDay>
       </ol>
@@ -50,7 +52,6 @@ import {
   getDateInTimezone,
   weekDaysShort,
 } from '@baserow/modules/core/utils/date'
-import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import debounce from 'lodash/debounce'
 
@@ -61,6 +62,8 @@ export default {
     ViewDateSelector,
     CalendarMonthDay,
   },
+  inheritAttrs: false,
+  emits: ['edit-row', 'row-context', 'create-row'],
   props: {
     fields: {
       type: Array,
@@ -94,11 +97,29 @@ export default {
   },
   data() {
     return {
-      today: moment.tz(this.timezone).format('YYYY-MM-DD'),
+      today: null,
       selectDateDebounced: null,
     }
   },
   computed: {
+    timezoneAndDateLoaded() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getCalendarTimezoneAndDateLoaded`
+      ]
+    },
+    rowsLoading() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getLoadingRows`
+      ]
+    },
+    timezone() {
+      return this.$store.getters[`${this.storePrefix}view/calendar/getTimeZone`]
+    },
+    selectedDate() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getSelectedDate`
+      ]
+    },
     showMonthOnlyLoadingOverlay() {
       return !this.loading && this.rowsLoading
     },
@@ -181,22 +202,6 @@ export default {
     weekDays() {
       return weekDaysShort()
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        timezoneAndDateLoaded:
-          this.$options.propsData.storePrefix +
-          'view/calendar/getCalendarTimezoneAndDateLoaded',
-        rowsLoading:
-          this.$options.propsData.storePrefix + 'view/calendar/getLoadingRows',
-        timezone:
-          this.$options.propsData.storePrefix + 'view/calendar/getTimeZone',
-        selectedDate:
-          this.$options.propsData.storePrefix + 'view/calendar/getSelectedDate',
-      }),
-    }
   },
   async mounted() {
     this.today = moment.tz(this.timezone(this.fields)).format('YYYY-MM-DD')

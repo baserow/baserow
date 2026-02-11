@@ -1,4 +1,4 @@
-import Vue from 'vue'
+//import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
 
 /**
@@ -140,9 +140,9 @@ export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
   if (!Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)) {
     const metaDataCopy = clone(row._.metadata)
     metaDataCopy[rowMetadataType] = newValue
-    Vue.set(row._, 'metadata', metaDataCopy)
+    row._['metadata'] = metaDataCopy
   } else {
-    Vue.set(row._.metadata, rowMetadataType, newValue)
+    row._.metadata[rowMetadataType] = newValue
   }
 }
 

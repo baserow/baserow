@@ -104,7 +104,7 @@ def get_all_field_dependencies(field: "Field") -> set[int]:
             GROUP BY id, is_circular
         ) sub
         ORDER BY max_depth DESC, id ASC;
-        """  # nosec b608
+        """  # noqa: S608
     )
     # fmt: on
 

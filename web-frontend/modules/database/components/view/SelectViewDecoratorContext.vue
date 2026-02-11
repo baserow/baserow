@@ -28,5 +28,6 @@ export default {
       required: true,
     },
   },
+  emits: ['select'],
 }
 </script>

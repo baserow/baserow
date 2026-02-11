@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
-from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 from rest_framework.exceptions import ValidationError
 
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 
 
 def test_service_type_get_schema_name():

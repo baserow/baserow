@@ -166,7 +166,7 @@ class CustomFieldsInstanceMixin:
         :raises ValueError: If the object does not have a `model_class` attribute.
         """
 
-        model_class = getattr(self, "model_class")
+        model_class = self.model_class
         if not model_class:
             raise ValueError(
                 "Attribute model_class must be set, maybe you forgot to "
@@ -987,7 +987,7 @@ class CustomFieldsRegistryMixin(Generic[DjangoModel]):
         :rtype: ModelSerializer
         """
 
-        get_by_model = getattr(self, "get_by_model")
+        get_by_model = self.get_by_model
         if not get_by_model:
             raise ValueError(
                 "The method get_by_model must exist on the registry in "

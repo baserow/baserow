@@ -5,7 +5,7 @@
   margin: 0;
 
   &:not(:last-child) {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .tree__item & {
@@ -312,8 +312,40 @@
 }
 
 .tree__heading {
+  display: flex;
+  margin: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tree__heading-name {
   font-size: 11px;
   font-weight: 500;
   color: $palette-neutral-900;
-  margin: 8px;
+  line-height: 16px;
+}
+
+.tree__heading-add {
+  color: $palette-neutral-600;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 16px;
+
+  @include rounded($rounded);
+
+  &:hover {
+    text-decoration: none;
+    background-color: $palette-neutral-200;
+    outline: solid 2px $palette-neutral-200;
+    color: $palette-neutral-800;
+  }
+}
+
+.tree__separator {
+  border-bottom: solid 1px $palette-neutral-200;
+  margin: 8px 8px 16px;
 }

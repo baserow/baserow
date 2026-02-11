@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import { truncate } from 'lodash'
+import _ from 'lodash'
 
 export default {
   props: {
@@ -74,7 +74,7 @@ export default {
             } else {
               displayValue = item
             }
-            return truncate(displayValue, {
+            return _.truncate(displayValue, {
               length: 30,
               omission: '…',
             })
@@ -94,15 +94,15 @@ export default {
       return this.$registry.get('field', this.field.type)
     },
     othersCount() {
-      return this.$i18n.t('viewAggregationType.othersCount')
+      return this.$t('viewAggregationType.othersCount')
     },
     emptyCount() {
-      return this.$i18n.t('viewAggregationType.emptyCount')
+      return this.$t('viewAggregationType.emptyCount')
     },
   },
   methods: {
     generateTable(data) {
-      if (!process.client) {
+      if (!import.meta.client) {
         return null
       }
 

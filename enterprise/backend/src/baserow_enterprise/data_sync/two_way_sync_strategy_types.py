@@ -1,8 +1,6 @@
 from django.conf import settings
 from django.db import transaction
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
 from baserow.contrib.database.data_sync.registries import (
@@ -13,6 +11,7 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.signals import table_updated
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 from .notification_types import (
     TwoWaySyncDeactivatedNotificationType,

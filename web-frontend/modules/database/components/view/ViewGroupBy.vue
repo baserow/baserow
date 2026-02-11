@@ -10,7 +10,7 @@
     >
       <i class="header__filter-icon iconoir-book-stack"></i>
       <span class="header__filter-name">{{
-        $tc('viewGroupBy.groupBy', view.group_bys.length, {
+        $t('viewGroupBy.groupBy', {
           count: view.group_bys.length,
         })
       }}</span>
@@ -51,5 +51,6 @@ export default {
       default: false,
     },
   },
+  emits: ['changed'],
 }
 </script>

@@ -1,10 +1,11 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Field footer component Change type 1`] = `
+exports[`Field footer component > Change type 1`] = `
 <div
-  class="context visibility-hidden"
+  class="context"
   style="top: 10px; right: auto; bottom: auto; left: 0px;"
 >
+  
   <ul
     class="select__items"
   >
@@ -24,10 +25,9 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
-     
+    
     <li
       class="select__item select__item--no-options"
     >
@@ -44,8 +44,7 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
     <li
       class="select__item select__item--no-options active"
@@ -63,7 +62,6 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
       <i
         class="select__item-active-icon iconoir-check"
       />
@@ -84,8 +82,7 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
     <li
       class="select__item select__item--no-options"
@@ -103,8 +100,7 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
     <li
       class="select__item select__item--no-options"
@@ -122,8 +118,7 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
     <li
       class="select__item select__item--no-options"
@@ -141,14 +136,15 @@ exports[`Field footer component Change type 1`] = `
           </span>
         </div>
       </a>
-       
-      <!---->
+      <!--v-if-->
     </li>
+    
   </ul>
+  
 </div>
 `;
 
-exports[`Field footer component Change type 2`] = `
+exports[`Field footer component > Change type 2`] = `
 <div
   class="grid-view-aggregation"
 >
@@ -158,38 +154,34 @@ exports[`Field footer component Change type 2`] = `
     <i
       class="grid-view-aggregation__empty-icon iconoir-plus"
     />
-    
-    common.summarize
-  
+     common.summarize
   </div>
-   
 </div>
 `;
 
-exports[`Field footer component Change type 3`] = `
+exports[`Field footer component > Change type 3`] = `
 <div
   class="grid-view-aggregation"
 >
   <div
     class="grid-view-aggregation__generic"
+    field="[object Object]"
   >
     <span
       class="grid-view-aggregation__generic-name"
     >
       viewAggregationType.emptyCount
     </span>
-     
     <span
       class="grid-view-aggregation__generic-value"
     >
       10
     </span>
   </div>
-   
 </div>
 `;
 
-exports[`Field footer component Default component 1`] = `
+exports[`Field footer component > Default component 1`] = `
 <div
   class="grid-view-aggregation"
 >
@@ -199,56 +191,49 @@ exports[`Field footer component Default component 1`] = `
     <i
       class="grid-view-aggregation__empty-icon iconoir-plus"
     />
-    
-    common.summarize
-  
+     common.summarize
   </div>
-   
 </div>
 `;
 
-exports[`Field footer component Default component 2`] = `
+exports[`Field footer component > Default component 2`] = `
 <div
   class="grid-view-aggregation"
 >
   <div
     class="grid-view-aggregation__generic"
+    field="[object Object]"
   >
     <span
       class="grid-view-aggregation__generic-name"
     >
       viewAggregationType.notEmptyCount
     </span>
-     
     <span
       class="grid-view-aggregation__generic-value"
-    >
-      
-    </span>
+    />
   </div>
-   
 </div>
 `;
 
-exports[`Field footer component Default component 3`] = `
+exports[`Field footer component > Default component 3`] = `
 <div
   class="grid-view-aggregation"
 >
   <div
     class="grid-view-aggregation__generic"
+    field="[object Object]"
   >
     <span
       class="grid-view-aggregation__generic-name"
     >
       viewAggregationType.notEmptyCount
     </span>
-     
     <span
       class="grid-view-aggregation__generic-value"
     >
       75%
     </span>
   </div>
-   
 </div>
 `;

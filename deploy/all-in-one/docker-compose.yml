@@ -1,15 +1,11 @@
 services:
   # A dev / testing /example compose file for quickly setting up an all in one
   baserow_all_in_one:
-    image: baserow
+    image: baserow:${BASEROW_VERSION:-2.0.3}
     build:
       dockerfile: $PWD/deploy/all-in-one/Dockerfile
       context: $PWD
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+      target: prod
     environment:
       EMAIL_SMTP: 'yes'
       EMAIL_SMTP_HOST: 'mailhog'

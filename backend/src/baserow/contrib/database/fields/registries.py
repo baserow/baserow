@@ -27,9 +27,6 @@ from django.db.models import (
     Expression,
     ExpressionWrapper,
     F,
-)
-from django.db.models import Field as DjangoField
-from django.db.models import (
     IntegerField,
     JSONField,
     Model,
@@ -39,6 +36,7 @@ from django.db.models import (
     Subquery,
     Value,
 )
+from django.db.models import Field as DjangoField
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import Cast, Coalesce
 
@@ -2141,7 +2139,7 @@ class ManyToManyGroupByMixin:
                     res=ArrayAgg(
                         F(f"{related_field}_id"),
                         filter=Q(**{f"{related_field}_id__isnull": False}),
-                        ordering=self.get_group_by_aggregated_order(related_field),
+                        order_by=self.get_group_by_aggregated_order(related_field),
                     )
                 )
             )
@@ -2249,7 +2247,7 @@ class FieldConverter(Instance):
         """
 
         raise NotImplementedError(
-            "Each field converter must have an is_applicable " "method."
+            "Each field converter must have an is_applicable method."
         )
 
     def alter_field(
@@ -2288,7 +2286,7 @@ class FieldConverter(Instance):
         """
 
         raise NotImplementedError(
-            "Each field converter must have an alter_field " "method."
+            "Each field converter must have an alter_field method."
         )
 
 

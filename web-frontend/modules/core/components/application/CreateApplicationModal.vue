@@ -1,7 +1,8 @@
 <template>
-  <Modal @show="loading = false">
+  <Modal ref="modal" @show="loading = false">
     <h2 class="box__title">
-      {{ $t('action.createNew') }} {{ applicationType.getName() | lowercase }}
+      {{ $t('action.createNew') }}
+      {{ $filters.lowercase(applicationType.getName()) }}
     </h2>
     <Error :error="error"></Error>
     <component
@@ -36,6 +37,7 @@ export default {
       required: true,
     },
   },
+  emits: ['created'],
   data() {
     return {
       loading: false,

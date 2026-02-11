@@ -45,6 +45,7 @@ import context from '@baserow/modules/core/mixins/context'
 
 export default {
   name: 'AssistantChatHistoryContext',
+  emits: ['select-chat'],
   mixins: [context],
   props: {
     currentChatId: {

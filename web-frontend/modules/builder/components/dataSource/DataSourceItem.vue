@@ -73,6 +73,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'edit', 'share'],
   computed: {
     isInError() {
       return this.dataSourceType?.isInError({ service: this.dataSource })

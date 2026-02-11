@@ -322,7 +322,7 @@ def test_daily_report_is_sent_up_to_max_limit_per_task_and_log_the_error(
         assert len(weekly_summary_emails) == 1
         assert weekly_summary_emails[0].to in [[user_3.email], [user_4.email]]
 
-        mock_logger_error.called_once_with(
+        mock_logger_error.assert_called_once_with(
             "The maximum number of email of notifications was reached.\n"
             "Daily sent: 1.\n"
             "Daily remaining: 1.\n"
@@ -409,7 +409,7 @@ def test_daily_report_is_sent_up_to_max_limit_per_task_log_the_error_and_retry_a
         assert len(weekly_summary_emails) == 1
         assert weekly_summary_emails[0].to in [[user_3.email], [user_4.email]]
 
-        mock_logger_error.called_once_with(
+        mock_logger_error.assert_called_once_with(
             "The maximum number of email of notifications was reached.\n"
             "Daily sent: 1.\n"
             "Daily remaining: 1.\n"

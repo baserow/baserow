@@ -232,7 +232,7 @@ class AirtableViewType(Instance):
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
                     f'The sort on field "{column_name}" was ignored in view'
-                    f' {raw_airtable_view["name"]} because the field is not imported.',
+                    f" {raw_airtable_view['name']} because the field is not imported.",
                 )
                 continue
 
@@ -250,7 +250,7 @@ class AirtableViewType(Instance):
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
                     f'The sort on field "{baserow_field.name}" was ignored in view'
-                    f' {raw_airtable_view["name"]} because it\'s not possible to '
+                    f" {raw_airtable_view['name']} because it's not possible to "
                     f"order by that field type.",
                 )
                 continue
@@ -295,7 +295,7 @@ class AirtableViewType(Instance):
                     raw_airtable_table["name"],
                     ERROR_TYPE_UNSUPPORTED_FEATURE,
                     f'The group by on field "{column_name}" was ignored in view'
-                    f' {raw_airtable_view["name"]} because the field was not imported.',
+                    f" {raw_airtable_view['name']} because the field was not imported.",
                 )
                 continue
 
@@ -366,7 +366,7 @@ class AirtableViewType(Instance):
                 ERROR_TYPE_UNSUPPORTED_FEATURE,
                 f'The "{filter_object["operator"]}" filter with value '
                 f'"{filter_value}" on field "{column_name}" was ignored '
-                f'in view {raw_airtable_view["name"]} because the field was not '
+                f"in view {raw_airtable_view['name']} because the field was not "
                 f"imported.",
             )
             return None
@@ -386,7 +386,7 @@ class AirtableViewType(Instance):
                 ERROR_TYPE_UNSUPPORTED_FEATURE,
                 f'The "{filter_object["operator"]}" filter with value '
                 f'"{filter_value}" on field "{baserow_field.name}" was '
-                f'ignored in view {raw_airtable_view["name"]} because it\'s not '
+                f"ignored in view {raw_airtable_view['name']} because it's not "
                 f"possible to filter by that field type.",
             )
             return None
@@ -422,7 +422,7 @@ class AirtableViewType(Instance):
                 ERROR_TYPE_UNSUPPORTED_FEATURE,
                 f'The "{filter_object["operator"]}" filter with value '
                 f'"{filter_value}" on field "{baserow_field.name}" was '
-                f'ignored in view {raw_airtable_view["name"]} because not no '
+                f"ignored in view {raw_airtable_view['name']} because not no "
                 f"compatible filter exists.",
             )
             return None
@@ -528,7 +528,7 @@ class AirtableViewType(Instance):
                 SCOPE_VIEW_COLOR,
                 raw_airtable_table["name"],
                 ERROR_TYPE_DATA_TYPE_MISMATCH,
-                f'The select field coloring was ignored in {raw_airtable_view["name"]} '
+                f"The select field coloring was ignored in {raw_airtable_view['name']} "
                 f"because {column_name} does not exist.",
             )
             return None

@@ -18,6 +18,7 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'ViewDateSelector',
+  emits: ['date-selected'],
   props: {
     selectedDate: {
       type: Object, // a moment object

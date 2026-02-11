@@ -1,24 +1,20 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
 import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
 
 describe('ChoiceElement', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
-    testApp = new TestApp()
-    store = testApp.store
-  })
-
-  afterEach(() => {
-    testApp.afterEach()
+  beforeEach(() => {
+    testApp = useNuxtApp()
+    store = testApp.$store
   })
 
   const mountComponent = ({ props = {}, slots = {}, provide = {} }) => {
-    return testApp.mount(ChoiceElement, {
-      propsData: props,
+    return mountSuspended(ChoiceElement, {
+      props: props,
       slots,
-      provide,
+      global: { provide },
     })
   }
 

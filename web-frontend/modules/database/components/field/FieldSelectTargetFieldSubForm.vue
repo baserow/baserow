@@ -68,6 +68,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

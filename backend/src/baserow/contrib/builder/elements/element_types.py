@@ -1515,10 +1515,11 @@ class InputTextElementType(InputElementType):
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
+        :param dispatch_context: The context the element is being used in.
         :return: Whether the value is valid or not for this element.
         """
 
-        if not value:
+        if value == "":
             if element.required:
                 raise ValueError("The value is required")
 
@@ -1919,6 +1920,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
         :param element: The choice element.
         :param value: The choice value we want to validate.
+        :param dispatch_context: The context this element was dispatched with.
         :return: The value if it is valid for this element.
         """
 
@@ -2158,8 +2160,7 @@ class MultiPageContainerElementType(
     class SerializedDict(
         MultiPageElementTypeMixin.SerializedDict,
         ContainerElementTypeMixin.SerializedDict,
-    ):
-        ...
+    ): ...
 
 
 class HeaderElementType(MultiPageContainerElementType):

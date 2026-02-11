@@ -12,16 +12,19 @@ let delayTimeout = null
  */
 export default {
   mixins: [viewFilter],
+  emits: ['input'],
+  // The `setup` is not inherited if this mixin is used. You must manually do
+  // ```
+  // export default {
+  //   setup: filterTypeInput.setup,
+  // }
+  // ```
   setup() {
-    const values = reactive({
-      copy: null,
-    })
+    const values = reactive({ copy: null })
+    const rules = { copy: {} }
 
-    const rules = {
-      copy: {},
-    }
     return {
-      copy: values.copy,
+      ...toRefs(values), // <- copy is now reactive
       v$: useVuelidate(rules, values, { $lazy: true }),
     }
   },
@@ -30,7 +33,6 @@ export default {
       // This can be used to avoid changing the value if the user is editing it
       // Or can be set i.e. by onFocus event
       focused: false,
-      copy: null,
     }
   },
   watch: {

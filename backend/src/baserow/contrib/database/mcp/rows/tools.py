@@ -1,6 +1,4 @@
 from asgiref.sync import sync_to_async
-from mcp import Tool
-from mcp.types import TextContent
 from rest_framework.response import Response
 from starlette.status import HTTP_204_NO_CONTENT
 
@@ -23,6 +21,8 @@ class ListRowsMcpTool(MCPTool):
     name = "list_table_rows"
 
     async def list(self, endpoint):
+        from mcp import Tool
+
         return [
             Tool(
                 name=self.name,
@@ -64,6 +64,8 @@ class ListRowsMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
+        from mcp.types import TextContent
+
         table_id = call_arguments["table_id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]
@@ -92,6 +94,8 @@ class CreateRowMcpTool(MCPTool):
     name = "create_row_table_{id}"
 
     async def list(self, endpoint):
+        from mcp import Tool
+
         tables = await sync_to_async(get_all_tables)(endpoint)
         tables = await sync_to_async(remove_table_no_permission)(
             endpoint, tables, CreateRowDatabaseTableOperationType
@@ -127,6 +131,8 @@ class CreateRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
+        from mcp.types import TextContent
+
         table_id = name_parameters["id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]
@@ -148,6 +154,8 @@ class UpdateRowMcpTool(MCPTool):
     name = "update_row_table_{id}"
 
     async def list(self, endpoint):
+        from mcp import Tool
+
         tables = await sync_to_async(get_all_tables)(endpoint)
         tables = await sync_to_async(remove_table_no_permission)(
             endpoint, tables, UpdateDatabaseRowOperationType
@@ -187,6 +195,8 @@ class UpdateRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
+        from mcp.types import TextContent
+
         table_id = name_parameters["id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]
@@ -211,6 +221,8 @@ class DeleteRowMcpTool(MCPTool):
     name = "delete_table_row"
 
     async def list(self, endpoint):
+        from mcp import Tool
+
         return [
             Tool(
                 name=self.name,
@@ -241,6 +253,8 @@ class DeleteRowMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
+        from mcp.types import TextContent
+
         table_id = call_arguments["table_id"]
         if not await sync_to_async(table_in_workspace_of_endpoint)(endpoint, table_id):
             return [TextContent(type="text", text="Table not in endpoint workspace.")]

@@ -94,6 +94,14 @@ export default {
       required: true,
     },
   },
+  emits: [
+    'field-deleted',
+    'field-updated',
+    'order-fields',
+    'refresh-row',
+    'toggle-field-visibility',
+    'update',
+  ],
   methods: {
     fieldIsSortable(field) {
       return this.sortable && (this.primaryIsSortable || !field.primary)

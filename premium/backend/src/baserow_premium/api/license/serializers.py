@@ -3,11 +3,12 @@ from typing import Optional
 
 from django.contrib.auth import get_user_model
 
-from baserow_premium.license.models import License
-from baserow_premium.license.registries import SeatUsageSummary
 from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+
+from baserow_premium.license.models import License
+from baserow_premium.license.registries import SeatUsageSummary
 
 User = get_user_model()
 

@@ -68,6 +68,7 @@ export default {
       default: null,
     },
   },
+  emits: ['remove', 'update'],
   methods: {
     updateConstraintTypeName(typeName) {
       this.$emit('update', this.index, { type_name: typeName })

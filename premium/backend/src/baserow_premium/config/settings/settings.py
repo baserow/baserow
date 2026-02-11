@@ -40,3 +40,9 @@ def setup(settings):
     settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS = try_int(
         os.getenv("BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS"), 5
     )
+
+    # Debounce time for AI field generation, if changes are triggered from
+    # auto-update feature. In seconds.
+    settings.BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME = try_int(
+        os.getenv("BASEROW_AI_FIELD_AUTO_UPDATE_DEBOUNCE_TIME"), 3
+    )

@@ -28,10 +28,15 @@ class AutomationHistoryHandler:
         workflow: AutomationWorkflow,
         started_on: datetime,
         is_test_run: bool,
+        status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
+        completed_on: Optional[datetime] = None,
+        message: str = "",
     ) -> AutomationWorkflowHistory:
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
             started_on=started_on,
             is_test_run=is_test_run,
-            status=HistoryStatusChoices.STARTED,
+            status=status,
+            completed_on=completed_on,
+            message=message,
         )

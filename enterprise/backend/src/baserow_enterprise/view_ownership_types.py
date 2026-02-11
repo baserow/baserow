@@ -1,7 +1,5 @@
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import CreateViewFilterOperationType
@@ -11,6 +9,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC
+from baserow_premium.license.handler import LicenseHandler
 
 
 class RestrictedViewOwnershipType(ViewOwnershipType):

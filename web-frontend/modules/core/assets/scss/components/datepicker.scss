@@ -1,19 +1,38 @@
 /* stylelint-disable selector-class-pattern */
-// This file changes the existing datepicker styling such that it is conform the style
-// of Baserow.
+// This file changes the existing vuejs3-datepicker styling such that it is
+// identical to the old vuejs-datepicker styling used by Baserow.
 
 .datepicker-context {
   white-space: normal;
 }
 
-.vdp-datepicker.datepicker .vdp-datepicker__calendar {
+.vuejs3-datepicker.datepicker {
+  text-align: left;
+}
+
+.vuejs3-datepicker.datepicker .vuejs3-datepicker__calendar {
   border: none;
   width: 312px;
   padding: 16px;
   box-sizing: border-box;
+  margin-top: 0;
+  box-shadow: none;
+  background: $white;
 
-  &.vdp-datepicker__calendar--small {
+  * {
+    transition: none !important;
+  }
+
+  &.vuejs3-datepicker__calendar--small {
     width: 280px;
+    padding: 0;
+  }
+
+  .vuejs3-datepicker__calendar-topbar {
+    display: none;
+  }
+
+  .vuejs3-datepicker__calendar-actionarea {
     padding: 0;
   }
 
@@ -27,6 +46,7 @@
   .cell {
     padding: 0;
     margin: 2px;
+    font-size: $datepicker-cell-font-size;
   }
 
   header {
@@ -37,9 +57,9 @@
   }
 
   .prev {
+    @extend %icon;
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-left;
-    @extend %icon;
 
     &::before {
       position: relative;
@@ -47,9 +67,9 @@
   }
 
   .next {
+    @extend %icon;
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
     @extend .iconoir-nav-arrow-right;
-    @extend %icon;
   }
 
   .prev,
@@ -98,11 +118,19 @@
   .cell.day-header {
     font-size: 12px;
     font-weight: 500;
+    text-transform: none;
   }
 
   .cell.day.today {
     font-size: 14px;
     font-weight: 600;
+  }
+
+  .cell.month,
+  .cell.year {
+    padding: 0;
+    height: $datepicker-month-year-cell-height;
+    line-height: $datepicker-month-year-cell-height;
   }
 
   /* stylelint-disable */
@@ -134,6 +162,22 @@
 
   .day-header {
     color: $color-neutral-500;
+  }
+
+  .cell.highlighted {
+    background: #cae5ed;
+
+    &.disabled {
+      color: #a3a3a3;
+    }
+  }
+
+  .cell.grey {
+    color: #888;
+
+    &:hover {
+      background: inherit;
+    }
   }
 
   .context-datepicker & {

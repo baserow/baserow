@@ -157,6 +157,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted'],
   data() {
     return {
       reveal: false,
@@ -174,7 +175,7 @@ export default {
   },
   methods: {
     getEndpointUrl(key) {
-      return `${this.$config.PUBLIC_BACKEND_URL}/mcp/${key}/sse`
+      return `${this.$config.public.publicBackendUrl}/mcp/${key}/sse`
     },
     copyShareUrlToClipboard() {
       copyToClipboard(this.getEndpointUrl(this.endpoint.key))

@@ -1,21 +1,29 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`GridViewRows component Default component 1`] = `
+exports[`GridViewRows component > Default component 1`] = `
 <div
   class="grid-view__rows"
   style="transform: translateY(0px) translateX(0px); left: 0px;"
 >
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    <!--v-if-->
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -30,26 +38,39 @@ exports[`GridViewRows component Default component 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
-        >
-          
-        </div>
+        />
       </div>
     </div>
+    
   </div>
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    <!--v-if-->
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -64,6 +85,12 @@ exports[`GridViewRows component Default component 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -72,24 +99,31 @@ exports[`GridViewRows component Default component 1`] = `
         </div>
       </div>
     </div>
+    
   </div>
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    <!--v-if-->
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
-        >
-          
-        </div>
+        />
       </div>
     </div>
     <div
@@ -98,6 +132,12 @@ exports[`GridViewRows component Default component 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -106,20 +146,25 @@ exports[`GridViewRows component Default component 1`] = `
         </div>
       </div>
     </div>
+    
   </div>
+  
+  
 </div>
 `;
 
-exports[`GridViewRows component With row details 1`] = `
+exports[`GridViewRows component > With row details 1`] = `
 <div
   class="grid-view__rows"
   style="transform: translateY(0px) translateX(0px); left: 0px;"
 >
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    
+    <!--v-if-->
     <div
       class="grid-view__column grid-view__column--no-border-right"
       style="width: 72px;"
@@ -134,31 +179,36 @@ exports[`GridViewRows component With row details 1`] = `
           <div
             class="grid-view__row-count-content"
           >
-            
-              2
-            
+            2
           </div>
         </div>
-         
-        <!---->
-         
+        <!--v-if-->
         <a
           class="grid-view__row-more"
+          row="[object Object]"
         >
           <i
             class="baserow-icon-enlarge-row"
           />
         </a>
-         
+        
+        
       </div>
     </div>
-     
+    
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -173,20 +223,27 @@ exports[`GridViewRows component With row details 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
-        >
-          
-        </div>
+        />
       </div>
     </div>
+    
   </div>
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    
+    <!--v-if-->
     <div
       class="grid-view__column grid-view__column--no-border-right"
       style="width: 72px;"
@@ -201,31 +258,36 @@ exports[`GridViewRows component With row details 1`] = `
           <div
             class="grid-view__row-count-content"
           >
-            
-              4
-            
+            4
           </div>
         </div>
-         
-        <!---->
-         
+        <!--v-if-->
         <a
           class="grid-view__row-more"
+          row="[object Object]"
         >
           <i
             class="baserow-icon-enlarge-row"
           />
         </a>
-         
+        
+        
       </div>
     </div>
-     
+    
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -240,6 +302,12 @@ exports[`GridViewRows component With row details 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -248,12 +316,15 @@ exports[`GridViewRows component With row details 1`] = `
         </div>
       </div>
     </div>
+    
   </div>
+  
+  
   <div
     class="grid-view__row"
   >
-    <!---->
-     
+    
+    <!--v-if-->
     <div
       class="grid-view__column grid-view__column--no-border-right"
       style="width: 72px;"
@@ -268,37 +339,40 @@ exports[`GridViewRows component With row details 1`] = `
           <div
             class="grid-view__row-count-content"
           >
-            
-              3
-            
+            3
           </div>
         </div>
-         
-        <!---->
-         
+        <!--v-if-->
         <a
           class="grid-view__row-more"
+          row="[object Object]"
         >
           <i
             class="baserow-icon-enlarge-row"
           />
         </a>
-         
+        
+        
       </div>
     </div>
-     
+    
+    
     <div
       class="grid-view__column"
       style="width: 200px;"
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
-        >
-          
-        </div>
+        />
       </div>
     </div>
     <div
@@ -307,6 +381,12 @@ exports[`GridViewRows component With row details 1`] = `
     >
       <div
         class="grid-view__cell"
+        field="[object Object]"
+        read-only="false"
+        row="[object Object]"
+        state="[object Object]"
+        store-prefix="page/"
+        workspace-id="1"
       >
         <div
           class="grid-field-text"
@@ -315,6 +395,9 @@ exports[`GridViewRows component With row details 1`] = `
         </div>
       </div>
     </div>
+    
   </div>
+  
+  
 </div>
 `;

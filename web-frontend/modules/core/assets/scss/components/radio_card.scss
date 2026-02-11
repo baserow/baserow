@@ -21,7 +21,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 0;
 }
 
 .radio-card__labels {
@@ -38,13 +37,8 @@
   font-weight: 500;
 }
 
-.radio-card__badge {
-  min-width: 0;
-}
-
 .radio-card__description {
   color: $palette-neutral-900;
   line-height: 20px;
   font-size: 12px;
-  word-break: break-word;
 }

@@ -1,3 +1,6 @@
+from baserow.contrib.database.fields.models import Field
+from baserow.core.prosemirror.schema import schema
+from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 from baserow_premium.fields.models import AIField
 from baserow_premium.license.models import License, LicenseUser
 from baserow_premium.row_comments.models import RowComment
@@ -9,10 +12,6 @@ from baserow_premium.views.models import (
     TimelineView,
     TimelineViewFieldOptions,
 )
-
-from baserow.contrib.database.fields.models import Field
-from baserow.core.prosemirror.schema import schema
-from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
@@ -225,9 +224,9 @@ class PremiumFixtures:
             kwargs["ai_generative_ai_model"] = "test_1"
 
         if "ai_prompt" not in kwargs:
-            kwargs[
-                "ai_prompt"
-            ] = "'What is your purpose? Answer with a maximum of 10 words.'"
+            kwargs["ai_prompt"] = (
+                "'What is your purpose? Answer with a maximum of 10 words.'"
+            )
 
         field = AIField.objects.create(**kwargs)
 

@@ -48,6 +48,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['change'],
   computed: {
     editingTriggerNode() {
       return this.onlyTrigger

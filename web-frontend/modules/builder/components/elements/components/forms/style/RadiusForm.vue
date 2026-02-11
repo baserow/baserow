@@ -47,7 +47,11 @@ export default {
   props: {
     value: {
       type: Object,
-      required: true,
+      default: undefined,
+    },
+    modelValue: {
+      type: Object,
+      default: undefined,
     },
     backgroundRadiusIsAllowed: {
       type: Boolean,
@@ -60,6 +64,7 @@ export default {
       default: () => false,
     },
   },
+  emits: ['input', 'update:modelValue'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -71,12 +76,18 @@ export default {
       },
     }
   },
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+  },
   methods: {
     getDefaultValues() {
-      return this.value
+      return this.currentValue
     },
     emitChange(newValues) {
       this.$emit('input', newValues)
+      this.$emit('update:modelValue', newValues)
     },
   },
   validations() {

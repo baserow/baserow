@@ -11,7 +11,7 @@
           content-no-padding
           rounded
           full-height
-          @update:selectedIndex="resetSearch"
+          @update:selected-index="resetSearch"
         >
           <Tab
             v-for="hierarchyNode in filteredNodesHierarchy"
@@ -95,6 +95,7 @@ export default {
       default: false,
     },
   },
+  emits: ['node-selected', 'node-toggled', 'node-unselected'],
   data() {
     return {
       activeTabIndex: 0,

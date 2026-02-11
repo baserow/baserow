@@ -1,5 +1,6 @@
 <template>
   <Context
+    ref="context"
     :class="{ 'context--loading-overlay': state === 'loading' }"
     max-height-if-outside-viewport
     @shown="shown"

@@ -1,21 +1,36 @@
 <template>
-  <component
-    :is="tag"
+  <NuxtLink v-if="to" :to="to" class="button" :class="classes">
+    <i v-if="icon" class="button__icon" :class="icon" />
+    <span v-if="hasSlot" class="button__label"><slot></slot></span>
+    <i v-if="appendIcon" class="button__icon" :class="appendIcon" />
+  </NuxtLink>
+  <a
+    v-else-if="tag === 'a'"
     class="button"
     :class="classes"
-    :disabled="disabled || loading"
-    :to="to"
-    v-bind.prop="customBind"
-    v-on="$listeners"
+    v-bind="customBind"
   >
     <i v-if="icon" class="button__icon" :class="icon" />
     <span v-if="hasSlot" class="button__label"><slot></slot></span>
     <i v-if="appendIcon" class="button__icon" :class="appendIcon" />
-  </component>
+  </a>
+  <button
+    v-else
+    class="button"
+    :class="classes"
+    :disabled="disabled || loading"
+  >
+    <i v-if="icon" class="button__icon" :class="icon" />
+    <span v-if="hasSlot" class="button__label"><slot></slot></span>
+    <i v-if="appendIcon" class="button__icon" :class="appendIcon" />
+  </button>
 </template>
 
 <script>
+import { hasRealNodes } from '@baserow/modules/core/utils/dom.js'
+
 export default {
+  name: 'Button',
   props: {
     /**
      * The HTML tag to use for the button. Available tags are: a, button.
@@ -149,10 +164,21 @@ export default {
       type: String,
       default: null,
     },
+    prependIcon: {
+      required: false,
+      type: String,
+      default: '',
+    },
+    overflow: {
+      required: false,
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     hasSlot() {
-      return !!this.$slots.default
+      const slot = this.$slots.default
+      return slot ? hasRealNodes(slot()) : false
     },
     classes() {
       const hasIcon = this.prependIcon || this.appendIcon || this.icon

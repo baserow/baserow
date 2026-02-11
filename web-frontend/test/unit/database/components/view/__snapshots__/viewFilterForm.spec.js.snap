@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ViewFilterForm match snapshots Default view filter component 1`] = `
+exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
 <div
   class="filters__content"
 >
@@ -10,22 +10,15 @@ exports[`ViewFilterForm match snapshots Default view filter component 1`] = `
     <div
       class="filters__none-title"
     >
-      
       viewFilterContext.noFilterTitle
-    
     </div>
-     
     <div
       class="filters__none-description"
     >
-      
       viewFilterContext.noFilterText
-    
     </div>
   </div>
-   
-  <!---->
-   
+  <!--v-if-->
   <div
     class="context__footer"
   >
@@ -35,48 +28,44 @@ exports[`ViewFilterForm match snapshots Default view filter component 1`] = `
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilter
+        viewFilterContext.addFilter
+        
       </span>
     </button>
-     
     <button
       class="button-text"
     >
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilterGroup
+        viewFilterContext.addFilterGroup
+        
       </span>
     </button>
-     
-    <!---->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
+exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
 <div
   class="filters__content"
 >
-  <!---->
-   
+  <!--v-if-->
   <div
-    class="filters__items filters__items--with-padding filters__items--scrollable"
+    class="filters__items filters__items--scrollable filters__items--with-padding"
   >
+    
     <div
       class="filters__item-wrapper"
     >
@@ -91,15 +80,13 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
           >
             viewFilterContext.where
           </span>
-           
-          <!---->
-           
-          <!---->
+          <!--v-if-->
+          <!--v-if-->
         </div>
-         
         <div
           class="filters__condition-item"
         >
+          
           <div
             class="filters__field"
           >
@@ -111,22 +98,22 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="Name"
                 >
                   Name
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items hidden dropdown__items--fixed"
               >
@@ -136,7 +123,6 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -144,12 +130,12 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible active"
                     role="listitem"
@@ -160,23 +146,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Name"
                         >
                           Name
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -191,23 +174,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Stars"
                         >
                           Stars
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -222,36 +202,32 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Flag"
                         >
                           Flag
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__type"
           >
@@ -263,22 +239,22 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="viewFilter.is"
                 >
                   viewFilter.is
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items hidden dropdown__items--fixed"
               >
@@ -288,7 +264,6 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -296,12 +271,12 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible active"
                     role="listitem"
@@ -312,23 +287,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.is"
                         >
                           viewFilter.is
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -343,23 +315,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.isNot"
                         >
                           viewFilter.isNot
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -374,23 +343,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.contains"
                         >
                           viewFilter.contains
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -405,23 +371,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.containsNot"
                         >
                           viewFilter.containsNot
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -436,23 +399,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.containsWord"
                         >
                           viewFilter.containsWord
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -467,23 +427,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.doesntContainWord"
                         >
                           viewFilter.doesntContainWord
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -498,23 +455,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.lengthIsLowerThan"
                         >
                           viewFilter.lengthIsLowerThan
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -529,23 +483,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.isEmpty"
                         >
                           viewFilter.isEmpty
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -560,65 +511,64 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.isNotEmpty"
                         >
                           viewFilter.isNotEmpty
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__value filters__value--with-input-field"
           >
+            
             <div
               class="form-input"
             >
-              <!---->
-               
+              <!--v-if-->
               <div
                 class="form-input__wrapper"
               >
                 <input
                   autocomplete=""
                   class="form-input__input"
+                  max="false"
+                  min="false"
                   placeholder=""
+                  step="false"
                   type="text"
+                  value="test"
                 />
-                 
-                <!---->
+                <!--v-if-->
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
-              
-            <!---->
-             
-            <!---->
+            
+            
+            
+            <!--v-if-->
+            <!--v-if-->
           </div>
-           
+          
           <a
             class="filters__remove"
           >
@@ -638,8 +588,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
         <div
           class="filters__operator"
         >
-          <!---->
-           
+          <!--v-if-->
           <div
             class="dropdown"
             role="list"
@@ -648,32 +597,31 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
             <a
               class="dropdown__selected"
             >
-              <!---->
-               
-              <!---->
-               
+              
+              
+              <!--v-if-->
+              <!--v-if-->
               <span
                 class="dropdown__selected-text"
                 title="viewFilterContext.and"
               >
                 viewFilterContext.and
               </span>
-               
+              
+              
               <i
                 class="dropdown__toggle-icon iconoir-nav-arrow-down"
               />
             </a>
-             
             <div
               class="dropdown__items hidden dropdown__items--fixed"
             >
-              <!---->
-               
+              <!--v-if-->
               <ul
                 class="select__items select__items--no-max-height"
-                style=""
                 tabindex="-1"
               >
+                
                 <li
                   class="select__item select__item--no-options visible active"
                   role="listitem"
@@ -684,28 +632,24 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     <div
                       class="select__item-name"
                     >
-                      <!---->
-                       
-                      <!---->
-                       
-                      <!---->
-                       
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                       <span
                         class="select__item-name-text"
                         title="viewFilterContext.and"
                       >
                         viewFilterContext.and
                       </span>
+                      
                     </div>
-                     
-                    <!---->
+                    <!--v-if-->
                   </a>
-                   
                   <i
                     class="select__item-active-icon iconoir-check"
                   />
                 </li>
-                 
                 <li
                   class="select__item select__item--no-options visible"
                   role="listitem"
@@ -716,41 +660,36 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     <div
                       class="select__item-name"
                     >
-                      <!---->
-                       
-                      <!---->
-                       
-                      <!---->
-                       
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                       <span
                         class="select__item-name-text"
                         title="viewFilterContext.or"
                       >
                         viewFilterContext.or
                       </span>
+                      
                     </div>
-                     
-                    <!---->
+                    <!--v-if-->
                   </a>
-                   
                   <i
                     class="select__item-active-icon iconoir-check"
                   />
                 </li>
+                
               </ul>
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
             </div>
           </div>
-           
-          <!---->
+          <!--v-if-->
         </div>
-         
         <div
           class="filters__condition-item"
         >
+          
           <div
             class="filters__field"
           >
@@ -762,22 +701,22 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="Stars"
                 >
                   Stars
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items hidden dropdown__items--fixed"
               >
@@ -787,7 +726,6 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -795,12 +733,12 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible"
                     role="listitem"
@@ -811,23 +749,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Name"
                         >
                           Name
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -842,23 +777,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Stars"
                         >
                           Stars
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -873,36 +805,32 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Flag"
                         >
                           Flag
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__type"
           >
@@ -914,22 +842,22 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="viewFilter.is"
                 >
                   viewFilter.is
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items hidden dropdown__items--fixed"
               >
@@ -939,7 +867,6 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -947,12 +874,12 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible active"
                     role="listitem"
@@ -963,23 +890,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.is"
                         >
                           viewFilter.is
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -994,23 +918,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.isNot"
                         >
                           viewFilter.isNot
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1025,23 +946,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.higherThan"
                         >
                           viewFilter.higherThan
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1056,23 +974,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.higherThanOrEqual"
                         >
                           viewFilter.higherThanOrEqual
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1087,23 +1002,20 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.lowerThan"
                         >
                           viewFilter.lowerThan
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1118,45 +1030,43 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.lowerThanOrEqual"
                         >
                           viewFilter.lowerThanOrEqual
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__value filters__value--with-input-field"
           >
+            
             <div
               class="filters__value-rating"
             >
               <div
                 class="rating color--dark-orange editing"
               >
+                
                 <i
                   class="rating__star baserow-icon-star rating__star--selected"
                 />
@@ -1172,14 +1082,16 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 <i
                   class="rating__star baserow-icon-star"
                 />
+                
               </div>
             </div>
-              
-            <!---->
-             
-            <!---->
+            
+            
+            
+            <!--v-if-->
+            <!--v-if-->
           </div>
-           
+          
           <a
             class="filters__remove"
           >
@@ -1190,9 +1102,10 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
         </div>
       </div>
     </div>
-     
+    
+    
+    
   </div>
-   
   <div
     class="context__footer"
   >
@@ -1202,34 +1115,30 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilter
+        viewFilterContext.addFilter
+        
       </span>
     </button>
-     
     <button
       class="button-text"
     >
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilterGroup
+        viewFilterContext.addFilterGroup
+        
       </span>
     </button>
-     
     <div
       class="margin-left-auto"
     >
@@ -1239,7 +1148,9 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
         <div
           class="switch__label"
         >
+          
           viewFilterContext.disableAllFilters
+          
         </div>
       </div>
     </div>
@@ -1247,15 +1158,15 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
 </div>
 `;
 
-exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
+exports[`ViewFilterForm match snapshots > rating filter 1`] = `
 <div
   class="filters__content"
 >
-  <!---->
-   
+  <!--v-if-->
   <div
-    class="filters__items filters__items--with-padding filters__items--scrollable"
+    class="filters__items filters__items--scrollable filters__items--with-padding"
   >
+    
     <div
       class="filters__item-wrapper"
     >
@@ -1270,15 +1181,13 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
           >
             viewFilterContext.where
           </span>
-           
-          <!---->
-           
-          <!---->
+          <!--v-if-->
+          <!--v-if-->
         </div>
-         
         <div
           class="filters__condition-item"
         >
+          
           <div
             class="filters__field"
           >
@@ -1290,22 +1199,22 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="Stars"
                 >
                   Stars
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items hidden dropdown__items--fixed"
               >
@@ -1315,7 +1224,6 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -1323,12 +1231,12 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible"
                     role="listitem"
@@ -1339,23 +1247,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Name"
                         >
                           Name
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1370,23 +1275,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Stars"
                         >
                           Stars
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1401,36 +1303,32 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="Flag"
                         >
                           Flag
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__type"
           >
@@ -1442,25 +1340,25 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
               <a
                 class="dropdown__selected"
               >
-                <!---->
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                <!--v-if-->
                 <span
                   class="dropdown__selected-text"
                   title="viewFilter.is"
                 >
                   viewFilter.is
                 </span>
-                 
+                
+                
                 <i
                   class="dropdown__toggle-icon iconoir-nav-arrow-down"
                 />
               </a>
-               
               <div
                 class="dropdown__items dropdown__items--fixed"
-                style="left: 0px; min-width: 0px; top: 0px; bottom: auto; max-height: calc(100vh - 20px);"
+                style="left: 0px; top: 0px; bottom: auto;"
               >
                 <div
                   class="select__search"
@@ -1468,7 +1366,6 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                   <i
                     class="select__search-icon iconoir-search"
                   />
-                   
                   <input
                     class="select__search-input"
                     placeholder="action.search"
@@ -1476,12 +1373,12 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                     type="text"
                   />
                 </div>
-                 
                 <ul
                   class="select__items select__items--no-max-height prevent-scroll"
-                  style=""
                   tabindex="-1"
                 >
+                  
+                  
                   <li
                     class="select__item select__item--no-options visible active hover"
                     role="listitem"
@@ -1492,23 +1389,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.is"
                         >
                           viewFilter.is
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1523,23 +1417,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.isNot"
                         >
                           viewFilter.isNot
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1554,23 +1445,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.higherThan"
                         >
                           viewFilter.higherThan
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1585,23 +1473,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.higherThanOrEqual"
                         >
                           viewFilter.higherThanOrEqual
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1616,23 +1501,20 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.lowerThan"
                         >
                           viewFilter.lowerThan
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
@@ -1647,45 +1529,43 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                       <div
                         class="select__item-name"
                       >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
                         <span
                           class="select__item-name-text"
                           title="viewFilter.lowerThanOrEqual"
                         >
                           viewFilter.lowerThanOrEqual
                         </span>
+                        
                       </div>
-                       
-                      <!---->
+                      <!--v-if-->
                     </a>
-                     
                     <i
                       class="select__item-active-icon iconoir-check"
                     />
                   </li>
+                  
+                  
                 </ul>
-                 
-                <!---->
-                 
-                <!---->
+                <!--v-if-->
+                <!--v-if-->
               </div>
             </div>
           </div>
-           
           <div
             class="filters__value filters__value--with-input-field"
           >
+            
             <div
               class="filters__value-rating"
             >
               <div
                 class="rating color--dark-orange editing"
               >
+                
                 <i
                   class="rating__star baserow-icon-star rating__star--selected"
                 />
@@ -1701,14 +1581,16 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
                 <i
                   class="rating__star baserow-icon-star"
                 />
+                
               </div>
             </div>
-              
-            <!---->
-             
-            <!---->
+            
+            
+            
+            <!--v-if-->
+            <!--v-if-->
           </div>
-           
+          
           <a
             class="filters__remove"
           >
@@ -1719,9 +1601,10 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
         </div>
       </div>
     </div>
-     
+    
+    
+    
   </div>
-   
   <div
     class="context__footer"
   >
@@ -1731,34 +1614,30 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilter
+        viewFilterContext.addFilter
+        
       </span>
     </button>
-     
     <button
       class="button-text"
     >
       <i
         class="button-text__icon iconoir-plus"
       />
-       
-      <!---->
-       
+      <!--v-if-->
       <span
         class="button-text__label"
       >
         
-      viewFilterContext.addFilterGroup
+        viewFilterContext.addFilterGroup
+        
       </span>
     </button>
-     
     <div
       class="margin-left-auto"
     >
@@ -1768,536 +1647,9 @@ exports[`ViewFilterForm match snapshots Test rating filter 1`] = `
         <div
           class="switch__label"
         >
+          
           viewFilterContext.disableAllFilters
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-`;
-
-exports[`ViewFilterForm match snapshots Test rating filter 2`] = `
-<div
-  class="filters__content"
->
-  <!---->
-   
-  <div
-    class="filters__items filters__items--with-padding filters__items--scrollable"
-  >
-    <div
-      class="filters__item-wrapper"
-    >
-      <div
-        class="filters__item filters__item--level-1"
-      >
-        <div
-          class="filters__operator"
-        >
-          <span
-            class="filters__operator-where"
-          >
-            viewFilterContext.where
-          </span>
-           
-          <!---->
-           
-          <!---->
-        </div>
-         
-        <div
-          class="filters__condition-item"
-        >
-          <div
-            class="filters__field"
-          >
-            <div
-              class="dropdown"
-              role="list"
-              tabindex="0"
-            >
-              <a
-                class="dropdown__selected"
-              >
-                <!---->
-                 
-                <!---->
-                 
-                <span
-                  class="dropdown__selected-text"
-                  title="Stars"
-                >
-                  Stars
-                </span>
-                 
-                <i
-                  class="dropdown__toggle-icon iconoir-nav-arrow-down"
-                />
-              </a>
-               
-              <div
-                class="dropdown__items hidden dropdown__items--fixed"
-              >
-                <div
-                  class="select__search"
-                >
-                  <i
-                    class="select__search-icon iconoir-search"
-                  />
-                   
-                  <input
-                    class="select__search-input"
-                    placeholder="action.search"
-                    tabindex="0"
-                    type="text"
-                  />
-                </div>
-                 
-                <ul
-                  class="select__items select__items--no-max-height"
-                  style=""
-                  tabindex="-1"
-                >
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="Name"
-                        >
-                          Name
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible active"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="Stars"
-                        >
-                          Stars
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="Flag"
-                        >
-                          Flag
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                </ul>
-                 
-                <!---->
-                 
-                <!---->
-              </div>
-            </div>
-          </div>
-           
-          <div
-            class="filters__type"
-          >
-            <div
-              class="dropdown"
-              role="list"
-              tabindex="0"
-            >
-              <a
-                class="dropdown__selected"
-              >
-                <!---->
-                 
-                <!---->
-                 
-                <span
-                  class="dropdown__selected-text"
-                  title="viewFilter.is"
-                >
-                  viewFilter.is
-                </span>
-                 
-                <i
-                  class="dropdown__toggle-icon iconoir-nav-arrow-down"
-                />
-              </a>
-               
-              <div
-                class="dropdown__items hidden dropdown__items--fixed"
-                style="left: 0px; min-width: 0px; top: 0px; bottom: auto; max-height: calc(100vh - 20px);"
-              >
-                <div
-                  class="select__search"
-                >
-                  <i
-                    class="select__search-icon iconoir-search"
-                  />
-                   
-                  <input
-                    class="select__search-input"
-                    placeholder="action.search"
-                    tabindex="0"
-                    type="text"
-                  />
-                </div>
-                 
-                <ul
-                  class="select__items select__items--no-max-height prevent-scroll"
-                  style=""
-                  tabindex="-1"
-                >
-                  <li
-                    class="select__item select__item--no-options visible active hover"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.is"
-                        >
-                          viewFilter.is
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.isNot"
-                        >
-                          viewFilter.isNot
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.higherThan"
-                        >
-                          viewFilter.higherThan
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.higherThanOrEqual"
-                        >
-                          viewFilter.higherThanOrEqual
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.lowerThan"
-                        >
-                          viewFilter.lowerThan
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                  <li
-                    class="select__item select__item--no-options visible"
-                    role="listitem"
-                  >
-                    <a
-                      class="select__item-link"
-                    >
-                      <div
-                        class="select__item-name"
-                      >
-                        <!---->
-                         
-                        <!---->
-                         
-                        <!---->
-                         
-                        <span
-                          class="select__item-name-text"
-                          title="viewFilter.lowerThanOrEqual"
-                        >
-                          viewFilter.lowerThanOrEqual
-                        </span>
-                      </div>
-                       
-                      <!---->
-                    </a>
-                     
-                    <i
-                      class="select__item-active-icon iconoir-check"
-                    />
-                  </li>
-                </ul>
-                 
-                <!---->
-                 
-                <!---->
-              </div>
-            </div>
-          </div>
-           
-          <div
-            class="filters__value filters__value--with-input-field"
-          >
-            <div
-              class="filters__value-rating"
-            >
-              <div
-                class="rating color--dark-orange editing"
-              >
-                <i
-                  class="rating__star baserow-icon-star rating__star--selected"
-                />
-                <i
-                  class="rating__star baserow-icon-star rating__star--selected"
-                />
-                <i
-                  class="rating__star baserow-icon-star rating__star--selected"
-                />
-                <i
-                  class="rating__star baserow-icon-star rating__star--selected"
-                />
-                <i
-                  class="rating__star baserow-icon-star rating__star--selected"
-                />
-              </div>
-            </div>
-              
-            <!---->
-             
-            <!---->
-          </div>
-           
-          <a
-            class="filters__remove"
-          >
-            <i
-              class="iconoir-bin"
-            />
-          </a>
-        </div>
-      </div>
-    </div>
-     
-  </div>
-   
-  <div
-    class="context__footer"
-  >
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-       
-      <!---->
-       
-      <span
-        class="button-text__label"
-      >
-        
-      viewFilterContext.addFilter
-      </span>
-    </button>
-     
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-       
-      <!---->
-       
-      <span
-        class="button-text__label"
-      >
-        
-      viewFilterContext.addFilterGroup
-      </span>
-    </button>
-     
-    <div
-      class="margin-left-auto"
-    >
-      <div
-        class="switch switch--small switch--color-green"
-      >
-        <div
-          class="switch__label"
-        >
-          viewFilterContext.disableAllFilters
+          
         </div>
       </div>
     </div>

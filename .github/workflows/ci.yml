@@ -6,9 +6,16 @@ on:
       - develop
       - master
   pull_request:
+  workflow_dispatch:
+    inputs:
+      clear_cache:
+        description: "Clear Docker build cache before building"
+        required: false
+        default: false
+        type: boolean
 
 # Customize the workflow run name to show branch/PR info
-run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}"
+run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}${{ inputs.clear_cache && ' (cache cleared)' || '' }}"
 
 # Automatically cancel in-progress workflows for the same branch/PR
 concurrency:
@@ -53,7 +60,7 @@ jobs:
   # ==========================================================================
 
   build-backend:
-    name: Build Backend Dev Image
+    name: Build Backend CI Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,39 +89,23 @@ jobs:
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
-      - name: Determine cache sources
-        id: cache
-        run: |
-          BRANCH_NAME="${GITHUB_REF_NAME}"
-          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
-          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
-
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
-          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
-          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
-
-          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
-          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
-
-      - name: Build and push backend dev image
+      - name: Build and push backend CI image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: backend/Dockerfile
-          target: dev
+          target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: |
-            type=registry,ref=${{ steps.cache.outputs.branch }}
-            type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=inline
+          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
+          cache-to: type=gha,scope=backend-ci,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
   build-frontend:
-    name: Build Web-Frontend Dev Image
+    name: Build Web-Frontend CI Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -143,32 +134,16 @@ jobs:
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
-      - name: Determine cache sources
-        id: cache
-        run: |
-          BRANCH_NAME="${GITHUB_REF_NAME}"
-          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
-          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
-
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
-          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
-          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
-
-          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
-          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
-
-      - name: Build and push web-frontend dev image
+      - name: Build and push web-frontend CI image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: web-frontend/Dockerfile
-          target: dev
+          target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: |
-            type=registry,ref=${{ steps.cache.outputs.branch }}
-            type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=inline
+          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
+          cache-to: type=gha,scope=frontend-ci,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -225,30 +200,21 @@ jobs:
     name: Backend Lint
     runs-on: ubuntu-latest
     needs:
-      - build-backend
       - detect-changes
-    permissions:
-      contents: read
-      packages: read
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
+      - uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          version: "0.9.29"
 
-      - name: Run backend lint
-        run: docker run --rm ${{ needs.build-backend.outputs.image }} lint
+      - name: Run ruff
+        working-directory: backend
+        run: |
+          uv run ruff check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
+          uv run ruff format --check src/ ../premium/backend/src/ ../enterprise/backend/src/ tests/ ../premium/backend/tests/ ../enterprise/backend/tests/
 
   frontend-lint:
     name: Web-Frontend Lint
@@ -256,19 +222,11 @@ jobs:
     needs:
       - build-frontend
       - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     steps:
-      - name: Exit early if frontend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -277,27 +235,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run frontend lint
-        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+        run: |
+          docker run --rm \
+            ${{ needs.build-frontend.outputs.image }} lint
 
   dockerfile-lint:
     name: Dockerfile Lint (hadolint)
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if dockerfiles not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -335,18 +285,10 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
+    if: needs.detect-changes.outputs.helm == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if helm not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.helm }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -377,14 +319,14 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-backend
-      - backend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     services:
       db:
-        image: pgvector/pgvector:pg13
+        image: pgvector/pgvector:pg14
         env:
           POSTGRES_USER: baserow
           POSTGRES_PASSWORD: baserow
@@ -394,16 +336,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -427,6 +362,15 @@ jobs:
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup-oss-only
+      - name: Check backend migrations
+        run: |
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-migrations
 
   test-backend:
     name: Backend Tests (Group ${{ matrix.group }})
@@ -435,6 +379,7 @@ jobs:
       - build-backend
       - backend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -446,7 +391,7 @@ jobs:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     services:
       db:
-        image: pgvector/pgvector:pg13
+        image: pgvector/pgvector:pg14
         env:
           POSTGRES_USER: baserow
           POSTGRES_PASSWORD: baserow
@@ -456,16 +401,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -513,8 +451,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-frontend
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -523,17 +461,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3]
     steps:
-      - name: Exit early if frontend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -542,14 +471,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run web-frontend tests for shard ${{ matrix.shard }}
+        env:
+          CI: "true"
+          EXTRA_VITEST_PARAMS: --shard=${{ matrix.shard }}/3 --reporter=junit --outputFile=./reports/junit.xml
         run: |
           mkdir -p reports
+          set -o pipefail
           docker run \
             --name=webfrontend_test \
-            -e JEST_SHARD_INDEX=${{ matrix.shard }} \
-            -e JEST_SHARD_TOTAL=4 \
+            -e EXTRA_VITEST_PARAMS="$EXTRA_VITEST_PARAMS" \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
-          docker cp webfrontend_test:/baserow/reports/. ./reports
+          docker cp webfrontend_test:/baserow/web-frontend/reports/junit.xml ./reports
           docker rm webfrontend_test
 
       - name: Upload test reports
@@ -573,21 +505,11 @@ jobs:
     name: Zapier Integration Tests
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if zapier not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.zapier }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -595,6 +517,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "integrations/zapier/yarn.lock"
 
       - name: Run Zapier tests
         run: |
@@ -606,21 +530,11 @@ jobs:
     name: Check MJML Email Templates Compiled
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if mjml not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.mjml }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -628,6 +542,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "backend/email_compiler/yarn.lock"
 
       - name: Compile MJML templates
         run: |
@@ -655,8 +571,7 @@ jobs:
       - detect-changes
       - build-backend
       - build-frontend
-      - backend-lint
-      - frontend-lint
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -665,10 +580,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     services:
       db:
-        image: pgvector/pgvector:pg13
+        image: pgvector/pgvector:pg14
         env:
           POSTGRES_USER: baserow
           POSTGRES_PASSWORD: baserow
@@ -678,6 +593,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
       redis:
         image: redis:6-alpine
         options: >-
@@ -685,6 +602,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /data:rw,noexec,nosuid,size=256m
       s3mock:
         image: adobe/s3mock:3.12.0
         env:
@@ -692,24 +610,13 @@ jobs:
         ports:
           - 9090:9090
     steps:
-      - name: Exit early if no relevant changes
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend, frontend, or Dockerfile changes detected — skipping job."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "24"
           cache: "yarn"
           cache-dependency-path: "e2e-tests/yarn.lock"
 
@@ -720,8 +627,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Start backend service
+      - name: Restore database from dump
         run: |
+          echo "Restoring database from dump to container ${{ job.services.db.id }}..."
+
+          # Drop and recreate database
+          docker exec ${{ job.services.db.id }} psql -U baserow -d postgres -c "DROP DATABASE IF EXISTS baserow;"
+          docker exec ${{ job.services.db.id }} psql -U baserow -d postgres -c "CREATE DATABASE baserow;"
+
+          # Restore from dump (migrations and templates already applied)
+          docker exec -i ${{ job.services.db.id }} pg_restore -U baserow -d baserow --no-owner --no-acl < e2e-tests/fixtures/e2e-db.dump || true
+
+          echo "Database restored successfully!"
+
+      - name: Start all services in parallel
+        run: |
+          # Start backend
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -739,12 +660,12 @@ jobs:
             -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
-            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
+            -e MIGRATE_ON_STARTUP=true \
+            -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
-            ${{ needs.build-backend.outputs.image }} gunicorn
+            ${{ needs.build-backend.outputs.image }} gunicorn &
 
-      - name: Start celery worker
-        run: |
+          # Start celery worker
           docker run -d --network="${{ job.services.db.network }}" \
             --name celery \
             -e DATABASE_HOST=db \
@@ -764,24 +685,42 @@ jobs:
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
-            ${{ needs.build-backend.outputs.image }} celery-worker
+            ${{ needs.build-backend.outputs.image }} celery-worker &
 
-      - name: Start web-frontend service
-        run: |
+          # Start web-frontend
           docker run -d --network="${{ job.services.db.network }}" \
             --name web-frontend \
             -e PUBLIC_BACKEND_URL=http://localhost:8000 \
             -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e FEATURE_FLAGS="*" \
-            -e NODE_OPTIONS=--max-old-space-size=8192 \
             -p 3000:3000 \
-            ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
+            ${{ needs.build-frontend.outputs.image }} nuxt-prod &
 
-      - name: Install Playwright
+          # Wait for all docker run commands to complete
+          wait
+          echo "All services started"
+
+      - name: Install dependencies
         run: |
           cd e2e-tests
           yarn install
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(cd e2e-tests && yarn list @playwright/test --depth=0 | grep @playwright/test | sed 's/.*@//')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          cd e2e-tests
           npx playwright install --with-deps firefox
 
       - name: Wait for services
@@ -794,14 +733,30 @@ jobs:
           cd e2e-tests
           ./wait-for-services.sh
 
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend container logs ==="
+          docker logs backend 2>&1 | tail -500 || true
+          echo ""
+          echo "=== Celery container logs ==="
+          docker logs celery 2>&1 | tail -200 || true
+          echo ""
+          echo "=== Web-frontend container logs ==="
+          docker logs web-frontend 2>&1 | tail -200 || true
+          echo ""
+          echo "=== Container status ==="
+          docker ps -a
+
       - name: Run E2E tests (shard ${{ matrix.shard }})
         env:
           PUBLIC_BACKEND_URL: http://localhost:8000
           PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
           PRIVATE_BACKEND_URL: http://backend:8000
+          CI: 1
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
+          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
@@ -811,6 +766,18 @@ jobs:
           path: e2e-tests/blob-report/
           retention-days: 7
           include-hidden-files: true
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend logs ==="
+          docker logs backend 2>&1 || true
+          echo ""
+          echo "=== Celery logs ==="
+          docker logs celery 2>&1 || true
+          echo ""
+          echo "=== Web-frontend logs ==="
+          docker logs web-frontend 2>&1 || true
 
       - name: Cleanup containers
         if: always()
@@ -832,7 +799,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "24"
 
       - name: Download all E2E test results
         uses: actions/download-artifact@v4
@@ -874,7 +841,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Install coverage tool
         run: pip install coverage
@@ -928,7 +895,7 @@ jobs:
   build-final-backend:
     name: Build Final Backend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-backend
       - test-e2e
@@ -953,11 +920,14 @@ jobs:
         with:
           context: .
           file: backend/Dockerfile
+          target: prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-from: |
+            type=gha,scope=backend-ci
+            type=gha,scope=backend-prod
+          cache-to: type=gha,scope=backend-prod,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -967,11 +937,11 @@ jobs:
   build-final-web-frontend:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - test-frontend
-      - test-e2e
       - frontend-lint
+      - test-e2e
       - check-build-and-publish
     permissions:
       contents: read
@@ -992,11 +962,14 @@ jobs:
         with:
           context: .
           file: web-frontend/Dockerfile
+          target: prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-from: |
+            type=gha,scope=frontend-ci
+            type=gha,scope=frontend-prod
+          cache-to: type=gha,scope=frontend-prod,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1006,7 +979,7 @@ jobs:
   build-final-all-in-one:
     name: Build All-in-One Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-backend
       - build-final-web-frontend
@@ -1032,11 +1005,12 @@ jobs:
           file: deploy/all-in-one/Dockerfile
           push: true
           build-args: |
-            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
-            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+            BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+            WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-from: type=gha,scope=all-in-one
+          cache-to: type=gha,scope=all-in-one,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1046,7 +1020,7 @@ jobs:
   build-cloudron:
     name: Build Cloudron Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-all-in-one
       - check-build-and-publish
@@ -1074,7 +1048,8 @@ jobs:
             FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-from: type=gha,scope=cloudron
+          cache-to: type=gha,scope=cloudron,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1241,6 +1216,127 @@ jobs:
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
 
+  # ==========================================================================
+  # CI STATUS - Single required check for branch protection
+  # ==========================================================================
+  # This job aggregates the results of all CI jobs and provides a single
+  # status check for branch protection rules.
+  #
+  # To configure optional checks:
+  # 1. Go to Settings → Secrets and variables → Actions → Variables
+  # 2. Create a repository variable named OPTIONAL_CHECKS
+  # 3. Set its value to a comma-separated list of job names that should be optional
+  #    Example: "test-e2e,test-zapier,helm-chart-lint"
+  #
+  # Jobs listed in OPTIONAL_CHECKS can fail without blocking the PR.
+  # Jobs NOT listed are required and must pass (or be skipped due to path filtering).
+  # ==========================================================================
+
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      # Lint jobs (can be skipped based on path changes)
+      - backend-lint
+      - frontend-lint
+      - dockerfile-lint
+      - helm-chart-lint
+      # Test jobs (can be skipped based on path changes)
+      - backend-check-startup
+      - test-backend
+      - test-frontend
+      - test-zapier
+      - check-mjml-compiled
+      # E2E tests (can be skipped based on path changes)
+      - test-e2e
+      - collect-e2e-reports
+      # Coverage (depends on test-backend)
+      - collect-coverage
+    steps:
+      - name: Evaluate CI results
+        env:
+          OPTIONAL_CHECKS: ${{ vars.OPTIONAL_CHECKS || '' }}
+          RESULTS: |
+            backend-lint=${{ needs.backend-lint.result }}
+            frontend-lint=${{ needs.frontend-lint.result }}
+            dockerfile-lint=${{ needs.dockerfile-lint.result }}
+            helm-chart-lint=${{ needs.helm-chart-lint.result }}
+            backend-check-startup=${{ needs.backend-check-startup.result }}
+            test-backend=${{ needs.test-backend.result }}
+            test-frontend=${{ needs.test-frontend.result }}
+            test-zapier=${{ needs.test-zapier.result }}
+            check-mjml-compiled=${{ needs.check-mjml-compiled.result }}
+            test-e2e=${{ needs.test-e2e.result }}
+            collect-e2e-reports=${{ needs.collect-e2e-reports.result }}
+            collect-coverage=${{ needs.collect-coverage.result }}
+        run: |
+          echo "=================================="
+          echo "CI Status Check"
+          echo "=================================="
+          echo ""
+          echo "Optional checks (from OPTIONAL_CHECKS variable):"
+          echo "  ${OPTIONAL_CHECKS:-"(none configured)"}"
+          echo ""
+          echo "Job results:"
+          echo "$RESULTS" | grep -v '^$'
+          echo ""
+          echo "=================================="
+
+          # Convert OPTIONAL_CHECKS to an array for easier lookup
+          IFS=',' read -ra OPTIONAL_ARRAY <<< "$OPTIONAL_CHECKS"
+
+          is_optional() {
+            local job_name="$1"
+            for optional in "${OPTIONAL_ARRAY[@]}"; do
+              # Trim whitespace
+              optional=$(echo "$optional" | xargs)
+              if [[ "$job_name" == "$optional" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          has_failure=false
+
+          while IFS='=' read -r job_name result; do
+            # Skip empty lines
+            [[ -z "$job_name" ]] && continue
+
+            # Trim whitespace
+            job_name=$(echo "$job_name" | xargs)
+            result=$(echo "$result" | xargs)
+
+            if is_optional "$job_name"; then
+              if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+                echo "⚠️  $job_name: $result (optional - ignored)"
+              else
+                echo "✅ $job_name: $result (optional)"
+              fi
+            else
+              if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+                echo "❌ $job_name: $result (required)"
+                has_failure=true
+              elif [[ "$result" == "skipped" ]]; then
+                echo "⏭️  $job_name: $result (skipped due to path filter)"
+              else
+                echo "✅ $job_name: $result"
+              fi
+            fi
+          done <<< "$RESULTS"
+
+          echo ""
+          echo "=================================="
+
+          if [[ "$has_failure" == "true" ]]; then
+            echo "❌ CI failed: one or more required checks failed"
+            exit 1
+          else
+            echo "✅ CI passed: all required checks passed (or were skipped)"
+            exit 0
+          fi
+
   trigger-saas-build:
     name: Trigger SaaS GitLab Pipeline
     runs-on: ubuntu-latest
@@ -1264,27 +1360,19 @@ jobs:
           git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
           cd saas
 
-      - name: Update image version files
+      - name: Update baserow submodule to current commit
         working-directory: saas
         run: |
-          echo "🧩 Generating updated image references..."
-
-          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
-          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
-          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}"
-
-          echo "$BACKEND_IMAGE" > plugins/saas/backend/build_from_image.version
-          echo "$BACKEND_DEV_IMAGE" > plugins/saas/backend/build_from_dev_image.version
-          echo "$WEB_IMAGE" > plugins/saas/web-frontend/build_from_image.version
-          echo "$WEB_DEV_IMAGE" > plugins/saas/web-frontend/build_from_dev_image.version
-          echo "$ALL_IN_ONE_IMAGE" > all_in_one_image.version
-
-          echo "✅ Updated image references:"
-          cat plugins/saas/backend/build_from_image.version
-          cat plugins/saas/web-frontend/build_from_image.version
-          cat all_in_one_image.version
+          echo "🔄 Updating baserow submodule to ${{ github.sha }}..."
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          cd baserow
+          git fetch origin
+          git checkout ${{ github.sha }}
+          cd ..
+          git add baserow
+          echo "✅ Submodule updated."
 
       - name: Commit and push changes to GitLab
         working-directory: saas
@@ -1294,24 +1382,12 @@ jobs:
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"
 
-          git add \
-            plugins/saas/backend/build_from_image.version \
-            plugins/saas/backend/build_from_dev_image.version \
-            plugins/saas/web-frontend/build_from_image.version \
-            plugins/saas/web-frontend/build_from_dev_image.version \
-            all_in_one_image.version
-
           if git diff-index --quiet HEAD --; then
             echo "No changes detected — skipping commit."
             exit 0
           fi
 
-          COMMIT_MSG="Automatic core image bump:
-          - backend: ${BACKEND_IMAGE}
-          - web-frontend: ${WEB_IMAGE}
-          - all-in-one: ${ALL_IN_ONE_IMAGE}"
-
-          git commit -m "$COMMIT_MSG"
+          git commit -m "Automatic baserow submodule bump to ${{ github.sha }}"
           git push origin develop
 
           echo "✅ Successfully pushed updates to baserow-saas."

@@ -1,6 +1,7 @@
 """
 Test the CollectionElementTypeMixin class.
 """
+
 import json
 from io import BytesIO
 from unittest.mock import MagicMock

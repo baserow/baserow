@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { onClickOutside, isElement } from '@baserow/modules/core/utils/dom'
 
 const contextManagementPluginKey = new PluginKey('contextManagement')
 
@@ -141,11 +142,6 @@ export const ContextManagementExtension = Extension.create({
               editor.commands.repositionContext()
 
               if (vueComponent && vueComponent.$el) {
-                const {
-                  onClickOutside,
-                  isElement,
-                } = require('@baserow/modules/core/utils/dom')
-
                 this.storage.clickOutsideEventCancel = onClickOutside(
                   vueComponent.$el,
                   (target, event) => {

@@ -2,6 +2,7 @@ import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
 
 export default {
   mixins: [MoveToBody],
+  emits: ['hidden', 'show'],
   data() {
     return {
       open: false,
@@ -17,15 +18,14 @@ export default {
       type: Boolean,
       default: true,
       required: false,
+      mouseDownEvent: null,
     },
   },
   mounted() {
     this.$bus.$on('close-modals', this.hide)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('close-modals', this.hide)
-  },
-  destroyed() {
     window.removeEventListener('keyup', this.keyup)
   },
   methods: {
@@ -62,11 +62,8 @@ export default {
       }
       document.body.addEventListener('mousedown', mouseDownEvent)
 
-      this.$once('hidden', () => {
-        document.body.removeEventListener('mousedown', mouseDownEvent)
-        document.body.classList.remove('prevent-scroll')
-        window.removeEventListener('keyup', this.keyup)
-      })
+      // store the handler for later removal
+      this.mouseDownEvent = mouseDownEvent
     },
     /**
      * Hide the modal.
@@ -95,6 +92,14 @@ export default {
       setTimeout(() => {
         this.open = false
       })
+
+      // cleanup
+      if (this.mouseDownEvent) {
+        document.body.removeEventListener('mousedown', this.mouseDownEvent)
+        this.mouseDownEvent = null
+      }
+      document.body.classList.remove('prevent-scroll')
+      window.removeEventListener('keyup', this.keyup)
 
       if (emit) {
         this.$emit('hidden')

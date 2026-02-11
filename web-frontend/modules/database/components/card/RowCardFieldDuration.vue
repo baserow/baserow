@@ -1,6 +1,6 @@
-<template functional>
+<template>
   <div class="card-text">
-    {{ $options.methods.formatValue(props.field, props.value) }}
+    {{ formatValue(field, value) }}
   </div>
 </template>
 
@@ -11,5 +11,15 @@ export default {
   height: 16,
   name: 'RowCardFieldDuration',
   mixins: [durationField],
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
 }
 </script>

@@ -68,8 +68,9 @@ export default {
     },
     jobName() {
       let name = ''
-
-      if (this.jobItem.view_id) {
+      if (this.jobItem.is_auto_update) {
+        name = this.$t('generateAIValuesModal.autoUpdate')
+      } else if (this.jobItem.view_id) {
         const view = this.views.find((v) => v.id === this.jobItem.view_id)
         if (view) {
           name = this.$t('generateAIValuesModal.view', { name: view.name })

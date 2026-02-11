@@ -265,7 +265,7 @@
         "title": "仪表盘",
         "alertTitle": "我们需要你的帮助！",
         "alertText": "如果您觉得 Baserow 有用，我们非常感谢您加注星标或分享我们。通过分享 Baserow，您正在帮助我们改进产品并使其对您更有用。",
-        "tweetContent": "看看@baserow 一个开源的无代码数据库工具和 Airtable 替代品！",
+        "tweetContent": "看看{'@'}baserow 一个开源的无代码数据库工具和 Airtable 替代品！",
         "redditTitle": "'Baserow - 一个开源的无代码数据库",
         "noWorkspaceTitle": "没有找到群组",
         "noWorkspaceText": "你不是任何群组的成员。像数据库这样的应用程序属于一个群组，所以为了创建它们你需要创建一个群组。",
@@ -373,7 +373,7 @@
             "format": {
                 "title": "格式",
                 "description": "查询参数格式如下：",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "示例",

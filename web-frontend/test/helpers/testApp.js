@@ -15,6 +15,12 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
 import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
 
+import { fail, vi } from 'vitest'
+
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { createStore } from 'vuex'
+import { DOMWrapper } from '@vue/test-utils'
+
 /**
  * Uses the real baserow plugins to setup a Vuex store and baserow registry
  * correctly.
@@ -77,7 +83,7 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
  *                      on Baserow's components.
  *
  */
-export class TestApp {
+export class OldTestApp {
   constructor(extraPluginSetupFunc = null) {
     this.mock = new MockAdapter(axios, { onNoMatch: 'throwException' })
 
@@ -276,12 +282,17 @@ export class TestApp {
 export const UIHelpers = {
   async performSearch(tableComponent, searchTerm) {
     await tableComponent.get('i.header__search-icon').trigger('click')
-    const searchBox = tableComponent.get(
+
+    const body = new DOMWrapper(document.body)
+    const searchBox = body.get(
       'input[placeholder*="viewSearchContext.searchInRows"]'
     )
     await searchBox.setValue(searchTerm)
+    vi.useFakeTimers()
     await searchBox.trigger('submit')
+    vi.runAllTimers() // Consume the debounce
     await flushPromises()
+    vi.useRealTimers()
   },
   async startEditForCellContaining(tableComponent, htmlInsideCellToSearchFor) {
     const targetCell = tableComponent
@@ -322,4 +333,135 @@ export const UIHelpers = {
       `Did not find ${itemName} in the Sidebar to click, only found ${allNames}`
     )
   },
+}
+
+export class TestApp {
+  constructor() {
+    const nuxtApp = useNuxtApp()
+    const { $client, $store, $registry } = nuxtApp
+
+    this.mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    this.store = $store
+    this.$store = $store
+    this._initialCleanStoreState = _.cloneDeep($store.state)
+    this.$registry = $registry
+    this.nuxtApp = nuxtApp
+    this._app = nuxtApp
+    this._wrappers = []
+    this.failTestOnErrorResponse = true
+    this._responseInterceptorId = this._app.$client.interceptors.response.use(
+      (response) => {
+        return response
+      },
+      (error) => {
+        if (this.failTestOnErrorResponse) {
+          //fail(error)
+          throw error
+        }
+        return Promise.reject(error)
+      }
+    )
+    this.mockServer = this.setupMockServer()
+  }
+
+  getApp() {
+    return useNuxtApp()
+  }
+
+  getStore() {
+    return this.getApp().$store
+  }
+
+  getRegistry() {
+    return this.getApp().$registry
+  }
+
+  setRouteToBe(name) {
+    this.getApp().$route.matched = [{ name }]
+  }
+
+  setupMockServer() {
+    return new MockServer(this.mock, this.$store)
+  }
+
+  listenersToProps(listeners) {
+    return Object.fromEntries(
+      Object.entries(listeners).map(([key, fn]) => {
+        const camel = key.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+        return [`on${camel[0].toUpperCase()}${camel.slice(1)}`, fn]
+      })
+    )
+  }
+
+  async mount(component, { props, propsData, listeners, ...options } = {}) {
+    // Sometimes baserow directly appends to the documents body, ensure that we
+    // are mounting into the document so we can correctly inspect the modals that
+    // are placed there.
+    const rootDiv = document.createElement('div')
+    document.body.appendChild(rootDiv)
+
+    // Compat with nuxt2 props
+    let actualProps = propsData ?? props
+    if (listeners) {
+      actualProps = { ...actualProps, ...this.listenersToProps(listeners) }
+    }
+
+    const wrapper = await mountSuspended(component, {
+      attachTo: rootDiv,
+      props: actualProps,
+      ...options,
+    })
+
+    await flushPromises()
+
+    this._wrappers.push(wrapper)
+    return wrapper
+  }
+
+  dontFailOnErrorResponses() {
+    this.failTestOnErrorResponse = false
+  }
+
+  failOnErrorResponses() {
+    this.failTestOnErrorResponse = true
+  }
+
+  get body() {
+    return new DOMWrapper(document.body)
+  }
+
+  /**
+   * Helper to create a temporary store for tests. Adds the extra properties.
+   */
+  createStore(...args) {
+    const $store = createStore(...args)
+    const nuxtApp = useNuxtApp()
+    const { $i18n, $config, $client, $registry, $router, runWithContext } =
+      nuxtApp
+
+    $store.app = nuxtApp
+    $store.$i18n = $i18n
+    $store.$config = $config
+    $store.$client = $client
+    $store.$registry = $registry
+    $store.$router = $router
+    $store.runWithContext = runWithContext
+
+    return $store
+  }
+
+  /**
+   * Cleans up after a test run performed by TestApp. Make sure you call this
+   * in your test suits afterEach method!
+   */
+  async afterEach() {
+    this._app.$client.interceptors.response.eject(this._responseInterceptorId)
+    this._wrappers.forEach((w) => w.unmount())
+    this._wrappers = []
+    this.store.replaceState(_.cloneDeep(this._initialCleanStoreState))
+    this.mock.restore()
+    const router = useRouter()
+    await router.replace('/') // reset route between tests
+    await flushPromises()
+  }
 }

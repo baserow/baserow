@@ -40,6 +40,7 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 export default {
   name: 'TeamRoleField',
+  emits: ['row-update'],
   components: { EditRoleContext },
   props: {
     row: {
@@ -56,6 +57,9 @@ export default {
       return this.$store.getters['workspace/get'](
         this.column.additionalProps.workspaceId
       )
+    },
+    scopeType() {
+      return this.column.additionalProps?.scopeType || 'workspace'
     },
     roles() {
       // filters out role not for Team subject and not for workspace level

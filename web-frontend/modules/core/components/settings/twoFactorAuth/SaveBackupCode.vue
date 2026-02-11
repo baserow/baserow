@@ -33,6 +33,7 @@ export default {
       required: true,
     },
   },
+  emits: ['continue'],
   computed: {
     backupCodesAsText() {
       return this.backupCodes.join('\n')

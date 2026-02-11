@@ -341,6 +341,14 @@ const mockedFields = {
     type: 'password',
     testingRowData: [null, true, 'test'],
   },
+  ai: {
+    id: 26,
+    name: 'ai',
+    order: 26,
+    primary: false,
+    table_id: 42,
+    ai_output_type: 'text',
+  },
 }
 
 const valuesToCall = [null, undefined]
@@ -439,14 +447,14 @@ const datePrepareValueForPaste = [
   },
   // Date field with US format
   {
-    fieldValue: '04/12/2021',
+    fieldValue: '12/04/2021',
     field: {
       date_format: 'US',
     },
     expectedValue: '2021-04-12',
   },
   {
-    fieldValue: '04/12/2021 22:57',
+    fieldValue: '12/04/2021 22:57',
     field: {
       date_format: 'US',
       date_include_time: true,
@@ -454,7 +462,7 @@ const datePrepareValueForPaste = [
     expectedValue: '2021-04-12T22:57:00Z',
   },
   {
-    fieldValue: '04/12/2021 10:57 PM',
+    fieldValue: '12/04/2021 10:57 PM',
     field: {
       date_format: 'US',
       date_include_time: true,
@@ -713,7 +721,7 @@ describe('FieldType tests', () => {
   let testApp = null
   let fieldRegistry = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldRegistry = testApp._app.$registry.registry.field
 
@@ -754,9 +762,8 @@ describe('FieldType tests', () => {
       expect(result).toBe(value.expectedValue)
     }
   )
-
   test.each(datePrepareValueForPaste)(
-    'Verify that prepareValueForPaste for DateFieldType returns the expected output',
+    'Verify that prepareValueForPaste for DateFieldType for value $fieldValue returns $expectedValue',
     (value) => {
       const result = new DateFieldType().prepareValueForPaste(
         value.field,

@@ -4,7 +4,7 @@ import Rating from '@baserow/modules/database/components/Rating'
 describe('Rating component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -41,8 +41,8 @@ describe('Rating component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Test interactions with rating component', async () => {
-    const onUpdate = jest.fn()
+  test('interactions with rating component', async () => {
+    const onUpdate = vi.fn()
     const wrapper = await mountComponent(
       {
         value: 3,

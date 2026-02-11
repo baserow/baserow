@@ -5,12 +5,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import Expression, F
 from django.utils.functional import lazy
 
-from baserow_premium.api.fields.exceptions import (
-    ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
-)
-from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.generative_ai.errors import (
@@ -18,6 +12,9 @@ from baserow.api.generative_ai.errors import (
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
 )
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.dependencies.types import FieldDependencies
 from baserow.contrib.database.fields.dependencies.update_collector import (
@@ -41,7 +38,13 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
-from baserow.core.jobs.handler import JobHandler
+from baserow_premium.api.fields.exceptions import (
+    ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
+)
+from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
+from baserow_premium.fields.tasks import schedule_ai_field_generation
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import AIField
 from .registries import ai_field_output_registry
@@ -348,6 +351,9 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
         field_ids = extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        existing_field_ids = set(
+            Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
+        )
         return [
             FieldDependency(
                 dependency_id=field_id,
@@ -355,6 +361,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 via=None,
             )
             for field_id in field_ids
+            if field_id in existing_field_ids
         ]
 
     def _handle_dependent_rows_change(
@@ -392,8 +399,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             row_ids = [starting_row.id]
 
         transaction.on_commit(
-            lambda: JobHandler().create_and_start_job(
-                user, "generate_ai_values", field_id=field.id, row_ids=row_ids
+            lambda: schedule_ai_field_generation.delay(
+                field_id=field.id, row_ids=row_ids
             )
         )
 
@@ -490,6 +497,26 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         return super().before_update(from_field, to_field_values, user, field_kwargs)
 
+    def import_serialized(
+        self,
+        table,
+        serialized_values,
+        import_export_config,
+        id_mapping,
+        deferred_fk_update_collector,
+    ):
+        if not import_export_config.is_duplicate:
+            serialized_values = serialized_values.copy()
+            serialized_values.pop("ai_auto_update_user_id", None)
+            serialized_values["ai_auto_update"] = False
+        return super().import_serialized(
+            table,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
+        )
+
     def after_import_serialized(
         self,
         field: AIField,
@@ -517,6 +544,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         if save:
             field.save()
+
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
     def should_backup_field_data_for_same_type_update(
         self, old_field, new_field_attrs

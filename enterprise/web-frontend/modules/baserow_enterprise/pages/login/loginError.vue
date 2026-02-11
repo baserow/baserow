@@ -26,24 +26,30 @@
   </div>
 </template>
 
-<script>
-export default {
+<script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+
+definePageMeta({
   layout: 'login',
-  asyncData({ route, i18n }) {
-    const { error } = route.query
-    const errorMessageI18nKey = `loginError.${error}`
-    let errorMessage = i18n.t('loginError.defaultErrorMessage')
-    if (i18n.te(errorMessageI18nKey)) {
-      errorMessage = i18n.t(`loginError.${error}`)
-    }
-    return {
-      errorMessage,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('loginError.title'),
-    }
-  },
-}
+})
+
+const route = useRoute()
+const { t, te } = useI18n()
+
+// Compute error message based on query param
+const errorMessage = computed(() => {
+  const { error } = route.query
+  const errorMessageI18nKey = `loginError.${error}`
+  if (te(errorMessageI18nKey)) {
+    return t(errorMessageI18nKey)
+  }
+  return t('loginError.defaultErrorMessage')
+})
+
+// Head
+useHead({
+  title: t('loginError.title'),
+})
 </script>

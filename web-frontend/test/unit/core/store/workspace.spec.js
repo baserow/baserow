@@ -1,6 +1,7 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
+import authStore from '@baserow/modules/core/store/auth'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect, test } from 'vitest'
 
 describe('Workspace store', () => {
   let testApp = null
@@ -8,7 +9,12 @@ describe('Workspace store', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        workspace: workspaceStore,
+        auth: authStore,
+      },
+    })
   })
 
   afterEach(() => {
@@ -38,10 +44,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceAddWorkspaceUser', {
+    await store.dispatch('workspace/forceAddWorkspaceUser', {
       workspaceId: 1,
       values: {
         id: 74,
@@ -55,7 +60,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(2)
     expect(workspace.users[1].user_id).toBe(257)
     expect(workspace.users[1].permissions).toBe('MEMBER')
@@ -84,10 +89,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceUpdateWorkspaceUser', {
+    await store.dispatch('workspace/forceUpdateWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -102,7 +106,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(1)
     expect(workspace.users[0].name).toBe('Petr')
     expect(workspace.users[0].permissions).toBe('MEMBER')
@@ -121,6 +125,7 @@ describe('Workspace store', () => {
         `iwidXNlcl9wcm9maWxlX2lkIjpbMl0sIm9yaWdfaWF0IjoxNjYwMjkxMDg2fQ.RQ-M` +
         `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`,
     })
+
     const state = Object.assign(workspaceStore.state(), {
       items: [
         {
@@ -143,10 +148,9 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    store.replaceState({ ...store.state, workspace: state })
 
-    await store.dispatch('test/forceUpdateWorkspaceUser', {
+    await store.dispatch('workspace/forceUpdateWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -161,7 +165,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(1)
     expect(workspace.users[0].name).toBe('Petr')
     expect(workspace.users[0].permissions).toBe('MEMBER')
@@ -238,10 +242,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceUpdateWorkspaceUserAttributes', {
+    store.replaceState({ ...store.state, workspace: state })
+
+    await store.dispatch('workspace/forceUpdateWorkspaceUserAttributes', {
       userId: 256,
       values: {
         name: 'John renamed',
@@ -249,17 +253,17 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users[0].name).toBe('John renamed')
     expect(workspace.users[0].to_be_deleted).toBe(true)
 
-    const workspace2 = store.getters['test/get'](2)
+    const workspace2 = store.getters['workspace/get'](2)
     expect(workspace2.users[0].name).toBe('Peter')
     expect(workspace2.users[0].to_be_deleted).toBe(false)
     expect(workspace2.users[1].name).toBe('John renamed')
     expect(workspace2.users[1].to_be_deleted).toBe(true)
 
-    const workspace3 = store.getters['test/get'](3)
+    const workspace3 = store.getters['workspace/get'](3)
     expect(workspace3.users[0].name).toBe('Peter')
     expect(workspace3.users[0].to_be_deleted).toBe(false)
   })
@@ -287,10 +291,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceDeleteWorkspaceUser', {
+    store.replaceState({ ...store.state, workspace: state })
+
+    await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -305,7 +309,7 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(0)
   })
 
@@ -345,10 +349,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    await store.dispatch('test/forceDeleteWorkspaceUser', {
+    store.replaceState({ ...store.state, workspace: state })
+
+    await store.dispatch('workspace/forceDeleteWorkspaceUser', {
       workspaceId: 1,
       id: 73,
       values: {
@@ -363,12 +367,13 @@ describe('Workspace store', () => {
       },
     })
 
-    const workspaces = store.getters['test/getAll']
+    const workspaces = store.getters['workspace/getAll']
     expect(workspaces.length).toBe(0)
   })
 
   test('forceDeleteUser deletes all workspace users across all workspaces', async () => {
-    const state = Object.assign(workspaceStore.state(), {
+    const state = {
+      ...workspaceStore.state(),
       items: [
         {
           id: 1,
@@ -435,23 +440,23 @@ describe('Workspace store', () => {
           ],
         },
       ],
-    })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
+    }
 
-    await store.dispatch('test/forceDeleteUser', {
+    store.replaceState({ ...store.state, workspace: state })
+
+    await store.dispatch('workspace/forceDeleteUser', {
       userId: 256,
     })
 
-    const workspace = store.getters['test/get'](1)
+    const workspace = store.getters['workspace/get'](1)
     expect(workspace.users.length).toBe(0)
 
-    const workspace2 = store.getters['test/get'](2)
+    const workspace2 = store.getters['workspace/get'](2)
     expect(workspace2.users[0].name).toBe('Peter')
     expect(workspace2.users[0].to_be_deleted).toBe(false)
     expect(workspace2.users.length).toBe(1)
 
-    const workspace3 = store.getters['test/get'](3)
+    const workspace3 = store.getters['workspace/get'](3)
     expect(workspace3.users.length).toBe(1)
   })
 
@@ -524,10 +529,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    const allUsers = await store.getters['test/getAllUsers']
+    store.replaceState({ ...store.state, workspace: state })
+
+    const allUsers = await store.getters['workspace/getAllUsers']
     expect(allUsers[256].name).toBe('John')
     expect(allUsers[456].name).toBe('Peter')
     expect(allUsers[556].name).toBe('Mark')
@@ -602,10 +607,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    const allUsers = await store.getters['test/getAllUsersByEmail']
+    store.replaceState({ ...store.state, workspace: state })
+
+    const allUsers = await store.getters['workspace/getAllUsersByEmail']
     expect(allUsers['john@example.com'].name).toBe('John')
     expect(allUsers['peter@example.com'].name).toBe('Peter')
     expect(allUsers['mark@example.com'].name).toBe('Mark')
@@ -680,10 +685,10 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    const mark = await store.getters['test/getUserById'](556)
+    store.replaceState({ ...store.state, workspace: state })
+
+    const mark = await store.getters['workspace/getUserById'](556)
     expect(mark.name).toBe('Mark')
   })
 
@@ -756,10 +761,11 @@ describe('Workspace store', () => {
         },
       ],
     })
-    workspaceStore.state = () => state
-    store.registerModule('test', workspaceStore)
 
-    const mark = await store.getters['test/getUserByEmail']('mark@example.com')
+    store.replaceState({ ...store.state, workspace: state })
+
+    const mark =
+      await store.getters['workspace/getUserByEmail']('mark@example.com')
     expect(mark.name).toBe('Mark')
   })
 })

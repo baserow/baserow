@@ -98,6 +98,8 @@
 
     <component
       :is="outputType.getFormComponent()"
+      v-if="hasChildFormComponent"
+      :key="values.ai_output_type"
       ref="childForm"
       v-bind="$props"
     />
@@ -122,6 +124,7 @@ import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataPr
 
 export default {
   name: 'FieldAISubForm',
+  emits: ['input'],
   components: { SelectAIModelForm, FormulaInputField },
   mixins: [form, fieldSubForm],
   setup() {
@@ -219,6 +222,9 @@ export default {
         this.defaultValues.type === this.values.type &&
         this.defaultValues.ai_output_type !== this.values.ai_output_type
       )
+    },
+    hasChildFormComponent() {
+      return this.outputType && this.outputType.getFormComponent() !== null
     },
   },
   watch: {

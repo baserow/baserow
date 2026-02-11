@@ -17,6 +17,7 @@ export default {
   name: 'EnableTOTP',
   components: { EnableWithQRCode, SaveBackupCode },
   props: {},
+  emits: ['enabled'],
   data() {
     return {
       state: 'qr_code',

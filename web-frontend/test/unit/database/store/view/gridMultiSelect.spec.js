@@ -1,5 +1,6 @@
 import gridStore from '@baserow/modules/database/store/view/grid'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { createStore } from 'vuex'
 
 const initialState = {
   bufferStartIndex: 9,
@@ -126,17 +127,21 @@ describe('Grid view multiple select', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        grid: gridStore,
+      },
+    })
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   test('multiSelectStart', async () => {
     const state = Object.assign(gridStore.state(), initialState)
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+
+    store.replaceState({ ...store.state, grid: state })
 
     await store.dispatch('grid/multiSelectStart', { rowId: 15, fieldIndex: 1 })
 
@@ -154,8 +159,7 @@ describe('Grid view multiple select', () => {
     const state = Object.assign(gridStore.state(), initialState)
     state.rows[0]._.selected = true
 
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+    store.replaceState({ ...store.state, grid: state })
 
     await store.dispatch('grid/setMultipleSelect', {
       rowHeadIndex: 14,
@@ -178,8 +182,7 @@ describe('Grid view multiple select', () => {
   test('multiSelectHold', async () => {
     const state = Object.assign(gridStore.state(), initialState)
 
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+    store.replaceState({ ...store.state, grid: state })
 
     await store.dispatch('grid/multiSelectHold', { rowId: 15, fieldIndex: 1 })
 
@@ -199,6 +202,8 @@ describe('Grid view multiple select', () => {
     state.multiSelectStartRowIndex = 0
     state.multiSelectStartFieldIndex = 0
 
+    store.replaceState({ ...store.state, grid: state })
+
     await store.dispatch('grid/multiSelectHold', { rowId: 15, fieldIndex: 1 })
 
     expect(store.getters['grid/getMultiSelectHeadRowIndex']).toBe(0)
@@ -214,8 +219,7 @@ describe('Grid view multiple select', () => {
   test('updateMultipleSelectIndexes', async () => {
     const state = Object.assign(gridStore.state(), initialState)
 
-    gridStore.state = () => state
-    store.registerModule('grid', gridStore)
+    store.replaceState({ ...store.state, grid: state })
 
     // invalid values
     await store.dispatch('grid/updateMultipleSelectIndexes', {
@@ -272,8 +276,7 @@ describe('Grid view multiple select', () => {
 
     beforeEach(() => {
       state = Object.assign(gridStore.state(), initialState)
-      gridStore.state = () => state
-      store.registerModule('grid', gridStore)
+      store.replaceState({ ...store.state, grid: state })
       state.multiSelectActive = true
       state.multiSelectHeadRowIndex = 14
       state.multiSelectHeadFieldIndex = 1
@@ -471,8 +474,7 @@ describe('Grid view multiple select', () => {
 
     beforeEach(() => {
       state = Object.assign(gridStore.state(), initialState)
-      gridStore.state = () => state
-      store.registerModule('grid', gridStore)
+      store.replaceState({ ...store.state, grid: state })
       state.multiSelectActive = false
       state.multiSelectHeadRowIndex = 14
       state.multiSelectHeadFieldIndex = 1
@@ -552,8 +554,7 @@ describe('Grid view multiple select', () => {
 
     beforeEach(() => {
       state = Object.assign(gridStore.state(), initialState)
-      gridStore.state = () => state
-      store.registerModule('grid', gridStore)
+      store.replaceState({ ...store.state, grid: state })
     })
 
     test('previous direction', async () => {
@@ -778,8 +779,7 @@ describe('Grid view multiple select', () => {
 
     beforeEach(() => {
       state = Object.assign(gridStore.state(), initialState)
-      gridStore.state = () => state
-      store.registerModule('grid', gridStore)
+      store.replaceState({ ...store.state, grid: state })
     })
 
     test('reset when head is out of grid', async () => {

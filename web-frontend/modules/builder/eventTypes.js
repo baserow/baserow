@@ -20,7 +20,7 @@ export class Event {
   async fire({ workflowActions, applicationContext }) {
     const additionalContext = {}
     const { element, builder, page } = applicationContext
-    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
+    const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
     const elementType = this.app.$registry.get('element', element.type)
     const dispatchedById = elementType.uniqueElementId({
       element,
@@ -51,7 +51,7 @@ export class Event {
         // Stash away in the workflow action's context dataSource and
         // the page the dataSource belongs to. It's possible that the page
         // is not `applicationContext.page` - the dataSource could be shared.
-        workflowActionContext.dataSource = this.app.store.getters[
+        workflowActionContext.dataSource = this.app.$store.getters[
           'dataSource/getPagesDataSourceById'
         ](pages, parseInt(workflowAction.data_source_id))
         workflowActionContext.dataSourcePage = pages.find(
@@ -91,7 +91,7 @@ export class Event {
         }
       }
 
-      this.app.store.dispatch('builderWorkflowAction/setDispatching', {
+      this.app.$store.dispatch('builderWorkflowAction/setDispatching', {
         workflowAction,
         dispatchedById,
         isDispatching: true,
@@ -114,12 +114,12 @@ export class Event {
         handleDispatchError(
           e,
           this.app,
-          this.app.i18n.t('builderToast.errorWorkflowActionDispatch', {
+          this.app.$i18n.t('builderToast.errorWorkflowActionDispatch', {
             name: workflowActionType.label,
           })
         )
       } finally {
-        this.app.store.dispatch('builderWorkflowAction/setDispatching', {
+        this.app.$store.dispatch('builderWorkflowAction/setDispatching', {
           workflowAction,
           dispatchedById: null,
           isDispatching: false,
@@ -136,8 +136,8 @@ export class ClickEvent extends Event {
       applicationContextAdditions,
       name: namePrefix ? `${namePrefix}_click` : 'click',
       label: labelSuffix
-        ? `${app.i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
-        : app.i18n.t('eventTypes.clickLabel'),
+        ? `${app.$i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
+        : app.$i18n.t('eventTypes.clickLabel'),
     })
   }
 }
@@ -146,7 +146,7 @@ export class SubmitEvent extends Event {
   constructor(args) {
     super({
       name: 'submit',
-      label: args.app.i18n.t('eventTypes.submitLabel'),
+      label: args.app.$i18n.t('eventTypes.submitLabel'),
       ...args,
     })
   }
@@ -156,7 +156,7 @@ export class AfterLoginEvent extends Event {
   constructor(args) {
     super({
       name: 'after_login',
-      label: args.app.i18n.t('eventTypes.afterLoginLabel'),
+      label: args.app.$i18n.t('eventTypes.afterLoginLabel'),
       ...args,
     })
   }

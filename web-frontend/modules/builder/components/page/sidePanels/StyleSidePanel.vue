@@ -1,6 +1,7 @@
 <template>
   <component
     :is="elementType.styleFormComponent"
+    v-if="elementType && element"
     ref="panelForm"
     :key="element.id"
     :element="element"

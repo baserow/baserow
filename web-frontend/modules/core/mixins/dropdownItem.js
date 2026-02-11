@@ -1,7 +1,9 @@
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 
 export default {
-  inject: ['multiple'],
+  emits: ['click'],
+
+  inject: ['multiple', 'dropdownProvider'],
   props: {
     value: {
       validator: () => true,
@@ -73,6 +75,18 @@ export default {
       return parent
     },
   },
+  mounted() {
+    // Register with parent dropdown
+    if (this.dropdownProvider && this.dropdownProvider.registerDropdownItem) {
+      this.dropdownProvider.registerDropdownItem(this)
+    }
+  },
+  beforeUnmount() {
+    // Unregister from parent dropdown
+    if (this.dropdownProvider && this.dropdownProvider.unregisterDropdownItem) {
+      this.dropdownProvider.unregisterDropdownItem(this)
+    }
+  },
   methods: {
     select(value, disabled) {
       if (!disabled) {
@@ -97,10 +111,10 @@ export default {
     },
     isActive(value) {
       if (this.multiple.value) {
-        const parentValue = this.parent.value ?? []
+        const parentValue = this.parent.currentValue ?? []
         return parentValue.includes(value)
       } else {
-        return this.parent.value === value
+        return this.parent.currentValue === value
       }
     },
     isHovering(value) {

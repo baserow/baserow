@@ -357,3 +357,44 @@ def test_row_search_multiple_fields(data_fixture):
     assert len(results) >= 2
     assert results[0].id == f"{table.id}_{row1.id}"
     assert results[1].id == f"{table.id}_{row2.id}"
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_row_search_excludes_trashed_rows(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    text_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+
+    from baserow.contrib.database.rows.handler import RowHandler
+    from baserow.core.search.handler import WorkspaceSearchHandler
+
+    row_handler = RowHandler()
+    row1 = row_handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{text_field.id}": "Searchable normal"}],
+    ).created_rows[0]
+
+    row2 = row_handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{text_field.id}": "Searchable trashed"}],
+    ).created_rows[0]
+
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
+    SearchHandler.initialize_missing_search_data(table)
+    SearchHandler.process_search_data_updates(table)
+
+    model = table.get_model()
+    model.objects_and_trash.filter(id=row2.id).update(trashed=True)
+
+    context = SearchContext(query="Searchable", limit=10, offset=0)
+    results, _ = WorkspaceSearchHandler().search_all_types(user, workspace, context)
+
+    row_results = [r for r in results if r.type == "database_row"]
+    assert len(row_results) == 1
+    assert row_results[0].id == f"{table.id}_{row1.id}"
+    assert "normal" in row_results[0].title.lower()

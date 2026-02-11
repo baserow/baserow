@@ -1,16 +1,16 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('registerLicenseModal.titleRegisterLicense') }}
     </h2>
     <div>
-      <i18n path="registerLicenseModal.licenseDescription" tag="p">
+      <i18n-t keypath="registerLicenseModal.licenseDescription" tag="p">
         <template #pricingLink>
           <a target="_blank" :href="viewPricingURL">{{
             $t('registerLicenseModal.viewPricing')
           }}</a>
         </template>
-      </i18n>
+      </i18n-t>
       <p></p>
       <Error :error="error"></Error>
       <RegisterLicenseForm @submitted="submit">
@@ -37,10 +37,13 @@ import error from '@baserow/modules/core/mixins/error'
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseForm from '@baserow_premium/components/license/RegisterLicenseForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
-import {getPricingURL} from '@baserow_premium/utils/pricing'
+import { getPricingURL } from '@baserow_premium/utils/pricing'
+import { pageFinished } from '@baserow/modules/core/utils/routing.js'
+import { nextTick } from '#imports'
 
 export default {
   name: 'RegisterLicenseModal',
+  emits: ['registered'],
   components: { RegisterLicenseForm },
   mixins: [modal, error],
   props: {
@@ -75,6 +78,8 @@ export default {
             id: data.id,
           },
         })
+        await pageFinished()
+        await nextTick()
       } catch (error) {
         this.handleError(error, 'license', {
           ERROR_INVALID_LICENSE: new ResponseErrorMessage(

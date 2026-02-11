@@ -2,6 +2,7 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import { setupVue } from '@baserow/modules/core/plugins/global'
 import { setupVueForAB } from '@baserow/modules/builder/plugins/global'
+import { vi, fail } from 'vitest'
 
 const addVuex = (context) => {
   context.vuex = Vuex
@@ -21,7 +22,6 @@ const addBus = (context) => {
 }
 const addI18n = (context) => {
   context.vueTestUtils.config.mocks.$t = (key) => key
-  context.vueTestUtils.config.mocks.$tc = (key, count) => `${key} - ${count}`
 }
 const compositeConfiguration = (...configs) => {
   return (context) => configs.forEach((config) => config(context))
@@ -33,10 +33,10 @@ export const bootstrapVueContext = (configureContext) => {
 
   const context = {}
   const teardownVueContext = () => {
-    jest.resetModules()
+    vi.resetModules()
   }
 
-  jest.isolateModules(() => {
+  vi.isolateModules(() => {
     context.vueTestUtils = require('@vue/test-utils')
     context.vueTestUtils.config.stubs.nuxt = { template: '<div />' }
     context.vueTestUtils.config.stubs.NuxtChild = { template: '<div />' }
@@ -50,10 +50,10 @@ export const bootstrapVueContext = (configureContext) => {
     setupVue(context.vue)
     setupVueForAB(context.vue)
 
-    jest.doMock('vue', () => context.vue)
+    vi.doMock('vue', () => context.vue)
 
     // Ensure any error logs cause the test to fail!
-    jest.spyOn(console, 'error')
+    vi.spyOn(console, 'error')
     console.error.mockImplementation(fail)
 
     configureContext && configureContext(context)

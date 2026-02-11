@@ -39,7 +39,8 @@
         :fields="fields"
         :store-prefix="storePrefix"
         :decorations-by-place="decorationsByPlace"
-        v-on="$listeners"
+        @edit-row="$emit('edit-row', $event)"
+        @row-context="$emit('row-context', $event)"
       >
       </CalendarCard>
     </div>
@@ -49,7 +50,8 @@
       @click="expand"
     >
       {{
-        $tc('calendarMonthDay.hiddenRowsCount', hiddenRowsCount, {
+        $t('calendarMonthDay.hiddenRowsCount', {
+          count: hiddenRowsCount,
           hiddenRowsCount,
         })
       }}
@@ -62,11 +64,10 @@
       :parent-width="width"
       :parent-height="height"
       :decorations-by-place="decorationsByPlace"
-      v-on="$listeners"
       @edit-row="
-        $refs.calendarMonthDayExpanded.hide()
-        $emit('edit-row', $event)
+        ($refs.calendarMonthDayExpanded.hide(), $emit('edit-row', $event))
       "
+      @row-context="$emit('row-context', $event)"
     >
     </CalendarMonthDayExpanded>
   </li>
@@ -85,6 +86,8 @@ export default {
     CalendarMonthDayExpanded,
   },
   mixins: [viewDecoration],
+  inheritAttrs: false,
+  emits: ['edit-row', 'row-context', 'create-row'],
   props: {
     day: {
       type: Object,
@@ -149,16 +152,20 @@ export default {
   },
   mounted() {
     this.updateVisibleRowsCount()
-    window.addEventListener('resize', this.updateVisibleRowsCount)
+    this.$el.resizeListener = this.updateVisibleRowsCount.bind(this)
+    window.addEventListener('resize', this.$el.resizeListener)
   },
-  beforeDestroy() {
-    window.removeEventListener('resize', this.updateVisibleRowsCount)
+  beforeUnmount() {
+    window.removeEventListener('resize', this.$el.resizeListener)
   },
   methods: {
     getClientHeight() {
-      return this.$refs.calendarMonthDay.clientHeight
+      return this.$refs.calendarMonthDay.clientHeight || 0
     },
     updateVisibleRowsCount() {
+      if (!this.$refs.calendarMonthDay) {
+        return
+      }
       const itemHeight = 28
       this.width = this.$refs.calendarMonthDay.clientWidth
       this.height = this.getClientHeight()

@@ -69,6 +69,7 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
   },
+  emits: ['selected'],
   mounted() {
     this.$priorityBus.$on(
       'start-search',
@@ -76,7 +77,7 @@ export default {
       this.searchStarted
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {

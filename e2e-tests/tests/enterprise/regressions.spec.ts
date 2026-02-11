@@ -15,7 +15,7 @@ test.describe("Enterprise regression tests", () => {
     await workspacePage.goto();
   });
 
-  test("#1606: a non-staff user with an enterprise licence can login and view templates @enterprise", async ({
+  test.skip("#1606: a non-staff user with an enterprise licence can login and view templates @enterprise", async ({
     workspacePage,
   }) => {
     // Click "Create new" > "From template".

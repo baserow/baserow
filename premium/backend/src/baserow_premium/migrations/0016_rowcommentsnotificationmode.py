@@ -4,9 +4,8 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-import baserow_premium.row_comments.models
-
 import baserow.core.fields
+import baserow_premium.row_comments.models
 
 
 class Migration(migrations.Migration):

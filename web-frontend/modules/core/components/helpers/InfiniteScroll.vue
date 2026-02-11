@@ -4,7 +4,7 @@
     :class="{ 'infinite-scroll--reversed': reverse }"
     class="infinite-scroll"
     @scroll="handleScroll"
-    v-on="$listeners"
+    v-on="$attrs"
   >
     <slot />
     <div
@@ -76,6 +76,7 @@ export default {
       default: true,
     },
   },
+  emits: ['load-next-page'],
   data() {
     return {
       // We don't want to show the end-line unless the user has scrolled somewhere and
@@ -123,7 +124,8 @@ export default {
      * page event if the user has scrolled to the end of the wrapper.
      */
     handleScroll({ target: { scrollTop, clientHeight, scrollHeight } }) {
-      const height = clientHeight + this.$refs.loadingWrapper.clientHeight
+      const loadingWrapperHeight = this.$refs.loadingWrapper?.clientHeight || 0
+      const height = clientHeight + loadingWrapperHeight
       if (this.reverse) {
         if (-scrollTop + height >= scrollHeight) {
           this.loadNextPage()

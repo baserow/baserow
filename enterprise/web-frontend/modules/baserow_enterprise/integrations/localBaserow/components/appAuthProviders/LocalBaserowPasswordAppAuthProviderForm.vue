@@ -81,8 +81,10 @@ export default {
     },
   },
   watch: {
-    'userSource.table_id'() {
-      this.values.password_field_id = null
+    'userSource.table_id'(newTableId, oldTableId) {
+      if (oldTableId !== undefined && newTableId !== oldTableId) {
+        this.values.password_field_id = null
+      }
     },
   },
   methods: {

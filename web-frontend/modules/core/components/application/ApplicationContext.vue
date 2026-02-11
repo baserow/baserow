@@ -33,7 +33,7 @@
           <i class="context__menu-item-icon iconoir-edit-pencil"></i>
           {{
             $t('sidebarApplication.rename', {
-              type: application._.type.name.toLowerCase(),
+              type: application._?.type?.name?.toLowerCase() || '',
             })
           }}
         </a>
@@ -107,7 +107,7 @@
           <i class="context__menu-item-icon iconoir-bin"></i>
           {{
             $t('sidebarApplication.delete', {
-              type: application._.type.name.toLowerCase(),
+              type: application._?.type?.name?.toLowerCase() || '',
             })
           }}
         </a>
@@ -147,6 +147,7 @@ export default {
       required: true,
     },
   },
+  emits: ['rename'],
   data() {
     return {
       deleting: false,

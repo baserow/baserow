@@ -1,112 +1,120 @@
 {
     "paginator": {
-        "page": "",
-        "of": ""
+        "page": "Сторінка",
+        "of": "з {pages}"
     },
     "copied": {
-        "label": ""
+        "label": "Скопійовано!"
     },
     "sidebarApplication": {
-        "rename": "",
-        "duplicate": "",
-        "viewTrash": "",
-        "delete": "",
-        "snapshots": ""
+        "rename": "Перейменувати",
+        "duplicate": "Дублювати",
+        "viewTrash": "Переглянути кошик",
+        "delete": "Видалити",
+        "snapshots": "Знімки"
     },
     "duplicateApplicationJobType": {
-        "duplicating": "",
-        "duplicatedTitle": ""
+        "duplicating": "Дублювання",
+        "duplicatedTitle": "Застосунок дубльовано"
     },
     "InstallTemplateJobType": {
-        "installing": "",
-        "installedTitle": ""
+        "installing": "Встановлення",
+        "installedTitle": "Шаблон встановлено"
     },
     "sidebar": {
-        "createWorkspace": "",
-        "inviteOthers": "",
-        "members": "",
-        "logoff": "",
-        "errorNoWorkspace": "",
+        "createWorkspace": "Створити робочий простір",
+        "inviteOthers": "Запросити інших",
+        "members": "Учасники",
+        "logoff": "Вийти",
+        "errorNoWorkspace": "У вас немає робочих просторів.",
         "admin": "",
-        "dashboard": "",
-        "trash": "",
-        "settings": ""
+        "dashboard": "Панель керування",
+        "trash": "Кошик",
+        "settings": "Мої налаштування",
+        "addNewWorkspace": "Додати новий робочий простір",
+        "adminTools": "Інструменти адміністратора",
+        "home": "Головна",
+        "notifications": "Сповіщення",
+        "adminSettings": "Налаштування адміністратора",
+        "general": "Загальні",
+        "people": "Люди",
+        "licenses": "Ліцензії"
     },
     "accountForm": {
-        "nameLabel": "",
-        "languageLabel": ""
+        "nameLabel": "Ваше ім'я",
+        "languageLabel": "Мова інтерфейсу"
     },
     "accountSettings": {
-        "title": "",
-        "changedTitle": "",
-        "changedDescription": "",
-        "submitButton": ""
+        "title": "Обліковий запис",
+        "changedTitle": "Змінено",
+        "changedDescription": "Інформацію вашого облікового запису змінено.",
+        "submitButton": "Оновити обліковий запис"
     },
     "settingsModal": {
-        "title": ""
+        "title": "Мої налаштування"
     },
     "passwordSettings": {
-        "title": "",
-        "changedTitle": "",
-        "changedDescription": "",
-        "oldPasswordLabel": "",
-        "oldPasswordRequiredError": "",
-        "newPasswordLabel": "",
-        "repeatNewPasswordLabel": "",
-        "repeatNewPasswordMatchError": "",
-        "submitButton": "",
-        "errorInvalidOldPasswordTitle": "",
-        "errorInvalidOldPasswordMessage": ""
+        "title": "Змінити пароль",
+        "changedTitle": "Пароль змінено",
+        "changedDescription": "Ваш пароль було змінено. Наступного разу для входу використовуйте новий пароль.",
+        "oldPasswordLabel": "Старий пароль",
+        "oldPasswordRequiredError": "Потрібно ввести старий пароль.",
+        "newPasswordLabel": "Новий пароль",
+        "repeatNewPasswordLabel": "Повторіть новий пароль",
+        "repeatNewPasswordMatchError": "Це поле має збігатися з полем нового пароля.",
+        "submitButton": "Змінити пароль",
+        "errorInvalidOldPasswordTitle": "Недійсний пароль",
+        "errorInvalidOldPasswordMessage": "Не вдалося змінити пароль, оскільки старий пароль недійсний."
     },
     "deleteAccountSettings": {
-        "title": "",
-        "description": "",
+        "title": "Видалити обліковий запис",
+        "description": "Ви можете запланувати видалення свого облікового запису, ввівши поточний пароль і натиснувши кнопку. Ваш обліковий запис буде остаточно видалено через {days} днів. Тим часом, якщо ви знову ввійдете в систему, видалення облікового запису буде скасовано.",
         "workspaceNotice": "",
-        "workspaceNoticeDescription": "",
-        "orphanWorkspaces": "",
-        "orphanWorkspaceMemberCount": "",
-        "password": "",
-        "passwordConfirm": "",
-        "repeatPasswordMatchError": "",
-        "submitButton": "",
-        "errorInvalidPasswordTitle": "",
-        "errorInvalidPasswordMessage": "",
-        "errorUserIsLastAdminTitle": "",
-        "errorUserIsLastAdminMessage": "",
-        "accountDeletedSuccessTitle": "",
-        "accountDeletedSuccessMessage": "",
-        "workspaceLoadingError": "",
-        "workspaceLoadingErrorDescription": ""
+        "workspaceNoticeDescription": "Коли ваш обліковий запис буде остаточно видалено, усі робочі простори та пов’язані дані, у яких ви є останнім активним користувачем з правами адміністратора, також будуть видалені. Нижче показано робочі простори, які будуть видалені, оскільки ви є єдиним адміністратором. Щоб уникнути їх видалення, спершу призначте іншого користувача адміністратором перед видаленням свого облікового запису.",
+        "orphanWorkspaces": "Також буде остаточно видалено після строку очікування",
+        "orphanWorkspaceMemberCount": "не спільний доступ | спільний доступ з одним користувачем | спільний доступ з {count} користувачами",
+        "password": "Пароль",
+        "passwordConfirm": "Повторіть пароль",
+        "repeatPasswordMatchError": "Це поле має збігатися з першим полем пароля.",
+        "submitButton": "Видалити обліковий запис",
+        "errorInvalidPasswordTitle": "Недійсний пароль",
+        "errorInvalidPasswordMessage": "Не вдалося видалити обліковий запис, оскільки ваш пароль недійсний.",
+        "errorUserIsLastAdminTitle": "Останній адміністратор",
+        "errorUserIsLastAdminMessage": "Не вдалося видалити ваш обліковий запис, оскільки ви є останнім адміністратором цієї інстанції Baserow.",
+        "accountDeletedSuccessTitle": "Видалення облікового запису заплановано",
+        "accountDeletedSuccessMessage": "Ваш обліковий запис заплановано до видалення.",
+        "workspaceLoadingError": "Помилка перевірки робочих просторів",
+        "workspaceLoadingErrorDescription": "Не вдалося перевірити робочі простори, які будуть видалені. Будь ласка, оновіть сторінку."
     },
     "error": {
-        "alreadyExistsTitle": "",
-        "alreadyExistsMessage": "",
-        "passwordRequired": "",
-        "invalidEmail": "",
-        "disabledAccountTitle": "",
-        "disabledAccountMessage": "",
-        "incorrectCredentialTitle": "",
-        "incorrectCredentialMessage": "",
-        "inputRequired": "",
-        "disabledPasswordProviderTitle": "",
-        "disabledPasswordProviderMessage": ""
+        "alreadyExistsTitle": "Користувач уже існує",
+        "alreadyExistsMessage": "Користувач з наданою електронною адресою вже існує.",
+        "passwordRequired": "Потрібно ввести пароль.",
+        "invalidEmail": "Будь ласка, введіть дійсну адресу електронної пошти.",
+        "disabledAccountTitle": "Обліковий запис заблоковано",
+        "disabledAccountMessage": "Цей обліковий запис користувача заблоковано.",
+        "incorrectCredentialTitle": "Неправильні облікові дані",
+        "incorrectCredentialMessage": "Надана електронна адреса або пароль неправильні.",
+        "inputRequired": "Поле обов’язкове для заповнення.",
+        "disabledPasswordProviderTitle": "Аутентифікація за паролем вимкнена.",
+        "disabledPasswordProviderMessage": "Будь ласка, скористайтеся іншим провайдером автентифікації."
     },
     "field": {
-        "language": "",
-        "emailAddress": "",
-        "name": "",
-        "password": "",
-        "passwordRepeat": ""
+        "language": "Мова",
+        "emailAddress": "Адреса електронної пошти",
+        "name": "Ваше ім’я",
+        "password": "Пароль",
+        "passwordRepeat": "Повторіть пароль"
     },
-    "invitationTitle": "",
-    "invitationMessage": "",
+    "invitationTitle": "Запрошення",
+    "invitationMessage": "{invitedBy} запросив(ла) вас приєднатися до {workspace}.",
     "workspaceForm": {
-        "nameLabel": ""
+        "nameLabel": "Ім’я"
     },
     "leaveWorkspaceModal": {
-        "title": "",
-        "message": "",
-        "leave": ""
+        "title": "Покинути {workspace}",
+        "message": "Ви впевнені, що хочете покинути робочий простір {workspace}? Ви більше не зможете отримувати доступ до пов’язаних додатків, і щоб відновити доступ, один із адміністраторів має запросити вас знову. Якщо ви покинете робочий простір, він не буде видалений. Усі інші учасники все ще матимуть до нього доступ. Неможливо покинути робочий простір, якщо ви є останнім адміністратором, оскільки це залишить його без обслуговування.",
+        "leave": "Покинути робочий простір"
     },
     "dashboardWorkspace": {
         "createApplication": ""
@@ -506,5 +514,130 @@
     },
     "editRoleContext": {
         "billableRolesLink": ""
+    },
+    "workspaceSearch": {
+        "title": "Пошук",
+        "searchEverything": "Пошук...",
+        "searching": "Пошук...",
+        "noResults": "Результатів не знайдено",
+        "noResultsSubtitle": "Не знайдено нічого, що відповідає \"{searchTerm}\"",
+        "welcome": "Шукайте все у вашому робочому просторі",
+        "welcomeSubtitle": "Використовуйте поле пошуку вище, щоб знайти застосунки, таблиці, поля та інше",
+        "navigate": "Перейти",
+        "select": "Вибрати",
+        "close": "Закрити",
+        "types": {
+            "applications": "Застосунки",
+            "tables": "Таблиці",
+            "fields": "Поля",
+            "rows": "Рядки"
+        }
+    },
+    "action": {
+        "cancel": "Скасувати",
+        "submit": "Надіслати"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Двофакторна автентифікація",
+        "loadingError": "Не вдалося завантажити конфігурацію двофакторної автентифікації."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Ви впевнені, що хочете вимкнути 2FA?",
+        "description": "Ваш обліковий запис втратить додатковий рівень захисту. Якщо хтось дізнається ваш пароль, він може увійти до вашого облікового запису.",
+        "cancel": "Залишити увімкненим",
+        "disable": "Вимкнути",
+        "successTitle": "Двофакторну автентифікацію вимкнено",
+        "errorWrongPasswordTitle": "Неправильний пароль",
+        "errorWrongPasswordMessage": "Введений пароль не відповідає вашому паролю."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Скасувати",
+        "continue": "Продовжити"
+    },
+    "saveBackupCode": {
+        "backupCodes": "Резервні коди",
+        "copy": "Копіювати",
+        "continue": "Продовжити",
+        "backupCodesCopiedTitle": "Скопійовано!",
+        "backupCodesCopiedMessage": "Резервні коди скопійовано до буфера обміну.",
+        "description": "Якщо ви втратите доступ до вашого додатка автентифікації або телефону і не зможете отримувати чи генерувати коди автентифікації, ви можете скористатися цим резервним кодом. Його можна використати лише один раз. Обов’язково запишіть його або скопіюйте в безпечне місце, щоб мати доступ без входу в систему."
+    },
+    "totpAuthType": {
+        "name": "Застосунок автентифікації",
+        "description": "Використовуйте застосунок для отримання кодів двофакторної автентифікації. Ми рекомендуємо використовувати такі застосунки, як Google Authenticator, Authy та Microsoft Authenticator.",
+        "enabledDescription": "Ви отримуватимете коди підтвердження через застосунок автентифікації. Щоб налаштувати інший застосунок або метод, просто вимкніть 2FA та налаштуйте знову.",
+        "sideLabel": "Рекомендовано"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Увімкнено",
+        "disable": "Вимкнути 2FA"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Введіть резервний код",
+        "backupCodesDescription": "Увійдіть за допомогою одноразового резервного коду.",
+        "authenticate": "Автентифікуватися",
+        "goBack": "Повернутися",
+        "totpTitle": "Двофакторна автентифікація",
+        "totpDescription": "Введіть код із застосунку автентифікації.",
+        "verify": "Перевірити",
+        "useBackupCode": "Використати резервний код",
+        "verificationFailed": "Помилка перевірки",
+        "verificationFailedDescription": "Введений код неправильний.",
+        "loginExpired": "Сеанс входу закінчився",
+        "loginExpiredDescription": "Будь ласка, введіть пароль ще раз.",
+        "rateLimit": "Забагато спроб."
+    },
+    "notificationPanel": {
+        "title": "Сповіщення",
+        "markAllAsRead": "Позначити все як прочитане",
+        "clearAll": "Очистити все",
+        "noNotificationTitle": "У вас немає сповіщень",
+        "noNotification": "Ми повідомлятимемо вас про важливі оновлення та кожного разу, коли вас згадують у Baserow.",
+        "newNotificationsAvailable": "Доступні нові сповіщення",
+        "refresh": "Оновити"
+    },
+    "clearAllNotificationsConfirmModal": {
+        "title": "Ви впевнені, що хочете очистити всі сповіщення?",
+        "message": "Усі сповіщення будуть остаточно видалені, і ви більше не зможете їх переглянути."
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Використовувати звичайний ввід",
+        "useAdvancedInput": "Використовувати розширений ввід"
+    },
+    "importWorkspaceModal": {
+        "title": "Імпортувати дані Baserow",
+        "description": "Ви можете імпортувати наявні дані Baserow, завантаживши .zip-файл з іншої інстанції Baserow.",
+        "import": "Імпортувати дані",
+        "upload": "Завантажити",
+        "uploadAndImport": "Завантажити та імпортувати",
+        "cancel": "Скасувати",
+        "done": "Готово",
+        "close": "Закрити",
+        "retry": "Спробувати ще раз",
+        "uploading": "Завантаження...",
+        "chooseFile": "Виберіть файл",
+        "selectApplications": "Select data to import"
+    },
+    "exportWorkspaceModal": {
+        "title": "Експорт",
+        "description": "Ваші дані будуть експортовані у вигляді ZIP-файлу, який можна імпортувати в іншу інстанцію Baserow.",
+        "exportSettings": "Налаштування експорту",
+        "export": "Експортувати дані",
+        "reset": "Почати нове",
+        "cancel": "Скасувати",
+        "download": "Скачати",
+        "exportingState": "Експорт...",
+        "exportingTableState": "Експорт: {table}",
+        "exportingCreateArchiveState": "Створення архіву",
+        "noExports": "Для цього робочого простору ще немає експорту.",
+        "created": "створено"
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Налаштування експорту",
+        "selectDataToExport": "Виберіть дані для експорту",
+        "selectAll": "Вибрати все",
+        "deselectAll": "Скасувати вибір всіх",
+        "onlyStructureLabel": "Експортувати тільки структуру",
+        "onlyStructureDescription": "Якщо увімкнено, буде експортовано лише структуру додатків. Дані не будуть включені."
     }
 }

@@ -3,7 +3,6 @@
     <div class="formula-input-field__editor" @click="handleEditorClick">
       <EditorContent
         :id="forInput"
-        :key="key"
         ref="editor"
         class="form-input formula-input-field"
         role="textbox"
@@ -27,7 +26,7 @@
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown.native="onDataExplorerMouseDown"
+      @mousedown="onDataExplorerMouseDown"
     />
 
     <NodeHelpTooltip
@@ -39,7 +38,7 @@
 </template>
 
 <script>
-import { Editor, EditorContent, Node } from '@tiptap/vue-2'
+import { Editor, EditorContent, Node } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
@@ -75,7 +74,6 @@ import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
-import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
@@ -87,12 +85,7 @@ export default {
   },
 
   provide() {
-    return fixPropertyReactivityForProvide(
-      {},
-      {
-        nodesHierarchy: () => this.nodesHierarchy,
-      }
-    )
+    return { nodesHierarchy: computed(() => this.nodesHierarchy) }
   },
   inject: {
     forInput: { from: 'forInput', default: null },
@@ -162,6 +155,7 @@ export default {
       default: () => BASEROW_FORMULA_MODES,
     },
   },
+  emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
     return {
       editor: null,
@@ -171,7 +165,6 @@ export default {
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
-      key: 0,
     }
   },
   computed: {
@@ -347,11 +340,6 @@ export default {
     },
   },
   watch: {
-    nodesHierarchy() {
-      // fixes reactivity issue with components in tiptap by forcing the input to
-      // render.
-      this.key += 1
-    },
     disabled(newValue) {
       this.editor.setOptions({ editable: !newValue && !this.readOnly })
     },
@@ -368,7 +356,10 @@ export default {
     },
 
     value(value) {
-      if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
+      // Use editor.getJSON() directly instead of this.wrapperContent to avoid stale cached data
+      const editorContent = this.editor?.getJSON()
+      const currentFormula = this.toFormula(editorContent)
+      if (!_.isEqual(value, currentFormula)) {
         const content = this.toContent(value)
 
         if (!this.isFormulaInvalid) {
@@ -392,7 +383,7 @@ export default {
     this.createEditor()
     this.setupIntersectionObserver()
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },
@@ -457,17 +448,21 @@ export default {
     },
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      const formula = this.toFormula(this.wrapperContent)
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {
-        this.$emit('input', this.toFormula(this.wrapperContent))
+        this.$emit('input', formula)
       }
     },
     onUpdate() {
       this.emitChange()
     },
-    handleNodeSelected({ path, node }) {
+    handleNodeSelected(data) {
+      const { path, node } = data
       switch (node.type) {
         case 'data':
           this.editor.commands.insertDataComponent(path)

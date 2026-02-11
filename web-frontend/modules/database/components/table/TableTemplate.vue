@@ -82,8 +82,9 @@ export default {
           const { data: fieldsData } = await FieldService(
             this.$client
           ).fetchAll(table.id)
+          const { $registry } = useNuxtApp()
           fieldsData.forEach((part, index, d) => {
-            populateField(fieldsData[index], this.$registry)
+            populateField(fieldsData[index], $registry)
           })
           this.fields = fieldsData
 

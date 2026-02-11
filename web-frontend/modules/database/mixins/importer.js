@@ -9,6 +9,8 @@ import {
 const IMPORT_PREVIEW_MAX_ROW_COUNT = 6
 
 export default {
+  emits: ['data', 'getData'],
+
   props: {
     mapping: {
       type: Object,

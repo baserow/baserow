@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
 
@@ -6,7 +6,20 @@ import pytest
 
 from baserow.core.action.registries import ActionType
 from baserow.core.action.signals import ActionCommandType
-from baserow.core.posthog import capture_event_action_done, capture_user_event
+from baserow.core.posthog import (
+    capture_event_action_done,
+    capture_user_event,
+    get_posthog_client,
+)
+
+
+@pytest.fixture(autouse=True)
+def reset_posthog_instance():
+    from baserow.core import posthog
+
+    posthog._posthog = None
+    yield
+    posthog._posthog = None
 
 
 class TestActionType(ActionType):
@@ -26,21 +39,29 @@ class TestActionType(ActionType):
 
 @pytest.mark.django_db
 @override_settings(POSTHOG_ENABLED=False)
-@patch("baserow.core.posthog.posthog_client")
-def test_not_capture_event_if_not_enabled(mock_posthog, data_fixture):
+def test_not_capture_event_if_not_enabled(data_fixture):
+    posthog = get_posthog_client()
+
+    assert posthog.disabled is True
+    posthog.capture = MagicMock()
+
     user = data_fixture.create_user()
     capture_user_event(user, "test", {})
-    mock_posthog.capture.assert_not_called()
+    posthog.capture.assert_not_called()
 
 
 @pytest.mark.django_db
 @override_settings(POSTHOG_ENABLED=True)
-@patch("baserow.core.posthog.posthog_client")
-def test_capture_event_if_enabled(mock_posthog, data_fixture):
+def test_capture_event_if_enabled(data_fixture):
+    posthog = get_posthog_client()
+
+    assert posthog.disabled is False
+    posthog.capture = MagicMock()
+
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
     capture_user_event(user, "test", {}, session="session", workspace=workspace)
-    mock_posthog.capture.assert_called_once_with(
+    posthog.capture.assert_called_once_with(
         distinct_id=user.id,
         event="test",
         properties={

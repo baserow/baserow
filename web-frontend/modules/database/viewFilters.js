@@ -397,7 +397,7 @@ export class EqualViewFilterType extends SpecificFieldFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.is')
   }
 
@@ -447,7 +447,7 @@ export class NotEqualViewFilterType extends SpecificFieldFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNot')
   }
 
@@ -499,7 +499,7 @@ export class FilenameContainsViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.filenameContains')
   }
 
@@ -527,7 +527,7 @@ export class HasFileTypeViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.hasFileType')
   }
 
@@ -572,7 +572,7 @@ export class FilesLowerThanViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.filesLowerThan')
   }
 
@@ -599,7 +599,7 @@ export class ContainsViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.contains')
   }
 
@@ -647,7 +647,7 @@ export class ContainsNotViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.containsNot')
   }
 
@@ -695,7 +695,7 @@ export class ContainsWordViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.containsWord')
   }
 
@@ -732,7 +732,7 @@ export class DoesntContainWordViewFilterType extends ContainsWordViewFilterType 
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.doesntContainWord')
   }
 
@@ -747,7 +747,7 @@ export class LengthIsLowerThanViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.lengthIsLowerThan')
   }
 
@@ -897,7 +897,7 @@ export class DateIsEqualMultiStepViewFilterType extends DateMultiStepViewFilterT
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.is')
   }
 
@@ -912,7 +912,7 @@ export class DateIsNotEqualMultiStepViewFilterType extends DateIsEqualMultiStepV
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNot')
   }
 
@@ -927,7 +927,7 @@ export class DateIsBeforeMultiStepViewFilterType extends DateMultiStepViewFilter
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isBefore')
   }
 
@@ -942,7 +942,7 @@ export class DateIsOnOrBeforeMultiStepViewFilterType extends DateMultiStepViewFi
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isOnOrBefore')
   }
 
@@ -957,7 +957,7 @@ export class DateIsAfterMultiStepViewFilterType extends DateMultiStepViewFilterT
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isAfter')
   }
 
@@ -972,7 +972,7 @@ export class DateIsOnOrAfterMultiStepViewFilterType extends DateMultiStepViewFil
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isOnOrAfter')
   }
 
@@ -991,7 +991,7 @@ export class DateIsWithinMultiStepViewFilterType extends DateMultiStepViewFilter
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isWithin')
   }
 
@@ -1053,7 +1053,7 @@ export class DateEqualViewFilterType extends LocalizedDateViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isDate')
   }
 
@@ -1118,7 +1118,7 @@ export class DateNotEqualViewFilterType extends LocalizedDateViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNotDate')
   }
 
@@ -1172,7 +1172,7 @@ export class DateBeforeViewFilterType extends LocalizedDateViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isBeforeDate')
   }
 
@@ -1232,7 +1232,7 @@ export class DateBeforeOrEqualViewFilterType extends LocalizedDateViewFilterType
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isBeforeOrEqualDate')
   }
 
@@ -1292,7 +1292,7 @@ export class DateAfterViewFilterType extends LocalizedDateViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isAfterDate')
   }
 
@@ -1350,7 +1350,7 @@ export class DateAfterDaysAgoViewFilterType extends LocalizedDateViewFilterType 
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isAfterDaysAgo')
   }
 
@@ -1418,7 +1418,7 @@ export class DateAfterOrEqualViewFilterType extends LocalizedDateViewFilterType 
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isAfterOrEqualDate')
   }
 
@@ -1532,7 +1532,7 @@ export class DateEqualsTodayViewFilterType extends DateCompareTodayViewFilterTyp
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isToday')
   }
 
@@ -1566,7 +1566,7 @@ export class DateBeforeTodayViewFilterType extends DateCompareTodayViewFilterTyp
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.beforeToday')
   }
 
@@ -1599,7 +1599,7 @@ export class DateAfterTodayViewFilterType extends DateCompareTodayViewFilterType
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.afterToday')
   }
 
@@ -1632,7 +1632,7 @@ export class DateEqualsCurrentWeekViewFilterType extends DateCompareTodayViewFil
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.inThisWeek')
   }
 
@@ -1662,7 +1662,7 @@ export class DateEqualsCurrentMonthViewFilterType extends DateCompareTodayViewFi
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.inThisMonth')
   }
 
@@ -1692,7 +1692,7 @@ export class DateEqualsCurrentYearViewFilterType extends DateEqualsTodayViewFilt
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.inThisYear')
   }
 
@@ -1815,7 +1815,7 @@ export class DateWithinDaysViewFilterType extends LocalizedDateCompareViewFilter
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isWithinDays')
   }
 
@@ -1847,7 +1847,7 @@ export class DateWithinWeeksViewFilterType extends LocalizedDateCompareViewFilte
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isWithinWeeks')
   }
 
@@ -1883,7 +1883,7 @@ export class DateWithinMonthsViewFilterType extends LocalizedDateCompareViewFilt
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isWithinMonths')
   }
 
@@ -1919,7 +1919,7 @@ export class DateEqualsDaysAgoViewFilterType extends LocalizedDateCompareViewFil
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isDaysAgo')
   }
 
@@ -1951,7 +1951,7 @@ export class DateEqualsMonthsAgoViewFilterType extends LocalizedDateCompareViewF
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isMonthsAgo')
   }
 
@@ -1983,7 +1983,7 @@ export class DateEqualsYearsAgoViewFilterType extends LocalizedDateCompareViewFi
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isYearsAgo')
   }
 
@@ -2006,7 +2006,7 @@ export class DateEqualsDayOfMonthViewFilterType extends LocalizedDateViewFilterT
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isDayOfMonth')
   }
 
@@ -2080,7 +2080,7 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.higherThan')
   }
 
@@ -2109,7 +2109,7 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.higherThanOrEqual')
   }
 
@@ -2138,7 +2138,7 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.lowerThan')
   }
 
@@ -2167,7 +2167,7 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.lowerThanOrEqual')
   }
 
@@ -2197,7 +2197,7 @@ export class IsEvenAndWholeViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isEvenAndWhole')
   }
 
@@ -2229,7 +2229,7 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.is')
   }
 
@@ -2263,7 +2263,7 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNot')
   }
 
@@ -2300,7 +2300,7 @@ export class SingleSelectIsAnyOfViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isAnyOf')
   }
 
@@ -2354,7 +2354,7 @@ export class SingleSelectIsNoneOfViewFilterType extends SingleSelectIsAnyOfViewF
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNoneOf')
   }
 
@@ -2370,7 +2370,7 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.hasAnyOf')
   }
 
@@ -2419,7 +2419,7 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.hasNotAnyOf')
   }
 
@@ -2468,7 +2468,7 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.has')
   }
 
@@ -2503,7 +2503,7 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.hasNot')
   }
 
@@ -2538,7 +2538,7 @@ export class UserIsFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.is')
   }
 
@@ -2574,7 +2574,7 @@ export class UserIsNotFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNot')
   }
 
@@ -2610,7 +2610,7 @@ export class BooleanViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.is')
   }
 
@@ -2649,7 +2649,7 @@ export class LinkRowHasFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.has')
   }
 
@@ -2681,7 +2681,7 @@ export class LinkRowHasNotFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.hasNot')
   }
 
@@ -2713,7 +2713,7 @@ export class LinkRowContainsFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.contains')
   }
 
@@ -2746,7 +2746,7 @@ export class LinkRowNotContainsFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.containsNot')
   }
 
@@ -2779,7 +2779,7 @@ export class EmptyViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isEmpty')
   }
 
@@ -2851,7 +2851,7 @@ export class NotEmptyViewFilterType extends ViewFilterType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewFilter.isNotEmpty')
   }
 

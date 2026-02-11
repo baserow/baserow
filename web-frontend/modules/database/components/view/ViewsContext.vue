@@ -1,6 +1,6 @@
 <template>
   <Context
-    ref="viewsContext"
+    ref="context"
     class="select"
     max-height-if-outside-viewport
     @shown="shown"
@@ -116,6 +116,7 @@ export default {
       default: true,
     },
   },
+  emits: ['selected-view'],
   data() {
     return {
       query: '',

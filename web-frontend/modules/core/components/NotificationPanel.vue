@@ -123,10 +123,12 @@ export default {
     InfiniteScroll,
   },
   mixins: [MoveToBody],
+  emits: ['hidden', 'shown'],
   data() {
     return {
       open: false,
       needRefresh: false,
+      removeOnClickOutsideHandler: null,
     }
   },
   computed: {
@@ -180,7 +182,7 @@ export default {
       }
       this.open = true
       const opener = target
-      const removeOnClickOutsideHandler = onClickOutside(this.$el, (target) => {
+      this.removeOnClickOutsideHandler = onClickOutside(this.$el, (target) => {
         if (
           this.open &&
           !isElement(opener, target) &&
@@ -191,12 +193,15 @@ export default {
           this.hide()
         }
       })
-      this.$once('hidden', removeOnClickOutsideHandler)
       this.$emit('shown')
     },
     hide() {
       this.open = false
       this.opener = null
+      if (this.removeOnClickOutsideHandler) {
+        this.removeOnClickOutsideHandler()
+        this.removeOnClickOutsideHandler = null
+      }
       this.$emit('hidden')
     },
     toggle(target) {

@@ -2,7 +2,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   props: {
-    value: {
+    modelValue: {
       type: Object,
       required: true,
     },
@@ -59,17 +59,18 @@ export default {
       required: true,
     },
   },
+  emits: ['submit', 'update:modelValue'],
   data() {
     return {
       // We need to make a copy of the values because we must change the values and
       // it's not possible to update a prop.
-      values: clone(this.value),
+      values: clone(this.modelValue),
     }
   },
   methods: {
     updateValue(key, value) {
       this.values[key] = value
-      this.$emit('input', this.values)
+      this.$emit('update:modelValue', this.values)
     },
   },
 }

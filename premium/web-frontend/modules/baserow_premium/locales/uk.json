@@ -10,16 +10,20 @@
             "dashboard": "",
             "users": "",
             "workspaces": "",
-            "licenses": ""
+            "licenses": "Керувати ліцензіями"
         },
         "viewType": {
-            "kanban": ""
+            "kanban": "Kanban",
+            "timeline": "Часова шкала",
+            "calendar": "Календар"
         },
         "exporterType": {
-            "json": "",
-            "xml": ""
+            "json": "Експорт у JSON",
+            "xml": "Експорт у XML",
+            "excel": "Експорт у Excel",
+            "file": "Експорт файлів"
         },
-        "deactivated": ""
+        "deactivated": "Доступно в преміум версії"
     },
     "premiumModal": {
         "title": "",
@@ -27,41 +31,51 @@
         "viewPricing": ""
     },
     "rowCommentSidebar": {
-        "onlyPremium": "",
-        "readOnlyNoComment": "",
-        "noComment": "",
-        "comment": "",
-        "more": "",
-        "name": ""
+        "onlyPremium": "Коментарі до рядків доступні в преміум версії.",
+        "readOnlyNoComment": "Немає коментарів для цього рядка.",
+        "noComment": "Ще немає коментарів для цього рядка. Використовуйте форму нижче, щоб додати коментар.",
+        "comment": "Коментар",
+        "more": "Більше інформації",
+        "name": "Коментарі"
     },
     "rowComment": {
-        "you": "",
-        "anonymous": ""
+        "you": "Ви",
+        "anonymous": "Анонім",
+        "creating": "створення",
+        "updating": "оновлення",
+        "deleting": "видалення",
+        "created": "створено",
+        "edited": "відредаговано",
+        "commentTrashed": "Цей коментар було видалено.",
+        "errorUserNotCommentAuthorTitle": "Неможливо оновити або видалити.",
+        "errorUserNotCommentAuthor": "Лише автор коментаря може оновити або видалити його.",
+        "errorInvalidCommentMentionTitle": "Недійсне згадування",
+        "errorInvalidCommentMention": "Згаданий користувач не існує."
     },
     "registerLicenseModal": {
-        "titleRegisterLicense": "",
-        "registerLicense": "",
-        "viewPricing": "",
-        "licenseDescription": "",
+        "titleRegisterLicense": "Зареєструвати ліцензію",
+        "registerLicense": "Зареєструвати ліцензію",
+        "viewPricing": "Переглянути тарифи",
+        "licenseDescription": "Ліцензію можна отримати лише на baserow.io. Якщо ви вже придбали ліцензію, її буде надіслано вам електронною поштою, і ви зможете отримати доступ до неї у вашому обліковому записі. Скопіюйте та вставте ключ ліцензії у поле нижче та натисніть кнопку, щоб зареєструвати ліцензійний ключ для цієї інстанції. Використовувати один і той же ключ на двох різних установках неможливо. {pricingLink} якщо у вас ще немає ключа.",
         "licenseError": {
-            "invalidTitle": "",
-            "invalid": "",
-            "unsupportedTitle": "",
-            "unsupported": "",
-            "expiredTitle": "",
-            "expired": "",
-            "duplicateTitle": "",
-            "duplicate": "",
-            "instanceMismatchTitle": "",
-            "instanceMismatch": ""
+            "invalidTitle": "Недійсна",
+            "invalid": "Надана ліцензія недійсна.",
+            "unsupportedTitle": "Не підтримується",
+            "unsupported": "Надана ліцензія несумісна з вашою версією Baserow. Оновіть до останньої версії та спробуйте знову.",
+            "expiredTitle": "Термін дії закінчився",
+            "expired": "Термін дії наданої ліцензії закінчився.",
+            "duplicateTitle": "Дублікат",
+            "duplicate": "Надана ліцензія вже зареєстрована для цього екземпляра.",
+            "instanceMismatchTitle": "Невідповідність екземпляра",
+            "instanceMismatch": "Надана ліцензія не належить цьому екземпляру."
         }
     },
     "disconnectLicenseModal": {
-        "disconnectLicense": "",
-        "disconnectDescription": ""
+        "disconnectLicense": "Від'єднати ліцензію",
+        "disconnectDescription": "Ви впевнені, що хочете від’єднати цю ліцензію? Якщо ви від’єднаєте ліцензію, поки вона активна, пов’язані користувачі більше не матимуть доступу до плану. Це фактично видалить ліцензію. Будь ласка, зверніться до нашої служби підтримки за адресою {contact}, якщо ви хочете використовувати цю ліцензію на іншій самостійно розміщеній інстанції."
     },
     "registerLicenseForm": {
-        "licenseKey": ""
+        "licenseKey": "Ключ ліцензії"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "",
@@ -135,33 +149,33 @@
         "edit": ""
     },
     "tableJSONExporter": {
-        "encoding": ""
+        "encoding": "Кодування"
     },
     "tableXMLExporter": {
-        "encoding": ""
+        "encoding": "Кодування"
     },
     "kanbanViewStackContext": {
-        "createCard": "",
-        "editStack": "",
-        "deleteStack": "",
-        "delete": "",
-        "deleteDescription": ""
+        "createCard": "Створити картку",
+        "editStack": "Редагувати колонку",
+        "deleteStack": "Видалити колонку",
+        "delete": "Видалити {name}",
+        "deleteDescription": "Ви впевнені, що хочете видалити колонку {name}? Видалення колонки призводить до видалення опції вибору поля одиночного вибору, що може призвести до втрати даних, оскільки значення рядків будуть встановлені як порожні."
     },
     "kanbanViewHeader": {
-        "stackBy": "",
-        "stackedBy": "",
-        "customizeCards": ""
+        "stackBy": "Групувати за",
+        "stackedBy": "Згруповано за {fieldName}",
+        "customizeCards": "Налаштувати картки"
     },
     "kanbanViewOptionForm": {
-        "selectOption": ""
+        "selectOption": "Виберіть опцію"
     },
     "kanbanViewStakedBy": {
-        "title": "",
-        "chooseField": ""
+        "title": "Поле групування",
+        "chooseField": "За яким полем одиночного вибору мають групуватися картки?"
     },
     "kanbanViewStack": {
-        "uncategorized": "",
-        "tryAgain": "",
+        "uncategorized": "Без категорії",
+        "tryAgain": "Спробувати знову",
         "new": ""
     },
     "dashboard": {
@@ -181,110 +195,302 @@
         "viewAll": ""
     },
     "premiumFeatures": {
-        "rowComments": "",
-        "kanbanView": "",
-        "exports": "",
+        "rowComments": "Коментарі до рядків",
+        "kanbanView": "Представлення Kanban",
+        "exports": "Експорт таблиці",
         "admin": "",
-        "rowColoring": "",
-        "surveyForm": "",
-        "publicLogoRemoval": "",
-        "personalViews": ""
+        "rowColoring": "Забарвлення рядків",
+        "surveyForm": "Форма опитування",
+        "publicLogoRemoval": "Видалення публічного логотипу",
+        "personalViews": "Особисті представлення",
+        "rowCommentsContent": "Співпрацюйте безпосередньо у вашій таблиці. Додавайте коментарі до окремих рядків, згадуйте членів команди та підтримуйте контекст розмови.",
+        "kanbanViewContent": "Організовуйте свої дані візуально на дошці Kanban. Картки групуються в колонки на основі поля одиночного вибору, і ви можете легко перетягувати їх між колонками.",
+        "calendarView": "Представлення Календар",
+        "calendarViewContent": "Легко переглядайте свої рядки в календарі, використовуючи обране поле дати. Ідеально підходить для відстеження дедлайнів, подій та розкладів одним поглядом.",
+        "timelineView": "Представлення Часова шкала",
+        "timelineViewContent": "Відображайте рядки вздовж горизонтальної часової шкали, використовуючи дати початку та завершення. Ідеально підходить для планування проєктів та дорожніх карт.",
+        "exportsContent": "Легко експортуйте свої дані в додаткових форматах, таких як Excel, JSON та XML, або масово завантажуйте всі файли з таблиці - ідеально підходить для резервних копій, звітів та обміну з іншими.",
+        "rowColoringContent": "Виділяйте рядки кольорами на основі поля одиночного вибору або власних умов. Це полегшує виявлення закономірностей та пріоритетів.",
+        "rowNotifications": "Сповіщення про рядки",
+        "rowNotificationsContent": "Будьте в курсі завдяки налаштовуваним сповіщенням про коментарі до рядків. Виберіть отримання сповіщень про всі коментарі або лише коли вас згадують.",
+        "surveyFormContent": "Збирайте відповіді по одному питанню за раз у режимі опитування. Спрощена версія представлення форми, оптимізована для зосередженості та зручності використання.",
+        "publicLogoRemovalContent": "Видаліть логотип Baserow з публічних представлень, щоб надати вашому спільному контенту чистіший, більш брендований вигляд.",
+        "personalViewsContent": "Створюйте представлення, які бачить лише автор. Це дає вам простір для експериментів, фільтрації та сортування даних, не впливаючи на робочий простір інших.",
+        "aiFeatures": "Функції ШІ",
+        "aiFeaturesContent": "Використовуйте ШІ для автоматизації та покращення ваших робочих процесів. За допомогою типу поля ШІ-промпт ви можете генерувати текст, резюме або аналітику безпосередньо в комірках на основі динамічних промптів, які можуть посилатися на інші поля. Окремо ви також можете попросити ШІ створити для вас формули.",
+        "chartWidget": "Віджет діаграми",
+        "chartWidgetContent": "Візуалізуйте свої дані за допомогою діаграм на інформаційних панелях. Використовуйте будь-яку таблицю як джерело даних, додавайте кілька серій та групуйте або сортуйте за полями з багатими параметрами підсумків."
     },
     "licenses": {
-        "titleNoLicenses": "",
-        "titleLicenses": "",
-        "noLicensesDescription": "",
-        "getLicense": "",
-        "baserowInstanceId": "",
-        "registerLicense": "",
-        "licenceId": "",
-        "premium": "",
-        "expired": "",
-        "validity": "",
-        "seats": ""
+        "titleNoLicenses": "Ліцензій не знайдено",
+        "titleLicenses": "Ліцензії",
+        "noLicensesDescription": "У вашій інстанції Baserow немає зареєстрованих ліцензій. Преміум-ліцензія надає миттєвий доступ до всіх додаткових функцій. Якщо у вас уже є ліцензія, ви можете зареєструвати її тут. Або ви можете отримати ліцензію, натиснувши кнопку нижче.",
+        "getLicense": "Отримати ліцензію",
+        "baserowInstanceId": "ID вашого екземпляра Baserow:",
+        "registerLicense": "Зареєструвати ліцензію",
+        "licenceId": "ID ліцензії",
+        "premium": "Преміум",
+        "expired": "Термін дії закінчився",
+        "validity": "Дійсна з {start} по {end}",
+        "seats": "місць",
+        "applicationUsers": "Користувачі застосунку"
     },
     "license": {
-        "title": "",
-        "users": "",
-        "description": "",
-        "seatLeft": "",
-        "fillSeats": "",
-        "removeAll": "",
-        "licenseId": "",
-        "addUser": "",
-        "plan": "",
-        "premium": "",
-        "expired": "",
-        "validFrom": "",
-        "validThrough": "",
-        "validThroughDescription": "",
-        "lastCheck": "",
-        "lastCheckDescription": "",
-        "checkNow": "",
-        "seats": "",
-        "licensedTo": "",
-        "applications": "",
-        "unlimited": "",
-        "rowUsage": "",
-        "storeUsage": "",
-        "disconnectLicense": "",
-        "disconnectDescription": "",
-        "moreSeatsNeededTitle": "",
-        "contactSalesMoreSeats": "",
-        "automaticSeatsProgressBarStatus": "",
-        "premiumFeatureName": "",
-        "enterpriseFeatureName": "",
-        "supportFeatureName": ""
+        "title": "План {name}",
+        "users": "Користувачі",
+        "description": "Виберіть користувачів, які можуть використовувати план {product_code}. Ця ліцензія дозволяє надати {product_code} максимум {seats} користувачам.",
+        "seatLeft": "У вас не залишилося місць|У вас залишилося одне місце|У вас залишилося {count} місць",
+        "fillSeats": "Заповнити місця користувачами, які не мають плану",
+        "removeAll": "Видалити всіх користувачів",
+        "licenseId": "ID ліцензії",
+        "addUser": "Додати користувача",
+        "plan": "План",
+        "premium": "преміум",
+        "expired": "Термін дії закінчився",
+        "validFrom": "Дійсна з",
+        "validThrough": "Дійсна до",
+        "validThroughDescription": "Після закінчення терміну дії ліцензії ви та всі призначені користувачі більше не зможете використовувати додатковий функціонал, наданий ліцензією.",
+        "lastCheck": "Остання перевірка",
+        "lastCheckDescription": "Ліцензія періодично перевіряється на зміни. Якщо ви, наприклад, поновили або оновили ліцензію, зміни стануть активними після перевірки.",
+        "checkNow": "перевірити зараз",
+        "seats": "Місця (кількість користувачів)",
+        "licensedTo": "Ліцензовано для",
+        "applications": "Застосунки / бази даних",
+        "unlimited": "Необмежено",
+        "rowUsage": "Використання рядків",
+        "storeUsage": "Використання сховища",
+        "disconnectLicense": "Від'єднати ліцензію",
+        "disconnectDescription": "Якщо ви від’єднаєте цю ліцензію під час її активності, пов’язані користувачі більше не матимуть доступу до плану. Це фактично видалить ліцензію. Будь ласка, зверніться до нашої служби підтримки за адресою {contact}, якщо ви хочете використовувати цю ліцензію в іншій самостійно розміщеній інстанції.",
+        "moreSeatsNeededTitle": "Потрібно більше місць",
+        "contactSalesMoreSeats": "Зв'яжіться з відділом продажів для отримання більшої кількості місць",
+        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} платних місць та {free_users_count} безкоштовних місць використовується",
+        "premiumFeatureName": "Преміум",
+        "enterpriseFeatureName": "Enterprise",
+        "supportFeatureName": "Підтримка",
+        "applicationUsers": "Користувачі застосунку",
+        "applicationUsersDescription": "Загальна кількість користувачів застосунку в опублікованих джерелах користувачів конструктора застосунків.",
+        "advancedFeatureName": "Розширений"
     },
     "viewDecoratorType": {
-        "leftBorderColor": "",
-        "leftBorderColorDescription": "",
-        "backgroundColor": "",
-        "backgroundColorDescription": "",
-        "onlyForPremium": "",
-        "onlyOneDecoratorPerView": ""
+        "leftBorderColor": "Ліва межа",
+        "leftBorderColorDescription": "Забарвити ліву межу рядка",
+        "backgroundColor": "Колір фону",
+        "backgroundColorDescription": "Забарвити фон рядка",
+        "onlyForPremium": "Доступно в преміум версії",
+        "onlyOneDecoratorPerView": "Ви можете мати лише одне оформлення цього типу для представлення"
     },
     "decoratorValueProviderType": {
-        "singleSelectColor": "",
-        "singleSelectColorDescription": "",
-        "conditionalColor": "",
-        "conditionalColorDescription": ""
+        "singleSelectColor": "Одиночний вибір",
+        "singleSelectColorDescription": "Забарвлювати рядки так само, як значення одиночного вибору",
+        "conditionalColor": "Умови",
+        "conditionalColorDescription": "Забарвлювати рядки, коли вони відповідають умовам"
     },
     "singleSelectColorValueProviderForm": {
-        "chooseAColor": ""
+        "chooseAColor": "За яким полем одиночного вибору має забарвлюватися рядок?"
     },
     "conditionalColorValueProviderForm": {
-        "addCondition": "",
-        "colorAlwaysApply": "",
-        "addColor": ""
+        "addCondition": "Додати умову",
+        "colorAlwaysApply": "Ви можете додати умови, натиснувши кнопку \"Додати умову\".",
+        "addColor": "Додати колір",
+        "addConditionGroup": "Додати групу умов",
+        "colorAlwaysApplyTitle": "Цей колір застосовується за замовчуванням.",
+        "deleteColor": "Видалити колір",
+        "title": "Кольори"
     },
     "redirectToBaserowModal": {
-        "title": "",
-        "content": ""
+        "title": "Перенаправлення на https://baserow.io",
+        "content": "Ви залишаєте свій власний екземпляр і вас перенаправляють на https://baserow.io."
     },
     "premiumTopSidebar": {
-        "impersonateDescription": "",
-        "impersonateStop": "",
-        "premium": "",
-        "premiumDescription": ""
+        "impersonateDescription": "Цей обліковий запис імітується. Оновлення сторінки припинить це.",
+        "impersonateStop": "Зупинити",
+        "premium": "Преміум",
+        "premiumDescription": "Ваш обліковий запис має глобальний доступ до преміум функцій"
     },
     "formViewModeType": {
-        "survey": "",
-        "surveyDescription": "",
-        "onlyForPremium": ""
+        "survey": "Опитування",
+        "surveyDescription": "Одночасно видно одне поле.",
+        "onlyForPremium": "Доступно в преміум версії"
     },
     "formViewModePreviewSurvey": {
-        "orderFields": "",
-        "deactivated": "",
-        "more": ""
+        "orderFields": "Порядок полів",
+        "deactivated": "Форма опитування доступна в преміум версії.",
+        "more": "Більше інформації"
     },
     "shareLinkOptions": {
         "baserowLogo": {
-            "label": "",
-            "premiumModalName": ""
-        }
+            "label": "Приховати логотип Baserow на спільному представленні",
+            "premiumModalName": "видалення публічного логотипу"
+        },
+        "allowPublicExportLabel": "Дозволити експорт на спільному представленні"
     },
     "viewsContext": {
-        "personal": ""
+        "personal": "Особисте"
+    },
+    "paidFeaturesModal": {
+        "description": "Ця функція доступна з планом {plan}. Щоб отримати доступ, оновіть свій обліковий запис, оформивши підписку. Натисніть кнопку нижче, щоб переглянути варіанти тарифів.",
+        "viewPricing": "Переглянути тарифи"
+    },
+    "rowCommentContext": {
+        "edit": "Редагувати коментар",
+        "delete": "Видалити коментар"
+    },
+    "rowCommentMentionNotification": {
+        "title": "{sender} згадав вас у рядку {row} таблиці {table}",
+        "deletedUser": "Видалений користувач"
+    },
+    "rowCommentNotification": {
+        "title": "{sender} опублікував коментар у рядку {row} таблиці {table}",
+        "deletedUser": "Видалений користувач"
+    },
+    "trashType": {
+        "row_comment": "коментар до рядка"
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Включити назви полів як заголовок"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Групувати файли за ID рядка"
+    },
+    "kanbanView": {
+        "addStack": "Додати колонку"
+    },
+    "calendarViewType": {
+        "sharedViewText": "Дозволити будь-кому переглядати дані в цьому представленні або синхронізувати події із зовнішнім календарем.",
+        "sharedViewEnableSyncToExternalCalendar": "Синхронізувати із зовнішнім календарем",
+        "sharedViewDisableSyncToExternalCalendar": "Вимкнути зовнішню синхронізацію",
+        "sharedViewDescription": "Вставте це посилання у ваш календарний застосунок",
+        "sharedViewTitle": "Синхронізувати із зовнішнім календарем"
+    },
+    "calendarViewHeader": {
+        "displayBy": "Відображати за",
+        "labels": "Мітки",
+        "displayedBy": "Відображається у полі “{fieldName}”"
+    },
+    "timelineViewHeader": {
+        "dateSettings": "Налаштування дати",
+        "labels": "Мітки"
+    },
+    "selectDateFieldContext": {
+        "save": "Зберегти"
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "Дата початку",
+        "endDateField": "Дата завершення",
+        "noCompatibleDateFields": "У таблиці відсутні поля дати. Спочатку створіть поля дати початку та завершення в таблиці.",
+        "incompatibleFieldsErrorTitle": "Несумісні поля",
+        "incompatibleFieldsErrorMessage": "Поля несумісні. Виберіть два дійсних поля дати в таблиці, які використовують однакові налаштування для \"включати час\" та однаковий часовий пояс для всіх співробітників.",
+        "forceTimezone": "{timezone}",
+        "includeTime": "дата і час",
+        "dateOnly": "лише дата"
+    },
+    "timelineTimescaleContext": {
+        "hour": "Година",
+        "day": "День",
+        "week": "Тиждень",
+        "month": "Місяць",
+        "quarter": "Квартал",
+        "year": "Рік",
+        "disabledTooltip": "Ця опція доступна лише для полів дати з увімкненою опцією \"включати час\"."
+    },
+    "initTimelineViewSettings": {
+        "settings": "Налаштування дати"
+    },
+    "viewDateSelector": {
+        "today": "Сьогодні"
+    },
+    "calendarMonthDay": {
+        "hiddenRowsCount": "0 | ще 1... | ще {hiddenRowsCount}..."
+    },
+    "calendarMonthDayExpanded": {
+        "tryAgain": "спробувати знову"
+    },
+    "timelineGridRow": {
+        "days": "0 | 1 день | {count} днів"
+    },
+    "dateFieldSelectForm": {
+        "dateField": "Яке поле ви хочете використовувати для цього представлення?",
+        "noCompatibleDateFields": "У цій таблиці немає полів дати, спочатку створіть одне."
+    },
+    "selectDateFieldModal": {
+        "chooseDateField": "Виберіть поле дати",
+        "save": "Зберегти"
+    },
+    "RowEditModalCommentNotificationMode": {
+        "modeMentionsTitle": "Лише згадування",
+        "modeMentionsDesc": "Ви отримуватимете сповіщення лише коли вас згадують.",
+        "modeAllTitle": "Всі коментарі",
+        "modeAllDesc": "Ви отримуватимете сповіщення про всі коментарі в цьому рядку."
+    },
+    "premiumFieldType": {
+        "ai": "ШІ-промпт",
+        "aiDescription": "Поле лише для читання, яке містить текст, згенерований ШІ на основі промпту поля."
+    },
+    "functionalGridViewFieldAI": {
+        "generate": "Згенерувати"
+    },
+    "gridViewFieldAI": {
+        "generate": "Згенерувати",
+        "regenerate": "Перегенерувати"
+    },
+    "fieldAISubForm": {
+        "prompt": "Промпт",
+        "promptPlaceholder": "Що таке Baserow?",
+        "premiumFeature": "Поле ШІ є преміум функцією",
+        "emptyFileField": "Немає",
+        "fileFieldHelp": "Перший сумісний файл у полі буде використано як базу знань для промпту. Файл має бути текстовим файлом з підтримуваним розширенням, наприклад .txt, .md, .pdf, .docx.",
+        "outputType": "Тип виводу",
+        "outputTypeTooltip": "Виберіть бажаний формат виводу, щоб спрямувати LLM на генерацію відповідей, що відповідають вашим бажаним параметрам.",
+        "outputTypeChangedWarning": "Очищає згенеровані значення комірок.",
+        "autoUpdate": "Автооновлення",
+        "autoUpdateHelp": "Коли увімкнено, значення поля ШІ буде автоматично перегенеровано при оновленні будь-якого з полів, на які посилається промпт.",
+        "autoUpdateDescription": "Перегенерувати при зміні полів, на які є посилання"
+    },
+    "rowEditFieldAI": {
+        "generate": "Згенерувати",
+        "createRowBefore": "Значення ШІ може бути згенеровано після створення рядка."
+    },
+    "aiFormulaModal": {
+        "title": "Згенерувати формулу за допомогою ШІ",
+        "description": "Зверніть увагу, що згенеровані формули не завжди можуть працювати як очікувалося. Ми створюємо промпт для моделі та завантажуємо вивід у поле введення формули. Найкраще працює з моделлю з великою кількістю параметрів, наприклад gpt-4-turbo-preview.",
+        "label": "Промпт",
+        "labelDescription": "Опишіть формулу, яку ви хочете згенерувати",
+        "generate": "Згенерувати",
+        "noModels": "У вашому екземплярі Baserow та робочому просторі не налаштовано жодних моделей ШІ. Перейдіть на головну сторінку, натисніть на назву вашого робочого простору, потім на налаштування, щоб налаштувати їх."
+    },
+    "formulaFieldAI": {
+        "generateWithAI": "Згенерувати за допомогою ШІ",
+        "featureName": "Згенерувати формулу за допомогою ШІ"
+    },
+    "aiOutputType": {
+        "text": "Текст",
+        "textDescription": "Генерує вільний текст на основі промпту.",
+        "choice": "Вибір",
+        "choiceDescription": "Вибирає лише одну з опцій поля."
+    },
+    "publicViewExport": {
+        "export": "Експорт"
+    },
+    "chart": {
+        "true": "істина",
+        "false": "хибність",
+        "other": "Інше"
+    },
+    "generateAIValuesModal": {
+        "title": "Згенерувати всі значення ШІ"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Область",
+        "entireTable": "Вся таблиця",
+        "skipPopulated": "Генерувати значення лише для порожніх комірок",
+        "warningTitle": "Попередження про використання токенів",
+        "warningMessage": "Генерація всіх значень ШІ споживатиме токени API і може зайняти значний час залежно від кількості рядків."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Згенерувати за допомогою ШІ",
+        "close": "Закрити"
+    },
+    "jobType": {
+        "generateAIValues": "Перегенерувати значення поля ШІ"
     }
 }

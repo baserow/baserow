@@ -64,12 +64,12 @@
             :read-only="readOnly"
             :variant="'dark'"
             :sorted="true"
-            @addFilter="addFilter(color, $event)"
-            @addFilterGroup="addFilterGroup(color, $event)"
-            @deleteFilter="deleteFilter(color, $event)"
-            @updateFilter="updateFilter(color, $event)"
-            @updateFilterType="updateFilterType(color, $event)"
-            @deleteFilterGroup="deleteFilterGroup(color, $event)"
+            @add-filter="addFilter(color, $event)"
+            @add-filter-group="addFilterGroup(color, $event)"
+            @delete-filter="deleteFilter(color, $event)"
+            @update-filter="updateFilter(color, $event)"
+            @update-filter-type="updateFilterType(color, $event)"
+            @delete-filter-group="deleteFilterGroup(color, $event)"
           />
           <div
             class="conditional-color-value-provider-form__color-filter-actions"
@@ -118,6 +118,7 @@ import { createFiltersTree } from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'ConditionalColorValueProvider',
+  emits: ['update'],
   components: { ViewFieldConditionsForm, ColorSelectContext },
   props: {
     database: {

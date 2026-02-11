@@ -11,7 +11,7 @@
     :target="`_${target}`"
     :href="url"
     :rel="isExternalLink ? 'noopener noreferrer' : null"
-    v-on="$listeners"
+    v-bind="$attrs"
     @click="handleClick"
   >
     <slot></slot>

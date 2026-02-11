@@ -1,14 +1,8 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 import UserPreview from '@baserow/modules/core/components/onboarding/UserPreview'
-import InviteStep from '@baserow/modules/core/components/onboarding/InviteStep'
 import MoreStep from '@baserow/modules/core/components/onboarding/MoreStep'
-import TeamStep from '@baserow/modules/core/components/onboarding/TeamStep'
-import WorkspaceStep from '@baserow/modules/core/components/onboarding/WorkspaceStep'
-import AppLayoutPreview from '@baserow/modules/core/components/onboarding/AppLayoutPreview'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
 import AuthService from '@baserow/modules/core/services/auth'
-import { MemberRoleType } from '@baserow/modules/database/roleTypes'
 
 export class OnboardingType extends Registerable {
   /**
@@ -52,9 +46,10 @@ export class OnboardingType extends Registerable {
    * @param data contains the data that was collected by the form component.
    * @param responses the returned value of the `complete` method that was called by
    *  the already completed onboarding steps.
+   * @param callback can be called if the message or loading component must be changed.
    *
    */
-  complete(data, responses) {}
+  complete(data, responses, callback) {}
 
   /**
    * Can optionally return a job that must be polled for completion. It will
@@ -91,35 +86,13 @@ export class OnboardingType extends Registerable {
   }
 }
 
-export class TeamOnboardingType extends OnboardingType {
-  static getType() {
-    return 'team'
-  }
-
-  getOrder() {
-    return 1100
-  }
-
-  getFormComponent() {
-    return TeamStep
-  }
-
-  getPreviewComponent() {
-    return UserPreview
-  }
-
-  canSkip() {
-    return true
-  }
-}
-
 export class MoreOnboardingType extends OnboardingType {
   static getType() {
     return 'more'
   }
 
   getOrder() {
-    return 1200
+    return 10000
   }
 
   getFormComponent() {
@@ -135,92 +108,17 @@ export class MoreOnboardingType extends OnboardingType {
   }
 
   async complete(data, responses) {
-    const teamData = data[TeamOnboardingType.getType()]
     const moreData = data[this.getType()]
     const share = moreData?.share
 
     if (share) {
-      const team = teamData?.team || 'undefined'
       await AuthService(this.app.$client).shareOnboardingDetailsWithBaserow(
-        team,
-        moreData.role,
-        moreData.companySize,
-        moreData.country
+        moreData.team,
+        'undefined',
+        'undefined',
+        moreData.country,
+        moreData.how
       )
     }
-  }
-}
-
-export class WorkspaceOnboardingType extends OnboardingType {
-  static getType() {
-    return 'workspace'
-  }
-
-  getOrder() {
-    return 1300
-  }
-
-  getFormComponent() {
-    return WorkspaceStep
-  }
-
-  getPreviewComponent() {
-    return AppLayoutPreview
-  }
-
-  async complete(data, responses) {
-    return await this.app.store.dispatch('workspace/create', {
-      name: data[this.getType()].name,
-    })
-  }
-
-  canSkip() {
-    return false
-  }
-}
-
-export class InviteOnboardingType extends OnboardingType {
-  static getType() {
-    return 'invite'
-  }
-
-  getOrder() {
-    return 1400
-  }
-
-  getFormComponent() {
-    return InviteStep
-  }
-
-  getPreviewComponent() {
-    return AppLayoutPreview
-  }
-
-  getAdditionalPreviewProps() {
-    return { highlightDataName: 'members' }
-  }
-
-  async complete(data, responses) {
-    if (!Object.prototype.hasOwnProperty.call(data, this.getType())) {
-      return
-    }
-
-    const emails = data[this.getType()].emails
-    const acceptUrl = `${this.app.$config.BASEROW_EMBEDDED_SHARE_URL}/workspace-invitation`
-    for (let i = 0; i < emails.length; i++) {
-      const values = {
-        email: emails[i],
-        permissions: MemberRoleType.getType(),
-      }
-      await WorkspaceService(this.app.$client).sendInvitation(
-        responses[WorkspaceOnboardingType.getType()].id,
-        acceptUrl,
-        values
-      )
-    }
-  }
-
-  canSkip() {
-    return true
   }
 }

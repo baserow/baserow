@@ -124,6 +124,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       completed: false,

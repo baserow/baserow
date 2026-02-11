@@ -62,8 +62,8 @@ export class PremiumLicenseType extends LicenseType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('licenses.premium')
+    const { $i18n } = this.app
+    return $i18n.t('licenses.premium')
   }
 
   getLicenseBadgeColor() {
@@ -75,26 +75,26 @@ export class PremiumLicenseType extends LicenseType {
   }
 
   getFeaturesDescription() {
-    const { i18n } = this.app
+    const { $i18n } = this.app
     return [
       {
-        name: i18n.t('license.premiumFeatureName'),
+        name: $i18n.t('license.premiumFeatureName'),
         enabled: true,
       },
       {
-        name: i18n.t('license.enterpriseFeatureName'),
+        name: $i18n.t('license.enterpriseFeatureName'),
         enabled: false,
       },
       {
-        name: i18n.t('license.supportFeatureName'),
+        name: $i18n.t('license.supportFeatureName'),
         enabled: false,
       },
     ]
   }
 
   getTopSidebarTooltip() {
-    const { i18n } = this.app
-    return i18n.t('premiumTopSidebar.premium')
+    const { $i18n } = this.app
+    return $i18n.t('premiumTopSidebar.premium')
   }
 
   showInTopSidebarWhenActive() {
@@ -110,12 +110,11 @@ export class PremiumLicenseType extends LicenseType {
   }
 
   getLicenseDescription(license) {
-    const { i18n } = this.app
-    return i18n.t('license.description', license)
+    const { $i18n } = this.app
+    return $i18n.t('license.description', license)
   }
 
   getLicenseSeatOverflowWarning(license) {
     return ''
   }
 }
-

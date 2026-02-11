@@ -285,25 +285,25 @@ def test_multiple_select_field_type_rows(data_fixture, django_assert_num_queries
     )
     row_2_field = getattr(row_2, f"field_{field.id}").all()
     assert len(row_2_field) == 1
-    assert getattr(row_2_field[0], "id") == select_options[0].id
-    assert getattr(row_2_field[0], "value") == select_options[0].value
-    assert getattr(row_2_field[0], "color") == select_options[0].color
+    assert row_2_field[0].id == select_options[0].id
+    assert row_2_field[0].value == select_options[0].value
+    assert row_2_field[0].color == select_options[0].color
 
     row_3 = row_handler.create_row(
         user=user, table=table, values={f"field_{field.id}": [select_options[1].id]}
     )
     row_3_field = getattr(row_3, f"field_{field.id}").all()
     assert len(row_3_field) == 1
-    assert getattr(row_3_field[0], "id") == select_options[1].id
-    assert getattr(row_3_field[0], "value") == select_options[1].value
+    assert row_3_field[0].id == select_options[1].id
+    assert row_3_field[0].value == select_options[1].value
 
     row_4 = row_handler.create_row(
         user=user, table=table, values={f"field_{field.id}": [select_options[0].id]}
     )
     row_4_field = getattr(row_4, f"field_{field.id}").all()
     assert len(row_4_field) == 1
-    assert getattr(row_4_field[0], "id") == select_options[0].id
-    assert getattr(row_4_field[0], "value") == select_options[0].value
+    assert row_4_field[0].id == select_options[0].id
+    assert row_4_field[0].value == select_options[0].value
 
     row_5 = row_handler.create_row(user=user, table=table)
     row_5_field = getattr(row_5, f"field_{field.id}").all()
@@ -353,7 +353,7 @@ def test_multiple_select_field_type_rows(data_fixture, django_assert_num_queries
     )
     row_5_field = getattr(row_5, f"field_{field.id}").all()
     assert len(row_5_field) == 2
-    assert set([getattr(row_5_field[0], "id"), getattr(row_5_field[1], "id")]) == set(
+    assert set([row_5_field[0].id, row_5_field[1].id]) == set(
         [select_options[1].id, select_options[0].id]
     )
 
@@ -424,31 +424,31 @@ def test_multiple_select_field_type_multiple_rows(data_fixture):
 
     row_0_field = getattr(row_0, f"field_{field.id}").all()
     assert len(row_0_field) == 2
-    assert getattr(row_0_field[0], "id") == select_options[0].id
-    assert getattr(row_0_field[1], "id") == select_options[1].id
+    assert row_0_field[0].id == select_options[0].id
+    assert row_0_field[1].id == select_options[1].id
 
     row_1_field = getattr(row_1, f"field_{field.id}").all()
     assert len(row_1_field) == 2
-    assert getattr(row_1_field[0], "id") == select_options[2].id
-    assert getattr(row_1_field[1], "id") == select_options[0].id
+    assert row_1_field[0].id == select_options[2].id
+    assert row_1_field[1].id == select_options[0].id
 
     row_2_field = getattr(row_2, f"field_{field.id}").all()
     assert len(row_2_field) == 2
-    assert getattr(row_2_field[0], "id") == select_options[2].id
-    assert getattr(row_2_field[1], "id") == select_options[0].id
+    assert row_2_field[0].id == select_options[2].id
+    assert row_2_field[1].id == select_options[0].id
 
     row_3_field = getattr(row_3, f"field_{field.id}").all()
     assert len(row_3_field) == 2
-    assert getattr(row_3_field[0], "id") == select_options[3].id
-    assert getattr(row_3_field[1], "id") == select_options[0].id
+    assert row_3_field[0].id == select_options[3].id
+    assert row_3_field[1].id == select_options[0].id
 
     row_4_field = getattr(row_4, f"field_{field.id}").all()
     assert len(row_4_field) == 1
-    assert getattr(row_4_field[0], "id") == select_options[0].id
+    assert row_4_field[0].id == select_options[0].id
 
     row_5_field = getattr(row_5, f"field_{field.id}").all()
     assert len(row_5_field) == 1
-    assert getattr(row_5_field[0], "id") == select_options[0].id
+    assert row_5_field[0].id == select_options[0].id
 
     error_report = row_handler.create_rows(
         user,
@@ -879,9 +879,7 @@ def test_get_set_export_serialized_value_multiple_select_field(
     assert len(all) == 3
     imported_row_1 = all[0]
     imported_row_1_field = (
-        getattr(imported_row_1, f"field_" f"{imported_field.id}")
-        .order_by("order")
-        .all()
+        getattr(imported_row_1, f"field_{imported_field.id}").order_by("order").all()
     )
     imported_row_2 = all[1]
     imported_row_2_field = (
@@ -1631,7 +1629,7 @@ def test_conversion_date_to_multiple_select_field(data_fixture):
         table=table,
         row_id=row.id,
         values={
-            f"field_{date_field_eu.id}": [getattr(x, "id") for x in select_options],
+            f"field_{date_field_eu.id}": [x.id for x in select_options],
         },
     )
 

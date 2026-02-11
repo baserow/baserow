@@ -79,8 +79,14 @@ success_create_user_response_schema = build_object_type(
 
 authenticated_user_response_schema = {
     "oneOf": [
-        success_create_user_response_schema,
-        two_factor_required_response_schema,
+        {
+            "title": "Without two-factor authentication",
+            **success_create_user_response_schema,
+        },
+        {
+            "title": "With two-factor authentication",
+            **two_factor_required_response_schema,
+        },
     ],
 }
 

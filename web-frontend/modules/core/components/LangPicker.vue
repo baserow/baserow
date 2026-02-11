@@ -16,20 +16,15 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LanguageSwitcherDropdown from '@baserow/modules/core/components/LangSwitcherDropdown'
 
-export default {
-  components: { LanguageSwitcherDropdown },
-  computed: {
-    visibleLanguageName() {
-      for (let i = 0; i < this.$i18n.locales.length; i++) {
-        if (this.$i18n.locales[i].code === this.$i18n.locale) {
-          return this.$i18n.locales[i].name
-        }
-      }
-      return ''
-    },
-  },
-}
+const { locale, locales } = useI18n()
+
+const visibleLanguageName = computed(() => {
+  const currentLocale = locales.value.find((l) => l.code === locale.value)
+  return currentLocale?.name || ''
+})
 </script>

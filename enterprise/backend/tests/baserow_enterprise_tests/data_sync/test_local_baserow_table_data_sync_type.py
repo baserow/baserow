@@ -4,8 +4,6 @@ from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.models import License
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
@@ -26,6 +24,8 @@ from baserow_enterprise.data_sync.baserow_table_data_sync import (
     supported_field_types,
 )
 from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.models import License
 
 
 @pytest.mark.django_db
@@ -243,7 +243,7 @@ def test_sync_data_sync_table(enterprise_data_fixture):
         source_row_1, f"field_{field_1.id}"
     )
     assert getattr(row, f"field_{field_2_field.id}") == getattr(
-        source_row_1, f"field" f"_{field_2.id}"
+        source_row_1, f"field_{field_2.id}"
     )
 
 

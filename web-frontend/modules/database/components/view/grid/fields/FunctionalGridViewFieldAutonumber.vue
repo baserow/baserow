@@ -1,5 +1,17 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
-    <div class="grid-field-number">{{ props.value }}</div>
+<template>
+  <div ref="cell" class="grid-view__cell">
+    <div class="grid-field-number">{{ value }}</div>
   </div>
 </template>
+
+<script>
+export default {
+  name: 'FunctionalGridViewFieldAutonumber',
+  props: {
+    value: {
+      type: null,
+      default: null,
+    },
+  },
+}
+</script>

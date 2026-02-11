@@ -5,7 +5,10 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="workspaceInvitationAcceptedNotification.title" tag="span">
+      <i18n-t
+        keypath="workspaceInvitationAcceptedNotification.title"
+        tag="span"
+      >
         <template #sender>
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else
@@ -17,7 +20,7 @@
         <template #workspaceName>
           <strong>{{ notification.data.invited_to_workspace_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </a>
 </template>

@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <template v-if="Object.keys(subject).length > 0">
       <div class="context__menu-title">
         <div class="edit-role-context__header">
@@ -125,6 +125,7 @@ export default {
       default: false,
     },
   },
+  emits: ['delete', 'update-role'],
   computed: {
     visibleRoles() {
       return this.roles.filter((role) => role.isVisible)

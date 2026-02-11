@@ -8,63 +8,65 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-31 17:08+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-01-29 07:02+0000\n"
+"Last-Translator: Marat Dospolov <marat.dospolov@gmail.com>\n"
+"Language-Team: Ukrainian <https://hosted.weblate.org/projects/baserow/"
+"enterprise-backend/uk/>\n"
 "Language: uk\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Weblate 5.16-dev\n"
 
 #: baserow_enterprise/audit_log/job_types.py:143
 msgid "User Email"
-msgstr ""
+msgstr "Email користувача"
 
 #: baserow_enterprise/audit_log/job_types.py:144
 msgid "User ID"
-msgstr ""
+msgstr "ID користувача"
 
 #: baserow_enterprise/audit_log/job_types.py:145
 msgid "Group Name"
-msgstr ""
+msgstr "Назва групи"
 
 #: baserow_enterprise/audit_log/job_types.py:146
 msgid "Group ID"
-msgstr ""
+msgstr "ID групи"
 
 #: baserow_enterprise/audit_log/job_types.py:147
 msgid "Action Type"
-msgstr ""
+msgstr "Тип дії"
 
 #: baserow_enterprise/audit_log/job_types.py:148
 msgid "Description"
-msgstr ""
+msgstr "Опис"
 
 #: baserow_enterprise/audit_log/job_types.py:149
 msgid "Timestamp"
-msgstr ""
+msgstr "Мітка часу"
 
 #: baserow_enterprise/audit_log/job_types.py:150
 msgid "IP Address"
-msgstr ""
+msgstr "IP-адреса"
 
 #: baserow_enterprise/audit_log/models.py:30
 msgid "DONE"
-msgstr ""
+msgstr "ВИКОНАНО"
 
 #: baserow_enterprise/audit_log/models.py:31
 msgid "UNDONE"
-msgstr ""
+msgstr "СКАСОВАНО"
 
 #: baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
-msgstr ""
+msgstr "ПОВТОРЕНО"
 
 #: baserow_enterprise/role/actions.py:30
 msgid "Assign role"
-msgstr ""
+msgstr "Призначити роль"
 
 #: baserow_enterprise/role/actions.py:32
 #, python-format
@@ -72,53 +74,55 @@ msgid ""
 "Role %(role_uid)s assigned to %(subject_type)s %(subject_id)s on "
 "%(scope_type)s %(scope_id)s"
 msgstr ""
+"Роль %(role_uid)s призначено для %(subject_type)s %(subject_id)s на %"
+"(scope_type)s %(scope_id)s"
 
 #: baserow_enterprise/teams/actions.py:21
 #, python-format
 msgid "in team \"%(team_name)s\" (%(team_id)s) "
-msgstr ""
+msgstr "у команді \"%(team_name)s\" (%(team_id)s) "
 
 #: baserow_enterprise/teams/actions.py:27
 msgid "Create team"
-msgstr ""
+msgstr "Створити команду"
 
 #: baserow_enterprise/teams/actions.py:28
 #, python-format
 msgid "Team \"%(name)s\" (%(team_id)s) created."
-msgstr ""
+msgstr "Команду \"%(name)s\" (%(team_id)s) створено."
 
 #: baserow_enterprise/teams/actions.py:101
 msgid "Update team"
-msgstr ""
+msgstr "Оновити команду"
 
 #: baserow_enterprise/teams/actions.py:102
 #, python-format
 msgid "Team \"%(name)s\" (%(team_id)s) updated."
-msgstr ""
+msgstr "Команду \"%(name)s\" (%(team_id)s) оновлено."
 
 #: baserow_enterprise/teams/actions.py:193
 msgid "Delete team"
-msgstr ""
+msgstr "Видалити команду"
 
 #: baserow_enterprise/teams/actions.py:194
 #, python-format
 msgid "Team \"%(team_name)s\" (%(team_id)s) deleted."
-msgstr ""
+msgstr "Команду \"%(team_name)s\" (%(team_id)s) видалено."
 
 #: baserow_enterprise/teams/actions.py:240
 msgid "Create team subject"
-msgstr ""
+msgstr "Створити суб'єкт команди"
 
 #: baserow_enterprise/teams/actions.py:240
 #, python-format
 msgid "Subject (%(subject_id)s) created"
-msgstr ""
+msgstr "Суб'єкт (%(subject_id)s) створено"
 
 #: baserow_enterprise/teams/actions.py:320
 msgid "Delete team subject"
-msgstr ""
+msgstr "Видалити суб'єкт команди"
 
 #: baserow_enterprise/teams/actions.py:321
 #, python-format
 msgid "Subject (%(subject_id)s) deleted"
-msgstr ""
+msgstr "Суб'єкт (%(subject_id)s) видалено"

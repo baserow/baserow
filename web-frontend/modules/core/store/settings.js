@@ -23,16 +23,18 @@ export const mutations = {
 
 export const actions = {
   async load({ commit }) {
-    const { data } = await SettingsService(this.$client).get()
+    const { $client } = this
+    const { data } = await SettingsService($client).get()
     commit('SET_SETTINGS', data)
     commit('SET_LOADED', true)
   },
   async update({ commit, getters }, values) {
+    const { $client } = this
     const oldValues = clone(getters.get)
     commit('UPDATE_SETTINGS', values)
 
     try {
-      await SettingsService(this.$client).update(values)
+      await SettingsService($client).update(values)
     } catch (e) {
       commit('SET_SETTINGS', oldValues)
       throw e

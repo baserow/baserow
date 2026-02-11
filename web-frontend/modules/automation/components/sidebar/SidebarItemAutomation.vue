@@ -1,5 +1,5 @@
 <template>
-  <li class="tree__sub" :class="{ active: workflow?._?.selected }">
+  <li class="tree__sub" :class="{ active: workflow?._.selected }">
     <a
       class="tree__sub-link"
       :title="workflow.name"
@@ -16,7 +16,7 @@
     </a>
 
     <a
-      v-show="!automation._.loading"
+      v-show="!automation._?.loading"
       v-if="showOptions"
       class="tree__options"
       @click="$refs.context.toggle($event.currentTarget, 'bottom', 'right', 0)"
@@ -94,6 +94,8 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItemAutomation',
@@ -149,23 +151,24 @@ export default {
         value,
       })
     },
-    selectWorkflow(automation, workflow) {
+    async selectWorkflow(automation, workflow) {
+      if (workflow?._.selected) {
+        return
+      }
       this.setLoading(automation, true)
-      this.$nuxt.$router.push(
-        {
+      try {
+        await this.$nuxt.$router.push({
           name: 'automation-workflow',
           params: {
             automationId: automation.id,
             workflowId: workflow.id,
           },
-        },
-        () => {
-          this.setLoading(automation, false)
-        },
-        () => {
-          this.setLoading(automation, false)
-        }
-      )
+        })
+        await pageFinished()
+        await nextTick()
+      } finally {
+        this.setLoading(automation, false)
+      }
     },
     resolveWorkflowHref(automation, workflow) {
       const props = this.$nuxt.$router.resolve({

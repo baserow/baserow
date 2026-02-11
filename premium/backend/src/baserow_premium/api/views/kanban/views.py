@@ -1,10 +1,3 @@
-from baserow_premium.api.views.errors import ERROR_INVALID_SELECT_OPTION_PARAMETER
-from baserow_premium.api.views.exceptions import InvalidSelectOptionParameter
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.views.exceptions import KanbanViewHasNoSingleSelectField
-from baserow_premium.views.handler import get_rows_grouped_by_single_select_field
-from baserow_premium.views.models import KanbanView
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
@@ -54,6 +47,13 @@ from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow_premium.api.views.errors import ERROR_INVALID_SELECT_OPTION_PARAMETER
+from baserow_premium.api.views.exceptions import InvalidSelectOptionParameter
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.views.exceptions import KanbanViewHasNoSingleSelectField
+from baserow_premium.views.handler import get_rows_grouped_by_single_select_field
+from baserow_premium.views.models import KanbanView
 
 from .errors import (
     ERROR_KANBAN_DOES_NOT_EXIST,

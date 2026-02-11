@@ -9,8 +9,10 @@ let patchRequestProperties = {}
 let patchRequestOldProperties = {}
 
 const mutations = {
-  UPDATE_PROPERTY(state, { builder, key, value }) {
-    builder.theme[key] = value
+  UPDATE(state, { builder, values }) {
+    Object.keys(values).forEach((key) => {
+      builder.theme[key] = values[key]
+    })
   },
 }
 
@@ -20,6 +22,7 @@ const actions = {
    * making the request to the backend to update it.
    */
   setProperty({ commit }, { builder, key, value }) {
+    const { $registry, $i18n, $client, $config } = this
     return new Promise((resolve, reject) => {
       // Call the old resolve function because otherwise it can result in a memory leak.
       if (patchRequestResolve) {
@@ -40,14 +43,13 @@ const actions = {
         patchRequestProperties = {}
 
         try {
-          await ThemeService(this.$client).update(builder.id, properties)
+          await ThemeService($client).update(builder.id, properties)
           resolve()
         } catch (error) {
           Object.keys(oldProperties).forEach((key) => {
-            commit('UPDATE_PROPERTY', {
+            commit('UPDATE', {
               builder,
-              key,
-              value: oldProperties[key],
+              values: { [key]: oldProperties[key] },
             })
           })
           reject(error)
@@ -62,16 +64,16 @@ const actions = {
         patchRequestOldProperties[key] = builder.theme[key]
       }
       patchRequestProperties[key] = value
-      commit('UPDATE_PROPERTY', { builder, key, value })
+      commit('UPDATE', { builder, values: { [key]: value } })
     })
   },
   /**
-   * Immediately updates the provided property, but it will not make a request to
-   * the backend. This is used to visually update an invalid value, or for real-time
-   * collaboration.
+   * Immediately updates the provided values, but it will not make a request to
+   * the backend. This is used to visually update multiple invalid values, or
+   * for real-time collaboration.
    */
-  forceSetProperty({ commit }, { builder, key, value }) {
-    commit('UPDATE_PROPERTY', { builder, key, value })
+  forceUpdate({ commit }, { builder, values }) {
+    commit('UPDATE', { builder, values })
   },
 }
 

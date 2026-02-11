@@ -1,5 +1,3 @@
-import { mapGetters } from 'vuex'
-
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
@@ -29,17 +27,24 @@ export default {
       // The initial vertical position absolute client position of the card after
       // mousedown.
       dragAndDropRowClientY: 0,
+      // Event handler references for cleanup
+      mouseUpEvent: null,
+      keydownEvent: null,
+      mouseMoveEvent: null,
+      // Cloned elements for drag visual feedback
+      clonedElement: null,
+      clonedWrapper: null,
+      // Position offsets for dragged element
+      dragAndDropDownRowTop: 0,
+      dragAndDropDownRowLeft: 0,
     }
   },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        dragAndDropDraggingRow: `${this.$options.methods.getDragAndDropStoreName(
-          this.$options.propsData
-        )}/getDraggingRow`,
-      }),
-    }
+  computed: {
+    dragAndDropDraggingRow() {
+      return this.$store.getters[
+        `${this.getDragAndDropStoreName(this)}/getDraggingRow`
+      ]
+    },
   },
   methods: {
     /**
@@ -58,7 +63,7 @@ export default {
      */
     rowDown(event, row, readOnly = false) {
       // If it isn't a left click.
-      if (event.button !== 0 || row === null) {
+      if (event.button !== 0 || !row) {
         return
       }
 
@@ -66,8 +71,8 @@ export default {
 
       this.dragAndDropDownRow = row
 
-      this.$el.mouseUpEvent = (event) => this.rowUp(event)
-      window.addEventListener('mouseup', this.$el.mouseUpEvent)
+      this.mouseUpEvent = (event) => this.rowUp(event)
+      window.addEventListener('mouseup', this.mouseUpEvent)
 
       if (!readOnly) {
         const rect = event.target.getBoundingClientRect()
@@ -78,15 +83,15 @@ export default {
 
         this.clonedElement = document.createElement('div')
         this.clonedElement.innerHTML = event.target.outerHTML
-        this.clonedElement.style = `position: absolute; left: 0; top: 0; width: ${rect.width}px; z-index: 10;`
+        this.clonedElement.style = `position: absolute; left: 0; top: 0; width: ${rect.width}px; z-index: 10; pointer-events: none;`
         this.clonedElement.firstChild.classList.add(this.dragAndDropCloneClass)
 
         this.clonedWrapper = document.createElement('div')
         this.clonedWrapper.style =
-          'position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; pointer-event: none;'
+          'position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none;'
         this.clonedWrapper.appendChild(this.clonedElement)
 
-        this.$el.keydownEvent = (event) => {
+        this.keydownEvent = (event) => {
           if (event.key === 'Escape') {
             if (this.dragAndDropDraggingRow !== null) {
               this.$store.dispatch(
@@ -101,10 +106,10 @@ export default {
             this.rowCancel(event)
           }
         }
-        document.body.addEventListener('keydown', this.$el.keydownEvent)
+        document.body.addEventListener('keydown', this.keydownEvent)
 
-        this.$el.mouseMoveEvent = (event) => this.rowMove(event)
-        window.addEventListener('mousemove', this.$el.mouseMoveEvent)
+        this.mouseMoveEvent = (event) => this.rowMove(event)
+        window.addEventListener('mousemove', this.mouseMoveEvent)
 
         this.rowMove(event)
       }
@@ -176,10 +181,15 @@ export default {
       // If the view is read only, the clonedWrapper is never created.
       if (this.clonedWrapper) {
         this.clonedWrapper.remove()
+        this.clonedWrapper = null
+        this.clonedElement = null
       }
-      document.body.removeEventListener('keydown', this.$el.keydownEvent)
-      window.removeEventListener('mousemove', this.$el.mouseMoveEvent)
-      window.removeEventListener('mouseup', this.$el.mouseUpEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
+      window.removeEventListener('mousemove', this.mouseMoveEvent)
+      window.removeEventListener('mouseup', this.mouseUpEvent)
+      this.keydownEvent = null
+      this.mouseMoveEvent = null
+      this.mouseUpEvent = null
     },
     /**
      * Must be called when the user hovers over another row. It will check if we're

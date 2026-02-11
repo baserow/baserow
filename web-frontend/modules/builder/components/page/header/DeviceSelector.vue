@@ -12,7 +12,7 @@
         :icon="deviceType.iconClass"
         :model-value="deviceTypeSelected"
         class="device-selector__button"
-        @click.native="$emit('selected', deviceType.getType())"
+        @click="$emit('selected', deviceType.getType())"
       ></RadioButton>
       <slot name="deviceTypeControl" :device-type="deviceType"></slot>
     </div>
@@ -33,6 +33,7 @@ export default {
       default: 'column',
     },
   },
+  emits: ['selected'],
   computed: {
     deviceTypes() {
       return Object.values(this.$registry.getOrderedList('device'))

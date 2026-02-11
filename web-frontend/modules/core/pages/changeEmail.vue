@@ -2,7 +2,7 @@
   <div class="auth__wrapper">
     <div v-if="!success">
       <div class="auth__logo">
-        <nuxt-link :to="{ name: 'index' }">
+        <nuxt-link :to="{ name: 'index' }" custom>
           <Logo />
         </nuxt-link>
       </div>
@@ -51,6 +51,8 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
+import { useHead } from '#app'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
@@ -59,16 +61,16 @@ import AuthService from '@baserow/modules/core/services/auth'
 export default {
   components: { LangPicker },
   mixins: [error],
-  layout: 'login',
+  setup() {
+    const { t } = useI18n()
+    useHead({
+      title: t('changeEmail.title'),
+    })
+  },
   data() {
     return {
       loading: false,
       success: false,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('changeEmail.title'),
     }
   },
   methods: {

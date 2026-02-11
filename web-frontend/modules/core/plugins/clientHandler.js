@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { showError, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
@@ -17,190 +18,189 @@ export class ResponseErrorMessage {
  */
 export class ClientErrorMap {
   constructor(app) {
+    const { $i18n } = app
     // Declare the default error messages.
     this.errorMap = {
       ERROR_USER_NOT_IN_GROUP: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.userNotInWorkspaceTitle'),
-        app.i18n.t('clientHandler.userNotInWorkspaceDescription')
+        $i18n.t('clientHandler.userNotInWorkspaceTitle'),
+        $i18n.t('clientHandler.userNotInWorkspaceDescription')
       ),
       ERROR_USER_INVALID_GROUP_PERMISSIONS: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.invalidWorkspacePermissionsTitle'),
-        app.i18n.t('clientHandler.invalidWorkspacePermissionsDescription')
+        $i18n.t('clientHandler.invalidWorkspacePermissionsTitle'),
+        $i18n.t('clientHandler.invalidWorkspacePermissionsDescription')
       ),
       // @TODO move these errors to the module.
       ERROR_TABLE_DOES_NOT_EXIST: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.tableDoesNotExistTitle'),
-        app.i18n.t('clientHandler.tableDoesNotExistDescription')
+        $i18n.t('clientHandler.tableDoesNotExistTitle'),
+        $i18n.t('clientHandler.tableDoesNotExistDescription')
       ),
       ERROR_ROW_DOES_NOT_EXIST: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.rowDoesNotExistTitle'),
-        app.i18n.t('clientHandler.rowDoesNotExistDescription')
+        $i18n.t('clientHandler.rowDoesNotExistTitle'),
+        $i18n.t('clientHandler.rowDoesNotExistDescription')
       ),
       ERROR_CANNOT_CREATE_FIELD_TYPE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.cannotCreateFieldTypeTitle'),
-        app.i18n.t('clientHandler.cannotCreateFieldTypeDescription')
+        $i18n.t('clientHandler.cannotCreateFieldTypeTitle'),
+        $i18n.t('clientHandler.cannotCreateFieldTypeDescription')
       ),
       ERROR_NOTIFICATION_DOES_NOT_EXIST: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.notificationDoesNotExistTitle'),
-        app.i18n.t('clientHandler.notificationDoesNotExistDescription')
+        $i18n.t('clientHandler.notificationDoesNotExistTitle'),
+        $i18n.t('clientHandler.notificationDoesNotExistDescription')
       ),
       ERROR_FILE_SIZE_TOO_LARGE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.fileSizeTooLargeTitle'),
-        app.i18n.t('clientHandler.fileSizeTooLargeDescription')
+        $i18n.t('clientHandler.fileSizeTooLargeTitle'),
+        $i18n.t('clientHandler.fileSizeTooLargeDescription')
       ),
       ERROR_INVALID_FILE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.invalidFileTitle'),
-        app.i18n.t('clientHandler.invalidFileDescription')
+        $i18n.t('clientHandler.invalidFileTitle'),
+        $i18n.t('clientHandler.invalidFileDescription')
       ),
       ERROR_FILE_URL_COULD_NOT_BE_REACHED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.fileUrlCouldNotBeReachedTitle'),
-        app.i18n.t('clientHandler.fileUrlCouldNotBeReachedDescription')
+        $i18n.t('clientHandler.fileUrlCouldNotBeReachedTitle'),
+        $i18n.t('clientHandler.fileUrlCouldNotBeReachedDescription')
       ),
       ERROR_INVALID_FILE_URL: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.invalidFileUrlTitle'),
-        app.i18n.t('clientHandler.invalidFileUrlDescription')
+        $i18n.t('clientHandler.invalidFileUrlTitle'),
+        $i18n.t('clientHandler.invalidFileUrlDescription')
       ),
       USER_ADMIN_CANNOT_DEACTIVATE_SELF: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.adminCannotDeactivateSelfTitle'),
-        app.i18n.t('clientHandler.adminCannotDeactivateSelfDescription')
+        $i18n.t('clientHandler.adminCannotDeactivateSelfTitle'),
+        $i18n.t('clientHandler.adminCannotDeactivateSelfDescription')
       ),
       USER_ADMIN_CANNOT_DELETE_SELF: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.adminCannotDeleteSelfTitle'),
-        app.i18n.t('clientHandler.adminCannotDeleteSelfDescription')
+        $i18n.t('clientHandler.adminCannotDeleteSelfTitle'),
+        $i18n.t('clientHandler.adminCannotDeleteSelfDescription')
       ),
       USER_ADMIN_ALREADY_EXISTS: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.adminAlreadyExistsTitle'),
-        app.i18n.t('clientHandler.adminAlreadyExistsDescription')
+        $i18n.t('clientHandler.adminAlreadyExistsTitle'),
+        $i18n.t('clientHandler.adminAlreadyExistsDescription')
       ),
       ERROR_MAX_FIELD_COUNT_EXCEEDED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.maxFieldCountExceededTitle'),
-        app.i18n.t('clientHandler.maxFieldCountExceededDescription')
+        $i18n.t('clientHandler.maxFieldCountExceededTitle'),
+        $i18n.t('clientHandler.maxFieldCountExceededDescription')
       ),
       ERROR_CANNOT_RESTORE_PARENT_BEFORE_CHILD: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.cannotRestoreParentBeforeChildTitle'),
-        app.i18n.t('clientHandler.cannotRestoreParentBeforeChildDescription')
+        $i18n.t('clientHandler.cannotRestoreParentBeforeChildTitle'),
+        $i18n.t('clientHandler.cannotRestoreParentBeforeChildDescription')
       ),
       ERROR_CANT_RESTORE_AS_RELATED_TABLE_TRASHED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.cannotRestoreAsRelatedTableTrashedTitle'),
-        app.i18n.t(
-          'clientHandler.cannotRestoreAsRelatedTableTrashedDescription'
-        )
+        $i18n.t('clientHandler.cannotRestoreAsRelatedTableTrashedTitle'),
+        $i18n.t('clientHandler.cannotRestoreAsRelatedTableTrashedDescription')
       ),
       ERROR_GROUP_USER_IS_LAST_ADMIN: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.workspaceUserIsLastAdminTitle'),
-        app.i18n.t('clientHandler.workspaceUserIsLastAdminDescription')
+        $i18n.t('clientHandler.workspaceUserIsLastAdminTitle'),
+        $i18n.t('clientHandler.workspaceUserIsLastAdminDescription')
       ),
       ERROR_MAX_JOB_COUNT_EXCEEDED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.errorMaxJobCountExceededTitle'),
-        app.i18n.t('clientHandler.errorMaxJobCountExceededDescription')
+        $i18n.t('clientHandler.errorMaxJobCountExceededTitle'),
+        $i18n.t('clientHandler.errorMaxJobCountExceededDescription')
       ),
       ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.failedToLockFieldDueToConflictTitle'),
-        app.i18n.t('clientHandler.failedToLockFieldDueToConflictDescription')
+        $i18n.t('clientHandler.failedToLockFieldDueToConflictTitle'),
+        $i18n.t('clientHandler.failedToLockFieldDueToConflictDescription')
       ),
       ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.failedToLockTableDueToConflictTitle'),
-        app.i18n.t('clientHandler.failedToLockTableDueToConflictDescription')
+        $i18n.t('clientHandler.failedToLockTableDueToConflictTitle'),
+        $i18n.t('clientHandler.failedToLockTableDueToConflictDescription')
       ),
       ERROR_UNDO_REDO_LOCK_CONFLICT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.failedToUndoRedoDueToConflictTitle'),
-        app.i18n.t('clientHandler.failedToUndoRedoDueToConflictDescription')
+        $i18n.t('clientHandler.failedToUndoRedoDueToConflictTitle'),
+        $i18n.t('clientHandler.failedToUndoRedoDueToConflictDescription')
       ),
       ERROR_MAXIMUM_SNAPSHOTS_REACHED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.maximumSnapshotsReachedTitle'),
-        app.i18n.t('clientHandler.maximumSnapshotsReachedDescription')
+        $i18n.t('clientHandler.maximumSnapshotsReachedTitle'),
+        $i18n.t('clientHandler.maximumSnapshotsReachedDescription')
       ),
       ERROR_SNAPSHOT_IS_BEING_CREATED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.snapshotBeingCreatedTitle'),
-        app.i18n.t('clientHandler.snapshotBeingCreatedDescription')
+        $i18n.t('clientHandler.snapshotBeingCreatedTitle'),
+        $i18n.t('clientHandler.snapshotBeingCreatedDescription')
       ),
       ERROR_SNAPSHOT_IS_BEING_RESTORED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.snapshotBeingRestoredTitle'),
-        app.i18n.t('clientHandler.snapshotBeingRestoredDescription')
+        $i18n.t('clientHandler.snapshotBeingRestoredTitle'),
+        $i18n.t('clientHandler.snapshotBeingRestoredDescription')
       ),
       ERROR_SNAPSHOT_IS_BEING_DELETED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.snapshotBeingDeletedTitle'),
-        app.i18n.t('clientHandler.snapshotBeingDeletedDescription')
+        $i18n.t('clientHandler.snapshotBeingDeletedTitle'),
+        $i18n.t('clientHandler.snapshotBeingDeletedDescription')
       ),
       ERROR_SNAPSHOT_NAME_NOT_UNIQUE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.snapshotNameNotUniqueTitle'),
-        app.i18n.t('clientHandler.snapshotNameNotUniqueDescription')
+        $i18n.t('clientHandler.snapshotNameNotUniqueTitle'),
+        $i18n.t('clientHandler.snapshotNameNotUniqueDescription')
       ),
       ERROR_SNAPSHOT_OPERATION_LIMIT_EXCEEDED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.snapshotOperationLimitExceededTitle'),
-        app.i18n.t('clientHandler.snapshotOperationLimitExceededDescription')
+        $i18n.t('clientHandler.snapshotOperationLimitExceededTitle'),
+        $i18n.t('clientHandler.snapshotOperationLimitExceededDescription')
       ),
       ERROR_AUTH_PROVIDER_DISABLED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.disabledPasswordProviderTitle'),
-        app.i18n.t('clientHandler.disabledPasswordProviderMessage')
+        $i18n.t('clientHandler.disabledPasswordProviderTitle'),
+        $i18n.t('clientHandler.disabledPasswordProviderMessage')
       ),
       ERROR_OUTPUT_PARSER: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.outputParserTitle'),
-        app.i18n.t('clientHandler.outputParserDescription')
+        $i18n.t('clientHandler.outputParserTitle'),
+        $i18n.t('clientHandler.outputParserDescription')
       ),
       ERROR_GENERATIVE_AI_PROMPT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.generateAIPromptTitle'),
-        app.i18n.t('clientHandler.generateAIPromptDescription')
+        $i18n.t('clientHandler.generateAIPromptTitle'),
+        $i18n.t('clientHandler.generateAIPromptDescription')
       ),
       // TODO: Move to enterprise module if possible
       ERROR_CANNOT_DISABLE_ALL_AUTH_PROVIDERS: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.cannotDisableAllAuthProvidersTitle'),
-        app.i18n.t('clientHandler.cannotDisableAllAuthProvidersDescription')
+        $i18n.t('clientHandler.cannotDisableAllAuthProvidersTitle'),
+        $i18n.t('clientHandler.cannotDisableAllAuthProvidersDescription')
       ),
       ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.maxLocksPerTransactionExceededTitle'),
-        app.i18n.t('clientHandler.maxLocksPerTransactionExceededDescription')
+        $i18n.t('clientHandler.maxLocksPerTransactionExceededTitle'),
+        $i18n.t('clientHandler.maxLocksPerTransactionExceededDescription')
       ),
       ERROR_LAST_ADMIN_OF_GROUP: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.lastAdminTitle'),
-        app.i18n.t('clientHandler.lastAdminMessage')
+        $i18n.t('clientHandler.lastAdminTitle'),
+        $i18n.t('clientHandler.lastAdminMessage')
       ),
       ERROR_GENERATIVE_AI_DOES_NOT_EXIST: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.generativeAIDoesNotExistTitle'),
-        app.i18n.t('clientHandler.generativeAIDoesNotExistDescription')
+        $i18n.t('clientHandler.generativeAIDoesNotExistTitle'),
+        $i18n.t('clientHandler.generativeAIDoesNotExistDescription')
       ),
       ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.modelDoesNotBelongToTypeTitle'),
-        app.i18n.t('clientHandler.modelDoesNotBelongToTypeDescription')
+        $i18n.t('clientHandler.modelDoesNotBelongToTypeTitle'),
+        $i18n.t('clientHandler.modelDoesNotBelongToTypeDescription')
       ),
       ERROR_MAX_NUMBER_OF_PENDING_WORKSPACE_INVITES_REACHED:
         new ResponseErrorMessage(
-          app.i18n.t(
+          $i18n.t(
             'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedTitle'
           ),
-          app.i18n.t(
+          $i18n.t(
             'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedDescription'
           )
         ),
       ERROR_FIELD_IS_ALREADY_PRIMARY: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.fieldIsAlreadyPrimaryTitle'),
-        app.i18n.t('clientHandler.fieldIsAlreadyPrimaryDescription')
+        $i18n.t('clientHandler.fieldIsAlreadyPrimaryTitle'),
+        $i18n.t('clientHandler.fieldIsAlreadyPrimaryDescription')
       ),
       ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.incompatiblePrimaryFieldTypeTitle'),
-        app.i18n.t('clientHandler.incompatiblePrimaryFieldTypeDescription')
+        $i18n.t('clientHandler.incompatiblePrimaryFieldTypeTitle'),
+        $i18n.t('clientHandler.incompatiblePrimaryFieldTypeDescription')
       ),
       ERROR_CANNOT_CREATE_ROWS_IN_TABLE: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.cannotCreateRowsInTableTitle'),
-        app.i18n.t('clientHandler.cannotCreateRowsInTableDescription')
+        $i18n.t('clientHandler.cannotCreateRowsInTableTitle'),
+        $i18n.t('clientHandler.cannotCreateRowsInTableDescription')
       ),
       ERROR_DATABASE_DEADLOCK: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.databaseDeadlockTitle'),
-        app.i18n.t('clientHandler.databaseDeadlockDescription')
+        $i18n.t('clientHandler.databaseDeadlockTitle'),
+        $i18n.t('clientHandler.databaseDeadlockDescription')
       ),
       ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.databaseUniquePrimaryPropertyNotFoundTitle'),
-        app.i18n.t(
+        $i18n.t('clientHandler.databaseUniquePrimaryPropertyNotFoundTitle'),
+        $i18n.t(
           'clientHandler.databaseUniquePrimaryPropertyNotFoundDescription'
         )
       ),
       ERROR_FIELD_DATA_CONSTRAINT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.fieldDataConstraintTitle'),
-        app.i18n.t('clientHandler.fieldDataConstraintDescription')
+        $i18n.t('clientHandler.fieldDataConstraintTitle'),
+        $i18n.t('clientHandler.fieldDataConstraintDescription')
       ),
       ERROR_FIELD_CONSTRAINT: new ResponseErrorMessage(
-        app.i18n.t('clientHandler.fieldConstraintTitle'),
-        app.i18n.t('clientHandler.fieldConstraintDescription')
+        $i18n.t('clientHandler.fieldConstraintTitle'),
+        $i18n.t('clientHandler.fieldConstraintDescription')
       ),
     }
   }
@@ -378,10 +378,10 @@ export class ErrorHandler {
   getNotFoundMessage(name) {
     if (!Object.prototype.hasOwnProperty.call(this.notFoundMap, name)) {
       return new ResponseErrorMessage(
-        this.app.i18n.t('clientHandler.notFoundTitle', {
+        this.app.$i18n.t('clientHandler.notFoundTitle', {
           name: upperCaseFirst(name),
         }),
-        this.app.i18n.t('clientHandler.notFoundDescription', {
+        this.app.$i18n.t('clientHandler.notFoundDescription', {
           name: name.toLowerCase(),
         })
       )
@@ -395,8 +395,8 @@ export class ErrorHandler {
    */
   getNetworkErrorMessage() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.networkErrorTitle'),
-      this.app.i18n.t('clientHandler.networkErrorDescription')
+      this.app.$i18n.t('clientHandler.networkErrorTitle'),
+      this.app.$i18n.t('clientHandler.networkErrorDescription')
     )
   }
 
@@ -406,8 +406,8 @@ export class ErrorHandler {
    */
   getTooManyRequestsError() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.tooManyRequestsTitle'),
-      this.app.i18n.t('clientHandler.tooManyRequestsDescription')
+      this.app.$i18n.t('clientHandler.tooManyRequestsTitle'),
+      this.app.$i18n.t('clientHandler.tooManyRequestsDescription')
     )
   }
 
@@ -440,8 +440,8 @@ export class ErrorHandler {
 
   genericDefaultError() {
     return new ResponseErrorMessage(
-      this.app.i18n.t('clientHandler.notCompletedTitle'),
-      this.app.i18n.t('clientHandler.notCompletedDescription')
+      this.app.$i18n.t('clientHandler.notCompletedTitle'),
+      this.app.$i18n.t('clientHandler.notCompletedDescription')
     )
   }
 
@@ -556,11 +556,14 @@ const prepareRequestHeaders = (store) => (config) => {
   return config
 }
 
-const createAxiosInstance = (app) => {
-  const url =
-    (process.client
-      ? app.$config.PUBLIC_BACKEND_URL
-      : app.$config.PRIVATE_BACKEND_URL) + '/api'
+const createAxiosInstance = (runtimeConfig) => {
+  const publicBackendUrl = runtimeConfig.public.publicBackendUrl
+
+  const baseBackendUrl = import.meta.client
+    ? publicBackendUrl
+    : runtimeConfig.privateBackendUrl || publicBackendUrl
+  const url = `${baseBackendUrl || ''}/api`
+
   return axios.create({
     baseURL: url,
     withCredentials: false,
@@ -571,69 +574,75 @@ const createAxiosInstance = (app) => {
   })
 }
 
-export default function ({ app, store, error }, inject) {
-  const client = createAxiosInstance(app)
-  // Create and inject the client error map, so that other modules can also register
-  // default error messages.
-  const clientErrorMap = new ClientErrorMap(app)
-  inject('clientErrorMap', clientErrorMap)
+export default defineNuxtPlugin({
+  name: 'client-handler',
+  dependsOn: ['i18n', 'create-store'],
+  async setup(nuxtApp) {
+    const runtimeConfig = useRuntimeConfig()
+    const store = nuxtApp.$store
 
-  client.interceptors.request.use(prepareRequestHeaders(store))
+    const client = createAxiosInstance(runtimeConfig)
 
-  // Create a response interceptor to add more detail to the error message
-  // and to create a toast when there is a network error.
-  client.interceptors.response.use(
-    null,
-    makeErrorResponseInterceptor(store, app, clientErrorMap, error)
-  )
+    const clientErrorMap = new ClientErrorMap(nuxtApp)
 
-  // Main auth refresh token
-  const shouldInterceptRequest = () =>
-    store.getters['auth/shouldRefreshToken']()
+    client.interceptors.request.use(prepareRequestHeaders(store))
 
-  const shouldInterceptResponse = (error) =>
-    store.getters['auth/isAuthenticated'] &&
-    error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
-
-  const refreshToken = async () => await store.dispatch('auth/refresh')
-
-  const refreshAuthInterceptor = makeRefreshAuthInterceptor(
-    client,
-    refreshToken,
-    shouldInterceptRequest,
-    shouldInterceptResponse
-  )
-  client.interceptors.response.use(null, refreshAuthInterceptor)
-
-  // User source auth refresh token (only active if it's not a double authentication)
-  const shouldInterceptUserSourceRequest = (req) => {
-    const application = store.getters['userSourceUser/getCurrentApplication']
-    return (
-      !store.getters['auth/isAuthenticated'] &&
-      store.getters['userSourceUser/shouldRefreshToken'](application)
+    client.interceptors.response.use(
+      null,
+      makeErrorResponseInterceptor(store, nuxtApp, clientErrorMap, showError)
     )
-  }
 
-  const shouldInterceptUserSourceResponse = (error) => {
-    const application = store.getters['userSourceUser/getCurrentApplication']
-    return (
-      !store.getters['auth/isAuthenticated'] &&
-      store.getters['userSourceUser/isAuthenticated'](application) &&
+    const shouldInterceptRequest = () =>
+      store.getters['auth/shouldRefreshToken']()
+
+    const shouldInterceptResponse = (error) =>
+      store.getters['auth/isAuthenticated'] &&
       error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
+
+    const refreshToken = async () => await store.dispatch('auth/refresh')
+
+    const refreshAuthInterceptor = makeRefreshAuthInterceptor(
+      client,
+      refreshToken,
+      shouldInterceptRequest,
+      shouldInterceptResponse
     )
-  }
-  const refreshUserSourceToken = async () =>
-    await store.dispatch('userSourceUser/refreshAuth', {
-      application: store.getters['userSourceUser/getCurrentApplication'],
-    })
+    client.interceptors.response.use(null, refreshAuthInterceptor)
 
-  const refreshUserSourceUserInterceptor = makeRefreshAuthInterceptor(
-    client,
-    refreshUserSourceToken,
-    shouldInterceptUserSourceRequest,
-    shouldInterceptUserSourceResponse
-  )
-  client.interceptors.response.use(null, refreshUserSourceUserInterceptor)
+    const shouldInterceptUserSourceRequest = (req) => {
+      const application = store.getters['userSourceUser/getCurrentApplication']
+      return (
+        !store.getters['auth/isAuthenticated'] &&
+        store.getters['userSourceUser/shouldRefreshToken'](application)
+      )
+    }
 
-  inject('client', client)
-}
+    const shouldInterceptUserSourceResponse = (error) => {
+      const application = store.getters['userSourceUser/getCurrentApplication']
+      return (
+        !store.getters['auth/isAuthenticated'] &&
+        store.getters['userSourceUser/isAuthenticated'](application) &&
+        error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
+      )
+    }
+    const refreshUserSourceToken = async () =>
+      await store.dispatch('userSourceUser/refreshAuth', {
+        application: store.getters['userSourceUser/getCurrentApplication'],
+      })
+
+    const refreshUserSourceUserInterceptor = makeRefreshAuthInterceptor(
+      client,
+      refreshUserSourceToken,
+      shouldInterceptUserSourceRequest,
+      shouldInterceptUserSourceResponse
+    )
+    client.interceptors.response.use(null, refreshUserSourceUserInterceptor)
+
+    return {
+      provide: {
+        client,
+        clientErrorMap,
+      },
+    }
+  },
+})

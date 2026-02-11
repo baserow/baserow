@@ -4,7 +4,7 @@ import {
 } from '@baserow/modules/database/utils/virtualScrolling'
 
 describe('test virtualScrolling utils', () => {
-  test('test recycle slots', () => {
+  test('recycle slots', () => {
     const allRows = [
       { id: 1 },
       { id: 2 },
@@ -165,7 +165,7 @@ describe('test virtualScrolling utils', () => {
     ])
   })
 
-  test('test order slots', () => {
+  test('order slots', () => {
     const slots = [
       { id: 0, position: { top: 19 }, item: { id: 20 } },
       { id: 1, position: { top: 20 }, item: null },

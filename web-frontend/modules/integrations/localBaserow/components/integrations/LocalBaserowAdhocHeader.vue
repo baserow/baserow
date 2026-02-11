@@ -62,6 +62,7 @@ export default {
       required: true,
     },
   },
+  emits: ['filters-changed', 'search-changed', 'sortings-changed'],
   data() {
     return {
       view: {

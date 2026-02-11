@@ -63,6 +63,7 @@ export default {
       default: undefined,
     },
   },
+  emits: ['update'],
   data() {
     return {
       localValue: this.mapping?.value,

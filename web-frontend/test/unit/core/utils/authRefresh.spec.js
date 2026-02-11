@@ -5,12 +5,12 @@ describe('test stub interceptors', () => {
     return {
       interceptors: {
         request: {
-          use: jest.fn(() => {
+          use: vi.fn(() => {
             operations.push('request.use')
           }),
         },
         response: {
-          use: jest.fn(() => {
+          use: vi.fn(() => {
             operations.push('response.use')
           }),
         },
@@ -19,7 +19,7 @@ describe('test stub interceptors', () => {
   }
 
   const refreshAuthMock = (operations) =>
-    jest.fn(() => {
+    vi.fn(() => {
       operations.push('promise.created')
       return new Promise((resolve) => {
         operations.push('promise.resolved')
@@ -28,11 +28,11 @@ describe('test stub interceptors', () => {
     })
 
   const onRetryMock = (operations) =>
-    jest.fn(() => {
+    vi.fn(() => {
       operations.push('retry')
     })
 
-  test('test should use correctly requests and response interceptors', async () => {
+  test('should use correctly requests and response interceptors', async () => {
     const operations = []
     const client = stubClient(operations)
 
@@ -88,7 +88,7 @@ describe('test stub interceptors', () => {
     ])
   })
 
-  test('test should not intercept different errors', async () => {
+  test('should not intercept different errors', async () => {
     const operations = []
     const client = stubClient(operations)
     const refreshMock = refreshAuthMock(operations)

@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { firstBy } from 'thenby'
 
@@ -136,7 +135,7 @@ const ArrayOfArraysTable = [
 describe('FormulaFieldType.getSort()', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

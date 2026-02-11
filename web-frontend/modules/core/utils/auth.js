@@ -1,6 +1,8 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
 import jwtDecode from 'jwt-decode'
-import { getDomain } from 'tldjs'
+import tldjs from 'tldjs'
+import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 
 const cookieTokenName = 'jwt_token'
 export const userSourceCookieTokenName = 'user_source_token'
@@ -8,19 +10,23 @@ export const userSessionCookieName = 'user_session'
 const refreshTokenMaxAge = 60 * 60 * 24 * 7
 
 export const setToken = (
-  { $config, $cookies },
+  appOrContext,
   token,
   key = cookieTokenName,
   configuration = { sameSite: null }
 ) => {
-  if (process.SERVER_BUILD) return
-  const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
-  $cookies.set(key, token, {
-    path: '/',
-    maxAge: refreshTokenMaxAge,
-    sameSite:
-      configuration.sameSite || $config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
-    secure,
+  const { runWithContext } = appOrContext
+  return runWithContext(() => {
+    const config = useRuntimeConfig()
+    const secure = isSecureURL(config.public.publicWebFrontendUrl)
+    const cookie = useCookie(key, {
+      path: '/',
+      maxAge: refreshTokenMaxAge,
+      sameSite:
+        configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
+      secure,
+    })
+    cookie.value = token
   })
 }
 
@@ -39,54 +45,68 @@ export const setToken = (
  * @returns
  */
 export const setUserSessionCookie = (
-  { $config, $cookies },
+  appOrContext,
   signedUserSession,
   key = userSessionCookieName,
   configuration = { sameSite: null }
 ) => {
-  if (process.SERVER_BUILD) return
-  const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
+  const { runWithContext } = appOrContext
+  return runWithContext(() => {
+    const config = useRuntimeConfig()
+    const secure = isSecureURL(config.public.publicWebFrontendUrl)
 
-  // To make the cookie available to all subdomains, set the domain to the top-level
-  // domain. This is necessary for the secure_file_serve feature to work across
-  // subdomains, as when the backend serves files from a different subdomain from the
-  // frontend. The top-level domain is extracted from the backend URL.
-  // NOTE: For security reasons, it's not possible to set a cookie for a different
-  // domain, so this won't work if the frontend and backend are on different domains.
-  const topLevelDomain = getDomain($config.PUBLIC_BACKEND_URL)
+    // To make the cookie available to all subdomains, set the domain to the top-level
+    // domain. This is necessary for the secure_file_serve feature to work across
+    // subdomains, as when the backend serves files from a different subdomain from the
+    // frontend. The top-level domain is extracted from the backend URL.
+    // NOTE: For security reasons, it's not possible to set a cookie for a different
+    // domain, so this won't work if the frontend and backend are on different domains.
+    const topLevelDomain = tldjs.getDomain(config.public.publicBackendUrl)
 
-  $cookies.set(key, signedUserSession, {
-    path: '/',
-    maxAge: refreshTokenMaxAge,
-    sameSite:
-      configuration.sameSite || $config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
-    secure,
-    domain: topLevelDomain,
+    const cookie = useCookie(key, {
+      path: '/',
+      maxAge: refreshTokenMaxAge,
+      sameSite:
+        configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
+      secure,
+      domain: topLevelDomain,
+    })
+    cookie.value = signedUserSession
   })
 }
 
-export const unsetToken = ({ $cookies }, key = cookieTokenName) => {
-  if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+export const unsetToken = (appOrContext, key = cookieTokenName) => {
+  const { runWithContext } = appOrContext
+  return runWithContext(() => {
+    const cookie = useCookie(key)
+    cookie.value = null
+  })
 }
 
 export const unsetUserSessionCookie = (
-  { $cookies },
+  appOrContext,
   key = userSessionCookieName
 ) => {
-  if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+  const { runWithContext } = appOrContext
+  runWithContext(() => {
+    const cookie = useCookie(key)
+    cookie.value = null
+  })
 }
 
-export const getToken = ({ $cookies }, key = cookieTokenName) => {
-  return $cookies.get(key)
+export const getToken = async (appOrContext, key = cookieTokenName) => {
+  const { runWithContext } = appOrContext
+  return await runWithContext(() => {
+    const cookie = useCookie(key)
+    return cookie.value
+  })
 }
 
-export const getTokenIfEnoughTimeLeft = (
-  { $cookies },
+export const getTokenIfEnoughTimeLeft = async (
+  appOrContext,
   key = cookieTokenName
 ) => {
-  const token = getToken({ $cookies }, key)
+  const token = await getToken(appOrContext, key)
   const now = Math.ceil(new Date().getTime() / 1000)
 
   let data
@@ -99,7 +119,7 @@ export const getTokenIfEnoughTimeLeft = (
   return data && (data.exp - now) / (data.exp - data.iat) > 0.1 ? token : null
 }
 
-export const logoutAndRedirectToLogin = (
+export const logoutAndRedirectToLogin = async (
   router,
   store,
   showSessionExpiredToast = false,
@@ -107,16 +127,20 @@ export const logoutAndRedirectToLogin = (
   invalidateToken = false
 ) => {
   if (showPasswordChangedToast) {
-    store.dispatch('auth/forceLogoff')
+    await store.dispatch('auth/forceLogoff')
   } else {
-    store.dispatch('auth/logoff', { invalidateToken })
+    await store.dispatch('auth/logoff', { invalidateToken })
   }
-  router.push({ name: 'login', query: { noredirect: null } }, () => {
-    if (showSessionExpiredToast) {
-      store.dispatch('toast/setUserSessionExpired', true)
-    } else if (showPasswordChangedToast) {
-      store.dispatch('toast/setUserPasswordChanged', true)
-    }
-    store.dispatch('auth/clearAllStoreUserData')
-  })
+
+  await router.push({ name: 'login', query: { noredirect: null } })
+  await pageFinished()
+  await nextTick()
+
+  if (showSessionExpiredToast) {
+    store.dispatch('toast/setUserSessionExpired', true)
+  } else if (showPasswordChangedToast) {
+    store.dispatch('toast/setUserPasswordChanged', true)
+  }
+
+  await store.dispatch('auth/clearAllStoreUserData')
 }

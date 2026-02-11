@@ -31,6 +31,7 @@ export default {
       default: false,
     },
   },
+  emits: ['move', 'update'],
   data() {
     return {
       dragging: false,

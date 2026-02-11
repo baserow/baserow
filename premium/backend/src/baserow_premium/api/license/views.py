@@ -3,18 +3,6 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Count, Q, Value
 
-from baserow_premium.license.exceptions import (
-    CantManuallyChangeSeatsError,
-    InvalidLicenseError,
-    LicenseAlreadyExistsError,
-    LicenseHasExpiredError,
-    LicenseInstanceIdMismatchError,
-    NoSeatsLeftInLicenseError,
-    UnsupportedLicenseError,
-    UserAlreadyOnLicenseError,
-)
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.license.models import License
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAdminUser
@@ -28,6 +16,18 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.user.errors import ERROR_USER_NOT_FOUND
 from baserow.core.db import LockedAtomicTransaction
 from baserow.core.user.handler import UserHandler
+from baserow_premium.license.exceptions import (
+    CantManuallyChangeSeatsError,
+    InvalidLicenseError,
+    LicenseAlreadyExistsError,
+    LicenseHasExpiredError,
+    LicenseInstanceIdMismatchError,
+    NoSeatsLeftInLicenseError,
+    UnsupportedLicenseError,
+    UserAlreadyOnLicenseError,
+)
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.license.models import License
 
 from .errors import (
     ERROR_CANT_MANUALLY_CHANGE_SEATS,

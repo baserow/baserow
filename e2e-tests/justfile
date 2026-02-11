@@ -1,0 +1,386 @@
+# E2E Tests Justfile
+# All E2E testing utilities: build, run, test, database dump/restore
+
+# =============================================================================
+# Configuration
+# =============================================================================
+
+# Docker settings
+network := "baserow-e2e"
+# Use same image names as `just build backend ci` and `just build web-frontend ci`
+backend_image := "baserow/backend:ci"
+frontend_image := "baserow/web-frontend:ci"
+db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
+redis_image := "redis:6"
+
+# Database dump settings
+dump_file := "fixtures/e2e-db.dump"
+dump_network := "e2e-dump-net"
+dump_db := "e2e-dump-db"
+
+# Default: show help
+default:
+    @just --list
+
+# =============================================================================
+# Build
+# =============================================================================
+
+# Build CI images for E2E testing (delegates to root justfile)
+[doc("Build backend and frontend CI images for E2E tests")]
+build *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)"
+
+    echo "Building backend and frontend CI images..."
+    echo ""
+
+    # Use root justfile build commands
+    just build backend ci {{ ARGS }} &
+    BACKEND_PID=$!
+
+    just build web-frontend ci {{ ARGS }} &
+    FRONTEND_PID=$!
+
+    # Wait for both to complete
+    BACKEND_EXIT=0
+    FRONTEND_EXIT=0
+    wait $BACKEND_PID || BACKEND_EXIT=$?
+    wait $FRONTEND_PID || FRONTEND_EXIT=$?
+
+    echo ""
+    if [ $BACKEND_EXIT -ne 0 ]; then
+        echo "ERROR: Backend build failed (exit code: $BACKEND_EXIT)"
+    fi
+    if [ $FRONTEND_EXIT -ne 0 ]; then
+        echo "ERROR: Frontend build failed (exit code: $FRONTEND_EXIT)"
+    fi
+    if [ $BACKEND_EXIT -ne 0 ] || [ $FRONTEND_EXIT -ne 0 ]; then
+        exit 1
+    fi
+
+    echo "Images built:"
+    echo "  {{ backend_image }}"
+    echo "  {{ frontend_image }}"
+
+# Check if CI images exist, build them if not
+[private]
+_ensure-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    NEED_BUILD=false
+
+    if ! docker image inspect {{ backend_image }} > /dev/null 2>&1; then
+        echo "Backend CI image not found: {{ backend_image }}"
+        NEED_BUILD=true
+    fi
+
+    if ! docker image inspect {{ frontend_image }} > /dev/null 2>&1; then
+        echo "Frontend CI image not found: {{ frontend_image }}"
+        NEED_BUILD=true
+    fi
+
+    if [ "$NEED_BUILD" = true ]; then
+        echo ""
+        echo "Building missing CI images..."
+        just build
+    fi
+
+# =============================================================================
+# Run Environment
+# =============================================================================
+
+# Start E2E environment (DB, Redis, backend, frontend)
+# Uses pre-generated database dump for fast startup
+[doc("Start E2E environment containers")]
+up: _ensure-images
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)"
+
+    DUMP_FILE="e2e-tests/{{ dump_file }}"
+
+    # Check if dump file exists
+    if [ ! -f "$DUMP_FILE" ]; then
+        echo "Error: Database dump not found at $DUMP_FILE"
+        echo "Run 'just e2e db-dump' to generate it first."
+        exit 1
+    fi
+
+    # Clean up any stopped containers from previous runs
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db 2>/dev/null || true
+    docker volume rm e2e-media 2>/dev/null || true
+
+    # Create network if it doesn't exist
+    docker network create {{ network }} 2>/dev/null || true
+
+    # Start PostgreSQL
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-db$"; then
+        echo "Starting PostgreSQL..."
+        docker run -d --network={{ network }} --name e2e-db \
+            -e POSTGRES_USER=baserow \
+            -e POSTGRES_PASSWORD=baserow \
+            -e POSTGRES_DB=baserow \
+            --tmpfs /var/lib/postgresql/data:size=2G \
+            {{ db_image }}
+    fi
+
+    # Start Redis
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-redis$"; then
+        echo "Starting Redis..."
+        docker run -d --network={{ network }} --name e2e-redis \
+            --tmpfs /data:size=256m \
+            {{ redis_image }}
+    fi
+
+    # Create shared tmpfs volume for user files (backend + celery)
+    # Use a named volume with tmpfs driver for speed and proper permissions
+    docker volume rm e2e-media 2>/dev/null || true
+    docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=512m,uid=9999,gid=9999 e2e-media
+
+    # Wait for PostgreSQL to be ready
+    echo "Waiting for PostgreSQL..."
+    for i in {1..30}; do
+        if docker exec e2e-db pg_isready -U baserow > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+
+    # Restore database from dump (fast - migrations pre-applied)
+    echo "Restoring database from dump..."
+    docker exec e2e-db psql -U baserow -d postgres -c "DROP DATABASE IF EXISTS baserow;" > /dev/null
+    docker exec e2e-db psql -U baserow -d postgres -c "CREATE DATABASE baserow;" > /dev/null
+    docker exec -i e2e-db pg_restore -U baserow -d baserow --no-owner --no-acl < "$DUMP_FILE" 2>/dev/null || true
+    echo "Database restored."
+
+    # Start backend (migrations run on startup to apply any new ones + sync templates)
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-backend$"; then
+        echo "Starting backend..."
+        docker run -d --network={{ network }} --name e2e-backend \
+            -v e2e-media:/baserow/media \
+            -e DATABASE_HOST=e2e-db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://e2e-redis:6379 \
+            -e SECRET_KEY=test \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e MIGRATE_ON_STARTUP=true \
+            -e FEATURE_FLAGS="*" \
+            -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
+            -p 8000:8000 \
+            {{ backend_image }} gunicorn
+    fi
+
+    # Start celery worker (shares media volume with backend)
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-celery$"; then
+        echo "Starting celery worker..."
+        docker run -d --network={{ network }} --name e2e-celery \
+            -v e2e-media:/baserow/media \
+            -e DATABASE_HOST=e2e-db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://e2e-redis:6379 \
+            -e SECRET_KEY=test \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e FEATURE_FLAGS="*" \
+            -e BASEROW_RUN_MINIMAL=yes \
+            -e BASEROW_AMOUNT_OF_WORKERS=1 \
+            {{ backend_image }} celery-worker
+    fi
+
+    # Start frontend
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-frontend$"; then
+        echo "Starting frontend..."
+        docker run -d --network={{ network }} --name e2e-frontend \
+            -e PUBLIC_BACKEND_URL=http://localhost:8000 \
+            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
+            -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
+            -e FEATURE_FLAGS="*" \
+            -p 3000:3000 \
+            {{ frontend_image }} nuxt-prod
+    fi
+
+    echo ""
+    echo "E2E environment started. Containers:"
+    docker ps --filter "name=e2e-" --format "table {{ '{{.Names}}\t{{.Status}}\t{{.Ports}}' }}"
+    echo ""
+    echo "View logs:  just e2e logs"
+    echo "Run tests:  just e2e test"
+    echo "Stop:       just e2e down"
+
+# Stop and remove E2E containers
+[doc("Stop E2E environment")]
+down:
+    #!/usr/bin/env bash
+    echo "Stopping E2E containers..."
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock 2>/dev/null || true
+    docker volume rm e2e-media 2>/dev/null || true
+    docker network rm {{ network }} 2>/dev/null || true
+    echo "E2E environment stopped."
+
+# View E2E container logs
+[doc("View E2E logs: just e2e logs [backend|frontend|db|redis]")]
+logs *SERVICE:
+    #!/usr/bin/env bash
+    if [ -z "{{ SERVICE }}" ]; then
+        # Show all logs interleaved
+        docker logs e2e-backend 2>&1 | sed 's/^/[backend] /' &
+        docker logs e2e-frontend 2>&1 | sed 's/^/[frontend] /' &
+        wait
+    else
+        docker logs -f "e2e-{{ SERVICE }}"
+    fi
+
+# =============================================================================
+# Test
+# =============================================================================
+
+# Run E2E tests (tears down containers when done)
+[doc("Run E2E tests (tears down containers when done)")]
+test *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)/e2e-tests"
+
+    # Check if containers are running
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-backend$"; then
+        echo "E2E environment not running. Start with: just e2e up"
+        exit 1
+    fi
+
+    # Ensure cleanup on exit (success or failure)
+    cleanup() {
+        echo ""
+        echo "Tearing down E2E environment..."
+        just down
+    }
+    trap cleanup EXIT
+
+    export PUBLIC_BACKEND_URL=http://localhost:8000
+    export PUBLIC_WEB_FRONTEND_URL=http://localhost:3000
+
+    # Install dependencies if needed
+    echo "Installing dependencies..."
+    yarn install
+    yarn playwright install
+
+    echo "Waiting for services to be ready..."
+    ./wait-for-services.sh
+
+    echo "Running E2E tests..."
+    if [ -z "{{ ARGS }}" ]; then
+        yarn run test
+    else
+        yarn playwright test {{ ARGS }}
+    fi
+
+# Full E2E cycle: build, start, test, stop
+[doc("Full E2E cycle: build, up, test, down")]
+run: build up test down
+
+# =============================================================================
+# Database Dump
+# =============================================================================
+
+# Generate a fresh database dump with migrations applied (no templates)
+# Templates are synced on E2E startup via post_migrate signal
+[doc("Generate database dump with migrations only")]
+db-dump:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)"
+
+    echo "=== Creating fresh database dump for E2E tests ==="
+
+    # Cleanup any existing containers
+    docker rm -f {{ dump_db }} e2e-dump-backend e2e-dump-redis 2>/dev/null || true
+    docker network rm {{ dump_network }} 2>/dev/null || true
+
+    # Create network
+    docker network create {{ dump_network }}
+
+    # Start PostgreSQL with pgvector
+    echo "Starting PostgreSQL..."
+    docker run -d --network={{ dump_network }} --name {{ dump_db }} \
+        -e POSTGRES_USER=baserow \
+        -e POSTGRES_PASSWORD=baserow \
+        -e POSTGRES_DB=baserow \
+        {{ db_image }}
+
+    # Wait for PostgreSQL
+    echo "Waiting for PostgreSQL to be ready..."
+    for i in {1..30}; do
+        if docker exec {{ dump_db }} pg_isready -U baserow > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+
+    # Build backend image if needed
+    if ! docker image inspect {{ backend_image }} > /dev/null 2>&1; then
+        echo "Building backend CI image..."
+        just build backend ci
+    fi
+
+    # Start Redis (needed for Django)
+    echo "Starting Redis..."
+    docker run -d --network={{ dump_network }} --name e2e-dump-redis {{ redis_image }}
+    sleep 2
+
+    # Run migrations only (use test settings which doesn't sync templates)
+    echo "Running migrations..."
+    docker run --rm --network={{ dump_network }} --name e2e-dump-backend \
+        -e DATABASE_HOST={{ dump_db }} \
+        -e DATABASE_NAME=baserow \
+        -e DATABASE_USER=baserow \
+        -e DATABASE_PASSWORD=baserow \
+        -e REDIS_URL=redis://e2e-dump-redis:6379 \
+        -e SECRET_KEY=dump-generation \
+        -e DJANGO_SETTINGS_MODULE=baserow.config.settings.test \
+        {{ backend_image }} bash -c "python /baserow/backend/src/baserow/manage.py migrate --noinput"
+
+    # Create the dump
+    echo "Creating database dump..."
+    mkdir -p e2e-tests/fixtures
+    docker exec {{ dump_db }} pg_dump -U baserow -Fc baserow > e2e-tests/{{ dump_file }}
+
+    # Show dump info
+    DUMP_SIZE=$(ls -lh e2e-tests/{{ dump_file }} | awk '{print $5}')
+    echo ""
+    echo "=== Database dump created successfully ==="
+    echo "File: e2e-tests/{{ dump_file }}"
+    echo "Size: $DUMP_SIZE"
+    echo ""
+
+    # Cleanup
+    echo "Cleaning up..."
+    docker rm -f {{ dump_db }} e2e-dump-redis 2>/dev/null || true
+    docker network rm {{ dump_network }} 2>/dev/null || true
+
+    echo "Done! Commit the dump file to the repository."
+
+# Restore database from dump file to a container
+[doc("Restore database dump to a PostgreSQL container")]
+db-restore container:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)"
+
+    DUMP_PATH="e2e-tests/{{ dump_file }}"
+
+    if [ ! -f "$DUMP_PATH" ]; then
+        echo "Error: Dump file not found at $DUMP_PATH"
+        echo "Run 'just e2e db-dump' to generate it first."
+        exit 1
+    fi
+
+    echo "Restoring database from dump..."
+    docker exec {{ container }} psql -U baserow -d postgres -c "DROP DATABASE IF EXISTS baserow;"
+    docker exec {{ container }} psql -U baserow -d postgres -c "CREATE DATABASE baserow;"
+    docker exec -i {{ container }} pg_restore -U baserow -d baserow --no-owner --no-acl < "$DUMP_PATH" || true
+    echo "Database restored successfully!"

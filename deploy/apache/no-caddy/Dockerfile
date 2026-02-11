@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 #Don't ask questions during install
 ENV DEBIAN_FRONTEND=noninteractive
 

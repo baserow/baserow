@@ -15,7 +15,17 @@
         "enabled": "Abilitato",
         "disabled": "Disabilitato",
         "or": "o",
-        "and": "e"
+        "and": "e",
+        "alpha": "Alpha",
+        "optional": "Opzionale",
+        "monday": "Lunedì",
+        "tuesday": "Martedì",
+        "wednesday": "Mercoledì",
+        "thursday": "Giovedì",
+        "friday": "Venerdì",
+        "saturday": "Sabato",
+        "sunday": "Domenica",
+        "value": "valore"
     },
     "action": {
         "upload": "Carica",
@@ -76,14 +86,18 @@
         "automationDesc": "Automatizza task ripetitivi e flussi di lavoro.",
         "automation": "Automazione",
         "automations": "Automazioni",
-        "automationDefaultName": "Automazione senza titolo"
+        "automationDefaultName": "Automazione senza titolo",
+        "cantSelectAutomationWorkflowTitle": "Non è possibile scegliere l'automazione",
+        "cantSelectAutomationWorkflowDescription": "L'automazione non può essere scelta perché non ha alcun workflow. Usa la barra laterale per crearne una."
     },
     "settingType": {
         "account": "Account",
         "password": "Password",
         "tokens": "Database Token",
         "deleteAccount": "Elimina account",
-        "emailNotifications": "Notifiche email"
+        "emailNotifications": "Notifiche email",
+        "mcpEndpoint": "Server MCP",
+        "twoFactorAuth": "Autenticazione 2 Fattori"
     },
     "userFileUploadType": {
         "file": "il mio dispositivo",
@@ -108,7 +122,8 @@
         "invalidURL": "Inserisci un URL valido.",
         "alreadyInUse": "Questo campo è già in uso",
         "invalidCharacters": "Questo campo contiene caratteri non validi.",
-        "decimalField": "Il campo deve essere un decimale."
+        "decimalField": "Il campo deve essere un decimale.",
+        "copyFailed": "Operazione di Copia fallita. Per favore riprova."
     },
     "permission": {
         "admin": "Admin",
@@ -291,7 +306,9 @@
         "hasNotDateBefore": "non ha una data precedente",
         "hasNotDateOnOrAfter": "non ha una data uguale o successiva",
         "hasDateWithin": "ha una data entro",
-        "hasNotDateWithin": "non ha una data entro"
+        "hasNotDateWithin": "non ha una data entro",
+        "hasAnyOf": "contiene uno tra",
+        "hasNotAnyOf": "non contiene alcuno di"
     },
     "viewType": {
         "grid": "Griglia",
@@ -312,7 +329,9 @@
         "field": "campo",
         "row": "riga",
         "view": "vista",
-        "rows": "righe"
+        "rows": "righe",
+        "automation_workflow": "workflow di automazione",
+        "automation_node": "nodo automazione"
     },
     "webhook": {
         "request": "Richiesta",
@@ -426,7 +445,15 @@
         "cannotCreateRowsInTableDescription": "Non è possible creare righe in questa tabella",
         "fieldIsAlreadyPrimaryDescription": "Il campo è già il campo primario.",
         "incompatiblePrimaryFieldTypeTitle": "Il campo non è compatibile",
-        "incompatiblePrimaryFieldTypeDescription": "Questo campo non può essere impostato come campo primario."
+        "incompatiblePrimaryFieldTypeDescription": "Questo campo non può essere impostato come campo primario.",
+        "databaseDeadlockTitle": "Azione fallita",
+        "databaseDeadlockDescription": "L'azione non può essere conclusa a causa di molteplici operazioni sui dati in conflitto tra loro nello stesso momento. Per favore riprova.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Nessuna proprietà primaria univoca trovata",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Questo accade in genere se la sorgente di sincronizzazione dei dati non contiene alcuna proprietà da cui ottenere un valore di riga univoco. Nel caso di una tabella, potrebbe essere che non ci sia una chiave primaria.",
+        "fieldConstraintTitle": "Violazione del vincolo di campo",
+        "fieldConstraintDescription": "Impossibile applicare la limitazione.",
+        "fieldDataConstraintTitle": "Violazione della limitazione dei dati di campo",
+        "fieldDataConstraintDescription": "Impossibile completare l'operazione a causa della violazione delle limitazini esistenti."
     },
     "importerType": {
         "csv": "Importa un file CSV",
@@ -461,7 +488,10 @@
         "uploadFileDescription": "Il `file` multipart con il contenuto del file.",
         "uploadFileViaUrl": "Carica un file tramite URL",
         "uploadFileViaUrlDescription": "Carica un file su Baserow fornendo un URL.",
-        "fileUploads": "Carica file"
+        "fileUploads": "Carica file",
+        "listTables": "Elenco tabelle",
+        "sendWebhookEventsDescription": "Parametro di query flag che attiva i webhook dopo l'operazione, se impostato su `y`, `yes`, `true`, `t`, `on`, `1` o lasciato vuoto. Il valore predefinito è `true`",
+        "apiDocs": "Elenca tutte le tabelle"
     },
     "exporterType": {
         "csv": "Esporta in CSV"
@@ -595,5 +625,33 @@
     "health": {
         "description": "Questi controlli mostrano l'attuale stato di salute della tua istanza di Baserow.",
         "title": "Controlli di stato di servizio in Baserow"
+    },
+    "fieldConstraintsSubform": {
+        "description": "Definisci le regole che i valori del campo devono seguire.",
+        "addConstraint": "Aggiungi limitazione",
+        "noConstraintsAvailable": "Nessuna limitazione disponibile per questo tipo di campo.",
+        "readonlyFieldMessage": "Le limitazioni non possono essere applicate a campi di sola lettura.",
+        "errorGenericData": "Non è possibile applicare limitazioni al campo a causa di conflitti tra i dati.",
+        "errorUniqueOrEmpty": "Alcuni valori in questo campo sono duplicati. Rimuovi o modifica i duplicati prima di applicare questa limitazione.",
+        "errorInvalidConstraint": "Questa limitazione di campo non è supportata per questo tipo di campo.",
+        "errorDoesNotSupportDefaultValue": "Non è possibile impostare questa limitazione quando è impostato il valore di default.",
+        "noConstraintsCompatibleWithDefaultValue": "Nessuna limitazione è compatibile quando un valore di default è abilitato."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Inserisci il valore della limitazione"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Chiave univoca comprensiva dei valori vuoti"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} sorgente | {count} sorgenti"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "Argomenti uniti come testo singolo.",
+        "getDescription": "Restituisce il valore ottenuto da una formula Baserow.",
+        "addDescription": "Somma due argomenti.",
+        "minusDescription": "Sottrae il secondo argomento dal primo.",
+        "multiplyDescription": "Moltiplica i due argomenti.",
+        "capitalizeDescription": "Rende maiuscola la prima lettera dell'argomento."
     }
 }

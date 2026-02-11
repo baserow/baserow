@@ -1,6 +1,8 @@
-import styles from '@baserow/modules/core/assets/scss/colors.scss'
+import stylesModule from '@baserow/modules/core/assets/scss/colors.module.scss'
 
-export const colors = Object.keys(styles)
+const styles = { ...stylesModule }
+
+export const colors = Object.keys(styles || {})
 
 /**
  * Returns a random color from the colors array.

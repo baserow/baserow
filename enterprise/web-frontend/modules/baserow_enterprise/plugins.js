@@ -25,7 +25,7 @@ export class EnterprisePlugin extends BaserowPlugin {
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
     sidebarItems.push(AssistantSidebarItem)
-    if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
+    if (!this.app.$config.public.baserowDisableSupport) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
     }
     sidebarItems.push(AuditLogSidebarWorkspace)
@@ -142,10 +142,10 @@ export class EnterprisePlugin extends BaserowPlugin {
    * Adds the custom CSS/JS defined for this builder.
    */
   getBuilderApplicationHeaderAddition({ builder, mode }) {
-    const css = `${this.app.$config.PUBLIC_BACKEND_URL}/api/custom_code/${
+    const css = `${this.app.$config.public.publicBackendUrl}/api/custom_code/${
       builder.id
     }/css/${mode === 'preview' ? '' : 'public/'}`
-    const js = `${this.app.$config.PUBLIC_BACKEND_URL}/api/custom_code/${
+    const js = `${this.app.$config.public.publicBackendUrl}/api/custom_code/${
       builder.id
     }/js/${mode === 'preview' ? '' : 'public/'}`
 
@@ -161,8 +161,8 @@ export class EnterprisePlugin extends BaserowPlugin {
         s.crossorigin === 'credentials'
           ? 'use-credentials'
           : s.crossorigin === 'anonymous'
-          ? 'anonymous'
-          : null
+            ? 'anonymous'
+            : null
 
       if (s.type === 'javascript') {
         script.push({

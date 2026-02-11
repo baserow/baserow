@@ -28,7 +28,7 @@
 
 .box__head-title,
 %box-head-title {
-  word-break: break-word;
+  overflow-wrap: break-word;
   margin: 0;
   padding: 0;
 }

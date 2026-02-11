@@ -125,10 +125,10 @@
 </template>
 
 <script>
+import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { defineComponent, ref, computed } from 'vue'
-import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
@@ -145,9 +145,10 @@ export default defineComponent({
       required: true,
     },
   },
+  emits: ['debug-toggled'],
   setup(props, { emit }) {
     const store = useStore()
-    const { app } = useContext()
+    const app = useNuxtApp()
     const isDev = inject('isDev')
 
     const debug = ref(false)
@@ -159,12 +160,15 @@ export default defineComponent({
       if (!props.automation) return null
       try {
         return store.getters['automationWorkflow/getSelected']
-      } catch (error) {
+      } catch {
         return null
       }
     })
 
     const testRunDisabled = computed(() => {
+      if (!workflow.value?.graph) {
+        return true
+      }
       return !new NodeGraphHandler(workflow.value).hasNodes()
     })
 

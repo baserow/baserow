@@ -20,6 +20,7 @@ export default {
   name: 'ViewFilterTypeSelectOptions',
   components: { FieldCollaboratorDropdown },
   mixins: [viewFilter, availableCollaborators],
+  emits: ['input'],
   computed: {
     copy() {
       const value = this.filter.value

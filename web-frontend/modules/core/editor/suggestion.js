@@ -1,4 +1,4 @@
-import { VueRenderer } from '@tiptap/vue-2'
+import { VueRenderer } from '@tiptap/vue-3'
 import tippy from 'tippy.js'
 
 import RichTextEditorMentionsList from '@baserow/modules/core/components/editor/RichTextEditorMentionsList'
@@ -11,8 +11,8 @@ export default ({ users }) => ({
     return {
       onStart: (props) => {
         component = new VueRenderer(RichTextEditorMentionsList, {
-          parent: this,
-          propsData: { users, ...props },
+          editor: props.editor,
+          props: { users, ...props },
         })
 
         if (!props.clientRect) {

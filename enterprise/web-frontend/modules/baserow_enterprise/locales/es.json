@@ -97,7 +97,8 @@
         "password": "Autenticación de correo electrónico y contraseña",
         "saml": "Proveedor SAML SSO",
         "ssoSamlProviderName": "SSO SAML: {domain}",
-        "ssoSamlProviderNameUnconfigured": "SSO SAML no configurado"
+        "ssoSamlProviderNameUnconfigured": "SSO SAML no configurado",
+        "ssoOIDCProviderNameUnconfigured": "No se ha configurado el OpenID Connect"
     },
     "editAuthProviderMenuContext": {
         "edit": "Editar",
@@ -258,7 +259,18 @@
         "baseUrl": "URL",
         "baseUrlPlaceholder": "URL base del proveedor",
         "invalidBaseUrl": "La URL introducida no es una URL de proveedor válida",
-        "callbackUrl": "URL de devolución de llamada"
+        "callbackUrl": "URL de devolución de llamada",
+        "firstNameAttrKey": "Nombre",
+        "duplicateBaseUrl": "La URL ingresada ya existe en otro proveedor",
+        "useIdToken": "Utiliza el «token id» para obtener información del usuario",
+        "responseSettings": "Atributos de respuesta OIDC",
+        "defaultAttrs": "Predeterminado",
+        "customAttrs": "Personalizado",
+        "emailAttrKey": "Correo electrónico",
+        "emailAttrKeyHelper": "La dirección de correo electrónico que se usará como nombre de usuario para el usuario. ",
+        "lastNameAttrKey": "Apellidos",
+        "firstNameAttrKeyHelper": "El primer nombre del usuario, o el nombre completo si no se indica los 'Apellidos'.",
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’."
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
@@ -283,7 +295,25 @@
         "auditLogs": "Registros de auditoría",
         "coBranding": "Sustitución del logotipo de marca compartida",
         "support": "Apoyo directo",
-        "dataSync": "Sincronizar datos"
+        "dataSync": "Sincronizar datos",
+        "ssoContent": "Habilita inicios de sesión seguros y sin interrupciones con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Admite varios proveedores a la vez. Ten en cuenta que tanto Baserow como herramienta, como el sistema de autenticación del creador de aplicaciones, soportan SSO.",
+        "rbacContent": "Gestiona permisos con precisión. Asigna roles como administrador, creador, editor, comentarista o espectador a nivel de espacio de trabajo, base de datos o tabla. También puedes gestionar el acceso por equipo.",
+        "auditLogsContent": "Rastrea todo lo que ocurre. Visualiza un historial completo de acciones en tu instancia o espacio de trabajo, filtrable por usuario, acción y más.",
+        "dataSyncContent": "Mantén automáticamente las tablas actualizadas sincronizándolas con otras tablas de Baserow o con fuentes externas como Jira, GitHub, GitLab o HubSpot. También permite sincronizar de forma periódica y habilita la sincronización bidireccional de datos para los tipos de sincronización compatibles.",
+        "coBrandingContent": "Personaliza la interfaz de Baserow con tu propio logo. Ten en cuenta que se añade “powered by Baserow”.",
+        "supportContent": "Obtén ayuda cuando la necesites. Contacta al equipo de Baserow directamente desde la plataforma.",
+        "advancedWebhooks": "Webhooks avanzados",
+        "advancedWebhooksContent": "Activar webhooks cuando una fila entra en una vista específica — ideal para automatizar flujos de trabajo basados en condiciones de filtro.",
+        "fieldLevelPermissions": "Permisos a nivel de campo",
+        "fieldLevelPermissionsContent": "Controla quién puede editar campos específicos en una tabla. Establece permisos para editores, creadores, administradores o desactiva por completo las modificaciones de los valores de los campos.",
+        "builderBranding": "Marca de la aplicación",
+        "builderBrandingContent": "Aplica marca blanca a la identidad de tu aplicación eliminando la marca «Hecho con Baserow» del pie de página de tu aplicación.",
+        "builderFileInputElement": "Elemento de entrada de archivo",
+        "builderFileInputElementContent": "El elemento de entrada de archivo te permite añadir un campo a las páginas de tu aplicación para subir archivos. Da a tus usuarios la posibilidad de almacenar documentos importantes o imágenes.",
+        "builderCustomCode": "Código personalizado para aplicaciones",
+        "builderCustomCodeContent": "Puedes añadir código CSS/JavaScript personalizado para personalizar aún más el aspecto y el comportamiento de tu aplicación. Por ejemplo, puedes integrar servicios externos como analítica o redes sociales.",
+        "dateDependency": "Dependencia de fecha",
+        "dateDependencyContent": "Puedes definir una dependencia entre dos fechas y una duración como fecha de inicio/final y duración. Con dependencia de fecha, si un valor cambia, los demás valores se ajustarán en consecuencia."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Apoyo directo"
@@ -316,7 +346,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "Correo electrónico/contraseña",
-        "commonSaml": "SAML SSO"
+        "commonSaml": "SAML SSO",
+        "openIdConnect": "Conexión OpenID"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Seleccionar campo de contraseña",
@@ -329,7 +360,7 @@
         "showBaserowHelpMessage": "Mostrar un mensaje de ayuda",
         "showBaserowHelpMessageDescription": "Indica si el mensaje de la solicitud de ayuda debe mostrarse en el panel.",
         "coBrandingLogo": "Logotipo",
-        "coBrandingLogoDescription": "Reemplaza el logotipo de Baserow por una alternativa personalizada de un logotipo de una marca (176x29)."
+        "coBrandingLogoDescription": "Reemplaza el logo de Baserow por una alternativa personalizada de marca (176×29). Si está configurado, también elimina la descripción de Baserow en el pie de página de todos los correos electrónicos."
     },
     "enterpriseModal": {
         "title": "Actualiza para utilizar el {name}",
@@ -355,7 +386,9 @@
         "authorizing": "Está autorizando a su cuenta a seleccionar los datos de la tabla de origen.",
         "database": "Base de datos",
         "table": "Tabla",
-        "workspace": "Espacio de trabajo"
+        "workspace": "Espacio de trabajo",
+        "view": "Vista",
+        "viewHelper": "Solo los campos y filas visibles que coinciden con los filtros se sincronizan."
     },
     "enterpriseDataSyncType": {
         "localBaserowTable": "Sincronizar tabla Baserow",
@@ -372,7 +405,11 @@
         "jiraUsername": "Nombre de usuario de Jira",
         "usernameHelper": "El nombre de usuario de la cuenta de Jira utilizada para autenticarse. Este es el correo electrónico que se utiliza para iniciar sesión.",
         "apiToken": "Token API de Jira",
-        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens."
+        "apiTokenHelper": "El token de API de la cuenta de Jira utilizada para la autenticación. Puede crearse en https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "authenticationLabel": "Autenticación",
+        "authenticationHelper": "Elige cómo autenticarte con Jira.",
+        "personalAccessToken": "Token de acceso personal de Jira",
+        "personalAccessTokenHelper": "El token API de la cuenta de Jira usado para la autenticación. Puede crearse en https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "repo": "Repositorio",
@@ -410,6 +447,270 @@
         "acsTitle": "URL de inicio de sesión único por dominio (Haz clic para copiar)"
     },
     "commonSamlSettingForm": {
-        "authProviderInError": "Por favor, edita este proveedor para corregir el error."
+        "authProviderInError": "Por favor, edita este proveedor para corregir el error.",
+        "relayStateTitle": "URL de estado de retransmisión predeterminada (Haz clic para copiar)",
+        "acsTitle": "Enlace de inicio de sesión único [SSO] (Haz clic para copiar)",
+        "addDomainNotice": "Disponible cuando se haya añadido uno o más dominios"
+    },
+    "advanced": {
+        "license": "Avanzado"
+    },
+    "commonOidcSettingForm": {
+        "preview": "Vista previa",
+        "callbackTitle": "URLs de retorno (Haz clic para copiar)",
+        "callbackHelperText": "Añade estas URLs a la configuración de «Redirect URI» de tu proveedor de conexión «OpenID»."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Permite editar los valores de las celdas directamente en Baserow y los envía en tiempo real a la fuente de sincronización de datos. Ten en cuenta que los cambios no se extraen en tiempo real porque dependen de la acción de sincronización (periódica) para completarse. Se recomienda encarecidamente crear copias de seguridad de la base de datos PostgreSQL para evitar modificaciones accidentales."
+    },
+    "assistantPanel": {
+        "close": "Cerrar asistente de IA",
+        "title": "Asistente IA",
+        "history": "Historial de chat",
+        "back": "Atrás"
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma IA"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Hola {name}",
+        "question": "¡Mi nombre es Kuma!",
+        "subtitle": "Te ayudaré a soportar la carga para que nunca se sienta pesada. Elige entre los prompts a continuación o simplemente ¡dime lo que necesitas!",
+        "subtitleWithoutSuggestions": "Te ayudaré a soportar la carga para que nunca se sienta pesada. ¡Solo dime lo que necesitas!",
+        "promptCreateDatabaseTitle": "Crea una base de datos",
+        "promptCreateDatabasePrompt": "Construye una base de datos de gestión de proyectos.",
+        "promptCreateAutomationTitle": "Crea una automatización",
+        "promptCreateAutomationPrompt": "Crea una automatización que cada martes por la mañana pregunte en el canal de desarrolladores de Slack si hay algo para demostrar.",
+        "promptInviteUsersTitle": "Invitar usuarios",
+        "promptInviteUsersPrompt": "¿Cómo invito a los usuarios a mi espacio de trabajo?",
+        "promptCreateTableTitle": "Crear una tabla",
+        "promptCreateTablePrompt": "Crea una tabla nueva llamada «tareas».",
+        "promptWhichTablesTitle": "Cuáles tablas",
+        "promptWhichTablesPrompt": "¿Qué tablas tengo en esta base de datos?",
+        "promptCreateFormTitle": "Crear un formulario",
+        "promptCreateFormPrompt": "Crear un formulario para esta tabla.",
+        "promptCreateFilterTitle": "Crear un filtro",
+        "promptCreateFilterPrompt": "Mostrar solo las filas donde el campo principal está vacío."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "El asistente está listo para ayudar",
+        "statusRunning": "Ejecutándose…",
+        "placeholder": "Pregúntame lo que quieras…",
+        "send": "Enviar mensaje",
+        "stop": "Detener la generación"
+    },
+    "assistant": {
+        "statusThinking": "Pensando...",
+        "statusAnswering": "Respondiendo…",
+        "statusCancelling": "Cancelando...",
+        "messageCancelled": "Mensaje cancelado"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "No hay historial de chat disponible",
+        "loading": "Cargando historial de chat…"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} fuente | {count} fuentes"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma puede cometer errores, por favor verifica las respuestas"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Ayúdanos a mejorar",
+        "copiedToClipboard": "Copiado al portapapeles",
+        "feedbackContextPlaceholder": "¿En qué podemos mejorar? (opcional)",
+        "copiedContentToast": "El contenido de la respuesta del Asistente se ha copiado en tu portapapeles",
+        "copyFailed": "Error al copiar al portapapeles"
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Configuración periódica"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Configuración periódica",
+        "saved": "Guardado",
+        "deactivatedTitle": "Sincronización de datos periódica desactivada",
+        "deactivatedText": "La sincronización de datos periódica se desactivó porque falló demasiadas veces consecutivas. Por favor, intenta sincronizar manualmente y, si funciona como se espera, haz clic en el botón de activar.",
+        "activate": "Activar sincronización periódica",
+        "enterprise": "La sincronización de datos periódica es una función avanzada/enterprise.",
+        "more": "Más información"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "manual": "Manual",
+        "daily": "Diario",
+        "intervalLabel": "Intervalo",
+        "intervalHelper": "Con qué frecuencia debe sincronizarse automáticamente la sincronización de datos.",
+        "hourly": "Horario",
+        "whenHelper": "Indica la hora, minuto y segundo exactos en los que la sincronización de datos debe ejecutarse.",
+        "whenHourlyHelper": "Indica el minuto y segundo exactos en los que la sincronización de datos debe ejecutarse.",
+        "hour": "Hora",
+        "minute": "Minuto",
+        "second": "Segundo"
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} con {provider}"
+    },
+    "chartWidget": {
+        "name": "Gráfico",
+        "bar": "Gráfico de barras",
+        "line": "Gráfico de líneas"
+    },
+    "pieChartWidget": {
+        "name": "Gráfico de pastel",
+        "pie": "Gráfico de pastel",
+        "doughnut": "Gráfico de dona",
+        "polarArea": "Gráfico polar de áreas"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Series",
+        "addSeries": "Añadir series",
+        "data": "Datos",
+        "sourceFieldLabel": "Fuente",
+        "viewFieldLabel": "Vista",
+        "notSelected": "No seleccionado"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Resumen",
+        "deleteSeries": "Eliminar series",
+        "chartType": "Tipo de gráfico",
+        "barChart": "Barra",
+        "lineChart": "Línea",
+        "pieChart": "Pastel",
+        "doughnutChart": "Dona",
+        "polarAreaChart": "Área polar"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Agrupar por",
+        "groupByNone": "Ninguno",
+        "groupByRowId": "Id de fila"
+    },
+    "aggregationSortByForm": {
+        "none": "Ninguno",
+        "sortByFieldLabel": "Ordenar por",
+        "ascending": "Ascendente",
+        "descending": "Descendente"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "{name} sincronización periódica de datos ha sido desactivada porque falló demasiadas veces consecutivas.",
+        "licenseUnavailable": "{name} la sincronización periódica de datos ha sido deshabilitada porque el espacio de trabajo ya no tiene una licencia válida. Por favor, actualiza tu licencia para restaurar la sincronización automática."
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} actualización de sincronización bidireccional falló: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "{name} sincronización bidireccional desactivada porque una actualización falló demasiadas veces consecutivas. Por favor, sincroniza manualmente y reactiva cuando el problema se haya resuelto."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Filas que se muestran en la vista"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Se activa cuando las filas que se muestran en la vista.",
+        "helpTriggerWhenRowsEnterView": "Solo se activa cuando se selecciona «Filas que se muestran en la vista» y las filas que ahora cumplen los filtros que se muestran en la vista."
+    },
+    "fileInputElementForm": {
+        "defaultNameTitle": "Nombre de archivo inicial|Nombres de archivo iniciales",
+        "defaultNamePlaceholder": "Introduce un nombre de archivo...|Introduce los nombres de archivo...",
+        "defaultNameHelp": "El número de nombres debe coincidir con el número de URLs.",
+        "defaultUrlTitle": "URL de archivo inicial|URLs de archivos iniciales",
+        "defaultUrlPlaceholder": "Introduce una URL predeterminada...|Introduce URLs predeterminadas...",
+        "helpTextTitle": "Texto de ayuda",
+        "helpTextPlaceholder": "Dejar vacío para usar el valor predeterminado…",
+        "multiple": "¿Múltiples archivos?",
+        "required": "Obligatorio",
+        "fileTypes": "Tipos de archivo",
+        "preview": "¿Previsualizar imágenes?",
+        "maxFileSize": "Tamaño máximo de archivo",
+        "maxFileSizePlaceholder": "Introduce un número…",
+        "addFileType": "Añadir tipo de archivo",
+        "fileTypesHelper": "Elige qué extensiones de archivo se permiten (una por línea) en la entrada de archivo (ej. jpg, png, svg, pdf). puedes especificar «image/*», «video/*» o «audio/*» para permitir todos los archivos de estos tipos. Déjalo vacío para permitir todos los tipos de archivo."
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Arrastrar y soltar archivos aquí o hacer clic para seleccionar",
+        "fileSizeExceeded": "Archivo demasiado grande. Máximo {max}MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Editar permisos de campo",
+        "description": "Elige quién puede editar valores en {fieldName}.",
+        "question": "¿Quién puede editar este campo?",
+        "editorTitle": "Editores y niveles superiores (predeterminado)",
+        "editorDescription": "Usuarios con roles de Editor, Creador y Administrador",
+        "builderTitle": "Creadores y niveles superiores",
+        "builderDescription": "Usuarios con roles Creador y Administrador",
+        "adminTitle": "Solo administradores",
+        "adminDescription": "Usuarios con roles Administrador",
+        "nobodyTitle": "Nadie",
+        "nobodyDescription": "Ningún usuario",
+        "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
+        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada."
+    },
+    "builderSettingTypes": {
+        "customCode": "CSS/JS personalizados"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "CSS personalizado",
+        "customJS": "JavaScript personalizado",
+        "customCSSPlaceholder": "Introduce algún código CSS personalizado…",
+        "customJSPlaceholder": "Introduce algún código JS personalizado…",
+        "externalScripts": "Scripts / hojas de estilo externos",
+        "customCodeTitle": "Código personalizado",
+        "noScript": "Mejora tu aplicación con scripts u hojas de estilo externas",
+        "customCodeHelp": "El código personalizado solo es visible en vistas previas o aplicaciones publicadas, los resultados no son visibles en el editor.",
+        "addExternalScript": "Agregar un script externo"
+    },
+    "customCodeSettingScriptForm": {
+        "loadType": "Tipo de carga",
+        "type": "Tipo",
+        "url": "URL",
+        "urlPlaceholder": "Introduce la URL del script…",
+        "crossorigin": "Origen cruzado",
+        "includeCredentials": "Incluye credenciales",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Aplazar (Defer)",
+        "crossoriginTypeNone": "Normal",
+        "loadTypeAsync": "Asíncrono",
+        "crossoriginTypeAnonymous": "Anónimo",
+        "crossoriginTypeCredentials": "Usa credenciales"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión",
+        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Editar permisos de campo"
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Dependencia de fecha",
+        "dependencyFieldTooltip": "Configura dependencias de fecha",
+        "dependencyFieldTooltipError": "Una regla de campo contiene un error",
+        "contextMenuItemLabel": "Configura las dependencias de fecha",
+        "title": "Dependencia de fecha para {tableName}",
+        "description": "Especifica qué filas dependen de otras. Cuando una fila se reprograma, sus filas dependientes se ajustan automáticamente.",
+        "enableDateDependency": "Habilita las dependencias de fecha para «Proyectos»",
+        "startDateFieldLabel": "Fecha de inicio",
+        "endDateFieldLabel": "Fecha de fin",
+        "durationFieldLabel": "Duración",
+        "durationFieldHint": "Este campo debe usar el formato «d h».",
+        "dependencyLinkrowFieldLabel": "Predecesores",
+        "dependencyLinkrowFieldHint": "Utiliza un campo «Enlace a la tabla» para conectar una fila con sus predecesores.",
+        "dependencyBufferTypeLabel": "Lógica de reprogramación",
+        "durationBufferLabel": "'Buffer' de tiempo",
+        "dependencyConnectionTypeLabel": "Tipo",
+        "advancedSettingsLabel": "Configuración avanzada",
+        "includeWeekendsLabel": "Incluye los fines de semana al calcular duraciones",
+        "dependencyFieldForReaderTooltip": "Este campo está incluido en la regla de campo de dependencia de fecha",
+        "fieldInvalidTitle": "Error de campo en la dependencia de fecha"
+    },
+    "dateDependency": {
+        "invalidChildRow": "La fila sucesora es inválida",
+        "invalidParentRow": "La fila predecesora es inválida",
+        "invalidParentEndDateAfterChildStartDate": "La fecha de fin de la fila predecesora es posterior a la fecha de inicio de la fila sucesora",
+        "invalidStartDateEmpty": "La fecha de inicio está vacía",
+        "invalidEndDateEmpty": "La fecha de fin está vacía",
+        "invalidEndDateBeforeStartDate": "La fecha de fin es anterior a la fecha de inicio",
+        "invalidDurationValue": "El valor de duración no es válido",
+        "invalidDurationEmpty": "La duración está vacía",
+        "invalidDurationMismatch": "Desajuste de valor de duración"
     }
 }

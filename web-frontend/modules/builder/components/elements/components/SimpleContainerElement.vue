@@ -54,6 +54,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   methods: {
     showAddElementModal() {
       this.$refs.addElementModal.show({

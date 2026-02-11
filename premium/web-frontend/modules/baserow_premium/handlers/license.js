@@ -1,7 +1,7 @@
 export class LicenseHandler {
   constructor(app) {
-    this.getters = app.store.getters
-    this.dispatch = app.store.dispatch
+    this.getters = app.$store.getters
+    this.dispatch = app.$store.dispatch
     this.$registry = app.$registry
     this.app = app
   }

@@ -11,7 +11,11 @@ describe('Kanban view store', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    store = testApp.store
+    store = testApp.createStore({
+      modules: {
+        kanban: kanbanStore,
+      },
+    })
   })
 
   afterEach(() => {
@@ -36,8 +40,7 @@ describe('Kanban view store', () => {
       singleSelectFieldId: 1,
       stacks,
     })
-    kanbanStore.state = () => state
-    store.registerModule('kanban', kanbanStore)
+    store.replaceState({ ...store.state, kanban: state })
 
     const fields = []
     await store.dispatch('kanban/createdNewRow', {
@@ -109,8 +112,7 @@ describe('Kanban view store', () => {
       singleSelectFieldId: 1,
       stacks,
     })
-    kanbanStore.state = () => state
-    store.registerModule('kanban', kanbanStore)
+    store.replaceState({ ...store.state, kanban: state })
 
     const fields = []
 
@@ -174,8 +176,7 @@ describe('Kanban view store', () => {
       singleSelectFieldId: 1,
       stacks,
     })
-    kanbanStore.state = () => state
-    store.registerModule('kanban', kanbanStore)
+    store.replaceState({ ...store.state, kanban: state })
 
     const fields = []
 

@@ -86,6 +86,8 @@ const actions = {
       replace = false,
     }
   ) {
+    const { $registry, $i18n, $client, $config } = this
+
     /**
      * If `dataSource` is `null`, this means that we are trying to fetch the content
      * of a nested collection element, such as a repeat nested in a repeat.
@@ -101,7 +103,7 @@ const actions = {
       return
     }
 
-    const serviceType = this.app.$registry.get('service', dataSource.type)
+    const serviceType = $registry.get('service', dataSource.type)
 
     try {
       let rangeToFetch = range
@@ -140,7 +142,7 @@ const actions = {
         ? new AbortController()
         : null
 
-      const { data } = await service(this.app.$client).dispatch(
+      const { data } = await service($client).dispatch(
         dataSource.id,
         dispatchContext,
         { range: rangeToFetch, filters, sortings, search, searchMode },

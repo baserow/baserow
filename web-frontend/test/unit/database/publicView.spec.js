@@ -3,13 +3,13 @@ import PublicGrid from '@baserow/modules/database/pages/publicView'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
+vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
 
 describe('Public View Page Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })
@@ -22,9 +22,7 @@ describe('Public View Page Tests', () => {
     givenAPubliclySharedGridViewWithSlug(gridViewName, slug)
 
     const publicGridViewPage = await testApp.mount(PublicGrid, {
-      asyncDataParams: {
-        slug,
-      },
+      route: `/public/grid/${slug}`,
     })
 
     expect(publicGridViewPage.html()).toContain(gridViewName)
@@ -37,36 +35,37 @@ describe('Public View Page Tests', () => {
     givenAPubliclySharedGridViewWithSlug(gridViewName, slug)
 
     await testApp.mount(PublicGrid, {
-      asyncDataParams: {
-        slug,
-      },
+      route: `/public/grid/${slug}`,
     })
 
-    const allCookies = testApp.store.$cookies
-    const cookieValue = allCookies.get('defaultViewId')
-    expect(cookieValue.length).toBe(0)
+    const cookie = useCookie('defaultViewId', {
+      path: '/',
+    })
+    expect(cookie.value.length).toBe(0)
   })
 
   function givenAPubliclySharedGridViewWithSlug(name, slug) {
+    mockServer.fakeSettings()
+
     const fields = [
       {
-        id: 0,
+        id: 1,
         name: 'Name',
         type: 'text',
         primary: true,
       },
       {
-        id: 1,
+        id: 2,
         name: 'Last name',
         type: 'text',
       },
       {
-        id: 2,
+        id: 3,
         name: 'Notes',
         type: 'long_text',
       },
       {
-        id: 3,
+        id: 4,
         name: 'Active',
         type: 'boolean',
       },

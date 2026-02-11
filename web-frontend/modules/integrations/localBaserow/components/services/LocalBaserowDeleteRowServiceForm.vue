@@ -4,7 +4,6 @@
     enable-row-id
     v-bind="$attrs"
     :enable-view-picker="false"
-    v-on="$listeners"
   />
 </template>
 

@@ -207,6 +207,8 @@ import WebhookModal from '@baserow/modules/database/components/webhook/WebhookMo
 import SidebarDuplicateTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarDuplicateTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarItem',
@@ -283,7 +285,7 @@ export default {
       const { period, count } = getHumanPeriodAgoCount(
         this.table.data_sync.last_sync
       )
-      return this.$tc(`datetime.${period}Ago`, count)
+      return this.$t(`datetime.${period}Ago`, { count })
     },
     dataSyncType() {
       return this.$registry.get('dataSync', this.table.data_sync.type)
@@ -303,16 +305,26 @@ export default {
       })
     },
     async selectTable(database, table) {
+      if (table._.selected) {
+        return
+      }
+
       this.setLoading(database, true)
 
       try {
-        await this.$nuxt.$router.push({
+        // Vue Router 4: push() resolves to undefined on success, or a
+        // NavigationFailure on failure (e.g. duplicate navigation).
+        const failure = await this.$router.push({
           name: 'database-table',
           params: {
             databaseId: database.id,
             tableId: table.id,
           },
         })
+        if (failure === undefined) {
+          await pageFinished()
+          await nextTick()
+        }
       } finally {
         this.setLoading(database, false)
       }
@@ -382,7 +394,7 @@ export default {
       this.deleteLoading = false
     },
     resolveTableHref(database, table) {
-      const props = this.$nuxt.$router.resolve({
+      const props = this.$router.resolve({
         name: 'database-table',
         params: {
           databaseId: database.id,

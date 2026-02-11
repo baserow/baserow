@@ -15,7 +15,17 @@
         "disabled": "Desactivado",
         "summarize": "Resumir",
         "or": "o",
-        "and": "y"
+        "and": "y",
+        "alpha": "Alfa",
+        "optional": "Opcional",
+        "monday": "Lunes",
+        "tuesday": "Martes",
+        "wednesday": "Miércoles",
+        "thursday": "Jueves",
+        "friday": "Viernes",
+        "saturday": "Sábado",
+        "sunday": "Domingo",
+        "value": "valor"
     },
     "action": {
         "upload": "Subir",
@@ -72,21 +82,29 @@
         "dashboards": "Paneles de control",
         "dashboardDefaultName": "Tablero sin título",
         "dashboard": "Tablero",
-        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos."
+        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos.",
+        "automation": "Automatización",
+        "automations": "Automatizaciones",
+        "automationDesc": "Automatiza tareas repetitivas y flujos de trabajo.",
+        "automationDefaultName": "Automatización sin título",
+        "cantSelectAutomationWorkflowTitle": "No se pudo seleccionar la automatización.",
+        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno."
     },
     "settingType": {
         "account": "Cuenta",
         "password": "Contraseña",
         "tokens": "Fichas de la base de datos",
         "deleteAccount": "Borrar cuenta",
-        "emailNotifications": "Notificaciones por correo electrónico"
+        "emailNotifications": "Notificaciones por correo electrónico",
+        "mcpEndpoint": "Servidor MCP",
+        "twoFactorAuth": "Autenticación de dos factores (2FA)"
     },
     "userFileUploadType": {
         "file": "mi dispositivo",
         "url": "una URL"
     },
     "field": {
-        "emailAddress": "Correo electrónico"
+        "emailAddress": "Dirección de correo electrónico"
     },
     "error": {
         "invalidEmail": "Por favor, introduce un correo electrónico válido.",
@@ -96,15 +114,16 @@
         "minMaxLength": "Aquí se permite un mínimo de {min} y un máximo de {max} caracteres.",
         "requiredField": "Este campo es requerido.",
         "integerField": "El campo debe ser un número entero.",
-        "minValueField": "El campo debe ser mayor o igual que {mínimo}.",
-        "maxValueField": "El campo debe ser menor o igual que {máximo}.",
+        "minValueField": "El campo debe ser mayor o igual que {min}.",
+        "maxValueField": "El campo debe ser menor o igual que {max}.",
         "minMaxValueField": "El valor del campo debe estar comprendido entre {min} y {max}.",
         "invalidNumber": "El campo debe ser un número.",
         "email": "El campo debe ser un correo electrónico.",
         "invalidURL": "Por favor, introduce una URL válida.",
         "alreadyInUse": "Este nombre de campo ya está en uso.",
         "decimalField": "El campo debe ser un decimal.",
-        "invalidCharacters": "Este campo contiene caracteres inválidos."
+        "invalidCharacters": "Este campo contiene caracteres inválidos.",
+        "copyFailed": "Error al copiar al portapapeles. Por favor, inténtalo de nuevo."
     },
     "permission": {
         "admin": "Admin",
@@ -129,7 +148,7 @@
         "multipleSelect": "Selección múltiple",
         "phoneNumber": "Número de teléfono",
         "formula": "Fórmula",
-        "lookup": "Buscar",
+        "lookup": "Búsqueda",
         "multipleCollaborators": "Colaboradores",
         "count": "Cuenta",
         "rollup": "Enrollable",
@@ -146,7 +165,9 @@
         "multipleSelectCheckboxes": "Casillas",
         "duration": "Duración",
         "password": "Contraseña",
-        "ai": "Aviso de IA"
+        "ai": "Aviso de IA",
+        "multipleCollaboratorsDropdown": "Desplegable",
+        "multipleCollaboratorsCheckboxes": "Casillas de selección"
     },
     "fieldErrors": {
         "invalidNumber": "Número invalido",
@@ -155,7 +176,7 @@
         "max254Chars": "Max 254 caract",
         "invalidEmail": "Email inválido",
         "invalidPhoneNumber": "Número de teléfono invalido",
-        "invalidDuration": "Formato no válido ({duraciónFormato}).",
+        "invalidDuration": "Formato no válido ({durationFormat}).",
         "overflowDuration": "El valor está fuera de los límites.",
         "maxChars": "Máximo {max} caracteres.",
         "minChars": "Mínimo {min} caracteres."
@@ -163,7 +184,7 @@
     "fieldDocs": {
         "readOnly": "Este es un campo de sólo lectura.",
         "text": "Acepta texto de una sola línea.",
-        "longText": "Acepta el texto en varias líneas. Si el formato de texto enriquecido está activado, puede utilizar Markdown para dar formato al texto.",
+        "longText": "Acepta texto multilínea. Si el formato de texto enriquecido está activado, puede utilizar «Markdown» para dar formato al texto.",
         "linkRow": "Acepta una matriz que contiene los identificadores o los valores de texto del campo principal de las filas relacionadas del id de tabla {table}. Deben proporcionarse todos los identificadores cada vez que se actualicen las relaciones. Si se proporciona una matriz vacía, se eliminarán todas las relaciones. En caso de que se proporcione un valor de texto en lugar de un identificador, se buscará una fila con el valor coincidente para su campo principal. Si se encuentra más de una coincidencia, se seleccionará la primera en el orden de la tabla. Puedes enviar una cadena con nombres separados por coma, en cuyo caso la cadena se convierte en una matriz de nombres de fila. También se puede enviar sólo el ID de una fila.",
         "number": "Acepta un número.",
         "numberPositive": "Acepta un número positivo.",
@@ -272,8 +293,22 @@
         "hasNotValueContainsWord": "el valor no contiene una palabra",
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
         "hasValueContainsWord": "el valor contiene una palabra",
-        "hasAnySelectOptionEqual": "tiene cualquier opción de selección igual",
-        "hasNoneSelectOptionEqual": "no tiene la opción de seleccionar una igual"
+        "hasAnySelectOptionEqual": "tiene alguna opción de selección igual",
+        "hasNoneSelectOptionEqual": "no tiene ninguna opción de selección igual",
+        "hasAnyOf": "tiene alguno de",
+        "hasNotAnyOf": "no tiene ninguno de",
+        "hasDateEqual": "tiene fecha igual",
+        "hasNotDateEqual": "no tiene fecha igual",
+        "hasDateBefore": "tiene fecha anterior",
+        "hasNotDateBefore": "no tiene fecha anterior",
+        "hasDateOnOrBefore": "tiene fecha en o antes de",
+        "hasNotDateOnOrBefore": "no tiene fecha en o antes de",
+        "hasDateAfter": "tiene fecha posterior",
+        "hasNotDateAfter": "no tiene fecha posterior",
+        "hasDateOnOrAfter": "tiene fecha en o después de",
+        "hasNotDateOnOrAfter": "no tiene fecha en o después de",
+        "hasDateWithin": "tiene fecha dentro",
+        "hasNotDateWithin": "no tiene fecha dentro"
     },
     "viewType": {
         "grid": "Cuadrícula",
@@ -294,7 +329,9 @@
         "field": "campo",
         "row": "fila",
         "view": "vista",
-        "rows": "filas"
+        "rows": "filas",
+        "automation_workflow": "flujo de trabajo de automatización",
+        "automation_node": "nodo de automatización"
     },
     "webhook": {
         "request": "Requerimiento",
@@ -408,7 +445,15 @@
         "fieldIsAlreadyPrimaryDescription": "El nuevo campo primario elegido ya es el campo primario.",
         "incompatiblePrimaryFieldTypeDescription": "El campo elegido no puede ser el campo primario porque es incompatible.",
         "cannotCreateRowsInTableTitle": "No se pueden crear filas",
-        "cannotCreateRowsInTableDescription": "No es posible crear filas en esta tabla."
+        "cannotCreateRowsInTableDescription": "No es posible crear filas en esta tabla.",
+        "databaseDeadlockTitle": "Acción falló",
+        "databaseDeadlockDescription": "No se pudo completar la acción debido a múltiples operaciones conflictivas sobre los datos al mismo tiempo. Por favor, inténtalo de nuevo.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "No se encontró una propiedad primaria única",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Esto suele ocurrir si la fuente de sincronización de datos no contiene ninguna propiedad de la que obtener un valor de fila único. En el caso de una tabla, podría ser que no exista una clave primaria.",
+        "fieldConstraintTitle": "Violación de restricción de campo",
+        "fieldConstraintDescription": "No se puede aplicar la restricción.",
+        "fieldDataConstraintTitle": "Violación de restricción de datos del campo",
+        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes."
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
@@ -444,7 +489,9 @@
         "uploadFileViaUrl": "Subir el archivo a través de la URL",
         "uploadFileViaUrlDescription": "Sube un archivo a Baserow descargándolo de la URL proporcionada.",
         "fileUploads": "Carga de archivos",
-        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`"
+        "sendWebhookEventsDescription": "Un parámetro de consulta de bandera que activa los webhooks después de la operación, si se configura en `y`, `yes`, `true`, `t`, `on`, `1` o se deja vacío. El valor predeterminado es `true`",
+        "listTables": "Listar tablas",
+        "apiDocs": "Listar todas las tablas"
     },
     "exporterType": {
         "csv": "Exportar a CSV"
@@ -500,7 +547,7 @@
         "leftDescription": "Extrae los caracteres más a la izquierda de la primera entrada, se detiene cuando ha extraído el número de caracteres especificado por la segunda entrada.",
         "rightDescription": "Extrae los caracteres más a la derecha de la primera entrada, se detiene cuando ha extraído el número de caracteres especificado por la segunda entrada.",
         "trimDescription": "Elimina todos los espacios en blanco de los lados izquierdo y derecho de la entrada.",
-        "regexReplaceDescription": "Reemplaza cualquier texto en la primera entrada que coincida con la expresión regular especificada por la segunda entrada con el texto en la tercera entrada.",
+        "regexReplaceDescription": "Reemplaza cualquier texto en la primera entrada que coincida con la expresión regular especificada por la segunda entrada con el texto en la tercera entrada. Devuelve ‘#ERROR!’ si el patrón de expresión regular es inválido.",
         "greatestDescription": "Devuelve el mayor valor de las dos entradas.",
         "leastDescription": "Devuelve la menor de las dos entradas.",
         "monthDescription": "Devuelve el número de meses en la fecha proporcionada.",
@@ -579,5 +626,81 @@
         "submit": "Enviar correo electrónico de prueba",
         "success": "Correo electrónico de prueba enviado correctamente",
         "configLink": "Ayuda para la configuración del correo electrónico"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Único con campos vacíos"
+    },
+    "fieldConstraintsSubform": {
+        "title": "Restricciones",
+        "description": "Define reglas que los valores del campo deben seguir.",
+        "addConstraint": "Añade restricción",
+        "noConstraintsAvailable": "No hay restricciones disponibles para este tipo de campo.",
+        "readonlyFieldMessage": "No se pueden aplicar restricciones a campos de solo lectura.",
+        "errorGenericData": "No se puede aplicar la restricción de campo debido a conflictos de datos existentes.",
+        "errorUniqueOrEmpty": "Algunos valores en este campo están duplicados. Elimina o edita los duplicados antes de aplicar esta restricción.",
+        "errorInvalidConstraint": "Esta restricción de campo no es compatible con este tipo de campo.",
+        "errorDoesNotSupportDefaultValue": "No se puede establecer esta restricción cuando el valor predeterminado está configurado.",
+        "noConstraintsCompatibleWithDefaultValue": "No se pueden aplicar restricciones cuando el valor predeterminado está habilitado."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Introduce valor de restricción"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} fuente | {count} fuentes"
+    },
+    "runtimeFormulaTypes": {
+        "lowerDescription": "Convierte el argumento a minúsculas.",
+        "capitalizeDescription": "Capitaliza la primera letra del argumento.",
+        "roundDescription": "Redondea el primer argumento al número de decimales especificado por el segundo argumento.",
+        "evenDescription": "Devuelve verdadero si el argumento es par, falso en caso contrario.",
+        "oddDescription": "Devuelve true si el argumento es impar, false en caso contrario.",
+        "dateTimeDescription": "Formatea el argumento de fecha y hora usando los argumentos de formato y zona horaria. Si la zona horaria se deja en blanco, se usará la zona horaria del navegador por defecto.",
+        "dayDescription": "Devuelve el día del argumento de fecha y hora.",
+        "monthDescription": "Devuelve el mes del argumento de fecha y hora.",
+        "yearDescription": "Devuelve el año del argumento de fecha y hora.",
+        "hourDescription": "Devuelve la hora del argumento de fecha y hora.",
+        "minuteDescription": "Devuelve el minuto del argumento de fecha y hora.",
+        "secondDescription": "Devuelve el segundo del argumento de fecha y hora.",
+        "todayDescription": "Devuelve la fecha actual.",
+        "getPropertyDescription": "Devuelve la propiedad del objeto.",
+        "randomIntDescription": "Devuelve un entero aleatorio del rango especificado por los argumentos.",
+        "randomFloatDescription": "Devuelve un número flotante aleatorio del rango especificado por los argumentos.",
+        "randomBoolDescription": "Devuelve un booleano aleatorio de true o false.",
+        "generateUUIDDescription": "Devuelve una cadena UUID4 aleatoria.",
+        "ifDescription": "Si el primer argumento es true, devuelve el segundo argumento; de lo contrario, devuelve el tercer argumento.",
+        "andDescription": "Devuelve true si todos los argumentos son true, de lo contrario devuelve false.",
+        "orDescription": "Devuelve true si algún argumento es true, de lo contrario devuelve false.",
+        "formulaTypeFormula": "Función | Funciones",
+        "formulaTypeOperator": "Operador | Operadores",
+        "formulaTypeData": "Datos",
+        "concatDescription": "Se concatenan los argumentos en un solo texto.",
+        "getDescription": "Devuelve el valor resuelto de una fórmula de Baserow.",
+        "addDescription": "Añade dos argumentos juntos.",
+        "minusDescription": "Resta el segundo argumento del primero.",
+        "multiplyDescription": "Multiplica los dos argumentos.",
+        "divideDescription": "Divide el primer argumento entre el segundo.",
+        "equalDescription": "Comprueba si ambos argumentos son iguales.",
+        "notEqualDescription": "Comprueba si ambos argumentos no son iguales.",
+        "greaterThanDescription": "Comprueba si el primer argumento es mayor que el segundo.",
+        "lessThanDescription": "Comprueba si el primer argumento es menor que el segundo.",
+        "greaterThanOrEqualDescription": "Comprueba si el primer argumento es mayor o igual que el segundo.",
+        "upperDescription": "Convierte el argumento a mayúsculas.",
+        "formulaTypeDataEmpty": "No hay datos disponibles",
+        "categoryText": "Texto",
+        "categoryNumber": "Número",
+        "categoryBoolean": "Booleano",
+        "categoryDate": "Fecha",
+        "categoryCondition": "Condición"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Usa entrada regular",
+        "useAdvancedInput": "Usa entrada avanzada",
+        "useRegularInputModalTitle": "¿Cambiar a una entrada regular?",
+        "useAdvancedInputModalTitle": "¿Cambiar a una entrada avanzada?",
+        "modalMessage": "Cambiar a un modo de entrada diferente borrará la fórmula actual. ¿Estás seguro de que quieres continuar?"
+    },
+    "nodeExplorer": {
+        "noResults": "No se encontraron resultados",
+        "resetSearch": "Restablecer búsqueda"
     }
 }

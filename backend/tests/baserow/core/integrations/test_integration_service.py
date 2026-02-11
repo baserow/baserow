@@ -141,8 +141,9 @@ def test_create_integration_permission_denied(data_fixture, stub_check_permissio
 
     integration_type = integration_type_registry.get("local_baserow")
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         IntegrationService().create_integration(
             user, integration_type, application=application
@@ -172,8 +173,9 @@ def test_get_integration_permission_denied(data_fixture, stub_check_permissions)
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         IntegrationService().get_integration(user, integration.id)
 
@@ -240,8 +242,9 @@ def test_delete_integration_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         IntegrationService().delete_integration(user, integration)
 
@@ -267,8 +270,9 @@ def test_update_integration_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         IntegrationService().update_integration(user, integration, value="newValue")
 
@@ -331,8 +335,9 @@ def test_move_integration_permission_denied(data_fixture, stub_check_permissions
         application=application
     )
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         IntegrationService().move_integration(user, integration3, before=integration2)
 

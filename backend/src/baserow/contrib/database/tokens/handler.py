@@ -158,7 +158,7 @@ class TokenHandler:
 
         if not user.id == token.user_id:
             raise TokenDoesNotBelongToUser(
-                "The user is not authorized to rotate the " "key."
+                "The user is not authorized to rotate the key."
             )
 
         token.key = self.generate_unique_key()
@@ -184,7 +184,7 @@ class TokenHandler:
 
         if not user.id == token.user_id:
             raise TokenDoesNotBelongToUser(
-                "The user is not authorized to rotate the " "key."
+                "The user is not authorized to rotate the key."
             )
 
         token.name = name
@@ -480,7 +480,7 @@ class TokenHandler:
 
         if not user.id == token.user_id:
             raise TokenDoesNotBelongToUser(
-                "The user is not authorized to delete the " "token."
+                "The user is not authorized to delete the token."
             )
 
         token.delete()

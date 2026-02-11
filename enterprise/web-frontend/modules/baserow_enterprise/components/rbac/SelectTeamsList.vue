@@ -19,6 +19,7 @@
     <List
       class="margin-top-2 select-teams-list__items"
       :items="teamsFiltered"
+      :selected-items="teamsSelected"
       :attributes="[]"
       selectable
       @selected="teamSelected"
@@ -47,6 +48,7 @@
 import SelectSubjectsListFooter from '@baserow_enterprise/components/rbac/SelectSubjectsListFooter'
 export default {
   name: 'SelectTeamsList',
+  emits: ['invite'],
   components: { SelectSubjectsListFooter },
   props: {
     teams: {

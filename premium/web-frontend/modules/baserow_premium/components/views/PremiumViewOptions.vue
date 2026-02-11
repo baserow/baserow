@@ -12,7 +12,10 @@
         :disabled="!hasPremiumFeatures"
         @input="update('show_logo', !$event)"
       >
-        <img src="@baserow/modules/core/static/img/baserow-icon.svg" />
+        <img
+          class="switch__icon"
+          src="@baserow/modules/core/static/img/baserow-icon.svg?url"
+        />
         <span>
           {{ $t('shareLinkOptions.baserowLogo.label') }}
         </span>
@@ -39,7 +42,7 @@
         :disabled="!hasPremiumFeatures"
         @input="update('allow_public_export', $event)"
       >
-        <i class="iconoir iconoir-share-ios"></i>
+        <i class="switch__icon iconoir-share-ios"></i>
         <span>
           {{ $t('shareLinkOptions.allowPublicExportLabel') }}
         </span>
@@ -59,6 +62,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'PremiumViewOptions',
+  emits: ['update-view'],
   components: { PaidFeaturesModal },
 
   props: {

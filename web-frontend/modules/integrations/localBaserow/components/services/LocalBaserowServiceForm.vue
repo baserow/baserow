@@ -17,9 +17,9 @@
     <LocalBaserowTableSelector
       v-if="selectedIntegration"
       v-model="fakeTableId"
+      v-model:view-id="values.view_id"
       :databases="databases"
       :service-type="serviceType"
-      :view-id.sync="values.view_id"
       :display-view-dropdown="enableViewPicker"
     />
     <FormGroup
@@ -94,6 +94,7 @@ export default {
       default: true,
     },
   },
+  emits: ['table-changed'],
   data() {
     const values = { table_id: null, integration_id: null }
     const allowedValues = ['table_id', 'integration_id']

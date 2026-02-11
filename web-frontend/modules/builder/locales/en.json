@@ -494,6 +494,7 @@
     "numericName": "Numeric"
   },
   "pageEditor": {
+    "title": "Application Builder",
     "pageNotFound": "Page not found"
   },
   "publicPage": {
@@ -937,7 +938,8 @@
     "loggedInVisitors": "Logged-in visitors",
     "notLoggedInVisitors": "Logged-out visitors",
     "warningTitle": "This is a security feature",
-    "warningMessage": "Check the <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentation</a> to learn more about how we secure data.",
+    "warningMessage": "Check the {link} to learn more about how we secure data.",
+    "documentationLink": "documentation",
     "excludedRolesLabel": "all roles except",
     "switchAllowLabel": "Allow",
     "switchDisallowLabel": "Disallow",

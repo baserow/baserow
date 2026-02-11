@@ -93,6 +93,7 @@ export default {
       required: true,
     },
   },
+  emits: ['open-advanced-context', 'refresh-formula-type', 'update-formula'],
   data() {
     return {
       allowedValues: [],

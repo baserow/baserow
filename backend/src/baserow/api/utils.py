@@ -23,7 +23,7 @@ from rest_framework.serializers import ModelSerializer
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 if TYPE_CHECKING:
-    from baserow.core.registry import Registry, Instance
+    from baserow.core.registry import Instance, Registry
 
 from .exceptions import RequestBodyValidationException
 
@@ -366,7 +366,7 @@ def get_serializer_class(
     meta_extra_kwargs = meta_extra_kwargs or {}
 
     if hasattr(base_class, "Meta"):
-        extends_meta = getattr(base_class, "Meta")
+        extends_meta = base_class.Meta
         field_names = list(extends_meta.fields) + list(field_names)
         meta_extra_kwargs.update(getattr(extends_meta, "extra_kwargs", {}))
 

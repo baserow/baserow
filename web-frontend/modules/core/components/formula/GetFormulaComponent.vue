@@ -13,10 +13,9 @@
       :hide-tooltip="!isInvalid"
       @click.stop="emitToEditor('data-node-clicked', node)"
     >
-      <template v-for="(part, index) in pathParts">
+      <template v-for="(part, index) in pathParts" :key="index">
         <i
           v-if="index > 0"
-          :key="index"
           class="get-formula-component__caret iconoir-nav-arrow-right"
         />
 
@@ -30,7 +29,7 @@
 </template>
 
 <script>
-import { NodeViewWrapper } from '@tiptap/vue-2'
+import { NodeViewWrapper } from '@tiptap/vue-3'
 import formulaComponent from '@baserow/modules/core/mixins/formulaComponent'
 import _ from 'lodash'
 
@@ -75,9 +74,6 @@ export default {
     },
     path() {
       return this.node.attrs.path
-    },
-    nodesHierarchy() {
-      return this.node.attrs.nodesHierarchy || []
     },
     isSelected() {
       return this.node.attrs.isSelected
