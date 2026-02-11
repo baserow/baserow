@@ -167,6 +167,19 @@ def serialize_validation_errors_recursive(error):
         return {"error": force_str(error), "code": error.code}
 
 
+def serialize_django_validation_error(validation_error):
+    """
+    Serializes a Django ValidationError into the API error format while preserving
+    nested field keys and error codes.
+    """
+
+    if hasattr(validation_error, "error_dict"):
+        return serialize_validation_errors_recursive(validation_error.error_dict)
+    elif hasattr(validation_error, "error_list"):
+        return serialize_validation_errors_recursive(validation_error.error_list)
+    return force_str(validation_error)
+
+
 def validate_data(
     serializer_class: Type[ModelSerializer],
     data: Dict[str, Any],

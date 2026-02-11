@@ -33,7 +33,7 @@ from baserow.api.schemas import (
 )
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
-from baserow.api.utils import validate_data
+from baserow.api.utils import serialize_django_validation_error, validate_data
 from baserow.config.settings.utils import str_to_bool
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
@@ -613,7 +613,9 @@ class RowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
         except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+            raise RequestBodyValidationException(
+                detail=serialize_django_validation_error(e)
+            )
 
         serializer_class = get_row_serializer_class(
             model, RowSerializer, is_response=True, user_field_names=user_field_names
@@ -1001,7 +1003,9 @@ class RowView(APIView):
                 .updated_rows[0]
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message) from exc
+            raise RequestBodyValidationException(
+                detail=serialize_django_validation_error(exc)
+            ) from exc
 
         serializer_class = get_row_serializer_class(
             model, RowSerializer, is_response=True, user_field_names=user_field_names
@@ -1366,7 +1370,9 @@ class BatchRowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message)
+            raise RequestBodyValidationException(
+                detail=serialize_django_validation_error(exc)
+            )
 
         response_row_serializer_class = get_row_serializer_class(
             model, RowSerializer, is_response=True, user_field_names=user_field_names
@@ -1519,7 +1525,9 @@ class BatchRowsView(APIView):
             )
             rows = updated_data.updated_rows
         except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+            raise RequestBodyValidationException(
+                detail=serialize_django_validation_error(e)
+            )
 
         response_row_serializer_class = get_row_serializer_class(
             model, RowSerializer, is_response=True, user_field_names=user_field_names

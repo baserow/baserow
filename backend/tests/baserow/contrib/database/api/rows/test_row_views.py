@@ -2052,6 +2052,50 @@ def test_create_row_with_disabled_webhook_events(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_row_invalid_single_select_error_contains_user_field_name(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name")
+    invalid_single_select = data_fixture.create_single_select_field(
+        table=table, name="Single select"
+    )
+    valid_single_select = data_fixture.create_single_select_field(
+        table=table, name="Other select"
+    )
+    other_select_option = data_fixture.create_select_option(
+        field=valid_single_select, value="Allowed", color="blue"
+    )
+
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + "?user_field_names=true",
+        {
+            "Name": "Example row",
+            "Single select": 1,
+            "Other select": other_select_option.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    response_json = response.json()
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            invalid_single_select.name: [
+                {
+                    "error": "The provided select option value '1' is not a valid select option.",
+                    "code": "invalid_option",
+                }
+            ]
+        },
+    }
+
+
+@pytest.mark.django_db
 def test_create_row_with_read_only_field(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

@@ -4417,8 +4417,6 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 else:
                     raise error
 
-        invalid_values_by_index.update(invalid_values_by_index)
-
         # Query database with all these gathered values
         select_options = list(
             SelectOption.objects.filter(field=instance).filter(
@@ -4451,7 +4449,9 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             if value is None or isinstance(value, SelectOption):
                 continue
 
-            if continue_on_error and value not in option_map:
+            if continue_on_error and row_index in invalid_values_by_index:
+                values_by_row[row_index] = invalid_values_by_index[row_index]
+            elif continue_on_error and value not in option_map:
                 values_by_row[row_index] = ValidationError(
                     f"The provided value {value} is not a valid option.",
                     code="invalid_option",

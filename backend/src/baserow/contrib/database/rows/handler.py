@@ -252,14 +252,31 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :rtype: dict
         """
 
-        return {
-            field["name"]: field["type"].prepare_value_for_db(
-                field["field"],
-                values[field_id] if field_id in values else values[field["name"]],
-            )
-            for field_id, field in fields.items()
-            if field_id in values or field["name"] in values
-        }
+        prepared_values = {}
+        errors = {}
+
+        for field_id, field in fields.items():
+            if field_id not in values and field["name"] not in values:
+                continue
+
+            try:
+                prepared_values[field["name"]] = field["type"].prepare_value_for_db(
+                    field["field"],
+                    values[field_id] if field_id in values else values[field["name"]],
+                )
+            except ValidationError as exc:
+                # The old dict-comprehension raised immediately and dropped which field
+                # caused the ValidationError. Keeping a field keyed error dict preserves
+                # context for API clients.
+                if hasattr(exc, "error_list"):
+                    errors[field["name"]] = exc.error_list
+                else:
+                    errors[field["name"]] = [exc]
+
+        if errors:
+            raise ValidationError(errors)
+
+        return prepared_values
 
     def prepare_values_with_defaults(
         self, field_objects: Dict[int, FieldObject], rows_values: List[Dict[str, Any]]
@@ -903,15 +920,22 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 model._field_objects, values
             )
 
-        if not values_already_prepared:
-            values_with_defaults = self.prepare_values_with_defaults(
-                model._field_objects, [values]
-            )
-            prepared_values = self.prepare_values(
-                model._field_objects, values_with_defaults[0]
-            )
-        else:
-            prepared_values = values
+        try:
+            if not values_already_prepared:
+                values_with_defaults = self.prepare_values_with_defaults(
+                    model._field_objects, [values]
+                )
+                prepared_values = self.prepare_values(
+                    model._field_objects, values_with_defaults[0]
+                )
+            else:
+                prepared_values = values
+        except ValidationError as exc:
+            if user_field_names:
+                exc = self.map_internal_field_validation_errors_to_user_field_names(
+                    model._field_objects, exc
+                )
+            raise exc
 
         before_return = before_rows_create.send(
             self, user=user, table=table, model=model
@@ -1037,6 +1061,27 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             mapped_back_to_internal_field_names[internal_name] = value
         values = mapped_back_to_internal_field_names
         return values
+
+    # noinspection PyMethodMayBeStatic
+    def map_internal_field_validation_errors_to_user_field_names(
+        self, field_objects, validation_error: ValidationError
+    ) -> ValidationError:
+        """
+        Remaps ValidationError keys from internal field names to user field names.
+        """
+
+        if not hasattr(validation_error, "error_dict"):
+            return validation_error
+
+        to_user_field_name = {
+            field_object["name"]: field_object["field"].name
+            for field_object in field_objects.values()
+        }
+        remapped_errors = {
+            to_user_field_name.get(field_name, field_name): errors
+            for field_name, errors in validation_error.error_dict.items()
+        }
+        return ValidationError(remapped_errors)
 
     def update_row_by_id(
         self,
