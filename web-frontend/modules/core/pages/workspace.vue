@@ -239,7 +239,7 @@ definePageMeta({
     'workspacesAndApplications',
     'impersonate',
   ],
-  useRouteWorkspace: true,
+  useRouteWorkspaceParam: 'test',
 })
 
 defineOptions({
