@@ -12,6 +12,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // If nuxt generate, pass this middleware
   if (import.meta.server && !event) return
 
+  // Global Application Context Cleanup Logic
+  // If we are navigating AWAY from an application context (Table, Builder, Automation,Dashboard)
+  // to a non-application context we need to clear the selection.
+  if (!to.meta.applicationContext && store.getters['application/getSelected']) {
+    await store.dispatch('application/unselect')
+  }
+
   let workspaceId = getWorkspaceCookie(nuxtApp)
 
   // Prefer route param over cookie to avoid double selectById calls on SSR.

@@ -78,25 +78,9 @@ function parseIntOrNull(x) {
 }
 
 // Database and table is selected by the middleware
-const isLeaving = ref(false)
-const database = ref($store.getters['application/getSelected'])
-const table = ref($store.getters['table/getSelected'])
 
-// Keep the local state in sync with the store, unless we are leaving the page.
-// This prevents the UI from flashing when the store is cleared before the
-// component is unmounted.
-watch(
-  () => $store.getters['application/getSelected'],
-  (val) => {
-    if (!isLeaving.value) database.value = val
-  }
-)
-watch(
-  () => $store.getters['table/getSelected'],
-  (val) => {
-    if (!isLeaving.value) table.value = val
-  }
-)
+const database = computed(() => $store.getters['application/getSelected'])
+const table = computed(() => $store.getters['table/getSelected'])
 
 const { data, error, pending, status, refresh } = await useAsyncData(
   `database-table-page-${route.params.viewId ?? 'null'}`,
@@ -233,11 +217,9 @@ onBeforeUnmount(() => {
  *
  * Unselect when leaving page.
  */
-onBeforeRouteLeave((_to, _from) => {
-  isLeaving.value = true
+onBeforeRouteLeave((to, from) => {
   $store.dispatch('view/unselect')
   $store.dispatch('table/unselect')
-  $store.dispatch('application/unselect')
 })
 
 onBeforeRouteUpdate(async (to, from, next) => {
