@@ -2,6 +2,64 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from baserow.config.celery import app
 
+MSG_PACK_MAX_INT = 2**63 - 1
+MSG_PACK_MIN_INT = -(2**63)
+MSG_PACK_MAX_UINT = 2**64 - 1
+
+
+def _normalize_websocket_message_value(value: Any) -> Any:
+    """
+    Converts unsupported msgpack integer values into strings while preserving
+    the rest of the payload.
+
+    channels_redis serializes group messages with msgpack, which can only pack
+    integers in the signed/unsigned 64-bit range. Python integers can exceed this.
+    
+    This function recursively processes nested data structures (dicts, lists, tuples,
+    sets, frozensets) to ensure all integers are within msgpack's serializable range.
+    Out-of-range integers are converted to strings to prevent OverflowError during
+    serialization.
+    
+    :param value: The value to normalize (can be any type)
+    :return: The normalized value with out-of-range integers converted to strings
+    """
+
+    # Handle None explicitly
+    if value is None:
+        return value
+
+    # Booleans must be checked before integers since bool is a subclass of int
+    if isinstance(value, bool):
+        return value
+
+    # Check if integer is within msgpack's serializable range
+    if isinstance(value, int):
+        if value < MSG_PACK_MIN_INT or value > MSG_PACK_MAX_UINT:
+            return str(value)
+        return value
+
+    # Recursively process list elements
+    if isinstance(value, list):
+        return [_normalize_websocket_message_value(v) for v in value]
+
+    # Recursively process tuple elements (preserving tuple type)
+    if isinstance(value, tuple):
+        return tuple(_normalize_websocket_message_value(v) for v in value)
+
+    # Recursively process set elements (converting to list for JSON compatibility)
+    if isinstance(value, (set, frozenset)):
+        return [_normalize_websocket_message_value(v) for v in value]
+
+    # Recursively process dictionary keys and values
+    if isinstance(value, dict):
+        return {
+            _normalize_websocket_message_value(k): _normalize_websocket_message_value(v)
+            for k, v in value.items()
+        }
+
+    # Return all other types unchanged (strings, floats, bytes, etc.)
+    return value
+
 
 @app.task(bind=True)
 def force_disconnect_users(
@@ -47,7 +105,8 @@ async def send_message_to_channel_group(
     :param messsage: JSON to send.
     """
 
-    await channel_layer.group_send(channel_group_name, message)
+    sanitized_message = _normalize_websocket_message_value(message)
+    await channel_layer.group_send(channel_group_name, sanitized_message)
     if hasattr(channel_layer, "close_pools"):
         # The inmemory channel layer in tests does not have this function.
         await channel_layer.close_pools()

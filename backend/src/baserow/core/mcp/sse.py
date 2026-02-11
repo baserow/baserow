@@ -41,6 +41,23 @@ from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
+
+async def _send_to_channel_group_safe(channel_layer, group_name: str, message: dict):
+    """
+    Safely sends a message to a channel group with msgpack integer normalization.
+    
+    This function ensures that any integers in the message that are outside of
+    msgpack's serializable range are converted to strings to prevent OverflowError.
+    
+    :param channel_layer: The Django Channels layer instance
+    :param group_name: The name of the channel group to send to
+    :param message: The message dict to send
+    """
+    from baserow.ws.tasks import _normalize_websocket_message_value
+    
+    normalized_message = _normalize_websocket_message_value(message)
+    await channel_layer.group_send(group_name, normalized_message)
+
 if TYPE_CHECKING:
     from starlette.types import Receive, Scope, Send
 
@@ -197,7 +214,8 @@ class DjangoChannelsSseServerTransport:
             logger.error(f"Failed to parse message: {err}")
             response = Response("Could not parse message", status_code=400)
             await response(scope, receive, send)
-            await channel_layer.group_send(
+            await _send_to_channel_group_safe(
+                channel_layer,
                 f"mcp_sse_{session_id.hex}",
                 {
                     "type": "sse.message",
@@ -209,7 +227,8 @@ class DjangoChannelsSseServerTransport:
         logger.debug(f"Sending message to group for session: {session_id}")
         response = Response("Accepted", status_code=202)
         await response(scope, receive, send)
-        await channel_layer.group_send(
+        await _send_to_channel_group_safe(
+            channel_layer,
             f"mcp_sse_{session_id.hex}",
             {
                 "type": "sse.message",
