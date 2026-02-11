@@ -1364,7 +1364,9 @@ jobs:
         working-directory: saas
         run: |
           echo "🔄 Updating baserow submodule to ${{ github.sha }}..."
-          git submodule update --init
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule sync --recursive
+          git submodule update --init --recursive
           cd baserow
           git fetch origin
           git checkout ${{ github.sha }}
