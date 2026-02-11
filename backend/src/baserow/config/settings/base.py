@@ -1300,8 +1300,20 @@ SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
 
 if SENTRY_DSN:
     import sentry_sdk
+    import sentry_sdk.integrations as _sentry_integrations
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+
+    # Exclude the langchain integration from auto-discovery: its module-level
+    # imports are incompatible with Python 3.14 (langchain/pydantic type
+    # evaluation crash), and the import happens before disabled_integrations
+    # can take effect.
+
+    _sentry_integrations._AUTO_ENABLING_INTEGRATIONS[:] = [
+        entry
+        for entry in _sentry_integrations._AUTO_ENABLING_INTEGRATIONS
+        if "langchain" not in entry
+    ]
 
     SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
 

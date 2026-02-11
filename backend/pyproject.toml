@@ -84,7 +84,7 @@ dependencies = [
     "prosemirror==0.5.2",
     "rich==14.3.2",
     "tzdata==2025.3",
-    "sentry-sdk==2.48.0",
+    "sentry-sdk==2.52.0",
     "typing_extensions>=4.14.1",
     "ollama==0.6.1",
     "langchain==0.3.27",

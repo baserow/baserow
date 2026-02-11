@@ -400,7 +400,7 @@ requires-dist = [
     { name = "requests-futures", specifier = ">=1.0.2" },
     { name = "requests-oauthlib", specifier = "==2.0.0" },
     { name = "rich", specifier = "==14.3.2" },
-    { name = "sentry-sdk", specifier = "==2.48.0" },
+    { name = "sentry-sdk", specifier = "==2.52.0" },
     { name = "service-identity", specifier = "==24.2.0" },
     { name = "tqdm", specifier = "==4.67.1" },
     { name = "twisted", specifier = "==25.5.0" },
@@ -3524,15 +3524,15 @@ wheels = [
 
 [[package]]
 name = "sentry-sdk"
-version = "2.48.0"
+version = "2.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "urllib3", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/40/f0/0e9dc590513d5e742d7799e2038df3a05167cba084c6ca4f3cdd75b55164/sentry_sdk-2.48.0.tar.gz", hash = "sha256:5213190977ff7fdff8a58b722fb807f8d5524a80488626ebeda1b5676c0c1473", size = 384828, upload-time = "2025-12-16T14:55:41.722Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/eb/1b497650eb564701f9a7b8a95c51b2abe9347ed2c0b290ba78f027ebe4ea/sentry_sdk-2.52.0.tar.gz", hash = "sha256:fa0bec872cfec0302970b2996825723d67390cdd5f0229fb9efed93bd5384899", size = 410273, upload-time = "2026-02-04T15:03:54.706Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/19/8d77f9992e5cbfcaa9133c3bf63b4fbbb051248802e1e803fed5c552fbb2/sentry_sdk-2.48.0-py2.py3-none-any.whl", hash = "sha256:6b12ac256769d41825d9b7518444e57fa35b5642df4c7c5e322af4d2c8721172", size = 414555, upload-time = "2025-12-16T14:55:40.152Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/63/2c6daf59d86b1c30600bff679d039f57fd1932af82c43c0bde1cbc55e8d4/sentry_sdk-2.52.0-py2.py3-none-any.whl", hash = "sha256:931c8f86169fc6f2752cb5c4e6480f0d516112e78750c312e081ababecbaf2ed", size = 435547, upload-time = "2026-02-04T15:03:51.567Z" },
 ]
 
 [[package]]
