@@ -48,6 +48,9 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import Receive, Scope, Send
 
+from baserow.core.mcp.lifecycle import parse_json_payload
+from baserow.core.mcp.session import get_session_manager
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,8 +95,13 @@ class DjangoChannelsSseServerTransport:
         root_path = scope.get("root_path", "")
         full_message_path = root_path.rstrip("/") + self._endpoint
         session_uri = f"{quote(full_message_path)}?session_id={session_id.hex}"
-        # self._read_stream_writers[session_id] = read_stream_writer
-        logger.debug(f"Created new session with ID: {session_id}")
+        
+        # Create managed session with full lifecycle tracking
+        session_manager = get_session_manager()
+        mcp_session = session_manager.create_session(session_id)
+        logger.debug(
+            f"Created new MCP session {session_id.hex} in state {mcp_session.state}"
+        )
 
         sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[
             dict[str, Any]
@@ -111,12 +119,19 @@ class DjangoChannelsSseServerTransport:
 
                 async for session_message in write_stream_reader:
                     logger.debug(f"Sending message via SSE: {session_message}")
+                    
+                    # Track server -> client payloads for lifecycle management
+                    message_json = session_message.message.model_dump_json(
+                        by_alias=True, exclude_none=True
+                    )
+                    payload = parse_json_payload(message_json)
+                    if payload:
+                        mcp_session.track_server_response(payload)
+                    
                     await sse_stream_writer.send(
                         {
                             "event": "message",
-                            "data": session_message.message.model_dump_json(
-                                by_alias=True, exclude_none=True
-                            ),
+                            "data": message_json,
                         }
                     )
 
@@ -128,6 +143,15 @@ class DjangoChannelsSseServerTransport:
                     incoming = await channel_layer.receive(channel_name)
                     if incoming["type"] == "sse.message":
                         try:
+                            # Parse and validate the incoming payload
+                            payload = parse_json_payload(incoming["data"])
+                            
+                            # Use session manager to determine if request should be forwarded
+                            if payload and not mcp_session.should_forward_request(payload):
+                                # Request was dropped - session manager already logged details
+                                # The client should retry or reconnect
+                                continue
+                            
                             json_msg = types.JSONRPCMessage.model_validate_json(
                                 incoming["data"]
                             )
@@ -137,23 +161,28 @@ class DjangoChannelsSseServerTransport:
                             await read_stream_writer.send(e)
             finally:
                 await channel_layer.group_discard(group_name, channel_name)
+                logger.debug(f"Group listener cleanup for session {session_id}")
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(group_listener)
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(group_listener)
 
-            async def response_wrapper(scope: Scope, receive: Receive, send: Send):
-                await EventSourceResponse(
-                    content=sse_stream_reader, data_sender_callable=sse_writer
-                )(scope, receive, send)
-                await read_stream_writer.aclose()
-                await write_stream_reader.aclose()
-                logger.debug(f"SSE client disconnected {session_id}")
+                async def response_wrapper(scope: Scope, receive: Receive, send: Send):
+                    await EventSourceResponse(
+                        content=sse_stream_reader, data_sender_callable=sse_writer
+                    )(scope, receive, send)
+                    await read_stream_writer.aclose()
+                    await write_stream_reader.aclose()
+                    logger.debug(f"SSE client disconnected {session_id}")
 
-            logger.debug("Starting SSE response task")
-            tg.start_soon(response_wrapper, scope, receive, send)
+                logger.debug("Starting SSE response task")
+                tg.start_soon(response_wrapper, scope, receive, send)
 
-            logger.debug("Yielding read and write streams")
-            yield (read_stream, write_stream)
+                logger.debug("Yielding read and write streams")
+                yield (read_stream, write_stream)
+        finally:
+            # Clean up session with full metrics logging
+            session_manager.close_session(session_id)
 
     async def handle_post_message(
         self, scope: Scope, receive: Receive, send: Send

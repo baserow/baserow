@@ -11,6 +11,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
+from baserow.core.mcp.lifecycle import is_runtime_error_in_exception_group
 from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
 
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
@@ -127,15 +128,35 @@ class BaserowMCPServer:
                     )
                 return Response()
             except Exception as exc:
-                # This is a known issue in FastMCP
-                # (https://github.com/jlowin/fastmcp/issues/671) that is not causing any
-                # critical issues in practice, but it does cause some noise in the logs.
+                # Handle known benign errors that don't require error responses
                 if isinstance(
                     exc, RuntimeError
                 ) and "after response already completed" in str(exc):
+                    # This is a known issue in FastMCP
+                    # (https://github.com/jlowin/fastmcp/issues/671) that is not causing
+                    # any critical issues in practice, but it does cause some noise in logs.
                     return Response(status_code=204)
 
-                logger.exception("Error while handling SSE connection")
+                # Handle premature request errors that occur after backend restarts
+                # when clients send requests before MCP session initialization completes
+                if is_runtime_error_in_exception_group(
+                    exc, "Received request before initialization was complete"
+                ):
+                    logger.warning(
+                        f"MCP session received premature request before initialization "
+                        f"(endpoint key: {key}). This typically happens when the backend "
+                        f"restarts and the client reconnects but sends requests before "
+                        f"re-initialization completes. The connection will be closed "
+                        f"gracefully to allow client reconnection."
+                    )
+                    # Return 204 No Content to close connection gracefully
+                    # Client should reconnect and reinitialize
+                    return Response(status_code=204)
+
+                # Log all other unexpected errors
+                logger.exception(
+                    f"Unexpected error while handling SSE connection for endpoint {key}"
+                )
                 return Response("MCP server error", status_code=500)
             finally:
                 # Reset the context variable when done

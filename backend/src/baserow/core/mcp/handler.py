@@ -1,3 +1,5 @@
+from typing import Any, Dict, List
+
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
@@ -17,6 +19,7 @@ from .operations import (
     ReadMCPEndpointOperationType,
     UpdateMCPEndpointOperationType,
 )
+from .session import get_session_manager
 
 
 class MCPEndpointHandler:
@@ -194,3 +197,19 @@ class MCPEndpointHandler:
         )
 
         endpoint.delete()
+    
+    def get_session_health_metrics(self) -> Dict[str, Any]:
+        """
+        Get health metrics for all active MCP sessions.
+        
+        This is useful for monitoring and debugging MCP connection issues,
+        especially after backend restarts.
+        
+        :return: Dictionary containing session health metrics
+        """
+        session_manager = get_session_manager()
+        
+        return {
+            "active_sessions": session_manager.get_active_session_count(),
+            "sessions": session_manager.get_all_sessions_metrics(),
+        }
