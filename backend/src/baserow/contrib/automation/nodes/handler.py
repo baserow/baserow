@@ -458,8 +458,14 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             node_history.save()
             return
 
+        # Find current iteration using current_iterations.
+        iteration_index = 0
+        if current_iterations:
+            # To handle nested iterators, always pick the last one
+            iteration_index = list(current_iterations.values())[-1]
+
         history_handler.create_node_result(
-            node_history=node_history, result=dispatch_result.data
+            node_history=node_history, result=dispatch_result.data, iteration=iteration_index
         )
 
         # Return early if this is a simulated dispatch
@@ -507,9 +513,19 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             return
 
         for next_node in next_nodes:
-            dispatch_node_celery_task.delay(
-                next_node.id,
-                history_id,
-                allowed_node_ids,
-                current_iterations=current_iterations,
-            )
+            if current_iterations:
+                simulation_completed = self.dispatch_node_async(
+                    next_node.id,
+                    history_id,
+                    allowed_node_ids,
+                    current_iterations=current_iterations,
+                )
+                if simulation_completed:
+                    return True
+            else:
+                dispatch_node_celery_task.delay(
+                    next_node.id,
+                    history_id,
+                    allowed_node_ids,
+                    current_iterations=current_iterations,
+                )
