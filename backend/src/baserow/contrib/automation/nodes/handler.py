@@ -465,7 +465,9 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             iteration_index = list(current_iterations.values())[-1]
 
         history_handler.create_node_result(
-            node_history=node_history, result=dispatch_result.data, iteration=iteration_index
+            node_history=node_history,
+            result=dispatch_result.data,
+            iteration=iteration_index,
         )
 
         # Return early if this is a simulated dispatch
