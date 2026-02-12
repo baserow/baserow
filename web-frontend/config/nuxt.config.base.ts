@@ -60,13 +60,14 @@ export default defineNuxtConfig({
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
-    detectBrowserLanguage: {
-      useCookie: true,
-      cookieKey: 'i18n-language',
-    },
     langDir: 'locales',
     locales,
     trailingSlash: true,
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n-language',
+      redirectOn: 'root',
+    },
     vueI18n: './i18n.config.ts',
   },
   nitro: {

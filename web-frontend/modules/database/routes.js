@@ -10,14 +10,6 @@ export const routes = [
     name: 'database-table',
     path: '/database/:databaseId/table/:tableId/:viewId?',
     file: path.resolve(__dirname, 'pages/table.vue'),
-    /*props(route) {
-          const p = { ...route.params }
-          p.databaseId = parseInt(p.databaseId)
-          p.tableId = parseInt(p.tableId)
-          p.viewId = p.viewId ? parseInt(p.viewId) : null
-          console.log(p)
-          return p
-        },*/
     children: [
       {
         path: 'row/:rowId',
