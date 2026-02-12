@@ -396,5 +396,9 @@
     },
     "jobType": {
         "generateAIValues": "AI 필드 값 재생성"
+    },
+    "viewOwnershipType": {
+        "personal": "개인",
+        "personalDescription": "오직 당신만이 그 뷰를 볼 수 있습니다."
     }
 }
