@@ -1,1 +1,201 @@
-{}
+{
+    "automationWelcomeGuidedTourStep": {
+        "content": "간단한 둘러보기를 해볼까요? 코딩 없이 트리거 설정, 액션 추가, 워크플로 테스트 및 게시 방법을 확인할 수 있습니다."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "여기에서 워크플로 그래프를 관리하세요",
+        "content": "여기에서 트리거와 액션을 생성하여 워크플로가 수행할 작업을 정의하세요. 트리거 또는 액션을 선택하여 사이드 패널에서 구성할 수 있습니다."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "워크플로를 테스트하세요",
+        "content": "준비가 되면 테스트 실행을 시작하여 워크플로가 어떻게 작동하는지 확인하세요. 트리거는 전체 실행을 시뮬레이션하기 위해 한 번 실행됩니다."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "워크플로 기록 보기",
+        "content": "기록 패널을 사용하여 과거 테스트 실행 및 게시된 실행 결과를 검토할 수 있습니다. 디버깅이나 결과 확인에 매우 유용합니다."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "워크플로를 게시하세요",
+        "content": "설정을 테스트하고 개선한 후에는 워크플로를 게시하여 실제 서비스에 적용하세요. 이제 워크플로의 트리거가 예약된 시간에 자동으로 실행됩니다."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "워크플로 제어 상태",
+        "content": "여기에서 언제든지 워크플로를 일시 중지하거나 다시 시작할 수 있습니다. 워크플로 활성화 또는 비활성화 여부는 항상 사용자가 제어할 수 있습니다."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "문서를 살펴보세요",
+        "content": "Baserow에서 자동화 구축에 어려움을 겪거나 더 자세한 정보를 원하시면 강조 표시된 버튼을 클릭하여 자세한 가이드와 FAQ를 확인하세요."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "새로운 워크플로"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "워크플로 생성",
+        "submit": "워크플로 추가"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "워크플로",
+        "nameTitle": "이름",
+        "nameSubtitle": "워크플로의 고유 이름",
+        "namePlaceholder": "이름을 입력하세요..."
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "자동화 워크플로 중복",
+        "duplicating": "복제",
+        "duplicatedTitle": "워크플로가 복제되었습니다"
+    },
+    "automationWorkflowErrors": {
+        "errorNameNotUnique": "이미 동일한 이름의 워크플로가 존재합니다",
+        "errorNameNotUniqueDescription": "워크플로에 고유한 이름을 입력해 주세요"
+    },
+    "trashType": {
+        "workflow": "워크플로",
+        "automation": "자동화"
+    },
+    "generalSettings": {
+        "titleOverview": "일반",
+        "nameLabel": "자동화 이름",
+        "notificationLabel": "알림",
+        "notificationCheckboxLabel": "이 자동화가 실패하면 알림을 받으세요",
+        "cantUpdateAutomationTitle": "자동화를 업데이트할 수 없습니다",
+        "cantUpdateAutomationDescription": "죄송합니다. 자동화 시스템을 업데이트할 수 없었습니다."
+    },
+    "integrationSettings": {
+        "title": "통합",
+        "noIntegrationMessage": "아직 통합을 생성하지 않았습니다. 데이터 소스, 작업 또는 사용자 인증을 추가하여 통합을 생성할 수 있습니다.",
+        "integrationMessage": "데이터 소스, 작업 또는 사용자 인증을 추가하여 새로운 통합을 생성할 수 있습니다."
+    },
+    "automationHeader": {
+        "startTestRun": "테스트 실행 시작",
+        "stopTestRun": "테스트 실행 중지",
+        "publishBtn": "게시",
+        "settingsBtn": "설정",
+        "historyBtn": "기록",
+        "docsBtn": "문서",
+        "switchLabelDraft": "초안",
+        "switchLabelDisabled": "비활성화",
+        "switchLabelPaused": "일시 중지됨",
+        "switchLabelLive": "라이브",
+        "lastPublished": "마지막 게시됨"
+    },
+    "dataProviderType": {
+        "currentIteration": "현재 버전",
+        "item": "아이템",
+        "previousNode": "이전 노드"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "라벨"
+    },
+    "historySidePanel": {
+        "title": "기록",
+        "noRunsTitle": "아직 실행 안됨",
+        "noRunsDescription": "이 워크플로가 실행되면 결과가 여기에 표시됩니다.",
+        "statusSuccess": "성공적으로 실행되었습니다",
+        "statusError": "실행에 실패했습니다",
+        "statusDisabled": "Baserow에 의해 비활성화됨",
+        "completedInSeconds": "{s}초 만에 완료되었습니다.",
+        "completedInLessThanSecond": "1초도 안 걸려 완료되었습니다.",
+        "testRun": "테스트"
+    },
+    "nodeType": {
+        "triggerDeletionError": "트리거는 삭제할 수 없고, 교체만 가능합니다.",
+        "localBaserowRowsCreatedLabel": "{tableName}에 행이 생성됩니다",
+        "localBaserowRowsUpdatedLabel": "{tableName} 테이블의 행이 업데이트되었습니다",
+        "localBaserowRowsDeletedLabel": "{tableName} 테이블에서 행이 삭제되었습니다",
+        "localBaserowCreateRowLabel": "{tableName} 테이블에 행을 생성합니다",
+        "localBaserowUpdateRowLabel": "{tableName} 테이블의 행을 업데이트합니다",
+        "localBaserowDeleteRowLabel": "{tableName} 테이블에서 행을 삭제합니다",
+        "localBaserowGetRowLabel": "{tableName} 테이블에서 행을 읽습니다",
+        "localBaserowListRowsLabel": "{tableName} 테이블의 행 목록",
+        "localBaserowAggregateRowsLabel": "{tableName} 테이블의 행 요약",
+        "httpRequestLabel": "HTTP 요청을 보냅니다",
+        "smtpEmailLabel": "이메일 보내기",
+        "routerLabel": "{edgeCount}개의 분기 중 1개를 따라가세요",
+        "iterationLabel": "항목들을 순회합니다",
+        "routerDefaultEdgeLabelFallback": "기본",
+        "routerWithOutputNodesDeleteError": "출력 노드가 {outputCount}개 제거될 때까지 삭제할 수 없습니다.",
+        "routerWithOutputNodesReplaceError": "출력 노드가 {outputCount}개 제거될 때까지 교체할 수 없습니다.",
+        "iteratorWithChildrenNodesDeleteError": "자식 노드가 제거될 때까지는 삭제할 수 없습니다.",
+        "iteratorWithChildrenNodesReplaceError": "하위 노드가 제거될 때까지 교체할 수 없습니다.",
+        "periodicTriggerLabel": "주기적 트리거",
+        "aiAgent": "AI 프롬프트",
+        "slackWriteMessageName": "슬랙 메시지를 보내세요",
+        "slackWriteMessageLabel": "#{channel}에 메시지를 보내세요"
+    },
+    "workflowNode": {
+        "actionDelete": "삭제",
+        "actionReplace": "교체",
+        "actionDuplicate": "복제",
+        "actionConfigure": "구성",
+        "beforeLabelTrigger": "언제 시작하는지",
+        "beforeLabelAction": "그 다음에",
+        "beforeLabelCondition": "조건이 충족되면",
+        "beforeLabelConditionDefault": "조건이 충족되지 않으면",
+        "beforeLabelRepeat": "각 항목에 대해",
+        "moreEdit": "편집",
+        "moreReplace": "교체",
+        "nodeOptions": "노드 옵션",
+        "displayLabelDebug": "ID: {id} | 이전: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "복제"
+    },
+    "workflowAddNode": {
+        "displayTitle": "자동화 노드 생성"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "트리거를 검색하세요...",
+        "searchPlaceholderActions": "검색 결과를 확인하세요...",
+        "noResults": "검색 결과가 없습니다"
+    },
+    "serviceType": {
+        "periodicTrigger": "주기적 트리거",
+        "periodicTriggerDescription": "지정된 간격으로 주기적으로 워크플로우를 실행합니다",
+        "periodicTriggerTriggeredAt": "트리거됨",
+        "errorIntervalMissing": "간격이 필요합니다.",
+        "coreHTTPTrigger": "HTTP 트리거",
+        "coreHTTPTriggerDescription": "워크플로를 트리거하기 위해 HTTP 요청을 수신합니다"
+    },
+    "periodicTriggerServiceForm": {
+        "intervalLabel": "간격",
+        "intervalHelper": "이 워크플로를 실행할 빈도를 선택하세요",
+        "everyMinute": "매분",
+        "everyHour": "매 시간",
+        "everyDay": "매 일",
+        "everyWeek": "매 주",
+        "everyMonth": "매 월",
+        "hour": "시간",
+        "minute": "분",
+        "dayOfWeek": "주간 지정일",
+        "dayOfMonth": "월간 지정일",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "이 워크플로는 매분 실행됩니다",
+        "hourHelper": "이 워크플로는 사용자의 현지 시간대({timezone}) 기준으로 지정된 분에 매시간 실행됩니다",
+        "dayHelper": "이 워크플로는 지정된 현지 시간대({timezone})에 매일 실행됩니다",
+        "weekHelper": "이 워크플로는 사용자의 현지 시간대({timezone})에 지정된 요일과 시간에 매주 실행됩니다",
+        "monthHelper": "이 워크플로는 지정된 날짜와 시간에 사용자의 현지 시간대({timezone})로 매달 실행됩니다",
+        "deactivatedTitle": "주기적 트리거 비활성화됨",
+        "deactivatedText": "연속적인 오류 발생으로 인해 이 주기적 트리거가 자동으로 비활성화되었습니다."
+    },
+    "workflowEditor": {
+        "chooseEvent": "이벤트를 선택하세요..."
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "출력",
+        "triggerNodeAwaitingEvent": "노드가 대기 중입니다. 페이로드를 채우고 테스트를 완료하려면 이벤트를 수동으로 트리거하십시오.",
+        "simulationInProgress": "노드 테스트가 진행 중입니다...",
+        "errorNodeNotConfigured": "노드를 테스트하기 전에 먼저 구성해야 합니다.",
+        "errorPreviousNodeNotConfigured": "이전 노드 \"{node}\"를 구성해야 합니다.",
+        "errorPreviousNodesNotTested": "이전 노드 \"{node}\"를 먼저 테스트해야 합니다.",
+        "buttonLabelTest": "테스트 이벤트",
+        "buttonLabelTestAgain": "테스트 이벤트 다시 진행",
+        "testNodeDescription": "이 이벤트를 테스트하여 구성이 올바른지 확인하십시오. 이 테스트에서 얻은 데이터는 이후 단계에서 사용할 수 있습니다.",
+        "buttonLabelShowPayload": "페이로드 표시",
+        "buttonLabelShowError": "오류 표시",
+        "sampleDataModalTitle": "{nodeLabel}에 대한 페이로드",
+        "sampleDataModalSubTitle": "JSON 페이로드",
+        "sampleDataCopy": "복사",
+        "errorOccurred": "오류가 발생했습니다...",
+        "sampleDataCopied": "페이로드가 클립보드에 복사되었습니다"
+    }
+}
