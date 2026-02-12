@@ -55,6 +55,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
 definePageMeta({
   layout: 'app',
+  applicationContext: true,
   middleware: [
     'settings',
     'authenticated',

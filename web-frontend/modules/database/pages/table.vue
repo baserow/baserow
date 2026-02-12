@@ -46,6 +46,7 @@ import { normalizeError } from '@baserow/modules/database/utils/errors'
 definePageMeta({
   name: 'database-table',
   layout: 'app',
+  applicationContext: true,
   middleware: [
     'settings',
     'authenticated',

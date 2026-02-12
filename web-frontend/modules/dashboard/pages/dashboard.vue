@@ -16,6 +16,7 @@ import DashboardContent from '@baserow/modules/dashboard/components/DashboardCon
 
 definePageMeta({
   layout: 'app',
+  applicationContext: true,
   middleware: ['dashboardLoading'],
 })
 
