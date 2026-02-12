@@ -16,7 +16,6 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.types import DispatchResult
 from baserow.test_utils.helpers import AnyInt
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -157,9 +156,9 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
 
     service_type = service.get_type()
     dispatch_context = AutomationDispatchContext(workflow)
-    dispatch_context.after_dispatch(
-        trigger, DispatchResult(data={"results": [{"name": "John"}]})
-    )
+    dispatch_context.previous_nodes_results[trigger.id] = {
+        "results": [{"name": "John"}]
+    }
 
     mock_response = Mock()
     mock_response.json.return_value = {
