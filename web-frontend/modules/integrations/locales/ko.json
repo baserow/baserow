@@ -316,5 +316,10 @@
     "coreIterationServiceForm": {
         "source": "소스",
         "sourcePlaceholder": "출처를 선택하세요..."
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderDuration": "원하는 시간 값을 선택하세요. 예: 1:23:40",
+        "noTableSelectedMessage": "필드를 구성하려면 테이블을 선택하세요.",
+        "noWritableFields": "이 테이블에는 쓰기 가능한 필드가 없습니다."
     }
 }
