@@ -8,7 +8,6 @@ from baserow.contrib.automation.data_providers.data_provider_types import (
     PreviousNodeProviderType,
 )
 from baserow.core.formula.exceptions import InvalidFormulaContext
-from baserow.core.services.types import DispatchResult
 
 
 @pytest.mark.django_db
@@ -25,12 +24,10 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(workflow)
 
-    dispatch_context.after_dispatch(
-        trigger, DispatchResult(data={"results": [{"field_1": "Horse"}]})
-    )
-    dispatch_context.after_dispatch(
-        first_action, DispatchResult(data={"field_2": "Badger"})
-    )
+    dispatch_context.previous_nodes_results[trigger.id] = {
+        "results": [{"field_1": "Horse"}]
+    }
+    dispatch_context.previous_nodes_results[first_action.id] = {"field_2": "Badger"}
 
     # `first_action` referencing the trigger input data.
     assert (
@@ -54,10 +51,10 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
     assert exc.value.args[0] == "The previous node doesn't exist"
 
     dispatch_context = AutomationDispatchContext(workflow)
+    dispatch_context.previous_nodes_results[trigger.id] = {
+        "results": [{"field_1": "Horse"}]
+    }
 
-    dispatch_context.after_dispatch(
-        trigger, DispatchResult(data={"results": [{"field_1": "Horse"}]})
-    )
     # Existing node but after
     with pytest.raises(InvalidFormulaContext) as exc:
         PreviousNodeProviderType().get_data_chunk(
@@ -103,17 +100,13 @@ def test_current_iteration_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(workflow)
 
-    dispatch_context.after_dispatch(
-        trigger,
-        DispatchResult(data={"results": [{"field_1": "Horse"}, {"field_1": "Duck"}]}),
-    )
-
-    dispatch_context.after_dispatch(
-        iterator,
-        DispatchResult(data={"results": [{"field_1": "Horse"}, {"field_1": "Duck"}]}),
-    )
-
-    dispatch_context.set_current_iteration(iterator, 0)
+    dispatch_context.previous_nodes_results[iterator.id] = {
+        "results": [{"field_1": "Horse"}, {"field_1": "Duck"}]
+    }
+    dispatch_context.previous_nodes_results[iterator.id] = {
+        "results": [{"field_1": "Horse"}, {"field_1": "Duck"}]
+    }
+    dispatch_context.current_iterations[iterator.id] = 0
 
     assert (
         CurrentIterationDataProviderType().get_data_chunk(
@@ -122,7 +115,7 @@ def test_current_iteration_data_provider_get_data_chunk(data_fixture):
         == "Horse"
     )
 
-    dispatch_context.set_current_iteration(iterator, 1)
+    dispatch_context.current_iterations[iterator.id] = 1
 
     assert (
         CurrentIterationDataProviderType().get_data_chunk(
