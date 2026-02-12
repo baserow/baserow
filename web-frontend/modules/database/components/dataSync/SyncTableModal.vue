@@ -1,5 +1,9 @@
 <template>
-  <Modal ref="modal" :can-close="!jobIsRunning" @hidden="hidden">
+  <Modal
+    ref="modal"
+    :can-close="!syncLoading && !jobIsRunning"
+    @hidden="hidden"
+  >
     <template #content>
       <div class="import-modal__header">
         <h2 class="import-modal__title">
@@ -12,8 +16,8 @@
       <Error :error="error"></Error>
       <div class="modal-progress__actions margin-top-2">
         <ProgressBar
-          v-if="jobIsRunning || jobHasSucceeded"
-          :value="job.progress_percentage"
+          v-if="syncLoading || jobIsRunning || jobHasSucceeded"
+          :value="job?.progress_percentage || 0"
           :status="jobHumanReadableState"
         />
         <div class="align-right">
@@ -21,8 +25,8 @@
             v-if="!jobHasSucceeded"
             type="primary"
             size="large"
-            :disabled="jobIsRunning"
-            :loading="jobIsRunning"
+            :disabled="syncLoading || jobIsRunning"
+            :loading="syncLoading || jobIsRunning"
             @click="syncTable(table)"
           >
             {{ $t('syncTableModal.sync') }}
@@ -48,11 +52,6 @@ export default {
       type: Object,
       required: true,
     },
-  },
-  data() {
-    return {
-      creatingJob: false,
-    }
   },
   methods: {
     show() {
