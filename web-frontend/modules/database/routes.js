@@ -10,6 +10,9 @@ export const routes = [
     name: 'database-table',
     path: '/database/:databaseId/table/:tableId/:viewId?',
     file: path.resolve(__dirname, 'pages/table.vue'),
+    meta: {
+      applicationContext: true,
+    },
     /*props(route) {
           const p = { ...route.params }
           p.databaseId = parseInt(p.databaseId)
