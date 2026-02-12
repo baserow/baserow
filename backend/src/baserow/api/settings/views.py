@@ -66,7 +66,7 @@ class UpdateSettingsView(APIView):
             200: SettingsSerializer,
         },
     )
-    @validate_body(SettingsSerializer, partial=True)
+    @validate_body(SettingsSerializer, partial=True, return_validated=True)
     @transaction.atomic
     def patch(self, request, data):
         """

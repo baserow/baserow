@@ -275,3 +275,32 @@ def test_update_email_verification_settings(api_client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert CoreHandler().get_settings().email_verification == "recommended"
+
+
+@pytest.mark.django_db
+def test_partial_update_does_not_overwrite_email_verification(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(is_staff=True)
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"email_verification": "recommended"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert CoreHandler().get_settings().email_verification == "recommended"
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"track_workspace_usage": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+
+    assert response_json["track_workspace_usage"] is True
+
+    settings = CoreHandler().get_settings()
+    assert settings.email_verification == "recommended"
+    assert response_json["email_verification"] == "recommended"
