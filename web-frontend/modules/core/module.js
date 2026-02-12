@@ -1,15 +1,10 @@
 import {
   defineNuxtModule,
   addPlugin,
-  addServerHandler,
-  extendViteConfig,
-  addComponent,
   extendPages,
   addLayout,
   createResolver,
   addRouteMiddleware,
-  addTemplate,
-  install,
 } from '@nuxt/kit'
 import { routes } from './routes'
 import _ from 'lodash'
@@ -19,7 +14,6 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
 import head from './head'
-// import { routes as customRoutes } from './routes'
 
 import { locales } from '../../config/locales.js'
 
@@ -38,27 +32,6 @@ export default defineNuxtModule({
       nuxt: '^3.0.0',
     },
   },
-  /*moduleDependencies: {
-    '@nuxtjs/i18n': {
-      defaults: {
-        strategy: 'no_prefix',
-        defaultLocale: 'en',
-        detectBrowserLanguage: {
-          useCookie: true,
-          cookieKey: 'i18n-language',
-        },
-        langDir,
-        locales: ['en', 'fr'],
-        vueI18n: {
-          messages: {
-            en: { login: { title: 'Translated title' } },
-            fr: { login: { title: 'Titre traduit' } },
-          },
-        },
-        trailingSlash: true,
-      },
-    },
-  },*/
   // Default configuration options for your module, can also be a function returning those
   defaults: {},
   // Shorthand sugar to register Nuxt hooks
@@ -66,20 +39,6 @@ export default defineNuxtModule({
   // The function holding your module logic, it can be asynchronous
   setup(moduleOptions, nuxt) {
     const { resolve } = createResolver(import.meta.url)
-
-    /*nuxt.hook('vue:error', (err, instance, info) => {
-      console.error('Vue Error:', err, info)
-    })
-
-    nuxt.hook('app:error', (err) => {
-      console.error('Nuxt App Error:', err)
-    })
-    nuxt.hook('router:error', (err) => {
-      console.error('Router Error:', err)
-    })*/
-
-    // Universal mode
-    //nuxt.options.ssr = true
 
     // Merge du head
     nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)

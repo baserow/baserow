@@ -14,7 +14,8 @@
               ref="rename"
               :value="selectedWorkspace.name"
               @change="renameWorkspace(selectedWorkspace, $event)"
-            ></Editable>
+            >
+            </Editable>
           </div>
           <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
         </h1>
@@ -91,7 +92,8 @@
                 class="dashboard__suggested-template"
                 view-more
                 @click="$refs.templateModal.show()"
-              ></TemplateCard>
+              >
+              </TemplateCard>
             </div>
           </div>
           <div class="dashboard__resources">
@@ -162,8 +164,9 @@
                   :workspace="selectedWorkspace"
                   @click="selectApplication(application)"
                 />
-                <div class="dashboard__application-separator"></div></li
-            ></template>
+                <div class="dashboard__application-separator"></div>
+              </li>
+            </template>
           </ul>
           <div v-else class="dashboard__no-application">
             <img
@@ -197,7 +200,8 @@
       <CreateApplicationContext
         ref="createApplicationContext"
         :workspace="selectedWorkspace"
-      ></CreateApplicationContext>
+      >
+      </CreateApplicationContext>
     </div>
     <DashboardHelp v-if="dashboardHelpComponents.length === 0"></DashboardHelp>
     <template v-else>
@@ -236,8 +240,8 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
-    'workspacesAndApplications',
     'impersonate',
+    'workspacesAndApplications',
   ],
   useRouteWorkspaceParam: 'test',
 })
@@ -280,6 +284,24 @@ const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
 
+async function fetchWorkspaceExtraData(workspace) {
+  const plugins = Object.values($registry.getAll('plugin'))
+  let mergedData = {
+    selectedWorkspace: workspace,
+    workspaceComponentArguments: { usageData: [] },
+  }
+
+  for (const p of plugins) {
+    const workspaceData = await p.fetchAsyncDashboardData(nuxtApp, workspace.id)
+
+    if (workspaceData) {
+      mergedData = p.mergeDashboardData(mergedData, workspaceData)
+    }
+  }
+
+  return mergedData
+}
+
 /**
  * Fetch all dashboard-related data for the current workspace.
  * `useAsyncData` now returns the data and we hydrate our refs from it.
@@ -305,26 +327,7 @@ const {
 
     try {
       await $store.dispatch('auth/fetchWorkspaceInvitations')
-
-      let asyncData = {
-        workspaceComponentArguments: {},
-        selectedWorkspace: workspace,
-      }
-
-      // Loop over all plugins and let them extend the dashboard data.
-      const plugins = Object.values($registry.getAll('plugin'))
-      for (const p of plugins) {
-        asyncData = await p.fetchAsyncDashboardData(
-          nuxtApp,
-          asyncData,
-          workspace.id
-        )
-      }
-
-      return {
-        selectedWorkspace: asyncData.selectedWorkspace,
-        workspaceComponentArguments: asyncData.workspaceComponentArguments,
-      }
+      return await fetchWorkspaceExtraData(workspace)
     } catch {
       throw createError({
         statusCode: 400,
@@ -428,30 +431,7 @@ function selectApplication(application) {
 }
 
 async function workspaceUpdated(workspace) {
-  await fetchWorkspaceExtraData(workspace)
-}
-
-async function fetchWorkspaceExtraData(workspace) {
-  const plugins = Object.values($registry.getAll('plugin'))
-  const asyncData = {}
-
-  for (const p of plugins) {
-    const workspaceData = await p.fetchAsyncDashboardData(
-      nuxtApp,
-      asyncData,
-      workspace.id
-    )
-
-    const base = {
-      workspaceComponentArguments: workspaceComponentArguments.value,
-    }
-
-    const merged = p.mergeDashboardData(
-      JSON.parse(JSON.stringify(base)),
-      workspaceData
-    )
-
-    workspaceComponentArguments.value = merged.workspaceComponentArguments
-  }
+  const extraData = await fetchWorkspaceExtraData(workspace)
+  workspaceComponentArguments.value = extraData.workspaceComponentArguments
 }
 </script>

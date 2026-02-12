@@ -9,6 +9,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'impersonate',
     'workspacesAndApplications',
     'pendingJobs',
   ],

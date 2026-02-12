@@ -89,8 +89,8 @@ export class BaserowPlugin extends Registerable {
    * Optinally, a workspace id can be provided to fetch only data for a particular
    * workspace.
    */
-  fetchAsyncDashboardData(context, data, workspaceId) {
-    return data
+  fetchAsyncDashboardData(context, workspaceId) {
+    return null
   }
 
   /**
