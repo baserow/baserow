@@ -13,7 +13,6 @@ import {
 } from '@nuxt/kit'
 import { routes } from './routes'
 import _ from 'lodash'
-import defu from 'defu'
 import pathe from 'pathe'
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -97,7 +96,7 @@ export default defineNuxtModule({
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
     nuxt.options.runtimeConfig.privateBackendUrl = 'http://backend:8000'
 
-    nuxt.options.runtimeConfig.public = defu(
+    nuxt.options.runtimeConfig.public = _.defaultsDeep(
       nuxt.options.runtimeConfig.public,
       {
         buildDate: new Date().toISOString(),

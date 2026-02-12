@@ -7,6 +7,7 @@ import {
 } from 'nuxt/kit'
 import { routes, rootChildRoutes } from './routes'
 import { locales } from '../../../../web-frontend/config/locales.js'
+import _ from 'lodash'
 
 export default defineNuxtModule({
   meta: {
@@ -77,9 +78,12 @@ export default defineNuxtModule({
 
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
-    Object.assign(nuxt.options.runtimeConfig.public, {
-      baserowEnterpriseAssistantLLMModel: null,
-    })
+    nuxt.options.runtimeConfig.public = _.defaultsDeep(
+      nuxt.options.runtimeConfig.public,
+      {
+        baserowEnterpriseAssistantLlmModel: '',
+      }
+    )
 
     // Override Baserow's existing default.scss in favor of our own because that one
     // imports the original. We do this so that we can use the existing variables,

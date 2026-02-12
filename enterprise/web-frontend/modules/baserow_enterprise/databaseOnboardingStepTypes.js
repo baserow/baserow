@@ -34,7 +34,7 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   isVisible() {
     // Only show if the AI-assistant is configured because it will use the
     // AI-assistant to create the database.
-    return !!this.app.$config.public.baserowEnterpriseAssistantLLMModel
+    return !!this.app.$config.public.baserowEnterpriseAssistantLlmModel
   }
 
   isValid(data, vuelidate, refs) {

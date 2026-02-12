@@ -51,7 +51,7 @@
         <Button
           type="primary"
           size="large"
-          :href="getPricingURL"
+          :href="pricingURL"
           target="_blank"
           tag="a"
           >{{ $t('paidFeaturesModal.viewPricing') }}</Button
@@ -97,7 +97,7 @@ export default {
     }
   },
   computed: {
-    getPricingURL() {
+    pricingURL() {
       const runtimeConfig = useRuntimeConfig()
       return (
         runtimeConfig.public.baserowPricingUrl || getPricingURL(this.instanceId)

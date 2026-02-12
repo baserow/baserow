@@ -6,6 +6,7 @@ import {
 } from 'nuxt/kit'
 import { routes } from './routes'
 import { locales } from '../../../../web-frontend/config/locales.js'
+import _ from 'lodash'
 
 export default defineNuxtModule({
   meta: {
@@ -49,9 +50,12 @@ export default defineNuxtModule({
 
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
-    Object.assign(nuxt.options.runtimeConfig.public, {
-      baserowPremiumGroupedAggregateServiceMaxSeries: 3,
-      baserowPricingUrl: null,
-    })
+    nuxt.options.runtimeConfig.public = _.defaultsDeep(
+      nuxt.options.runtimeConfig.public,
+      {
+        baserowPremiumGroupedAggregateServiceMaxSeries: 3,
+        baserowPricingUrl: '',
+      }
+    )
   },
 })
