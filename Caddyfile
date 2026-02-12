@@ -21,19 +21,8 @@
     }
 
     handle @is_baserow_tool {
-        handle /api/* {
-            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
-        }
-
-        handle /ws/* {
-            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
-        }
-
-        handle /mcp/* {
-            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
-        }
-
-        handle /assistant/* {
+        @backend_routes path /api/* /ws/* /mcp/* /assistant/* {$BASEROW_CADDY_BACKEND_EXTRA_ROUTES:}
+        handle @backend_routes {
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 
