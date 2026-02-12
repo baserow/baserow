@@ -823,24 +823,26 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
     data_fixture.create_core_router_service_edge(
         service=router_node.service, label="Edge 1", condition="'false'"
     )
-    edge2 = data_fixture.create_core_router_service_edge(
+    edge_2 = data_fixture.create_core_router_service_edge(
         service=router_node.service,
         label="Edge 2",
         condition="'true'",
         skip_output_node=True,
     )
-    edge2_node = data_fixture.create_local_baserow_update_row_action_node(
+    edge_2_node = data_fixture.create_local_baserow_update_row_action_node(
         workflow=workflow,
         reference_node=router_node,
         position="south",
-        output=edge2.uid,
+        output=edge_2.uid,
         service_kwargs={
             "table": action_table,
             "integration": integration,
             "row_id": action_table_row.id,
         },
     )
-    edge2_node.service.field_mappings.create(field=action_table_field, value="'Cherry'")
+    edge_2_node.service.field_mappings.create(
+        field=action_table_field, value="'Cherry'"
+    )
 
     trigger_node.workflow.refresh_from_db()
 
@@ -850,7 +852,7 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
     )
     assert result == "foo"
 
-    for node in [trigger_node, action_node, router_node, edge2_node]:
+    for node in [trigger_node, action_node, router_node, edge_2_node]:
         mock_dispatch_task.reset_mock()
         AutomationNodeHandler().dispatch_node_async(
             node.id,
@@ -870,7 +872,7 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
 
     node_history = AutomationNodeHistory.objects.get(
         workflow_history=workflow_history,
-        node=edge2_node,
+        node=edge_2_node,
     )
     assert node_history.message == ""
     assert node_history.status == HistoryStatusChoices.SUCCESS
@@ -967,3 +969,143 @@ def test_dispatch_node_async_with_advanced_formulas(data_fixture):
 
     row = action_table_model.objects.first()
     assert getattr(row, action_table_fields[0].db_column) == "The comparison is false"
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_async_dispatches_router_edge_simulation(
+    mock_automation_node_updated,
+    mock_dispatch_task,
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    # Create trigger
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type="local_baserow_rows_created",
+    )
+    trigger_node = workflow.get_trigger()
+    trigger_table = data_fixture.create_database_table(database=database)
+    trigger_table_field = data_fixture.create_text_field(table=trigger_table)
+    trigger_service = trigger_node.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
+
+    # Create first router with two edges
+    router_a = data_fixture.create_core_router_action_node(
+        workflow=workflow,
+        reference_node=trigger_node,
+        position="south",
+        label="Router A",
+    )
+    router_a_edge_1 = data_fixture.create_core_router_service_edge(
+        service=router_a.service,
+        label="Router A Edge 1",
+        condition="'true'",
+        skip_output_node=True,
+    )
+    data_fixture.create_core_router_service_edge(
+        service=router_a.service,
+        label="Router A Edge 2",
+        condition="'false'",
+    )
+
+    # Create second router on edge_1 of router_a
+    router_b = data_fixture.create_core_router_action_node(
+        workflow=workflow,
+        reference_node=router_a,
+        position="south",
+        output=router_a_edge_1.uid,
+        label="Router B",
+    )
+    data_fixture.create_core_router_service_edge(
+        service=router_b.service,
+        label="Router B Edge 1",
+        condition="'false'",
+        skip_output_node=True,
+    )
+    router_b_edge_2 = data_fixture.create_core_router_service_edge(
+        service=router_b.service,
+        label="Router B Edge 2",
+        condition="'true'",
+        skip_output_node=True,
+    )
+
+    # Create action node on edge_2 of router_b
+    action_table = data_fixture.create_database_table(database=database)
+    action_table_field = data_fixture.create_text_field(table=action_table)
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        reference_node=router_b,
+        position="south",
+        output=router_b_edge_2.uid,
+        label="Action node",
+        service_kwargs={
+            "table": action_table,
+            "integration": integration,
+        },
+    )
+    action_node.service.field_mappings.create(
+        field=action_table_field,
+        value="'Pumpkin Pie'",
+    )
+
+    # Ensure there is no sample data yet
+    for node in [trigger_node, router_a, router_b, action_node]:
+        assert node.service.specific.sample_data is None
+
+    original_workflow = AutomationWorkflowHandler().get_original_workflow(workflow)
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        event_payload={
+            "results": [
+                {
+                    "id": 1,
+                    "order": "1.00000000000000000000",
+                    trigger_table_field.name: "Cherry Cake",
+                }
+            ],
+            "has_next_page": False,
+        },
+    )
+    workflow_history.simulate_until_node = action_node
+    workflow_history.save()
+
+    for node in [trigger_node, router_a, router_b, action_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # Verify sample_data is saved for the action node
+    action_node.service.specific.refresh_from_db()
+    assert action_node.service.specific.sample_data == {
+        "data": {
+            action_table_field.name: "Pumpkin Pie",
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": AnyStr(),
+        "status": 200,
+    }
+
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=action_node
+    )
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
+
+    # Verify workflow history is deleted for simulations
+    assert (
+        AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
+        is False
+    )
