@@ -64,9 +64,11 @@ export default {
       }
     } else if (this.$el) {
       // Because there is no parent we can directly move the component to the
-      // top of the body so it will be positioned over any other element.
+      // end of the body. Elements that mount later are appended after earlier
+      // ones so that they appear on top when sharing the same z-index (DOM
+      // order determines visual stacking for equal z-index values).
       const body = document.body
-      body.insertBefore(this.$el, body.firstChild)
+      body.appendChild(this.$el)
       this.fireMovedToBodyHandlers()
     }
 
