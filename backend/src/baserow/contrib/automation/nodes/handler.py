@@ -403,7 +403,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         if allowed_nodes is not None and node not in allowed_nodes:
             # Return early as the node is not on the path until the simulated node
-            return
+            return False
 
         history_handler = AutomationHistoryHandler()
 
@@ -436,7 +436,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             node_history.message = error
             node_history.status = HistoryStatusChoices.ERROR
             node_history.save()
-            return
+            return False
         except Exception as e:
             original_workflow = AutomationWorkflowHandler().get_original_workflow(
                 node.workflow
@@ -456,7 +456,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             node_history.message = error
             node_history.status = HistoryStatusChoices.ERROR
             node_history.save()
-            return
+            return False
 
         # Find current iteration using current_iterations.
         iteration_index = 0
@@ -512,7 +512,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             workflow_history.completed_on = timezone.now()
             workflow_history.status = HistoryStatusChoices.SUCCESS
             workflow_history.save()
-            return
+            return False
 
         for next_node in next_nodes:
             if current_iterations:
@@ -531,3 +531,5 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     allowed_node_ids,
                     current_iterations=current_iterations,
                 )
+
+        return False
