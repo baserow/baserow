@@ -98,6 +98,7 @@ const actions = {
       { root: true }
     )
 
+    commit('UNSELECT')
     commit('SET_SELECTED', { automation, workflow })
 
     return workflow

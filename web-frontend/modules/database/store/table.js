@@ -232,6 +232,7 @@ export const actions = {
       DATABASE_ACTION_SCOPES.table(table.id),
       { root: true }
     )
+    commit('UNSELECT')
     commit('SET_SELECTED', { database, table })
   },
   /**

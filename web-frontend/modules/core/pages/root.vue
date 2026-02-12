@@ -6,11 +6,6 @@
 definePageMeta({
   name: 'root',
   layout: 'app',
-  middleware: [
-    'settings',
-    'authenticated',
-    'workspacesAndApplications',
-    'pendingJobs',
-  ],
+  middleware: ['settings', 'authenticated', 'pendingJobs'],
 })
 </script>

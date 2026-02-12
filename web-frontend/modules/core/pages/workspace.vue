@@ -233,12 +233,7 @@ definePageMeta({
   layout: 'app',
   // Note: these middlewares must be explicitly listed because child pages
   // don't automatically inherit parent middleware in Nuxt 3's page meta
-  middleware: [
-    'settings',
-    'authenticated',
-    'workspacesAndApplications',
-    'impersonate',
-  ],
+  middleware: ['settings', 'authenticated', 'impersonate'],
   useRouteWorkspaceParam: 'test',
 })
 

@@ -99,6 +99,7 @@ const actions = {
     // Check if the provided page id is found in the just selected builder.
     const page = getters.getById(builder, pageId)
 
+    commit('UNSELECT')
     commit('SET_SELECTED', { builder, page })
 
     return page

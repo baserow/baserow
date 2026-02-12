@@ -55,12 +55,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
 definePageMeta({
   layout: 'app',
-  middleware: [
-    'settings',
-    'authenticated',
-    'workspacesAndApplications',
-    'pendingJobs',
-  ],
+  middleware: ['settings', 'authenticated', 'pendingJobs'],
 })
 
 const { t } = useI18n()

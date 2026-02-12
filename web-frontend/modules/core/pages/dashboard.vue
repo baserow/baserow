@@ -54,13 +54,7 @@ import WorkspaceInvitation from '@baserow/modules/core/components/workspace/Work
 
 definePageMeta({
   layout: 'app',
-  middleware: [
-    'settings',
-    'authenticated',
-    'impersonate',
-    'workspacesAndApplications',
-    'pendingJobs',
-  ],
+  middleware: ['settings', 'authenticated', 'impersonate', 'pendingJobs'],
 })
 
 const store = useStore()

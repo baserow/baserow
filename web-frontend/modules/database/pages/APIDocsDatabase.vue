@@ -228,7 +228,7 @@ useHead({
 })
 
 definePageMeta({
-  middleware: ['workspacesAndApplications'],
+  middleware: [],
 })
 
 const exampleData = ref({
