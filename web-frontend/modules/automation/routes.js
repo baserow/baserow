@@ -9,6 +9,5 @@ export const routes = [
       automationId: parseInt(route.params.automationId),
       workflowId: parseInt(route.params.workflowId),
     }),
-    meta: {},
   },
 ]
