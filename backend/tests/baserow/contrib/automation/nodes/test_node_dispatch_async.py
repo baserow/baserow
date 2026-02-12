@@ -885,3 +885,85 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
 
     # There are no next nodes
     mock_dispatch_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dispatch_node_async_with_advanced_formulas(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    trigger_table, trigger_table_fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Food", "text"),
+            ("Spiciness", "number"),
+        ],
+        rows=[
+            ["Paneer Tikka", 5],
+            ["Gobi Manchurian", 8],
+        ],
+    )
+
+    action_table, action_table_fields, _ = data_fixture.build_table(
+        database=database,
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    workflow = data_fixture.create_automation_workflow(user, state="live")
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        service=data_fixture.create_local_baserow_upsert_row_service(
+            table=action_table,
+            integration=integration,
+        ),
+    )
+    action_node.service.field_mappings.create(
+        field=action_table_fields[0],
+        value=(
+            "concat('The comparison is ', "
+            f"get('previous_node.{trigger.id}.0.{trigger_table_fields[1].db_column}') "
+            "> 7)"
+        ),
+    )
+
+    action_table_model = action_table.get_model()
+    assert action_table_model.objects.count() == 0
+
+    original_workflow = AutomationWorkflowHandler().get_original_workflow(workflow)
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        event_payload={
+            "results": [
+                {
+                    "id": 100,
+                    "order": "10.00000000000000000000",
+                    trigger_table_fields[0].name: "Paneer Tikka",
+                    trigger_table_fields[1].name: 5,
+                },
+                {
+                    "id": 101,
+                    "order": "10.00000000000000000000",
+                    trigger_table_fields[0].name: "Gobi Manchurian",
+                    trigger_table_fields[1].name: 8,
+                },
+            ],
+            "has_next_page": False,
+        },
+    )
+
+    AutomationNodeHandler().dispatch_node_async(
+        trigger.id,
+        history_id=workflow_history.id,
+        allowed_node_ids=None,
+    )
+
+    row = action_table_model.objects.first()
+    assert getattr(row, action_table_fields[0].db_column) == "The comparison is false"
