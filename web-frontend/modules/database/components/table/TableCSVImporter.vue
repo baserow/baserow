@@ -19,6 +19,7 @@
             @change="select($event)"
           />
           <Button
+            tag="a"
             type="upload"
             size="large"
             :loading="state !== null"

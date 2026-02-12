@@ -36,6 +36,7 @@
             @change="select($event)"
           />
           <Button
+            tag="a"
             type="upload"
             size="large"
             icon="iconoir-cloud-upload"

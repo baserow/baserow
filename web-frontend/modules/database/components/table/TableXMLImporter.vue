@@ -36,6 +36,7 @@
             @change="select($event)"
           />
           <Button
+            tag="a"
             type="upload"
             size="large"
             class="file-upload__button"
