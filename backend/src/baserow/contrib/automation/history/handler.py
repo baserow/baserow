@@ -19,14 +19,17 @@ class AutomationHistoryHandler:
     ) -> QuerySet[AutomationWorkflowHistory]:
         """
         Returns all the AutomationWorkflowHistory related to the provided workflow.
+
+        Excludes any simulation histories that haven't yet been deleted.
         """
 
         if base_queryset is None:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
-        return base_queryset.filter(workflow=workflow).prefetch_related(
-            "workflow__automation__workspace"
-        )
+        return base_queryset.filter(
+            workflow=workflow,
+            simulate_until_node__isnull=True,
+        ).prefetch_related("workflow__automation__workspace")
 
     def create_workflow_history(
         self,

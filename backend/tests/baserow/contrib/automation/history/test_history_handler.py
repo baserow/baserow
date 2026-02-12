@@ -63,3 +63,24 @@ def test_create_workflow_history(data_fixture):
 
     assert isinstance(history, AutomationWorkflowHistory)
     assert history.workflow == original_workflow
+
+
+@pytest.mark.django_db
+def test_get_workflow_history_excludes_simulation_histories(data_fixture):
+    """
+    Simulation histories are deleted by the dispatch_node_async() once the final
+    node is dispatched. However, we want to ensure they're excluded so that
+    a user doesn't accidentally see them while the simulation is running.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+
+    simulation_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        simulate_until_node=trigger,
+    )
+
+    result = AutomationHistoryHandler().get_workflow_history(workflow)
+
+    assert len(result) == 0
