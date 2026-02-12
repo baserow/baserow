@@ -129,7 +129,32 @@ def download_airtable_file(
         raise FileDownloadFailed(
             f"File {name} could not be downloaded (HTTP {response.status_code}).",
         )
-    file_size_bytes = int(response.headers.get("Content-Length", len(response.content)))
+
+    file_size_bytes = None
+
+    # Use Content-Range header for partial content
+    if response.status_code == HTTPStatus.PARTIAL_CONTENT:
+        content_range = response.headers.get("Content-Range", "")
+        try:
+            total_size = content_range.split("/")[-1]
+            file_size_bytes = int(total_size)
+        except (TypeError, ValueError):
+            raise FileDownloadFailed(f"Could not determine the size of file {name}.")
+
+    # Use Content-Length if the status code is not partial content
+    if file_size_bytes is None:
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None:
+            try:
+                file_size_bytes = int(content_length)
+            except (TypeError, ValueError):
+                file_size_bytes = None
+
+    # If we cannot determine the size from headers, treat this as a download failure
+    if file_size_bytes is None:
+        raise FileDownloadFailed(f"Could not determine the size of file {name}.")
+
+    # Prevent upload to Baserow failures by excluding oversized files
     max_size_bytes = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     if file_size_bytes > max_size_bytes:
         raise FileDownloadFailed(

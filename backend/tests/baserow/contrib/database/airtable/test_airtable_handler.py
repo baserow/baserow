@@ -191,29 +191,35 @@ def test_to_baserow_database_export():
     )
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -442,29 +448,35 @@ def test_download_files_via_endpoint():
     )
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/row/recAAA5JwFXBk4swkfB/downloadAttachment",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -551,29 +563,35 @@ def test_config_skip_files(tmpdir, data_fixture):
     )
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -653,29 +671,35 @@ def test_to_baserow_database_export_without_primary_value():
     )
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -809,29 +833,35 @@ def test_import_from_airtable_to_workspace(
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -948,29 +978,35 @@ def test_import_from_airtable_to_workspace_file_size_over_limit(
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
@@ -1060,29 +1096,35 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
     storage = FileSystemStorage(location=(str(tmpdir)), base_url="http://localhost")
 
     with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.signed/file-sample.txt",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "file-sample_500kB.doc"), "rb") as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(
         os.path.join(base_path, "file_example_JPG_100kB.jpg"), "rb"
     ) as file_handler:
+        body = file_handler.read()
         responses.add(
             responses.GET,
             "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
-            status=200,
-            body=file_handler.read(),
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
         )
 
     with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
