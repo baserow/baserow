@@ -623,11 +623,12 @@
     },
     "viewForm": {
         "name": "이름",
-        "whoCanEdit": "누가 편집할 수 있나요"
+        "whoCanEdit": "누가 이 뷰를 편집할 수 있나요?"
     },
     "viewOwnershipType": {
         "collaborative": "협업",
-        "personal": "개인"
+        "personal": "개인",
+        "collaborativeDescription": "권한이 있는 사람은 누구나 모든 데이터를 보고 속성을 변경할 수 있습니다."
     },
     "galleryViewHeader": {
         "customizeCards": "카드 맞춤 설정"
