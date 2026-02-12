@@ -682,7 +682,9 @@
         "advancedSettingsLabel": "고급 설정",
         "includeWeekendsLabel": "기간을 계산할 때 주말을 포함",
         "dependencyFieldForReaderTooltip": "이 필드는 날짜 종속성 필드 규칙에 포함됩니다",
-        "fieldInvalidTitle": "날짜 종속성 필드 오류"
+        "fieldInvalidTitle": "날짜 종속성 필드 오류",
+        "addNewField": "새 필드 추가",
+        "linkRowFieldTitle": "부모"
     },
     "assistant": {
         "statusThinking": "생각중...",
@@ -714,5 +716,9 @@
     },
     "assistantMessageList": {
         "disclaimer": "쿠마는 실수를 할 수 있으니 답변을 다시 한번 확인해 주세요"
+    },
+    "viewOwnershipType": {
+        "restricted": "제한된",
+        "restrictedDescription": "편집자 이하 권한자는 필터링된 데이터와 표시된 필드만 볼 수 있습니다. 멤버 관리도 가능합니다."
     }
 }
