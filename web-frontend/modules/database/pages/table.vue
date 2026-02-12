@@ -49,6 +49,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'workspacesAndApplications',
     'tableLoading',
     'selectWorkspaceDatabaseTable',
     'pendingJobs',

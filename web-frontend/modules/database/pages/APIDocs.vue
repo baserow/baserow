@@ -60,7 +60,7 @@ const {
 
 definePageMeta({
   layout: 'login',
-  middleware: [],
+  middleware: ['workspacesAndApplications'],
 })
 
 useHead({
