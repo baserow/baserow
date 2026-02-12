@@ -18,7 +18,12 @@ TRIGGER_NODE_TYPE_PATH = (
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 
 
-def create_workflow(data_fixture, user=None):
+def create_workflow(
+    data_fixture,
+    user=None,
+    action_node_type="create_row",
+    action_node_service_value=None,
+):
     if user is None:
         user = data_fixture.create_user()
 
@@ -40,18 +45,49 @@ def create_workflow(data_fixture, user=None):
     trigger_service.integration = integration
     trigger_service.save()
 
-    action_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
-        previous_node=trigger,
-        service=data_fixture.create_local_baserow_upsert_row_service(
-            table=action_table,
-            integration=integration,
-        ),
-    )
-    action_node.service.field_mappings.create(
-        field=action_table_field,
-        value=f"get('previous_node.{trigger.id}.0.{trigger_table_field_a.name}')",
-    )
+    action_table_row = None
+
+    if action_node_type == "create_row":
+        action_node = data_fixture.create_local_baserow_create_row_action_node(
+            workflow=workflow,
+            previous_node=trigger,
+            service=data_fixture.create_local_baserow_upsert_row_service(
+                table=action_table,
+                integration=integration,
+            ),
+        )
+    elif action_node_type == "update_row" and action_node_service_value:
+        action_table_row = action_table.get_model().objects.create(
+            **{f"field_{action_table_field.id}": action_node_service_value}
+        )
+        action_node = data_fixture.create_local_baserow_update_row_action_node(
+            workflow=workflow,
+            previous_node=trigger,
+            service=data_fixture.create_local_baserow_upsert_row_service(
+                table=action_table,
+                integration=integration,
+                row_id=action_table_row.id,
+            ),
+        )
+    elif action_node_type == "delete_row":
+        action_table_row = action_table.get_model().objects.create(
+            **{f"field_{action_table_field.id}": action_node_service_value}
+        )
+        action_node = data_fixture.create_local_baserow_delete_row_action_node(
+            workflow=workflow,
+            previous_node=trigger,
+            service=data_fixture.create_local_baserow_delete_row_service(
+                table=action_table,
+                integration=integration,
+                row_id=action_table_row.id,
+            ),
+        )
+
+    if action_node_type in ("create_row", "update_row"):
+        action_node.service.field_mappings.create(
+            field=action_table_field,
+            value=f"get('previous_node.{trigger.id}.0.{trigger_table_field_a.name}')",
+        )
 
     history = create_workflow_history(
         data_fixture, workflow, [trigger_table_field_a, trigger_table_field_b]
@@ -59,11 +95,14 @@ def create_workflow(data_fixture, user=None):
 
     return {
         "user": "user",
+        "integration": integration,
+        "workflow": workflow,
         "trigger_node": trigger,
         "action_node": action_node,
         "workflow_history": history,
         "action_table": action_table,
         "action_table_field": action_table_field,
+        "action_table_row": action_table_row,
         "trigger_table": trigger_table,
         "trigger_table_field_a": trigger_table_field_a,
         "trigger_table_field_b": trigger_table_field_b,
@@ -219,7 +258,9 @@ def test_dispatch_node_async_dispatches_trigger(mock_dispatch_task, data_fixture
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_action(mock_dispatch_task, data_fixture):
+def test_dispatch_node_async_dispatches_action_create_row(
+    mock_dispatch_task, data_fixture
+):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]
     action_node = data["action_node"]
@@ -282,7 +323,9 @@ def test_dispatch_node_async_dispatches_action(mock_dispatch_task, data_fixture)
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_children(mock_dispatch_task, data_fixture):
+def test_dispatch_node_async_dispatches_iterator_children(
+    mock_dispatch_task, data_fixture
+):
     data = data_fixture.iterator_graph_fixture()
     trigger_node = data["trigger_node"]
     trigger_table_fields = data["trigger_table_fields"]
@@ -646,3 +689,199 @@ def test_dispatch_node_async_dispatches_test_run(
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is True
     )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+def test_dispatch_node_async_dispatches_action_update_row(
+    mock_dispatch_task, data_fixture
+):
+    data = create_workflow(
+        data_fixture,
+        action_node_type="update_row",
+        action_node_service_value="foo",
+    )
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+    action_table = data["action_table"]
+    action_table_field = data["action_table_field"]
+
+    # The value before the action updates the table
+    result = getattr(
+        action_table.get_model().objects.all()[0], action_table_field.db_column
+    )
+    assert result == "foo"
+
+    for node in [trigger_node, action_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # The value after the action updates the table
+    result = getattr(
+        action_table.get_model().objects.all()[0], action_table_field.db_column
+    )
+    # Comes from the event_payload in workflow history
+    assert result == "Apple"
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.message == ""
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history,
+        node=action_node,
+    )
+    assert node_history.message == ""
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.iteration == 0
+    assert node_result.result == {
+        action_table_field.name: "Apple",
+        "id": AnyInt(),
+        "order": AnyStr(),
+    }
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+def test_dispatch_node_async_dispatches_action_delete_row(
+    mock_dispatch_task, data_fixture
+):
+    data = create_workflow(
+        data_fixture,
+        action_node_type="delete_row",
+    )
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+    action_table = data["action_table"]
+
+    # The row before it is deleted
+    assert action_table.get_model().objects.all().count() == 1
+
+    for node in [trigger_node, action_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # The row after it is deleted
+    assert action_table.get_model().objects.all().count() == 0
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.message == ""
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history,
+        node=action_node,
+    )
+    assert node_history.message == ""
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.iteration == 0
+    assert node_result.result == {}
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_fixture):
+    data = create_workflow(
+        data_fixture,
+        action_node_type="update_row",
+        action_node_service_value="foo",
+    )
+    workflow = data["workflow"]
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+    action_table = data["action_table"]
+    action_table_field = data["action_table_field"]
+    action_table_row = data["action_table_row"]
+    integration = data["integration"]
+
+    router_node = data_fixture.create_core_router_action_node(
+        workflow=workflow,
+        reference_node=action_node,
+        position="south",
+    )
+    data_fixture.create_core_router_service_edge(
+        service=router_node.service, label="Edge 1", condition="'false'"
+    )
+    edge2 = data_fixture.create_core_router_service_edge(
+        service=router_node.service,
+        label="Edge 2",
+        condition="'true'",
+        skip_output_node=True,
+    )
+    edge2_node = data_fixture.create_local_baserow_update_row_action_node(
+        workflow=workflow,
+        reference_node=router_node,
+        position="south",
+        output=edge2.uid,
+        service_kwargs={
+            "table": action_table,
+            "integration": integration,
+            "row_id": action_table_row.id,
+        },
+    )
+    edge2_node.service.field_mappings.create(field=action_table_field, value="'Cherry'")
+
+    trigger_node.workflow.refresh_from_db()
+
+    # The value before the router edge 2 updates the table
+    result = getattr(
+        action_table.get_model().objects.all()[0], action_table_field.db_column
+    )
+    assert result == "foo"
+
+    for node in [trigger_node, action_node, router_node, edge2_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # The value after the router edge 2 updates the table
+    result = getattr(
+        action_table.get_model().objects.all()[0], action_table_field.db_column
+    )
+    assert result == "Cherry"
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.message == ""
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history,
+        node=edge2_node,
+    )
+    assert node_history.message == ""
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.iteration == 0
+    assert node_result.result == {
+        action_table_field.name: "Cherry",
+        "id": AnyInt(),
+        "order": AnyStr(),
+    }
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
