@@ -1642,7 +1642,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <g
-                            clip-path="url(#clip00000000-0000-0000-0000-000000000001)"
+                            clip-path="url(#clipv-0-0-5)"
                           >
                             <path
                               d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -1654,7 +1654,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                           </g>
                           <defs>
                             <clippath
-                              id="clip00000000-0000-0000-0000-000000000001"
+                              id="clipv-0-0-5"
                             >
                               <rect
                                 fill="white"
@@ -3384,7 +3384,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <g
-                            clip-path="url(#clip00000000-0000-0000-0000-000000000001)"
+                            clip-path="url(#clipv-0-0-5)"
                           >
                             <path
                               d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -3396,7 +3396,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                           </g>
                           <defs>
                             <clippath
-                              id="clip00000000-0000-0000-0000-000000000001"
+                              id="clipv-0-0-5"
                             >
                               <rect
                                 fill="white"
