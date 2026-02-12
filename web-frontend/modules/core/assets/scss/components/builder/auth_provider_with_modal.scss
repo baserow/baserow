@@ -3,12 +3,12 @@
   @include rounded($rounded);
 
   padding: 20px;
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
   display: flex;
   cursor: pointer;
 
   &--error {
-    border-color: $palette-red-600;
+    border-color: $color-error-600;
   }
 }
 

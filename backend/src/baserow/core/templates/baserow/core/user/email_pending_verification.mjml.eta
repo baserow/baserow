@@ -5,12 +5,12 @@
     <mj-text mj-class="title">{% trans "Please confirm email" %}</mj-text>
     <mj-text mj-class="text">
     {% blocktrans trimmed %}
-    Thank you for using Baserow
+    Thank you for using TCR Projects
     {% endblocktrans %}
     </mj-text>
     <mj-text mj-class="text">
     {% blocktrans trimmed %}
-    To keep your account secure, please take a moment to verify your email by clicking the button below. Your email address will be used to assist you in changing your Baserow password should you ever need to in the future.
+    To keep your account secure, please take a moment to verify your email by clicking the button below. Your email address will be used to assist you in changing your TCR Projects password should you ever need to in the future.
     {% endblocktrans %}
     </mj-text>
     <mj-button mj-class="button mt-20" href="{{ confirm_url }}">

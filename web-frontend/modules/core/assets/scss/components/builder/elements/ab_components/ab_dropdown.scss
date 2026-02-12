@@ -23,16 +23,16 @@
     text-decoration: none;
     border-color: color-mix(
       in srgb,
-      var(--input-border-color, $palette-neutral-500),
+      var(--input-border-color, $color-neutral-400),
       var(--input-border-color-complement, gray) 30%
     );
   }
 
   .ab-dropdown--disabled & {
-    background-color: $palette-neutral-100;
-    color: $palette-neutral-900;
+    background-color: $color-neutral-100;
+    color: $color-neutral-700;
     cursor: not-allowed;
-    border-color: $palette-neutral-600;
+    border-color: $color-neutral-500;
   }
 }
 

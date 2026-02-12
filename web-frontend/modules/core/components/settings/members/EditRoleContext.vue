@@ -12,7 +12,7 @@
           >
             <i class="iconoir-book"></i>
             <a
-              href="https://baserow.io/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes"
+              href="https://tcrprojects.com/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes"
               target="_blank"
             >
               {{ $t('editRoleContext.billableRolesLink') }}

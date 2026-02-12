@@ -19,7 +19,7 @@
   content: '';
   display: block;
   height: $connectorHeight;
-  border-left: 2px solid $palette-neutral-400;
+  border-left: 2px solid $color-neutral-300;
 }
 
 .workflow-edge__label {
@@ -29,9 +29,9 @@
   border-radius: 25px;
   font-size: 11px;
   font-weight: 500;
-  background-color: $palette-neutral-200;
-  border: 1px solid $palette-neutral-400;
-  color: $palette-neutral-900;
+  background-color: $color-neutral-200;
+  border: 1px solid $color-neutral-300;
+  color: $color-neutral-700;
   display: block;
 
   @include elevation($elevation-low);
@@ -43,7 +43,7 @@
     left: 50%;
     bottom: -12px;
     height: 10px;
-    border-left: 2px solid $palette-neutral-400;
+    border-left: 2px solid $color-neutral-300;
   }
 }
 
@@ -63,22 +63,22 @@
   @include rounded($rounded-xl);
 
   &--hover {
-    border: 2px dashed $palette-blue-500;
+    border: 2px dashed $color-primary-500;
   }
 }
 
 .workflow-edge__add-button--active {
   & > .button-floating {
     transition: all 0.2s ease;
-    background: $palette-blue-100;
-    border: 1px dashed $palette-blue-400;
+    background: $color-primary-100;
+    border: 1px dashed $color-primary-400;
   }
 }
 
 .workflow-edge__add-button--hover {
   & > .button-floating {
-    background: $palette-green-200;
-    border: 1px solid $palette-green-500;
-    color: $palette-green-700;
+    background: $color-success-200;
+    border: 1px solid $color-success-400;
+    color: $color-success-600;
   }
 }

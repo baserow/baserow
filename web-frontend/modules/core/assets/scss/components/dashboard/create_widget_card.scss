@@ -18,7 +18,7 @@
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-size: 13px;
   font-style: normal;
   font-weight: 500;
@@ -27,10 +27,10 @@
 
 .create-widget-card__name-locked {
   display: inline-block;
-  color: #4e5cfe;
+  color: $color-primary-500;
   padding: 3px;
   border-radius: 4px;
-  background: rgba(78, 92, 254, 0.1);
+  background: themed-alpha($color-primary-500, 0.1);
 }
 
 .create-widget-card__img-container {
@@ -40,12 +40,12 @@
   justify-content: center;
   align-items: center;
   border-radius: 6px;
-  border: 1px solid #ededed;
-  background: #fafafa;
-  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+  border: 1px solid $color-neutral-200;
+  background: $color-neutral-50;
+  box-shadow: none;
 }
 
 .create-widget-card--available:hover .create-widget-card__img-container {
-  border: 1px solid #d7d8d9;
-  background: #f7f7f7;
+  border: 1px solid themed-alpha($color-primary-500, 0.35);
+  background: themed-alpha($color-primary-500, 0.06);
 }

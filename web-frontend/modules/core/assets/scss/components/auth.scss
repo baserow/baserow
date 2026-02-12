@@ -1,5 +1,17 @@
 .auth__body {
-  background-color: $color-neutral-50;
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      themed-alpha($color-primary-500, 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 85% 90%,
+      themed-alpha($color-purple-400, 0.08) 0%,
+      transparent 40%
+    ),
+    $color-neutral-100;
+  color: $color-neutral-900;
 }
 
 .auth__container {
@@ -8,14 +20,31 @@
   width: 100vw;
   height: 100vh;
   height: 100dvh; /* handle the issue of the  view port full height on Safari iOS https://stackoverflow.com/questions/76303977/svh-units-not-working-properly-in-mobile-safari */
+  display: flex;
   justify-content: center;
   align-items: center;
-  display: table-cell;
-  vertical-align: middle;
+  padding: 24px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(
+      130deg,
+      themed-alpha($color-primary-500, 0.08) 0%,
+      transparent 55%
+    );
+  }
+
+  @media screen and (max-width: 480px) {
+    padding: 16px;
+  }
 }
 
 .auth__logo {
   height: 16px;
+  opacity: 0.95;
 
   @extend %mb-24;
 
@@ -29,16 +58,18 @@
   justify-content: space-between;
   align-items: baseline;
   width: 100%;
+  gap: 8px;
 
   @extend %mb-32;
 }
 
 .auth__head-text {
   font-size: 13px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   a {
     font-weight: 500;
+    color: $color-primary-400;
   }
 }
 
@@ -46,6 +77,8 @@
   overflow-wrap: break-word;
   margin: 0 0 16px;
   padding: 0;
+  color: $color-neutral-900;
+  letter-spacing: -0.02em;
 
   &:last-child {
     margin-bottom: 16px;
@@ -101,10 +134,11 @@
   font-size: 12px;
   line-height: 20px;
   text-align: center;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   a {
     font-weight: 500;
+    color: $color-primary-400;
   }
 }
 
@@ -116,14 +150,14 @@
   display: flex;
   align-items: center;
   font-size: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   margin: 24px 0;
 
   &::before,
   &::after {
     content: '';
     height: 1px;
-    background-color: $palette-neutral-200;
+    background-color: $color-neutral-200;
     flex-grow: 1;
   }
 
@@ -137,10 +171,87 @@
 }
 
 .auth__wrapper {
+  position: relative;
   max-width: 486px;
+  width: min(100%, 486px);
   margin: 0 auto;
-  padding: 20px;
+  padding: 28px;
   box-sizing: border-box;
+  border: 1px solid $color-neutral-200;
+  background: linear-gradient(
+    180deg,
+    $color-neutral-10 0%,
+    $color-neutral-50 100%
+  );
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+
+  @include rounded($rounded-lg);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, $color-primary-500 0%, $color-primary-400 100%);
+    border-top-left-radius: $rounded-lg;
+    border-top-right-radius: $rounded-lg;
+  }
+
+  @media screen and (max-width: 480px) {
+    padding: 20px;
+  }
+
+  .control__label,
+  .control__label.control__label--small,
+  .control__required,
+  .control__messages {
+    color: $color-neutral-800;
+  }
+
+  .form-input {
+    background: $color-neutral-50;
+    border-color: $color-neutral-200;
+    box-shadow: none;
+
+    &:focus,
+    &:focus-within,
+    &:active {
+      &:not(.form-input--error):not(.form-input--disabled) {
+        border-color: $color-primary-500;
+      }
+    }
+  }
+
+  .form-input__input {
+    background: $color-neutral-50;
+    color: $color-neutral-900;
+
+    &::placeholder {
+      color: $color-neutral-600;
+    }
+  }
+
+  .button {
+    border-radius: $rounded-md;
+  }
+
+  .button:not(.button--secondary):not(.button--ghost):not(.button--danger) {
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, $color-primary-500 0%, $color-primary-400 100%);
+    box-shadow: 0 8px 20px themed-alpha($color-primary-500, 0.3);
+
+    &:hover:not([disabled]) {
+      filter: brightness(1.05);
+    }
+  }
+
+  .button--secondary {
+    border-color: $color-neutral-200;
+    background: $color-neutral-50;
+    color: $color-neutral-900;
+  }
 }
 
 .auth__wrapper--small-centered {

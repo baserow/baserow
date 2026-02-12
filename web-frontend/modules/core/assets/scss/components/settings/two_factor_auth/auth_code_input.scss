@@ -13,12 +13,12 @@
 .auth-code-input__input {
   height: 52px;
   font-size: 18px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   border-radius: 6px;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   text-align: center;
 }
 
 .auth-code-input__input--filled {
-  background: $palette-neutral-100;
+  background: $color-neutral-100;
 }

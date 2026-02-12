@@ -1,6 +1,6 @@
 .dashboard__container {
   padding: 24px;
-  background: $white;
+  background: transparent;
   height: 100%;
 }
 
@@ -8,18 +8,19 @@
   height: calc(100vh - 74px);
   overflow-y: auto;
   padding: 24px;
-  background: $white;
+  background: transparent;
 }
 
 .dashboard__header {
   position: sticky;
   top: 0;
   padding: 0 24px;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
   display: flex;
   gap: 15px;
   align-items: center;
-  background: $white;
+  background: $color-neutral-50;
+  backdrop-filter: blur(8px);
   z-index: 1;
   height: 74px;
   width: 100%;
@@ -42,6 +43,7 @@
   gap: 5px;
   cursor: pointer;
   min-width: 0;
+  color: $color-neutral-900;
 }
 
 .dashboard__workspace-name-text {
@@ -49,7 +51,7 @@
 }
 
 .dashboard__workspace-name-icon {
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
   font-size: 16px;
   flex: 0 0;
 }
@@ -92,11 +94,14 @@
   gap: 16px;
   padding: 10px;
   cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
 
   @include rounded($rounded-md);
 
   &:hover {
-    background: $palette-neutral-25;
+    background: themed-alpha($color-primary-500, 0.08);
+    border-color: themed-alpha($color-primary-500, 0.3);
 
     .dashboard__application-more-button {
       display: block;
@@ -114,8 +119,8 @@
 
 .dashboard__application-icon {
   display: flex;
-  border: 1px solid $palette-neutral-200;
-  background: $white;
+  border: 1px solid $color-neutral-200;
+  background: $color-neutral-50;
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
@@ -123,7 +128,8 @@
   justify-content: center;
 
   @include rounded($rounded-md);
-  @include elevation($elevation-low);
+
+  box-shadow: none;
 }
 
 .dashboard__application-name {
@@ -144,7 +150,7 @@
 .dashboard__application-more {
   @extend %ellipsis;
 
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-size: 11px;
   padding-top: 8px;
   font-weight: 500;
@@ -152,19 +158,20 @@
 
 .dashboard__application-more-separator {
   margin: 0 6px;
-  color: $palette-neutral-400;
+  color: $color-neutral-300;
 }
 
 .dashboard__application-separator {
   height: 1px;
-  background: $palette-neutral-200;
+  background: $color-neutral-200;
   width: calc(100% - 65px);
   margin: 6px 0 6px auto;
 }
 
 .dashboard__no-application {
   border-radius: 6px;
-  border: 1px dashed $palette-neutral-400;
+  border: 1px dashed $color-neutral-300;
+  background: $color-neutral-50;
   height: calc(100% - 48px);
   display: flex;
   flex-direction: column;
@@ -192,7 +199,8 @@
 }
 
 .dashboard__suggested-templates-wrapper {
-  background: $palette-neutral-50;
+  background: $color-neutral-50;
+  border: 1px solid $color-neutral-200;
   padding: 24px;
   height: calc(100% - 33px);
 
@@ -226,7 +234,12 @@
 }
 
 .dashboard__resource {
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
+  background: linear-gradient(
+    180deg,
+    $color-neutral-50 0%,
+    $color-neutral-10 100%
+  );
   padding: 21px;
   text-decoration: none;
   display: flex;
@@ -236,7 +249,7 @@
 
   &:hover {
     text-decoration: none;
-    border-color: $palette-neutral-400;
+    border-color: themed-alpha($color-primary-500, 0.45);
   }
 }
 
@@ -261,8 +274,8 @@
 .dashboard__resource-icon {
   width: 40px;
   height: 40px;
-  background: $palette-neutral-50;
-  color: $palette-neutral-700;
+  background: themed-alpha($color-primary-500, 0.12);
+  color: $color-primary-500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -275,13 +288,14 @@
 .dashboard__resource-title {
   font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   margin: 0;
 }
 
 .dashboard__resource-text {
   margin: 0;
   font-size: 12px;
+  color: $color-neutral-700;
 }
 
 .dashboard__help {

@@ -6,7 +6,7 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
   max-width: 100%;
   box-sizing: border-box;
   line-height: 16px;
@@ -26,11 +26,11 @@
 .badge-collaborator__remove-icon {
   font-size: 14px;
   flex-shrink: 0;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   cursor: pointer;
 
   &:hover,
   &:active {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }

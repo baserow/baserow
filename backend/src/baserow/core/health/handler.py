@@ -95,8 +95,8 @@ class HealthCheckHandler:
             fail_silently=False, backend=settings.CELERY_EMAIL_BACKEND
         ) as connection:
             email = EmailMessage(
-                "Test email from Baserow",
-                "This is a test email sent by the email tester in Baserow",
+                "Test email from TCR Projects",
+                "This is a test email sent by the email tester in TCR Projects",
                 settings.FROM_EMAIL,
                 [target_email],
                 connection=connection,

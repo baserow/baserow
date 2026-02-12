@@ -4,7 +4,7 @@
   align-items: start;
   gap: 7px;
   padding: 20px 24px;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
   position: relative;
   height: auto;
 
@@ -40,7 +40,7 @@
 }
 
 .widget__header-title {
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-size: 16px;
   font-weight: 500;
   white-space: nowrap;

@@ -954,9 +954,9 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         how: str,
     ):
         """
-        Starts a celery task that shares some user information with baserow.io. Note
-        that this is only triggered if the user given permission during the onboarding
-        in the web-frontend.
+        Starts a celery task that shares some user information with the configured
+        SaaS endpoint. Note that this is only triggered if the user given permission
+        during onboarding in the web-frontend.
 
         :param user: The user on whose behalf the information is shared.
         :param team: The team type that the user shared.
@@ -980,15 +980,15 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         self, email, team, role, size, country, how
     ):
         """
-        Makes an API request to baserow.io that shares the additional information. Note
-        that this is only triggered if the user given permission during the onboarding
-        in the web-frontend.
+        Makes an API request to the configured SaaS endpoint that shares the
+        additional information. Note that this is only triggered if the user given
+        permission during onboarding in the web-frontend.
 
         :param team: The team type that the user shared.
         :param role: The role that the user shared.
         :param size: The company size that the user shared.
         :param country: The country name that the user shared.
-        :param how: How the user found Baserow.
+        :param how: How the user found TCR Projects.
         """
 
         settings_object = CoreHandler().get_settings()
@@ -1013,6 +1013,6 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             response.raise_for_status()
         except RequestException:
             logger.warning(
-                "The onboarding details could not be shared with the Baserow team "
+                "The onboarding details could not be shared with the TCR Projects team "
                 "because the SaaS environment could not be reached."
             )

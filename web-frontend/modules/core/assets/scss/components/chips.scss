@@ -10,47 +10,47 @@
   gap: 8px;
   margin: 0;
   background: $white;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   cursor: pointer;
 
   @include rounded($rounded-md);
 
   &:hover:not(.chips--disabled) {
-    border: 1px solid $palette-blue-300;
-    background: rgba($palette-blue-1000, 0.06);
+    border: 1px solid $color-primary-400;
+    background: $color-primary-100;
 
     &.chips--active {
       border-color: transparent;
-      box-shadow: 0 0 0 1.5px $palette-blue-300;
+      box-shadow: 0 0 0 1.5px $color-primary-400;
     }
   }
 
   &:active:not(.chips--disabled) {
-    border: 1px solid $palette-blue-500;
-    background: rgba($palette-blue-1000, 0.1);
+    border: 1px solid $color-primary-500;
+    background: $color-primary-200;
   }
 }
 
 .chips--active:not(.chips--disabled) {
   border-color: transparent;
-  box-shadow: 0 0 0 1.5px $palette-blue-300;
-  background: rgba($palette-blue-1000, 0.08);
+  box-shadow: 0 0 0 1.5px $color-primary-400;
+  background: $color-primary-100;
 }
 
 .chips__icon {
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   font-size: 18px;
 
   .chips--active:not(.chips--disabled) & {
-    color: #4653e5;
+    color: $color-primary-500;
   }
 
   .chips:hover:not(.chips--disabled) & {
-    color: #4653e5;
+    color: $color-primary-500;
   }
 }
 
 .chips--disabled {
-  border-color: $palette-neutral-200;
-  color: $palette-neutral-700;
+  border-color: $color-neutral-200;
+  color: $color-neutral-500;
 }

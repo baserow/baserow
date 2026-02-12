@@ -3,7 +3,7 @@
     "title": "Workflow"
   },
   "automationWelcomeGuidedTourStep": {
-    "title": "Welcome to Baserow Automations!",
+    "title": "Welcome to TCR Projects Automations!",
     "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
   },
   "automationGraphGuidedTourStep": {
@@ -28,7 +28,7 @@
   },
   "automationDocsGuidedTourStep": {
     "title": "Explore the documentation",
-    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
+    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in TCR Projects."
   },
   "sidebarComponentAutomation": {
     "createAutomationWorkflow": "New workflow"
@@ -96,7 +96,7 @@
     "noRunsDescription": "When this workflow has run, the results will be shown here.",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
-    "statusDisabled": "Disabled by Baserow",
+    "statusDisabled": "Disabled by TCR Projects",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
     "testRun": "Test"

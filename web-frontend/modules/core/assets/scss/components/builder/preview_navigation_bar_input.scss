@@ -8,7 +8,7 @@
   @include rounded($rounded);
 
   &--invalid {
-    border-color: $palette-red-600;
+    border-color: $color-error-600;
   }
 }
 

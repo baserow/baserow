@@ -62,63 +62,63 @@
 .alert--blank {
   @include alert-style(
     $white,
-    $palette-neutral-1100,
-    $palette-neutral-1300,
-    $palette-neutral-400
+    $color-neutral-800,
+    $color-neutral-900,
+    $color-neutral-300
   );
 }
 
 .alert--info-neutral {
   @include alert-style(
-    $palette-neutral-25,
-    $palette-neutral-1100,
-    $palette-neutral-1300,
-    $palette-neutral-400
+    $color-neutral-10,
+    $color-neutral-800,
+    $color-neutral-900,
+    $color-neutral-300
   );
 }
 
 .alert--info-primary {
   @include alert-style(
-    $palette-blue-50,
-    $palette-blue-700,
-    $palette-blue-800,
-    $palette-blue-200
+    $color-primary-100,
+    $color-primary-700,
+    $color-primary-800,
+    $color-primary-300
   );
 }
 
 .alert--success {
   @include alert-style(
-    $palette-green-50,
-    $palette-green-700,
-    $palette-green-800,
-    $palette-green-200
+    $color-success-100,
+    $color-success-600,
+    $color-success-700,
+    $color-success-300
   );
 }
 
 .alert--warning {
   @include alert-style(
-    $palette-yellow-50,
-    $palette-yellow-800,
-    $palette-yellow-900,
-    $palette-yellow-200
+    $color-warning-100,
+    $color-warning-600,
+    $color-warning-700,
+    $color-warning-300
   );
 }
 
 .alert--error {
   @include alert-style(
-    $palette-red-50,
-    $palette-red-700,
-    $palette-red-800,
-    $palette-red-200
+    $color-error-100,
+    $color-error-600,
+    $color-error-700,
+    $color-error-300
   );
 }
 
 .alert--loading {
   @include alert-style(
-    $palette-neutral-25,
-    $palette-neutral-1100,
-    $palette-neutral-1300,
-    $palette-neutral-600
+    $color-neutral-10,
+    $color-neutral-800,
+    $color-neutral-900,
+    $color-neutral-500
   );
 }
 
@@ -181,7 +181,7 @@
     height: 14px;
     border-radius: 50%;
     border: 0.18em solid;
-    border-color: $palette-neutral-700 transparent $palette-neutral-700
+    border-color: $color-neutral-500 transparent $color-neutral-500
       transparent;
     animation: spin infinite 1800ms;
     animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);

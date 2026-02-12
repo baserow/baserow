@@ -60,8 +60,8 @@
   padding: 20px;
   text-align: left;
   max-width: 624px;
-  color: $palette-neutral-900;
-  border-top: solid 1px $palette-neutral-200;
+  color: $color-neutral-700;
+  border-top: solid 1px $color-neutral-200;
 
   &:first-child {
     border-top: none;
@@ -71,7 +71,7 @@
 .view-sharing__share-link-title {
   font-size: 16px;
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .view-sharing__share-link-description {
@@ -90,7 +90,7 @@
   font-weight: 500;
   line-height: 20px;
   margin-bottom: 8px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .view-sharing__shared-link-description {
@@ -113,13 +113,13 @@
 .view-sharing__shared-link-box {
   @extend %ellipsis;
 
-  background-color: $palette-neutral-100;
+  background-color: $color-neutral-100;
   line-height: 32px;
   padding: 0 8px;
   font-family: monospace;
   font-size: 10px;
   width: 516px;
-  border: solid 1px $palette-neutral-400;
+  border: solid 1px $color-neutral-300;
   overscroll-behavior: none;
   margin: 8px 0;
   height: 32px;
@@ -141,7 +141,7 @@
   line-height: 32px;
   font-size: 14px;
   text-align: center;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   @include rounded($rounded);
 
@@ -179,7 +179,7 @@
   gap: 20px;
   padding: 16px;
   line-height: 20px;
-  border-top: solid 1px $palette-neutral-200;
+  border-top: solid 1px $color-neutral-200;
 }
 
 .view-sharing__shared-link-options {

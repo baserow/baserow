@@ -23,7 +23,8 @@
   @include rounded($rounded-md);
 
   &.active {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.12);
+    border: 1px solid themed-alpha($color-primary-500, 0.24);
   }
 
   &.tree__item--loading::after {
@@ -55,11 +56,11 @@
   }
 
   &:not(.tree__action--disabled):hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.08);
   }
 
   &.tree__action--highlighted {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.12);
   }
 
   .tree__item.active &:hover {
@@ -76,12 +77,12 @@
 .tree__link {
   @extend %tree-size;
 
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
 
   @include flex-align-items(8px);
 
   .tree__action--deactivated & {
-    color: $palette-neutral-500;
+    color: $color-neutral-500;
   }
 
   &:hover {
@@ -112,11 +113,11 @@
 
   display: flex;
   min-width: 0;
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
   font-weight: 500;
 
   .active & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
@@ -131,11 +132,11 @@
   @extend %tree-size;
 
   text-align: center;
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
   font-size: 16px;
 
   .active & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
@@ -166,7 +167,7 @@
 
   &:hover,
   &.active {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.1);
   }
 
   &::before,
@@ -178,7 +179,7 @@
 
   &::before {
     height: 32px;
-    border-right: 1px solid $palette-neutral-200;
+    border-right: 1px solid $color-neutral-200;
   }
 
   &:not(:last-child) {
@@ -202,7 +203,7 @@
   @extend %tree-sub-size;
   @extend %ellipsis;
 
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
   font-weight: 500;
   padding: 0 32px 0 16px;
   display: flex;
@@ -215,7 +216,7 @@
   }
 
   .active > & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 
   /* stylelint-disable-next-line */
@@ -253,20 +254,20 @@
   line-height: 17px;
   font-size: 12px;
   font-weight: 500;
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
 .tree__sub-add-icon {
   font-size: 16px;
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
 
   .tree__sub-add:hover & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
@@ -321,12 +322,12 @@
 .tree__heading-name {
   font-size: 11px;
   font-weight: 500;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   line-height: 16px;
 }
 
 .tree__heading-add {
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
   width: 16px;
   height: 16px;
   display: flex;
@@ -339,13 +340,13 @@
 
   &:hover {
     text-decoration: none;
-    background-color: $palette-neutral-200;
-    outline: solid 2px $palette-neutral-200;
-    color: $palette-neutral-800;
+    background-color: themed-alpha($color-primary-500, 0.12);
+    outline: solid 2px themed-alpha($color-primary-500, 0.12);
+    color: $color-primary-500;
   }
 }
 
 .tree__separator {
-  border-bottom: solid 1px $palette-neutral-200;
+  border-bottom: solid 1px $color-neutral-200;
   margin: 8px 8px 16px;
 }

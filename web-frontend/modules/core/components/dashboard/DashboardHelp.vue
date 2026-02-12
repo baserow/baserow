@@ -25,7 +25,7 @@
     <template #actions>
       <Button
         tag="a"
-        href="https://github.com/baserow/baserow"
+        href="https://tcrprojects.com"
         target="_blank"
         rel="noopener noreferrer"
         type="secondary"
@@ -59,7 +59,7 @@
         tag="a"
         tooltip-position="top"
         icon="baserow-icon-facebook"
-        href="https://www.facebook.com/sharer/sharer.php?u=https://baserow.io"
+        href="https://www.facebook.com/sharer/sharer.php?u=https://tcrprojects.com"
         target="_blank"
         rel="noopener noreferrer"
       />
@@ -69,7 +69,7 @@
         tag="a"
         tooltip-position="top"
         icon="baserow-icon-linkedin"
-        href="https://www.linkedin.com/sharing/share-offsite/?url=https://baserow.io"
+        href="https://www.linkedin.com/sharing/share-offsite/?url=https://tcrprojects.com"
         target="_blank"
         rel="noopener noreferrer"
       />
@@ -98,14 +98,14 @@ const { t } = useI18n()
 
 const twitterUrl = computed(
   () =>
-    `https://twitter.com/intent/tweet?url=https://baserow.io&hashtags=opensource,nocode,database,baserow&text=${encodeURI(
+    `https://twitter.com/intent/tweet?url=https://tcrprojects.com&hashtags=opensource,nocode,database,tcrprojects&text=${encodeURI(
       t('dashboard.tweetContent')
     )}`
 )
 
 const redditUrl = computed(
   () =>
-    `https://www.reddit.com/submit?url=https://baserow.io&title=${encodeURI(
+    `https://www.reddit.com/submit?url=https://tcrprojects.com&title=${encodeURI(
       t('dashboard.redditTitle')
     )}`
 )

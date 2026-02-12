@@ -12,7 +12,7 @@
     cursor: pointer;
 
     &:hover {
-      background-color: rgba($palette-neutral-1300, 0.04);
+      background-color: $color-neutral-50;
     }
   }
 }
@@ -22,11 +22,11 @@
   text-align: right;
   font-size: 12px;
   line-height: 19px;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
 
   &.grid-view-aggregation__empty--active,
   .grid-view-aggregation:hover & {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }
 
@@ -34,11 +34,11 @@
   font-size: 16px;
   line-height: 16px;
   margin-right: 4px;
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
 
   .grid-view-aggregation__empty--active &,
   .grid-view-aggregation:hover & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 

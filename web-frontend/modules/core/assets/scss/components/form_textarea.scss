@@ -1,5 +1,5 @@
 .form-textarea {
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   position: relative;
   width: 100%;
   padding: 12px 16px;
@@ -12,12 +12,12 @@
   &:focus,
   &:focus-within {
     &:not(.form-textarea--disabled):not(.form-textarea--error) {
-      border-color: $palette-blue-500;
+      border-color: $color-primary-500;
     }
   }
 
   &.form-textarea--error {
-    border-color: $palette-red-600;
+    border-color: $color-error-600;
   }
 
   &--small {
@@ -27,8 +27,8 @@
 
 .form-textarea--disabled {
   cursor: not-allowed;
-  background-color: $palette-neutral-100;
-  color: $palette-neutral-700;
+  background-color: $color-neutral-100;
+  color: $color-neutral-500;
   box-shadow: none;
 }
 

@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: $palette-neutral-1100;
+  color: $color-neutral-800;
   background: none;
   margin: 0;
   font-size: 13px;
@@ -15,16 +15,16 @@
   text-decoration: none;
 
   .button-text[disabled] & {
-    color: $palette-neutral-500;
+    color: $color-neutral-400;
   }
 
   &:hover:not(.button-text--loading):not([disabled]) {
-    color: $palette-neutral-1300;
+    color: $color-neutral-900;
   }
 
   &[disabled]:not(.button-text--loading) {
     cursor: not-allowed;
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 
@@ -48,14 +48,14 @@
     height: 14px;
     border-radius: 50%;
     border: 0.18em solid;
-    border-color: $palette-blue-500 transparent $palette-blue-500 transparent;
+    border-color: $color-primary-500 transparent $color-primary-500 transparent;
     animation: spin infinite 1800ms;
     animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
   }
 }
 
 .button-text--secondary {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 }
 
 .button-text--small {
@@ -64,18 +64,18 @@
 
 .button-text__icon {
   font-size: 18px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 
   .button-text[disabled]:not(.button-text--loading) & {
-    color: $palette-neutral-500;
+    color: $color-neutral-400;
   }
 
   .button-text:hover:not(.button-text--loading):not([disabled]) & {
-    color: $palette-neutral-1300;
+    color: $color-neutral-900;
   }
 
   .button-text:active:not(.button-text--loading):not([disabled]) & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 

@@ -23,7 +23,7 @@
   margin-bottom: 30px;
   cursor: pointer;
 
-  @include rounded($rounded-md);
+  @include rounded($rounded-xl);
 
   &:hover,
   &.upload-files__dropzone--dragging {
@@ -48,6 +48,11 @@
   margin-top: 8px;
   font-size: 13px;
   font-weight: 600;
+
+  a,
+  span {
+    color: $color-primary-700;
+  }
 }
 
 .upload-files__dropzone-progress {
@@ -71,6 +76,10 @@
 
 .upload-files__item {
   display: flex;
+  padding: 12px;
+  border: 1px solid $color-neutral-200;
+
+  @include rounded($rounded-xl);
 
   &:not(:last-child) {
     margin-bottom: 10px;
@@ -125,10 +134,10 @@
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 10px;
-  background-color: $color-neutral-100;
+  height: 8px;
+  background-color: $color-neutral-200;
 
-  @include rounded($rounded);
+  border-radius: 9999px;
 }
 
 .upload-files__progress-bar {

@@ -1,13 +1,10 @@
 <template>
   <a
-    href="https://baserow.io"
+    href="https://tcrprojects.com"
     target="_blank"
-    title="Baserow - open source no-code database tool and Airtable alternative"
+    title="TCR Projects - no-code database platform"
   >
-    <Logo
-      height="14"
-      alt="Baserow - open source no-code database tool and Airtable alternative"
-    />
+    <Logo height="14" alt="TCR Projects - no-code database platform" />
   </a>
 </template>
 

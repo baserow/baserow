@@ -11,8 +11,8 @@
 }
 
 .template-import-item__head {
-  border: 1px solid $palette-neutral-200;
-  background: $palette-neutral-25;
+  border: 1px solid $color-neutral-200;
+  background: $color-neutral-10;
   height: 76px;
   display: flex;
   justify-content: center;
@@ -22,7 +22,7 @@
   @include rounded($rounded-md);
 
   .template-import-item--active & {
-    border: 2px solid $palette-blue-500;
+    border: 2px solid $color-primary-500;
   }
 }
 
@@ -33,9 +33,9 @@
   flex: 0 0 40px;
   height: 40px;
   font-size: 16px;
-  border: solid 1px $palette-neutral-200;
+  border: solid 1px $color-neutral-200;
   border-radius: 100%;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   background-color: $white;
 
   @include rounded($rounded-md);
@@ -47,5 +47,5 @@
 
   font-weight: 500;
   line-height: 20px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }

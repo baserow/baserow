@@ -64,8 +64,8 @@
   }
 
   &.active {
-    color: $palette-neutral-1100;
-    background-color: $palette-blue-50;
+    color: $color-neutral-800;
+    background-color: $color-primary-100;
   }
 }
 
@@ -75,7 +75,7 @@
 
 .choice-items__icon-active {
   position: absolute;
-  color: $palette-green-600;
+  color: $color-success-500;
   right: 10px;
   top: 50%;
   transform: translateY(-50%);

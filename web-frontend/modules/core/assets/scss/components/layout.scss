@@ -1,6 +1,13 @@
 .layout {
   position: absolute;
   inset: 0;
+  background:
+    radial-gradient(
+      circle at 0% 0%,
+      themed-alpha($color-primary-500, 0.08) 0%,
+      transparent 40%
+    ),
+    $color-neutral-100;
 }
 
 .layout__resize {
@@ -16,7 +23,7 @@
       @include absolute(0, auto, 0, 0);
 
       content: '';
-      background-color: $palette-neutral-400;
+      background-color: themed-alpha($color-primary-500, 0.65);
       width: 3px;
     }
   }
@@ -35,6 +42,7 @@
   position: absolute;
   z-index: $z-index-layout-col-3;
   inset: 0 0 0 240px;
+  background: transparent;
 }
 
 .layout__col-2-scroll {
@@ -43,7 +51,7 @@
   overflow: auto;
 
   &.layout__col-2-scroll--white-background {
-    background-color: $white;
+    background-color: $color-neutral-50;
   }
 }
 
@@ -66,4 +74,6 @@
   position: absolute;
   z-index: $z-index-layout-col-3;
   height: 100%;
+  border-left: 1px solid $color-neutral-200;
+  background: $color-neutral-50;
 }

@@ -46,7 +46,7 @@ def formula_exception_handler(e):
         raise e
     exception_capturer(e)
     logger.error(
-        f"Formula related error occurred: {e}. Please send this error to the baserow "
-        f"developers at https://baserow.io/contact."
+        f"Formula related error occurred: {e}. Please send this error to the TCR Projects "
+        f"developers at https://tcr-cc.com/contact."
     )
     logger.exception(e)

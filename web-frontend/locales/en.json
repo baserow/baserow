@@ -96,7 +96,8 @@
     "tokens": "Database tokens",
     "deleteAccount": "Delete account",
     "mcpEndpoint": "MCP server",
-    "twoFactorAuth": "Two-factor auth"
+    "twoFactorAuth": "Two-factor auth",
+    "appearance": "Appearance"
   },
   "userFileUploadType": {
     "file": "my device",
@@ -206,7 +207,7 @@
     "singleSelect": "Accepts an integer or a text value representing the chosen select option id or option value. A null value means none is selected. In case of a text value, the first matching option is selected.",
     "multipleSelect": "Accepts an array of mixed integers or text values each representing the chosen select option id or value. In case of a text value, the first matching option is selected. You can send a string with names separated by comma as value in which case the string is converted into an array of option names.",
     "phoneNumber": "Accepts a phone number which has a maximum length of 100 characters consisting solely of digits, spaces and the following characters: Nx,._+*()#=;/- .",
-    "formula": "A read-only field defined by a formula written in the Baserow formula language.",
+    "formula": "A read-only field defined by a formula written in the TCR Projects formula language.",
     "count": "A read-only field connected to a link to table field which returns the number of relations.",
     "rollup": "A read-only field connected to a link to table field which returns rolls up the values from the chosen lookup field in the linked table.",
     "lookup": "A read-only field connected to a link to table field which returns an array of values and row ids from the chosen lookup field in the linked table.",
@@ -437,7 +438,7 @@
     "disabledPasswordProviderTitle": "Password authentication is disabled.",
     "disabledPasswordProviderMessage": "Please use another authentication provider.",
     "maxLocksPerTransactionExceededTitle": "PostgreSQL issue detected",
-    "maxLocksPerTransactionExceededDescription": "Baserow attempted to permanently delete the trashed items, but exceeded the available locks specified in `max_locks_per_transaction`.",
+    "maxLocksPerTransactionExceededDescription": "TCR Projects attempted to permanently delete the trashed items, but exceeded the available locks specified in `max_locks_per_transaction`.",
     "lastAdminTitle": "Can't remove last workspace admin",
     "lastAdminMessage": "A workspace has to have at least one admin.",
     "adminAlreadyExistsTitle": "Can't use that username",
@@ -496,7 +497,7 @@
     "uploadFile": "Upload file",
     "uploadFileDescription": "The `file` multipart containing the file contents.",
     "uploadFileViaUrl": "Upload file via URL",
-    "uploadFileViaUrlDescription": "Uploads a file to Baserow by downloading it from the provided URL.",
+    "uploadFileViaUrlDescription": "Uploads a file to TCR Projects by downloading it from the provided URL.",
     "queryParameters": "Query parameters",
     "pathParameters": "Path parameters",
     "requestBodySchema": "Request body schema",
@@ -625,11 +626,11 @@
   },
   "urlCheck": {
     "invalidUrlEnvVarTitle": "Invalid {name}",
-    "invalidUrlEnvVarDescription": "The {name} environment variable has been set to an invalid value. Your site admin must change {name} to a valid URL starting with http:// or https:// and then restart Baserow to fix this error."
+    "invalidUrlEnvVarDescription": "The {name} environment variable has been set to an invalid value. Your site admin must change {name} to a valid URL starting with http:// or https:// and then restart TCR Projects to fix this error."
   },
   "health": {
-    "title": "Baserow health checks",
-    "description": "These checks show the current status of your Baserow installation."
+    "title": "TCR Projects health checks",
+    "description": "These checks show the current status of your TCR Projects installation."
   },
   "emailTester": {
     "title": "Email tester",
@@ -644,7 +645,7 @@
   },
   "runtimeFormulaTypes": {
     "concatDescription": "Joined arguments together as a single text.",
-    "getDescription": "Returns the resolved value of a Baserow formula.",
+    "getDescription": "Returns the resolved value of a TCR Projects formula.",
     "addDescription": "Adds two arguments together.",
     "minusDescription": "Subtracts the second argument from the first.",
     "multiplyDescription": "Multiplies the two arguments.",

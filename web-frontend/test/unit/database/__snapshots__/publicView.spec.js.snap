@@ -45,20 +45,20 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
           >
             <a
               class="header__filter-logo"
-              href="https://baserow.io"
+              href="https://tcrprojects.com"
               target="_blank"
-              title="Baserow - open source no-code database tool and Airtable alternative"
+              title="TCR Projects - no-code database platform"
             >
               <div
-                alt="Baserow - open source no-code database tool and Airtable alternative"
+                alt="TCR Projects - no-code database platform"
                 class="logo"
                 height="14"
               >
                 <img
-                  alt="Baserow - open source no-code database tool and Airtable alternative"
+                  alt="TCR Projects - no-code database platform"
                   class=""
                   height="14"
-                  src="/modules/core/static/img/logo.svg"
+                  src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAyMDAgMzIiPgogIDxnPgogICAgPCEtLSBUQ1IgaWNvbjogMyBzdGFja2VkIGJhcnMgaW4gb3JhbmdlIGdyYWRpZW50IC0tPgogICAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjciIHJ4PSIyIiBmaWxsPSIjZmZiMjgwIi8+CiAgICA8cmVjdCB4PSIwIiB5PSIxMC41IiB3aWR0aD0iMjgiIGhlaWdodD0iNyIgcng9IjIiIGZpbGw9IiNlODVkMDQiLz4KICAgIDxyZWN0IHg9IjAiIHk9IjIxIiB3aWR0aD0iMTgiIGhlaWdodD0iNyIgcng9IjIiIGZpbGw9IiNiYTRiMDMiLz4KICAgIDxyZWN0IHg9IjIyIiB5PSIwIiB3aWR0aD0iNyIgaGVpZ2h0PSI3IiByeD0iMiIgZmlsbD0iI2ZmYjI4MCIvPgogICAgPHJlY3QgeD0iMjIiIHk9IjIxIiB3aWR0aD0iNyIgaGVpZ2h0PSI3IiByeD0iMiIgZmlsbD0iI2JhNGIwMyIvPgogICAgPCEtLSAiVENSIFByb2plY3RzIiB0ZXh0IC0tPgogICAgPHRleHQgeD0iMzgiIHk9IjIyIiBmb250LWZhbWlseT0iSW50ZXIsIC1hcHBsZS1zeXN0ZW0sIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMyMDIxMjgiIGxldHRlci1zcGFjaW5nPSItMC4zIj5UQ1IgUHJvamVjdHM8L3RleHQ+CiAgPC9nPgo8L3N2Zz4K"
                 />
               </div>
             </a>

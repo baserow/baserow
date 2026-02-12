@@ -16,7 +16,7 @@
         <div class="redirect-modal__from-to">
           <client-only>{{ getHostname() }}</client-only>
           <i class="iconoir-arrow-right redirect-modal__from-to-icon"></i>
-          baserow.io
+          {{ getDestinationHostname() }}
         </div>
         <div class="redirect-modal__loading">
           <div class="loading"></div>
@@ -55,6 +55,13 @@ export default {
     },
     getHostname() {
       return import.meta.client ? window.location.hostname : ''
+    },
+    getDestinationHostname() {
+      try {
+        return new URL(this.href).hostname
+      } catch (error) {
+        return this.href
+      }
     },
   },
 }

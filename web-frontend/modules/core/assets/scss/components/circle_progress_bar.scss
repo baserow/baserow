@@ -15,7 +15,7 @@
 }
 
 .circle-progress-bar__background {
-  stroke: $palette-neutral-100;
+  stroke: $color-neutral-100;
 }
 
 .circle-progress-bar__foreground {
@@ -23,5 +23,5 @@
   transform-origin: var(--half-size) var(--half-size);
   stroke-dasharray: var(--dash) calc(var(--circumference) - var(--dash));
   transition: stroke-dasharray 0.3s linear 0s;
-  stroke: $palette-green-500;
+  stroke: $color-success-400;
 }

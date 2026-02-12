@@ -26,7 +26,7 @@
   align-items: flex-start;
   gap: 16px;
   background: $white;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   box-shadow: 0 6px 12px 0 rgba(7, 8, 16, 0.08);
   z-index: $z-index-toasts;
 
@@ -50,11 +50,11 @@
   font-weight: 500;
   line-height: 20px;
   font-size: 13px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .toast__message {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   line-height: 20px;
 }
 
@@ -79,11 +79,11 @@
   padding: 0;
   font-size: 16px;
   flex: 0 1 auto;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   cursor: pointer;
 
   &:hover {
-    color: $palette-neutral-800;
+    color: $color-neutral-600;
   }
 }
 
@@ -101,7 +101,7 @@
     height: 14px;
     border-radius: 50%;
     border: 0.15em solid;
-    border-color: $palette-neutral-700 transparent $palette-neutral-700
+    border-color: $color-neutral-500 transparent $color-neutral-500
       transparent;
     animation: spin infinite 1800ms;
     animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
@@ -109,71 +109,71 @@
 }
 
 .toast__icon--success {
-  background: $palette-green-50;
-  color: $palette-green-800;
+  background: $color-success-100;
+  color: $color-success-700;
 
   .toast__loading {
     &::after {
-      border-color: $palette-green-800 transparent $palette-green-800
+      border-color: $color-success-700 transparent $color-success-700
         transparent;
     }
   }
 }
 
 .toast__icon--warning {
-  background: $palette-yellow-50;
-  color: $palette-yellow-800;
+  background: $color-warning-100;
+  color: $color-warning-700;
 
   .toast__loading {
     &::after {
-      border-color: $palette-yellow-800 transparent $palette-yellow-800
+      border-color: $color-warning-700 transparent $color-warning-700
         transparent;
     }
   }
 }
 
 .toast__icon--error {
-  background: $palette-red-50;
-  color: $palette-red-800;
+  background: $color-error-100;
+  color: $color-error-700;
 
   .toast__loading {
     &::after {
-      border-color: $palette-red-800 transparent $palette-red-800 transparent;
+      border-color: $color-error-700 transparent $color-error-700 transparent;
     }
   }
 }
 
 .toast__icon--info-neutral {
-  background: $palette-neutral-25;
-  color: $palette-neutral-700;
+  background: $color-neutral-10;
+  color: $color-neutral-500;
 }
 
 .toast__icon--info-primary {
-  background: $palette-blue-50;
-  color: $palette-blue-800;
+  background: $color-primary-100;
+  color: $color-primary-800;
 
   .toast__loading {
     &::after {
-      border-color: $palette-blue-800 transparent $palette-blue-800 transparent;
+      border-color: $color-primary-800 transparent $color-primary-800 transparent;
     }
   }
 }
 
 .toast__icon--loading {
-  background: $palette-neutral-50;
+  background: $color-neutral-50;
 }
 
 .toast__actions {
   margin-top: 12px;
   display: flex;
   gap: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-weight: 500;
   font-size: 12px;
 }
 
 .toast__actions-button {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   margin: 0;
   padding: 0;
   background: none;
@@ -184,15 +184,15 @@
   @include flex-align-items(5px);
 
   &:hover {
-    color: $palette-neutral-1000;
+    color: $color-neutral-800;
   }
 }
 
 .toast__actions-button--primary {
-  color: $palette-blue-500;
+  color: $color-primary-500;
 
   &:hover {
-    color: $palette-blue-600;
+    color: $color-primary-600;
   }
 }
 
@@ -200,5 +200,5 @@
   cursor: wait;
   user-select: none;
 
-  @include loading-spinner($palette-blue-500, 11px);
+  @include loading-spinner($color-primary-500, 11px);
 }

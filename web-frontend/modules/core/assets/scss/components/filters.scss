@@ -98,7 +98,7 @@
   color: $color-neutral-500;
   font-size: 16px;
   border-radius: 6px;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   background: #fff;
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
   width: 36px;
@@ -168,7 +168,7 @@
 }
 
 .filters__value-rating {
-  border: solid 1px $palette-neutral-400;
+  border: solid 1px $color-neutral-300;
   padding: 6px 12px;
 
   @include rounded($rounded);
@@ -183,7 +183,7 @@
   color: $color-neutral-900;
   line-height: 36px;
   height: 36px;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   padding: 0 10px;
   background-color: $white;
   width: 100%;
@@ -240,7 +240,7 @@
     display: flex;
 
     .filters__misconfigured-text {
-      color: $palette-red-800;
+      color: $color-error-700;
     }
   }
 

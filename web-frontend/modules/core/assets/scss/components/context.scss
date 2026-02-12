@@ -3,7 +3,7 @@
   position: absolute;
   z-index: $z-index-context;
   background-color: $white;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
 
   @include elevation($elevation-medium);
   @include rounded($rounded-md);
@@ -47,7 +47,7 @@
 }
 
 .context__menu-title {
-  color: $palette-neutral-900;
+  color: $color-neutral-600;
   padding: 12px 8px 2px;
   line-height: 13px;
   margin-bottom: 10px;
@@ -56,7 +56,7 @@
 
 .context__menu-item-icon {
   position: relative;
-  color: $palette-neutral-800;
+  color: $color-neutral-700;
   text-align: left;
   width: 16px;
   font-size: 16px;
@@ -68,7 +68,7 @@
 
 .context__menu-item-description {
   font-size: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-600;
   white-space: normal;
   line-height: 18px;
   font-weight: 400;
@@ -80,7 +80,7 @@
 
 .context__menu-item-link {
   position: relative;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   padding: 8px 10px;
   user-select: none;
 
@@ -90,15 +90,15 @@
   &.disabled {
     cursor: not-allowed;
     box-shadow: none;
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
 
     .context__menu-item-description {
-      color: $palette-neutral-700;
+      color: $color-neutral-500;
     }
   }
 
   &:hover {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-50;
     text-decoration: none;
 
     &.disabled {
@@ -106,35 +106,35 @@
     }
 
     .context__menu-item-icon {
-      color: $palette-neutral-1300;
+      color: $color-neutral-900;
     }
   }
 
   &:active:not(.disabled) {
-    color: $palette-neutral-900;
-    background: #07081014;
+    color: $color-neutral-600;
+    background: $color-neutral-100;
 
     .context__menu-item-icon {
-      color: $palette-neutral-600;
+      color: $color-neutral-400;
     }
   }
 
   &.context__menu-item-link--delete {
     &:hover:not(.disabled) {
-      background: $palette-red-50;
-      color: $palette-red-800;
+      background: $color-error-100;
+      color: $color-error-800;
 
       .context__menu-item-icon {
-        color: $palette-red-800;
+        color: $color-error-800;
       }
     }
 
     &:active:not(.disabled) {
-      background: $palette-red-100;
-      color: $palette-red-500;
+      background: $color-error-200;
+      color: $color-error-500;
 
       .context__menu-item-icon {
-        color: $palette-red-500;
+        color: $color-error-500;
       }
     }
   }
@@ -209,7 +209,7 @@
 }
 
 .context__menu-active-icon {
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   position: absolute;
   top: 7px;
   right: 8px;
@@ -239,7 +239,7 @@
 }
 
 .context__menu-item--with-separator {
-  border-top: 1px solid $palette-neutral-200;
+  border-top: 1px solid $color-neutral-200;
   padding-top: 4px;
 }
 
@@ -248,7 +248,7 @@
   align-items: flex-start;
 
   &.active {
-    background: rgba($palette-neutral-1300, 0.04);
+    background: $color-neutral-100;
   }
 }
 
@@ -270,7 +270,7 @@
   padding: 0 14px;
   height: 52px;
   display: flex;
-  border-top: 1px solid $palette-neutral-200;
+  border-top: 1px solid $color-neutral-200;
   flex-shrink: 0;
 
   @include flex-align-items(8px);

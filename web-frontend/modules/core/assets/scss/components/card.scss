@@ -17,7 +17,7 @@
 .card {
   position: relative;
   background-color: $white;
-  border: solid 1px $palette-neutral-200;
+  border: solid 1px $color-neutral-200;
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
@@ -108,7 +108,7 @@
   line-height: 18px;
   font-weight: 500;
   margin-bottom: 6px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   .card--loading & {
     color: $color-neutral-100;

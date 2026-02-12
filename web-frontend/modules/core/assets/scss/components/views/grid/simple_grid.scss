@@ -25,7 +25,7 @@
 .simple-grid__field {
   position: relative;
   width: 150px;
-  background-color: $color-neutral-100;
+  background-color: $color-neutral-50;
   border-bottom: 1px solid $color-neutral-200;
   border-right: 1px solid $color-neutral-200;
 
@@ -85,7 +85,7 @@
 .simple-grid__cell {
   position: relative;
   width: 150px;
-  background-color: $white;
+  background-color: $color-neutral-10;
   height: 33px;
   border-bottom: 1px solid $color-neutral-200;
   border-right: 1px solid $color-neutral-200;
@@ -122,7 +122,7 @@
 
   .simple-grid__cell,
   .grid-view__cell {
-    background-color: $color-primary-100;
+    background-color: themed-alpha($color-primary-500, 0.08);
   }
 }
 
@@ -138,7 +138,7 @@
 .simple-grid__row--checked {
   .simple-grid__cell,
   .grid-view__cell {
-    background-color: $color-primary-100;
+    background-color: themed-alpha($color-primary-500, 0.14);
   }
 }
 
@@ -146,7 +146,7 @@
   display: block;
   line-height: 33px;
   color: $color-neutral-900;
-  background-color: $white;
+  background-color: $color-neutral-10;
   padding-left: 8px;
 }
 
@@ -177,16 +177,16 @@
 .simple-grid__row--hover.simple-grid__row--checked {
   .simple-grid__cell,
   .grid-view__cell {
-    background-color: darken($color-primary-100, 1%);
+    background-color: color-mix(in srgb, $color-primary-100, black 3%);
   }
 }
 
 .simple-grid__right-wrapper-footer {
   position: absolute;
-  background: #fafafa;
+  background: $color-neutral-50;
   height: 44px;
   bottom: 0;
-  border-top: solid 1px #d9dbde;
+  border-top: solid 1px $color-neutral-200;
   width: 100%;
 }
 
@@ -200,6 +200,10 @@
 
   &.simple-grid--border {
     border: 1px solid $color-neutral-200;
+
+    @include rounded($rounded-md);
+
+    overflow: hidden;
   }
 
   &.simple-grid--full-height {

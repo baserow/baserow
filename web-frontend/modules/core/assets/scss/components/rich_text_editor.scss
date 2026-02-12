@@ -32,7 +32,7 @@
 
 .rich-text-editor__bubble-menu-link-show-href {
   padding-right: 20px;
-  border-right: 1px solid $palette-neutral-200;
+  border-right: 1px solid $color-neutral-200;
 
   a {
     color: inherit;
@@ -42,7 +42,7 @@
 .rich-text-editor__bubble-menu-link-show-button {
   border: none;
   background-color: transparent;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   cursor: pointer;
 }
 
@@ -124,7 +124,7 @@
 .rich-text-editor__content--comment {
   max-height: 50vh;
   overflow: auto;
-  background-color: white;
+  background-color: $white;
 }
 
 .rich-text-editor__content--loading {
@@ -134,7 +134,7 @@
 .rich-text-editor__mention,
 span[data-type='mention'] {
   padding: 0 2px;
-  background-color: rgba(6, 46, 71, 0.08);
+  background-color: $color-neutral-100;
   font-weight: 600;
 
   @include rounded($rounded);
@@ -177,11 +177,11 @@ span[data-type='mention'] {
 .rich-text-editor__bubble-menu {
   @include elevation($elevation-medium);
 
-  background-color: white;
+  background-color: $white;
   padding: 4px;
   gap: 2px;
-  border-radius: 6px;
-  border: 1px solid $palette-neutral-500;
+  border-radius: $rounded-lg;
+  border: 1px solid $color-neutral-300;
   margin-block: 0;
 }
 
@@ -201,7 +201,7 @@ ul.rich-text-editor__bubble-menu {
   padding: 0;
   margin: 0;
   line-height: 16px;
-  background-color: white;
+  background-color: $white;
   border-radius: inherit;
 
   & button {
@@ -210,19 +210,19 @@ ul.rich-text-editor__bubble-menu {
     width: 28px;
     height: 28px;
     border: none;
-    color: $palette-neutral-900;
+    color: $color-neutral-600;
     background-color: inherit;
     border-radius: inherit;
     cursor: pointer;
   }
 
   & button:hover {
-    background-color: $palette-neutral-50;
+    background-color: $color-neutral-50;
   }
 
   & button.is-active {
-    color: $palette-neutral-1300;
-    background-color: $palette-neutral-200;
+    color: $color-neutral-900;
+    background-color: $color-neutral-200;
   }
 
   i {
@@ -256,9 +256,9 @@ ul.rich-text-editor__bubble-menu {
   .rich-text-editor__bubble-menu-link-edit-input {
     padding: 8px 16px 8px 12px;
     margin: 4px;
-    border-radius: 6px;
-    border: 1px solid $palette-neutral-200;
-    background: white;
+    border-radius: $rounded-md;
+    border: 1px solid $color-neutral-200;
+    background: $white;
 
     @include elevation($elevation-low);
   }
@@ -271,7 +271,7 @@ ul.rich-text-editor__bubble-menu {
     cursor: pointer;
     background-color: transparent;
     border: none;
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 
@@ -281,9 +281,9 @@ ul.rich-text-editor__bubble-menu {
   justify-content: center;
   align-items: center;
   gap: 8px;
-  border-radius: 6px;
-  background-color: $palette-blue-500;
-  color: white;
+  border-radius: $rounded-md;
+  background-color: $color-primary-500;
+  color: $white;
   border: none;
   margin: 4px 4px 4px 0;
   font-weight: 600;
@@ -294,8 +294,8 @@ ul.rich-text-editor__bubble-menu {
 
 .rich-text-editor__bubble-menu-link-edit-set--disabled {
   cursor: not-allowed;
-  background-color: $palette-neutral-100;
-  color: $palette-neutral-700;
+  background-color: $color-neutral-100;
+  color: $color-neutral-500;
 }
 
 .rich-text-editor__bubble-menu-link-show {
@@ -308,9 +308,9 @@ ul.rich-text-editor__bubble-menu {
 .rich-text-editor__mention-list {
   padding: 0.2rem;
   position: relative;
-  border-radius: 0.5rem;
-  background: #fff;
-  color: rgba(0, 0, 0, 0.8);
+  border-radius: $rounded-lg;
+  background: $white;
+  color: $color-neutral-900;
   overflow: hidden;
   font-size: 0.9rem;
   box-shadow:
@@ -336,7 +336,7 @@ ul.rich-text-editor__bubble-menu {
   padding: 0.2rem 0.4rem;
 
   &.is-selected {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 }
 
@@ -345,14 +345,14 @@ ul.rich-text-editor__bubble-menu {
   width: 100%;
   max-width: 400px;
   max-height: 400px;
-  border: 1px solid $palette-neutral-400;
-  padding: 6px 12px;
+  border: 1px solid $color-neutral-300;
+  padding: 16px;
   outline: none;
   line-height: 100%;
   height: auto;
   overflow: auto;
   scrollbar-gutter: stable;
-  border-radius: 4px;
+  border-radius: $rounded-lg;
 
   @include elevation($elevation-low);
 }

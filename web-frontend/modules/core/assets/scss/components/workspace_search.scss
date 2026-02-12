@@ -18,7 +18,7 @@
   &--expanded {
     .workspace-search__header {
       padding: 0;
-      border-bottom: 1px solid $palette-neutral-300;
+      border-bottom: 1px solid $color-neutral-300;
     }
   }
 }
@@ -36,7 +36,7 @@
   @include absolute(calc(50% - 10px), auto, auto, 16px);
 
   &--active {
-    color: $palette-blue-500;
+    color: $color-primary-500;
   }
 }
 
@@ -55,20 +55,20 @@
   border-top-right-radius: $rounded-md;
 
   &::placeholder {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 
 .workspace-search__close {
   font-size: 16px;
   line-height: 16px;
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
 
   @include absolute(calc(50% - 9px), 16px, auto, auto);
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
   }
 }
 
@@ -99,11 +99,11 @@
 
   &:hover,
   &--active {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 
   &:active {
-    background-color: $palette-neutral-200;
+    background-color: $color-neutral-200;
   }
 }
 
@@ -120,9 +120,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $palette-neutral-800;
+  color: $color-neutral-600;
   flex-shrink: 0;
-  border: 1px solid $palette-neutral-300;
+  border: 1px solid $color-neutral-300;
   border-radius: 6px;
   background-color: $white;
   font-size: 16px;
@@ -150,7 +150,7 @@
   @extend %ellipsis;
 
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-size: 13px;
   line-height: 20px;
   margin-top: 2px;
@@ -160,7 +160,7 @@
   @extend %ellipsis;
 
   font-size: 11px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   line-height: 16px;
   margin-top: 0;
   font-weight: 500;
@@ -172,18 +172,18 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 }
 
 .workspace-search__loading-more-icon {
   font-size: 20px;
   margin-bottom: 8px;
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
 }
 
 .workspace-search__loading-more-text {
   font-size: 12px;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
 }
 
 .workspace-search__empty,
@@ -195,7 +195,7 @@
   justify-content: center;
   padding: 40px 20px;
   text-align: center;
-  color: $palette-neutral-800;
+  color: $color-neutral-600;
 }
 
 .workspace-search__empty-icon,
@@ -203,7 +203,7 @@
 .workspace-search__welcome-icon {
   font-size: 32px;
   margin-bottom: 16px;
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
 }
 
 .workspace-search__loading-spinner {
@@ -214,27 +214,27 @@
 .workspace-search__welcome-title {
   font-size: 16px;
   font-weight: 600;
-  color: $palette-neutral-1000;
+  color: $color-neutral-800;
   margin-bottom: 8px;
 }
 
 .workspace-search__loading-text {
   font-size: 14px;
-  color: $palette-neutral-800;
+  color: $color-neutral-600;
 }
 
 .workspace-search__empty-subtitle,
 .workspace-search__welcome-subtitle {
   font-size: 14px;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   line-height: 1.4;
 }
 
 .workspace-search__footer {
   padding: 12px;
-  border-top: 1px solid $palette-neutral-200;
+  border-top: 1px solid $color-neutral-200;
   margin-top: 8px;
-  background-color: $palette-neutral-25;
+  background-color: $color-neutral-10;
   border-bottom-left-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
 }
@@ -251,7 +251,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-weight: 500;
   line-height: 20px;
 }
@@ -264,8 +264,8 @@
   min-width: 24px;
   line-height: 24px;
   background-color: $white;
-  border: 1px solid $palette-neutral-400;
-  color: $palette-neutral-700;
+  border: 1px solid $color-neutral-300;
+  color: $color-neutral-500;
   border-radius: 4px;
   padding: 0 4px;
 
@@ -290,12 +290,12 @@
 }
 
 .workspace-search__result-highlight {
-  background-color: $palette-yellow-100;
+  background-color: $color-warning-200;
 }
 
 .workspace-search__result-empty-badge {
   margin-left: 4px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   font-style: italic;
   font-weight: 400;
 }

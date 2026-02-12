@@ -45,12 +45,12 @@
 .mcp-endpoint__box {
   @extend %ellipsis;
 
-  background-color: $palette-neutral-100;
+  background-color: $color-neutral-100;
   line-height: 32px;
   padding: 0 8px;
   font-family: monospace;
   font-size: 10px;
-  border: solid 1px $palette-neutral-400;
+  border: solid 1px $color-neutral-300;
   overscroll-behavior: none;
   height: 32px;
   min-width: 0;
@@ -74,7 +74,7 @@
   line-height: 32px;
   font-size: 14px;
   text-align: center;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   @include rounded($rounded);
 
@@ -85,7 +85,7 @@
 
 .mcp-endpoint__warning {
   font-size: 11px;
-  color: $palette-yellow-700;
+  color: $color-warning-700;
 }
 
 .mcp-endpoint__instructions {
@@ -112,7 +112,7 @@
     font-size: 13px;
     line-height: 140%;
     margin-bottom: 6px;
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }
 

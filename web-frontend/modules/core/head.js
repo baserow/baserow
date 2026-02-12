@@ -1,6 +1,6 @@
 export default {
-  title: 'Baserow',
-  titleTemplate: '%s | Baserow',
+  title: 'TCR Projects',
+  titleTemplate: '%s | TCR Projects',
   meta: [
     { charset: 'utf-8' },
     {
@@ -11,6 +11,16 @@ export default {
     {
       name: 'format-detection',
       content: 'telephone=no, email=no, address=no, date=no',
+    },
+    {
+      name: 'color-scheme',
+      content: 'dark light',
+    },
+  ],
+  script: [
+    {
+      innerHTML: `(function(){try{var t=localStorage.getItem('tcr-theme');if(t==='light'){document.documentElement.setAttribute('data-theme','light')}else if(t==='dark'){document.documentElement.setAttribute('data-theme','dark')}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme:light)').matches){/* system preference light - no attribute needed, CSS handles it */}else{document.documentElement.setAttribute('data-theme','dark')}}catch(e){}})()`,
+      type: 'text/javascript',
     },
   ],
   link: [

@@ -7,7 +7,7 @@
 .template__card-name {
   font-size: 13px;
   margin-top: 16px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 
   span {
     display: inline-block;
@@ -23,7 +23,7 @@
 
 .template__card-more {
   background: #fff;
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
   display: flex;
   justify-content: center;
   align-items: center;

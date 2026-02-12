@@ -2,13 +2,13 @@
   <div class="form-view__powered-by">
     Powered by
     <a
-      href="https://baserow.io"
+      href="https://tcrprojects.com"
       target="_blank"
-      title="Baserow - open source no-code database tool and Airtable alternative"
+      title="TCR Projects - no-code database platform"
     >
       <Logo
         class="form-view__powered-by-logo"
-        alt="Baserow - open source no-code database tool and Airtable alternative"
+        alt="TCR Projects - no-code database platform"
       />
     </a>
   </div>

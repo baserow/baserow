@@ -13,7 +13,7 @@
   padding: 20px 24px;
 
   &:not(:last-child) {
-    border-bottom: 1px solid $palette-neutral-200;
+    border-bottom: 1px solid $color-neutral-200;
   }
 }
 
@@ -24,7 +24,7 @@
 }
 
 .data-source-context__content-section-description {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-size: 12px;
   font-weight: 400;
   margin-bottom: 14px;
@@ -52,7 +52,7 @@
 }
 
 .data-source-context__none-description {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-weight: 400;
   font-size: 12px;
   line-height: 20px;

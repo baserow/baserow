@@ -41,7 +41,7 @@
     width: calc(33.333% - 4px);
   }
 
-  @include rounded($rounded-md);
+  @include rounded($rounded-2xl);
 
   .cell {
     padding: 0;
@@ -84,14 +84,14 @@
 
     &::before {
       font-size: 16px;
-      color: $palette-neutral-700;
+      color: $color-neutral-500;
     }
 
     &:hover {
       border-radius: 100% !important;
 
       &::before {
-        color: $palette-neutral-900;
+        color: $color-neutral-700;
       }
     }
 
@@ -122,8 +122,25 @@
   }
 
   .cell.day.today {
+    position: relative;
     font-size: 14px;
     font-weight: 600;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background-color: $color-primary-500;
+    }
+
+    &.selected::after {
+      background-color: $white;
+    }
   }
 
   .cell.month,
@@ -165,19 +182,23 @@
   }
 
   .cell.highlighted {
-    background: #cae5ed;
+    background: $color-primary-100;
 
     &.disabled {
-      color: #a3a3a3;
+      color: $color-neutral-400;
     }
   }
 
   .cell.grey {
-    color: #888;
+    color: $color-neutral-500;
 
     &:hover {
       background: inherit;
     }
+  }
+
+  .cell.disabled {
+    color: $color-neutral-500;
   }
 
   .context-datepicker & {

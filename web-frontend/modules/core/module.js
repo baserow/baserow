@@ -136,6 +136,7 @@ export default defineNuxtModule({
     //addPlugin(resolve('plugins/router.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
     addPlugin(resolve('plugins/storeRegister.js'))
+    addPlugin(resolve('plugins/theme.client.js'))
 
     addRouteMiddleware({
       name: 'authentication',

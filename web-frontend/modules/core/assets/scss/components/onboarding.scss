@@ -31,7 +31,7 @@
   width: 320px;
   text-align: center;
   line-height: 1.6;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 }
 
 .onboarding__form {
@@ -88,7 +88,7 @@
 
 .onboarding__cancel {
   width: 100%;
-  border-top: solid 1px $palette-neutral-200;
+  border-top: solid 1px $color-neutral-200;
   padding: 28px;
   text-align: center;
 }
@@ -96,7 +96,7 @@
 .onboarding__preview {
   display: block;
   overflow: hidden;
-  background-color: $palette-neutral-200;
+  background-color: $color-neutral-200;
 
   @include absolute(0, 0, 0, 50%);
 

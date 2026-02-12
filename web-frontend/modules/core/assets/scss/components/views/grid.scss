@@ -51,7 +51,7 @@
 // file.
 .grid-view__left {
   left: 0;
-  background-color: $palette-neutral-25;
+  background-color: $color-neutral-10;
 }
 
 // The width of the first column can be adjusted that is why the left offset is
@@ -67,7 +67,7 @@
 
   z-index: 3;
   width: 4px;
-  border-left: 1px solid $palette-neutral-400;
+  border-left: 1px solid $color-neutral-300;
   overflow: hidden;
   pointer-events: none;
 
@@ -101,8 +101,8 @@
 
   display: flex;
   height: 33px;
-  background-color: $palette-neutral-25;
-  border-bottom: 1px solid $palette-neutral-400;
+  background-color: $color-neutral-10;
+  border-bottom: 1px solid $color-neutral-300;
 }
 
 .grid-view__head-row-identifier {
@@ -115,10 +115,10 @@
   position: relative;
   z-index: 1;
   padding-left: 8px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 
   &:hover {
-    color: $palette-neutral-1000;
+    color: $color-neutral-800;
   }
 }
 
@@ -178,7 +178,7 @@
   background-color: $white;
   background-image: linear-gradient(
     0deg,
-    $palette-neutral-200 1px,
+    $color-neutral-200 1px,
     $white 1px $grid-view-row-height-small
   );
   background-size: 100% $grid-view-row-height-small;
@@ -187,7 +187,7 @@
     background-size: 100% $grid-view-row-height-medium;
     background-image: linear-gradient(
       0deg,
-      $palette-neutral-200 1px,
+      $color-neutral-200 1px,
       $white 1px $grid-view-row-height-medium
     );
   }
@@ -196,7 +196,7 @@
     background-size: 100% $grid-view-row-height-large;
     background-image: linear-gradient(
       0deg,
-      $palette-neutral-200 1px,
+      $color-neutral-200 1px,
       $white 1px $grid-view-row-height-large
     );
   }
@@ -211,7 +211,7 @@
 .grid-view__placeholder-column {
   @include absolute(0, auto, 0, auto);
 
-  border-right: 1px solid $palette-neutral-200;
+  border-right: 1px solid $color-neutral-200;
 
   &.grid-view__placeholder-column--no-border-right,
   .grid-view__left & {
@@ -265,7 +265,7 @@
 
     content: '';
     z-index: 2;
-    border: 2px solid $palette-yellow-500;
+    border: 2px solid $color-warning-500;
     pointer-events: none;
     border-radius: $rounded-md $rounded-md $rounded-md 0;
 
@@ -283,7 +283,7 @@
   }
 
   &.grid-view__row--selected {
-    background-color: $palette-neutral-25;
+    background-color: $color-neutral-10;
   }
 }
 
@@ -314,8 +314,8 @@
 .grid-view__column {
   position: relative;
   height: $grid-view-row-height-small;
-  border-right: 1px solid $palette-neutral-200;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-right: 1px solid $color-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
 
   .grid-view--row-height-medium & {
     height: $grid-view-row-height-medium;
@@ -328,8 +328,8 @@
   .grid-view__head & {
     height: 32px;
     border-bottom: none;
-    background-color: $palette-neutral-100;
-    border-right-color: $palette-neutral-400;
+    background-color: $color-neutral-100;
+    border-right-color: $color-neutral-300;
   }
 
   .grid-view__foot & {
@@ -351,15 +351,15 @@
   }
 
   &.grid-view__column--sorted::after {
-    background-color: rgba($color-warning-100, 0.8);
+    background-color: themed-alpha($color-warning-100, 0.8);
   }
 
   &.grid-view__column--grouped::after {
-    background-color: rgba($color-purple-100, 0.5);
+    background-color: themed-alpha($color-purple-100, 0.5);
   }
 
   &.grid-view__column--filtered::after {
-    background-color: rgba($color-success-100, 0.5);
+    background-color: themed-alpha($color-success-100, 0.5);
   }
 
   &.grid-view__column--group-end::before {
@@ -424,7 +424,7 @@
   line-height: $grid-view-row-height-small;
   font-size: 12px;
   font-weight: 500;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 }
 
 .grid-view__group-value {
@@ -468,7 +468,7 @@
     content: '';
     width: 11px;
     background-image: radial-gradient(
-      $palette-neutral-500 1.5px,
+      $color-neutral-400 1.5px,
       transparent 1.5px
     );
     background-size: 5px 5px;
@@ -532,7 +532,7 @@
 }
 
 .grid-view__row-more {
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   visibility: hidden;
   font-size: 14px;
   height: 20px;
@@ -551,8 +551,8 @@
   }
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.06);
-    color: $palette-neutral-1200;
+    background-color: $color-neutral-100;
+    color: $color-neutral-900;
   }
 }
 
@@ -610,7 +610,7 @@
   }
 
   .grid-view__column--multi-select & {
-    background-color: rgba($palette-blue-500, 0.12);
+    background-color: $color-primary-100;
   }
 
   .grid-view__cell-error {
@@ -638,7 +638,7 @@
   .grid-view__description-icon,
   .grid-view__description-options {
     line-height: inherit;
-    color: $palette-neutral-600;
+    color: $color-neutral-500;
   }
 
   .grid-view__description-icon-container {
@@ -652,7 +652,7 @@
   .grid-view__description-extra-icon {
     content: '';
     font-size: 8px;
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
 
     @include absolute(auto, -4px, -2px, auto);
   }
@@ -673,7 +673,7 @@
   }
 
   .grid-view__description-icon-trigger {
-    color: $palette-neutral-600;
+    color: $color-neutral-500;
     cursor: pointer;
     padding: 0 10px 0 2px;
     height: 100%;
@@ -683,7 +683,7 @@
     font-size: 14px;
 
     &:hover {
-      color: $palette-neutral-1000;
+      color: $color-neutral-800;
     }
   }
 
@@ -701,7 +701,7 @@
     line-height: 15px;
     font-size: 12px;
     font-weight: 500;
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 
   &.grid-view__description--loading {
@@ -722,7 +722,7 @@
 .grid-view__add-column {
   @include flex-align-items;
 
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   height: 100%;
   justify-content: center;
 
@@ -744,7 +744,7 @@
 }
 
 .grid-view__add-row {
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   background-color: $white;
   padding-left: 8px;
   height: 100%;
@@ -756,7 +756,7 @@
   }
 
   &.hover {
-    background-color: $palette-neutral-50;
+    background-color: $color-neutral-50;
   }
 }
 
@@ -764,14 +764,14 @@
   @include absolute(0, auto);
 
   z-index: 4;
-  background-color: rgba($palette-neutral-1300, 0.04);
+  background-color: $color-neutral-50;
 }
 
 .grid-view__field-target {
   @include absolute(0, auto, 48px, auto);
 
   z-index: 5;
-  border-left: solid 1px $palette-neutral-700;
+  border-left: solid 1px $color-neutral-500;
 }
 
 .grid-view__row-dragging-container {
@@ -785,7 +785,7 @@
 .grid-view__row-dragging {
   @include absolute(auto, auto, auto, 0);
 
-  background-color: rgba($palette-neutral-1300, 0.04);
+  background-color: $color-neutral-50;
   height: $grid-view-row-height-small;
 
   .grid-view--row-height-medium & {
@@ -800,7 +800,7 @@
 .grid-view__row-target {
   @include absolute(auto, auto, auto, 0);
 
-  border-top: solid 1px $palette-neutral-700;
+  border-top: solid 1px $color-neutral-500;
 }
 
 .grid-view__add-row-icon {

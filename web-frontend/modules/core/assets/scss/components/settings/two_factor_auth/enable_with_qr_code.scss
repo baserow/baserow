@@ -7,7 +7,7 @@
 
 .enable-with-qr-code__step:not(:last-child) {
   margin-bottom: 24px;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
 }
 
 .enable-with-qr-code__number {
@@ -23,19 +23,19 @@
   gap: 8px;
   border-radius: 80px;
   border: 1px solid #e0e3e5;
-  background: $palette-neutral-100;
+  background: $color-neutral-100;
 }
 
 .enable-with-qr-code__step-heading {
   font-size: 13px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-weight: 500;
   padding-bottom: 6px;
   padding-top: 10px;
 }
 
 .enable-with-qr-code__step-description {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   margin-bottom: 24px;
   line-height: 20px;
 }

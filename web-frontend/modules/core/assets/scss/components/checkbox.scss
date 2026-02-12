@@ -17,7 +17,7 @@
   text-align: center;
   cursor: pointer;
   user-select: none;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
   display: flex;
   justify-content: center;
@@ -38,42 +38,42 @@
   }
 
   .checkbox--error:not(.checkbox--disabled) & {
-    border: 1px solid $palette-red-600;
+    border: 1px solid $color-error-600;
   }
 
   .checkbox--checked.checkbox--disabled & {
     cursor: not-allowed;
-    background-color: $palette-neutral-500;
+    background-color: $color-neutral-500;
     box-shadow: none;
-    border: 1px solid $palette-neutral-500;
+    border: 1px solid $color-neutral-500;
   }
 
   .checkbox--disabled:not(.checkbox--checked) & {
     cursor: not-allowed;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
     box-shadow: none;
   }
 
   .checkbox--checked:not(.checkbox--disabled) & {
-    background: $palette-blue-500;
+    background: $color-primary-500;
     box-shadow: none;
-    border: 1px solid $palette-blue-500;
+    border: 1px solid $color-primary-500;
   }
 
   .checkbox--indeterminate:not(.checkbox--disabled) & {
-    background: $palette-blue-500;
+    background: $color-primary-500;
     box-shadow: none;
-    border: 1px solid $palette-blue-500;
+    border: 1px solid $color-primary-500;
   }
 
   .checkbox:active:not(.checkbox--checked) & {
-    background-color: $palette-neutral-50;
+    background-color: $color-neutral-50;
     box-shadow: none;
   }
 
   :active.checkbox--checked:not(.checkbox--disabled) & {
-    background-color: $palette-blue-700;
-    border: 1px solid $palette-blue-700;
+    background-color: $color-primary-700;
+    border: 1px solid $color-primary-700;
   }
 }
 
@@ -84,6 +84,6 @@
   @extend %ellipsis;
 
   .checkbox--disabled & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }

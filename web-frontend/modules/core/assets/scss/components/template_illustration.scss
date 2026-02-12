@@ -1,5 +1,5 @@
 .template__illustration {
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -52,15 +52,15 @@
 }
 
 .template__illustration--red {
-  background: $palette-red-50;
+  background: $color-error-100;
 }
 
 .template__illustration--green {
-  background: $palette-green-50;
+  background: $color-success-100;
 }
 
 .template__illustration--blue {
-  background: $palette-blue-50;
+  background: $color-primary-100;
 }
 
 .template__illustration--magenta {
@@ -72,7 +72,7 @@
 }
 
 .template__illustration--yellow {
-  background: $palette-yellow-50;
+  background: $color-warning-100;
 }
 
 @keyframes scale-template-illustration {

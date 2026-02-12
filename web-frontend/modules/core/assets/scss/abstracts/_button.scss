@@ -1,6 +1,6 @@
-$button-primary: $palette-blue-500;
+$button-primary: $color-primary-500;
 $button-secondary: $white;
-$button-danger: $palette-red-600;
+$button-danger: $color-error-600;
 
 $button-tiny-height: 26px;
 $button-tiny-top-bottom-padding: 0;
@@ -33,10 +33,10 @@ $button-xlarge-right-left-padding: 20px;
 
 @mixin button-style(
   $background: $button-primary,
-  $background-hover: $palette-blue-600,
-  $background-active: $palette-blue-700,
+  $background-hover: $color-primary-600,
+  $background-active: $color-primary-700,
   $color: $white,
-  $color-active: $palette-blue-50
+  $color-active: $color-primary-100
 ) {
   background: $background;
   color: $color;

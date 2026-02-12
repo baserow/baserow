@@ -64,7 +64,7 @@ class EmailTesterView(APIView):
         request=EmailTesterRequestSerializer,
         operation_id="email_tester",
         description="Sends a test email to the provided email address. Useful for "
-        "testing Baserow's email configuration as errors are clearly "
+        "testing TCR Projects' email configuration as errors are clearly "
         "returned.",
         responses={
             200: EmailTesterResponseSerializer,

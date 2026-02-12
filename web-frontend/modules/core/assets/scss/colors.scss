@@ -20,18 +20,18 @@ $palette-neutral-1100: #393a40 !default;
 $palette-neutral-1200: #202128 !default;
 $palette-neutral-1300: #070810 !default;
 
-$palette-blue-50: #f0f4fc !default;
-$palette-blue-100: #dae4fd !default;
-$palette-blue-200: #acc8f8 !default;
-$palette-blue-300: #96baf6 !default;
-$palette-blue-400: #689ef1 !default;
-$palette-blue-500: #5190ef !default;
-$palette-blue-600: #4783db !default;
-$palette-blue-700: #3c76c7 !default;
-$palette-blue-800: #275d9f !default;
-$palette-blue-900: #1d508b !default;
-$palette-blue-1000: #124377 !default;
-$palette-blue-1100: #083663 !default;
+$palette-blue-50: #fef6ee !default;
+$palette-blue-100: #fde8d4 !default;
+$palette-blue-200: #f9d1af !default;
+$palette-blue-300: #f4a06a !default;
+$palette-blue-400: #ec6b2d !default;
+$palette-blue-500: #dc4b1a !default;
+$palette-blue-600: #c54318 !default;
+$palette-blue-700: #b73817 !default;
+$palette-blue-800: #993015 !default;
+$palette-blue-900: #862a13 !default;
+$palette-blue-1000: #762818 !default;
+$palette-blue-1100: #5e1f12 !default;
 
 $palette-green-50: #ecfcf1 !default;
 $palette-green-100: #d0f6dc !default;
@@ -194,6 +194,8 @@ $color-cyan-300: $palette-cyan-300 !default;
 $color-cyan-400: $palette-cyan-400 !default;
 
 // Should stay in sync with 'backend/src/baserow/core/constants.py::BASEROW_COLORS'.
+// NOTE: $colors map is defined BEFORE the CSS var re-assignment below, so it captures
+// the hex values at definition time. This is critical for the JS color export module.
 $colors: (
   'light-blue': $color-primary-100,
   'light-green': $color-success-100,
@@ -242,3 +244,89 @@ $colors: (
   'deep-dark-green': $color-success-500,
   'deep-dark-orange': $color-warning-500,
 );
+
+// =============================================================================
+// CSS Custom Property Re-assignments
+// All $color-* SCSS variables below are re-assigned to use CSS custom properties.
+// This enables runtime theme switching (dark/light mode).
+// The $colors map above retains hex values (captured at definition time).
+// =============================================================================
+
+$white: var(--white);
+
+$color-neutral-10: var(--color-neutral-10);
+$color-neutral-50: var(--color-neutral-50);
+$color-neutral-100: var(--color-neutral-100);
+$color-neutral-200: var(--color-neutral-200);
+$color-neutral-300: var(--color-neutral-300);
+$color-neutral-400: var(--color-neutral-400);
+$color-neutral-500: var(--color-neutral-500);
+$color-neutral-600: var(--color-neutral-600);
+$color-neutral-700: var(--color-neutral-700);
+$color-neutral-800: var(--color-neutral-800);
+$color-neutral-900: var(--color-neutral-900);
+
+$color-primary-100: var(--color-primary-100);
+$color-primary-200: var(--color-primary-200);
+$color-primary-300: var(--color-primary-300);
+$color-primary-400: var(--color-primary-400);
+$color-primary-500: var(--color-primary-500);
+$color-primary-600: var(--color-primary-600);
+$color-primary-700: var(--color-primary-700);
+$color-primary-800: var(--color-primary-800);
+$color-primary-900: var(--color-primary-900);
+
+$color-success-100: var(--color-success-100);
+$color-success-200: var(--color-success-200);
+$color-success-300: var(--color-success-300);
+$color-success-400: var(--color-success-400);
+$color-success-500: var(--color-success-500);
+$color-success-600: var(--color-success-600);
+$color-success-700: var(--color-success-700);
+$color-success-800: var(--color-success-800);
+$color-success-900: var(--color-success-900);
+
+$color-warning-100: var(--color-warning-100);
+$color-warning-200: var(--color-warning-200);
+$color-warning-300: var(--color-warning-300);
+$color-warning-400: var(--color-warning-400);
+$color-warning-500: var(--color-warning-500);
+$color-warning-600: var(--color-warning-600);
+$color-warning-700: var(--color-warning-700);
+$color-warning-800: var(--color-warning-800);
+$color-warning-900: var(--color-warning-900);
+
+$color-error-100: var(--color-error-100);
+$color-error-200: var(--color-error-200);
+$color-error-300: var(--color-error-300);
+$color-error-400: var(--color-error-400);
+$color-error-500: var(--color-error-500);
+$color-error-600: var(--color-error-600);
+$color-error-700: var(--color-error-700);
+$color-error-800: var(--color-error-800);
+$color-error-900: var(--color-error-900);
+
+$color-yellow-100: var(--color-yellow-100);
+$color-yellow-200: var(--color-yellow-200);
+$color-yellow-300: var(--color-yellow-300);
+$color-yellow-400: var(--color-yellow-400);
+
+$color-purple-100: var(--color-purple-100);
+$color-purple-200: var(--color-purple-200);
+$color-purple-300: var(--color-purple-300);
+$color-purple-400: var(--color-purple-400);
+
+$color-pink-100: var(--color-pink-100);
+$color-pink-200: var(--color-pink-200);
+$color-pink-300: var(--color-pink-300);
+$color-pink-400: var(--color-pink-400);
+
+$color-brown-100: var(--color-brown-100);
+$color-brown-200: var(--color-brown-200);
+$color-brown-300: var(--color-brown-300);
+$color-brown-400: var(--color-brown-400);
+
+$color-cyan-100: var(--color-cyan-100);
+$color-cyan-200: var(--color-cyan-200);
+$color-cyan-300: var(--color-cyan-300);
+$color-cyan-400: var(--color-cyan-400);

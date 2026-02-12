@@ -6,6 +6,7 @@ import EmailSettings from '@baserow/modules/core/components/settings/EmailSettin
 import EmailNotifications from '@baserow/modules/core/components/settings/EmailNotifications'
 import McpEndpointSettings from '@baserow/modules/core/components/settings/McpEndpointSettings.vue'
 import TwoFactorAuthSettings from '@baserow/modules/core/components/settings/TwoFactorAuthSettings.vue'
+import AppearanceSettings from '@baserow/modules/core/components/settings/AppearanceSettings.vue'
 
 /**
  * All settings types will be added to the settings modal.
@@ -195,6 +196,29 @@ export class MCPEndpointSettingsType extends SettingsType {
 
   getComponent() {
     return McpEndpointSettings
+  }
+}
+
+export class AppearanceSettingsType extends SettingsType {
+  static getType() {
+    return 'appearance'
+  }
+
+  getIconClass() {
+    return 'iconoir-half-moon'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('settingType.appearance')
+  }
+
+  getComponent() {
+    return AppearanceSettings
+  }
+
+  getOrder() {
+    return 45
   }
 }
 

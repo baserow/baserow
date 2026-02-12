@@ -20,15 +20,15 @@
 }
 
 .formula-input-field--focused {
-  border-color: $palette-blue-500;
+  border-color: $color-primary-500;
 
   &.formula-input-field--error {
-    border-color: $palette-red-400 !important;
+    border-color: $color-error-400 !important;
   }
 }
 
 .formula-input-field--error {
-  border-color: $palette-red-400;
+  border-color: $color-error-400;
 }
 
 .formula-input-field--disabled {
@@ -43,7 +43,7 @@
 .formula-input-field--formula-empty .ProseMirror div:first-child::before {
   content: var(--formula-placeholder);
   float: left;
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
   pointer-events: none;
   height: 0;
 }

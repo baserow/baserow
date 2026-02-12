@@ -61,12 +61,12 @@
     "titleRegisterLicense": "Register a license",
     "registerLicense": "Register license",
     "viewPricing": "View pricing",
-    "licenseDescription": "A license can only be obtained on baserow.io. If you have already purchased a license, it will be delivered to you by email and you can get in from the overview in your account. Copy and paste the license key in the box below and click on the button to register the license key to this instance. It’s not possible to use the same key on two different installations. {pricingLink} if you don’t have a key yet.",
+    "licenseDescription": "If you have already purchased a license, it will be delivered to you by email and you can get it from the overview in your account. Copy and paste the license key in the box below and click on the button to register the license key to this instance. It's not possible to use the same key on two different installations. {pricingLink} if you don't have a key yet.",
     "licenseError": {
       "invalidTitle": "Invalid",
       "invalid": "The provided license is invalid.",
       "unsupportedTitle": "Unsupported",
-      "unsupported": "The provided license is incompatible with your Baserow version. Please update to the latest version and try again.",
+      "unsupported": "The provided license is incompatible with your TCR Projects version. Please update to the latest version and try again.",
       "expiredTitle": "Expired",
       "expired": "The provided license has expired.",
       "duplicateTitle": "Duplicate",
@@ -191,7 +191,7 @@
     "surveyForm": "Survey form",
     "surveyFormContent": "Collect responses one question at a time with survey mode. A simplified version of the form view, optimized for focus and ease of use.",
     "publicLogoRemoval": "Public logo removal",
-    "publicLogoRemovalContent": "Remove the Baserow logo from public views to give your shared content a cleaner, more branded look.",
+    "publicLogoRemovalContent": "Remove the TCR Projects logo from public views to give your shared content a cleaner, more branded look.",
     "personalViews": "Personal views",
     "personalViewsContent": "Create views that only the author can see. This gives you space to experiment, filter, and sort data without affecting the workspace for others.",
     "aiFeatures": "AI features",
@@ -202,9 +202,9 @@
   "licenses": {
     "titleNoLicenses": "No licenses found",
     "titleLicenses": "Licenses",
-    "noLicensesDescription": "Your Baserow instance doesn’t have any licenses registered. A premium license gives you immediate access to all of the additional features. If you already have a license, you can register it here. Alternatively you can get one by clicking on the button below.",
+    "noLicensesDescription": "Your TCR Projects instance doesn't have any licenses registered. A premium license gives you immediate access to all of the additional features. If you already have a license, you can register it here. Alternatively you can get one by clicking on the button below.",
     "getLicense": "Get a license",
-    "baserowInstanceId": "Your Baserow instance ID is:",
+    "baserowInstanceId": "Your TCR Projects instance ID is:",
     "registerLicense": "Register license",
     "licenceId": "License ID",
     "premium": "Premium",
@@ -276,8 +276,8 @@
     "title": "Colors"
   },
   "redirectToBaserowModal": {
-    "title": "Redirecting to https://baserow.io",
-    "content": "You are leaving your self hosted instance and you are being redirected to https://baserow.io."
+    "title": "Redirecting to external site",
+    "content": "You are leaving your self hosted instance and you are being redirected to an external site."
   },
   "premiumTopSidebar": {
     "impersonateDescription": "This account is impersonated. A page refresh will stop it.",
@@ -297,7 +297,7 @@
   },
   "shareLinkOptions": {
     "baserowLogo": {
-      "label": "Hide Baserow logo on shared view",
+      "label": "Hide TCR Projects logo on shared view",
       "premiumModalName": "public logo removal"
     },
     "allowPublicExportLabel": "Allow export on shared view"
@@ -332,7 +332,7 @@
   },
   "fieldAISubForm": {
     "prompt": "Prompt",
-    "promptPlaceholder": "What is Baserow?",
+    "promptPlaceholder": "What is TCR Projects?",
     "premiumFeature": "The AI field is a premium feature",
     "emptyFileField": "None",
     "fileFieldHelp": "The first compatible file in the field will be used as the knowledge base for the prompt. The file has to be a text file with the supported file extension like .txt, .md, .pdf, .docx.",
@@ -353,7 +353,7 @@
     "label": "Prompt",
     "labelDescription": "Describe the formula you would like to generate",
     "generate": "Generate",
-    "noModels": "Your Baserow instance and workspace doesn't have any AI models configured. Navigate to the homepage, click on the name of your workspace, then on settings to configure them."
+    "noModels": "Your TCR Projects instance and workspace doesn't have any AI models configured. Navigate to the homepage, click on the name of your workspace, then on settings to configure them."
   },
   "formulaFieldAI": {
     "generateWithAI": "Generate using AI",

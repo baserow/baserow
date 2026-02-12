@@ -5,7 +5,7 @@
   padding: 12px;
   justify-content: center;
   align-items: center;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   background: $white;
   flex-shrink: 0;
   position: relative;
@@ -15,21 +15,21 @@
   @include elevation($elevation-low);
 
   &:hover:not(.button-floating--loading):not([disabled]) {
-    background: $palette-neutral-25;
-    color: $palette-blue-600;
+    background: $color-neutral-10;
+    color: $color-primary-600;
     text-decoration: none;
   }
 
   &:active:not(.button-floating--loading):not([disabled]) {
-    background: $palette-neutral-50;
-    color: $palette-blue-700;
+    background: $color-neutral-50;
+    color: $color-primary-700;
     box-shadow: none;
   }
 
   &[disabled]:not(.button-floating--loading) {
     cursor: not-allowed;
-    background: $palette-neutral-100 !important;
-    color: $palette-neutral-700;
+    background: $color-neutral-100 !important;
+    color: $color-neutral-500;
 
     @include elevation($elevation-low);
   }
@@ -53,7 +53,7 @@
   user-select: none;
   box-shadow: none;
 
-  @include loading-spinner($palette-neutral-700);
+  @include loading-spinner($color-neutral-500);
 }
 
 .button-floating__icon {
@@ -61,7 +61,7 @@
 }
 
 .button-floating--secondary {
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
 
   @include elevation($elevation-medium);
 }

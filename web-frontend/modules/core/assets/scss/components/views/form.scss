@@ -1,7 +1,7 @@
 .form-view {
   @include absolute(0);
 
-  background-color: $palette-neutral-25;
+  background-color: $color-neutral-10;
 }
 
 .form-view__sidebar {
@@ -44,12 +44,12 @@
 
   a {
     font-size: 12px;
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
     font-weight: 500;
 
     &:hover {
       text-decoration: none;
-      color: $palette-neutral-1200;
+      color: $color-neutral-900;
     }
   }
 }
@@ -60,8 +60,8 @@
   margin: 18px 0;
   padding: 18px;
   text-align: center;
-  border: dashed 1px $palette-neutral-400;
-  color: $palette-neutral-900;
+  border: dashed 1px $color-neutral-300;
+  color: $color-neutral-700;
 
   @include rounded($rounded-md);
 }
@@ -77,7 +77,7 @@
 
 .form-view__sidebar-fields-item {
   position: relative;
-  border: solid 1px $palette-neutral-400;
+  border: solid 1px $color-neutral-300;
   background-color: $white;
   padding: 0 30px 0 12px;
 
@@ -87,13 +87,13 @@
 
   &:hover {
     text-decoration: none;
-    border-color: $palette-neutral-500;
+    border-color: $color-neutral-400;
   }
 
   &.form-view__sidebar-fields-item--disabled,
   &.form-view__sidebar-fields-item--incompatible {
     cursor: inherit;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
     box-shadow: none;
   }
 }
@@ -118,11 +118,11 @@
   flex: 0 0 20px;
   line-height: 36px;
   font-size: 14px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 
   .form-view__sidebar-fields-item--incompatible &,
   .form-view__sidebar-fields-item--disabled & {
-    color: $palette-neutral-500;
+    color: $color-neutral-400;
   }
 }
 
@@ -133,7 +133,7 @@
   line-height: 34px;
   font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .form-view__control-notification-on-submit {
@@ -188,19 +188,19 @@
   display: inline-block;
   line-height: 36px;
   padding: 0 20px;
-  background-color: $palette-neutral-25;
-  border: 1px dashed $palette-neutral-400;
+  background-color: $color-neutral-10;
+  border: 1px dashed $color-neutral-300;
   font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   overflow: hidden;
 
   @include rounded($rounded-md);
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1200;
-    border-color: $palette-neutral-600;
+    color: $color-neutral-900;
+    border-color: $color-neutral-500;
   }
 
   * {
@@ -209,12 +209,12 @@
 
   &.form-view__file--dragging,
   &.form-view__file--uploading {
-    border-color: $palette-neutral-600;
+    border-color: $color-neutral-500;
     color: transparent;
   }
 
   &.form-view__file--error {
-    background-color: $palette-red-50;
+    background-color: $color-error-100;
     color: transparent;
   }
 }
@@ -320,7 +320,7 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  background-color: $palette-neutral-200;
+  background-color: $color-neutral-200;
 }
 
 .form-view__body {
@@ -372,13 +372,13 @@
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 8px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .form-view__no-fields-content {
   font-size: 12px;
   font-weight: 400;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 }
 
 .form-view__fields {
@@ -399,7 +399,7 @@
 
     &.form-view__field--selected {
       z-index: 2;
-      border-color: $palette-neutral-200;
+      border-color: $color-neutral-200;
 
       // If we've selected a form field, the span.contenteditable
       // is false, and there's no text value, show the placeholder.
@@ -416,7 +416,7 @@
 
       &:hover {
         cursor: pointer;
-        background-color: $palette-neutral-25;
+        background-color: $color-neutral-10;
       }
     }
   }
@@ -425,7 +425,7 @@
 .form-view__field-head {
   @include flex-align-items(5px);
 
-  background-color: $palette-neutral-100;
+  background-color: $color-neutral-100;
   line-height: 52px;
   padding: 0 20px;
   width: 100%;
@@ -443,7 +443,7 @@
   width: 11px;
   height: 15px;
   background-image: radial-gradient(
-    $palette-neutral-700 1.5px,
+    $color-neutral-500 1.5px,
     transparent 1.5px
   );
   background-size: 5px 5px;
@@ -451,7 +451,7 @@
 
   &:hover {
     background-image: radial-gradient(
-      $palette-neutral-900 1.5px,
+      $color-neutral-700 1.5px,
       transparent 1.5px
     );
   }
@@ -459,7 +459,7 @@
 
 .form-view__field-head-icon {
   font-size: 14px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   margin-left: 10px;
 }
 
@@ -469,7 +469,7 @@
   max-width: 100%;
   font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .form-view__field-head-options {
@@ -483,11 +483,11 @@
 
 .form-view__field-head-hide {
   margin-left: auto;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   font-size: 16px;
 
   &:hover {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }
 
@@ -503,7 +503,7 @@
 }
 
 .form-view__field-required {
-  color: $palette-red-600;
+  color: $color-error-600;
 }
 
 .form-view__field-description {
@@ -541,14 +541,14 @@
 
 .form-view__add-condition {
   margin-top: 6px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   margin-right: 16px;
 
   @include flex-align-items(4px, inline-flex);
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1100;
+    color: $color-neutral-800;
   }
 
   i {
@@ -561,7 +561,7 @@
 }
 
 .form-view__condition-actions {
-  border-top: 1px solid rgba(217, 219, 222, 0.5);
+  border-top: 1px solid $color-neutral-200;
   margin-top: 12px;
   padding-top: 8px;
 }

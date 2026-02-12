@@ -1,3 +1,7 @@
+// Badge colors use decorative palette values where no full theme-aware
+// scale exists (cyan, purple, magenta). Semantic colors (green/success,
+// red/error, yellow/warning) use the theme-aware equivalents.
+
 %badge-cyan {
   background: $palette-cyan-50;
   color: $palette-cyan-800;
@@ -8,11 +12,11 @@
 }
 
 %badge-green {
-  background: $palette-green-50;
-  color: $palette-green-800;
+  background: $color-success-100;
+  color: $color-success-700;
 
   .badge__indicator {
-    background: $palette-green-500;
+    background: $color-success-400;
   }
 }
 
@@ -26,11 +30,11 @@
 }
 
 %badge-red {
-  background: $palette-red-50;
-  color: $palette-red-800;
+  background: $color-error-100;
+  color: $color-error-700;
 
   .badge__indicator {
-    background: $palette-red-500;
+    background: $color-error-500;
   }
 }
 
@@ -44,20 +48,20 @@
 }
 
 %badge-yellow {
-  background: $palette-yellow-50;
-  color: $palette-yellow-800;
+  background: $color-warning-100;
+  color: $color-warning-700;
 
   .badge__indicator {
-    background: $palette-yellow-500;
+    background: $color-warning-500;
   }
 }
 
 %badge-neutral {
-  background: $palette-neutral-50;
-  color: $palette-neutral-800;
+  background: $color-neutral-50;
+  color: $color-neutral-600;
 
   .badge__indicator {
-    background: $palette-neutral-700;
+    background: $color-neutral-500;
   }
 }
 

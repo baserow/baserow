@@ -8,30 +8,30 @@
   box-sizing: border-box;
   gap: 8px;
   flex-shrink: 0;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   background: $white;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 
   @include rounded($rounded-md);
   @include elevation($elevation-low);
 
   &:hover:not(.button-icon--loading):not([disabled]) {
-    background: $palette-neutral-25;
-    color: $palette-blue-600;
+    background: $color-neutral-10;
+    color: $color-primary-600;
     text-decoration: none;
   }
 
   &.active,
   &:active:not(.button-icon--loading):not([disabled]) {
-    background: $palette-neutral-50;
-    color: $palette-blue-700;
+    background: $color-neutral-50;
+    color: $color-primary-700;
     box-shadow: none !important;
   }
 
   &[disabled]:not(.button-icon--loading) {
     cursor: not-allowed;
-    background: $palette-neutral-100 !important;
-    color: $palette-neutral-700;
+    background: $color-neutral-100 !important;
+    color: $color-neutral-500;
   }
 }
 
@@ -40,7 +40,7 @@
   cursor: wait;
   user-select: none;
 
-  @include loading-spinner($palette-neutral-700);
+  @include loading-spinner($color-neutral-500);
 }
 
 .button-icon--small {
@@ -61,7 +61,7 @@
   &:active,
   &:hover {
     .button-icon__icon {
-      color: $palette-neutral-1200;
+      color: $color-neutral-900;
     }
   }
 }

@@ -18,7 +18,7 @@
   }
 
   &.active:not(.elements-list-item--loading) {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $color-neutral-50;
   }
 
   &.disabled {
@@ -33,22 +33,22 @@
 
 .elements-list-item__link {
   display: block;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   padding: 8px 32px 8px 10px;
 
   @include rounded($rounded-md);
 
   .elements-list-item--selected > & {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 
   &:hover {
     text-decoration: none;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 
   .elements-list-item.disabled & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
 
     &:hover {
       cursor: inherit;
@@ -66,7 +66,7 @@
   @extend %ellipsis;
 
   .elements-list-item__link:active & {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }
 
@@ -76,7 +76,7 @@
 
 .elements-list-item__icon {
   font-size: 16px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
 
   .elements-list-item--selected &,
   .elements-list-item__link:hover & {
@@ -85,6 +85,6 @@
 
   .elements-list-item.disabled &,
   .elements-list-item__link:active & {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }

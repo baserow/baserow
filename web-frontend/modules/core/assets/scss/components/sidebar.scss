@@ -1,8 +1,13 @@
 .sidebar {
   @include absolute(0);
 
-  background-color: $palette-neutral-25;
-  border-right: solid 1px $palette-neutral-200;
+  background: linear-gradient(
+    180deg,
+    $color-neutral-10 0%,
+    $color-neutral-50 100%
+  );
+  border-right: solid 1px $color-neutral-200;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.08);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -13,7 +18,7 @@
   flex: 0 0;
 
   &:not(:last-child) {
-    border-bottom: solid 1px $palette-neutral-200;
+    border-bottom: solid 1px $color-neutral-200;
   }
 
   &.sidebar__section--scrollable {
@@ -41,14 +46,16 @@
 .sidebar__workspaces-selector {
   @include flex-align-items(10px);
 
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
   padding: 0 16px;
   height: 51px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-weight: 500;
+  border-radius: $rounded-md;
 
   &:hover {
     text-decoration: none;
+    background: themed-alpha($color-primary-500, 0.08);
   }
 
   .sidebar--collapsed & {
@@ -64,12 +71,12 @@
 
 .sidebar__workspaces-selector-icon {
   font-size: 18px;
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
 }
 
 .sidebar__user {
-  border-top: solid 1px $palette-neutral-200;
-  background: $palette-neutral-25;
+  border-top: solid 1px $color-neutral-200;
+  background: $color-neutral-50;
   padding-bottom: 8px;
   border-bottom-left-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
@@ -78,7 +85,7 @@
 .sidebar__user-email {
   font-weight: 500;
   font-size: 11px;
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
   padding-left: 8px;
 }
 
@@ -94,7 +101,7 @@
   margin-right: 8px;
 
   &.badge.badge--neutral {
-    background-color: $palette-neutral-200;
+    background-color: $color-neutral-200;
   }
 }
 
@@ -103,29 +110,29 @@
 }
 
 .sidebar__new-wrapper--separator {
-  border-top: solid 1px $palette-neutral-200;
+  border-top: solid 1px $color-neutral-200;
 }
 
 .sidebar__new {
   font-size: 13px;
   font-weight: 500;
   line-height: 17px;
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
 
   @include flex-align-items(4px);
 
   &:hover {
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
     text-decoration: none;
   }
 }
 
 .sidebar__new-icon {
   font-size: 16px;
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
 
   .sidebar__new:hover & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
@@ -173,7 +180,7 @@
 .sidebar__foot-separator {
   width: 1px;
   height: 16px;
-  background-color: $palette-neutral-200;
+  background-color: $color-neutral-200;
 
   .sidebar--collapsed & {
     width: 16px;
@@ -183,13 +190,13 @@
 
 .sidebar__foot-link {
   position: relative;
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
 
   @include center-text(16px, 16px);
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
   }
 
   &.sidebar__foot-link--loading {
@@ -218,7 +225,7 @@
 
 .sidebar__workspace-active-icon {
   text-align: center;
-  color: $palette-neutral-1200;
+  color: $color-primary-500;
   position: absolute;
   top: 50%;
   right: 5px;
@@ -242,16 +249,16 @@
 
 .sidebar__back-icon {
   font-size: 14px;
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
 }
 
 .sidebar__head {
   @include flex-align-items(15px);
 
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
   padding: 0 21px;
   height: 51px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-weight: 500;
 
   .sidebar--collapsed & {
@@ -266,19 +273,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.1);
   }
 }
 
 .sidebar__title {
   font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 .sidebar__logo {
@@ -297,18 +304,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: themed-alpha($color-primary-500, 0.1);
   }
 }
 
 .sidebar__item-count {
   margin-left: auto;
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
 }
 
 .sidebar__search {
@@ -333,17 +340,22 @@
   line-height: 36px;
   width: 100%;
   padding: 0 48px 0 8px;
-  background-color: $white;
-  border: 1px solid $palette-neutral-400;
+  background-color: $color-neutral-50;
+  border: 1px solid $color-neutral-200;
   cursor: pointer;
   transition: all 0.2s ease;
 
   @include rounded($rounded-md);
-  @include elevation($elevation-low);
+
+  box-shadow: none;
+
+  &:hover {
+    border-color: $color-neutral-300;
+  }
 }
 
 .sidebar__search-icon {
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
   font-size: 16px;
   flex-shrink: 0;
 }
@@ -353,7 +365,7 @@
   min-width: 0;
   font-size: 12px;
   line-height: 12px;
-  color: $palette-neutral-700;
+  color: $color-neutral-600;
   font-weight: 400;
 }
 
@@ -367,12 +379,12 @@
 
   kbd {
     border: 0;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-200;
     border-radius: 3px;
     font-family: inherit;
     font-size: 10px;
     font-weight: 700;
-    color: $palette-neutral-700;
+    color: $color-neutral-700;
     height: 16px;
     line-height: 16px;
     padding: 0;

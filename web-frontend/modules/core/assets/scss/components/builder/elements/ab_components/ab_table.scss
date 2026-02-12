@@ -15,7 +15,7 @@
     font-weight: var(--table-header-font-weight, 600);
     background-color: var(
       --table-header-background-color,
-      $palette-neutral-200
+      $color-neutral-200
     );
     font-size: var(--table-header-font-size, 13px);
     color: var(--table-header-text-color, $color-neutral-900);
@@ -41,7 +41,7 @@
     // See: https://gitlab.com/baserow/baserow/-/issues/3250
     background-color: var(
       --table-header-background-color,
-      $palette-neutral-200
+      $color-neutral-200
     );
   }
 

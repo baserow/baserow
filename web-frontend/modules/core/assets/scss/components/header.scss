@@ -1,15 +1,16 @@
 .header {
   display: flex;
   justify-content: left;
-  background-color: $white;
-  border-bottom: 1px solid $palette-neutral-200;
+  background-color: $color-neutral-50;
+  border-bottom: 1px solid $color-neutral-200;
+  backdrop-filter: blur(8px);
 
   &.header--space-between {
     justify-content: space-between;
   }
 
   &.header--dark-border {
-    border-bottom-color: $palette-neutral-400;
+    border-bottom-color: $color-neutral-300;
   }
 }
 
@@ -110,7 +111,7 @@
   font-weight: 500;
   padding: 0 10px;
   white-space: nowrap;
-  color: $palette-neutral-900;
+  color: $color-neutral-800;
 
   @include fixed-height(32px, 13px);
   @include rounded($rounded-md);
@@ -126,7 +127,7 @@
   }
 
   &.active {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 
   &.active--success {
@@ -181,7 +182,7 @@
 }
 
 .header__filter-icon {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-size: 16px;
 
   &:not(:last-child) {
@@ -202,7 +203,7 @@
   }
 
   .header__filter-link.active & {
-    color: $palette-neutral-1200;
+    color: $color-primary-500;
   }
 }
 
@@ -214,7 +215,7 @@
   margin-left: 6px;
   margin-right: -2px;
   font-size: 14px;
-  color: $palette-neutral-600;
+  color: $color-neutral-600;
 }
 
 .header__info {
@@ -264,7 +265,7 @@
   justify-content: center;
 
   &--with-separator {
-    border-left: 1px solid $palette-neutral-200;
+    border-left: 1px solid $color-neutral-200;
   }
 }
 

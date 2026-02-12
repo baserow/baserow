@@ -103,14 +103,14 @@
 
     &::before {
       font-size: 16px;
-      color: $palette-neutral-700;
+      color: $color-neutral-500;
     }
 
     &:hover {
       border-radius: 100% !important;
 
       &::before {
-        color: $palette-neutral-900;
+        color: $color-neutral-700;
       }
     }
 

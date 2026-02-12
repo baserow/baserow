@@ -14,7 +14,7 @@
   margin-bottom: 10px;
 
   .simulate-dispatch-node__sample-data--error & {
-    color: $palette-red-600;
+    color: $color-error-600;
   }
 }
 
@@ -36,10 +36,10 @@
   }
 
   .simulate-dispatch-node__sample-data--error & {
-    background-color: $palette-red-50;
+    background-color: $color-error-100;
   }
 }
 
 .simulate-dispatch-node__button-icon {
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 }

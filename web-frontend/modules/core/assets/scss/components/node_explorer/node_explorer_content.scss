@@ -1,5 +1,5 @@
 .node-explorer-content__content-icon {
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
 }
 
 .node-explorer-content__children {
@@ -24,10 +24,10 @@
   line-height: 24px;
 
   .node-explorer-content--selected > & {
-    background-color: $palette-blue-50;
+    background-color: $color-primary-100;
 
     .node-explorer-content__selected-icon {
-      color: $palette-green-500;
+      color: $color-success-400;
     }
   }
 
@@ -40,7 +40,7 @@
     }
 
     .node-explorer-content__name {
-      color: $palette-neutral-900;
+      color: $color-neutral-700;
     }
   }
 
@@ -48,7 +48,7 @@
     cursor: pointer;
 
     &:hover {
-      background-color: $palette-neutral-100;
+      background-color: $color-neutral-100;
     }
   }
 }
@@ -62,6 +62,6 @@
   background: none;
   margin-left: 10px;
   padding-top: 3px;
-  color: $palette-neutral-600;
+  color: $color-neutral-500;
   cursor: pointer;
 }

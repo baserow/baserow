@@ -7,7 +7,7 @@ from baserow.core.models import Settings
 class SettingsSerializer(serializers.ModelSerializer):
     co_branding_logo = UserFileField(
         required=False,
-        help_text="Co-branding logo that's placed next to the Baserow logo (176x29).",
+        help_text="Co-branding logo that's placed next to the TCR Projects logo (176x29).",
     )
 
     class Meta:

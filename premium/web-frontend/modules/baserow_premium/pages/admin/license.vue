@@ -178,8 +178,8 @@
             </div>
             <i18n-t keypath="license.disconnectDescription" tag="p">
               <template #contact>
-                <a href="https://baserow.io/contact" target="_blank"
-                  >baserow.io/contact</a
+                <a href="https://tcr-cc.com/contact" target="_blank"
+                  >tcr-cc.com/contact</a
                 >
               </template>
             </i18n-t>

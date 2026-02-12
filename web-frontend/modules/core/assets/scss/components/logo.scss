@@ -8,9 +8,9 @@
   line-height: 11px;
   padding: 0 2px;
   background-color: rgba($white, 1);
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   border-radius: 14px;
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
 
   @include absolute(-11px, -10px, auto, auto);
   @include elevation($elevation-low);

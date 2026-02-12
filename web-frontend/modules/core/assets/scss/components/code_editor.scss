@@ -3,7 +3,7 @@
   overflow: hidden;
   padding: 6px;
   background: $white;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   box-sizing: border-box;
 
   @include elevation($elevation-low);

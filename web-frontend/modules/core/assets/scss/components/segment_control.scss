@@ -2,7 +2,7 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  background: $palette-neutral-50;
+  background: $color-neutral-50;
 
   @include rounded($rounded-md);
 }
@@ -38,7 +38,7 @@
   outline: none;
   background: none;
   transition: background-color 0.3s ease;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-weight: 500;
   border: 1px solid transparent;
   justify-content: center;
@@ -51,8 +51,8 @@
   }
 
   &:hover {
-    background: $palette-neutral-200;
-    color: $palette-neutral-1200;
+    background: $color-neutral-200;
+    color: $color-neutral-900;
   }
 
   .segment-control--small & {
@@ -76,14 +76,14 @@
 }
 
 .segment-control__button--active {
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   background-color: $white;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
 
   @include elevation($elevation-low);
 
   &:hover {
-    border: 1px solid $palette-neutral-500;
+    border: 1px solid $color-neutral-400;
     background: $white;
   }
 }

@@ -3,7 +3,7 @@
   align-items: center;
   padding: 16px;
   gap: 10px;
-  border-bottom: solid 1px $palette-neutral-200;
+  border-bottom: solid 1px $color-neutral-200;
 }
 
 .modal-sidebar__head-icon {
@@ -29,7 +29,7 @@
 .modal-sidebar__title {
   @extend %ellipsis;
 
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-size: 11px;
   font-weight: 500;
   line-height: 16px;
@@ -55,7 +55,7 @@
   line-height: 32px;
   padding: 0 8px;
   margin: 0 8px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   user-select: none;
   font-weight: 500;
   margin-bottom: 2px;
@@ -64,12 +64,12 @@
 
   &:hover {
     text-decoration: none;
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $color-neutral-50;
   }
 
   &.active {
-    background-color: rgba($palette-neutral-1300, 0.04);
-    color: $palette-neutral-1200;
+    background-color: $color-neutral-100;
+    color: $color-neutral-900;
   }
 }
 

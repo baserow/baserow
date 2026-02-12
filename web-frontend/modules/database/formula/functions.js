@@ -2597,7 +2597,7 @@ export class BaserowToUrl extends BaserowFunctionDefinition {
   }
 
   getExamples() {
-    return ['to_url("www.baserow.io")']
+    return ['to_url("www.tcrprojects.com")']
   }
 
   getFormulaType() {

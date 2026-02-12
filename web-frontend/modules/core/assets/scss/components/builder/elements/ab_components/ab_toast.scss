@@ -100,11 +100,11 @@
   padding: 0;
   font-size: 16px;
   flex: 0 1 auto;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   cursor: pointer;
 
   &:hover {
-    color: $palette-neutral-800;
+    color: $color-neutral-600;
   }
 }
 
@@ -157,7 +157,7 @@
   margin-top: 12px;
   display: flex;
   gap: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-weight: 500;
   font-size: 12px;
 }

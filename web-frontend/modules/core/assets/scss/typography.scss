@@ -6,7 +6,7 @@ html {
 }
 
 body {
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   font-family: $text-font-stack;
   font-size: 13px;
 }
@@ -23,13 +23,13 @@ a {
 p {
   @extend %first-last-no-margin;
 
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   line-height: 170%;
   margin-bottom: 30px;
 }
 
 strong {
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 }
 
 h1,

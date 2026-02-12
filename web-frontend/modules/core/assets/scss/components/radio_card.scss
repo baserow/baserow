@@ -4,13 +4,13 @@
   gap: 8px;
   padding: 14px 16px 16px;
   border-radius: 6px;
-  border: 1.5px solid $palette-neutral-400;
+  border: 1.5px solid $color-neutral-300;
 
   @include elevation($elevation-low);
 }
 
 .radio-card--selected {
-  border: 1.5px solid $palette-blue-500;
+  border: 1.5px solid $color-primary-500;
 }
 
 .radio-card__input {
@@ -33,12 +33,12 @@
 .radio-card__label {
   padding-top: 4px;
   font-size: 13px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   font-weight: 500;
 }
 
 .radio-card__description {
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   line-height: 20px;
   font-size: 12px;
 }

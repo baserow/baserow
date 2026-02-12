@@ -17,11 +17,11 @@
 
 .onboarding-user-preview__initials {
   transform: translateX(-50%);
-  background-color: $palette-neutral-700;
+  background-color: $color-neutral-500;
   border-radius: 50%;
   color: $white;
   font-weight: 600;
-  outline: solid 5px $palette-neutral-200;
+  outline: solid 5px $color-neutral-200;
 
   @include center-text(56px, 18px);
   @include absolute(0, auto, auto, 50%);
@@ -41,7 +41,7 @@
 
 .onboarding-user-preview__head {
   padding: 48px 40px 28px;
-  background-color: $palette-neutral-25;
+  background-color: $color-neutral-10;
 }
 
 .onboarding-user-preview__name {

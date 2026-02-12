@@ -1,3 +1,10 @@
+// Alpha helper using CSS color-mix() for theme-aware colors.
+// SCSS rgba() can't decompose CSS custom properties, so we use color-mix() instead.
+// Usage: background-color: themed-alpha($color-primary-500, 0.12);
+@function themed-alpha($color, $alpha) {
+  @return color-mix(in srgb, #{$color} #{percentage($alpha)}, transparent);
+}
+
 @mixin fixed-height($height, $font-size) {
   height: $height;
   line-height: $height;

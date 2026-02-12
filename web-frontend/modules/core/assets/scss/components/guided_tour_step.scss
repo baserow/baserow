@@ -10,7 +10,7 @@
   position: absolute;
   box-sizing: border-box;
   width: 326px;
-  background-color: $palette-neutral-1200;
+  background-color: $color-neutral-900;
   display: flex;
   flex-direction: column;
   z-index: $z-index-guided-tour-step;
@@ -32,7 +32,7 @@
     height: 0;
     border-style: solid;
     border-width: 8px 6px 8px 0;
-    border-color: transparent $palette-neutral-1200 transparent transparent;
+    border-color: transparent $color-neutral-900 transparent transparent;
     transform: rotate(0deg);
     position: absolute;
   }
@@ -53,7 +53,7 @@
       right: -8px;
       top: 12px;
       border-width: 6px 0 6px 8px;
-      border-color: transparent transparent transparent $palette-neutral-1200;
+      border-color: transparent transparent transparent $color-neutral-900;
     }
   }
 
@@ -88,7 +88,7 @@
       left: 12px;
       top: -6px;
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200;
+      border-color: transparent transparent $color-neutral-900;
     }
   }
 
@@ -102,7 +102,7 @@
       right: 12px;
       top: -6px;
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200;
+      border-color: transparent transparent $color-neutral-900;
     }
   }
 
@@ -117,7 +117,7 @@
       top: -6px;
       transform: translateX(-50%);
       border-width: 0 8px 6px;
-      border-color: transparent transparent $palette-neutral-1200;
+      border-color: transparent transparent $color-neutral-900;
     }
   }
 
@@ -132,7 +132,7 @@
       bottom: -6px;
       transform: translateX(-50%);
       border-width: 6px 8px 0;
-      border-color: $palette-neutral-1200 transparent transparent transparent;
+      border-color: $color-neutral-900 transparent transparent transparent;
     }
   }
 }
@@ -144,7 +144,7 @@
 }
 
 .guided-tour-step__page {
-  color: $palette-neutral-500;
+  color: $color-neutral-400;
   font-size: 11px;
   line-height: 16px;
   margin-bottom: 10px;
@@ -161,17 +161,17 @@
 .guided-tour-step__description {
   font-size: 12px;
   line-height: 20px;
-  color: $palette-neutral-300;
+  color: $color-neutral-300;
 
   .markdown p {
-    color: $palette-neutral-300;
+    color: $color-neutral-300;
     margin-bottom: 10px;
     font-size: 12px;
     line-height: 20px;
   }
 
   .markdown strong {
-    color: $palette-neutral-300;
+    color: $color-neutral-300;
   }
 
   .markdown ul {
@@ -196,6 +196,6 @@
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-300;
+    color: $color-neutral-300;
   }
 }

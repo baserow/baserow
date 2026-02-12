@@ -4,7 +4,7 @@
   white-space: nowrap;
   text-decoration: none;
   user-select: none;
-  color: #fff;
+  color: $white;
   border: 1px solid transparent;
   text-align: center;
   display: inline-flex;
@@ -34,8 +34,8 @@
 
   &[disabled]:not(.button--loading) {
     cursor: not-allowed;
-    background: $palette-neutral-100 !important;
-    color: $palette-neutral-700;
+    background: $color-neutral-100 !important;
+    color: $color-neutral-500;
     border: none;
   }
 }
@@ -56,23 +56,23 @@
 
   &.button--upload,
   &.button--secondary {
-    @include loading-spinner($palette-neutral-700);
+    @include loading-spinner($color-neutral-500);
   }
 }
 
 .button--secondary {
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
 
   @include button-style(
     $white,
-    $palette-neutral-25,
-    $palette-neutral-50,
-    $palette-neutral-1300,
-    $palette-neutral-1100
+    $color-neutral-50,
+    $color-neutral-100,
+    $color-neutral-900,
+    $color-neutral-800
   );
 
   &.button--active {
-    background: $palette-blue-50;
+    background: $color-primary-100;
   }
 }
 
@@ -84,11 +84,11 @@
 
 .button--danger {
   @include button-style(
-    $palette-red-600,
-    $palette-red-700,
-    $palette-red-800,
+    $color-error-600,
+    $color-error-700,
+    $color-error-800,
     $white,
-    $palette-red-200
+    $color-error-300
   );
 }
 
@@ -153,14 +153,14 @@
 }
 
 .button--upload {
-  border: 1px dashed $palette-neutral-400;
+  border: 1px dashed $color-neutral-300;
   box-shadow: none;
 
   @include button-style(
-    $palette-neutral-25,
+    $color-neutral-50,
     $white,
-    $palette-neutral-25,
-    $palette-neutral-900,
-    $palette-neutral-900
+    $color-neutral-50,
+    $color-neutral-600,
+    $color-neutral-600
   );
 }

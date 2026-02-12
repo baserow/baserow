@@ -4,14 +4,14 @@
     "multipleRows": "multiple rows"
   },
   "integrationType": {
-    "localBaserow": "Local Baserow",
+    "localBaserow": "Local TCR Projects",
     "smtp": "SMTP Email",
     "slackBot": "Slack Bot",
     "ai": "AI"
   },
   "localBaserowIntegrationType": {
-    "localBaserowSummary": "Local Baserow - {name}, {username}",
-    "localBaserowNoUser": "Local Baserow - Not configured",
+    "localBaserowSummary": "Local TCR Projects - {name}, {username}",
+    "localBaserowNoUser": "Local TCR Projects - Not configured",
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
   },
   "aiIntegrationType": {
@@ -24,23 +24,23 @@
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
-    "localBaserowGetRowDescription": "Read a single row from a Baserow table.",
+    "localBaserowGetRowDescription": "Read a single row from a TCR Projects table.",
     "localBaserowListRows": "List multiple rows",
-    "localBaserowListRowsDescription": "Reads multiple rows from a Baserow table.",
+    "localBaserowListRowsDescription": "Reads multiple rows from a TCR Projects table.",
     "localBaserowAggregateRows": "Summarize field",
-    "localBaserowAggregateRowsDescription": "Summarizes a field in a Baserow table.",
+    "localBaserowAggregateRowsDescription": "Summarizes a field in a TCR Projects table.",
     "localBaserowCreateRow": "Create a row",
-    "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
+    "localBaserowCreateRowDescription": "Creates a new row in a TCR Projects table.",
     "localBaserowUpdateRow": "Update a row",
-    "localBaserowUpdateRowDescription": "Updates an existing row in a Baserow table.",
+    "localBaserowUpdateRowDescription": "Updates an existing row in a TCR Projects table.",
     "localBaserowDeleteRow": "Delete a row",
-    "localBaserowDeleteRowDescription": "Deletes a row in a Baserow table.",
+    "localBaserowDeleteRowDescription": "Deletes a row in a TCR Projects table.",
     "localBaserowRowsCreated": "Rows are created",
-    "localBaserowRowsCreatedDescription": "Triggered when rows are created in a Baserow table.",
+    "localBaserowRowsCreatedDescription": "Triggered when rows are created in a TCR Projects table.",
     "localBaserowRowsUpdated": "Rows are updated",
-    "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a Baserow table.",
+    "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a TCR Projects table.",
     "localBaserowRowsDeleted": "Rows are deleted",
-    "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
+    "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a TCR Projects table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
     "coreHTTPRequest": "Send an HTTP request",
@@ -82,11 +82,11 @@
     "slackWriteMessageMissingIntegration": "No Slack integration selected."
   },
   "userSourceType": {
-    "localBaserow": "Baserow table authentication"
+    "localBaserow": "TCR Projects table authentication"
   },
   "localBaserowForm": {
     "user": "User",
-    "userMessage": "By creating this connection, you're authorizing the application to use your account to make changes in your local Baserow workspace."
+    "userMessage": "By creating this connection, you're authorizing the application to use your account to make changes in your local TCR Projects workspace."
   },
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",
@@ -152,7 +152,7 @@
   "localBaserowTableServiceConditionalForm": {
     "addFilter": "Add additional filter",
     "noFilterTitle": "You have not yet created a data source filter",
-    "noFilterText": "Data source filters allow you to show Baserow table rows that apply to your conditions.",
+    "noFilterText": "Data source filters allow you to show TCR Projects table rows that apply to your conditions.",
     "relatedFieldNotFound": "The related field is not found.",
     "filterTypeNotFound": "The filter type is not compatible.",
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
@@ -318,7 +318,7 @@
   },
   "localBaserowUpsertRowServiceForm": {
     "fieldMappingPlaceholderArray": "Choose an array value, e.g [42]",
-    "fieldMappingPlaceholderString": "Choose a string value, e.g. \\'baserow\\'",
+    "fieldMappingPlaceholderString": "Choose a string value, e.g. \\'TCR Projects\\'",
     "fieldMappingPlaceholderNumber": "Choose a number value, e.g. 42",
     "fieldMappingPlaceholderBoolean": "Choose a boolean value, e.g. true",
     "fieldMappingPlaceholderDate": "Choose a date value, e.g. 2025-07-25",

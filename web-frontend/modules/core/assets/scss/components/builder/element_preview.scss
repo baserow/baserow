@@ -65,7 +65,7 @@
     content: '';
     width: 3px;
     border-radius: 5px;
-    background-color: $palette-red-500;
+    background-color: $color-error-500;
 
     @include elevation($elevation-low);
   }
@@ -98,7 +98,7 @@
       @include absolute(0, 0, 0, 0);
 
       content: '';
-      border: solid 1px $palette-neutral-300;
+      border: solid 1px $color-neutral-300;
       pointer-events: none;
     }
   }
@@ -134,11 +134,11 @@
 }
 
 .element-preview__name-tag {
-  background-color: $palette-neutral-100;
-  color: $palette-neutral-700;
+  background-color: $color-neutral-100;
+  color: $color-neutral-500;
 
   .element-preview--active & {
-    background-color: $palette-blue-500;
+    background-color: $color-primary-500;
     color: $white;
 
     .page__header &,
@@ -149,8 +149,8 @@
 }
 
 .element-preview__error-tag {
-  background-color: $palette-red-50;
-  color: $palette-red-800;
+  background-color: $color-error-100;
+  color: $color-error-700;
   padding-left: 18px;
 
   &::before {
@@ -158,7 +158,7 @@
     height: 6px;
     width: 6px;
     border-radius: 6px;
-    background-color: $palette-red-500;
+    background-color: $color-error-500;
 
     @include absolute(8px, auto, auto, 8px);
   }

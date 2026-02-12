@@ -23,7 +23,7 @@
   .form-input,
   .dropdown__selected,
   .form-textarea {
-    border-color: $palette-red-600;
+    border-color: $color-error-600;
   }
 
   // Override a more precise rule in form_input.scss
@@ -38,7 +38,7 @@
   }
 
   .form-input__icon {
-    color: $palette-red-600;
+    color: $color-error-600;
   }
 }
 
@@ -56,7 +56,7 @@
 .control__description {
   font-size: 13px;
   line-height: 160%;
-  color: $palette-neutral-800;
+  color: $color-neutral-700;
   margin-bottom: 16px;
 }
 
@@ -64,7 +64,7 @@
   display: flex;
   font-size: 16px;
   font-weight: 500;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   margin-bottom: 8px;
   align-items: center;
   gap: 5px;
@@ -121,24 +121,24 @@
 }
 
 .control__context {
-  color: $palette-neutral-1100;
+  color: $color-neutral-800;
   margin-left: 6px;
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-500;
+    color: $color-neutral-500;
   }
 }
 
 .error {
   font-size: 12px;
   margin-top: 6px;
-  color: $palette-red-800;
+  color: $color-error-800;
 }
 
 .warning {
   margin-top: 6px;
-  color: $palette-yellow-600;
+  color: $color-warning-600;
 }
 
 .actions {
@@ -186,7 +186,7 @@
 
 .control__required {
   margin-left: auto;
-  color: $palette-neutral-900;
+  color: $color-neutral-600;
   font-size: 13px;
   font-weight: normal;
 
@@ -207,7 +207,7 @@
   flex-direction: column;
   gap: 12px;
   padding-top: 12px;
-  color: $palette-neutral-1100;
+  color: $color-neutral-800;
 
   p {
     margin: 0;
@@ -216,7 +216,7 @@
 
 .control__messages--error {
   margin: 0;
-  color: $palette-red-800;
+  color: $color-error-800;
   white-space: wrap;
 
   @include flex-align-items(3px);
@@ -224,7 +224,7 @@
 
 .control__messages--warning {
   margin: 0;
-  color: $palette-yellow-600;
+  color: $color-warning-600;
 
   @include flex-align-items(3px);
 }

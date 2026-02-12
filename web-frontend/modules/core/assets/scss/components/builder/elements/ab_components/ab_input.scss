@@ -19,7 +19,7 @@
   &:hover {
     border-color: color-mix(
       in srgb,
-      var(--input-border-color, $palette-neutral-500),
+      var(--input-border-color, $color-neutral-400),
       var(--input-border-color-complement, gray) 30%
     );
   }

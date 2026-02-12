@@ -9,25 +9,25 @@
   box-sizing: border-box;
   gap: 8px;
   flex-shrink: 0;
-  background: $palette-blue-100;
-  color: $palette-blue-500;
+  background: $color-primary-100;
+  color: $color-primary-500;
   border: none;
 
   @include rounded($rounded-md);
 
   &:hover:not([disabled]) {
-    color: $palette-blue-700;
+    color: $color-primary-700;
     text-decoration: none;
   }
 
   &:active:not([disabled]) {
-    color: $palette-blue-900;
+    color: $color-primary-900;
   }
 
   &[disabled] {
     cursor: not-allowed;
-    background: $palette-neutral-100 !important;
-    color: $palette-neutral-700;
+    background: $color-neutral-100 !important;
+    color: $color-neutral-500;
   }
 }
 

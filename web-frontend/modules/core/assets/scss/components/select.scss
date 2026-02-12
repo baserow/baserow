@@ -7,19 +7,19 @@
 }
 
 .select__search-icon {
-  color: $palette-neutral-600;
+  color: $color-neutral-400;
   padding: 0 10px;
   font-size: 16px;
 
   .select__search:focus-within & {
-    color: $palette-blue-500;
+    color: $color-primary-500;
   }
 }
 
 .select__search {
   flex: 0 0;
   position: relative;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
 
   @include flex-align-items;
 }
@@ -34,7 +34,7 @@
   @include fixed-height(36px, 12px);
 
   &::placeholder {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 
@@ -73,7 +73,7 @@
   padding: 20px 10px;
   white-space: normal;
   text-align: center;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
 }
 
 .select__items-loading {
@@ -98,7 +98,7 @@
 
 .select__item-active-icon {
   text-align: center;
-  color: $palette-neutral-1200;
+  color: $color-primary-500;
   position: absolute;
   top: 8px;
   right: 5px;
@@ -107,7 +107,7 @@
 
   .select__item.disabled &,
   .select__item-link:active & {
-    color: $palette-neutral-400;
+    color: $color-neutral-300;
   }
 }
 
@@ -124,11 +124,11 @@
 
   &:hover,
   &.hover {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-50;
   }
 
   &--selected {
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-50;
   }
 
   &--indented {
@@ -143,7 +143,7 @@
   }
 
   &.active:not(.select__item--loading) {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $color-neutral-100;
 
     .select__item-active-icon {
       display: block;
@@ -168,8 +168,9 @@
 
 .select__item-link {
   display: block;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   padding: 8px 32px 8px 10px;
+  font-weight: 500;
 
   .select__item--has-notification & {
     padding-right: 48px;
@@ -180,7 +181,7 @@
   }
 
   .select__item.disabled & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
 
     &:hover {
       cursor: inherit;
@@ -202,7 +203,7 @@
   @extend %ellipsis;
 
   .select__item-link:active & {
-    color: $palette-neutral-900;
+    color: $color-neutral-600;
   }
 }
 
@@ -219,7 +220,7 @@
 
   .select__item.disabled &,
   .select__item-link:active & {
-    color: $palette-neutral-900;
+    color: $color-neutral-600;
   }
 }
 
@@ -230,7 +231,7 @@
 
 .select__item-description {
   font-size: 12px;
-  color: $palette-neutral-900;
+  color: $color-neutral-600;
   white-space: normal;
   line-height: 18px;
   font-weight: 400;
@@ -241,13 +242,13 @@
   display: none;
   text-align: center;
   width: 32px;
-  color: $palette-neutral-800;
+  color: $color-neutral-700;
   font-size: 17px;
 
   @include absolute(5px, 0, auto, auto);
 
   &:hover {
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
   }
 
   :not(.select__item--loading):not(.select__item--no-options):hover > & {
@@ -262,7 +263,7 @@
 
 .select__footer {
   flex: 0 0;
-  border-top: 1px solid $palette-neutral-200;
+  border-top: 1px solid $color-neutral-200;
   padding: 4px 4px 0;
 }
 
@@ -270,7 +271,7 @@
   position: relative;
   display: block;
   padding: 0 10px;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   user-select: none;
   border-bottom-left-radius: 2px;
   border-bottom-right-radius: 2px;
@@ -281,12 +282,12 @@
   @include flex-align-items(6px);
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $color-neutral-50;
     text-decoration: none;
   }
 
   &.button--loading {
-    background-color: $palette-neutral-400;
+    background-color: $color-neutral-300;
 
     &::after {
       position: relative;
@@ -305,7 +306,7 @@
 .select__footer-create-link {
   position: relative;
   width: 50%;
-  color: $palette-neutral-1300;
+  color: $color-neutral-900;
   padding: 0 10px;
   margin-bottom: 4px;
   min-width: 0;
@@ -327,23 +328,23 @@
   }
 
   &.select__footer-create-link--disabled {
-    color: $palette-neutral-1000;
+    color: $color-neutral-700;
     cursor: inherit;
   }
 
   &:not(.select__footer-create-link--disabled):hover {
     text-decoration: none;
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $color-neutral-50;
   }
 }
 
 .select__footer-create-link-icon {
-  color: $palette-neutral-800;
+  color: $color-neutral-700;
   font-size: 14px;
   margin-left: auto;
 
   .select__footer-create-link:not(.select__footer-create-link--disabled):hover
     & {
-    color: $palette-neutral-1300;
+    color: $color-neutral-900;
   }
 }

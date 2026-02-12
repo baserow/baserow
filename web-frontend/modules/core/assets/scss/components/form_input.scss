@@ -2,7 +2,7 @@
 %form-input {
   background: $white;
   display: flex;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   position: relative;
   height: 36px;
   box-sizing: border-box;
@@ -32,18 +32,18 @@
   &:focus:not(.form-input--no-border),
   &:focus-within:not(.form-input--no-border) {
     &:not(.form-input--disabled):not(.form-input--error) {
-      border-color: $palette-blue-500;
+      border-color: $color-primary-500;
     }
   }
 
   &.form-input--error {
-    border-color: $palette-red-600;
+    border-color: $color-error-600;
   }
 
   &.form-input--disabled {
     cursor: not-allowed;
     box-shadow: none;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 
   /* stylelint-disable-next-line selector-class-pattern */
@@ -83,7 +83,7 @@
   @include rounded($rounded-md);
 
   &::placeholder {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
 
     @extend %ellipsis;
   }
@@ -102,8 +102,8 @@
 
   .form-input--disabled & {
     cursor: not-allowed;
-    background-color: $palette-neutral-100;
-    color: $palette-neutral-700;
+    background-color: $color-neutral-100;
+    color: $color-neutral-500;
   }
 
   .form-input--small & {
@@ -134,7 +134,7 @@
 
 .form-input__icon {
   position: relative;
-  color: $palette-neutral-600;
+  color: $color-neutral-400;
   font-size: 16px;
   top: 50%;
   margin-top: -8px;
@@ -150,15 +150,15 @@
   }
 
   .form-input--error & {
-    color: $palette-red-400;
+    color: $color-error-400;
   }
 
   .form-input--disabled & {
-    color: $palette-neutral-600;
+    color: $color-neutral-400;
   }
 
   .form-input--focus & {
-    color: $palette-blue-500;
+    color: $color-primary-500;
   }
 
   .form-input--loading &.form-input__icon-right {
@@ -177,7 +177,7 @@
       .form-input--error
     ):not(.form-input--no-border)
     & {
-    color: $palette-blue-500;
+    color: $color-primary-500;
   }
 }
 
@@ -185,12 +185,12 @@
   display: flex;
   align-items: center;
   width: fit-content;
-  border-left: 1px solid $palette-neutral-400;
+  border-left: 1px solid $color-neutral-300;
   appearance: none;
   padding: 0 12px;
   outline: none;
   line-height: 100%;
-  background: $palette-neutral-50;
+  background: $color-neutral-50;
   border-top-right-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
 }

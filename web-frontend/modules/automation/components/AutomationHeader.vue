@@ -39,7 +39,7 @@
           data-highlight="automation-docs"
           class="header__filter-link"
           target="_blank"
-          href="https://baserow.io/user-docs/workflow-automation"
+          href="https://tcrprojects.com/user-docs/workflow-automation"
           ><i class="header__filter-icon iconoir-help-circle"></i>
           <span class="header__filter-name">{{
             $t('automationHeader.docsBtn')

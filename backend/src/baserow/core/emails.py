@@ -112,7 +112,7 @@ class WorkspaceInvitationEmail(BaseEmailMessage):
 
     def get_subject(self):
         return _(
-            "%(by)s invited you to %(workspace_name)s - Baserow",
+            "%(by)s invited you to %(workspace_name)s - TCR Projects",
         ) % {
             "by": self.invitation.invited_by.first_name,
             "workspace_name": self.invitation.workspace.name,
@@ -145,9 +145,9 @@ class NotificationsSummaryEmail(BaseEmailMessage):
         count = self.new_notifications_count
 
         if count == 1:
-            return _("You have 1 new notification - Baserow")
+            return _("You have 1 new notification - TCR Projects")
 
-        return _("You have %(count)d new notifications - Baserow") % {"count": count}
+        return _("You have %(count)d new notifications - TCR Projects") % {"count": count}
 
     def get_context(self):
         context = super().get_context()

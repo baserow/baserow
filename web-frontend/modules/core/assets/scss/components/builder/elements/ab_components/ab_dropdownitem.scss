@@ -61,7 +61,7 @@
 
   .ab-dropdownitem__item.disabled &,
   .ab-dropdownitem__item-link:active & {
-    color: $palette-neutral-400;
+    color: $color-neutral-300;
   }
 }
 
@@ -81,7 +81,7 @@
   &.hover {
     background-color: color-mix(
       in srgb,
-      var(--input-background-color, $palette-neutral-100),
+      var(--input-background-color, $color-neutral-100),
       var(--input-background-color-complement, white) 10%
     );
   }
@@ -100,7 +100,7 @@
   &.active:not(.ab-dropdownitem__item--loading) {
     background-color: color-mix(
       in srgb,
-      var(--input-background-color, $palette-neutral-100),
+      var(--input-background-color, $color-neutral-100),
       var(--input-background-color-complement, white) 20%
     );
 
@@ -136,7 +136,7 @@
   }
 
   .ab-dropdownitem__item.disabled & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
 
     &:hover {
       cursor: inherit;
@@ -156,7 +156,7 @@
   .ab-dropdownitem__item-link:active & {
     color: color-mix(
       in srgb,
-      var(--input-text-color, $palette-neutral-100),
+      var(--input-text-color, $color-neutral-100),
       var(--input-text-color-complement, white) 20%
     );
   }

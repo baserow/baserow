@@ -1,6 +1,7 @@
 .create-widget-button {
-  border: 1px dashed #cdcecf;
-  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+  border: 1px dashed $color-neutral-300;
+  background: $color-neutral-50;
+  box-shadow: none;
   margin: 24px 0;
   padding: 24px;
   display: flex;

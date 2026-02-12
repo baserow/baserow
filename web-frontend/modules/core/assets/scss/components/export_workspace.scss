@@ -124,7 +124,7 @@
 }
 
 .application-selector__tree {
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $color-neutral-200;
   background-color: $color-neutral-50;
   overflow: hidden;
   max-height: 400px;
@@ -155,12 +155,12 @@
 .application-selector__group-arrow {
   width: 16px;
   height: 16px;
-  color: $palette-neutral-700;
+  color: $color-neutral-500;
   transition: transform 0.2s ease;
   cursor: pointer;
 
   &:hover {
-    color: $palette-neutral-900;
+    color: $color-neutral-700;
   }
 }
 
@@ -187,7 +187,7 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: $palette-neutral-200;
+    background: $color-neutral-200;
     pointer-events: none;
     z-index: 1;
   }
@@ -205,7 +205,7 @@
 .application-selector__item-name {
   margin-left: 8px;
   font-size: 13px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
   cursor: pointer;
 }
 

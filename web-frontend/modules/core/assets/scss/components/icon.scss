@@ -1,17 +1,17 @@
 .icon {
   font-size: 15px;
-  color: $palette-neutral-1200;
+  color: $color-neutral-900;
 
   &--secondary {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 
   &--warning {
-    color: $palette-yellow-600;
+    color: $color-warning-600;
   }
 
   &--error {
-    color: $palette-red-600;
+    color: $color-error-600;
   }
 
   &--success {

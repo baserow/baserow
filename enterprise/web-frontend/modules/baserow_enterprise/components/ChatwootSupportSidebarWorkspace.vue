@@ -81,7 +81,7 @@ export default {
         darkMode: 'light',
       }
 
-      const BASE_URL = 'https://support.baserow.io'
+      const BASE_URL = this.$config.public.supportChatwootBaseUrl
       const g = document.createElement('script')
       const s = document.getElementsByTagName('script')[0]
       g.src = BASE_URL + '/packs/js/sdk.js'

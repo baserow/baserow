@@ -11,7 +11,7 @@
     "sidebarTooltip": "Your account has access to the enterprise features globally",
     "rbac": "RBAC",
     "sso": "SSO",
-    "licenseDescription": "Viewers are free with Baserow Enterprise. If a user has any other role, in any workspace then they will use a paid seat automatically.",
+    "licenseDescription": "Viewers are free with TCR Projects Enterprise. If a user has any other role, in any workspace then they will use a paid seat automatically.",
     "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
     "deactivated": "Available in the advanced/enterprise version"
   },
@@ -305,23 +305,23 @@
   },
   "enterpriseFeatures": {
     "sso": "Single Sign On",
-    "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
+    "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both TCR Projects as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
     "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
-    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot. It also allows to sync periodically, and enables two-way data sync for supported data sync types.",
+    "dataSyncContent": "Automatically keep tables up to date by syncing with other TCR Projects tables, or external sources like Jira, GitHub, GitLab, or HubSpot. It also allows to sync periodically, and enables two-way data sync for supported data sync types.",
     "coBranding": "Co-branding logo replacement",
-    "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
+    "coBrandingContent": "Customize the TCR Projects interface with your own logo. Note that \"powered by TCR Projects\" is added.",
     "support": "Direct support",
-    "supportContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.",
+    "supportContent": "Get help when you need it. Reach out to the TCR Projects team directly from within the platform.",
     "advancedWebhooks": "Advanced webhooks",
     "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
     "fieldLevelPermissions": "Field-level permissions",
     "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
     "builderBranding": "Application branding",
-    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with TCR Projects' branding in the footer of your application.",
     "builderFileInputElement": "File input element",
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
@@ -439,9 +439,10 @@
     "branding": "Branding",
     "showBaserowHelpMessage": "Show help message",
     "showBaserowHelpMessageDescription": "Indicates whether the help request message should be shown on the dashboard.",
+
     "deactivated": "Available in enterprise",
     "coBrandingLogo": "Logo",
-    "coBrandingLogoDescription": "Replaces the Baserow logo for a custom co-branded alternative (176x29). If set, it also removes the Baserow description in the footer of all emails.",
+    "coBrandingLogoDescription": "Replaces the TCR Projects logo for a custom co-branded alternative (176x29). If set, it also removes the TCR Projects description in the footer of all emails.",
     "uploadFileButton": "Upload image"
   },
   "authFormElementForm": {
@@ -457,7 +458,7 @@
     "selectOrConfigureUserSourceFirst": "Choose a user source to begin using this login element."
   },
   "enterpriseDataSyncType": {
-    "localBaserowTable": "Sync Baserow table",
+    "localBaserowTable": "Sync TCR Projects table",
     "jiraIssues": "Sync Jira issues",
     "githubIssues": "Sync GitHub issues",
     "gitlabIssues": "Sync GitLab issues",
@@ -498,7 +499,7 @@
     "url": "Base URL",
     "urlHelper": "The base URL of your GitLab instance. (e.g. https://gitlab.com)",
     "projectId": "Project ID",
-    "projectIdHelper": "The ID of the project where you want to sync the issues from. Can be found by going to your project page (e.g. https://gitlab.com/baserow/baserow), click on the three dots in the top right corner, and then on 'Copy project ID: 12345678'.",
+    "projectIdHelper": "The ID of the project where you want to sync the issues from. Can be found by going to your project page (e.g. https://gitlab.com/group/project), click on the three dots in the top right corner, and then on 'Copy project ID: 12345678'.",
     "accessToken": "Access token",
     "accessTokenHelper": "Can be generated here https://gitlab.com/-/user_settings/personal_access_tokens by clicking on `Add new token`, select `read_api`."
   },
@@ -670,7 +671,7 @@
     "label": "Edit field permissions"
   },
   "enterpriseTwoWaySyncStrategyType": {
-    "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
+    "realtimePushDescription": "Allows editing the cell values directly in TCR Projects, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
   },
   "dateDependencyModal": {
     "errorTitle": "Date dependency",

@@ -85,7 +85,7 @@
 
 .page-preview__separator {
   width: 100%;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $color-neutral-200;
   display: flex;
   justify-content: center;
   height: 0;
@@ -98,8 +98,8 @@
   top: -8px;
   padding: 4px 8px;
   border-radius: 16px;
-  background: $palette-neutral-50;
-  color: $palette-neutral-700;
+  background: $color-neutral-50;
+  color: $color-neutral-500;
   font-size: 8px;
   font-weight: 700;
   line-height: 10px;

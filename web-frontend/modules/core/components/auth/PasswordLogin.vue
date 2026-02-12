@@ -166,10 +166,10 @@ export default {
           this.showError(
             'Backend URL mis-configuration detected',
             `Cannot connect to the backend at ${publicBackendUrlWithProto}.` +
-              ` You visited Baserow at ${browserWindowUrl} ` +
-              ' which indicates you have mis-configured the Baserow ' +
+              ` You visited TCR Projects at ${browserWindowUrl} ` +
+              ' which indicates you have mis-configured the TCR Projects ' +
               ' BASEROW_PUBLIC_URL or PUBLIC_BACKEND_URL environment variables. ' +
-              ' Please visit https://baserow.io/docs/tutorials/debugging-connection-issues ' +
+              ' Please visit https://tcrprojects.com/docs/tutorials/debugging-connection-issues ' +
               ' on how to fix this error.'
           )
         }

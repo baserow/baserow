@@ -80,23 +80,23 @@
 
 .switch--color-green {
   @include switch-color(
-    $palette-green-500,
-    $palette-green-800,
-    $palette-yellow-500,
-    $palette-yellow-800,
-    $palette-neutral-400,
-    $palette-neutral-500
+    $color-success-400,
+    $color-success-700,
+    $color-warning-500,
+    $color-warning-700,
+    $color-neutral-300,
+    $color-neutral-400
   );
 }
 
 .switch--color-neutral {
   @include switch-color(
-    $palette-neutral-1200,
-    $palette-neutral-1300,
-    $palette-neutral-800,
-    $palette-neutral-900,
-    $palette-neutral-400,
-    $palette-neutral-500
+    $color-neutral-900,
+    $color-neutral-900,
+    $color-neutral-600,
+    $color-neutral-700,
+    $color-neutral-300,
+    $color-neutral-400
   );
 }
 
@@ -104,7 +104,7 @@
   flex: 1;
   margin-left: 8px;
   font-weight: 500;
-  color: $palette-neutral-900;
+  color: $color-neutral-700;
   font-size: 13px;
   line-height: 16px;
 
@@ -115,11 +115,11 @@
   }
 
   .switch--active & {
-    color: $palette-neutral-1200;
+    color: $color-neutral-900;
   }
 
   .switch--disabled & {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 }
 

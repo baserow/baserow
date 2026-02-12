@@ -4,7 +4,7 @@
   height: 16px;
   border-radius: 2px;
   position: relative;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   flex-shrink: 0;
 }
 
@@ -30,7 +30,7 @@
 
 .color-input__input {
   width: 100%;
-  border: 1px solid $palette-neutral-400;
+  border: 1px solid $color-neutral-300;
   padding: 0 12px;
   outline: none;
   height: 44px;
@@ -51,7 +51,7 @@
 
   &:active,
   &:focus {
-    border-color: $palette-blue-500;
+    border-color: $color-primary-500;
   }
 
   .color-input--small & {
@@ -60,9 +60,9 @@
   }
 
   &[disabled] {
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
     box-shadow: none;
-    background-color: $palette-neutral-100;
+    background-color: $color-neutral-100;
   }
 }
 

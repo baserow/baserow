@@ -1,0 +1,270 @@
+// Theme CSS Custom Properties
+// Dark mode is the default. Light mode is activated via [data-theme="light"] or system preference.
+// Variable names match the $color-* SCSS semantic variables from colors.scss.
+
+:root,
+[data-theme='dark'] {
+  // White (surfaces/cards in dark mode)
+  --white: #232323;
+
+  // Neutral palette (from Figma dark context variables)
+  --color-neutral-10: #1a1a1a;
+  --color-neutral-50: #232323;
+  --color-neutral-100: #2a2a2a;
+  --color-neutral-200: #454545;
+  --color-neutral-300: #4f4f4f;
+  --color-neutral-400: #5d5d5d;
+  --color-neutral-500: #676767;
+  --color-neutral-600: #999999;
+  --color-neutral-700: #cecfd2;
+  --color-neutral-800: #e0e0e0;
+  --color-neutral-900: #f7f7f7;
+
+  // Primary / Orange (TCR brand: #dc4b1a family)
+  --color-primary-100: #3a1f12;
+  --color-primary-200: #4e2815;
+  --color-primary-300: #6b3a20;
+  --color-primary-400: #ec6b2d;
+  --color-primary-500: #dc4b1a;
+  --color-primary-600: #ec6b2d;
+  --color-primary-700: #f4a06a;
+  --color-primary-800: #f9d1af;
+  --color-primary-900: #fef6ee;
+
+  // Success / Green
+  --color-success-100: #1a3a2a;
+  --color-success-200: #245238;
+  --color-success-300: #2d6a44;
+  --color-success-400: #079455;
+  --color-success-500: #079455;
+  --color-success-600: #3dbb78;
+  --color-success-700: #6dd49a;
+  --color-success-800: #a3e8bc;
+  --color-success-900: #d9f5e2;
+
+  // Warning / Yellow-Amber
+  --color-warning-100: #3a2818;
+  --color-warning-200: #5c3d23;
+  --color-warning-300: #6f4a2d;
+  --color-warning-400: #b07f47;
+  --color-warning-500: #d4a05f;
+  --color-warning-600: #ecc26d;
+  --color-warning-700: #f5d88e;
+  --color-warning-800: #f9e8a9;
+  --color-warning-900: #fef9e1;
+
+  // Error / Red
+  --color-error-100: #3d1a1a;
+  --color-error-200: #5f2626;
+  --color-error-300: #7f3131;
+  --color-error-400: #d92d20;
+  --color-error-500: #d92d20;
+  --color-error-600: #e5514a;
+  --color-error-700: #f07a74;
+  --color-error-800: #f5a8a3;
+  --color-error-900: #fce4e2;
+
+  // Yellow (tag colors)
+  --color-yellow-100: #3a2818;
+  --color-yellow-200: #6f4a2d;
+  --color-yellow-300: #8f5f38;
+  --color-yellow-400: #b07f47;
+
+  // Purple (tag colors)
+  --color-purple-100: #3d325a;
+  --color-purple-200: #69308c;
+  --color-purple-300: #8c40bb;
+  --color-purple-400: #af50ea;
+
+  // Pink (tag colors)
+  --color-pink-100: #562e3d;
+  --color-pink-200: #9e165f;
+  --color-pink-300: #dd2590;
+  --color-pink-400: #f670c7;
+
+  // Brown (tag colors)
+  --color-brown-100: #4a2414;
+  --color-brown-200: #6a3a21;
+  --color-brown-300: #8b5236;
+  --color-brown-400: #a46349;
+
+  // Cyan (tag colors)
+  --color-cyan-100: #1f495c;
+  --color-cyan-200: #16829c;
+  --color-cyan-300: #21a3c6;
+  --color-cyan-400: #47cbf3;
+
+  // Elevations (from Figma shadow tokens)
+  --elevation-low: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.15), 0 12px 16px -4px rgba(10, 13, 18, 0.2);
+  --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.15), 0 20px 24px -4px rgba(10, 13, 18, 0.2);
+
+  // Scrollbar
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='light'] {
+  --white: #fefefe;
+  // Neutrals from Figma light context
+  --color-neutral-10: #fefefe;
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e9eaeb;
+  --color-neutral-300: #d5d7da;
+  --color-neutral-400: #b5b5b7;
+  --color-neutral-500: #676767;
+  --color-neutral-600: #545454;
+  --color-neutral-700: #454545;
+  --color-neutral-800: #323232;
+  --color-neutral-900: #171717;
+  // Primary / Orange (TCR brand)
+  --color-primary-100: #fef6ee;
+  --color-primary-200: #f9d1af;
+  --color-primary-300: #f4a06a;
+  --color-primary-400: #ec6b2d;
+  --color-primary-500: #dc4b1a;
+  --color-primary-600: #c54318;
+  --color-primary-700: #b73817;
+  --color-primary-800: #993015;
+  --color-primary-900: #762818;
+  // Success / Green (from Figma)
+  --color-success-100: #ecfdf3;
+  --color-success-200: #d1fadf;
+  --color-success-300: #a6f4c5;
+  --color-success-400: #6ce9a6;
+  --color-success-500: #32d583;
+  --color-success-600: #079455;
+  --color-success-700: #067647;
+  --color-success-800: #085d3a;
+  --color-success-900: #074d31;
+  // Warning / Yellow-Amber
+  --color-warning-100: #fffbf0;
+  --color-warning-200: #fff4da;
+  --color-warning-300: #ffe9b4;
+  --color-warning-400: #ffd269;
+  --color-warning-500: #ffc744;
+  --color-warning-600: #cc9f36;
+  --color-warning-700: #997729;
+  --color-warning-800: #806422;
+  --color-warning-900: #66501b;
+  // Error / Red (from Figma)
+  --color-error-100: #fef3f2;
+  --color-error-200: #fee4e2;
+  --color-error-300: #fecdca;
+  --color-error-400: #f97066;
+  --color-error-500: #f04438;
+  --color-error-600: #d92d20;
+  --color-error-700: #b42318;
+  --color-error-800: #912018;
+  --color-error-900: #7a271a;
+  // Tag colors
+  --color-yellow-100: #fffbf0;
+  --color-yellow-200: #ffe9b4;
+  --color-yellow-300: #ffdd8f;
+  --color-yellow-400: #ffd269;
+  --color-purple-100: #f9f1fd;
+  --color-purple-200: #dfb9f7;
+  --color-purple-300: #cf96f2;
+  --color-purple-400: #bf73ee;
+  --color-pink-100: #f7e1f2;
+  --color-pink-200: #f7b2e7;
+  --color-pink-300: #f285d9;
+  --color-pink-400: #ff6dde;
+  --color-brown-100: #f5e6dc;
+  --color-brown-200: #f5ceb0;
+  --color-brown-300: #f5c098;
+  --color-brown-400: #f5a96e;
+  --color-cyan-100: #cff5fa;
+  --color-cyan-200: #a0ebf5;
+  --color-cyan-300: #70e0ef;
+  --color-cyan-400: #41d6ea;
+  // Elevations (from Figma shadow-xs, shadow-lg, shadow-xl)
+  --elevation-low: 0 1px 2px 0 rgba(10, 13, 18, 0.05);
+  --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.03), 0 12px 16px -4px rgba(10, 13, 18, 0.08);
+  --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.03), 0 20px 24px -4px rgba(10, 13, 18, 0.08);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-active: rgba(0, 0, 0, 0.3);
+}
+
+// System preference detection - only applies when no explicit theme is set
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --white: #fefefe;
+    --color-neutral-10: #fefefe;
+    --color-neutral-50: #fafafa;
+    --color-neutral-100: #f5f5f5;
+    --color-neutral-200: #e9eaeb;
+    --color-neutral-300: #d5d7da;
+    --color-neutral-400: #b5b5b7;
+    --color-neutral-500: #676767;
+    --color-neutral-600: #545454;
+    --color-neutral-700: #454545;
+    --color-neutral-800: #323232;
+    --color-neutral-900: #171717;
+    --color-primary-100: #fef6ee;
+    --color-primary-200: #f9d1af;
+    --color-primary-300: #f4a06a;
+    --color-primary-400: #ec6b2d;
+    --color-primary-500: #dc4b1a;
+    --color-primary-600: #c54318;
+    --color-primary-700: #b73817;
+    --color-primary-800: #993015;
+    --color-primary-900: #762818;
+    --color-success-100: #ecfdf3;
+    --color-success-200: #d1fadf;
+    --color-success-300: #a6f4c5;
+    --color-success-400: #6ce9a6;
+    --color-success-500: #32d583;
+    --color-success-600: #079455;
+    --color-success-700: #067647;
+    --color-success-800: #085d3a;
+    --color-success-900: #074d31;
+    --color-warning-100: #fffbf0;
+    --color-warning-200: #fff4da;
+    --color-warning-300: #ffe9b4;
+    --color-warning-400: #ffd269;
+    --color-warning-500: #ffc744;
+    --color-warning-600: #cc9f36;
+    --color-warning-700: #997729;
+    --color-warning-800: #806422;
+    --color-warning-900: #66501b;
+    --color-error-100: #fef3f2;
+    --color-error-200: #fee4e2;
+    --color-error-300: #fecdca;
+    --color-error-400: #f97066;
+    --color-error-500: #f04438;
+    --color-error-600: #d92d20;
+    --color-error-700: #b42318;
+    --color-error-800: #912018;
+    --color-error-900: #7a271a;
+    --color-yellow-100: #fffbf0;
+    --color-yellow-200: #ffe9b4;
+    --color-yellow-300: #ffdd8f;
+    --color-yellow-400: #ffd269;
+    --color-purple-100: #f9f1fd;
+    --color-purple-200: #dfb9f7;
+    --color-purple-300: #cf96f2;
+    --color-purple-400: #bf73ee;
+    --color-pink-100: #f7e1f2;
+    --color-pink-200: #f7b2e7;
+    --color-pink-300: #f285d9;
+    --color-pink-400: #ff6dde;
+    --color-brown-100: #f5e6dc;
+    --color-brown-200: #f5ceb0;
+    --color-brown-300: #f5c098;
+    --color-brown-400: #f5a96e;
+    --color-cyan-100: #cff5fa;
+    --color-cyan-200: #a0ebf5;
+    --color-cyan-300: #70e0ef;
+    --color-cyan-400: #41d6ea;
+    --elevation-low: 0 1px 2px 0 rgba(10, 13, 18, 0.05);
+    --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.03), 0 12px 16px -4px rgba(10, 13, 18, 0.08);
+    --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.03), 0 20px 24px -4px rgba(10, 13, 18, 0.08);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.1);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
+    --scrollbar-thumb-active: rgba(0, 0, 0, 0.3);
+  }
+}

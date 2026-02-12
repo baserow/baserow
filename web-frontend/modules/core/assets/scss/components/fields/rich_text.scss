@@ -5,11 +5,11 @@
   padding: 12px 16px;
 
   &.active {
-    border-color: $palette-blue-500;
+    border-color: $color-primary-500;
   }
 
   & .rich-text-editor__content[conteteditable='false'] {
-    background-color: $palette-neutral-700;
+    background-color: $color-neutral-500;
   }
 }
 

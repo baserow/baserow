@@ -336,13 +336,6 @@ LANGUAGE_CODE = "en"
 
 LANGUAGES = [
     ("en", "English"),
-    ("fr", "French"),
-    ("nl", "Dutch"),
-    ("de", "German"),
-    ("es", "Spanish"),
-    ("it", "Italian"),
-    ("pl", "Polish"),
-    ("ko", "Korean"),
 ]
 
 TIME_ZONE = "UTC"
@@ -440,12 +433,12 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Baserow API spec",
+    "TITLE": "TCR Projects API spec",
     "DESCRIPTION": "For more information about our REST API, please visit "
-    "[this page](https://baserow.io/docs/apis%2Frest-api).\n\n"
+    "[this page](https://tcrprojects.com/docs/apis%2Frest-api).\n\n"
     "For more information about our deprecation policy, please visit "
-    "[this page](https://baserow.io/docs/apis%2Fdeprecations).",
-    "CONTACT": {"url": "https://baserow.io/contact"},
+    "[this page](https://tcrprojects.com/docs/apis%2Fdeprecations).",
+    "CONTACT": {"url": "https://tcr-cc.com/contact"},
     "LICENSE": {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
@@ -1061,7 +1054,7 @@ INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
     os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
 )
 
-TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")
+TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "TCR Projects")
 
 # ======== WARNING ========
 # Please read and understand everything at:

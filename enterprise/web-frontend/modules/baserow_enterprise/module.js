@@ -82,10 +82,11 @@ export default defineNuxtModule({
       nuxt.options.runtimeConfig.public,
       {
         baserowEnterpriseAssistantLlmModel: '',
+        supportChatwootBaseUrl: 'https://support.tcr-cc.com',
       }
     )
 
-    // Override Baserow's existing default.scss in favor of our own because that one
+    // Override the existing default.scss in favor of our own because that one
     // imports the original. We do this so that we can use the existing variables,
     // mixins, placeholders etc.
     nuxt.options.css[0] = path.resolve(__dirname, 'assets/scss/default.scss')

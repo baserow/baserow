@@ -1,7 +1,7 @@
 .node-help-tooltip {
   padding: 20px;
   max-width: 320px;
-  background: $palette-neutral-100;
+  background: $color-neutral-100;
 
   @include rounded($rounded-md);
 
@@ -20,7 +20,7 @@
     justify-content: center;
     margin-right: 12px;
     flex-shrink: 0;
-    border: 1px solid $palette-neutral-400;
+    border: 1px solid $color-neutral-300;
 
     @include rounded($rounded-lg);
     @include elevation($elevation-low);
@@ -28,7 +28,7 @@
 
   &__icon-symbol {
     font-size: 18px;
-    color: $palette-neutral-700;
+    color: $color-neutral-500;
   }
 
   &__title {

@@ -3,15 +3,15 @@
     <slot></slot>
     <a
       class="made-with-baserow"
-      title="Open source self-hosted no-code platform"
-      :href="showPaidFeaturesModal ? null : 'https://baserow.io/'"
+      title="No-code database platform"
+      :href="showPaidFeaturesModal ? null : 'https://tcrprojects.com'"
       :target="showPaidFeaturesModal ? null : '_blank'"
       @click="handleMadeWithBaserowClick"
     >
       Made with
       <img
         src="@baserow_enterprise/assets/images/builder/mini_logo.svg?url"
-        alt="Baserow"
+        alt="TCR Projects"
       />
     </a>
 

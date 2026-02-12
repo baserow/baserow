@@ -66,6 +66,13 @@
     "nameLabel": "Your name",
     "languageLabel": "Interface language"
   },
+  "appearanceSettings": {
+    "title": "Appearance",
+    "description": "Choose how TCR Projects looks to you. Select a theme preference below.",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
   "accountSettings": {
     "title": "Account",
     "changedTitle": "Changed",
@@ -130,7 +137,7 @@
     "markAllAsRead": "Mark all as read",
     "clearAll": "Clear all",
     "noNotificationTitle": "You don't have any notifications",
-    "noNotification": "We'll notify you about important updates and any time you're mentioned on Baserow.",
+    "noNotification": "We'll notify you about important updates and any time you're mentioned on TCR Projects.",
     "newNotificationsAvailable": "New notifications available",
     "refresh": "Refresh"
   },
@@ -179,7 +186,7 @@
     "errorInvalidPasswordTitle": "Invalid password",
     "errorInvalidPasswordMessage": "Could not delete your account because your password is invalid.",
     "errorUserIsLastAdminTitle": "Last administrator",
-    "errorUserIsLastAdminMessage": "Could not delete your account because your are the last administrator of this Baserow instance.",
+    "errorUserIsLastAdminMessage": "Could not delete your account because your are the last administrator of this TCR Projects instance.",
     "accountDeletedSuccessTitle": "Account deletion scheduled",
     "accountDeletedSuccessMessage": "Your account has been scheduled to be deleted.",
     "workspaceLoadingError": "Workspaces checking has failed",
@@ -217,7 +224,7 @@
   },
   "exportWorkspaceModal": {
     "title": "Export",
-    "description": "Your data will be exported as a ZIP file, which can be imported into other Baserow instance.",
+    "description": "Your data will be exported as a ZIP file, which can be imported into other TCR Projects instance.",
     "exportSettings": "Export settings",
     "export": "Export data",
     "reset": "Start new",
@@ -238,8 +245,8 @@
     "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
   },
   "importWorkspaceModal": {
-    "title": "Import Baserow data",
-    "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
+    "title": "Import TCR Projects data",
+    "description": "You can import an existing TCR Projects data by uploading the .zip file from other TCR Projects instance.",
     "import": "Import data",
     "upload": "Upload",
     "uploadAndImport": "Upload & Import",
@@ -254,11 +261,11 @@
     "selectAll": "Select all",
     "databases": "Databases",
     "applications": "Applications",
-    "successTitle": "Successfully imported the Baserow data",
+    "successTitle": "Successfully imported the TCR Projects data",
     "successMessage": "Imported {count} applications",
     "signatureVerificationNote": "It's not possible to import a zip file from an untrusted source.",
     "invalidResourceTitle": "Invalid resource",
-    "invalidResourceMessage": "The provided file is not a valid Baserow export.",
+    "invalidResourceMessage": "The provided file is not a valid TCR Projects export.",
     "untrustedPublicKeyTitle": "Untrusted signature",
     "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file.",
     "importingState": "Importing...",
@@ -327,19 +334,19 @@
     "openaiApiKeyDescription": "Provide an OpenAI API key if you would like to enable the integration. [Instructions on getting an API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
     "openaiOrganization": "Organization (optional)",
     "openaiModelsLabel": "Enabled Models",
-    "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
+    "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in TCR Projects. (e.g. `gpt-3.5-turbo,gpt-4`)",
     "openaiBaseUrl": "Base URL",
     "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, or any other OpenAI compatible API.",
     "anthropic": "Anthropic",
     "anthropicApiKeyLabel": "API Key",
     "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
     "anthropicModelsLabel": "Enabled Models",
-    "anthropicModelsDescription": "Provide a list of comma separated [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) that can be used in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+    "anthropicModelsDescription": "Provide a list of comma separated [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) that can be used in TCR Projects. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
     "mistral": "Mistral",
     "mistralApiKeyLabel": "API Key",
     "mistralApiKeyDescription": "Provide a Mistral API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/).",
     "mistralModelsLabel": "Enabled Models",
-    "mistralModelsDescription": "Provide a list of comma separated [Mistral models](https://docs.mistral.ai/getting-started/models/models_overview/) that can be used in Baserow. (e.g. `mistral-large-latest,mistral-small-latest`)",
+    "mistralModelsDescription": "Provide a list of comma separated [Mistral models](https://docs.mistral.ai/getting-started/models/models_overview/) that can be used in TCR Projects. (e.g. `mistral-large-latest,mistral-small-latest`)",
     "ollama": "Ollama",
     "ollamaHostLabel": "Host",
     "ollamaHostDescription": "Provide the hostname to your [Ollama](https://ollama.com/) server. This typically runs locally on your own device.",
@@ -350,7 +357,7 @@
     "openRouterApiKeyDescription": "Provide an OpenRouter API key if you would like to enable the integration. [get an API key](https://openrouter.ai/settings/keys).",
     "openRouterOrganization": "Organization (optional)",
     "openRouterModelsLabel": "Enabled Models",
-    "openRouterModelsDescription": "Provide a list of comma separated [OpenRouter models](https://openrouter.ai/models) that can be used in Baserow. (e.g. `openai/gpt-4o,anthropic/claude-3-haiku`)"
+    "openRouterModelsDescription": "Provide a list of comma separated [OpenRouter models](https://openrouter.ai/models) that can be used in TCR Projects. (e.g. `openai/gpt-4o,anthropic/claude-3-haiku`)"
   },
   "generativeAIWorkspaceSettings": {
     "title": "Generative AI settings",
@@ -435,7 +442,7 @@
     "table": "Table",
     "tableDesc": "Create a new place to manage data in your database.",
     "importWorkspace": "Import data",
-    "importWorkspaceDesc": "Add existing data from a Baserow instance."
+    "importWorkspaceDesc": "Add existing data from a TCR Projects instance."
   },
   "applicationForm": {
     "nameLabel": "Name",
@@ -509,12 +516,12 @@
   "dashboard": {
     "title": "Dashboard",
     "alertTitle": "We need your help!",
-    "alertText": "By sharing Baserow you are helping us to improve the product and to make it more useful for you.",
-    "tweetContent": "Check out {'@'}baserow an open source no-code database tool and Airtable alternative!",
-    "redditTitle": "'Baserow - An open source no-code database",
+    "alertText": "By sharing TCR Projects you are helping us to improve the product and to make it more useful for you.",
+    "tweetContent": "Check out {'@'}TCR Projects an open source no-code database tool and Airtable alternative!",
+    "redditTitle": "'TCR Projects - An open source no-code database",
     "becomeGithubSponsor": "Become a GitHub sponsor",
     "starOnGitHub": "Star us on GitHub",
-    "shareOnTwitter": "Tweet about Baserow",
+    "shareOnTwitter": "Tweet about TCR Projects",
     "shareOnReddit": "Share on Reddit",
     "shareOnFacebook": "Share on Facebook",
     "shareOnLinkedIn": "Share on LinkedIn",
@@ -523,7 +530,7 @@
     "knowledgeBase": "Knowledge base",
     "knowledgeBaseMessage": "Find answers to all of your questions",
     "tutorials": "Tutorials",
-    "tutorialsMessage": "Discover the potential of Baserow",
+    "tutorialsMessage": "Discover the potential of TCR Projects",
     "apiDocumentation": "API documentation",
     "apiDocumentationMessage": "Learn more about our code",
     "emptyWorkspace": "This workspace is empty",
@@ -543,7 +550,7 @@
     "emailPlaceholder": "Enter your email address..",
     "passwordPlaceholder": "Enter your password..",
     "forgotPassword": "Forgot?",
-    "signUpText": "New to Baserow?",
+    "signUpText": "New to TCR Projects?",
     "signUp": "Sign up",
     "displayPasswordLogin": "Log in using email and password",
     "redirecting": "Redirecting to authentication provider..."
@@ -554,7 +561,7 @@
     "repeatNewPassword": "Repeat new password",
     "submit": "Change password",
     "changed": "Password changed",
-    "message": "You can now login to Baserow using your new password.",
+    "message": "You can now login to TCR Projects using your new password.",
     "errorInvalidLinkTitle": "Invalid link",
     "errorInvalidLinkMessage": "Could not reset the password because the link is invalid.",
     "errorLinkExpiredTitle": "Link expired",
@@ -566,7 +573,7 @@
     "title": "Confirm email change",
     "submit": "Confirm email change",
     "changed": "Email address changed",
-    "message": "Your email address has been successfully changed. You can now login to Baserow using your new email address.",
+    "message": "Your email address has been successfully changed. You can now login to TCR Projects using your new email address.",
     "errorInvalidLinkTitle": "Invalid link",
     "errorInvalidLinkMessage": "Could not change the email address because the link is invalid.",
     "errorLinkExpiredTitle": "Link expired",
@@ -581,7 +588,7 @@
     "title": "Sign up",
     "disabled": "Sign up is disabled",
     "disabledMessage": "It's not possible to create an account because it has been disabled.",
-    "requireFirstUser": "Welcome to Baserow!",
+    "requireFirstUser": "Welcome to TCR Projects!",
     "requireFirstUserMessage": "Please fill the form below to create the admin user.",
     "emailPlaceholder": "Enter your email address..",
     "namePlaceholder": "Enter your name..",
@@ -595,7 +602,7 @@
     "message": "Enter your email address and we’ll send you a link to reset your password.",
     "submit": "Send link",
     "confirmationTitle": "Check your email",
-    "confirmation": "We sent an email to {email}, which contains a link to reset your Baserow password.",
+    "confirmation": "We sent an email to {email}, which contains a link to reset your TCR Projects password.",
     "disabled": "Forgot password is disabled",
     "disabledMessage": "It's not possible to reset the password because it has been disabled.",
     "loginText": "Already have account and password?",
@@ -604,15 +611,15 @@
   "settings": {
     "settingsTitle": "Admin settings",
     "baserowInstanceId": "Instance ID",
-    "instanceIdDescription": "The instance ID is the unique identifier of your Baserow copy.",
-    "baserowVersion": "Baserow version",
+    "instanceIdDescription": "The instance ID is the unique identifier of your TCR Projects copy.",
+    "baserowVersion": "TCR Projects version",
     "baserowVersionDescription": "The version number of this instance.",
     "accountRestrictions": "Account restrictions",
     "settingAllowResetPasswordName": "Allow resetting password",
     "settingAllowResetPasswordDescription": "By default, users can request a password reset link.",
     "settingAllowResetPasswordWarning": "Please note that you could lock yourself out of the system and that access can't be restored if you forget your password.",
     "settingAllowNewAccountsName": "Allow creating new accounts",
-    "settingAllowNewAccountsDescription": "By default, any user visiting your Baserow domain can sign up for a new account.",
+    "settingAllowNewAccountsDescription": "By default, any user visiting your TCR Projects domain can sign up for a new account.",
     "settingAllowSignupsViaWorkspaceInvitationsName": "Allow signups via workspace invitations",
     "settingAllowSignupsViaWorkspaceInvitationDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users to still create an account.",
     "settingAllowNonStaffCreateWorkspaceOperation": "Allow everyone to create new workspaces",
@@ -914,7 +921,7 @@
     "howSales": "Sales outreach",
     "howOther": "Other",
     "country": "Country",
-    "share": "I'm okay with sharing this with the Baserow team"
+    "share": "I'm okay with sharing this with the TCR Projects team"
   },
   "teamStep": {
     "description": "Which team are you on?",
@@ -1062,12 +1069,12 @@
     "back": "Back"
   },
   "welcomeGuidedTourStep": {
-    "title": "Welcome to Baserow",
+    "title": "Welcome to TCR Projects",
     "content": "Let’s take a quick tour to get you familiar with the basics. In just a few clicks, you’ll learn how to organize and visualize your data effortlessly",
     "buttonText": "Start the tour"
   },
   "controlCenterGuidedTourStep": {
-    "title": "Your Baserow Control Center",
+    "title": "Your TCR Projects Control Center",
     "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Trash – List and recover all your deleted items."
   },
   "createNewGuidedTourStep": {
@@ -1079,7 +1086,7 @@
     "createEndpoint": "Create endpoint",
     "createNewTitle": "Create MCP server endpoint",
     "backToOverview": "Back",
-    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started."
+    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in TCR Projects. Create a server endpoint to get started."
   },
   "mcpEndpointForm": {
     "nameLabel": "Name",
@@ -1089,9 +1096,9 @@
     "detailLabel": "More details",
     "endpointURLIntro": "The MCP (Model Context Protocol) server URL can be added to any client that supports MCP servers. It's a unique endpoint that gives the LLM direct access to perform actions in the workspace on your behalf.",
     "reveal": "Reveal full URL",
-    "warning": "Treat your MCP URL like a password, as it has the ability to modify data in Baserow.",
-    "claudeInstructions": "Three simple steps to get started with Claude Desktop and the Baserow MCP.\n\n1. Open the Claude Desktop settings from the navigation bar. (⌘+,)\n1. Go to the \"Develop\" tab, and click on \"Edit Config\".\n1. Include the following JSON configuration in `claude_desktop_config.json`.",
-    "cursorInstructions": "Three simple steps to get started with Cursor and the Baserow MCP.\n\n1. Open Cursor settings (⇧+⌘+J)\n1. Navigate to the \"MCP\" tab and click \"Add MCP Server\"\n1. Add the following JSON configuration.",
+    "warning": "Treat your MCP URL like a password, as it has the ability to modify data in TCR Projects.",
+    "claudeInstructions": "Three simple steps to get started with Claude Desktop and the TCR Projects MCP.\n\n1. Open the Claude Desktop settings from the navigation bar. (⌘+,)\n1. Go to the \"Develop\" tab, and click on \"Edit Config\".\n1. Include the following JSON configuration in `claude_desktop_config.json`.",
+    "cursorInstructions": "Three simple steps to get started with Cursor and the TCR Projects MCP.\n\n1. Open Cursor settings (⇧+⌘+J)\n1. Navigate to the \"MCP\" tab and click \"Add MCP Server\"\n1. Add the following JSON configuration.",
     "windsurfInstructions": "Two easy steps to set up MCP with Cascase in Windsurf.\n\n1. Navigate to Windsurf - Settings -> Advanced Settings or Command Palette -> Open Windsurf settings page.\n1. Scroll down to the Cascade section and you will find the option to add a new server, view existing servers, and a button to view the raw JSON config file at `mcp_config.json`. Add the following to it:"
   },
   "coreHTTPTriggerServiceForm": {
