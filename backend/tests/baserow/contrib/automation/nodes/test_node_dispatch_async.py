@@ -515,3 +515,134 @@ def test_dispatch_node_async_dispatches_action_simulation(
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is False
     )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_async_dispatches_iterator_simulation(
+    mock_automation_node_updated,
+    mock_dispatch_task,
+    data_fixture,
+):
+    data = data_fixture.iterator_graph_fixture()
+    trigger_node = data["trigger_node"]
+    trigger_table_fields = data["trigger_table_fields"]
+    iterator_node = data["iterator_node"]
+    iterator_child_1_table_fields = data["iterator_child_1_table_fields"]
+    iterator_child_2_node = data["iterator_child_2_node"]
+
+    workflow_history = create_workflow_history(
+        data_fixture,
+        trigger_node.workflow,
+        trigger_table_fields,
+    )
+    workflow_history.simulate_until_node = iterator_child_2_node
+    workflow_history.save()
+
+    # Ensure that the iterator node and children don't yet have sample data
+    assert iterator_child_2_node.service.specific.sample_data is None
+
+    # Simulate the trigger first so that the dispatch context can populate
+    # previous_node_results from the database.
+    for node in [trigger_node, iterator_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # Make sure the last iterator node simulation saves a history entry
+    iterator_child_2_node.service.specific.refresh_from_db()
+    assert iterator_child_2_node.service.specific.sample_data == {
+        "data": {
+            iterator_child_1_table_fields[0].name: AnyStr(),
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
+    }
+
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=iterator_child_2_node
+    )
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
+
+    # Ensure workflow history is deleted, since we don't want history
+    # entries for simulations.
+    assert (
+        AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
+        is False
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
+def test_dispatch_node_async_dispatches_test_run(
+    mock_dispatch_task,
+    data_fixture,
+):
+    data = data_fixture.iterator_graph_fixture()
+    trigger_node = data["trigger_node"]
+    trigger_table_fields = data["trigger_table_fields"]
+    iterator_node = data["iterator_node"]
+    iterator_child_1_node = data["iterator_child_1_node"]
+    iterator_child_2_node = data["iterator_child_2_node"]
+    after_iteration_node = data["after_iteration_node"]
+
+    workflow_history = create_workflow_history(
+        data_fixture,
+        trigger_node.workflow,
+        trigger_table_fields,
+    )
+
+    for node in [trigger_node, iterator_node]:
+        mock_dispatch_task.reset_mock()
+        AutomationNodeHandler().dispatch_node_async(
+            node.id,
+            history_id=workflow_history.id,
+            allowed_node_ids=None,
+        )
+
+    # workflow history should be updated
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    # Make sure all nodes have a history and node result
+    for node in [
+        trigger_node,
+        iterator_node,
+        iterator_child_1_node,
+        iterator_child_2_node,
+        after_iteration_node,
+    ]:
+        for index, node_history in enumerate(
+            AutomationNodeHistory.objects.filter(
+                workflow_history=workflow_history,
+                node=node,
+            )
+        ):
+            assert node_history.message == ""
+            assert node_history.status == HistoryStatusChoices.SUCCESS
+
+            node_result = AutomationNodeResult.objects.get(node_history=node_history)
+            assert node_result.iteration == index
+            assert len(node_result.result) > 0
+
+    # The last action node should be dispatched async
+    mock_dispatch_task.delay.assert_called_once_with(
+        after_iteration_node.id,
+        workflow_history.id,
+        None,
+        current_iterations=None,
+    )
+
+    # Ensure workflow history is exists for test runs
+    assert (
+        AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
+        is True
+    )
