@@ -41,7 +41,7 @@ export default {
   },
   computed: {
     downloadXHR() {
-      return this.$config.public.downloadFileViaXhr === '1'
+      return `${this.$config.public.downloadFileViaXhr}` === '1'
     },
     href() {
       // Add the filename to the query string
