@@ -55,7 +55,7 @@
 </template>
 
 <script>
-import { uuid } from '@baserow/modules/core/utils/string'
+import { useId } from '#app'
 
 export default {
   name: 'Checkbox',
@@ -113,10 +113,9 @@ export default {
     },
   },
   emits: ['update:modelValue', 'input'],
-  data() {
-    return {
-      uniqClipId: uuid(),
-    }
+  setup() {
+    const uniqClipId = useId()
+    return { uniqClipId }
   },
   computed: {
     currentValue() {
