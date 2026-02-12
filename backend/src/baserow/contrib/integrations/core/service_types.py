@@ -1299,6 +1299,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param dispatch_context: The context in which the service is being dispatched.
         """
 
+        # Check truthy instead of `not None` because the event payload can
+        # come from the database (AutomationWorkflowHistory).
         if dispatch_context.event_payload:
             return dispatch_context.event_payload
 
