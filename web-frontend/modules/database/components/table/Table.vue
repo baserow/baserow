@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="tcr-table-home">
     <header
       ref="header"
       class="layout__col-2-1 header"

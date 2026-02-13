@@ -9,7 +9,7 @@
       @click="onClick()"
     >
       <i class="header__search-icon iconoir-search"></i>
-      {{ headerSearchTerm }}
+      {{ headerSearchTerm || $t('action.search') }}
     </a>
     <ViewSearchContext
       ref="context"
