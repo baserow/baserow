@@ -5,6 +5,35 @@ import PublicBuilderService from '@baserow/modules/builder/services/publishedBui
 import { calculateTempOrder } from '@baserow/modules/core/utils/order'
 import { uuid } from '@baserow/modules/core/utils/string'
 
+/**
+ * Positional fields that are managed exclusively by the move action/endpoint.
+ * These must never be sent via the update PATCH endpoint because:
+ * 1. After duplicate + move, the server-side position may lag behind the
+ *    optimistic frontend state (move is debounced by 1s).
+ * 2. Sending stale positional data in a property update would overwrite
+ *    the correct position, causing elements to jump back.
+ * 3. The backend update_element() also strips these as defense-in-depth.
+ */
+const POSITIONAL_FIELDS = new Set([
+  'order',
+  'place_in_container',
+  'parent_element_id',
+])
+
+/**
+ * Returns a copy of `values` with all positional fields removed.
+ * This ensures update payloads never contain stale position data.
+ */
+const stripPositionalFields = (values) => {
+  const cleaned = {}
+  for (const [key, value] of Object.entries(values)) {
+    if (!POSITIONAL_FIELDS.has(key)) {
+      cleaned[key] = value
+    }
+  }
+  return cleaned
+}
+
 const populateElement = (element, registry) => {
   const elementType = registry.get('element', element.type)
   element._ = {
@@ -236,19 +265,27 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
+    // Strip positional fields — position changes must go through the move
+    // action which handles order recalculation and container validation.
+    const safeValues = stripPositionalFields(values)
+
     const oldValues = {}
     const newValues = {}
-    Object.keys(values).forEach((name) => {
+    Object.keys(safeValues).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
         oldValues[name] = element[name]
-        newValues[name] = values[name]
+        newValues[name] = safeValues[name]
       }
     })
+
+    if (Object.keys(newValues).length === 0) {
+      return
+    }
 
     await dispatch('forceUpdate', { builder, page, element, values: newValues })
 
     try {
-      await ElementService(this.$client).update(element.id, values)
+      await ElementService(this.$client).update(element.id, safeValues)
     } catch (error) {
       await dispatch('forceUpdate', {
         builder,
@@ -264,13 +301,17 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
+    // Strip positional fields — position changes must go through the move
+    // action which handles order recalculation and container validation.
+    const safeValues = stripPositionalFields(values)
+
     const oldValues = {}
-    Object.keys(values).forEach((name) => {
+    Object.keys(safeValues).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
         oldValues[name] = element[name]
         // Accumulate the changed values to send all the ongoing changes with the
         // final request
-        updateContext.valuesToUpdate[name] = values[name]
+        updateContext.valuesToUpdate[name] = safeValues[name]
       }
     })
 

@@ -761,3 +761,131 @@ def test_get_element_property_options_returns_expected_options(
             "sortable": sortable,
         },
     }
+
+
+@pytest.mark.django_db
+def test_update_element_ignores_positional_fields(data_fixture):
+    """
+    Regression test for issue #2923: update_element must not change positional
+    fields (place_in_container, parent_element_id, order). These must only be
+    changed via move_element() to guarantee correct order recalculation.
+
+    Without this fix, a stale place_in_container="0" sent in a PATCH after
+    duplicate-from-position-0 → move would reset the element's position.
+    """
+
+    column_element = data_fixture.create_builder_column_element(column_amount=3)
+    page = column_element.page
+
+    # Create element in column 0
+    child = data_fixture.create_builder_text_element(
+        page=page,
+        parent_element=column_element,
+        place_in_container="0",
+        value="'original'",
+    )
+
+    original_place = child.place_in_container
+    original_parent_id = child.parent_element_id
+    original_order = child.order
+
+    # Move it to column 1 (simulating what move_element does)
+    ElementHandler().move_element(
+        child, column_element, "1"
+    )
+    child.refresh_from_db()
+    assert child.place_in_container == "1"
+    moved_order = child.order
+
+    # Now simulate a property edit that accidentally includes stale positional data.
+    # Before the fix, place_in_container and parent_element_id were in
+    # allowed_fields_update, so this would reset the position.
+    element_updated = ElementHandler().update_element(
+        child,
+        value="'updated'",
+        place_in_container="0",  # stale value — must be ignored
+        parent_element_id=None,  # stale value — must be ignored
+        order=Decimal("999"),  # stale value — must be ignored
+    )
+
+    element_updated.refresh_from_db()
+
+    # The property should be updated
+    assert element_updated.value["formula"] == "'updated'"
+
+    # But positional fields must be UNCHANGED from the move
+    assert element_updated.place_in_container == "1"
+    assert element_updated.parent_element_id == column_element.id
+    assert element_updated.order == moved_order
+
+
+@pytest.mark.django_db
+def test_duplicate_move_update_preserves_position(data_fixture):
+    """
+    End-to-end regression test for issue #2923: the full duplicate → move → edit
+    flow must preserve the element's position.
+
+    Steps:
+    1. Create a column with a text element in place 0
+    2. Duplicate the text element (duplicate lands in place 0)
+    3. Move the duplicate to place 1
+    4. Update a property of the duplicate
+    5. Assert the duplicate is still in place 1
+    """
+
+    column_element = data_fixture.create_builder_column_element(column_amount=2)
+    page = column_element.page
+
+    # Step 1: element at place 0
+    original = data_fixture.create_builder_text_element(
+        page=page,
+        parent_element=column_element,
+        place_in_container="0",
+        value="'hello'",
+    )
+
+    # Step 2: duplicate — duplicate goes to same place (0)
+    result = ElementHandler().duplicate_element(original)
+    duplicate = result["elements"][0]
+
+    assert duplicate.place_in_container == "0"
+    assert duplicate.parent_element_id == column_element.id
+    assert duplicate.id != original.id
+
+    # Step 3: move duplicate to place 1
+    ElementHandler().move_element(
+        duplicate, column_element, "1"
+    )
+    duplicate.refresh_from_db()
+    assert duplicate.place_in_container == "1"
+
+    # Step 4: edit property — passing stale place_in_container="0"
+    updated = ElementHandler().update_element(
+        duplicate,
+        value="'edited'",
+        place_in_container="0",  # stale — must be stripped
+    )
+    updated.refresh_from_db()
+
+    # Step 5: position must be preserved
+    assert updated.value["formula"] == "'edited'"
+    assert updated.place_in_container == "1"
+    assert updated.parent_element_id == column_element.id
+
+
+@pytest.mark.django_db
+def test_positional_fields_not_in_allowed_fields_update():
+    """
+    Verify the data contract: positional fields are not in allowed_fields_update.
+    This ensures the update endpoint cannot change element position — that must
+    go through move_element().
+    """
+
+    handler = ElementHandler()
+    assert "place_in_container" not in handler.allowed_fields_update
+    assert "parent_element_id" not in handler.allowed_fields_update
+    assert "order" not in handler.allowed_fields_update
+
+    # But they should remain in allowed_fields_create (needed for element creation)
+    assert "place_in_container" in handler.allowed_fields_create
+    assert "parent_element_id" in handler.allowed_fields_create

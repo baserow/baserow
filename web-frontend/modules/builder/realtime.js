@@ -84,11 +84,20 @@ export const registerRealtimeEvents = (realtime) => {
       const builder = store.getters['application/get'](selectedPage.builder_id)
       if (builder) {
         // Sometimes we don't have the builder somehow
+        //
+        // Strip positional fields (order, place_in_container,
+        // parent_element_id) from the update values. Position is managed
+        // exclusively by the element_moved event. If we applied positional
+        // data from element_updated, a property edit that reaches the
+        // server before a debounced move would broadcast stale position
+        // data and cause elements to jump back to their pre-move location.
+        const { order, place_in_container, parent_element_id, ...values } =
+          element
         store.dispatch('element/forceUpdate', {
           builder,
           page: selectedPage,
           element,
-          values: element,
+          values,
         })
       }
     }

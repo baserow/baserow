@@ -78,9 +78,13 @@ class ElementHandler:
         "style_width_child",
     ]
 
+    # Positional fields (parent_element_id, place_in_container) are intentionally
+    # excluded from allowed_fields_update. Position changes must go through
+    # move_element() which properly recalculates order and validates container
+    # placement. Allowing position changes via update_element() would bypass
+    # ordering logic and cause state inconsistencies (e.g. after duplicate + move,
+    # an edit could reset place_in_container to stale values).
     allowed_fields_update = [
-        "parent_element_id",
-        "place_in_container",
         "css_classes",
         "visibility",
         "visibility_condition",
@@ -383,15 +387,29 @@ class ElementHandler:
 
         element.delete()
 
+    # Fields that are managed exclusively by move_element() and must never
+    # be changed through update_element(). This enforces a single source of
+    # truth for element positioning.
+    POSITIONAL_FIELDS = frozenset({"parent_element_id", "place_in_container", "order"})
+
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
         Updates and element with values. Will also check if the values are allowed
         to be set on the element first.
 
+        Positional fields (parent_element_id, place_in_container, order) are
+        stripped as a safety measure. Position changes must go through
+        move_element() to ensure proper order recalculation and validation.
+
         :param element: The element that should be updated.
         :param kwargs: The values that should be set on the element.
         :return: The updated element.
         """
+
+        # Strip positional fields as defense-in-depth. These must only be
+        # changed via move_element() which handles order recalculation.
+        for field in self.POSITIONAL_FIELDS:
+            kwargs.pop(field, None)
 
         allowed_updates = extract_allowed(
             kwargs, self.allowed_fields_update + element.get_type().allowed_fields

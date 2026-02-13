@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
@@ -788,3 +789,128 @@ def test_create_collection_element_with_blank_property_option_schema_property(
             ]
         },
     }
+
+
+@pytest.mark.django_db
+def test_update_element_does_not_change_position(api_client, data_fixture):
+    """
+    Regression test for issue #2923: the PATCH /builder/element/{id}/ endpoint
+    must not change positional fields (place_in_container, parent_element_id).
+
+    Scenario: element is duplicated from column 0, moved to column 1, then
+    edited. If the PATCH payload contains stale place_in_container="0", it
+    must be ignored and the element must remain in column 1.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column = data_fixture.create_builder_column_element(page=page, column_amount=2)
+
+    # Create element in column 0
+    child = data_fixture.create_builder_text_element(
+        page=page,
+        parent_element=column,
+        place_in_container="0",
+        value="'original'",
+    )
+
+    # Duplicate
+    result = ElementHandler().duplicate_element(child)
+    duplicate = result["elements"][0]
+    assert duplicate.place_in_container == "0"
+
+    # Move duplicate to column 1
+    ElementHandler().move_element(duplicate, column, "1")
+    duplicate.refresh_from_db()
+    assert duplicate.place_in_container == "1"
+
+    # Now send a PATCH that includes stale place_in_container="0"
+    url = reverse("api:builder:element:item", kwargs={"element_id": duplicate.id})
+    response = api_client.patch(
+        url,
+        {
+            "value": "'edited'",
+            # Stale positional data — must be ignored by the endpoint
+            "place_in_container": "0",
+            "parent_element_id": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    # Verify the property was updated
+    assert response.json()["value"]["formula"] == "'edited'"
+
+    # Verify position was NOT changed
+    assert response.json()["place_in_container"] == "1"
+    assert response.json()["parent_element_id"] == column.id
+
+    # Verify in the database too
+    duplicate.refresh_from_db()
+    assert duplicate.place_in_container == "1"
+    assert duplicate.parent_element_id == column.id
+
+
+@pytest.mark.django_db
+def test_duplicate_move_edit_full_api_flow(api_client, data_fixture):
+    """
+    End-to-end API test for issue #2923: full duplicate → move → edit flow
+    via the API endpoints must preserve element position.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column = data_fixture.create_builder_column_element(page=page, column_amount=2)
+
+    # Create element in column 0
+    original = data_fixture.create_builder_text_element(
+        page=page,
+        parent_element=column,
+        place_in_container="0",
+        value="'hello'",
+    )
+
+    # Step 1: Duplicate via API
+    dup_url = reverse(
+        "api:builder:element:duplicate", kwargs={"element_id": original.id}
+    )
+    dup_response = api_client.post(dup_url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert dup_response.status_code == HTTP_200_OK
+
+    dup_element_data = dup_response.json()["elements"][0]
+    dup_id = dup_element_data["id"]
+    assert dup_element_data["place_in_container"] == "0"
+
+    # Step 2: Move duplicate to column 1 via API
+    move_url = reverse("api:builder:element:move", kwargs={"element_id": dup_id})
+    move_response = api_client.patch(
+        move_url,
+        {
+            "parent_element_id": column.id,
+            "place_in_container": "1",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert move_response.status_code == HTTP_200_OK
+    assert move_response.json()["place_in_container"] == "1"
+
+    # Step 3: Edit property via API (with stale place_in_container in payload)
+    update_url = reverse("api:builder:element:item", kwargs={"element_id": dup_id})
+    update_response = api_client.patch(
+        update_url,
+        {
+            "value": "'world'",
+            "place_in_container": "0",  # stale — must be ignored
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert update_response.status_code == HTTP_200_OK
+
+    # Step 4: Position must be preserved
+    assert update_response.json()["value"]["formula"] == "'world'"
+    assert update_response.json()["place_in_container"] == "1"
+    assert update_response.json()["parent_element_id"] == column.id
