@@ -39,6 +39,8 @@
               icon="iconoir-calendar"
               :errors="v$.dependency.start_date_field_id.$errors"
               :field-name="$t('dateDependencyModal.startDateFieldLabel')"
+              :disabled="creatingField"
+              :loading="creatingField"
               add-new
               @add-new="addNewField('start_date_field_id')"
             />
@@ -52,6 +54,8 @@
               :errors="v$.dependency.end_date_field_id.$errors"
               icon="iconoir-calendar"
               :field-name="$t('dateDependencyModal.endDateFieldLabel')"
+              :disabled="creatingField"
+              :loading="creatingField"
               add-new
               @add-new="addNewField('end_date_field_id')"
             />
@@ -68,6 +72,8 @@
               icon="iconoir-clock-rotate-right"
               :field-name="$t('dateDependencyModal.durationFieldLabel')"
               :helper-text="$t('dateDependencyModal.durationFieldHint')"
+              :disabled="creatingField"
+              :loading="creatingField"
               add-new
               @add-new="addNewField('duration_field_id')"
             />
@@ -87,6 +93,8 @@
               :helper-text="
                 $t('dateDependencyModal.dependencyLinkrowFieldHint')
               "
+              :disabled="creatingField"
+              :loading="creatingField"
               add-new
               @add-new="addNewField('dependency_linkrow_field_id')"
             />
@@ -154,6 +162,7 @@ export default {
         dependency_linkrow_field_id: null,
       },
       loading: false,
+      creatingField: false,
       fields: [],
       ready: false,
     }
@@ -298,10 +307,15 @@ export default {
       )
       fieldDef.values.name = fieldName
 
-      const fieldCreated = await this.handleCreateField(fieldDef)
-      // fields is not using fields store, so we need to update it manually
-      this.fields.push(fieldCreated)
-      this.dependency[dependencyFieldName] = fieldCreated.id
+      this.creatingField = true
+      try {
+        const fieldCreated = await this.handleCreateField(fieldDef)
+        // fields is not using fields store, so we need to update it manually
+        this.fields.push(fieldCreated)
+        this.dependency[dependencyFieldName] = fieldCreated.id
+      } finally {
+        this.creatingField = false
+      }
     },
 
     async fetchFields() {
