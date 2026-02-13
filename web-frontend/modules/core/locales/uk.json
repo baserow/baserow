@@ -117,13 +117,13 @@
         "leave": "Покинути робочий простір"
     },
     "dashboardWorkspace": {
-        "createApplication": ""
+        "createApplication": "Створити новий"
     },
     "workspaceInvitation": {
-        "title": "",
-        "message": "",
-        "reject": "",
-        "accept": ""
+        "title": "Запрошення",
+        "message": "{by} запросив(ла) вас приєднатися до {workspace}.",
+        "reject": "Відхилити",
+        "accept": "Прийняти"
     },
     "workspaceMemberModal": {
         "membersModalTitle": "",
@@ -135,10 +135,11 @@
         "userAlreadyInWorkspaceText": ""
     },
     "workspaceInviteForm": {
-        "invitationFormTitle": "",
-        "optionalMessagePlaceholder": "",
-        "errorInvalidEmail": "",
-        "errorTooLongMessage": ""
+        "invitationFormTitle": "Запросити електронною поштою",
+        "optionalMessagePlaceholder": "Необов’язкове повідомлення",
+        "errorInvalidEmail": "Будь ласка, введіть дійсну адресу електронної пошти.",
+        "errorTooLongMessage": "Повідомлення обмежені {amount} символами.",
+        "additionalRoles": "Додаткові ролі"
     },
     "workspacesContext": {
         "search": "",
@@ -146,77 +147,88 @@
         "createWorkspace": ""
     },
     "workspaceContext": {
-        "renameWorkspace": "",
-        "members": "",
-        "viewTrash": "",
-        "leaveWorkspace": "",
-        "deleteWorkspace": ""
+        "renameWorkspace": "Перейменувати робочий простір",
+        "members": "Учасники",
+        "viewTrash": "Переглянути кошик",
+        "leaveWorkspace": "Покинути робочий простір",
+        "deleteWorkspace": "Видалити робочий простір",
+        "exportWorkspace": "Експортувати дані",
+        "importWorkspace": "Імпортувати дані",
+        "settings": "Налаштування",
+        "auditLog": "Журнал аудиту"
     },
     "createWorkspaceModal": {
-        "createNew": "",
-        "defaultName": "",
-        "add": "",
-        "permissionDeniedTitle": "",
-        "permissionDeniedBody": ""
+        "createNew": "Створити новий робочий простір",
+        "defaultName": "Робочий простір без назви",
+        "add": "Додати робочий простір",
+        "permissionDeniedTitle": "Доступ заборонено",
+        "permissionDeniedBody": "У вас немає необхідного дозволу для створення нового робочого простору."
     },
     "templateCategories": {
-        "search": "",
-        "title": ""
+        "search": "Пошук шаблонів",
+        "title": "Шаблони"
     },
     "templateHeader": {
-        "use": ""
+        "use": "Використати цей шаблон"
     },
     "trashSidebar": {
         "title": "",
-        "unnamedWorkspace": ""
+        "unnamedWorkspace": "Робочий простір без назви {id}",
+        "workspaces": "Робочі простори"
     },
     "trashContents": {
-        "message": "",
-        "empty": "",
-        "emptyButtonTrashed": "",
-        "emptyButtonNotTrashed": "",
-        "unnamed": ""
+        "message": "Відновити видалені елементи за останні {duration}",
+        "empty": "Протягом останніх трьох днів нічого не було видалено.",
+        "emptyButtonTrashed": "Назавжди видалити {type}",
+        "emptyButtonNotTrashed": "Очистити кошик цього {type}",
+        "unnamed": "{type} без назви {id}"
     },
     "trashEmptyModal": {
-        "titleIsTrashed": "",
-        "titleIsNotTrashed": "",
-        "messageIsTrashed": "",
-        "messageIsNotTrashed": "",
-        "buttonIsTrashed": "",
-        "buttonIsNotTrashed": ""
+        "titleIsTrashed": "Ви впевнені, що хочете назавжди видалити {name}?",
+        "titleIsNotTrashed": "Ви впевнені, що хочете очистити кошик {name}?",
+        "messageIsTrashed": "Це назавжди видалить його та весь його вміст. Після цього їх не можна буде відновити.",
+        "messageIsNotTrashed": "Це назавжди видалить зазначені елементи. Після цього їх не можна буде відновити.",
+        "buttonIsTrashed": "Видалити назавжди",
+        "buttonIsNotTrashed": "Видалити вміст"
     },
     "trashEntry": {
-        "deletedUser": "",
-        "fromParent": "",
-        "name": "",
-        "restore": "",
-        "andMore": "",
-        "unnamed": ""
+        "deletedUser": "Видалений користувач",
+        "fromParent": "з {parent}",
+        "name": "{user} видалив(ла) {type} {title} з {parent}",
+        "restore": "Відновити",
+        "andMore": "… і ще {count}",
+        "unnamed": "{type} без назви {id}"
     },
     "trashModal": {
-        "emptyTitle": "",
-        "emptyMessage": "",
-        "emptyMessageWithoutCreatePermission": ""
+        "emptyTitle": "Робочі простори не знайдено",
+        "emptyMessage": "Ви не є учасником жодного робочого простору. Такі додатки, як бази даних, належать до робочого простору, тому для їх створення спочатку потрібно створити робочий простір.",
+        "emptyMessageWithoutCreatePermission": "Ви не є учасником жодного робочого простору. Такі додатки, як бази даних, належать до робочого простору, тому щоб створювати їх, спершу адміністратор має запросити вас до робочого простору."
     },
     "uploadViaURLUserFileUpload": {
-        "title": "",
-        "urlLabel": "",
-        "urlError": ""
+        "title": "Завантажити з URL",
+        "urlLabel": "URL",
+        "urlError": "Потрібно ввести дійсний URL."
     },
     "userFilesModal": {
-        "title": ""
+        "title": "Завантажити з"
     },
     "uploadFileUserFileUpload": {
-        "title": "",
-        "drop": "",
-        "clickOrDrop": "",
-        "retry": ""
+        "title": "Завантажити з мого пристрою",
+        "drop": "Перетягніть сюди",
+        "clickOrDrop": "Клацніть або перетягніть файли сюди",
+        "retry": "Спробувати ще раз"
     },
     "createApplicationContext": {
-        "fromTemplate": ""
+        "fromTemplate": "З шаблону",
+        "fromTemplateDesc": "Швидко почніть із одного з наших рекомендованих шаблонів",
+        "table": "Таблиця",
+        "tableDesc": "Створіть нове місце для керування даними у вашій базі даних.",
+        "importWorkspace": "Імпортувати дані",
+        "importWorkspaceDesc": "Додати наявні дані з іншої інстанції Baserow."
     },
     "applicationForm": {
-        "nameLabel": ""
+        "nameLabel": "Назва",
+        "namePlaceholder": "Введіть назву…"
     },
     "connectingNotification": {
         "title": "",
@@ -531,7 +543,8 @@
             "tables": "Таблиці",
             "fields": "Поля",
             "rows": "Рядки"
-        }
+        },
+        "empty": "(порожньо)"
     },
     "action": {
         "cancel": "Скасувати",
@@ -616,7 +629,21 @@
         "retry": "Спробувати ще раз",
         "uploading": "Завантаження...",
         "chooseFile": "Виберіть файл",
-        "selectApplications": "Select data to import"
+        "selectApplications": "Select data to import",
+        "deselectAll": "Зняти виділення всіх",
+        "selectAll": "Вибрати все",
+        "databases": "Бази даних",
+        "applications": "Додатки",
+        "successTitle": "Дані Baserow успішно імпортовано",
+        "successMessage": "Імпортовано {count} додатків",
+        "signatureVerificationNote": "Не можна імпортувати ZIP-файл із ненадійного джерела.",
+        "invalidResourceTitle": "Недійсний ресурс",
+        "invalidResourceMessage": "Наданий файл не є дійсним експортом Baserow.",
+        "untrustedPublicKeyTitle": "Недовірений підпис",
+        "untrustedPublicKeyMessage": "Наданий файл підписано недовіреним публічним ключем. Попросіть адміністратора додати цей публічний ключ до списку довірених ключів або вимкнути перевірку підпису, щоб мати змогу імпортувати цей файл.",
+        "importingState": "Імпорт...",
+        "importingTableStructure": "Створення: {table}",
+        "importingTableData": "Імпорт даних: {table}"
     },
     "exportWorkspaceModal": {
         "title": "Експорт",
@@ -639,5 +666,104 @@
         "deselectAll": "Скасувати вибір всіх",
         "onlyStructureLabel": "Експортувати тільки структуру",
         "onlyStructureDescription": "Якщо увімкнено, буде експортовано лише структуру додатків. Дані не будуть включені."
+    },
+    "emailSettings": {
+        "title": "Змінити адресу електронної пошти",
+        "successTitle": "Лист із підтвердженням надіслано",
+        "successDescription": "Ми надіслали лист із підтвердженням на вашу нову адресу. Будь ласка, перевірте свою поштову скриньку та натисніть на посилання, щоб завершити зміну електронної адреси.",
+        "currentEmailLabel": "Поточна адреса електронної пошти",
+        "newEmailLabel": "Нова адреса електронної пошти",
+        "passwordLabel": "Поточний пароль",
+        "submitButton": "Надіслати лист із підтвердженням",
+        "errorInvalidPasswordTitle": "Невірний пароль",
+        "errorInvalidPasswordMessage": "Не вдалося надіслати запит на зміну електронної адреси, оскільки пароль невірний.",
+        "errorEmailExistsTitle": "Така електронна адреса вже використовується",
+        "errorEmailExistsMessage": "Не вдалося надіслати запит на зміну електронної адреси, оскільки обліковий запис із цією електронною адресою вже існує.",
+        "errorNotAllowedTitle": "Зміну електронної адреси не дозволено",
+        "errorNotAllowedMessage": "Ви не можете змінити адресу електронної пошти, оскільки ваш обліковий запис використовує автентифікацію єдиного входу (SSO)."
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Виберіть додатки для імпорту"
+    },
+    "dashboardVerifyEmail": {
+        "title": "Будь ласка, перевірте свою поштову скриньку та натисніть на посилання, щоб підтвердити свою електронну адресу.",
+        "resendConfirmationEmail": "Надіслати лист із підтвердженням повторно"
+    },
+    "resendEmailVerification": {
+        "confirmationEmailSentTitle": "Лист із підтвердженням надіслано",
+        "confirmationEmailSentDescription": "Лист із підтвердженням було надіслано."
+    },
+    "verifyEmailAddress": {
+        "confirmation": "Вашу електронну адресу підтверджено.",
+        "goToDashboard": "Перейти до панелі керування",
+        "invalidToken": "Недійсний токен підтвердження.",
+        "disabledPasswordProvider": "Провайдер автентифікації за паролем вимкнено.",
+        "emailMismatchWarning": "Зверніть увагу, що підтверджена електронна адреса не належить до облікового запису, який ви наразі використовуєте."
+    },
+    "emailNotVerified": {
+        "title": "Потрібне підтвердження електронної адреси",
+        "description": "Будь ласка, перевірте свою поштову скриньку та натисніть на посилання для підтвердження. Після підтвердження ваш обліковий запис буде активовано.",
+        "resend": "Надіслати лист із підтвердженням повторно"
+    },
+    "workspaceSettingsModal": {
+        "title": "Налаштування робочого простору"
+    },
+    "workspaceSettingType": {
+        "generativeAI": "Генеративний штучний інтелект"
+    },
+    "generativeAIModelType": {
+        "openai": "OpenAI",
+        "openaiApiKeyLabel": "Ключ API",
+        "openaiApiKeyDescription": "Вкажіть ключ API OpenAI, якщо хочете увімкнути інтеграцію. Інструкції з отримання ключа API. [Інструкції з отримання ключа API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiOrganization": "Організація (необов’язково)",
+        "openaiModelsLabel": "Увімкнені моделі",
+        "openaiModelsDescription": "Вкажіть список [моделей OpenAI](https://platform.openai.com/docs/models/continuous-model-upgrades), які можна використовувати в Baserow (наприклад: 'gpt-3.5-turbo,gpt-4').",
+        "openaiBaseUrl": "Базова URL-адреса",
+        "openaiBaseUrlDescription": "За замовчуванням використовується стандартна базова URL-адреса OpenAI, якщо поле порожнє. За потреби її можна змінити на https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, або будь-який інший API, сумісний з OpenAI.",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "Ключ API",
+        "anthropicApiKeyDescription": "Вкажіть ключ API Anthropic, якщо хочете увімкнути інтеграцію. [Інструкції з отримання ключа API](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsLabel": "Увімкнені моделі",
+        "anthropicModelsDescription": "Вкажіть список [моделей Anthropic](https://docs.anthropic.com/en/docs/about-claude/models), які можна використовувати в Baserow (наприклад: 'claude-3-5-sonnet-20241022,claude-3-opus-20240229' )",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "Ключ API",
+        "mistralApiKeyDescription": "Вкажіть ключ API Mistral, якщо хочете увімкнути інтеграцію. [Інструкції з отримання ключа API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Увімкнені моделі",
+        "mistralModelsDescription": "Вкажіть список [моделей Mistral](https://docs.mistral.ai/getting-started/models/models_overview/), які можна використовувати в Baserow (наприклад: 'mistral-large-latest,mistral-small-latest' )",
+        "ollama": "Ollama",
+        "ollamaHostLabel": "Хост",
+        "ollamaHostDescription": "Вкажіть ім’я хоста вашого сервера [Ollama](https://ollama.com/). Зазвичай він працює локально на вашому пристрої.",
+        "ollamaModelsLabel": "Увімкнені моделі",
+        "ollamaModelsDescription": "Вкажіть список [встановлених моделей Ollama](https://ollama.com/library). Зверніть увагу, що модель має бути попередньо завантажена та встановлена перед використанням (наприклад: 'llama2,mistral' )",
+        "openRouter": "OpenRouter",
+        "openRouterApiKeyLabel": "Ключ API",
+        "openRouterApiKeyDescription": "Вкажіть ключ API OpenRouter, якщо хочете увімкнути інтеграцію. [Отримати ключ API](https://openrouter.ai/settings/keys).",
+        "openRouterOrganization": "Організація (необов’язково)",
+        "openRouterModelsLabel": "Увімкнені моделі",
+        "openRouterModelsDescription": "Вкажіть список [моделей OpenRouter](https://openrouter.ai/models, які можна використовувати в Baserow. (наприклад: 'openai/gpt-4o,anthropic/claude-3-haiku' )"
+    },
+    "generativeAIWorkspaceSettings": {
+        "title": "Налаштування генеративного ШІ",
+        "description": "Ці налаштування можна використовувати для додаткового налаштування генеративного ШІ на рівні робочого простору. Такі функції, як поле ШІ, можуть бути вимкнені через відсутність ключа API для однієї з підтримуваних моделей. Вказавши налаштування тут, ви зможете увімкнути ці функції. Якщо залишити значення порожнім, буде використано глобальні налаштування інстанції. Зверніть увагу, що всі учасники робочого простору використовуватимуть спільні налаштування.",
+        "changedTitle": "Налаштування успішно оновлено",
+        "changedDescription": "Налаштування оновлено, і тепер вони використовуватимуться в цьому робочому просторі.",
+        "submitButton": "Змінити налаштування",
+        "openSettings": "Відкрити налаштування",
+        "hideSettings": "Приховати налаштування"
+    },
+    "uploadFileDropzone": {
+        "drop": "Перетягніть сюди",
+        "clickOrDrop": "Клацніть або перетягніть сюди файли",
+        "errorTooManyFilesTitle": "Занадто багато файлів",
+        "errorTooManyFilesMessage": "Можна завантажити лише один файл",
+        "errorWrongFileTypeTitle": "Неправильний тип файлу",
+        "errorWrongFileTypeMessage": "Ви не можете завантажити файл типу {type}"
+    },
+    "connectingToast": {
+        "title": "Повторне підключення",
+        "content": "Спроба відновити оновлення в режимі реального часу."
+    },
+    "failedConnectingToast": {
+        "title": "Не вдалося"
     }
 }
