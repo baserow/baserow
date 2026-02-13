@@ -963,13 +963,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def start_workflow(
         self,
-        workflow: int,
+        workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]],
         simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """Runs the workflow."""
-
-        start_time = timezone.now()
 
         original_workflow = self.get_original_workflow(workflow)
 
@@ -986,13 +984,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         history_handler = AutomationHistoryHandler()
         history = history_handler.create_workflow_history(
             original_workflow,
-            started_on=start_time,
+            started_on=timezone.now(),
             is_test_run=is_test_run,
             event_payload=event_payload,
             simulate_until_node=simulate_until_node,
         )
 
         error: Optional[str] = None
+        history_status: Optional[HistoryStatusChoices] = None
+
         try:
             self.before_run(original_workflow)
         except AutomationWorkflowTooManyErrors as e:
@@ -1003,13 +1003,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             error = str(e)
             history_status = HistoryStatusChoices.ERROR
 
-        if error is not None:
-            if history:
-                history.message = error
-                history.status = history_status
-                history.save()
-            else:
-                logger.exception(error)
+        if error is not None and history_status is not None:
+            history.completed_on = timezone.now()
+            history.message = error
+            history.status = history_status
+            history.save()
             return
 
         dispatch_node_celery_task.delay(
