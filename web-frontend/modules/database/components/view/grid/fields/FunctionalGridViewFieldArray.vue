@@ -5,16 +5,12 @@
     :value="value"
     :row="row"
     :selected="selected"
-    v-bind="containerAttrs"
-    v-on="listenerAttrs"
+    v-bind="$attrs"
   >
     <div
       v-if="shouldFetchRow"
       class="array-field__item"
-      :class="[
-        containerAttrs.class,
-        isFetchingRow ? 'array-field__item--loading' : '',
-      ]"
+      :class="[$attrs.class, isFetchingRow ? 'array-field__item--loading' : '']"
     >
       <div v-if="isFetchingRow" class="loading"></div>
       <span v-else>...</span>
@@ -50,24 +46,6 @@ export default {
     },
   },
   computed: {
-    containerAttrs() {
-      const attrs = {}
-      Object.keys(this.$attrs).forEach((key) => {
-        if (!key.startsWith('on')) {
-          attrs[key] = this.$attrs[key]
-        }
-      })
-      return attrs
-    },
-    listenerAttrs() {
-      const attrs = {}
-      Object.keys(this.$attrs).forEach((key) => {
-        if (key.startsWith('on')) {
-          attrs[key] = this.$attrs[key]
-        }
-      })
-      return attrs
-    },
     shouldFetchRow() {
       return (
         this.value?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&

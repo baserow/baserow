@@ -53,8 +53,8 @@ export default {
     },
   },
   methods: {
-    showModal() {
-      this.$refs.modal?.show()
+    showModal(index) {
+      this.$refs.modal?.show(index)
     },
     canSelectNext() {
       return !this.needsModal || !this.$refs.modal.open
