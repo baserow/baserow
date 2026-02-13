@@ -134,26 +134,6 @@ def create_workflow_history(data_fixture, workflow, trigger_table_fields):
 
 
 @pytest.mark.django_db
-@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
-def test_dispatch_node_async_returns_early_if_node_not_allowed(
-    mock_dispatch, data_fixture
-):
-    data = create_workflow(data_fixture)
-    trigger_node = data["trigger_node"]
-    action_node = data["action_node"]
-    workflow_history = data["workflow_history"]
-
-    result = AutomationNodeHandler().dispatch_node_async(
-        trigger_node.id,
-        workflow_history.id,
-        allowed_node_ids=[action_node.id],
-    )
-
-    assert result is False
-    mock_dispatch.assert_not_called()
-
-
-@pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 def test_dispatch_node_async_service_error(mock_dispatch_task, data_fixture):
     user = data_fixture.create_user()
@@ -174,7 +154,6 @@ def test_dispatch_node_async_service_error(mock_dispatch_task, data_fixture):
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
     workflow_history.refresh_from_db()
     error = "is misconfigured and cannot be dispatched"
@@ -204,7 +183,6 @@ def test_dispatch_node_async_unexpected_error(
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
     workflow_history.refresh_from_db()
     error = (
@@ -233,7 +211,6 @@ def test_dispatch_node_async_dispatches_trigger(mock_dispatch_task, data_fixture
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     workflow_history.refresh_from_db()
@@ -251,7 +228,6 @@ def test_dispatch_node_async_dispatches_trigger(mock_dispatch_task, data_fixture
     mock_dispatch_task.delay.assert_called_once_with(
         action_node.id,
         workflow_history.id,
-        None,
         current_iterations=None,
     )
 
@@ -272,12 +248,10 @@ def test_dispatch_node_async_dispatches_action_create_row(
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
     mock_dispatch_task.delay.assert_called_once_with(
         action_node.id,
         workflow_history.id,
-        None,
         current_iterations=None,
     )
 
@@ -288,7 +262,6 @@ def test_dispatch_node_async_dispatches_action_create_row(
     AutomationNodeHandler().dispatch_node_async(
         action_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     # Make sure the action dispatched correctly
@@ -347,12 +320,10 @@ def test_dispatch_node_async_dispatches_iterator_children(
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
     mock_dispatch_task.delay.assert_called_once_with(
         iterator_node.id,
         workflow_history.id,
-        None,
         current_iterations=None,
     )
 
@@ -363,7 +334,6 @@ def test_dispatch_node_async_dispatches_iterator_children(
     AutomationNodeHandler().dispatch_node_async(
         iterator_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     # Make sure the iterator children's node history and results are persisted.
@@ -397,7 +367,6 @@ def test_dispatch_node_async_dispatches_iterator_children(
     mock_dispatch_task.delay.assert_called_once_with(
         after_iteration_node.id,
         workflow_history.id,
-        None,
         current_iterations=None,
     )
 
@@ -429,7 +398,6 @@ def test_dispatch_node_async_dispatches_trigger_simulation(
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     # Ensure workflow history is deleted, since we don't want history
@@ -497,7 +465,6 @@ def test_dispatch_node_async_dispatches_action_simulation(
     AutomationNodeHandler().dispatch_node_async(
         trigger_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     # Make sure the trigger node simulation saves a history entry
@@ -530,7 +497,6 @@ def test_dispatch_node_async_dispatches_action_simulation(
     AutomationNodeHandler().dispatch_node_async(
         action_node.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     # Ensure the sample data is saved
@@ -593,7 +559,6 @@ def test_dispatch_node_async_dispatches_iterator_simulation(
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # Make sure the last iterator node simulation saves a history entry
@@ -648,7 +613,6 @@ def test_dispatch_node_async_dispatches_test_run(
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # workflow history should be updated
@@ -680,7 +644,6 @@ def test_dispatch_node_async_dispatches_test_run(
     mock_dispatch_task.delay.assert_called_once_with(
         after_iteration_node.id,
         workflow_history.id,
-        None,
         current_iterations=None,
     )
 
@@ -718,7 +681,6 @@ def test_dispatch_node_async_dispatches_action_update_row(
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # The value after the action updates the table
@@ -773,7 +735,6 @@ def test_dispatch_node_async_dispatches_action_delete_row(
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # The row after it is deleted
@@ -857,7 +818,6 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # The value after the router edge 2 updates the table
@@ -964,7 +924,6 @@ def test_dispatch_node_async_with_advanced_formulas(data_fixture):
     AutomationNodeHandler().dispatch_node_async(
         trigger.id,
         history_id=workflow_history.id,
-        allowed_node_ids=None,
     )
 
     row = action_table_model.objects.first()
@@ -1082,7 +1041,6 @@ def test_dispatch_node_async_dispatches_router_edge_simulation(
         AutomationNodeHandler().dispatch_node_async(
             node.id,
             history_id=workflow_history.id,
-            allowed_node_ids=None,
         )
 
     # Verify sample_data is saved for the action node

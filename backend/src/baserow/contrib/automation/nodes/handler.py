@@ -361,7 +361,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         node_id: int,
         history_id: int,
-        allowed_node_ids: Optional[List[int]],
         current_iterations: Optional[Dict[int, int]] = None,
     ) -> bool:
         """
@@ -372,7 +371,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         :param node_id: The node to dispatch.
         :param history_id: The AutomationNodeHistory ID from which the
             workflow's event payload and node results are derived.
-        :param allowed_node_ids: Controls which nodes can be dispatched.
         :param current_iterations: Used by the Iterator node's children.
         :return bool: True if the simulation completed, False otherwise.
         """
@@ -390,12 +388,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             else None
         )
 
-        allowed_nodes = (
-            [self.get_node(n_id) for n_id in allowed_node_ids]
-            if allowed_node_ids
-            else None
-        )
-        if simulate_until_node and allowed_nodes is None:
+        allowed_nodes = None
+        if simulate_until_node:
             allowed_nodes = {
                 *simulate_until_node.get_previous_nodes(),
                 simulate_until_node,
@@ -478,8 +472,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 workflow_history.delete()
                 return True
 
-        allowed_node_ids = [n.id for n in allowed_nodes] if allowed_nodes else None
-
         if children := node.get_children():
             node_data = dispatch_result.data["results"]
 
@@ -497,7 +489,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     simulation_completed = self.dispatch_node_async(
                         child.id,
                         history_id,
-                        allowed_node_ids,
                         current_iterations=child_iterations,
                     )
                     if simulation_completed:
@@ -519,7 +510,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 simulation_completed = self.dispatch_node_async(
                     next_node.id,
                     history_id,
-                    allowed_node_ids,
                     current_iterations=current_iterations,
                 )
                 if simulation_completed:
@@ -528,7 +518,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 dispatch_node_celery_task.delay(
                     next_node.id,
                     history_id,
-                    allowed_node_ids,
                     current_iterations=current_iterations,
                 )
 
