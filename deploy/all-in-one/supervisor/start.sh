@@ -34,6 +34,12 @@ SUPERVISOR_ENABLED_CONF_DIR=/baserow/supervisor/includes/enabled
 if [[ "$DATABASE_HOST" == "localhost" && -z "${DATABASE_URL:-}" ]]; then
   startup_echo "Running setup of embedded baserow database."
 
+  # Defense-in-depth: verify the data directory is safe before touching postgres.
+  # The primary checks run earlier in baserow.sh, but this catches edge cases
+  # where start.sh is invoked directly.
+  source /baserow/supervisor/postgres-safety-check.sh
+  check_postgres_clean_shutdown "$DATA_DIR/postgres"
+
   # Update the postgres config to point at the DATA_DIR which must be done here as
   # DATA_DIR can change at runtime.
   sed -i "s;/var/lib/postgresql/$POSTGRES_VERSION/main;$DATA_DIR/postgres;g" "$POSTGRES_LOCATION"/postgresql.conf

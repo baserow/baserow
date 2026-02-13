@@ -86,6 +86,16 @@ _main() {
 
     # This script will re-run itself as postgres user, so this part is reserved for the root user setup/teardown
     if [ "$(id -u)" = '0' ]; then
+
+      # Final safety check: remove any stale postmaster.pid left by a crashed
+      # container.  PostgreSQL refuses to start if this file exists, even when
+      # the old process is long gone.  We only remove it when no postgres
+      # process is actually running.
+      if [[ -f "$PGDATA/postmaster.pid" ]] && ! pgrep -f "bin/postgres" > /dev/null 2>&1; then
+        echo "Removing stale postmaster.pid left by a previous unclean shutdown."
+        rm -f "$PGDATA/postmaster.pid"
+      fi
+
       # restart script as postgres user
       echo "Becoming postgres superuser to run setup SQL commands:"
       su postgres -c "${BASH_SOURCE[0]} $*"

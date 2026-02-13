@@ -152,6 +152,13 @@ if [[ "$DATABASE_HOST" == "embed" && -z "${DATABASE_URL:-}" ]]; then
   startup_echo "No DATABASE_HOST or DATABASE_URL provided, using embedded postgres."
   export DATABASE_HOST=localhost
   export BASEROW_EMBEDDED_PSQL=true
+
+  # === DATA DIRECTORY SAFETY CHECKS ===
+  # Prevent multiple containers from using the same data volume and detect
+  # unclean PostgreSQL shutdowns before they cause PANIC errors.
+  source /baserow/supervisor/postgres-safety-check.sh
+  acquire_data_dir_lock "$DATA_DIR"
+  check_postgres_clean_shutdown "$DATA_DIR/postgres"
 else
   if [ ! -z "${DATABASE_URL:-}" ] && [ "${POSTGRES_SETUP_SCRIPT_COMMAND:-}" = "upgrade" ]; then
       startup_echo "===================================================================================="
