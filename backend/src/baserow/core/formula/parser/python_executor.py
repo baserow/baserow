@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from baserow.core.formula import BaserowFormula, BaserowFormulaVisitor
 from baserow.core.formula.parser.exceptions import (
     BaserowFormulaSyntaxError,
@@ -104,7 +106,14 @@ class BaserowPythonExecutor(BaserowFormulaVisitor):
         return ctx.getText()
 
     def visitIntegerLiteral(self, ctx: BaserowFormula.IntegerLiteralContext):
-        return int(ctx.getText())
+        text = ctx.getText()
+        try:
+            # Use Decimal for precise parsing of scientific notation (e.g. "2e7").
+            return int(Decimal(text))
+        except Exception:
+            raise BaserowFormulaSyntaxError(
+                f"'{text}' is not a valid integer literal"
+            )
 
     def visitFieldByIdReference(self, ctx: BaserowFormula.FieldByIdReferenceContext):
         raise FieldByIdReferencesAreDeprecated()

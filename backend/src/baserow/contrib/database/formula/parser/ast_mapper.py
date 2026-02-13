@@ -149,7 +149,18 @@ class BaserowFormulaToBaserowASTMapper(BaserowFormulaVisitor):
         return ctx.getText()
 
     def visitIntegerLiteral(self, ctx: BaserowFormula.IntegerLiteralContext):
-        return BaserowIntegerLiteral[UnTyped](int(ctx.getText()), None)
+        text = ctx.getText()
+        try:
+            # Use Decimal as an intermediate representation so that scientific
+            # notation (e.g. "2e7") is parsed precisely.  The grammar's
+            # INTEGER_LITERAL rule only permits non-negative exponents, so the
+            # result is always a whole number.
+            value = int(Decimal(text))
+        except Exception:
+            raise BaserowFormulaSyntaxError(
+                f"'{text}' is not a valid integer literal"
+            )
+        return BaserowIntegerLiteral[UnTyped](value, None)
 
     def visitFieldReference(self, ctx: BaserowFormula.FieldReferenceContext):
         reference = ctx.field_reference()

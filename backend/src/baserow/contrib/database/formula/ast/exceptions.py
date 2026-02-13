@@ -8,11 +8,19 @@ class InvalidStringLiteralProvided(BaserowFormulaException):
 
 
 class InvalidIntLiteralProvided(BaserowFormulaException):
-    pass
+    def __init__(self):
+        super().__init__(
+            "The provided value is not a valid integer. Integer literals must "
+            "be whole numbers (e.g. 42) or use scientific notation with a "
+            "non-negative exponent (e.g. 2e7)."
+        )
 
 
 class InvalidDecimalLiteralProvided(BaserowFormulaException):
-    pass
+    def __init__(self):
+        super().__init__(
+            "The provided value is not a valid decimal number."
+        )
 
 
 class UnknownFieldReference(BaserowFormulaException):

@@ -41,6 +41,21 @@
             "formula": "get('a') + get('b')",
             "result": 4,
             "context": {"a":  1, "b":  3}
+        },
+        {
+            "formula": "2e7",
+            "result": 20000000,
+            "context": {}
+        },
+        {
+            "formula": "1e3 + 1",
+            "result": 1001,
+            "context": {}
+        },
+        {
+            "formula": "5E2",
+            "result": 500,
+            "context": {}
         }
     ],
     "INVALID_FORMULA_TESTS": [
