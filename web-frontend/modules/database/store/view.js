@@ -340,6 +340,7 @@ export const actions = {
     const { $client, $registry } = this
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
+    commit('SET_DEFAULT_VIEW_ID', null)
 
     try {
       const { data } = await ViewService($client).fetchAll(

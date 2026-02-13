@@ -84,10 +84,10 @@ const database = computed(() => $store.getters['application/getSelected'])
 const table = computed(() => $store.getters['table/getSelected'])
 
 const { data, error, pending, status, refresh } = await useAsyncData(
-  `database-table-page-${route.params.viewId ?? 'null'}`,
+  `database-table-page-${route.params.databaseId}-${route.params.tableId}-${route.params.viewId ?? 'null'}`,
   async () => {
     // Use current route params (not captured params) so refresh works correctly
-    const currentParams = route.params
+    const currentParams = { ...route.params }
     const viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
 
     const result = {
