@@ -25,6 +25,7 @@ export default {
       required: true,
     },
   },
+  emits: ['widget-variation-selected'],
   methods: {
     openCreateWidgetModal() {
       this.$refs.createWidgetModal.show()

@@ -8,20 +8,22 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-31 17:04+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-01-29 07:02+0000\n"
+"Last-Translator: Bram <bram@baserow.io>\n"
+"Language-Team: Ukrainian <https://hosted.weblate.org/projects/baserow/"
+"backend-database/uk/>\n"
 "Language: uk\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Weblate 5.16-dev\n"
 
 #: src/baserow/contrib/database/action/scopes.py:9
 #, python-format
 msgid "in database \"%(database_name)s\" (%(database_id)s)."
-msgstr ""
+msgstr "у базі даних \"%(database_name)s\" (%(database_id)s)."
 
 #: src/baserow/contrib/database/action/scopes.py:13
 #, python-format
@@ -29,6 +31,8 @@ msgid ""
 "in table \"%(table_name)s\" (%(table_id)s) of database \"%(database_name)s"
 "\" (%(database_id)s)."
 msgstr ""
+"у таблиці \"%(table_name)s\" (%(table_id)s) бази даних \"%(database_name)s\" "
+"(%(database_id)s)."
 
 #: src/baserow/contrib/database/action/scopes.py:19
 #, python-format
@@ -36,10 +40,12 @@ msgid ""
 "in view \"%(view_name)s\" (%(view_id)s) of table \"%(table_name)s"
 "\" (%(table_id)s) in database \"%(database_name)s\" (%(database_id)s)."
 msgstr ""
+"у представленні \"%(view_name)s\" (%(view_id)s) таблиці \"%(table_name)s\" (%"
+"(table_id)s) у базі даних \"%(database_name)s\" (%(database_id)s)."
 
 #: src/baserow/contrib/database/airtable/actions.py:19
 msgid "Import database from Airtable"
-msgstr ""
+msgstr "Імпорт бази даних з Airtable"
 
 #: src/baserow/contrib/database/airtable/actions.py:21
 #, python-format
@@ -48,55 +54,60 @@ msgid ""
 "\" (%(installed_application_id)s) from Airtable share ID "
 "\"%(airtable_share_id)s\""
 msgstr ""
+"Імпортовано базу даних \"%(installed_application_name)s\" (%"
+"(installed_application_id)s) з Airtable за ID спільного доступу \"%"
+"(airtable_share_id)s\""
 
 #: src/baserow/contrib/database/application_types.py:190
 msgid "Table"
-msgstr ""
+msgstr "Таблиця"
 
 #: src/baserow/contrib/database/export/actions.py:20
 msgid "Export Table"
-msgstr ""
+msgstr "Експорт таблиці"
 
 #: src/baserow/contrib/database/export/actions.py:21
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) exported to %(export_type)s"
 msgstr ""
+"Представлення \"%(view_name)s\" (%(view_id)s) експортовано до %(export_type)s"
 
 #: src/baserow/contrib/database/export/actions.py:82
 #, python-format
 msgid "Table \"%(table_name)s\" (%(table_id)s) exported to %(export_type)s"
 msgstr ""
+"Таблицю \"%(table_name)s\" (%(table_id)s) експортовано до %(export_type)s"
 
 #: src/baserow/contrib/database/fields/actions.py:35
 msgid "Update field"
-msgstr ""
+msgstr "Оновити поле"
 
 #: src/baserow/contrib/database/fields/actions.py:36
 #, python-format
 msgid "Field \"%(field_name)s\" (%(field_id)s) updated"
-msgstr ""
+msgstr "Поле \"%(field_name)s\" (%(field_id)s) оновлено"
 
 #: src/baserow/contrib/database/fields/actions.py:325
 msgid "Create field"
-msgstr ""
+msgstr "Створити поле"
 
 #: src/baserow/contrib/database/fields/actions.py:326
 #, python-format
 msgid "Field \"%(field_name)s\" (%(field_id)s) created"
-msgstr ""
+msgstr "Поле \"%(field_name)s\" (%(field_id)s) створено"
 
 #: src/baserow/contrib/database/fields/actions.py:418
 msgid "Delete field"
-msgstr ""
+msgstr "Видалити поле"
 
 #: src/baserow/contrib/database/fields/actions.py:419
 #, python-format
 msgid "Field \"%(field_name)s\" (%(field_id)s) deleted"
-msgstr ""
+msgstr "Поле \"%(field_name)s\" (%(field_id)s) видалено"
 
 #: src/baserow/contrib/database/fields/actions.py:486
 msgid "Duplicate field"
-msgstr ""
+msgstr "Дублювати поле"
 
 #: src/baserow/contrib/database/fields/actions.py:488
 #, python-format
@@ -104,163 +115,165 @@ msgid ""
 "Field \"%(field_name)s\" (%(field_id)s) duplicated (with_data=%(with_data)s) "
 "from field \"%(original_field_name)s\" (%(original_field_id)s)"
 msgstr ""
+"Поле \"%(field_name)s\" (%(field_id)s) дубльовано (with_data=%(with_data)s) "
+"з поля \"%(original_field_name)s\" (%(original_field_id)s)"
 
 #: src/baserow/contrib/database/plugins.py:63
 #, python-format
 msgid "%(first_name)s's company"
-msgstr ""
+msgstr "Компанія %(first_name)s"
 
 #: src/baserow/contrib/database/plugins.py:70
 msgid "Customers"
-msgstr ""
+msgstr "Клієнти"
 
 #: src/baserow/contrib/database/plugins.py:72
 #: src/baserow/contrib/database/plugins.py:94
 #: src/baserow/contrib/database/table/handler.py:333
 #: src/baserow/contrib/database/table/handler.py:346
 msgid "Name"
-msgstr ""
+msgstr "Назва"
 
 #: src/baserow/contrib/database/plugins.py:73
 msgid "Last name"
-msgstr ""
+msgstr "Прізвище"
 
 #: src/baserow/contrib/database/plugins.py:74
 #: src/baserow/contrib/database/table/handler.py:334
 msgid "Notes"
-msgstr ""
+msgstr "Нотатки"
 
 #: src/baserow/contrib/database/plugins.py:75
 #: src/baserow/contrib/database/plugins.py:96
 #: src/baserow/contrib/database/table/handler.py:335
 msgid "Active"
-msgstr ""
+msgstr "Активний"
 
 #: src/baserow/contrib/database/plugins.py:92
 msgid "Projects"
-msgstr ""
+msgstr "Проєкти"
 
 #: src/baserow/contrib/database/plugins.py:95
 msgid "Started"
-msgstr ""
+msgstr "Розпочато"
 
 #: src/baserow/contrib/database/plugins.py:101
 msgid "Calculator"
-msgstr ""
+msgstr "Калькулятор"
 
 #: src/baserow/contrib/database/plugins.py:102
 msgid "Turing machine"
-msgstr ""
+msgstr "Машина Тюрінга"
 
 #: src/baserow/contrib/database/plugins.py:103
 msgid "Computer architecture"
-msgstr ""
+msgstr "Архітектура комп'ютера"
 
 #: src/baserow/contrib/database/plugins.py:104
 msgid "Cellular Automata"
-msgstr ""
+msgstr "Клітинні автомати"
 
 #: src/baserow/contrib/database/rows/actions.py:33
 msgid "Create row"
-msgstr ""
+msgstr "Створити рядок"
 
 #: src/baserow/contrib/database/rows/actions.py:33
 #, python-format
 msgid "Row (%(row_id)s) created"
-msgstr ""
+msgstr "Рядок (%(row_id)s) створено"
 
 #: src/baserow/contrib/database/rows/actions.py:111
 msgid "Create rows"
-msgstr ""
+msgstr "Створити рядки"
 
 #: src/baserow/contrib/database/rows/actions.py:111
 #, python-format
 msgid "Rows (%(row_ids)s) created"
-msgstr ""
+msgstr "Рядки (%(row_ids)s) створено"
 
 #: src/baserow/contrib/database/rows/actions.py:190
 msgid "Import rows"
-msgstr ""
+msgstr "Імпорт рядків"
 
 #: src/baserow/contrib/database/rows/actions.py:190
 #, python-format
 msgid "Rows (%(row_ids)s) imported"
-msgstr ""
+msgstr "Рядки (%(row_ids)s) імпортовано"
 
 #: src/baserow/contrib/database/rows/actions.py:272
 msgid "Delete row"
-msgstr ""
+msgstr "Видалити рядок"
 
 #: src/baserow/contrib/database/rows/actions.py:272
 #, python-format
 msgid "Row (%(row_id)s) deleted"
-msgstr ""
+msgstr "Рядок (%(row_id)s) видалено"
 
 #: src/baserow/contrib/database/rows/actions.py:333
 msgid "Delete rows"
-msgstr ""
+msgstr "Видалити рядки"
 
 #: src/baserow/contrib/database/rows/actions.py:333
 #, python-format
 msgid "Rows (%(row_ids)s) deleted"
-msgstr ""
+msgstr "Рядки (%(row_ids)s) видалено"
 
 #: src/baserow/contrib/database/rows/actions.py:473
 msgid "Move row"
-msgstr ""
+msgstr "Перемістити рядок"
 
 #: src/baserow/contrib/database/rows/actions.py:473
 #, python-format
 msgid "Row (%(row_id)s) moved"
-msgstr ""
+msgstr "Рядок (%(row_id)s) переміщено"
 
 #: src/baserow/contrib/database/rows/actions.py:581
 msgid "Update row"
-msgstr ""
+msgstr "Оновити рядок"
 
 #: src/baserow/contrib/database/rows/actions.py:581
 #, python-format
 msgid "Row (%(row_id)s) updated"
-msgstr ""
+msgstr "Рядок (%(row_id)s) оновлено"
 
 #: src/baserow/contrib/database/rows/actions.py:681
 msgid "Update rows"
-msgstr ""
+msgstr "Оновити рядки"
 
 #: src/baserow/contrib/database/rows/actions.py:681
 #, python-format
 msgid "Rows (%(row_ids)s) updated"
-msgstr ""
+msgstr "Рядки (%(row_ids)s) оновлено"
 
 #: src/baserow/contrib/database/table/actions.py:26
 msgid "Create table"
-msgstr ""
+msgstr "Створити таблицю"
 
 #: src/baserow/contrib/database/table/actions.py:27
 #, python-format
 msgid "Table \"%(table_name)s\" (%(table_id)s) created"
-msgstr ""
+msgstr "Таблицю \"%(table_name)s\" (%(table_id)s) створено"
 
 #: src/baserow/contrib/database/table/actions.py:100
 msgid "Delete table"
-msgstr ""
+msgstr "Видалити таблицю"
 
 #: src/baserow/contrib/database/table/actions.py:101
 #, python-format
 msgid "Table \"%(table_name)s\" (%(table_id)s) deleted"
-msgstr ""
+msgstr "Таблицю \"%(table_name)s\" (%(table_id)s) видалено"
 
 #: src/baserow/contrib/database/table/actions.py:150
 msgid "Order tables"
-msgstr ""
+msgstr "Впорядкувати таблиці"
 
 #: src/baserow/contrib/database/table/actions.py:151
 msgid "Tables order changed"
-msgstr ""
+msgstr "Порядок таблиць змінено"
 
 #: src/baserow/contrib/database/table/actions.py:210
 msgid "Update table"
-msgstr ""
+msgstr "Оновити таблицю"
 
 #: src/baserow/contrib/database/table/actions.py:212
 #, python-format
@@ -268,10 +281,12 @@ msgid ""
 "Table (%(table_id)s) name changed from \"%(original_table_name)s\" to "
 "\"%(table_name)s\""
 msgstr ""
+"Назву таблиці (%(table_id)s) змінено з \"%(original_table_name)s\" на \"%"
+"(table_name)s\""
 
 #: src/baserow/contrib/database/table/actions.py:276
 msgid "Duplicate table"
-msgstr ""
+msgstr "Дублювати таблицю"
 
 #: src/baserow/contrib/database/table/actions.py:278
 #, python-format
@@ -279,29 +294,31 @@ msgid ""
 "Table \"%(table_name)s\" (%(table_id)s) duplicated from "
 "\"%(original_table_name)s\" (%(original_table_id)s) "
 msgstr ""
+"Таблицю \"%(table_name)s\" (%(table_id)s) дубльовано з \"%"
+"(original_table_name)s\" (%(original_table_id)s) "
 
 #: src/baserow/contrib/database/table/handler.py:237
 msgid "Grid"
-msgstr ""
+msgstr "Сітка"
 
 #: src/baserow/contrib/database/table/handler.py:295
 #, python-format
 msgid "Field %d"
-msgstr ""
+msgstr "Поле %d"
 
 #: src/baserow/contrib/database/tokens/actions.py:18
 msgid "Create DB token"
-msgstr ""
+msgstr "Створити токен БД"
 
 #: src/baserow/contrib/database/tokens/actions.py:20
 #, python-format
 msgid ""
 "A Database Token with name \"%(token_name)s\" (%(token_id)s) has been created"
-msgstr ""
+msgstr "Токен бази даних з назвою \"%(token_name)s\" (%(token_id)s) створено"
 
 #: src/baserow/contrib/database/tokens/actions.py:51
 msgid "Update DB token name"
-msgstr ""
+msgstr "Оновити назву токена БД"
 
 #: src/baserow/contrib/database/tokens/actions.py:53
 #, python-format
@@ -309,135 +326,141 @@ msgid ""
 "The Database Token (%(token_name)s) name changed from "
 "\"%(original_token_name)s\" to \"%(token_name)s\""
 msgstr ""
+"Назву токена бази даних (%(token_name)s) змінено з \"%(original_token_name)"
+"s\" на \"%(token_name)s\""
 
 #: src/baserow/contrib/database/tokens/actions.py:89
 msgid "Update DB token permissions"
-msgstr ""
+msgstr "Оновити дозволи токена БД"
 
 #: src/baserow/contrib/database/tokens/actions.py:91
 #, python-format
 msgid ""
 "The Database Token \"%(token_name)s\" (%(token_id)s) permissions has been "
 "updated"
-msgstr ""
+msgstr "Дозволи токена бази даних \"%(token_name)s\" (%(token_id)s) оновлено"
 
 #: src/baserow/contrib/database/tokens/actions.py:144
 msgid "Rotate DB token key"
-msgstr ""
+msgstr "Ротація ключа токена БД"
 
 #: src/baserow/contrib/database/tokens/actions.py:145
 #, python-format
 msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been rotated"
-msgstr ""
+msgstr "Токен бази даних \"%(token_name)s\" (%(token_id)s) ротовано"
 
 #: src/baserow/contrib/database/tokens/actions.py:178
 msgid "Delete DB token"
-msgstr ""
+msgstr "Видалити токен БД"
 
 #: src/baserow/contrib/database/tokens/actions.py:179
 #, python-format
 msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been deleted"
-msgstr ""
+msgstr "Токен бази даних \"%(token_name)s\" (%(token_id)s) видалено"
 
 #: src/baserow/contrib/database/views/actions.py:39
 msgid "Create a view filter"
-msgstr ""
+msgstr "Створити фільтр представлення"
 
 #: src/baserow/contrib/database/views/actions.py:40
 #, python-format
 msgid "View filter created on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
+"Фільтр представлення створено для поля \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:133
 msgid "Update a view filter"
-msgstr ""
+msgstr "Оновити фільтр представлення"
 
 #: src/baserow/contrib/database/views/actions.py:134
 #, python-format
 msgid "View filter updated on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
+"Фільтр представлення оновлено для поля \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:255
 msgid "Delete a view filter"
-msgstr ""
+msgstr "Видалити фільтр представлення"
 
 #: src/baserow/contrib/database/views/actions.py:256
 #, python-format
 msgid "View filter deleted from field \"%(field_name)s\" (%(field_id)s)"
-msgstr ""
+msgstr "Фільтр представлення видалено з поля \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:352
 msgid "Create a view sort"
-msgstr ""
+msgstr "Створити сортування представлення"
 
 #: src/baserow/contrib/database/views/actions.py:353
 #, python-format
 msgid "View sorted on field \"%(field_name)s\" (%(field_id)s)"
-msgstr ""
+msgstr "Представлення відсортовано за полем \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:429
 msgid "Update a view sort"
-msgstr ""
+msgstr "Оновити сортування представлення"
 
 #: src/baserow/contrib/database/views/actions.py:430
 #, python-format
 msgid "View sort updated on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
+"Сортування представлення оновлено для поля \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:528
 msgid "Delete a view sort"
-msgstr ""
+msgstr "Видалити сортування представлення"
 
 #: src/baserow/contrib/database/views/actions.py:529
 #, python-format
 msgid "View sort deleted from field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
+"Сортування представлення видалено з поля \"%(field_name)s\" (%(field_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:606
 msgid "Order views"
-msgstr ""
+msgstr "Впорядкувати представлення"
 
 #: src/baserow/contrib/database/views/actions.py:606
 msgid "Views order changed"
-msgstr ""
+msgstr "Порядок представлень змінено"
 
 #: src/baserow/contrib/database/views/actions.py:669
 msgid "Update view field options"
-msgstr ""
+msgstr "Оновити параметри полів представлення"
 
 #: src/baserow/contrib/database/views/actions.py:670
 msgid "ViewFieldOptions updated"
-msgstr ""
+msgstr "Параметри полів представлення оновлено"
 
 #: src/baserow/contrib/database/views/actions.py:765
 msgid "View slug URL updated"
-msgstr ""
+msgstr "Slug URL представлення оновлено"
 
 #: src/baserow/contrib/database/views/actions.py:766
 msgid "View changed public slug URL"
-msgstr ""
+msgstr "Публічний slug URL представлення змінено"
 
 #: src/baserow/contrib/database/views/actions.py:834
 msgid "Update view"
-msgstr ""
+msgstr "Оновити представлення"
 
 #: src/baserow/contrib/database/views/actions.py:835
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) updated"
-msgstr ""
+msgstr "Представлення \"%(view_name)s\" (%(view_id)s) оновлено"
 
 #: src/baserow/contrib/database/views/actions.py:919
 msgid "Create view"
-msgstr ""
+msgstr "Створити представлення"
 
 #: src/baserow/contrib/database/views/actions.py:920
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) created"
-msgstr ""
+msgstr "Представлення \"%(view_name)s\" (%(view_id)s) створено"
 
 #: src/baserow/contrib/database/views/actions.py:988
 msgid "Duplicate view"
-msgstr ""
+msgstr "Дублювати представлення"
 
 #: src/baserow/contrib/database/views/actions.py:990
 #, python-format
@@ -445,46 +468,48 @@ msgid ""
 "View \"%(view_name)s\" (%(view_id)s) duplicated from view "
 "\"%(original_view_name)s\" (%(original_view_id)s)"
 msgstr ""
+"Представлення \"%(view_name)s\" (%(view_id)s) дубльовано з представлення \"%"
+"(original_view_name)s\" (%(original_view_id)s)"
 
 #: src/baserow/contrib/database/views/actions.py:1058
 msgid "Delete view"
-msgstr ""
+msgstr "Видалити представлення"
 
 #: src/baserow/contrib/database/views/actions.py:1059
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) deleted"
-msgstr ""
+msgstr "Представлення \"%(view_name)s\" (%(view_id)s) видалено"
 
 #: src/baserow/contrib/database/views/actions.py:1116
 msgid "Create decoration"
-msgstr ""
+msgstr "Створити декорацію"
 
 #: src/baserow/contrib/database/views/actions.py:1117
 #, python-format
 msgid "View decoration %(decorator_id)s created"
-msgstr ""
+msgstr "Декорацію представлення %(decorator_id)s створено"
 
 #: src/baserow/contrib/database/views/actions.py:1212
 msgid "Update decoration"
-msgstr ""
+msgstr "Оновити декорацію"
 
 #: src/baserow/contrib/database/views/actions.py:1213
 #, python-format
 msgid "View decoration %(decorator_id)s updated"
-msgstr ""
+msgstr "Декорацію представлення %(decorator_id)s оновлено"
 
 #: src/baserow/contrib/database/views/actions.py:1337
 msgid "Delete decoration"
-msgstr ""
+msgstr "Видалити декорацію"
 
 #: src/baserow/contrib/database/views/actions.py:1338
 #, python-format
 msgid "View decoration %(decorator_id)s deleted"
-msgstr ""
+msgstr "Декорацію представлення %(decorator_id)s видалено"
 
 #: src/baserow/contrib/database/webhooks/actions.py:20
 msgid "Create Webhook"
-msgstr ""
+msgstr "Створити Webhook"
 
 #: src/baserow/contrib/database/webhooks/actions.py:22
 #, python-format
@@ -492,10 +517,12 @@ msgid ""
 "Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
 "to %(webhook_url)s\" created"
 msgstr ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) як %(webhook_request_method)s "
+"до %(webhook_url)s\" створено"
 
 #: src/baserow/contrib/database/webhooks/actions.py:81
 msgid "Delete Webhook"
-msgstr ""
+msgstr "Видалити Webhook"
 
 #: src/baserow/contrib/database/webhooks/actions.py:83
 #, python-format
@@ -503,10 +530,12 @@ msgid ""
 "Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
 "to %(webhook_url)s\" deleted"
 msgstr ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) як %(webhook_request_method)s "
+"до %(webhook_url)s\" видалено"
 
 #: src/baserow/contrib/database/webhooks/actions.py:138
 msgid "Update Webhook"
-msgstr ""
+msgstr "Оновити Webhook"
 
 #: src/baserow/contrib/database/webhooks/actions.py:140
 #, python-format
@@ -514,3 +543,5 @@ msgid ""
 "Webhook \"%(webhook_name)s\" (%(webhook_id)s) as %(webhook_request_method)s "
 "to %(webhook_url)s\" updated"
 msgstr ""
+"Webhook \"%(webhook_name)s\" (%(webhook_id)s) як %(webhook_request_method)s "
+"до %(webhook_url)s\" оновлено"

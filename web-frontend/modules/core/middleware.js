@@ -7,7 +7,6 @@ import pendingJobs from '@baserow/modules/core/middleware/pendingJobs'
 import urlCheck from '@baserow/modules/core/middleware/urlCheck'
 import impersonate from '@baserow/modules/core/middleware/impersonate'
 
-/* eslint-disable-next-line */
 import Middleware from './middleware'
 
 Middleware.settings = settings

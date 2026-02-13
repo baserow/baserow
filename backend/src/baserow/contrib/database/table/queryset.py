@@ -1,4 +1,5 @@
 from django.db.models.sql.compiler import SQLUpdateCompiler
+from django.db.models.sql.constants import CURSOR, ROW_COUNT
 
 from django_cte.cte import CTEQuery, CTEQuerySet
 from django_cte.query import COMPILER_TYPES, CTECompiler, CTEUpdateQuery
@@ -21,10 +22,17 @@ class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
         return CTECompiler.generate_sql(self.connection, self.query, _as_sql)
 
     def execute_sql(self, result_type):
-        cursor = super(SQLUpdateCompiler, self).execute_sql(result_type)
-        if cursor is None:
-            return []
-        return [res[0] for res in cursor.fetchall()]
+        cursor = super().execute_sql(CURSOR)
+
+        if cursor is not None and result_type == ROW_COUNT:
+            results = [res[0] for res in cursor.fetchall()]
+            cursor.close()
+            return results
+
+        # If you see this error it means we need to handle
+        # different cases as per SQLUpdateCompiler.execute_sql
+        # which are not needed at the moment.
+        raise NotImplementedError()
 
 
 class CTEUpdateRerurningQuery(CTEUpdateQuery, CTEQuery):

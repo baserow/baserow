@@ -13,13 +13,6 @@
 </template>
 
 <script setup>
-import {
-  inject,
-  computed,
-  useContext,
-  ref,
-  watch,
-} from '@nuxtjs/composition-api'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import { DataSourceDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
@@ -30,7 +23,12 @@ const props = defineProps({
   value: {
     type: Object,
     required: false,
-    default: () => ({}),
+    default: undefined,
+  },
+  modelValue: {
+    type: Object,
+    required: false,
+    default: undefined,
   },
   dataProvidersAllowed: {
     type: Array,
@@ -50,14 +48,18 @@ const applicationContext = useApplicationContext(
 
 const elementPage = inject('elementPage')
 
-const emit = defineEmits(['input'])
+const emit = defineEmits(['input', 'update:modelValue'])
+
+const currentValue = computed(() => {
+  return props.modelValue !== undefined ? props.modelValue : props.value || {}
+})
 
 // Local mode state
-const localMode = ref(props.value.mode || 'simple')
+const localMode = ref(currentValue.value.mode || 'simple')
 
 // Watch for external changes to the mode
 watch(
-  () => props.value.mode,
+  () => currentValue.value.mode,
   (newMode) => {
     if (newMode !== undefined && newMode !== localMode.value) {
       localMode.value = newMode
@@ -65,7 +67,8 @@ watch(
   }
 )
 
-const { app, store } = useContext()
+const app = useNuxtApp()
+const { $store } = app
 
 const isInSidePanel = computed(() => {
   return applicationContext.value?.element !== undefined
@@ -87,7 +90,7 @@ const nodesHierarchy = computed(() => {
 
   if (filteredDataNodes.length > 0) {
     hierarchy.push({
-      name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
+      name: app.$i18n.t('runtimeFormulaTypes.formulaTypeData'),
       type: 'data',
       icon: 'iconoir-database',
       nodes: filteredDataNodes,
@@ -107,15 +110,15 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The formula string.
  */
 const formulaStr = computed(() => {
-  return props.value.formula
+  return currentValue.value.formula
 })
 
 const dataSourceLoading = computed(() => {
-  return store.getters['dataSource/getLoading'](elementPage)
+  return $store.getters['dataSource/getLoading'](elementPage)
 })
 
 const dataSourceContentLoading = computed(() => {
-  return store.getters['dataSourceContent/getLoading'](elementPage)
+  return $store.getters['dataSourceContent/getLoading'](elementPage)
 })
 
 /**
@@ -144,7 +147,12 @@ const dataExplorerLoading = computed(() => {
  */
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
-    ...props.value,
+    ...currentValue.value,
+    formula: newFormulaStr,
+    mode: localMode.value,
+  })
+  emit('update:modelValue', {
+    ...currentValue.value,
     formula: newFormulaStr,
     mode: localMode.value,
   })

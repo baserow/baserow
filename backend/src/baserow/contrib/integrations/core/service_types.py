@@ -15,13 +15,13 @@ from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from advocate.connection import UnacceptableAddressException
 from dateutil.relativedelta import relativedelta
 from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from advocate.connection import UnacceptableAddressException
 from baserow.config.celery import app as celery_app
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
@@ -583,7 +583,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         except (UnacceptableAddressException, ConnectionError) as e:
             raise UnexpectedDispatchException(
-                f'Invalid URL: {resolved_values["url"]}'
+                f"Invalid URL: {resolved_values['url']}"
             ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e

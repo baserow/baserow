@@ -85,6 +85,7 @@ export default {
       default: true,
     },
   },
+  emits: ['selected'],
   computed: {
     viewType() {
       return this.$registry.get('view', this.view.type)

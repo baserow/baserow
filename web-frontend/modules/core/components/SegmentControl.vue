@@ -13,7 +13,7 @@
       v-for="(segment, index) in segments"
       :key="index"
       :class="{
-        'segment-control__button--active': index === activeIndex,
+        'segment-control__button--active': index === currentActiveIndex,
       }"
       :title="segment.label"
       class="segment-control__button"
@@ -36,11 +36,18 @@ export default {
      */
     segments: {
       type: Array,
-      required: true,
       default: () => [],
     },
     /**
-     * The index of the active segment.
+     * The index of the active segment (v-model:activeIndex).
+     */
+    activeIndex: {
+      type: Number,
+      required: false,
+      default: null,
+    },
+    /**
+     * The initial index of the active segment (used when activeIndex prop is not provided).
      */
     initialActiveIndex: {
       type: Number,
@@ -83,18 +90,35 @@ export default {
       },
     },
   },
+  emits: ['update:activeIndex'],
   data() {
     return {
-      activeIndex: this.initialActiveIndex,
+      internalActiveIndex:
+        this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex,
     }
+  },
+  computed: {
+    currentActiveIndex() {
+      return this.activeIndex !== null
+        ? this.activeIndex
+        : this.internalActiveIndex
+    },
+  },
+  watch: {
+    activeIndex(newVal) {
+      if (newVal !== null) {
+        this.internalActiveIndex = newVal
+      }
+    },
   },
   methods: {
     setActiveIndex(index) {
-      this.activeIndex = index
+      this.internalActiveIndex = index
       this.$emit('update:activeIndex', index)
     },
     reset() {
-      this.activeIndex = this.initialActiveIndex
+      this.internalActiveIndex =
+        this.activeIndex !== null ? this.activeIndex : this.initialActiveIndex
     },
   },
 }

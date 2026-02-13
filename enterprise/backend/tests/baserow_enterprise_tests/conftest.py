@@ -30,9 +30,9 @@ def set_openai_api_key_env_var():
     """
 
     if not os.getenv("OPENAI_API_KEY"):
-        os.environ[
-            "OPENAI_API_KEY"
-        ] = "Please, assistant don't crash. You don't need me."
+        os.environ["OPENAI_API_KEY"] = (
+            "Please, assistant don't crash. You don't need me."
+        )
 
 
 @pytest.fixture  # noqa: F405

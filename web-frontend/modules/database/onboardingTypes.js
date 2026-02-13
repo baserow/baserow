@@ -1,7 +1,4 @@
-import {
-  OnboardingType,
-  WorkspaceOnboardingType,
-} from '@baserow/modules/core/onboardingTypes'
+import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 
 import DatabaseStep from '@baserow/modules/database/components/onboarding/DatabaseStep'
 import DatabaseScratchTrackStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackStep'
@@ -12,10 +9,7 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import TableService from '@baserow/modules/database/services/table'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
-import AirtableService from '@baserow/modules/database/services/airtable'
-import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep.vue'
-import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
-import TemplateService from '@baserow/modules/core/services/template'
+import DatabaseScratchTrackFieldsStep from '@baserow/modules/database/components/onboarding/DatabaseScratchTrackFieldsStep'
 
 const databaseTypeCondition = (data, type) => {
   const dependingType = DatabaseOnboardingType.getType()
@@ -27,7 +21,7 @@ const databaseTypeCondition = (data, type) => {
 }
 
 const createDatabase = async (data, responses, $client) => {
-  const workspace = responses[WorkspaceOnboardingType.getType()]
+  const workspace = responses[DatabaseOnboardingType.getType()].workspace
   const databaseName = data[DatabaseOnboardingType.getType()].name
 
   const { data: database } = await ApplicationService($client).create(
@@ -47,7 +41,7 @@ export class DatabaseOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2000
+    return 5000
   }
 
   getFormComponent() {
@@ -56,82 +50,63 @@ export class DatabaseOnboardingType extends OnboardingType {
 
   getPreviewComponent(data) {
     const type = data[this.getType()]?.type
-    const template = data[this.getType()]?.template
-    if (type === 'template' && template) {
-      return DatabaseTemplatePreview
-    } else {
-      return DatabaseAppLayoutPreview
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      const component = stepType.getPreviewComponent(data)
+      if (component) {
+        return component
+      }
     }
+    return DatabaseAppLayoutPreview
   }
 
   getAdditionalPreviewProps() {
-    return { highlightDataName: 'applications' }
+    return { highlightDataName: 'applications-database' }
   }
 
-  async complete(data, responses) {
-    const workspace = responses[WorkspaceOnboardingType.getType()]
+  async complete(data, responses, callback) {
+    const { $i18n: i18n } = this.app
+    const name = this.app.$store.getters['auth/getName']
+    const workspace = await this.app.$store.dispatch('workspace/create', {
+      name: i18n.t('databaseStep.workspaceName', { name }),
+    })
+    const returnValue = { workspace }
     const stepData = data[this.getType()]
     const fromType = stepData.type
-    if (fromType === 'airtable') {
-      const airtableUrl = stepData.airtableUrl
-      const skipFiles = stepData.skipFiles
-      const useSession = stepData.useSession
-      const session = stepData.session
-      const sessionSignature = stepData.sessionSignature
-      const { data: job } = await AirtableService(this.app.$client).create(
-        workspace.id,
-        airtableUrl,
-        skipFiles,
-        useSession ? session : null,
-        useSession ? sessionSignature : null
+
+    // Delegate to the step type for type-specific completion logic
+    if (fromType) {
+      const stepType = this.app.$registry.get(
+        'databaseOnboardingStep',
+        fromType
       )
-
-      // Responds with the newly created job, so that the `getJobForPolling` can use
-      // the response to mark the onboarding as an async job.
-      return job
-    } else if (fromType === 'template') {
-      const template = stepData.template
-      const { data: job } = await TemplateService(
-        this.app.$client
-      ).asyncInstall(workspace.id, template.id)
-
-      // Responds with the newly created job, so that the `getJobForPolling` can use
-      // the response to mark the onboarding as an async job.
-      return job
+      const stepResult = await stepType.completeAfterWorkspace(
+        workspace,
+        stepData,
+        callback
+      )
+      Object.assign(returnValue, stepResult)
     }
+
+    return returnValue
   }
 
   getJobForPolling(data, responses) {
-    const type = data[this.getType()].type
-    if (type === 'airtable' || type === 'template') {
-      return responses[this.getType()]
+    const type = data[DatabaseOnboardingType.getType()]?.type
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getJobForPolling(data, responses)
     }
+    return null
   }
 
   getCompletedRoute(data, responses) {
-    const type = data[this.getType()].type
-    let database = null
-    if (type === 'airtable') {
-      database = responses[this.getType()].database
-    } else if (type === 'template') {
-      database = responses[this.getType()].installed_applications.find(
-        (application) => application.type === DatabaseApplicationType.getType()
-      )
+    const type = data[DatabaseOnboardingType.getType()]?.type
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getCompletedRoute(data, responses)
     }
-
-    // Deliberately open the database first because that's where the user must start
-    // their journey. If no database exist, return nothing, so that the dashboard
-    // is opened.
-    if (database) {
-      const firstTableId = database.tables[0]?.id || 0
-      return {
-        name: 'database-table',
-        params: {
-          databaseId: database.id,
-          tableId: firstTableId,
-        },
-      }
-    }
+    return null
   }
 }
 
@@ -141,7 +116,7 @@ export class DatabaseScratchTrackOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2100
+    return 5100
   }
 
   getFormComponent() {
@@ -191,7 +166,7 @@ export class DatabaseScratchTrackFieldsOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2200
+    return 5200
   }
 
   getFormComponent() {
@@ -265,7 +240,7 @@ export class DatabaseImportOnboardingType extends OnboardingType {
   }
 
   getOrder() {
-    return 2200
+    return 5200
   }
 
   getFormComponent() {

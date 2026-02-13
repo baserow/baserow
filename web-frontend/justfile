@@ -1,0 +1,144 @@
+# Baserow Web-Frontend Justfile
+# NOTE: All recipes here must work the same inside Docker and on local dev setups
+#       without requiring any changes. Please make sure to not add docker-specific
+#       commands or assumptions here.
+# Uses yarn for Node.js package management
+
+# Import personal recipes if they exist (not tracked in git)
+import? 'local.just'
+
+# Note: just doesn't support dynamic dotenv-filename, so we handle env loading in recipes
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi'
+
+# Default recipe - show help
+default:
+    @just --list
+
+# Show documentation links for each command group
+[group('0 - help')]
+help:
+    @echo "Baserow Web-Frontend - Documentation Links"
+    @echo "==========================================="
+    @echo ""
+    @echo "Setup & Development:"
+    @echo "  docs/development/running-the-dev-env-locally.md     - Local development setup"
+    @echo "  docs/development/running-the-dev-env-with-docker.md - Docker development setup"
+    @echo "  docs/development/directory-structure.md             - Project structure"
+    @echo ""
+    @echo "Testing:"
+    @echo "  docs/development/running-tests.md                   - Running frontend tests"
+    @echo "  docs/development/e2e-testing.md                     - End-to-end testing"
+    @echo ""
+    @echo "Code Quality:"
+    @echo "  docs/development/code-quality.md                    - Linting and formatting"
+    @echo ""
+    @echo "Build & Production:"
+    @echo "  docs/development/building-and-running-production-images.md - Production images"
+    @echo ""
+    @echo "IDE Setup:"
+    @echo "  docs/development/vscode-setup.md                    - VS Code configuration"
+    @echo ""
+    @echo "Other:"
+    @echo "  docs/development/justfile.md                        - Just command reference"
+    @echo ""
+    @echo "Quick shortcuts: l=lint, t=test, dev=run-dev-server"
+
+# Allow `just frontend <cmd>` or `just f <cmd>` to work (for consistency with root justfile)
+frontend *ARGS:
+    @just {{ ARGS }}
+
+alias f := frontend
+
+# Common shortcuts
+alias l := lint
+alias t := test
+alias dev := run-dev-server
+alias serve := run-dev-server
+
+# Pass-through to yarn
+[group('7 - passthrough')]
+yarn *ARGS:
+    yarn {{ ARGS }}
+
+# Pass-through to npm
+[group('7 - passthrough')]
+npm *ARGS:
+    npm {{ ARGS }}
+
+# =============================================================================
+# Setup & Installation
+# =============================================================================
+
+# Install dependencies
+[group('1 - setup')]
+install:
+    yarn install
+
+# =============================================================================
+# Code Quality & Linting
+# =============================================================================
+
+# Run all linters (eslint + stylelint + prettier)
+[group('4 - code-quality')]
+lint:
+    yarn run lint
+
+# Fix code style issues
+[group('4 - code-quality')]
+fix:
+    yarn run fix
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+# Run tests
+[group('3 - testing')]
+test *ARGS:
+    yarn test {{ ARGS }}
+
+# Run tests with coverage (for CI)
+[group('3 - testing')]
+ci-test:
+    yarn test:coverage
+
+# Update Jest snapshots
+[group('3 - testing')]
+update-snapshots:
+    yarn test --update
+
+# =============================================================================
+# Development
+# =============================================================================
+
+# Run development server
+[group('2 - development')]
+run-dev-server:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    yarn run dev
+
+# Run Storybook
+[group('2 - development')]
+storybook:
+    yarn run storybook
+
+# Build Nuxt for production
+[group('5 - build')]
+build-nuxt:
+    yarn run build
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+# Clean Nuxt build artifacts
+[group('6 - cleanup')]
+clean-nuxt:
+    rm -rf .nuxt/ dist/
+
+# Clean all (Nuxt build artifacts + node_modules)
+[group('6 - cleanup')]
+clean-all: clean-nuxt
+    rm -rf node_modules/

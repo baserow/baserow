@@ -44,7 +44,7 @@ export class ImageFilePreview extends FilePreviewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('previewType.imageBrowser')
   }
 
@@ -63,7 +63,7 @@ export class VideoFilePreview extends FilePreviewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('previewType.videoBrowser')
   }
 
@@ -82,7 +82,7 @@ export class AudioFilePreview extends FilePreviewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('previewType.audioBrowser')
   }
 
@@ -101,7 +101,7 @@ export class PDFBrowserFilePreview extends FilePreviewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('previewType.pdfBrowser')
   }
 
@@ -120,12 +120,12 @@ export class GoogleDocFilePreview extends FilePreviewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('previewType.googleDocs')
   }
 
   isCompatible(mimeType, fileName) {
-    if (this.app.$config.BASEROW_DISABLE_GOOGLE_DOCS_FILE_PREVIEW) {
+    if (this.app.$config.public.baserowDisableGoogleDocsFilePreview) {
       return false
     }
 

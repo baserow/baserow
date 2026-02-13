@@ -1,18 +1,25 @@
+from unittest.mock import patch
+
 from django.shortcuts import reverse
+from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.fields.field_types import AIFieldType
-from baserow_premium.fields.models import AIField
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.deferred_foreign_key_updater import (
+    DeferredForeignKeyUpdater,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
+from baserow.core.registries import ImportExportConfig
+from baserow_premium.fields.field_types import AIFieldType
+from baserow_premium.fields.models import AIField
 
 
 @pytest.mark.django_db
@@ -710,11 +717,16 @@ def test_update_ai_field_type_via_api_file_field_doesnt_exist(
     assert response_json["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
-def test_duplicate_table_with_ai_field(premium_data_fixture):
+@override_settings(DEBUG=True)
+@patch("baserow.core.jobs.handler.JobHandler.create_and_start_job")
+def test_duplicate_table_with_ai_field(patched_job_creation, premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
     session_id = "session-id"
-    user = premium_data_fixture.create_user(session_id=session_id)
+    user = premium_data_fixture.create_user(
+        session_id=session_id, has_active_premium_license=True
+    )
     database = premium_data_fixture.create_database_application(
         user=user, name="Placeholder"
     )
@@ -735,6 +747,8 @@ def test_duplicate_table_with_ai_field(premium_data_fixture):
         ai_generative_ai_model="test_1",
         ai_file_field=file_field,
         ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'))",
+        ai_auto_update=True,
+        ai_auto_update_user=user,
     )
 
     table_handler = TableHandler()
@@ -754,6 +768,20 @@ def test_duplicate_table_with_ai_field(premium_data_fixture):
         duplicated_ai_field.ai_prompt["formula"]
         == f"concat('test:',get('fields.field_{duplicated_text_field.id}'))"
     )
+    assert duplicated_ai_field.ai_auto_update is True
+    assert duplicated_ai_field.ai_auto_update_user_id == user.id
+
+    # Verify auto-update triggers on the duplicated table's AI field.
+    patched_job_creation.reset_mock()
+    RowHandler().create_rows(
+        user,
+        duplicated_table,
+        rows_values=[{duplicated_text_field.db_column: "test"}],
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+    assert patched_job_creation.call_count == 1
+    assert patched_job_creation.call_args.kwargs["field_id"] == duplicated_ai_field.id
 
 
 @pytest.mark.django_db
@@ -780,7 +808,7 @@ def test_duplicate_table_with_ai_field_broken_references(premium_data_fixture):
         ai_generative_ai_type="test_generative_ai",
         ai_generative_ai_model="test_1",
         ai_file_field=file_field,
-        ai_prompt=f"concat('test:',get('fields.field_0'))",
+        ai_prompt="concat('test:',get('fields.field_0'))",
     )
 
     table_handler = TableHandler()
@@ -792,7 +820,7 @@ def test_duplicate_table_with_ai_field_broken_references(premium_data_fixture):
 
     assert (
         duplicated_ai_field.ai_prompt["formula"]
-        == f"concat('test:',get('fields.field_0'))"
+        == "concat('test:',get('fields.field_0'))"
     )
 
 
@@ -1352,3 +1380,142 @@ def test_create_ai_field_auto_doesnt_update_user_if_set(premium_data_fixture):
 
     assert ai_field.ai_auto_update is True
     assert ai_field.ai_auto_update_user_id == user.id  # not changed
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_with_auto_update_user(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    text_field = premium_data_fixture.create_text_field(
+        table=table, order=0, name="text"
+    )
+
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'))",
+        ai_auto_update=True,
+        ai_auto_update_user=user,
+    )
+
+    field_type = field_type_registry.get_by_model(ai_field)
+    serialized = field_type.export_serialized(ai_field)
+
+    serialized["ai_auto_update_user_id"] = 99999
+
+    imported_field = field_type.import_serialized(
+        table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping={},
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.ai_auto_update is False
+    assert imported_field.ai_auto_update_user_id is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+@patch("baserow.core.jobs.handler.JobHandler.create_and_start_job")
+def test_duplicate_field_with_ai_auto_update_triggers_both(
+    patched_job_creation, premium_data_fixture
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    text_field = premium_data_fixture.create_text_field(table=table, name="text")
+    ai_field = FieldHandler().create_field(
+        table=table,
+        user=user,
+        name="ai",
+        type_name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt=f"get('fields.field_{text_field.id}')",
+        ai_auto_update=True,
+    )
+
+    assert ai_field.ai_auto_update is True
+    assert ai_field.ai_auto_update_user_id == user.id
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[{text_field.db_column: "test"}],
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+    assert patched_job_creation.call_count == 1
+    assert patched_job_creation.call_args.kwargs["field_id"] == ai_field.id
+
+    duplicated_field, _ = FieldHandler().duplicate_field(user, ai_field)
+    duplicated_field = duplicated_field.specific
+
+    assert duplicated_field.ai_auto_update is True
+    assert duplicated_field.ai_auto_update_user_id == user.id
+
+    patched_job_creation.reset_mock()
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[{text_field.db_column: "test2"}],
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+    assert patched_job_creation.call_count == 2
+    triggered_field_ids = {
+        call.kwargs["field_id"] for call in patched_job_creation.call_args_list
+    }
+    assert triggered_field_ids == {ai_field.id, duplicated_field.id}
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_ai_field_disables_auto_update(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    text_field = premium_data_fixture.create_text_field(table=table, name="text")
+    ai_field = FieldHandler().create_field(
+        table=table,
+        user=user,
+        name="ai",
+        type_name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt=f"get('fields.field_{text_field.id}')",
+        ai_auto_update=True,
+    )
+
+    assert ai_field.ai_auto_update_user_id == user.id
+
+    field_type = field_type_registry.get_by_model(ai_field)
+    serialized = field_type.export_serialized(ai_field)
+
+    serialized["ai_auto_update_user_id"] = 99999
+
+    imported_field = field_type.import_serialized(
+        table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping={},
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.ai_auto_update is False
+    assert imported_field.ai_auto_update_user_id is None

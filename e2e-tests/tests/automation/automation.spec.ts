@@ -6,8 +6,8 @@ test.describe("Automation application test suite", () => {
   });
 
   test("Can create automation application - default name", async ({ page }) => {
-    // Create an automation application
-    await page.locator(".sidebar__new").getByText("Add new").click();
+    await page.locator(".sidebar__new").click();
+
     await page.locator(".context__menu").getByText("Automation").click();
     await page.locator(".modal__box").getByText("Add automation").click();
 

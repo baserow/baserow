@@ -32,4 +32,4 @@ class Migration(migrations.Migration):
         ("database", "0169_alter_galleryview_card_cover_image_field"),
     ]
 
-    operations = [migrations.RunSQL(update_password_tsv_index)]
+    operations = [migrations.RunSQL(update_password_tsv_index, migrations.RunSQL.noop)]

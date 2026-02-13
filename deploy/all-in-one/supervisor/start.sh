@@ -37,11 +37,11 @@ if [[ "$DATABASE_HOST" == "localhost" && -z "${DATABASE_URL:-}" ]]; then
   # Update the postgres config to point at the DATA_DIR which must be done here as
   # DATA_DIR can change at runtime.
   sed -i "s;/var/lib/postgresql/$POSTGRES_VERSION/main;$DATA_DIR/postgres;g" "$POSTGRES_LOCATION"/postgresql.conf
-  chown postgres:postgres "$POSTGRES_LOCATION"/postgresql.conf
+    chown postgres:postgres "$POSTGRES_LOCATION"/postgresql.conf
 
   # Setup an empty baserow database with the provided user and password.
   POSTGRES_SETUP_SCRIPT_COMMAND=${POSTGRES_SETUP_SCRIPT_COMMAND:-setup}
-  ./baserow/supervisor/wrapper.sh GREEN POSTGRES_INIT ./baserow/supervisor/docker-postgres-setup.sh ${POSTGRES_SETUP_SCRIPT_COMMAND}
+    ./baserow/supervisor/wrapper.sh GREEN POSTGRES_INIT ./baserow/supervisor/docker-postgres-setup.sh ${POSTGRES_SETUP_SCRIPT_COMMAND}
 
   # Enable the embedded postgres by moving it into the directory from which supervisor
   # includes all .conf files it finds.

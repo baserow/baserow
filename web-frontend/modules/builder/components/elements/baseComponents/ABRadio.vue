@@ -2,7 +2,7 @@
   <div class="ab-radio" @click="toggle">
     <input
       type="radio"
-      :checked="value"
+      :checked="modelValue"
       :required="required"
       class="ab-radio__input"
       :disabled="disabled"
@@ -25,7 +25,7 @@ export default {
     /**
      * The state of the radio.
      */
-    value: {
+    modelValue: {
       type: Boolean,
       required: false,
       default: false,
@@ -63,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update:modelValue'],
   computed: {
     hasSlot() {
       return !!this.$slots.default
@@ -71,7 +72,7 @@ export default {
   methods: {
     toggle() {
       if (this.disabled || this.readOnly) return
-      this.$emit('input', !this.value)
+      this.$emit('update:modelValue', !this.value)
     },
   },
 }

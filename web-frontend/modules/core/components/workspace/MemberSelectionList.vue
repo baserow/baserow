@@ -27,7 +27,7 @@
           class="margin-left-1"
           rounded
           size="medium"
-          :initials="item.name | nameAbbreviation"
+          :initials="$filters.nameAbbreviation(item.name)"
         ></Avatar>
 
         <span class="margin-left-1">
@@ -56,6 +56,7 @@ export default {
       required: true,
     },
   },
+  emits: ['invite'],
   data() {
     return {
       membersFiltered: this.members,
@@ -86,7 +87,7 @@ export default {
       this.searchStarted
     )
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {

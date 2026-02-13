@@ -1,39 +1,31 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
+exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
 <div>
   <div>
     <div
       class="toasts__container-top"
     >
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      
+      
     </div>
-     
     <div
       class="toasts__container-bottom"
     >
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
-      <!---->
-       
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+      
+      
     </div>
   </div>
-   
   <div
     class="public-view__table"
   >
@@ -45,7 +37,6 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
           class="header__loading"
           style="display: none;"
         />
-         
         <ul
           class="header__filter"
         >
@@ -59,18 +50,19 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
               title="Baserow - open source no-code database tool and Airtable alternative"
             >
               <div
+                alt="Baserow - open source no-code database tool and Airtable alternative"
                 class="logo"
+                height="14"
               >
                 <img
                   alt="Baserow - open source no-code database tool and Airtable alternative"
                   class=""
                   height="14"
-                  src="@baserow/modules/core/static/img/logo.svg"
+                  src="/modules/core/static/img/logo.svg"
                 />
               </div>
             </a>
           </li>
-           
           <li
             class="header__filter-item header__filter-item--grids"
           >
@@ -78,10 +70,10 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
               class="header__filter-link active header__filter-link--disabled"
               data-highlight="views"
             >
+              
               <i
                 class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"
               />
-               
               <span
                 class="header__filter-name header__filter-name--forced"
               >
@@ -93,15 +85,15 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                   my public grid view name
                 </span>
               </span>
-               
-              <!---->
+              <!--v-if-->
+              
             </a>
-             
-            <!---->
+            <!--v-if-->
           </li>
-           
-          <!---->
-            
+          <!--v-if-->
+          
+          <!--v-if-->
+          
           <li
             class="header__filter-item"
             data-highlight="view-filters"
@@ -113,17 +105,14 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__filter-icon iconoir-filter"
                 />
-                 
                 <span
                   class="header__filter-name"
                 >
                   viewFilter.filter - 0
                 </span>
               </a>
-               
             </div>
           </li>
-           
           <li
             class="header__filter-item"
             data-highlight="view-sorts"
@@ -135,17 +124,14 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__filter-icon iconoir-sort"
                 />
-                 
                 <span
                   class="header__filter-name"
                 >
                   viewSort.sort - 0
                 </span>
               </a>
-               
             </div>
           </li>
-           
           <li
             class="header__filter-item"
             data-highlight="view-group-by"
@@ -157,22 +143,17 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__filter-icon iconoir-book-stack"
                 />
-                 
                 <span
                   class="header__filter-name"
                 >
                   viewGroupBy.groupBy - 0
                 </span>
               </a>
-               
             </div>
           </li>
-           
-          <!---->
-           
-          <!---->
+          <!--v-if-->
+          <!--v-if-->
         </ul>
-         
         <ul
           class="header__filter header__filter--full-width"
           table="[object Object]"
@@ -182,22 +163,19 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
           >
             <div>
               <a
-                class="header__filter-link"
+                class="header__filter-link active active--error"
               >
                 <i
                   class="header__filter-icon iconoir-eye-off"
                 />
-                 
                 <span
                   class="header__filter-name"
                 >
-                  gridViewHide.hideField - 0
+                  gridViewHide.hideField - 1
                 </span>
               </a>
-               
             </div>
           </li>
-           
           <li
             class="header__filter-item"
           >
@@ -208,30 +186,27 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__filter-icon iconoir-table-rows"
                 />
-                 
                 <span
                   class="header__filter-name"
                 >
                   gridViewRowHeight.name
                 </span>
               </a>
-               
               <div
                 class="dropdown dropdown--floating"
                 role="list"
                 tabindex="0"
               >
-                <!---->
-                 
+                <!--v-if-->
                 <div
                   class="dropdown__items hidden"
                 >
-                  <!---->
-                   
+                  <!--v-if-->
                   <ul
                     class="select__items"
                     tabindex="-1"
                   >
+                    
                     <li
                       class="select__item select__item--no-options visible"
                       role="listitem"
@@ -242,28 +217,24 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                         <div
                           class="select__item-name"
                         >
-                          <!---->
-                           
-                          <!---->
-                           
-                          <!---->
-                           
+                          <!--v-if-->
+                          
+                          <!--v-if-->
+                          <!--v-if-->
                           <span
                             class="select__item-name-text"
                             title="gridViewRowHeight.small"
                           >
                             gridViewRowHeight.small
                           </span>
+                          
                         </div>
-                         
-                        <!---->
+                        <!--v-if-->
                       </a>
-                       
                       <i
                         class="select__item-active-icon iconoir-check"
                       />
                     </li>
-                     
                     <li
                       class="select__item select__item--no-options visible"
                       role="listitem"
@@ -274,28 +245,24 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                         <div
                           class="select__item-name"
                         >
-                          <!---->
-                           
-                          <!---->
-                           
-                          <!---->
-                           
+                          <!--v-if-->
+                          
+                          <!--v-if-->
+                          <!--v-if-->
                           <span
                             class="select__item-name-text"
                             title="gridViewRowHeight.medium"
                           >
                             gridViewRowHeight.medium
                           </span>
+                          
                         </div>
-                         
-                        <!---->
+                        <!--v-if-->
                       </a>
-                       
                       <i
                         class="select__item-active-icon iconoir-check"
                       />
                     </li>
-                     
                     <li
                       class="select__item select__item--no-options visible"
                       role="listitem"
@@ -306,37 +273,32 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                         <div
                           class="select__item-name"
                         >
-                          <!---->
-                           
-                          <!---->
-                           
-                          <!---->
-                           
+                          <!--v-if-->
+                          
+                          <!--v-if-->
+                          <!--v-if-->
                           <span
                             class="select__item-name-text"
                             title="gridViewRowHeight.large"
                           >
                             gridViewRowHeight.large
                           </span>
+                          
                         </div>
-                         
-                        <!---->
+                        <!--v-if-->
                       </a>
-                       
                       <i
                         class="select__item-active-icon iconoir-check"
                       />
                     </li>
+                    
                   </ul>
-                   
-                  <!---->
-                   
-                  <!---->
+                  <!--v-if-->
+                  <!--v-if-->
                 </div>
               </div>
             </div>
           </li>
-           
           <li
             class="header__filter-item header__filter-item--full-width"
           >
@@ -349,38 +311,35 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__search-icon iconoir-search"
                 />
-                
-    
-  
+                 
               </a>
-               
             </div>
           </li>
         </ul>
       </header>
-       
       <div
         class="layout__col-2-2 content"
       >
-        <!---->
-         
+        <!--v-if-->
         <div
           class="grid-view grid-view--row-height-undefined"
+          loading="false"
         >
           <div
             class="scrollbars"
             style="left: 72px;"
           >
-            <!---->
-             
-            <!---->
+            <!--v-if-->
+            <!--v-if-->
           </div>
-           
           <div
             class="grid-view__left"
             style="width: 72px;"
           >
-              
+            
+            
+            
+            
             <div
               class="grid-view__inner"
               style="min-width: 72px;"
@@ -388,17 +347,18 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__head"
               >
-                 
+                
+                
                 <div
                   class="grid-view__column grid-view__column--no-border-right"
                   style="width: 72px;"
                 >
-                  <!---->
+                  <!--v-if-->
                 </div>
-                  
-                <!---->
+                
+                
+                <!--v-if-->
               </div>
-               
               <div
                 class="grid-view__body"
               >
@@ -413,36 +373,34 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       class="grid-view__placeholder-groups"
                       style="width: 0px;"
                     />
-                     
+                    
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
-                  />
-                   
+                  >
+                    
+                    
+                  </div>
                   <div
                     class="grid-view__row-placeholder"
                   />
                 </div>
               </div>
-               
               <div
                 class="grid-view__foot"
               >
                 <div
                   class="grid-view__foot-info"
                 >
-                  
-        gridView.rowCount - 1
-      
+                  gridView.rowCount - 1
                 </div>
-                 
+                
+                
               </div>
             </div>
-             
             <div
               style="display: none;"
             >
@@ -450,27 +408,25 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 class="grid-view__field-dragging"
                 style="width: 0px; left: 0px;"
               />
-               
               <div
                 class="grid-view__field-target"
                 style="left: 0px;"
               />
             </div>
           </div>
-           
-           
           <div
             class="grid-view__divider"
             style="left: 72px;"
           />
-           
-          <!---->
-           
+          <!--v-if-->
           <div
             class="grid-view__right"
             style="left: 72px;"
           >
-              
+            
+            
+            
+            
             <div
               class="grid-view__inner"
               style="min-width: 1000px;"
@@ -478,9 +434,10 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__head"
               >
-                 
-                <!---->
-                 
+                
+                
+                <!--v-if-->
+                
                 <div
                   class="grid-view__column"
                   filters=""
@@ -495,34 +452,67 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view__description-icon iconoir-text"
                       />
-                       
-                      <!---->
+                      <!--v-if-->
                     </div>
-                     
+                    <div
+                      class="grid-view__description-name"
+                      title="Name"
+                    >
+                      <span>
+                        Name
+                      </span>
+                    </div>
+                    <!--v-if-->
+                    <span
+                      class="grid-view__description-options"
+                    >
+                      
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
+                    </span>
+                    <!--v-if-->
+                    <div
+                      class="grid-view__description-width"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="grid-view__column"
+                  filters=""
+                  style="width: 200px;"
+                >
+                  <div
+                    class="grid-view__description"
+                  >
+                    <div
+                      class="grid-view__description-icon-container"
+                    >
+                      <i
+                        class="grid-view__description-icon iconoir-text"
+                      />
+                      <!--v-if-->
+                    </div>
                     <div
                       class="grid-view__description-name"
                       title="Last name"
                     >
                       <span>
-                        
-        Last name
-      
+                        Last name
                       </span>
                     </div>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <span
                       class="grid-view__description-options"
                     >
-                       
-                      <!---->
-                       
-                      <!---->
+                      
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                     </span>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <div
                       class="grid-view__description-width"
                     />
@@ -542,34 +532,27 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view__description-icon iconoir-align-left"
                       />
-                       
-                      <!---->
+                      <!--v-if-->
                     </div>
-                     
                     <div
                       class="grid-view__description-name"
                       title="Notes"
                     >
                       <span>
-                        
-        Notes
-      
+                        Notes
                       </span>
                     </div>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <span
                       class="grid-view__description-options"
                     >
-                       
-                      <!---->
-                       
-                      <!---->
+                      
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                     </span>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <div
                       class="grid-view__description-width"
                     />
@@ -589,90 +572,35 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view__description-icon baserow-icon-circle-checked"
                       />
-                       
-                      <!---->
+                      <!--v-if-->
                     </div>
-                     
                     <div
                       class="grid-view__description-name"
                       title="Active"
                     >
                       <span>
-                        
-        Active
-      
+                        Active
                       </span>
                     </div>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <span
                       class="grid-view__description-options"
                     >
-                       
-                      <!---->
-                       
-                      <!---->
+                      
+                      <!--v-if-->
+                      
+                      <!--v-if-->
+                      <!--v-if-->
                     </span>
-                     
-                    <!---->
-                     
+                    <!--v-if-->
                     <div
                       class="grid-view__description-width"
                     />
                   </div>
                 </div>
-                <div
-                  class="grid-view__column"
-                  filters=""
-                  style="width: 200px;"
-                >
-                  <div
-                    class="grid-view__description"
-                  >
-                    <div
-                      class="grid-view__description-icon-container"
-                    >
-                      <i
-                        class="grid-view__description-icon iconoir-text"
-                      />
-                       
-                      <!---->
-                    </div>
-                     
-                    <div
-                      class="grid-view__description-name"
-                      title="Name"
-                    >
-                      <span>
-                        
-        Name
-      
-                      </span>
-                    </div>
-                     
-                    <!---->
-                     
-                    <span
-                      class="grid-view__description-options"
-                    >
-                       
-                      <!---->
-                       
-                      <!---->
-                    </span>
-                     
-                    <!---->
-                     
-                    <div
-                      class="grid-view__description-width"
-                    />
-                  </div>
-                </div>
-                 
-                <!---->
+                
+                <!--v-if-->
               </div>
-               
               <div
                 class="grid-view__body"
               >
@@ -683,12 +611,8 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                     class="grid-view__placeholder"
                     style="width: 800px;"
                   >
-                    <!---->
-                     
-                    <div
-                      class="grid-view__placeholder-column"
-                      style="left: 799px;"
-                    />
+                    <!--v-if-->
+                    
                     <div
                       class="grid-view__placeholder-column"
                       style="left: 199px;"
@@ -701,26 +625,30 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       class="grid-view__placeholder-column"
                       style="left: 599px;"
                     />
+                    <div
+                      class="grid-view__placeholder-column"
+                      style="left: 799px;"
+                    />
+                    
                   </div>
-                   
-                  <!---->
-                   
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
-                  />
-                   
+                  >
+                    
+                    
+                  </div>
                   <div
                     class="grid-view__row-placeholder"
                   />
                 </div>
               </div>
-               
               <div
                 class="grid-view__foot"
               >
-                <!---->
-                 
+                <!--v-if-->
+                
                 <div
                   style="width: 200px;"
                 >
@@ -733,11 +661,8 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view-aggregation__empty-icon iconoir-plus"
                       />
-                      
-    common.summarize
-  
+                       common.summarize
                     </div>
-                     
                   </div>
                 </div>
                 <div
@@ -752,11 +677,8 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view-aggregation__empty-icon iconoir-plus"
                       />
-                      
-    common.summarize
-  
+                       common.summarize
                     </div>
-                     
                   </div>
                 </div>
                 <div
@@ -771,11 +693,8 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view-aggregation__empty-icon iconoir-plus"
                       />
-                      
-    common.summarize
-  
+                       common.summarize
                     </div>
-                     
                   </div>
                 </div>
                 <div
@@ -790,16 +709,13 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                       <i
                         class="grid-view-aggregation__empty-icon iconoir-plus"
                       />
-                      
-    common.summarize
-  
+                       common.summarize
                     </div>
-                     
                   </div>
                 </div>
+                
               </div>
             </div>
-             
             <div
               style="display: none;"
             >
@@ -807,14 +723,12 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
                 class="grid-view__field-dragging"
                 style="width: 0px; left: 0px;"
               />
-               
               <div
                 class="grid-view__field-target"
                 style="left: 0px;"
               />
             </div>
           </div>
-           
           <div
             class="grid-view__row-dragging-container"
             style="left: 0px; display: none;"
@@ -823,17 +737,13 @@ exports[`Public View Page Tests Can see a publicly shared grid view 1`] = `
               class="grid-view__row-dragging"
               style="width: 872px; top: 0px;"
             />
-             
             <div
               class="grid-view__row-target"
               style="width: 872px; top: 0px;"
             />
           </div>
-           
-           
         </div>
-         
-        <!---->
+        <!--v-if-->
       </div>
     </div>
   </div>

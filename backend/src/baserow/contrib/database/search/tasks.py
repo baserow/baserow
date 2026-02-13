@@ -2,13 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from django.conf import settings
-from django.core.cache import cache
 from django.db.models import Q
 
 from celery_singleton import DuplicateTaskError, Singleton
 from django_cte import With
 from loguru import logger
 
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
@@ -17,53 +17,8 @@ PERIODIC_CHECK_MINUTES = 15
 PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 15 minutes.
 
 
-class PendingSearchUpdateFlag:
-    """
-    Flag is used to indicate that a search data update task is pending for a
-    specific table and it has not been possible to schedule it yet due to a concurrent
-    task already running for the same table.
-
-    When the task ends, if this flag is set, it will re-schedule itself to ensure that
-    the search data is eventually updated.
-    """
-
-    def __init__(self, table_id: int):
-        self.table_id = table_id
-
-    @property
-    def key(self):
-        """
-        Returns the cache key to use for the table lock.
-        """
-
-        return f"database_search_data_lock_{self.table_id}"
-
-    def get(self):
-        """
-        Gets the lock for the search data update task.
-
-        :return: True if the lock is set, False otherwise.
-        """
-
-        return cache.get(key=self.key)
-
-    def set(self):
-        """
-        Sets the lock for the search data update task.
-        """
-
-        return cache.set(
-            key=self.key,
-            value=True,
-            timeout=settings.AUTO_INDEX_LOCK_EXPIRY * 2,
-        )
-
-    def clear(self):
-        """
-        Clears the lock for the search data update task.
-        """
-
-        return cache.delete(key=self.key)
+def _get_singleton_autoreschedule_flag(table_id: int) -> SingletonAutoRescheduleFlag:
+    return SingletonAutoRescheduleFlag(f"database_search_data_lock_{table_id}")
 
 
 @app.task(queue="export")
@@ -114,7 +69,8 @@ def schedule_update_search_data(
         # There are new updates pending to be processed, make sure the flag is set
         # so the task will be re-scheduled at the end of the current run.
         if new_pending_updates:
-            PendingSearchUpdateFlag(table_id).set()
+            flag = _get_singleton_autoreschedule_flag(table_id)
+            flag.set()
 
 
 @app.task(
@@ -162,13 +118,13 @@ def update_search_data(table_id: int):
     SearchHandler.initialize_missing_search_data(table)
 
     # Make sure newer updates will re-schedule this task at the end if needed.
-    flag = PendingSearchUpdateFlag(table_id)
+    flag = _get_singleton_autoreschedule_flag(table_id)
     flag.clear()
 
     SearchHandler.process_search_data_updates(table)
 
     # If new updates were queued during processing, schedule another update
-    if flag.get():
+    if flag.is_set():
         logger.debug(
             f"New updates detected, rescheduling the task for table {table_id}."
         )

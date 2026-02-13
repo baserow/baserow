@@ -1,32 +1,38 @@
-import path from 'path'
-
+import {
+  defineNuxtModule,
+  addPlugin,
+  createResolver,
+  extendPages,
+} from 'nuxt/kit'
 import { routes } from './routes'
-import en from './locales/en.json'
-import nl from './locales/nl.json'
-import fr from './locales/fr.json'
-import de from './locales/de.json'
-import es from './locales/es.json'
-import it from './locales/it.json'
-import pl from './locales/pl.json'
-import ko from './locales/ko.json'
+import { locales } from '../../config/locales.js'
 
-export default function AutomationModule(options) {
-  this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
+export default defineNuxtModule({
+  meta: {
+    name: 'automation-module',
+  },
+  dependsOn: ['core', 'database'],
+  setup(options, nuxt) {
+    const { resolve } = createResolver(import.meta.url)
 
-  // Add the plugin to register the automation application.
-  this.appendPlugin({
-    src: path.resolve(__dirname, 'plugin.js'),
-  })
+    // Register main plugin
+    addPlugin({
+      src: resolve('./plugin.js'),
+    })
 
-  // Add all the related routes.
-  this.extendRoutes((configRoutes) => {
-    configRoutes.push(...routes)
-  })
+    addPlugin({
+      src: resolve('./plugins/realtime.js'),
+    })
 
-  let alreadyExtended = false
-  this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    if (alreadyExtended) return
-    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
-    alreadyExtended = true
-  })
-}
+    extendPages((pages) => {
+      pages.push(...routes)
+    })
+
+    nuxt.hook('i18n:registerModule', (register) => {
+      register({
+        langDir: resolve('./locales'),
+        locales,
+      })
+    })
+  },
+})

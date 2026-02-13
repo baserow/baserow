@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Do not show trashed rows in search results",
+    "issue_origin": "github",
+    "issue_number": 4525,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-09"
+}

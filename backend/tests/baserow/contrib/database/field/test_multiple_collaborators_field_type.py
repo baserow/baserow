@@ -52,6 +52,29 @@ def test_multiple_collaborators_field_type_create(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_create_with_int(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    row_handler = RowHandler()
+
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name="Collaborator 1"
+    )
+    field_id = collaborator_field.db_column
+
+    assert MultipleCollaboratorsField.objects.all().first().id == collaborator_field.id
+
+    row = row_handler.create_row(user=user, table=table, values={field_id: [user.id]})
+    assert row.id
+    collaborator_field_list = getattr(row, field_id).all()
+    assert len(collaborator_field_list) == 1
+    assert collaborator_field_list[0].id == user.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
 def test_multiple_collaborators_field_type_update(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)
@@ -150,7 +173,7 @@ def test_get_set_export_serialized_value_multiple_collaborators_field(data_fixtu
     assert len(all) == 3
     imported_row_1 = all[0]
     imported_row_1_field = (
-        getattr(imported_row_1, f"field_" f"{imported_field.id}").order_by("id").all()
+        getattr(imported_row_1, f"field_{imported_field.id}").order_by("id").all()
     )
     imported_row_2 = all[1]
     imported_row_2_field = (

@@ -11,23 +11,22 @@
     <EmailNotVerified
       v-else-if="displayEmailNotVerified"
       :email="emailToVerify"
-    >
-    </EmailNotVerified>
+    />
     <template v-else>
       <div v-if="displayHeader">
         <div class="auth__logo">
-          <nuxt-link :to="{ name: 'index' }">
+          <NuxtLink :to="{ name: 'index' }">
             <Logo />
-          </nuxt-link>
+          </NuxtLink>
         </div>
         <h1 class="auth__head-title">{{ $t('login.title') }}</h1>
         <div class="auth__head">
           <span v-if="settings.allow_new_signups" class="auth__head-text">
             {{ $t('login.signUpText') }}
-            <nuxt-link :to="{ name: 'signup' }">
+            <NuxtLink :to="{ name: 'signup' }">
               {{ $t('login.signUp') }}
-            </nuxt-link></span
-          >
+            </NuxtLink>
+          </span>
           <LangPicker class="margin-left-auto" />
         </div>
       </div>
@@ -54,10 +53,10 @@
             settings.allow_reset_password && !passwordLoginHidden
           "
           @success="success"
+          @invitation-accepted="invitationAccepted"
           @two-factor-auth="setTwoFactorRequired"
           @email-not-verified="emailNotVerified"
-        >
-        </PasswordLogin>
+        />
 
         <LoginActions :invitation="invitation" :original="original">
           <li v-if="passwordLoginHidden" class="auth__action-link">
@@ -83,6 +82,8 @@ import {
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
 import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   components: {
@@ -125,6 +126,7 @@ export default {
       default: false,
     },
   },
+  emits: ['success'],
   data() {
     return {
       passwordLoginHiddenIfDisabled: true,
@@ -174,10 +176,27 @@ export default {
       if (this.redirectOnSuccess) {
         const original = this.computedOriginal
         if (original && isRelativeUrl(original)) {
-          await this.$nuxt.$router.push(original)
+          await this.$router.push(original)
         } else {
-          await this.$nuxt.$router.push({ name: 'dashboard' })
+          await this.$router.push({ name: 'dashboard' })
         }
+        await pageFinished()
+        await nextTick()
+      }
+      this.$emit('success')
+    },
+    async invitationAccepted(workspace) {
+      if (this.redirectOnSuccess) {
+        // Clear workspace loaded state so it gets refetched on next page
+        this.$store.commit('workspace/SET_LOADED', false)
+        this.$store.commit('application/SET_LOADED', false)
+        // Redirect to the specific workspace
+        await this.$router.push({
+          name: 'workspace',
+          params: { workspaceId: workspace.id },
+        })
+        await pageFinished()
+        await nextTick()
       }
       this.$emit('success')
     },

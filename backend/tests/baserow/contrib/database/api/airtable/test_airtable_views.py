@@ -168,8 +168,7 @@ def test_create_airtable_import_job_long_share_id(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     long_share_id = (
-        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/"
-        "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
+        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
     )
 
     with freeze_time("2025-01-01 12:00:00"):
@@ -219,8 +218,7 @@ def test_create_airtable_import_job_skip_files(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     long_share_id = (
-        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/"
-        "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
+        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
     )
 
     response = api_client.post(
@@ -257,8 +255,7 @@ def test_create_airtable_import_job_with_session(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     long_share_id = (
-        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/"
-        "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
+        "shr22aXe5Hj32sPJB/tblU0bav59SSEyOkU/viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
     )
 
     response = api_client.post(

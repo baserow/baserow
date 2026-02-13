@@ -154,7 +154,7 @@ async def test_unsubscribe_subject_from_table_unrelated_user(data_fixture):
     await sync_to_async(RoleAssignmentHandler().assign_role)(user, workspace, None)
 
     # Make sure the user has been un-subscribed
-    assert await received_message(communicator, "page_discard") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -262,7 +262,7 @@ async def test_unsubscribe_subject_from_table_should_still_have_access(data_fixt
     )
 
     # Make sure the user is still subscribed
-    assert await received_message(communicator, "page_discard") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 
@@ -383,7 +383,7 @@ async def test_unsubscribe_subject_from_table_teams_still_connected(
         team, workspace, None, table
     )
 
-    assert await received_message(communicator, "page_discard") is False
+    await communicator.receive_nothing(timeout=0.1)
     await communicator.disconnect()
 
 

@@ -2,7 +2,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     """
     This migration handles a special case during the "group" to "workspace" rename.
 

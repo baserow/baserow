@@ -39,14 +39,13 @@
   width: 14px;
   height: 62px;
   cursor: grab;
-  background-image: radial-gradient(
-      circle,
-      $palette-neutral-400 1px,
-      transparent 1px
-    ),
+  background-image:
+    radial-gradient(circle, $palette-neutral-400 1px, transparent 1px),
     radial-gradient(circle, $palette-neutral-400 1px, transparent 1px);
   background-repeat: repeat-y;
-  background-position: 3px center, 0 center;
+  background-position:
+    3px center,
+    0 center;
   background-size: auto 4px;
   display: none;
 

@@ -1,8 +1,11 @@
+import { defineNuxtPlugin } from '#app'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import {
   DuplicateTableJobType,
   SyncDataSyncTableJobType,
   FileImportJobType,
+  DuplicateFieldJobType,
+  AirtableJobType,
 } from '@baserow/modules/database/jobTypes'
 import {
   GridViewType,
@@ -170,19 +173,6 @@ import {
 
 import { APITokenSettingsType } from '@baserow/modules/database/settingsTypes'
 
-import tableStore from '@baserow/modules/database/store/table'
-import viewStore from '@baserow/modules/database/store/view'
-import fieldStore from '@baserow/modules/database/store/field'
-import gridStore from '@baserow/modules/database/store/view/grid'
-import galleryStore from '@baserow/modules/database/store/view/gallery'
-import formStore from '@baserow/modules/database/store/view/form'
-import rowModal from '@baserow/modules/database/store/rowModal'
-import publicStore from '@baserow/modules/database/store/view/public'
-import rowModalNavigationStore from '@baserow/modules/database/store/rowModalNavigation'
-import rowHistoryStore from '@baserow/modules/database/store/rowHistory'
-import fieldRulesStore from '@baserow/modules/database/store/fieldRules'
-
-import { registerRealtimeEvents } from '@baserow/modules/database/realtime'
 import { CSVTableExporterType } from '@baserow/modules/database/exporterTypes'
 import {
   BaserowAdd,
@@ -344,14 +334,13 @@ import {
   DatabaseScratchTrackFieldsOnboardingType,
 } from '@baserow/modules/database/onboardingTypes'
 
-import en from '@baserow/modules/database/locales/en.json'
-import fr from '@baserow/modules/database/locales/fr.json'
-import nl from '@baserow/modules/database/locales/nl.json'
-import de from '@baserow/modules/database/locales/de.json'
-import es from '@baserow/modules/database/locales/es.json'
-import it from '@baserow/modules/database/locales/it.json'
-import pl from '@baserow/modules/database/locales/pl.json'
-import ko from '@baserow/modules/database/locales/ko.json'
+import {
+  ScratchDatabaseOnboardingStepType,
+  ImportDatabaseOnboardingStepType,
+  AirtableDatabaseOnboardingStepType,
+  TemplateDatabaseOnboardingStepType,
+} from '@baserow/modules/database/databaseOnboardingStepTypes'
+
 import {
   DatabaseScratchTrackCampaignFieldsOnboardingType,
   DatabaseScratchTrackCustomFieldsOnboardingType,
@@ -372,760 +361,706 @@ import {
 } from '@baserow/modules/database/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
-export default (context) => {
-  const { store, app, isDev } = context
+export default defineNuxtPlugin({
+  name: 'database',
+  dependsOn: ['core'],
+  setup(nuxtApp) {
+    const { $registry } = nuxtApp
 
-  // Allow locale file hot reloading in dev
-  if (isDev && app.i18n) {
-    const { i18n } = app
-    i18n.mergeLocaleMessage('en', en)
-    i18n.mergeLocaleMessage('fr', fr)
-    i18n.mergeLocaleMessage('nl', nl)
-    i18n.mergeLocaleMessage('de', de)
-    i18n.mergeLocaleMessage('es', es)
-    i18n.mergeLocaleMessage('it', it)
-    i18n.mergeLocaleMessage('pl', pl)
-    i18n.mergeLocaleMessage('ko', ko)
-  }
+    const context = { app: nuxtApp }
 
-  store.registerModule('table', tableStore)
-  store.registerModule('view', viewStore)
-  store.registerModule('field', fieldStore)
-  store.registerModule('rowModal', rowModal)
-  store.registerModule('rowModalNavigation', rowModalNavigationStore)
-  store.registerModule('rowHistory', rowHistoryStore)
-  store.registerModule('fieldRules', fieldRulesStore)
-  store.registerModule('page/view/grid', gridStore)
-  store.registerModule('page/view/gallery', galleryStore)
-  store.registerModule('page/view/form', formStore)
-  store.registerModule('page/view/public', publicStore)
-  store.registerModule('template/view/grid', gridStore)
-  store.registerModule('template/view/gallery', galleryStore)
-  store.registerModule('template/view/form', formStore)
+    $registry.registerNamespace('viewDecorator')
+    $registry.registerNamespace('decoratorValueProvider')
+    $registry.registerNamespace('twoWaySyncStrategy')
+    $registry.registerNamespace('viewFilter')
+    $registry.registerNamespace('viewOwnershipType')
+    $registry.registerNamespace('fieldConstraint')
+    $registry.registerNamespace('importer')
+    $registry.registerNamespace('exporter')
+    $registry.registerNamespace('dataSync')
+    $registry.registerNamespace('webhookEvent')
+    $registry.registerNamespace('formula_function')
+    $registry.registerNamespace('formula_type')
+    $registry.registerNamespace('preview')
+    $registry.registerNamespace('viewAggregation')
+    $registry.registerNamespace('formViewMode')
+    $registry.registerNamespace('databaseDataProvider')
+    $registry.registerNamespace('rowModalSidebar')
+    $registry.registerNamespace('onboardingTrackFields')
+    $registry.registerNamespace('configureDataSync')
+    $registry.registerNamespace('databaseOnboardingStep')
 
-  app.$registry.registerNamespace('viewDecorator')
-  app.$registry.registerNamespace('decoratorValueProvider')
-  app.$registry.registerNamespace('twoWaySyncStrategy')
+    $registry.register('plugin', new DatabasePlugin(context))
+    $registry.register('application', new DatabaseApplicationType(context))
 
-  app.$registry.register('plugin', new DatabasePlugin(context))
-  app.$registry.register('application', new DatabaseApplicationType(context))
+    $registry.register('job', new DuplicateTableJobType(context))
+    $registry.register('job', new SyncDataSyncTableJobType(context))
+    $registry.register('job', new FileImportJobType(context))
+    $registry.register('job', new DuplicateFieldJobType(context))
+    $registry.register('job', new AirtableJobType(context))
 
-  app.$registry.register('job', new DuplicateTableJobType(context))
-  app.$registry.register('job', new SyncDataSyncTableJobType(context))
-  app.$registry.register('job', new FileImportJobType(context))
+    $registry.register('view', new GridViewType(context))
+    $registry.register('view', new GalleryViewType(context))
+    $registry.register('view', new FormViewType(context))
+    $registry.register('viewFilter', new EqualViewFilterType(context))
+    $registry.register('viewFilter', new NotEqualViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new DateIsEqualMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsNotEqualMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsBeforeMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsOnOrBeforeMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsAfterMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsOnOrAfterMultiStepViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateIsWithinMultiStepViewFilterType(context)
+    )
+    // DEPRECATED
+    $registry.register('viewFilter', new DateEqualViewFilterType(context))
+    $registry.register('viewFilter', new DateNotEqualViewFilterType(context))
+    $registry.register('viewFilter', new DateEqualsTodayViewFilterType(context))
+    $registry.register('viewFilter', new DateBeforeTodayViewFilterType(context))
+    $registry.register('viewFilter', new DateAfterTodayViewFilterType(context))
+    $registry.register('viewFilter', new DateWithinDaysViewFilterType(context))
+    $registry.register('viewFilter', new DateWithinWeeksViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new DateWithinMonthsViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsDaysAgoViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsMonthsAgoViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsYearsAgoViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsCurrentWeekViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsCurrentMonthViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsCurrentYearViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateEqualsDayOfMonthViewFilterType(context)
+    )
+    $registry.register('viewFilter', new DateBeforeViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new DateBeforeOrEqualViewFilterType(context)
+    )
+    $registry.register('viewFilter', new DateAfterViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new DateAfterOrEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new DateAfterDaysAgoViewFilterType(context)
+    )
+    // END
+    $registry.register('viewFilter', new HasEmptyValueViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasNotEmptyValueViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HasValueEqualViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasNotValueEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueContainsViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueContainsViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueContainsWordViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueContainsWordViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueLengthIsLowerThanViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
 
-  app.$registry.register('view', new GridViewType(context))
-  app.$registry.register('view', new GalleryViewType(context))
-  app.$registry.register('view', new FormViewType(context))
-  app.$registry.register('viewFilter', new EqualViewFilterType(context))
-  app.$registry.register('viewFilter', new NotEqualViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new DateIsEqualMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsNotEqualMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsBeforeMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsOnOrBeforeMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsAfterMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsOnOrAfterMultiStepViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateIsWithinMultiStepViewFilterType(context)
-  )
-  // DEPRECATED
-  app.$registry.register('viewFilter', new DateEqualViewFilterType(context))
-  app.$registry.register('viewFilter', new DateNotEqualViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsTodayViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateBeforeTodayViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateAfterTodayViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateWithinDaysViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateWithinWeeksViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateWithinMonthsViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsDaysAgoViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsMonthsAgoViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsYearsAgoViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsCurrentWeekViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsCurrentMonthViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsCurrentYearViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateEqualsDayOfMonthViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new DateBeforeViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new DateBeforeOrEqualViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new DateAfterViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new DateAfterOrEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new DateAfterDaysAgoViewFilterType(context)
-  )
-  // END
-  app.$registry.register('viewFilter', new HasEmptyValueViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotEmptyValueViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasValueEqualViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueContainsViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueContainsViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueContainsWordViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueContainsWordViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueLengthIsLowerThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
+      new HasAllValuesEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasAnySelectOptionEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNoneSelectOptionEqualViewFilterType(context)
+    )
+    $registry.register('viewFilter', new ContainsViewFilterType(context))
+    $registry.register('viewFilter', new ContainsNotViewFilterType(context))
+    $registry.register('viewFilter', new ContainsWordViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new DoesntContainWordViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new FilenameContainsViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HasFileTypeViewFilterType(context))
+    $registry.register('viewFilter', new FilesLowerThanViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new LengthIsLowerThanViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HigherThanViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HigherThanOrEqualViewFilterType(context)
+    )
+    $registry.register('viewFilter', new LowerThanViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new LowerThanOrEqualViewFilterType(context)
+    )
+    $registry.register('viewFilter', new IsEvenAndWholeViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new SingleSelectEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new SingleSelectNotEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new SingleSelectIsAnyOfViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new SingleSelectIsNoneOfViewFilterType(context)
+    )
 
-    new HasAllValuesEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasAnySelectOptionEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNoneSelectOptionEqualViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new ContainsViewFilterType(context))
-  app.$registry.register('viewFilter', new ContainsNotViewFilterType(context))
-  app.$registry.register('viewFilter', new ContainsWordViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new DoesntContainWordViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new FilenameContainsViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasFileTypeViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new FilesLowerThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new LengthIsLowerThanViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HigherThanViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HigherThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new LowerThanViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new LowerThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new IsEvenAndWholeViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new SingleSelectEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new SingleSelectNotEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new SingleSelectIsAnyOfViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new SingleSelectIsNoneOfViewFilterType(context)
-  )
+    $registry.register('viewFilter', new BooleanViewFilterType(context))
+    $registry.register('viewFilter', new LinkRowHasFilterType(context))
+    $registry.register('viewFilter', new LinkRowHasNotFilterType(context))
+    $registry.register('viewFilter', new LinkRowContainsFilterType(context))
+    $registry.register('viewFilter', new LinkRowNotContainsFilterType(context))
+    $registry.register('viewFilter', new MultipleSelectHasFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new MultipleSelectHasNotFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new MultipleCollaboratorsHasFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new MultipleCollaboratorsHasNotFilterType(context)
+    )
+    $registry.register('viewFilter', new EmptyViewFilterType(context))
+    $registry.register('viewFilter', new NotEmptyViewFilterType(context))
+    $registry.register('viewFilter', new UserIsFilterType(context))
+    $registry.register('viewFilter', new UserIsNotFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasValueHigherThanViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueHigherThanViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueHigherThanOrEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueHigherThanOrEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueLowerThanViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueLowerThanViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasValueLowerThanOrEqualViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotValueLowerThanOrEqualViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HasDateEqualViewFilterType(context))
+    $registry.register('viewFilter', new HasNotDateEqualViewFilterType(context))
+    $registry.register('viewFilter', new HasDateBeforeViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasNotDateBeforeViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasDateOnOrBeforeViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotDateOnOrBeforeViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HasDateAfterViewFilterType(context))
+    $registry.register('viewFilter', new HasNotDateAfterViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasDateOnOrAfterViewFilterType(context)
+    )
+    $registry.register(
+      'viewFilter',
+      new HasNotDateOnOrAfterViewFilterType(context)
+    )
+    $registry.register('viewFilter', new HasDateWithinViewFilterType(context))
+    $registry.register(
+      'viewFilter',
+      new HasNotDateWithinViewFilterType(context)
+    )
 
-  app.$registry.register('viewFilter', new BooleanViewFilterType(context))
-  app.$registry.register('viewFilter', new LinkRowHasFilterType(context))
-  app.$registry.register('viewFilter', new LinkRowHasNotFilterType(context))
-  app.$registry.register('viewFilter', new LinkRowContainsFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new LinkRowNotContainsFilterType(context)
-  )
-  app.$registry.register('viewFilter', new MultipleSelectHasFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new MultipleSelectHasNotFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new MultipleCollaboratorsHasFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new MultipleCollaboratorsHasNotFilterType(context)
-  )
-  app.$registry.register('viewFilter', new EmptyViewFilterType(context))
-  app.$registry.register('viewFilter', new NotEmptyViewFilterType(context))
-  app.$registry.register('viewFilter', new UserIsFilterType(context))
-  app.$registry.register('viewFilter', new UserIsNotFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasValueHigherThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueHigherThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueHigherThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueHigherThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueLowerThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueLowerThanViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasValueLowerThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotValueLowerThanOrEqualViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasDateEqualViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateEqualViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasDateBeforeViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateBeforeViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasDateOnOrBeforeViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateOnOrBeforeViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasDateAfterViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateAfterViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasDateOnOrAfterViewFilterType(context)
-  )
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateOnOrAfterViewFilterType(context)
-  )
-  app.$registry.register('viewFilter', new HasDateWithinViewFilterType(context))
-  app.$registry.register(
-    'viewFilter',
-    new HasNotDateWithinViewFilterType(context)
-  )
+    $registry.register(
+      'viewOwnershipType',
+      new CollaborativeViewOwnershipType(context)
+    )
 
-  app.$registry.register(
-    'viewOwnershipType',
-    new CollaborativeViewOwnershipType(context)
-  )
+    $registry.register('field', new TextFieldType(context))
+    $registry.register('field', new LongTextFieldType(context))
+    $registry.register('field', new LinkRowFieldType(context))
+    $registry.register('field', new NumberFieldType(context))
+    $registry.register('field', new RatingFieldType(context))
+    $registry.register('field', new BooleanFieldType(context))
+    $registry.register('field', new DateFieldType(context))
+    $registry.register('field', new LastModifiedFieldType(context))
+    $registry.register('field', new LastModifiedByFieldType(context))
+    $registry.register('field', new CreatedOnFieldType(context))
+    $registry.register('field', new CreatedByFieldType(context))
+    $registry.register('field', new DurationFieldType(context))
+    $registry.register('field', new URLFieldType(context))
+    $registry.register('field', new EmailFieldType(context))
+    $registry.register('field', new FileFieldType(context))
+    $registry.register('field', new SingleSelectFieldType(context))
+    $registry.register('field', new MultipleSelectFieldType(context))
+    $registry.register('field', new PhoneNumberFieldType(context))
+    $registry.register('field', new FormulaFieldType(context))
+    $registry.register('field', new CountFieldType(context))
+    $registry.register('field', new RollupFieldType(context))
+    $registry.register('field', new LookupFieldType(context))
+    $registry.register('field', new MultipleCollaboratorsFieldType(context))
+    $registry.register('field', new UUIDFieldType(context))
+    $registry.register('field', new AutonumberFieldType(context))
+    $registry.register('field', new PasswordFieldType(context))
 
-  app.$registry.register('field', new TextFieldType(context))
-  app.$registry.register('field', new LongTextFieldType(context))
-  app.$registry.register('field', new LinkRowFieldType(context))
-  app.$registry.register('field', new NumberFieldType(context))
-  app.$registry.register('field', new RatingFieldType(context))
-  app.$registry.register('field', new BooleanFieldType(context))
-  app.$registry.register('field', new DateFieldType(context))
-  app.$registry.register('field', new LastModifiedFieldType(context))
-  app.$registry.register('field', new LastModifiedByFieldType(context))
-  app.$registry.register('field', new CreatedOnFieldType(context))
-  app.$registry.register('field', new CreatedByFieldType(context))
-  app.$registry.register('field', new DurationFieldType(context))
-  app.$registry.register('field', new URLFieldType(context))
-  app.$registry.register('field', new EmailFieldType(context))
-  app.$registry.register('field', new FileFieldType(context))
-  app.$registry.register('field', new SingleSelectFieldType(context))
-  app.$registry.register('field', new MultipleSelectFieldType(context))
-  app.$registry.register('field', new PhoneNumberFieldType(context))
-  app.$registry.register('field', new FormulaFieldType(context))
-  app.$registry.register('field', new CountFieldType(context))
-  app.$registry.register('field', new RollupFieldType(context))
-  app.$registry.register('field', new LookupFieldType(context))
-  app.$registry.register('field', new MultipleCollaboratorsFieldType(context))
-  app.$registry.register('field', new UUIDFieldType(context))
-  app.$registry.register('field', new AutonumberFieldType(context))
-  app.$registry.register('field', new PasswordFieldType(context))
+    $registry.register(
+      'fieldConstraint',
+      new TextTypeUniqueWithEmptyConstraintType(context)
+    )
+    $registry.register(
+      'fieldConstraint',
+      new RatingTypeUniqueWithEmptyConstraintType(context)
+    )
+    $registry.register(
+      'fieldConstraint',
+      new GenericUniqueWithEmptyConstraintType(context)
+    )
 
-  app.$registry.register(
-    'fieldConstraint',
-    new TextTypeUniqueWithEmptyConstraintType(context)
-  )
-  app.$registry.register(
-    'fieldConstraint',
-    new RatingTypeUniqueWithEmptyConstraintType(context)
-  )
-  app.$registry.register(
-    'fieldConstraint',
-    new GenericUniqueWithEmptyConstraintType(context)
-  )
+    $registry.register('importer', new CSVImporterType(context))
+    $registry.register('importer', new PasteImporterType(context))
+    $registry.register('importer', new XMLImporterType(context))
+    $registry.register('importer', new JSONImporterType(context))
+    $registry.register('dataSync', new ICalCalendarDataSyncType(context))
+    $registry.register('dataSync', new PostgreSQLDataSyncType(context))
+    $registry.register('settings', new APITokenSettingsType(context))
+    $registry.register('exporter', new CSVTableExporterType(context))
+    $registry.register('webhookEvent', new RowsCreatedWebhookEventType(context))
+    $registry.register('webhookEvent', new RowsUpdatedWebhookEventType(context))
+    $registry.register('webhookEvent', new RowsDeletedWebhookEventType(context))
+    $registry.register(
+      'webhookEvent',
+      new FieldCreatedWebhookEventType(context)
+    )
+    $registry.register(
+      'webhookEvent',
+      new FieldUpdatedWebhookEventType(context)
+    )
+    $registry.register(
+      'webhookEvent',
+      new FieldDeletedWebhookEventType(context)
+    )
+    $registry.register('webhookEvent', new ViewCreatedWebhookEventType(context))
+    $registry.register('webhookEvent', new ViewUpdatedWebhookEventType(context))
+    $registry.register('webhookEvent', new ViewDeletedWebhookEventType(context))
 
-  app.$registry.register('importer', new CSVImporterType(context))
-  app.$registry.register('importer', new PasteImporterType(context))
-  app.$registry.register('importer', new XMLImporterType(context))
-  app.$registry.register('importer', new JSONImporterType(context))
-  app.$registry.register('dataSync', new ICalCalendarDataSyncType(context))
-  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
-  app.$registry.register('settings', new APITokenSettingsType(context))
-  app.$registry.register('exporter', new CSVTableExporterType(context))
-  app.$registry.register(
-    'webhookEvent',
-    new RowsCreatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new RowsUpdatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new RowsDeletedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new FieldCreatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new FieldUpdatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new FieldDeletedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new ViewCreatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new ViewUpdatedWebhookEventType(context)
-  )
-  app.$registry.register(
-    'webhookEvent',
-    new ViewDeletedWebhookEventType(context)
-  )
+    // Text functions
+    $registry.register('formula_function', new BaserowUpper(context))
+    $registry.register('formula_function', new BaserowLower(context))
+    $registry.register('formula_function', new BaserowConcat(context))
+    $registry.register('formula_function', new BaserowToText(context))
+    $registry.register('formula_function', new BaserowT(context))
+    $registry.register('formula_function', new BaserowReplace(context))
+    $registry.register('formula_function', new BaserowSearch(context))
+    $registry.register('formula_function', new BaserowLength(context))
+    $registry.register('formula_function', new BaserowReverse(context))
+    $registry.register('formula_function', new BaserowEncodeUri(context))
+    $registry.register(
+      'formula_function',
+      new BaserowEncodeUriComponent(context)
+    )
+    $registry.register('formula_function', new BaserowSplitPart(context))
+    // Number functions
+    $registry.register('formula_function', new BaserowMultiply(context))
+    $registry.register('formula_function', new BaserowDivide(context))
+    $registry.register('formula_function', new BaserowToNumber(context))
+    // Boolean functions
+    $registry.register('formula_function', new BaserowIf(context))
+    $registry.register('formula_function', new BaserowEqual(context))
+    $registry.register('formula_function', new BaserowHasOption(context))
+    $registry.register('formula_function', new BaserowIsBlank(context))
+    $registry.register('formula_function', new BaserowIsNull(context))
+    $registry.register('formula_function', new BaserowNot(context))
+    $registry.register('formula_function', new BaserowNotEqual(context))
+    $registry.register('formula_function', new BaserowGreaterThan(context))
+    $registry.register(
+      'formula_function',
+      new BaserowGreaterThanOrEqual(context)
+    )
+    $registry.register('formula_function', new BaserowLessThan(context))
+    $registry.register('formula_function', new BaserowLessThanOrEqual(context))
+    $registry.register('formula_function', new BaserowAnd(context))
+    $registry.register('formula_function', new BaserowOr(context))
+    // Date functions
+    $registry.register('formula_function', new BaserowDatetimeFormat(context))
+    $registry.register('formula_function', new BaserowDatetimeFormatTz(context))
+    $registry.register('formula_function', new BaserowDay(context))
+    $registry.register('formula_function', new BaserowNow(context))
+    $registry.register('formula_function', new BaserowToday(context))
+    $registry.register('formula_function', new BaserowToDateTz(context))
+    $registry.register('formula_function', new BaserowToDate(context))
+    $registry.register('formula_function', new BaserowDateDiff(context))
+    // Date interval functions
+    $registry.register('formula_function', new BaserowDateInterval(context))
+    $registry.register(
+      'formula_function',
+      new BaserowDurationToSeconds(context)
+    )
+    $registry.register(
+      'formula_function',
+      new BaserowSecondsToDuration(context)
+    )
+    // Special functions. NOTE: rollup compatible functions are shown field sub-form in
+    // the same order as they are listed here.
+    $registry.register('formula_function', new BaserowAdd(context))
+    $registry.register('formula_function', new BaserowMinus(context))
+    $registry.register('formula_function', new BaserowField(context))
+    $registry.register('formula_function', new BaserowLookup(context))
+    $registry.register('formula_function', new BaserowRowId(context))
+    $registry.register('formula_function', new BaserowContains(context))
+    $registry.register('formula_function', new BaserowLeft(context))
+    $registry.register('formula_function', new BaserowRight(context))
+    $registry.register('formula_function', new BaserowTrim(context))
+    $registry.register('formula_function', new BaserowRegexReplace(context))
+    $registry.register('formula_function', new BaserowGreatest(context))
+    $registry.register('formula_function', new BaserowLeast(context))
+    $registry.register('formula_function', new BaserowMonth(context))
+    $registry.register('formula_function', new BaserowYear(context))
+    $registry.register('formula_function', new BaserowSecond(context))
+    $registry.register('formula_function', new BaserowWhenEmpty(context))
+    $registry.register('formula_function', new BaserowAny(context))
+    $registry.register('formula_function', new BaserowEvery(context))
+    $registry.register('formula_function', new BaserowMin(context))
+    $registry.register('formula_function', new BaserowMax(context))
+    $registry.register('formula_function', new BaserowCount(context))
+    $registry.register('formula_function', new BaserowSum(context))
+    $registry.register('formula_function', new BaserowAvg(context))
+    $registry.register('formula_function', new BaserowJoin(context))
+    $registry.register('formula_function', new BaserowStddevPop(context))
+    $registry.register('formula_function', new BaserowStddevSample(context))
+    $registry.register('formula_function', new BaserowVarianceSample(context))
+    $registry.register('formula_function', new BaserowVariancePop(context))
+    $registry.register('formula_function', new BaserowFilter(context))
+    $registry.register('formula_function', new BaserowTrunc(context))
+    $registry.register('formula_function', new BaserowIsNaN(context))
+    $registry.register('formula_function', new BaserowWhenNaN(context))
+    $registry.register('formula_function', new BaserowEven(context))
+    $registry.register('formula_function', new BaserowOdd(context))
+    $registry.register('formula_function', new BaserowAbs(context))
+    $registry.register('formula_function', new BaserowCeil(context))
+    $registry.register('formula_function', new BaserowFloor(context))
+    $registry.register('formula_function', new BaserowSign(context))
+    $registry.register('formula_function', new BaserowLog(context))
+    $registry.register('formula_function', new BaserowExp(context))
+    $registry.register('formula_function', new BaserowLn(context))
+    $registry.register('formula_function', new BaserowPower(context))
+    $registry.register('formula_function', new BaserowSqrt(context))
+    $registry.register('formula_function', new BaserowRound(context))
+    $registry.register('formula_function', new BaserowMod(context))
+    // Link functions
+    $registry.register('formula_function', new BaserowLink(context))
+    $registry.register('formula_function', new BaserowButton(context))
+    $registry.register('formula_function', new BaserowGetLinkUrl(context))
+    $registry.register('formula_function', new BaserowGetLinkLabel(context))
+    // File functions
+    $registry.register(
+      'formula_function',
+      new BaserowGetFileVisibleName(context)
+    )
+    $registry.register('formula_function', new BaserowGetFileMimeType(context))
+    $registry.register('formula_function', new BaserowGetFileSize(context))
+    $registry.register('formula_function', new BaserowGetImageWidth(context))
+    $registry.register('formula_function', new BaserowGetImageHeight(context))
+    $registry.register('formula_function', new BaserowIsImage(context))
 
-  // Text functions
-  app.$registry.register('formula_function', new BaserowUpper(context))
-  app.$registry.register('formula_function', new BaserowLower(context))
-  app.$registry.register('formula_function', new BaserowConcat(context))
-  app.$registry.register('formula_function', new BaserowToText(context))
-  app.$registry.register('formula_function', new BaserowT(context))
-  app.$registry.register('formula_function', new BaserowReplace(context))
-  app.$registry.register('formula_function', new BaserowSearch(context))
-  app.$registry.register('formula_function', new BaserowLength(context))
-  app.$registry.register('formula_function', new BaserowReverse(context))
-  app.$registry.register('formula_function', new BaserowEncodeUri(context))
-  app.$registry.register(
-    'formula_function',
-    new BaserowEncodeUriComponent(context)
-  )
-  app.$registry.register('formula_function', new BaserowSplitPart(context))
-  // Number functions
-  app.$registry.register('formula_function', new BaserowMultiply(context))
-  app.$registry.register('formula_function', new BaserowDivide(context))
-  app.$registry.register('formula_function', new BaserowToNumber(context))
-  // Boolean functions
-  app.$registry.register('formula_function', new BaserowIf(context))
-  app.$registry.register('formula_function', new BaserowEqual(context))
-  app.$registry.register('formula_function', new BaserowHasOption(context))
-  app.$registry.register('formula_function', new BaserowIsBlank(context))
-  app.$registry.register('formula_function', new BaserowIsNull(context))
-  app.$registry.register('formula_function', new BaserowNot(context))
-  app.$registry.register('formula_function', new BaserowNotEqual(context))
-  app.$registry.register('formula_function', new BaserowGreaterThan(context))
-  app.$registry.register(
-    'formula_function',
-    new BaserowGreaterThanOrEqual(context)
-  )
-  app.$registry.register('formula_function', new BaserowLessThan(context))
-  app.$registry.register(
-    'formula_function',
-    new BaserowLessThanOrEqual(context)
-  )
-  app.$registry.register('formula_function', new BaserowAnd(context))
-  app.$registry.register('formula_function', new BaserowOr(context))
-  // Date functions
-  app.$registry.register('formula_function', new BaserowDatetimeFormat(context))
-  app.$registry.register(
-    'formula_function',
-    new BaserowDatetimeFormatTz(context)
-  )
-  app.$registry.register('formula_function', new BaserowDay(context))
-  app.$registry.register('formula_function', new BaserowNow(context))
-  app.$registry.register('formula_function', new BaserowToday(context))
-  app.$registry.register('formula_function', new BaserowToDateTz(context))
-  app.$registry.register('formula_function', new BaserowToDate(context))
-  app.$registry.register('formula_function', new BaserowDateDiff(context))
-  // Date interval functions
-  app.$registry.register('formula_function', new BaserowDateInterval(context))
-  app.$registry.register(
-    'formula_function',
-    new BaserowDurationToSeconds(context)
-  )
-  app.$registry.register(
-    'formula_function',
-    new BaserowSecondsToDuration(context)
-  )
-  // Special functions. NOTE: rollup compatible functions are shown field sub-form in
-  // the same order as they are listed here.
-  app.$registry.register('formula_function', new BaserowAdd(context))
-  app.$registry.register('formula_function', new BaserowMinus(context))
-  app.$registry.register('formula_function', new BaserowField(context))
-  app.$registry.register('formula_function', new BaserowLookup(context))
-  app.$registry.register('formula_function', new BaserowRowId(context))
-  app.$registry.register('formula_function', new BaserowContains(context))
-  app.$registry.register('formula_function', new BaserowLeft(context))
-  app.$registry.register('formula_function', new BaserowRight(context))
-  app.$registry.register('formula_function', new BaserowTrim(context))
-  app.$registry.register('formula_function', new BaserowRegexReplace(context))
-  app.$registry.register('formula_function', new BaserowGreatest(context))
-  app.$registry.register('formula_function', new BaserowLeast(context))
-  app.$registry.register('formula_function', new BaserowMonth(context))
-  app.$registry.register('formula_function', new BaserowYear(context))
-  app.$registry.register('formula_function', new BaserowSecond(context))
-  app.$registry.register('formula_function', new BaserowWhenEmpty(context))
-  app.$registry.register('formula_function', new BaserowAny(context))
-  app.$registry.register('formula_function', new BaserowEvery(context))
-  app.$registry.register('formula_function', new BaserowMin(context))
-  app.$registry.register('formula_function', new BaserowMax(context))
-  app.$registry.register('formula_function', new BaserowCount(context))
-  app.$registry.register('formula_function', new BaserowSum(context))
-  app.$registry.register('formula_function', new BaserowAvg(context))
-  app.$registry.register('formula_function', new BaserowJoin(context))
-  app.$registry.register('formula_function', new BaserowStddevPop(context))
-  app.$registry.register('formula_function', new BaserowStddevSample(context))
-  app.$registry.register('formula_function', new BaserowVarianceSample(context))
-  app.$registry.register('formula_function', new BaserowVariancePop(context))
-  app.$registry.register('formula_function', new BaserowFilter(context))
-  app.$registry.register('formula_function', new BaserowTrunc(context))
-  app.$registry.register('formula_function', new BaserowIsNaN(context))
-  app.$registry.register('formula_function', new BaserowWhenNaN(context))
-  app.$registry.register('formula_function', new BaserowEven(context))
-  app.$registry.register('formula_function', new BaserowOdd(context))
-  app.$registry.register('formula_function', new BaserowAbs(context))
-  app.$registry.register('formula_function', new BaserowCeil(context))
-  app.$registry.register('formula_function', new BaserowFloor(context))
-  app.$registry.register('formula_function', new BaserowSign(context))
-  app.$registry.register('formula_function', new BaserowLog(context))
-  app.$registry.register('formula_function', new BaserowExp(context))
-  app.$registry.register('formula_function', new BaserowLn(context))
-  app.$registry.register('formula_function', new BaserowPower(context))
-  app.$registry.register('formula_function', new BaserowSqrt(context))
-  app.$registry.register('formula_function', new BaserowRound(context))
-  app.$registry.register('formula_function', new BaserowMod(context))
-  // Link functions
-  app.$registry.register('formula_function', new BaserowLink(context))
-  app.$registry.register('formula_function', new BaserowButton(context))
-  app.$registry.register('formula_function', new BaserowGetLinkUrl(context))
-  app.$registry.register('formula_function', new BaserowGetLinkLabel(context))
-  // File functions
-  app.$registry.register(
-    'formula_function',
-    new BaserowGetFileVisibleName(context)
-  )
-  app.$registry.register(
-    'formula_function',
-    new BaserowGetFileMimeType(context)
-  )
-  app.$registry.register('formula_function', new BaserowGetFileSize(context))
-  app.$registry.register('formula_function', new BaserowGetImageWidth(context))
-  app.$registry.register('formula_function', new BaserowGetImageHeight(context))
-  app.$registry.register('formula_function', new BaserowIsImage(context))
+    $registry.register('formula_function', new BaserowGetFileCount(context))
+    $registry.register('formula_function', new BaserowIndex(context))
+    $registry.register('formula_function', new BaserowToUrl(context))
 
-  app.$registry.register('formula_function', new BaserowGetFileCount(context))
-  app.$registry.register('formula_function', new BaserowIndex(context))
-  app.$registry.register('formula_function', new BaserowToUrl(context))
+    // Formula Types
+    $registry.register('formula_type', new BaserowFormulaTextType(context))
+    $registry.register('formula_type', new BaserowFormulaCharType(context))
+    $registry.register('formula_type', new BaserowFormulaBooleanType(context))
+    $registry.register('formula_type', new BaserowFormulaDateType(context))
+    $registry.register(
+      'formula_type',
+      new BaserowFormulaDateIntervalType(context)
+    )
+    $registry.register('formula_type', new BaserowFormulaDurationType(context))
+    $registry.register('formula_type', new BaserowFormulaNumberType(context))
+    $registry.register('formula_type', new BaserowFormulaArrayType(context))
+    $registry.register('formula_type', new BaserowFormulaSpecialType(context))
+    $registry.register('formula_type', new BaserowFormulaInvalidType(context))
+    $registry.register(
+      'formula_type',
+      new BaserowFormulaSingleSelectType(context)
+    )
+    $registry.register('formula_type', new BaserowFormulaURLType(context))
+    $registry.register(
+      'formula_type',
+      new BaserowFormulaMultipleSelectType(context)
+    )
+    $registry.register('formula_type', new BaserowFormulaButtonType(context))
+    $registry.register('formula_type', new BaserowFormulaLinkType(context))
+    $registry.register('formula_type', new BaserowFormulaFileType(context))
+    $registry.register(
+      'formula_type',
+      new BaserowFormulaMultipleCollaboratorsType(context)
+    )
 
-  // Formula Types
-  app.$registry.register('formula_type', new BaserowFormulaTextType(context))
-  app.$registry.register('formula_type', new BaserowFormulaCharType(context))
-  app.$registry.register('formula_type', new BaserowFormulaBooleanType(context))
-  app.$registry.register('formula_type', new BaserowFormulaDateType(context))
-  app.$registry.register(
-    'formula_type',
-    new BaserowFormulaDateIntervalType(context)
-  )
-  app.$registry.register(
-    'formula_type',
-    new BaserowFormulaDurationType(context)
-  )
-  app.$registry.register('formula_type', new BaserowFormulaNumberType(context))
-  app.$registry.register('formula_type', new BaserowFormulaArrayType(context))
-  app.$registry.register('formula_type', new BaserowFormulaSpecialType(context))
-  app.$registry.register('formula_type', new BaserowFormulaInvalidType(context))
-  app.$registry.register(
-    'formula_type',
-    new BaserowFormulaSingleSelectType(context)
-  )
-  app.$registry.register('formula_type', new BaserowFormulaURLType(context))
-  app.$registry.register(
-    'formula_type',
-    new BaserowFormulaMultipleSelectType(context)
-  )
-  app.$registry.register('formula_type', new BaserowFormulaButtonType(context))
-  app.$registry.register('formula_type', new BaserowFormulaLinkType(context))
-  app.$registry.register('formula_type', new BaserowFormulaFileType(context))
-  app.$registry.register(
-    'formula_type',
-    new BaserowFormulaMultipleCollaboratorsType(context)
-  )
+    // File preview types
+    $registry.register('preview', new ImageFilePreview(context))
+    $registry.register('preview', new AudioFilePreview(context))
+    $registry.register('preview', new VideoFilePreview(context))
+    $registry.register('preview', new PDFBrowserFilePreview(context))
+    $registry.register('preview', new GoogleDocFilePreview(context))
 
-  // File preview types
-  app.$registry.register('preview', new ImageFilePreview(context))
-  app.$registry.register('preview', new AudioFilePreview(context))
-  app.$registry.register('preview', new VideoFilePreview(context))
-  app.$registry.register('preview', new PDFBrowserFilePreview(context))
-  app.$registry.register('preview', new GoogleDocFilePreview(context))
+    $registry.register('viewAggregation', new MinViewAggregationType(context))
+    $registry.register('viewAggregation', new MaxViewAggregationType(context))
+    $registry.register('viewAggregation', new SumViewAggregationType(context))
+    $registry.register(
+      'viewAggregation',
+      new AverageViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new MedianViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new StdDevViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new VarianceViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new EarliestDateViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new LatestDateViewAggregationType(context)
+    )
+    $registry.register('viewAggregation', new CountViewAggregationType(context))
+    $registry.register(
+      'viewAggregation',
+      new EmptyCountViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new NotEmptyCountViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new CheckedCountViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new NotCheckedCountViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new EmptyPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new NotEmptyPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new CheckedPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new NotCheckedPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new UniqueCountViewAggregationType(context)
+    )
+    $registry.register(
+      'viewAggregation',
+      new DistributionViewAggregationType(context)
+    )
 
-  app.$registry.register('viewAggregation', new MinViewAggregationType(context))
-  app.$registry.register('viewAggregation', new MaxViewAggregationType(context))
-  app.$registry.register('viewAggregation', new SumViewAggregationType(context))
-  app.$registry.register(
-    'viewAggregation',
-    new AverageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new MedianViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new StdDevViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new VarianceViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new EarliestDateViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new LatestDateViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new CountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new EmptyCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new NotEmptyCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new CheckedCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new NotCheckedCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new EmptyPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new NotEmptyPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new CheckedPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new NotCheckedPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new UniqueCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'viewAggregation',
-    new DistributionViewAggregationType(context)
-  )
+    $registry.register('formViewMode', new FormViewFormModeType(context))
 
-  app.$registry.register('formViewMode', new FormViewFormModeType(context))
+    $registry.register(
+      'databaseDataProvider',
+      new FieldsDataProviderType(context)
+    )
 
-  app.$registry.register(
-    'databaseDataProvider',
-    new FieldsDataProviderType(context)
-  )
+    // notifications
+    $registry.register(
+      'notification',
+      new CollaboratorAddedToRowNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new FormSubmittedNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new UserMentionInRichTextFieldNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new WebhookDeactivatedNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new WebhookPayloadTooLargedNotificationType(context)
+    )
 
-  // notifications
-  app.$registry.register(
-    'notification',
-    new CollaboratorAddedToRowNotificationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new FormSubmittedNotificationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new UserMentionInRichTextFieldNotificationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new WebhookDeactivatedNotificationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new WebhookPayloadTooLargedNotificationType(context)
-  )
+    $registry.register(
+      'rowModalSidebar',
+      new HistoryRowModalSidebarType(context)
+    )
 
-  app.$registry.register(
-    'rowModalSidebar',
-    new HistoryRowModalSidebarType(context)
-  )
+    $registry.register('onboarding', new DatabaseOnboardingType(context))
+    $registry.register(
+      'onboarding',
+      new DatabaseScratchTrackOnboardingType(context)
+    )
+    $registry.register(
+      'onboarding',
+      new DatabaseScratchTrackFieldsOnboardingType(context)
+    )
+    $registry.register('onboarding', new DatabaseImportOnboardingType(context))
 
-  app.$registry.register('onboarding', new DatabaseOnboardingType(context))
-  app.$registry.register(
-    'onboarding',
-    new DatabaseScratchTrackOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboarding',
-    new DatabaseScratchTrackFieldsOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboarding',
-    new DatabaseImportOnboardingType(context)
-  )
+    $registry.register(
+      'databaseOnboardingStep',
+      new ScratchDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new ImportDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new AirtableDatabaseOnboardingStepType(context)
+    )
+    $registry.register(
+      'databaseOnboardingStep',
+      new TemplateDatabaseOnboardingStepType(context)
+    )
 
-  app.$registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackProjectFieldsOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackTeamFieldsOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackTaskFieldsOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackCampaignFieldsOnboardingType(context)
-  )
-  app.$registry.register(
-    'onboardingTrackFields',
-    new DatabaseScratchTrackCustomFieldsOnboardingType(context)
-  )
+    $registry.register(
+      'onboardingTrackFields',
+      new DatabaseScratchTrackProjectFieldsOnboardingType(context)
+    )
+    $registry.register(
+      'onboardingTrackFields',
+      new DatabaseScratchTrackTeamFieldsOnboardingType(context)
+    )
+    $registry.register(
+      'onboardingTrackFields',
+      new DatabaseScratchTrackTaskFieldsOnboardingType(context)
+    )
+    $registry.register(
+      'onboardingTrackFields',
+      new DatabaseScratchTrackCampaignFieldsOnboardingType(context)
+    )
+    $registry.register(
+      'onboardingTrackFields',
+      new DatabaseScratchTrackCustomFieldsOnboardingType(context)
+    )
 
-  app.$registry.register(
-    'configureDataSync',
-    new SyncedFieldsConfigureDataSyncType(context)
-  )
-  app.$registry.register(
-    'configureDataSync',
-    new SettingsConfigureDataSyncType(context)
-  )
+    $registry.register(
+      'configureDataSync',
+      new SyncedFieldsConfigureDataSyncType(context)
+    )
+    $registry.register(
+      'configureDataSync',
+      new SettingsConfigureDataSyncType(context)
+    )
 
-  app.$registry.register('guidedTour', new DatabaseGuidedTourType(context))
+    $registry.register('guidedTour', new DatabaseGuidedTourType(context))
 
-  registerRealtimeEvents(app.$realtime)
+    $registry.registerNamespace('fieldContextItem')
 
-  app.$registry.registerNamespace('fieldContextItem')
-
-  searchTypeRegistry.register(new DatabaseSearchType())
-  searchTypeRegistry.register(new DatabaseTableSearchType())
-  searchTypeRegistry.register(new DatabaseFieldSearchType())
-  searchTypeRegistry.register(new DatabaseRowSearchType())
-}
+    searchTypeRegistry.register(new DatabaseSearchType(context))
+    searchTypeRegistry.register(new DatabaseTableSearchType(context))
+    searchTypeRegistry.register(new DatabaseFieldSearchType(context))
+    searchTypeRegistry.register(new DatabaseRowSearchType(context))
+  },
+})

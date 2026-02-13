@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <KanbanViewOptionForm
       ref="form"
       :default-values="option"
@@ -21,6 +21,7 @@ import KanbanViewOptionForm from '@baserow_premium/components/views/kanban/Kanba
 
 export default {
   name: 'KanbanViewUpdateStackContext',
+  emits: ['saved'],
   components: { KanbanViewOptionForm },
   mixins: [context],
   props: {

@@ -186,8 +186,7 @@ def test_map_exceptions_context_manager():
 
 
 def test_map_exceptions_from_registry():
-    class TestException(Exception):
-        ...
+    class TestException(Exception): ...
 
     test_error = (
         "TEST_ERROR",

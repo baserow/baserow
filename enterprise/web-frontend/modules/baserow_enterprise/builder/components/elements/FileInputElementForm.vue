@@ -32,7 +32,9 @@
     <hr />
     <FormGroup
       :label="
-        $tc('fileInputElementForm.defaultUrlTitle', values.multiple ? 2 : 1)
+        $t('fileInputElementForm.defaultUrlTitle', {
+          count: values.multiple ? 2 : 1,
+        })
       "
       class="margin-bottom-2"
       required
@@ -41,7 +43,7 @@
       <InjectedFormulaInput
         v-model="v$.values.default_url.$model"
         :placeholder="
-          $tc(
+          $t(
             'fileInputElementForm.defaultUrlPlaceholder',
             values.multiple ? 2 : 1
           )
@@ -50,7 +52,9 @@
     </FormGroup>
     <FormGroup
       :label="
-        $tc('fileInputElementForm.defaultNameTitle', values.multiple ? 2 : 1)
+        $t('fileInputElementForm.defaultNameTitle', {
+          count: values.multiple ? 2 : 1,
+        })
       "
       class="margin-bottom-2"
       :helper-text="
@@ -62,10 +66,9 @@
       <InjectedFormulaInput
         v-model="v$.values.default_name.$model"
         :placeholder="
-          $tc(
-            'fileInputElementForm.defaultNamePlaceholder',
-            values.multiple ? 2 : 1
-          )
+          $t('fileInputElementForm.defaultNamePlaceholder', {
+            count: values.multiple ? 2 : 1,
+          })
         "
       />
     </FormGroup>

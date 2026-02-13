@@ -835,7 +835,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             )
         except WorkspaceUser.DoesNotExist:
             raise WorkspaceUserDoesNotExist(
-                f"The workspace user with id {workspace_user_id} does " f"not exist."
+                f"The workspace user with id {workspace_user_id} does not exist."
             )
 
         return workspace_user
@@ -1834,7 +1834,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             template = base_queryset.get(id=template_id)
         except Template.DoesNotExist:
             raise TemplateDoesNotExist(
-                f"The template with id {template_id} does not " f"exist."
+                f"The template with id {template_id} does not exist."
             )
 
         return template

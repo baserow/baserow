@@ -1286,9 +1286,10 @@ def test_can_undo_updating_field_every_type(data_fixture, django_assert_num_quer
         actions = ActionHandler.undo(
             user, [UpdateFieldActionType.scope(field.table_id)], session_id
         )
-        assert_undo_redo_actions_are_valid(
-            actions, [UpdateFieldActionType]
-        ), f"Failed for {before_serialized}"
+        (
+            assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType]),
+            f"Failed for {before_serialized}",
+        )
         new_field = FieldHandler().get_specific_field_for_update(field.id)
         after_serialized = field_type.export_serialized(new_field)
         assert before_serialized == after_serialized

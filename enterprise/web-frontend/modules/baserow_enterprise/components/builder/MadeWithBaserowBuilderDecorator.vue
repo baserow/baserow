@@ -10,7 +10,7 @@
     >
       Made with
       <img
-        src="@baserow_enterprise/assets/images/builder/mini_logo.svg"
+        src="@baserow_enterprise/assets/images/builder/mini_logo.svg?url"
         alt="Baserow"
       />
     </a>

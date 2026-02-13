@@ -45,10 +45,12 @@ import error from '@baserow/modules/core/mixins/error'
 import WebhookForm from '@baserow/modules/database/components/webhook/WebhookForm'
 import DeleteWebhookModal from '@baserow/modules/database/components/webhook/DeleteWebhookModal'
 import WebhookService from '@baserow/modules/database/services/webhook'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
-const {
+/*const {
   ResponseErrorMessage,
 } = require('@baserow/modules/core/plugins/clientHandler')
+TODO MIG*/
 
 export default {
   name: 'UpdateWebhook',
@@ -76,6 +78,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted', 'updated'],
   data() {
     return {
       loading: false,

@@ -1,11 +1,11 @@
 <template>
   <nuxt-link
     class="notification-panel__notification-link"
-    :to="{ name: 'dashboard' }"
-    @click.native="markAsReadAndHandleClick"
+    :to="route"
+    @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="workspaceInvitationCreatedNotification.title" tag="span">
+      <i18n-t keypath="workspaceInvitationCreatedNotification.title" tag="span">
         <template #sender>
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else
@@ -17,7 +17,7 @@
         <template #workspaceName>
           <strong>{{ notification.data.invited_to_workspace_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>
@@ -28,6 +28,7 @@ import notificationContent from '@baserow/modules/core/mixins/notificationConten
 export default {
   name: 'WorkspaceInvitationCreatedNotification',
   mixins: [notificationContent],
+  emits: ['close-panel'],
   methods: {
     handleClick() {
       this.$emit('close-panel')

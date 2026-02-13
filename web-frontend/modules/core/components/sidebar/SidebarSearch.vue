@@ -6,10 +6,17 @@
         <span class="sidebar__search-placeholder">
           {{ $t('workspaceSearch.searchEverything') }}
         </span>
-        <div class="sidebar__search-shortcut">
-          <kbd>{{ modifierKey }}</kbd
-          ><kbd>K</kbd>
-        </div>
+        <ClientOnly>
+          <div class="sidebar__search-shortcut">
+            <kbd>{{ modifierKey }}</kbd
+            ><kbd>K</kbd>
+          </div>
+          <template #fallback>
+            <div class="sidebar__search-shortcut">
+              <kbd>Ctrl</kbd><kbd>K</kbd>
+            </div>
+          </template>
+        </ClientOnly>
       </div>
     </div>
   </li>
@@ -20,13 +27,14 @@ import { isMac } from '@baserow/modules/core/utils/events'
 
 export default {
   name: 'SidebarSearch',
-
   props: {
     selectedWorkspace: {
       type: Object,
       required: true,
     },
   },
+
+  emits: ['open-workspace-search'],
 
   computed: {
     modifierKey() {

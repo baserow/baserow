@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('deleteWebhookModal.title', { webhookName: webhook.name }) }}
     </h2>
@@ -39,6 +39,7 @@ export default {
       required: true,
     },
   },
+  emits: ['deleted'],
   data() {
     return {
       loading: false,

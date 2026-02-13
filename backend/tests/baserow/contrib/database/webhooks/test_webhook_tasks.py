@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 from django.db import transaction
 from django.test import override_settings
 
-import httpretty
 import pytest
 import responses
 from celery.exceptions import Retry
@@ -22,7 +21,6 @@ from baserow.contrib.database.webhooks.tasks import (
 from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.models import Notification
 from baserow.core.redis import WebhookRedisQueue
-from baserow.test_utils.helpers import stub_getaddrinfo
 
 
 @pytest.mark.django_db(transaction=True)
@@ -293,15 +291,11 @@ def test_call_webhook_next_item_scheduled(mock_schedule, data_fixture):
     BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL=0,
     BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES=0,
 )
-@httpretty.activate(verbose=True, allow_net_connect=False)
 @patch("baserow.contrib.database.webhooks.tasks.RedisQueue", WebhookRedisQueue)
 @patch("baserow.contrib.database.webhooks.tasks.cache", MagicMock())
-@patch("socket.getaddrinfo", wraps=stub_getaddrinfo)
 def test_cant_call_webhook_to_localhost_when_private_addresses_not_allowed(
-    patched_getaddrinfo,
     data_fixture,
 ):
-    httpretty.register_uri(httpretty.POST, "http://127.0.0.1", status=200)
     webhook = data_fixture.create_table_webhook()
 
     assert webhook.active
@@ -459,11 +453,14 @@ def test_webhook_with_paginated_payload(
     )
 
     # The first page of the payload is sent and contains the batch_id 1.
-    with patch(
-        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
-    ) as mock_enqueue, patch(
-        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
-    ) as mock_schedule:
+    with (
+        patch(
+            "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+        ) as mock_enqueue,
+        patch(
+            "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+        ) as mock_schedule,
+    ):
         call_webhook(
             webhook_id=webhook.id,
             event_id=event_id,
@@ -548,11 +545,14 @@ def test_call_webhook_payload_too_large_send_notification(
     )
 
     # The first page of the payload is sent and contains the batch_id 1.
-    with patch(
-        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
-    ) as mock_enqueue, patch(
-        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
-    ) as mock_schedule:
+    with (
+        patch(
+            "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+        ) as mock_enqueue,
+        patch(
+            "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+        ) as mock_schedule,
+    ):
         call_webhook(
             webhook_id=webhook.id,
             event_id=event_id,

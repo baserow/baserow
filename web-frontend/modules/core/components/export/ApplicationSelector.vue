@@ -108,6 +108,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update'],
   data() {
     return {
       groupExpanded: {},
@@ -148,7 +149,7 @@ export default {
   },
   mounted() {
     this.applicationGroups.forEach((group) => {
-      this.$set(this.groupExpanded, group.type, true)
+      this.groupExpanded[group.type] = true
     })
   },
   methods: {
@@ -175,7 +176,7 @@ export default {
       this.$emit('update', [])
     },
     toggleGroupExpanded(groupType) {
-      this.$set(this.groupExpanded, groupType, !this.groupExpanded[groupType])
+      this.groupExpanded[groupType] = !this.groupExpanded[groupType]
     },
     handleApplicationToggle(application, isChecked) {
       const currentIds = [...this.selectedApplicationIds]

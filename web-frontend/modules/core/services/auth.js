@@ -91,12 +91,13 @@ export default (client) => {
     deleteAccount() {
       return client.post('/user/schedule-account-deletion/')
     },
-    shareOnboardingDetailsWithBaserow(team, role, size, country) {
+    shareOnboardingDetailsWithBaserow(team, role, size, country, how) {
       return client.post('/user/share-onboarding-details-with-baserow/', {
         team,
         role,
         size,
         country,
+        how,
       })
     },
   }

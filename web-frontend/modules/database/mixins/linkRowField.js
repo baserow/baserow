@@ -2,6 +2,8 @@ import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
 
 export default {
+  emits: ['update'],
+
   data() {
     return {
       // If true, then the user must choose which values will be deleted. This only
@@ -128,8 +130,8 @@ export default {
         return orderA.isLessThan(orderB)
           ? -1
           : orderA.isEqualTo(orderB)
-          ? a.id - b.id
-          : 1
+            ? a.id - b.id
+            : 1
       })
       this.$emit('update', newValue, value)
     },

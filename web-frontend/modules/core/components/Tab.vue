@@ -7,6 +7,11 @@
 <script>
 export default {
   name: 'Tab',
+  inject: {
+    tabsProvider: {
+      default: null,
+    },
+  },
   props: {
     title: {
       type: String,
@@ -47,9 +52,20 @@ export default {
       default: null,
     },
   },
+  emits: ['click'],
   data() {
     return {
       isActive: false,
+    }
+  },
+  mounted() {
+    if (this.tabsProvider) {
+      this.tabsProvider.registerTab(this)
+    }
+  },
+  beforeUnmount() {
+    if (this.tabsProvider) {
+      this.tabsProvider.unregisterTab(this)
     }
   },
 }

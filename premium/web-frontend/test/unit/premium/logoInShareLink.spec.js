@@ -6,7 +6,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 async function openShareViewLinkContext(testApp, view) {
   const shareViewLinkComponent = await testApp.mount(ShareViewLink, {
-    propsData: {
+    props: {
       view,
       readOnly: false,
     },
@@ -21,7 +21,7 @@ describe('Premium Share View Link Tests', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
     mockServer = new MockPremiumServer(testApp.mock)
   })
@@ -30,16 +30,20 @@ describe('Premium Share View Link Tests', () => {
 
   test('User without global premium cannot toggle off the Baserow logo', async () => {
     const workspace = { id: 1, name: 'testWorkspace' }
+
     await testApp.getStore().dispatch('workspace/forceCreate', workspace)
+
     const tableId = 1
     const databaseId = 3
     const viewId = 4
+
     testApp.getStore().dispatch('application/forceCreate', {
       id: databaseId,
       type: 'database',
       tables: [{ id: tableId }],
       workspace,
     })
+
     const view = {
       id: viewId,
       type: 'grid',
@@ -47,6 +51,7 @@ describe('Premium Share View Link Tests', () => {
       table: { database_id: databaseId },
       show_logo: true,
       isShared: true,
+      slug: 'view_fake_slug',
     }
     testApp.getStore().dispatch('view/forceCreate', { data: view })
 
@@ -79,6 +84,7 @@ describe('Premium Share View Link Tests', () => {
       public: true,
       table: { database_id: databaseId },
       show_logo: true,
+      slug: 'view_fake_slug',
     }
     mockServer.expectPremiumViewUpdate(viewId, {
       show_logo: false,

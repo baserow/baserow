@@ -6,7 +6,7 @@
           {{ heading }}
         </h2>
       </div>
-      <Error :error="error"></Error>
+      <Error :error="error" />
       <RowEditModalFieldsList
         :primary-is-sortable="primaryIsSortable"
         :fields="visibleFields"
@@ -24,7 +24,7 @@
         @order-fields="$emit('order-fields', $event)"
         @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
         @update="update"
-      ></RowEditModalFieldsList>
+      />
       <RowEditModalHiddenFieldsSection
         v-if="hiddenFields.length"
         :show-hidden-fields="showHiddenFields"
@@ -48,8 +48,7 @@
           @field-deleted="$emit('field-deleted')"
           @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
           @update="update"
-        >
-        </RowEditModalFieldsList>
+        />
       </RowEditModalHiddenFieldsSection>
       <div class="actions">
         <div class="align-right">
@@ -68,7 +67,6 @@
 </template>
 
 <script>
-import Vue from 'vue'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
@@ -135,6 +133,14 @@ export default {
       default: () => ({}),
     },
   },
+  emits: [
+    'created',
+    'field-deleted',
+    'field-updated',
+    'order-fields',
+    'toggle-field-visibility',
+    'toggle-hidden-fields-visibility',
+  ],
   data() {
     return {
       row: {},
@@ -175,7 +181,7 @@ export default {
         }
       })
       Object.assign(row, defaults)
-      Vue.set(this, 'row', row)
+      this.row = row
       return modal.methods.show.call(this, ...args)
     },
     update(event) {

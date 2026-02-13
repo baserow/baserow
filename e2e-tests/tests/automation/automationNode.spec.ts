@@ -61,7 +61,7 @@ test.describe("Automation node test suite", () => {
       .getByRole("button", { name: "Node options" });
     await nodeMenuButton.click();
 
-    const deleteNodeButton = page.getByText("Delete");
+    const deleteNodeButton = page.getByRole("button", { name: "Delete" });
     await deleteNodeButton.waitFor({ state: "visible" });
     deleteNodeButton.click();
 

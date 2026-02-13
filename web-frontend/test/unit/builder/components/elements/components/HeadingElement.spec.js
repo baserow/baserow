@@ -1,25 +1,20 @@
-import { TestApp } from '@baserow/test/helpers/testApp'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement.vue'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 describe('HeadingElement', () => {
   let testApp = null
   let store = null
 
-  beforeAll(() => {
-    testApp = new TestApp()
-    store = testApp.store
-    store.$registry.registerNamespace('element')
-  })
-
-  afterEach(() => {
-    testApp.afterEach()
+  beforeEach(() => {
+    testApp = useNuxtApp()
+    store = testApp.$store
   })
 
   const mountComponent = ({ props = {}, slots = {}, provide = {} }) => {
-    return testApp.mount(HeadingElement, {
-      propsData: props,
+    return mountSuspended(HeadingElement, {
+      props,
       slots,
-      provide,
+      global: { provide },
     })
   }
 

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Dropdown component Test slots 1`] = `
+exports[`Dropdown component > With items 1`] = `
 <div
   class="dropdown"
   role="list"
@@ -9,95 +9,17 @@ exports[`Dropdown component Test slots 1`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
-    <span
-      class="dropdown__selected-text"
-      title="A"
-    >
-      A
-    </span>
-     
-    <i
-      class="dropdown__toggle-icon iconoir-nav-arrow-down"
-    />
-  </a>
-   
-  <div
-    class="dropdown__items hidden"
-  >
-    <div
-      class="select__search"
-    >
-      <i
-        class="select__search-icon iconoir-search"
-      />
-       
-      <input
-        class="select__search-input"
-        placeholder="action.search"
-        tabindex="0"
-        type="text"
-      />
-    </div>
-     
-    <ul
-      class="select__items"
-      style=""
-      tabindex="-1"
-    >
-      <li
-        class="select__item select__item--no-options visible active"
-        role="listitem"
-      >
-        <a
-          class="select__item-link"
-        >
-          <div
-            class="select__item-name"
-          >
-            <!---->
-             My item
-          </div>
-           
-          <!---->
-        </a>
-         
-        <i
-          class="select__item-active-icon iconoir-check"
-        />
-      </li>
-    </ul>
-     
-    <!---->
-     
-    <!---->
-  </div>
-</div>
-`;
-
-exports[`Dropdown component With items 1`] = `
-<div
-  class="dropdown"
-  role="list"
-  tabindex="0"
->
-  <a
-    class="dropdown__selected"
-  >
+    
     <span
       class="dropdown__selected-placeholder"
     >
       action.makeChoice
     </span>
-     
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -107,7 +29,6 @@ exports[`Dropdown component With items 1`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -115,12 +36,11 @@ exports[`Dropdown component With items 1`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -131,37 +51,33 @@ exports[`Dropdown component With items 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component With items 2`] = `
+exports[`Dropdown component > With items 2`] = `
 <div
   class="dropdown"
   role="list"
@@ -170,22 +86,22 @@ exports[`Dropdown component With items 2`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="A"
     >
       A
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -195,7 +111,6 @@ exports[`Dropdown component With items 2`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -203,12 +118,11 @@ exports[`Dropdown component With items 2`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active"
         role="listitem"
@@ -219,28 +133,24 @@ exports[`Dropdown component With items 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -251,28 +161,24 @@ exports[`Dropdown component With items 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="B"
             >
               B
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible disabled"
         role="listitem"
@@ -283,28 +189,24 @@ exports[`Dropdown component With items 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="C"
             >
               C
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -315,30 +217,26 @@ exports[`Dropdown component With items 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
+            <!--v-if-->
+            
             <i
               class="select__item-icon times"
             />
-             
-            <!---->
-             
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="D"
             >
               D
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -349,50 +247,43 @@ exports[`Dropdown component With items 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="E"
             >
               E
             </span>
+            
           </div>
-           
           <div
             class="select__item-description"
           >
-            
-      My description
-    
+            My description
           </div>
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component With items 3`] = `
+exports[`Dropdown component > With items 3`] = `
 <div
   class="dropdown dropdown--floating"
   role="list"
   tabindex="0"
 >
-  <!---->
-   
+  <!--v-if-->
   <div
     class="dropdown__items hidden"
   >
@@ -402,7 +293,6 @@ exports[`Dropdown component With items 3`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -410,11 +300,11 @@ exports[`Dropdown component With items 3`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active"
         role="listitem"
@@ -425,28 +315,24 @@ exports[`Dropdown component With items 3`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -457,37 +343,33 @@ exports[`Dropdown component With items 3`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="B"
             >
               B
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component basics 1`] = `
+exports[`Dropdown component > basics 1`] = `
 <div
   class="dropdown"
   role="list"
@@ -496,17 +378,17 @@ exports[`Dropdown component basics 1`] = `
   <a
     class="dropdown__selected"
   >
+    
     <span
       class="dropdown__selected-placeholder"
     >
       action.makeChoice
     </span>
-     
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -516,7 +398,6 @@ exports[`Dropdown component basics 1`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -524,27 +405,27 @@ exports[`Dropdown component basics 1`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
       style="display: none;"
       tabindex="-1"
-    />
-     
+    >
+      
+      
+    </ul>
     <div
       class="select__items--empty"
     >
       
-        dropdown.empty
+      dropdown.empty
       
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component basics 2`] = `
+exports[`Dropdown component > basics 2`] = `
 <div
   class="dropdown"
   role="list"
@@ -553,42 +434,42 @@ exports[`Dropdown component basics 2`] = `
   <a
     class="dropdown__selected"
   >
+    
     <span
       class="dropdown__selected-placeholder"
     >
       action.makeChoice
     </span>
-     
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
-    <!---->
-     
+    <!--v-if-->
     <ul
       class="select__items"
       style="display: none;"
       tabindex="-1"
-    />
-     
+    >
+      
+      
+    </ul>
     <div
       class="select__items--empty"
     >
       
-        dropdown.empty
+      dropdown.empty
       
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component basics 3`] = `
+exports[`Dropdown component > basics 3`] = `
 <div
   class="dropdown dropdown--disabled"
   role="list"
@@ -597,17 +478,17 @@ exports[`Dropdown component basics 3`] = `
   <a
     class="dropdown__selected"
   >
+    
     <span
       class="dropdown__selected-placeholder"
     >
       action.makeChoice
     </span>
-     
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -617,7 +498,6 @@ exports[`Dropdown component basics 3`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -625,27 +505,27 @@ exports[`Dropdown component basics 3`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
       style="display: none;"
       tabindex="-1"
-    />
-     
+    >
+      
+      
+    </ul>
     <div
       class="select__items--empty"
     >
       
-        dropdown.empty
+      dropdown.empty
       
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component change value prop 1`] = `
+exports[`Dropdown component > change value prop 1`] = `
 <div
   class="dropdown"
   role="list"
@@ -654,22 +534,22 @@ exports[`Dropdown component change value prop 1`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="B"
     >
       B
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -679,7 +559,6 @@ exports[`Dropdown component change value prop 1`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -687,12 +566,11 @@ exports[`Dropdown component change value prop 1`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -703,28 +581,24 @@ exports[`Dropdown component change value prop 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible active"
         role="listitem"
@@ -735,37 +609,33 @@ exports[`Dropdown component change value prop 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="B"
             >
               B
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component test focus 1`] = `
+exports[`Dropdown component > focus 1`] = `
 <div
   class="dropdown"
   role="list"
@@ -774,22 +644,22 @@ exports[`Dropdown component test focus 1`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="A"
     >
       A
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items"
   >
@@ -799,7 +669,6 @@ exports[`Dropdown component test focus 1`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -807,12 +676,11 @@ exports[`Dropdown component test focus 1`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items prevent-scroll"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active hover"
         role="listitem"
@@ -823,37 +691,33 @@ exports[`Dropdown component test focus 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component test focus 2`] = `
+exports[`Dropdown component > focus 2`] = `
 <div
   class="dropdown"
   role="list"
@@ -862,22 +726,22 @@ exports[`Dropdown component test focus 2`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="A"
     >
       A
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -887,7 +751,6 @@ exports[`Dropdown component test focus 2`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -895,12 +758,11 @@ exports[`Dropdown component test focus 2`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items prevent-scroll"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active hover"
         role="listitem"
@@ -911,37 +773,33 @@ exports[`Dropdown component test focus 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component test interactions 1`] = `
+exports[`Dropdown component > interactions 1`] = `
 <div
   class="dropdown"
   role="list"
@@ -950,22 +808,22 @@ exports[`Dropdown component test interactions 1`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="A"
     >
       A
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items"
   >
@@ -975,7 +833,6 @@ exports[`Dropdown component test interactions 1`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -983,12 +840,11 @@ exports[`Dropdown component test interactions 1`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items prevent-scroll"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active hover"
         role="listitem"
@@ -999,28 +855,24 @@ exports[`Dropdown component test interactions 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -1031,37 +883,33 @@ exports[`Dropdown component test interactions 1`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="B"
             >
               B
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;
 
-exports[`Dropdown component test interactions 2`] = `
+exports[`Dropdown component > interactions 2`] = `
 <div
   class="dropdown"
   role="list"
@@ -1070,22 +918,22 @@ exports[`Dropdown component test interactions 2`] = `
   <a
     class="dropdown__selected"
   >
-    <!---->
-     
-    <!---->
-     
+    
+    
+    <!--v-if-->
+    <!--v-if-->
     <span
       class="dropdown__selected-text"
       title="A"
     >
       A
     </span>
-     
+    
+    
     <i
       class="dropdown__toggle-icon iconoir-nav-arrow-down"
     />
   </a>
-   
   <div
     class="dropdown__items hidden"
   >
@@ -1095,7 +943,6 @@ exports[`Dropdown component test interactions 2`] = `
       <i
         class="select__search-icon iconoir-search"
       />
-       
       <input
         class="select__search-input"
         placeholder="action.search"
@@ -1103,12 +950,11 @@ exports[`Dropdown component test interactions 2`] = `
         type="text"
       />
     </div>
-     
     <ul
       class="select__items prevent-scroll"
-      style=""
       tabindex="-1"
     >
+      
       <li
         class="select__item select__item--no-options visible active hover"
         role="listitem"
@@ -1119,28 +965,24 @@ exports[`Dropdown component test interactions 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="A"
             >
               A
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
-       
       <li
         class="select__item select__item--no-options visible"
         role="listitem"
@@ -1151,32 +993,103 @@ exports[`Dropdown component test interactions 2`] = `
           <div
             class="select__item-name"
           >
-            <!---->
-             
-            <!---->
-             
-            <!---->
-             
+            <!--v-if-->
+            
+            <!--v-if-->
+            <!--v-if-->
             <span
               class="select__item-name-text"
               title="B"
             >
               B
             </span>
+            
           </div>
-           
-          <!---->
+          <!--v-if-->
         </a>
-         
         <i
           class="select__item-active-icon iconoir-check"
         />
       </li>
+      
     </ul>
-     
-    <!---->
-     
-    <!---->
+    <!--v-if-->
+    <!--v-if-->
+  </div>
+</div>
+`;
+
+exports[`Dropdown component > slots 1`] = `
+<div
+  class="dropdown"
+  role="list"
+  tabindex="0"
+>
+  <a
+    class="dropdown__selected"
+  >
+    
+    
+    <!--v-if-->
+    <!--v-if-->
+    <span
+      class="dropdown__selected-text"
+      title="A"
+    >
+      A
+    </span>
+    
+    
+    <i
+      class="dropdown__toggle-icon iconoir-nav-arrow-down"
+    />
+  </a>
+  <div
+    class="dropdown__items hidden"
+  >
+    <div
+      class="select__search"
+    >
+      <i
+        class="select__search-icon iconoir-search"
+      />
+      <input
+        class="select__search-input"
+        placeholder="action.search"
+        tabindex="0"
+        type="text"
+      />
+    </div>
+    <ul
+      class="select__items"
+      tabindex="-1"
+    >
+      
+      <li
+        class="select__item select__item--no-options visible active"
+        role="listitem"
+      >
+        <a
+          class="select__item-link"
+        >
+          <div
+            class="select__item-name"
+          >
+            <!--v-if-->
+            
+            My item
+            
+          </div>
+          <!--v-if-->
+        </a>
+        <i
+          class="select__item-active-icon iconoir-check"
+        />
+      </li>
+      
+    </ul>
+    <!--v-if-->
+    <!--v-if-->
   </div>
 </div>
 `;

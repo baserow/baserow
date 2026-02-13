@@ -2,13 +2,11 @@ import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import advocate
-from advocate import UnacceptableAddressException
-from baserow_premium.license.handler import LicenseHandler
-from jira2markdown import convert
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
+import advocate
+from advocate import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import compare_date
@@ -20,6 +18,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import (
     JIRA_ISSUES_DATA_SYNC_API_TOKEN,
@@ -293,6 +292,8 @@ class JiraIssuesDataSyncType(DataSyncType):
         instance,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict]:
+        from jira2markdown import convert
+
         issue_list = []
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
         fetched_issues = self._fetch_issues(

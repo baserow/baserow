@@ -1474,9 +1474,9 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
             ).select_related("user")
 
             for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.COLLABORATORS_KEY][
-                    str(workspaceuser.user.id)
-                ] = workspaceuser.user.email
+                id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.id)] = (
+                    workspaceuser.user.email
+                )
 
         return id_mapping[self.COLLABORATORS_KEY].get(value, "")
 
@@ -1543,9 +1543,9 @@ class UserIsViewFilterType(ViewFilterType):
             ).select_related("user")
 
             for workspaceuser in workspaceusers_from_workspace:
-                id_mapping[self.USER_KEY][
-                    str(workspaceuser.user.id)
-                ] = workspaceuser.user.email
+                id_mapping[self.USER_KEY][str(workspaceuser.user.id)] = (
+                    workspaceuser.user.email
+                )
 
         return id_mapping[self.USER_KEY].get(value, "")
 

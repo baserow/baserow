@@ -83,7 +83,8 @@ const actions = {
     { dispatch },
     { application, integrationType, values, beforeId = null }
   ) {
-    const { data: integration } = await IntegrationService(this.$client).create(
+    const { $registry, $i18n, $client, $config } = this
+    const { data: integration } = await IntegrationService($client).create(
       application.id,
       integrationType,
       values,
@@ -95,6 +96,7 @@ const actions = {
     return integration
   },
   async update({ dispatch, getters }, { application, integrationId, values }) {
+    const { $registry, $i18n, $client, $config } = this
     const integrationsOfApplication = getters.getIntegrations(application)
     const integration = integrationsOfApplication.find(
       ({ id }) => id === integrationId
@@ -115,7 +117,7 @@ const actions = {
     })
 
     try {
-      await IntegrationService(this.$client).update(integration.id, values)
+      await IntegrationService($client).update(integration.id, values)
     } catch (error) {
       await dispatch('forceUpdate', {
         application,
@@ -130,6 +132,7 @@ const actions = {
     { dispatch, getters },
     { application, integrationId, values }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     const integration = getters
       .getIntegrations(application)
       .find(({ id }) => id === integrationId)
@@ -151,7 +154,7 @@ const actions = {
     return new Promise((resolve, reject) => {
       const fire = async () => {
         try {
-          await IntegrationService(this.$client).update(integration.id, values)
+          await IntegrationService($client).update(integration.id, values)
           updateContext.lastUpdatedValues = values
           resolve()
         } catch (error) {
@@ -181,6 +184,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { application, integrationId }) {
+    const { $registry, $i18n, $client, $config } = this
     const integrationsOfApplication = getters.getIntegrations(application)
     const integrationIndex = integrationsOfApplication.findIndex(
       (integration) => integration.id === integrationId
@@ -194,7 +198,7 @@ const actions = {
     await dispatch('forceDelete', { application, integrationId })
 
     try {
-      await IntegrationService(this.$client).delete(integrationId)
+      await IntegrationService($client).delete(integrationId)
     } catch (error) {
       await dispatch('forceCreate', {
         application,
@@ -208,6 +212,7 @@ const actions = {
     { dispatch },
     { application, integrationId, beforeIntegrationId }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     await dispatch('forceMove', {
       application,
       integrationId,
@@ -215,10 +220,7 @@ const actions = {
     })
 
     try {
-      await IntegrationService(this.$client).move(
-        integrationId,
-        beforeIntegrationId
-      )
+      await IntegrationService($client).move(integrationId, beforeIntegrationId)
     } catch (error) {
       await dispatch('forceMove', {
         application,
@@ -229,9 +231,10 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { application }) {
-    const { data: integrations } = await IntegrationService(
-      this.$client
-    ).fetchAll(application.id)
+    const { $registry, $i18n, $client, $config } = this
+    const { data: integrations } = await IntegrationService($client).fetchAll(
+      application.id
+    )
 
     commit('CLEAR_ITEMS', { application })
     await Promise.all(
@@ -256,10 +259,12 @@ const actions = {
 
 const getters = {
   getIntegrations: (state) => (application) => {
-    return application.integrations
+    return application?.integrations || []
   },
   getIntegrationById: (state) => (application, id) => {
-    return application.integrations.find((integration) => integration.id === id)
+    return application?.integrations?.find(
+      (integration) => integration.id === id
+    )
   },
 }
 

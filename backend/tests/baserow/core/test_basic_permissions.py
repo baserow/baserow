@@ -243,7 +243,7 @@ def test_workspace_member_permission_manager(data_fixture, django_assert_num_que
         perm_manager.check_permissions(
             user, ListApplicationsWorkspaceOperationType.type, workspace_2, workspace_2
         )
-    except Exception:  # noqa:W0718
+    except Exception:  # noqa
         ...
 
     with django_assert_num_queries(0):
@@ -1179,9 +1179,10 @@ def test_allow_if_template_permission_manager_query_count(data_fixture):
             workspace=workspace_1,
         )
 
-    with CaptureQueriesContext(
-        connection
-    ) as query_not_for_template, local_cache.context():
+    with (
+        CaptureQueriesContext(connection) as query_not_for_template,
+        local_cache.context(),
+    ):
         CoreHandler().check_permissions(
             buser,
             UpdateIntegrationOperationType.type,
@@ -1214,12 +1215,12 @@ def test_all_operations_are_registered():
         for t in get_all_subclasses(OperationType)
         if hasattr(t, "type") and t.type is not None
     }
-    assert (
-        all_operation_types == registered_operation_types
-    ), "Please make sure the following operation " "types are added to the registry: " + str(
-        all_operation_types.difference(registered_operation_types)
-    ) + " or somehow the following operations are registered but not subclasses?: " + str(
-        registered_operation_types.difference(all_operation_types)
+    assert all_operation_types == registered_operation_types, (
+        "Please make sure the following operation "
+        "types are added to the registry: "
+        + str(all_operation_types.difference(registered_operation_types))
+        + " or somehow the following operations are registered but not subclasses?: "
+        + str(registered_operation_types.difference(all_operation_types))
     )
 
 
@@ -1240,12 +1241,12 @@ def test_all_scope_types_are_registered():
     all_operation_types = {
         t.type for t in get_all_subclasses(ObjectScopeType) if hasattr(t, "type")
     }
-    assert (
-        all_operation_types == registered_operation_types
-    ), "Please make sure the following operation " "types are added to the registry: " + str(
-        all_operation_types.difference(registered_operation_types)
-    ) + " or somehow the following operations are registered but not subclasses?: " + str(
-        registered_operation_types.difference(all_operation_types)
+    assert all_operation_types == registered_operation_types, (
+        "Please make sure the following operation "
+        "types are added to the registry: "
+        + str(all_operation_types.difference(registered_operation_types))
+        + " or somehow the following operations are registered but not subclasses?: "
+        + str(registered_operation_types.difference(all_operation_types))
     )
 
 
@@ -1266,12 +1267,12 @@ def test_all_scope_types_referenced_by_operations_are_registered():
     all_op_context_types = {
         t.context_scope_name for t in get_all_subclasses(OperationType)
     }
-    assert (
-        all_op_context_types == object_scope_types
-    ), "Please make sure the following object_scope_types exist and are added to the " "registry: " + str(
-        all_op_context_types.difference(object_scope_types)
-    ) + " or somehow the following context types are registered but not subclasses?: " + str(
-        object_scope_types.difference(all_op_context_types)
+    assert all_op_context_types == object_scope_types, (
+        "Please make sure the following object_scope_types exist and are added to the "
+        "registry: "
+        + str(all_op_context_types.difference(object_scope_types))
+        + " or somehow the following context types are registered but not subclasses?: "
+        + str(object_scope_types.difference(all_op_context_types))
     )
 
 

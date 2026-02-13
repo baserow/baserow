@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <template v-if="Object.keys(member).length > 0">
       <ul class="context__menu">
         <li class="context__menu-item">
@@ -56,6 +56,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['remove-user'],
   computed: {
     ...mapGetters({
       userId: 'auth/getUserId',

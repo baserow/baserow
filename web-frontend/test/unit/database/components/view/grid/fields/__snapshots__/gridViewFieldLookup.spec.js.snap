@@ -1,8 +1,12 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`GridViewFieldLookup component URL lookup field shows hyperlink when active 1`] = `
+exports[`GridViewFieldLookup component > URL lookup field shows hyperlink when active 1`] = `
 <div
   class="array-field__item"
+  field="[object Object]"
+  readonly="false"
+  storeprefix="page/"
+  workspaceid="10"
 >
   <div
     class="array-field__ellipsis"
@@ -20,9 +24,13 @@ exports[`GridViewFieldLookup component URL lookup field shows hyperlink when act
 </div>
 `;
 
-exports[`GridViewFieldLookup component URL lookup field shows text when inactive 1`] = `
+exports[`GridViewFieldLookup component > URL lookup field shows text when inactive 1`] = `
 <div
   class="array-field__item"
+  field="[object Object]"
+  readonly="false"
+  storeprefix="page/"
+  workspaceid="10"
 >
   <div
     class="array-field__ellipsis"

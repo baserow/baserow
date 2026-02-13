@@ -93,6 +93,7 @@ import kanbanViewHelper from '@baserow_premium/mixins/kanbanViewHelper'
 
 export default {
   name: 'KanbanViewHeader',
+  emits: ['refresh'],
   components: { KanbanViewStackedBy, ViewFieldsContext },
   mixins: [kanbanViewHelper],
   props: {
@@ -129,16 +130,6 @@ export default {
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        singleSelectFieldId:
-          this.$options.propsData.storePrefix +
-          'view/kanban/getSingleSelectFieldId',
-      }),
-    }
   },
   methods: {
     async updateAllFieldOptions({ newFieldOptions, oldFieldOptions }) {

@@ -79,7 +79,8 @@
                   :is="col.cellComponent"
                   :row="row"
                   :column="col"
-                  v-on="$listeners"
+                  v-on="$attrs"
+                  @row-context="(payload) => $emit('row-context', payload)"
                   @row-update="updateRow"
                   @row-delete="deleteRow"
                   @refresh="refresh"
@@ -106,7 +107,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import Paginator from '@baserow/modules/core/components/Paginator'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import { isArray } from 'lodash'
+import _ from 'lodash'
 import isObject from 'lodash/isObject'
 
 /**
@@ -128,6 +129,7 @@ import isObject from 'lodash/isObject'
 export default {
   name: 'CrudTable',
   components: { Paginator, CrudTableSearch },
+  inheritAttrs: false,
   props: {
     /**
      * A service which provides a fetch(pageNumber, searchParam, columnSortsList)
@@ -192,7 +194,7 @@ export default {
       required: false,
       type: Array,
       default: () => [],
-      validator: (prop) => isArray(prop),
+      validator: (prop) => _.isArray(prop),
     },
     filters: {
       required: false,
@@ -206,6 +208,7 @@ export default {
       default: true,
     },
   },
+  emits: ['row-context', 'rows-update'],
   data() {
     return {
       loading: false,
@@ -216,9 +219,6 @@ export default {
       columnSorts: this.defaultColumnSorts,
     }
   },
-  async fetch() {
-    await this.fetch()
-  },
   watch: {
     rows() {
       this.$emit('rows-update', this.rows)
@@ -226,6 +226,9 @@ export default {
     filters() {
       this.fetch()
     },
+  },
+  async mounted() {
+    await this.fetch()
   },
   methods: {
     /**
@@ -293,7 +296,7 @@ export default {
           this.totalPages = Math.max(Math.ceil(data.count / 100), 1)
         }
 
-        this.rows = isArray(data) ? data : data.results
+        this.rows = _.isArray(data) ? data : data.results
       } catch (error) {
         notifyIf(error, 'row')
       }

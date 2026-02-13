@@ -53,27 +53,6 @@
   line-height: 1.4;
 }
 
-.onboarding-user-preview__role {
-  @extend %ellipsis;
-
-  position: relative;
-  text-align: center;
-  margin-top: 14px;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.25;
-  height: 20px;
-  color: $palette-neutral-900;
-
-  &--empty::before {
-    @extend %empty;
-
-    left: 20px;
-    right: 20px;
-    border-radius: 20px;
-  }
-}
-
 .onboarding-user-preview__body {
   padding: 24px 40px;
 }

@@ -29,8 +29,8 @@
           </tr>
         </thead>
         <tbody>
-          <template v-for="field in fields[table.id]">
-            <tr :key="field.id + '-1'" class="api-docs__table-without-border">
+          <template v-for="field in fields[table.id]" :key="field.id">
+            <tr class="api-docs__table-without-border">
               <td>field_{{ field.id }}</td>
               <td>{{ field.name }}</td>
               <td>
@@ -48,7 +48,7 @@
                 >
               </td>
             </tr>
-            <tr :key="field.id + '-2'">
+            <tr>
               <td colspan="4">
                 <!-- eslint-disable vue/no-v-html -->
                 <div

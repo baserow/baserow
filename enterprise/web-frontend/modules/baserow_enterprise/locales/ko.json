@@ -711,5 +711,8 @@
         "invalidDurationEmpty": "기간이 비어 있습니다",
         "invalidDurationValue": "기간 값이 유효하지 않습니다",
         "invalidDurationMismatch": "기간 값 불일치"
+    },
+    "assistantMessageList": {
+        "disclaimer": "쿠마는 실수를 할 수 있으니 답변을 다시 한번 확인해 주세요"
     }
 }

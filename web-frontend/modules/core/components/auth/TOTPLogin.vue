@@ -129,6 +129,7 @@ export default {
       required: true,
     },
   },
+  emits: ['expired', 'success'],
   setup() {
     const values = reactive({
       values: {

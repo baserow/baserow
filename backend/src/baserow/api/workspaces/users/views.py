@@ -131,7 +131,7 @@ class WorkspaceUsersView(APIView, SearchableViewMixin, SortableViewMixin):
             .select_related("workspace", "user", "user__profile")
             .prefetch_related(
                 Prefetch(
-                    "user__two_factor_auth_providers",
+                    "user__two_factor_auth_provider",
                     queryset=specific_queryset(
                         TwoFactorAuthProviderModel.objects.all()
                     ),
@@ -214,8 +214,7 @@ class WorkspaceUserView(APIView):
                 name="workspace_user_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Deletes the workspace user related to the provided "
-                "value.",
+                description="Deletes the workspace user related to the provided value.",
             )
         ],
         tags=["Workspaces"],

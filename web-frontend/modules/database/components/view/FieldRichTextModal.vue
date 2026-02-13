@@ -18,8 +18,8 @@
         class="rich-text-modal__editor"
         :enable-rich-text-formatting="true"
         :mentionable-users="mentionableUsers"
-        :value="value"
-        @input="$emit('input', $event)"
+        :model-value="modelValue"
+        @update:model-value="$emit('update:modelValue', $event)"
       ></RichTextEditor>
     </template>
   </Modal>
@@ -38,7 +38,7 @@ export default {
       type: Object,
       required: true,
     },
-    value: {
+    modelValue: {
       type: [String, Object],
       required: true,
     },
@@ -47,8 +47,9 @@ export default {
       default: () => [],
     },
   },
+  emits: ['hidden', 'input', 'update:modelValue'],
   watch: {
-    value: {
+    modelValue: {
       handler(value) {
         this.richCopy = value || ''
       },

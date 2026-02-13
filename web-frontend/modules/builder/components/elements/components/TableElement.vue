@@ -65,18 +65,16 @@
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { uuid } from '@baserow/modules/core/utils/string'
 import BaserowTable from '@baserow/modules/builder/components/elements/components/BaserowTable'
-import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
+import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
 
 export default {
   name: 'TableElement',
   components: { CollectionElementHeader, BaserowTable },
-  mixins: [element, collectionElement],
   props: {
     /**
      * @type {Object}
@@ -91,6 +89,48 @@ export default {
       type: Object,
       required: true,
     },
+    applicationContextAdditions: {
+      type: Object,
+      required: false,
+      default: undefined,
+    },
+  },
+  async setup(props) {
+    const refProps = toRefs(props)
+
+    const {
+      builder,
+      adhocFilters,
+      adhocSortings,
+      adhocSearch,
+      contentFetchEnabled,
+      elementContent,
+      hasMorePage,
+      contentLoading,
+      loadMore,
+      getPerRecordApplicationContextAddition,
+      applicationContext,
+      resolveFormula,
+      colorVariables,
+      getStyleOverride,
+    } = useCollectionElement(refProps)
+
+    return {
+      builder,
+      elementContent,
+      contentLoading,
+      contentFetchEnabled,
+      hasMorePage,
+      loadMore,
+      resolveFormula,
+      applicationContext,
+      getStyleOverride,
+      colorVariables,
+      getPerRecordApplicationContextAddition,
+      adhocSearch,
+      adhocFilters,
+      adhocSortings,
+    }
   },
   computed: {
     fields() {

@@ -36,6 +36,7 @@ import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 
 export default {
   name: 'GenerateAIValuesContextItem',
+  emits: ['hide-context'],
   components: {
     GenerateAIValuesModal,
     PaidFeaturesModal,

@@ -14,6 +14,7 @@
     "navigate": "Navigate",
     "select": "Select",
     "close": "Close",
+    "empty": "(empty)",
     "types": {
       "applications": "Applications",
       "tables": "Tables",
@@ -328,7 +329,7 @@
     "openaiModelsLabel": "Enabled Models",
     "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
     "openaiBaseUrl": "Base URL",
-    "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com, or any other OpenAI compatible API.",
+    "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, or any other OpenAI compatible API.",
     "anthropic": "Anthropic",
     "anthropicApiKeyLabel": "API Key",
     "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
@@ -509,7 +510,7 @@
     "title": "Dashboard",
     "alertTitle": "We need your help!",
     "alertText": "By sharing Baserow you are helping us to improve the product and to make it more useful for you.",
-    "tweetContent": "Check out @baserow an open source no-code database tool and Airtable alternative!",
+    "tweetContent": "Check out {'@'}baserow an open source no-code database tool and Airtable alternative!",
     "redditTitle": "'Baserow - An open source no-code database",
     "becomeGithubSponsor": "Become a GitHub sponsor",
     "starOnGitHub": "Star us on GitHub",
@@ -657,7 +658,7 @@
       "format": {
         "title": "Format",
         "description": "The format of the query parameters is as follows:",
-        "codeSnippet": "?prefill_<field_name>=<value>"
+        "codeSnippet": "?prefill_&#60;field_name&#62;=&#60;value&#62;"
       },
       "example": {
         "title": "Example",
@@ -899,20 +900,23 @@
     "failedTryAgain": "Try again",
     "failedSkip": "Skip onboarding"
   },
-  "inviteStep": {
-    "title": "Invite collaborators",
-    "description": "You can always add more later.",
-    "collaboratorsLabel": "Collaborators"
-  },
   "moreStep": {
     "title": "Tell us a bit more",
-    "roleOrJob": "Role or job title...",
-    "people": "How many people are in your team?",
+    "how": "How did you hear about us?",
+    "howSearchEngine": "Search engine (Google/Bing)",
+    "howSocialMedia": "Social media",
+    "howOnlineAds": "Online ads",
+    "howContent": "Content (blog/newsletter/video)",
+    "howReviewSite": "Review site / marketplace",
+    "howFriend": "From a friend",
+    "howColleague": "From a colleague",
+    "howEvent": "Event or webinar",
+    "howSales": "Sales outreach",
+    "howOther": "Other",
     "country": "Country",
     "share": "I'm okay with sharing this with the Baserow team"
   },
   "teamStep": {
-    "title": "Let's build your first workspace together!",
     "description": "Which team are you on?",
     "marketingTeam": "Marketing",
     "productAndDesignTeam": "Product & Design",
@@ -926,10 +930,6 @@
     "customerServiceTeam": "Customer Service",
     "manufacturingTeam": "Manufacturing",
     "otherPersonalTeam": "Other / Personal"
-  },
-  "workspaceStep": {
-    "title": "Create your workspace",
-    "workspaceLabel": "Workspace name"
   },
   "colorInput": {
     "default": "Default"
@@ -1130,5 +1130,11 @@
     "verificationFailedDescription": "The entered code is not valid.",
     "provisioningFailed": "Provisioning failed",
     "checkSuccess": "Successfully enabled two-factor authentication"
+  },
+  "adminUsers": {
+    "title": "Users"
+  },
+  "adminWorkspaces": {
+    "title": "Workspaces"
   }
 }

@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import notificationService from '@baserow/modules/core/services/notification'
 
 export const state = () => ({
@@ -65,16 +64,12 @@ export const mutations = {
         continue
       }
 
-      Vue.set(item, 'read', value)
+      item.read = value
 
       const workspaceId = item.workspace?.id
       if (workspaceId) {
         const currCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-        Vue.set(
-          state.perWorkspaceUnreadCount,
-          workspaceId,
-          updateCount(currCount)
-        )
+        state.perWorkspaceUnreadCount[workspaceId] = updateCount(currCount)
       } else {
         state.userUnreadCount = updateCount(state.userUnreadCount)
       }
@@ -85,11 +80,8 @@ export const mutations = {
     }
 
     if (setWorkspaceCount !== undefined) {
-      Vue.set(
-        state.perWorkspaceUnreadCount,
-        state.currentWorkspaceId,
+      state.perWorkspaceUnreadCount[state.currentWorkspaceId] =
         setWorkspaceCount
-      )
     }
   },
   SET_LOADING(state, loading) {
@@ -115,20 +107,17 @@ export const mutations = {
     }
 
     const currentCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-    Vue.set(state.perWorkspaceUnreadCount, workspaceId, currentCount + count)
+    state.perWorkspaceUnreadCount[workspaceId] = currentCount + count
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)
   },
   SET_WORKSPACE_UNREAD_COUNT(state, { workspaceId, count }) {
-    Vue.set(state.perWorkspaceUnreadCount, workspaceId, count)
+    state.perWorkspaceUnreadCount[workspaceId] = count
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)
   },
   SET_UNREAD_COUNT(state, { userCount, currentWorkspaceUnreadCount }) {
     state.userUnreadCount = userCount
-    Vue.set(
-      state.perWorkspaceUnreadCount,
-      state.currentWorkspaceId,
+    state.perWorkspaceUnreadCount[state.currentWorkspaceId] =
       currentWorkspaceUnreadCount
-    )
   },
   UPDATE_UNREAD_COUNTS(state, { notificationsAdded }) {
     for (const addedCount of notificationsAdded) {
@@ -138,11 +127,7 @@ export const mutations = {
         state.userUnreadCount = (state.userUnreadCount || 0) + addedCount.count
       } else {
         const currentCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-        Vue.set(
-          state.perWorkspaceUnreadCount,
-          workspaceId,
-          currentCount + count
-        )
+        state.perWorkspaceUnreadCount[workspaceId] = currentCount + count
       }
     }
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)
@@ -154,11 +139,12 @@ export const actions = {
    * Fetches the next 20 notifications from the server and adds them to the comments list.
    */
   async fetchNextSetOfNotifications({ commit, state }) {
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', true)
     try {
       // We have to use offset based paging here as new notifications can be added by the
       // user or come in via realtime events.
-      const { data } = await notificationService(this.$client).fetchAll(
+      const { data } = await notificationService($client).fetchAll(
         state.currentWorkspaceId,
         { offset: state.currentCount }
       )
@@ -171,10 +157,11 @@ export const actions = {
     }
   },
   async fetchAll({ commit, state }, { workspaceId }) {
+    const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADED', false)
     commit('SET_LOADING', true)
     try {
-      const { data } = await notificationService(this.$client).fetchAll(
+      const { data } = await notificationService($client).fetchAll(
         workspaceId,
         {}
       )
@@ -189,6 +176,8 @@ export const actions = {
     return state.items
   },
   async clearAll({ commit, state }) {
+    const { $registry, $i18n, $client, $config } = this
+
     const notifications = state.items
     const totalCount = state.totalCount
     const prevUserCount = state.userUnreadCount
@@ -200,7 +189,7 @@ export const actions = {
       currentWorkspaceUnreadCount: 0,
     })
     try {
-      await notificationService(this.$client).clearAll(state.currentWorkspaceId)
+      await notificationService($client).clearAll(state.currentWorkspaceId)
     } catch (error) {
       commit('SET', { notifications, totalCount })
       commit('SET_UNREAD_COUNT', {
@@ -222,12 +211,14 @@ export const actions = {
     commit('SET_LOADED', false)
   },
   async markAsRead({ commit, state }, { notification }) {
+    const { $registry, $i18n, $client, $config } = this
+
     commit('SET_NOTIFICATIONS_READ', {
       notificationIds: [notification.id],
       value: true,
     })
     try {
-      await notificationService(this.$client).markAsRead(
+      await notificationService($client).markAsRead(
         state.currentWorkspaceId,
         notification.id
       )
@@ -250,6 +241,7 @@ export const actions = {
     commit('SET_LOADED', false)
   },
   async markAllAsRead({ commit, state }) {
+    const { $registry, $i18n, $client, $config } = this
     const notificationIds = state.items
       .filter((notification) => !notification.read)
       .map((notification) => notification.id)
@@ -265,9 +257,7 @@ export const actions = {
       setWorkspaceCount: 0,
     })
     try {
-      await notificationService(this.$client).markAllAsRead(
-        state.currentWorkspaceId
-      )
+      await notificationService($client).markAllAsRead(state.currentWorkspaceId)
     } catch (error) {
       commit('SET_NOTIFICATIONS_READ', {
         notificationIds,

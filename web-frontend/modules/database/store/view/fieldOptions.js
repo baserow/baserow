@@ -53,6 +53,7 @@ export default () => {
         undoRedoActionGroupId = null,
       }
     ) {
+      const { $client } = this
       commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
         fieldId: field.id,
         values,
@@ -64,7 +65,7 @@ export default () => {
         updateValues.field_options[field.id] = values
 
         try {
-          await ViewService(this.$client).updateFieldOptions({
+          await ViewService($client).updateFieldOptions({
             viewId,
             values: updateValues,
             undoRedoActionGroupId,
@@ -96,6 +97,7 @@ export default () => {
       { dispatch, getters, rootGetters },
       { newFieldOptions, oldFieldOptions, readOnly = false }
     ) {
+      const { $client } = this
       dispatch('forceUpdateAllFieldOptions', newFieldOptions)
 
       const viewId = getters.getViewId
@@ -103,7 +105,7 @@ export default () => {
         const updateValues = { field_options: newFieldOptions }
 
         try {
-          await ViewService(this.$client).updateFieldOptions({
+          await ViewService($client).updateFieldOptions({
             viewId,
             values: updateValues,
           })

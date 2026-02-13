@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import _ from 'lodash'
 import { clone } from '@baserow/modules/core/utils/object'
 import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
@@ -73,7 +72,7 @@ export const mutations = {
     state.singleSelectFieldId = singleSelectFieldId
   },
   SET_ROW_LOADING(state, { row, value }) {
-    Vue.set(row._, 'loading', value)
+    row._.loading = value
   },
   REPLACE_ALL_STACKS(state, stacks) {
     state.stacks = stacks
@@ -105,7 +104,7 @@ export const mutations = {
     }
   },
   ADD_STACK(state, { id, stack }) {
-    Vue.set(state.stacks, id.toString(), stack)
+    state.stacks[id.toString()] = stack
   },
   START_ROW_DRAG(state, { row, currentStackId, currentBefore }) {
     row._.dragging = true
@@ -230,8 +229,9 @@ export const actions = {
   ) {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_LAST_KANBAN_ID', kanbanId)
+    const { $client } = this
     const view = rootGetters['view/get'](kanbanId)
-    const { data } = await KanbanService(this.$client).fetchRows({
+    const { data } = await KanbanService($client).fetchRows({
       kanbanId,
       limit: getters.getBufferRequestSize,
       offset: 0,
@@ -265,10 +265,11 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
+    const { $client } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
-    const { data } = await KanbanService(this.$client).fetchRows({
+    const { data } = await KanbanService($client).fetchRows({
       kanbanId,
       limit: getters.getBufferRequestSize,
       offset: 0,
@@ -321,9 +322,9 @@ export const actions = {
     const kanbanId = getters.getLastKanbanId
     if (!readOnly) {
       const updateValues = { field_options: newFieldOptions }
-
+      const { $client } = this
       try {
-        await ViewService(this.$client).updateFieldOptions({
+        await ViewService($client).updateFieldOptions({
           viewId: kanbanId,
           values: updateValues,
         })
@@ -393,13 +394,14 @@ export const actions = {
     })
 
     if (!readOnly) {
+      const { $client } = this
       const kanbanId = getters.getLastKanbanId
       const oldValues = clone(getters.getAllFieldOptions[field.id])
       const updateValues = { field_options: {} }
       updateValues.field_options[field.id] = values
 
       try {
-        await ViewService(this.$client).updateFieldOptions({
+        await ViewService($client).updateFieldOptions({
           viewId: kanbanId,
           values: updateValues,
           undoRedoActionGroupId,
@@ -420,10 +422,11 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const preparedRow = prepareRowForRequest(values, fields, this.$registry)
+    const { $registry, $client } = this
+    const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
-    const { data } = await RowService(this.$client).create(
+    const { data } = await RowService($client).create(
       table.id,
       preparedRow,
       null,
@@ -451,6 +454,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
+    const { $registry } = this
     const row = clone(values)
     populateRow(row)
 
@@ -470,7 +474,7 @@ export const actions = {
 
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
-    sortedRows.sort(getRowSortFunction(this.$registry, [], fields))
+    sortedRows.sort(getRowSortFunction($registry, [], fields))
     const index = sortedRows.findIndex((r) => r.id === row.id)
     const isLast = index === sortedRows.length - 1
 
@@ -494,14 +498,14 @@ export const actions = {
     { table, view, row, fields }
   ) {
     commit('SET_ROW_LOADING', { row, value: true })
-
+    const { $client } = this
     try {
       await dispatch('deletedExistingRow', {
         view,
         fields,
         row,
       })
-      await RowService(this.$client).delete(
+      await RowService($client).delete(
         table.id,
         row.id,
         getters.getLastKanbanId
@@ -566,7 +570,6 @@ export const actions = {
     return view.filters_disabled
       ? true
       : matchSearchFilters(
-          this.$registry,
           view.filter_type,
           view.filters,
           view.filter_groups,
@@ -584,6 +587,7 @@ export const actions = {
     { dispatch, getters, commit },
     { view, row, values, fields }
   ) {
+    const { $registry } = this
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const fieldName = `field_${singleSelectFieldId}`
 
@@ -623,7 +627,7 @@ export const actions = {
     }
     newStackResults.push(newRow)
     newStackCount++
-    newStackResults.sort(getRowSortFunction(this.$registry, [], fields))
+    newStackResults.sort(getRowSortFunction($registry, [], fields))
     const newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
     const newIsLast = newIndex === newStackResults.length - 1
     const newExists =
@@ -661,12 +665,13 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
+    const { $client } = this
     const gridId = getters.getLastKanbanId
     const publicUrl = rootGetters['page/view/public/getIsPublic']
     const publicAuthToken = rootGetters['page/view/public/getAuthToken']
     commit('SET_ROW_FETCHING', { row, value: true })
     try {
-      const { data } = await ViewService(this.$client).fetchRow(
+      const { data } = await ViewService($client).fetchRow(
         table.id,
         row.id,
         gridId,
@@ -712,6 +717,7 @@ export const actions = {
     if (row === null) {
       return
     }
+    const { $client, $registry } = this
 
     // First we need to figure out what the current position of the row is and how
     // that should be communicated to the backend later. The backend expects another
@@ -730,7 +736,7 @@ export const actions = {
     const singleSelectField = fields.find(
       (field) => field.id === getters.getSingleSelectFieldId
     )
-    const singleSelectFieldType = this.$registry.get(
+    const singleSelectFieldType = $registry.get(
       'field',
       SingleSelectFieldType.getType()
     )
@@ -767,7 +773,7 @@ export const actions = {
     // If the stack has changed, the value needs to be updated with the backend.
     if (originalStackId !== currentStackId) {
       try {
-        const { data } = await RowService(this.$client).update(
+        const { data } = await RowService($client).update(
           table.id,
           row.id,
           newValuesForUpdate,
@@ -790,7 +796,7 @@ export const actions = {
       originalStackId !== currentStackId
     ) {
       try {
-        const { data } = await RowService(this.$client).move(
+        const { data } = await RowService($client).move(
           table.id,
           row.id,
           before !== null ? before.id : null
@@ -817,7 +823,8 @@ export const actions = {
         // Only add the row to the temporary copy if it doesn't live the current stack.
         sortedRows.push(row)
       }
-      sortedRows.sort(getRowSortFunction(this.$registry, [], [], null))
+      const { $registry } = this
+      sortedRows.sort(getRowSortFunction($registry, [], [], null))
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
       dispatch('forceMoveRowTo', {
@@ -880,6 +887,7 @@ export const actions = {
     { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
+    const { $client, $registry } = this
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -887,7 +895,7 @@ export const actions = {
         field,
         value,
         oldValue,
-        this.$registry
+        $registry
       )
 
     await dispatch('updatedExistingRow', {
@@ -913,7 +921,7 @@ export const actions = {
         const updateRowsData = [
           Object.assign({ id: row.id }, updateRequestValues),
         ]
-        const { data } = await RowService(this.$client).batchUpdate(
+        const { data } = await RowService($client).batchUpdate(
           table.id,
           updateRowsData,
           null,
@@ -925,7 +933,7 @@ export const actions = {
           data.items[0],
           fields,
           updatedFieldIds,
-          this.$registry
+          $registry
         )
         commit('UPDATE_ROW', { row, values: readOnlyData })
       }, row.id)
@@ -951,7 +959,7 @@ export const actions = {
     const field = fields.find(
       (field) => field.id === getters.getSingleSelectFieldId
     )
-
+    const { $client } = this
     const updateValues = {
       type: field.type,
       select_options: clone(field.select_options),
@@ -961,10 +969,7 @@ export const actions = {
     // Instead of using the field store, we manually update the existing field
     // because we need to extract the newly created select option id from the
     // response before the field is updated in the store.
-    const { data } = await FieldService(this.$client).update(
-      field.id,
-      updateValues
-    )
+    const { data } = await FieldService($client).update(field.id, updateValues)
 
     // Extract the newly created select option id from the response and create an
     // empty stack with that id. The stack must exist before the field is updated
@@ -998,6 +1003,7 @@ export const actions = {
     { getters, commit, dispatch },
     { fields, optionId, values }
   ) {
+    const { $client } = this
     const field = fields.find(
       (field) => field.id === getters.getSingleSelectFieldId
     )
@@ -1010,10 +1016,7 @@ export const actions = {
       type: field.type,
       select_options: options,
     }
-    const { data } = await FieldService(this.$client).update(
-      field.id,
-      updateValues
-    )
+    const { data } = await FieldService($client).update(field.id, updateValues)
 
     commit('UPDATE_VALUE_OF_ALL_ROWS_IN_STACK', {
       fieldId: field.id,
@@ -1041,6 +1044,7 @@ export const actions = {
     { getters, commit, dispatch },
     { singleSelectField, optionId, deferredFieldUpdate = false }
   ) {
+    const { $client } = this
     const options = clone(singleSelectField.select_options)
     const index = options.findIndex((o) => o.id === optionId)
     options.splice(index, 1)
@@ -1049,7 +1053,7 @@ export const actions = {
       type: singleSelectField.type,
       select_options: options,
     }
-    const { data } = await FieldService(this.$client).update(
+    const { data } = await FieldService($client).update(
       singleSelectField.id,
       updateValues
     )

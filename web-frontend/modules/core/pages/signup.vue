@@ -59,88 +59,119 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup>
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import PasswordRegister from '@baserow/modules/core/components/auth/PasswordRegister'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
 import LoginButtons from '@baserow/modules/core/components/auth/LoginButtons'
 import LoginActions from '@baserow/modules/core/components/auth/LoginActions'
-import workspaceInvitationToken from '@baserow/modules/core/mixins/workspaceInvitationToken'
-import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 import EmailNotVerified from '@baserow/modules/core/components/auth/EmailNotVerified.vue'
+import WorkspaceService from '@baserow/modules/core/services/workspace'
+import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
-export default {
-  components: {
-    PasswordRegister,
-    LangPicker,
-    LoginButtons,
-    LoginActions,
-    EmailNotVerified,
-  },
+definePageMeta({
   layout: 'login',
-  async asyncData({ app, route, store, redirect }) {
-    if (store.getters['auth/isAuthenticated']) {
-      return redirect({ name: 'dashboard' })
-    }
-    await store.dispatch('authProvider/fetchLoginOptions')
-    return await workspaceInvitationToken.asyncData({ route, app })
-  },
-  data() {
-    return {
-      displayEmailNotVerified: false,
-      emailToVerify: null,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('signup.headTitle'),
-      link: [
-        {
-          rel: 'canonical',
-          href:
-            this.$config.PUBLIC_WEB_FRONTEND_URL +
-            this.$router.resolve({ name: 'signup' }).href,
-        },
-      ],
-    }
-  },
-  computed: {
-    isSignupEnabled() {
-      return (
-        this.settings.allow_new_signups ||
-        (this.settings.allow_signups_via_workspace_invitations &&
-          this.invitation?.id)
-      )
-    },
-    shouldShowAdminSignupPage() {
-      return this.settings.show_admin_signup_page
-    },
-    ...mapGetters({
-      settings: 'settings/get',
-      loginActions: 'authProvider/getAllLoginActions',
-      loginButtons: 'authProvider/getAllLoginButtons',
-      passwordLoginEnabled: 'authProvider/getPasswordLoginEnabled',
-    }),
-  },
-  methods: {
-    next(params) {
-      if (params?.email) {
-        this.emailToVerify = params.email
-      }
+  middleware: ['settings'],
+})
 
-      if (
-        this.emailToVerify &&
-        this.settings.email_verification ===
-          EMAIL_VERIFICATION_OPTIONS.ENFORCED &&
-        !this.$route.query.workspaceInvitationToken
-      ) {
-        this.displayEmailNotVerified = true
-      } else {
-        this.$nuxt.$router.push({ name: 'dashboard' }, () => {
-          this.$store.dispatch('settings/hideAdminSignupPage')
-        })
+const store = useStore()
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
+const config = useRuntimeConfig()
+const { $client } = useNuxtApp()
+
+// Reactive data
+const displayEmailNotVerified = ref(false)
+const emailToVerify = ref(null)
+
+// Fetch invitation data based on token
+const invitationToken = route.query.workspaceInvitationToken
+const { data: invitation } = await useAsyncData(
+  `signup-invitation-${invitationToken || 'none'}`,
+  async () => {
+    // Redirect if already authenticated
+    if (store.getters['auth/isAuthenticated']) {
+      await navigateTo({ name: 'dashboard' })
+      return null
+    }
+
+    // Fetch login options
+    await store.dispatch('authProvider/fetchLoginOptions')
+
+    // Fetch workspace invitation if token exists
+    if (invitationToken) {
+      try {
+        const { data } =
+          await WorkspaceService($client).fetchInvitationByToken(
+            invitationToken
+          )
+        return data
+      } catch {
+        return null
       }
-    },
-  },
+    }
+
+    return null
+  }
+)
+
+// Computed properties
+const settings = computed(() => store.getters['settings/get'])
+const loginActions = computed(
+  () => store.getters['authProvider/getAllLoginActions']
+)
+const loginButtons = computed(
+  () => store.getters['authProvider/getAllLoginButtons']
+)
+const passwordLoginEnabled = computed(
+  () => store.getters['authProvider/getPasswordLoginEnabled']
+)
+
+const isSignupEnabled = computed(() => {
+  return (
+    settings.value.allow_new_signups ||
+    (settings.value.allow_signups_via_workspace_invitations &&
+      invitation.value?.id)
+  )
+})
+
+const shouldShowAdminSignupPage = computed(() => {
+  return settings.value.show_admin_signup_page
+})
+
+// Methods
+const next = (params) => {
+  if (params?.email) {
+    emailToVerify.value = params.email
+  }
+
+  if (
+    emailToVerify.value &&
+    settings.value.email_verification === EMAIL_VERIFICATION_OPTIONS.ENFORCED &&
+    !route.query.workspaceInvitationToken
+  ) {
+    displayEmailNotVerified.value = true
+  } else {
+    router.push({ name: 'dashboard' }).then(() => {
+      store.dispatch('settings/hideAdminSignupPage')
+    })
+  }
 }
+
+// Head metadata
+useHead({
+  title: t('signup.headTitle'),
+  link: [
+    {
+      rel: 'canonical',
+      href:
+        config.public.publicWebFrontendUrl +
+        router.resolve({ name: 'signup' }).href,
+    },
+  ],
+})
 </script>

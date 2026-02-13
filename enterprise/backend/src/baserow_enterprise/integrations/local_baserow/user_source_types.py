@@ -267,8 +267,7 @@ class LocalBaserowUserSourceType(UserSourceType):
                         {
                             "email_field_id": [
                                 {
-                                    "detail": "This field type can't be used as "
-                                    "email.",
+                                    "detail": "This field type can't be used as email.",
                                     "code": "invalid_field",
                                 }
                             ]
@@ -327,8 +326,7 @@ class LocalBaserowUserSourceType(UserSourceType):
                         {
                             "name_field_id": [
                                 {
-                                    "detail": "This field type can't be used as "
-                                    "name.",
+                                    "detail": "This field type can't be used as name.",
                                     "code": "invalid_field",
                                 }
                             ]

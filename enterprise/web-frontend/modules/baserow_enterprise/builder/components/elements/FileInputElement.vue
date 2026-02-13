@@ -119,7 +119,7 @@ export default {
     resolvedDefaultValue() {},
     resolvedDefaultValueWithMetadata: {
       handler(value) {
-        if (process.client) {
+        if (import.meta.client) {
           this.updatedMetadata()
         }
         this.inputValue = value

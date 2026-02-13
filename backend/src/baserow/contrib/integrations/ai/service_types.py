@@ -3,8 +3,6 @@ from typing import Any, Dict, Generator, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from langchain_core.exceptions import OutputParserException
-from langchain_core.prompts import PromptTemplate
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -18,7 +16,7 @@ from baserow.core.generative_ai.exceptions import (
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.output_parsers import StrictEnumOutputParser
+from baserow.core.output_parsers import get_strict_enum_output_parser
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -170,6 +168,9 @@ class AIAgentServiceType(ServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Dict[str, Any]:
+        from langchain_core.exceptions import OutputParserException
+        from langchain_core.prompts import PromptTemplate
+
         if not service.ai_generative_ai_type:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The AI provider type is missing."
@@ -228,7 +229,7 @@ class AIAgentServiceType(ServiceType):
             choices_enum = enum.Enum(
                 "Choices", {f"OPTION_{i}": choice for i, choice in enumerate(choices)}
             )
-            output_parser = StrictEnumOutputParser(enum=choices_enum)
+            output_parser = get_strict_enum_output_parser(enum=choices_enum)
             format_instructions = output_parser.get_format_instructions()
             prompt_template = PromptTemplate(
                 template=prompt + "\n\nGiven this user query:\n\n{format_instructions}",

@@ -12,7 +12,7 @@ import calendarStore from '@baserow_premium/store/view/calendar'
 import timelineStore from '@baserow_premium/store/view/timeline'
 import impersonatingStore from '@baserow_premium/store/impersonating'
 import { PremiumDatabaseApplicationType } from '@baserow_premium/applicationTypes'
-import { registerRealtimeEvents } from '@baserow_premium/realtime'
+
 import {
   KanbanViewType,
   CalendarViewType,
@@ -67,14 +67,6 @@ import {
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
-import en from '@baserow_premium/locales/en.json'
-import fr from '@baserow_premium/locales/fr.json'
-import nl from '@baserow_premium/locales/nl.json'
-import de from '@baserow_premium/locales/de.json'
-import es from '@baserow_premium/locales/es.json'
-import it from '@baserow_premium/locales/it.json'
-import pl from '@baserow_premium/locales/pl.json'
-import ko from '@baserow_premium/locales/ko.json'
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
 import { PersonalViewOwnershipType } from '@baserow_premium/viewOwnershipTypes'
 import { ViewOwnershipPermissionManagerType } from '@baserow_premium/permissionManagerTypes'
@@ -106,268 +98,261 @@ import {
   ChartPaidFeature,
 } from '@baserow_premium/paidFeatures'
 
-export default (context) => {
-  const { store, app, isDev } = context
+export default defineNuxtPlugin({
+  name: 'premium',
+  dependsOn: ['core', 'builder', 'database', 'client-handler'],
+  setup(nuxtApp) {
+    const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
 
-  app.$clientErrorMap.setError(
-    'ERROR_FEATURE_NOT_AVAILABLE',
-    'License required',
-    'This functionality requires an active premium license. Please refresh the page.'
-  )
+    const context = { app: nuxtApp }
 
-  app.$clientErrorMap.setError(
-    'ERROR_USER_NOT_COMMENT_AUTHOR',
-    app.i18n.t('rowComment.errorUserNotCommentAuthorTitle'),
-    app.i18n.t('rowComment.errorUserNotCommentAuthor')
-  )
-  app.$clientErrorMap.setError(
-    'ERROR_INVALID_COMMENT_MENTION',
-    app.i18n.t('rowComment.errorInvalidCommentMentionTitle'),
-    app.i18n.t('rowComment.errorInvalidCommentMention')
-  )
+    $clientErrorMap.setError(
+      'ERROR_FEATURE_NOT_AVAILABLE',
+      'License required',
+      'This functionality requires an active premium license. Please refresh the page.'
+    )
 
-  // Allow locale file hot reloading
-  if (isDev && app.i18n) {
-    const { i18n } = app
-    i18n.mergeLocaleMessage('en', en)
-    i18n.mergeLocaleMessage('fr', fr)
-    i18n.mergeLocaleMessage('nl', nl)
-    i18n.mergeLocaleMessage('de', de)
-    i18n.mergeLocaleMessage('es', es)
-    i18n.mergeLocaleMessage('it', it)
-    i18n.mergeLocaleMessage('pl', pl)
-    i18n.mergeLocaleMessage('ko', ko)
-  }
+    $clientErrorMap.setError(
+      'ERROR_USER_NOT_COMMENT_AUTHOR',
+      $i18n.t('rowComment.errorUserNotCommentAuthorTitle'),
+      $i18n.t('rowComment.errorUserNotCommentAuthor')
+    )
+    $clientErrorMap.setError(
+      'ERROR_INVALID_COMMENT_MENTION',
+      $i18n.t('rowComment.errorInvalidCommentMentionTitle'),
+      $i18n.t('rowComment.errorInvalidCommentMention')
+    )
 
-  store.registerModule('row_comments', rowCommentsStore)
-  store.registerModule('page/view/kanban', kanbanStore)
-  store.registerModule('page/view/calendar', calendarStore)
-  store.registerModule('page/view/timeline', timelineStore)
-  store.registerModule('template/view/kanban', kanbanStore)
-  store.registerModule('template/view/calendar', calendarStore)
-  store.registerModule('template/view/timeline', timelineStore)
-  store.registerModule('impersonating', impersonatingStore)
+    // Allow locale file hot reloading
+    /* if (isDev && $i18n) {
+      const { i18n } = app
+      i18n.mergeLocaleMessage('en', en)
+      i18n.mergeLocaleMessage('fr', fr)
+      i18n.mergeLocaleMessage('nl', nl)
+      i18n.mergeLocaleMessage('de', de)
+      i18n.mergeLocaleMessage('es', es)
+      i18n.mergeLocaleMessage('it', it)
+      i18n.mergeLocaleMessage('pl', pl)
+      i18n.mergeLocaleMessage('ko', ko)
+    }*/
 
-  app.$registry.registerNamespace('aiFieldOutputType')
-  app.$registry.registerNamespace('paidFeature')
+    $store.registerModuleNuxtSafe('row_comments', rowCommentsStore)
+    $store.registerModuleNuxtSafe('page/view/kanban', kanbanStore)
+    $store.registerModuleNuxtSafe('page/view/calendar', calendarStore)
+    $store.registerModuleNuxtSafe('page/view/timeline', timelineStore)
+    $store.registerModuleNuxtSafe('template/view/kanban', kanbanStore)
+    $store.registerModuleNuxtSafe('template/view/calendar', calendarStore)
+    $store.registerModuleNuxtSafe('template/view/timeline', timelineStore)
+    $store.registerModuleNuxtSafe('impersonating', impersonatingStore)
 
-  app.$registry.register('plugin', new PremiumPlugin(context))
-  app.$registry.register('admin', new LicensesAdminType(context))
-  app.$registry.register('exporter', new JSONTableExporter(context))
-  app.$registry.register('exporter', new XMLTableExporter(context))
-  app.$registry.register('exporter', new ExcelTableExporterType(context))
-  app.$registry.register('exporter', new FileTableExporter(context))
-  app.$registry.register('field', new AIFieldType(context))
-  app.$registry.register('field', new PremiumFormulaFieldType(context))
-  app.$registry.register('view', new KanbanViewType(context))
-  app.$registry.register('view', new CalendarViewType(context))
-  app.$registry.register('view', new TimelineViewType(context))
+    $registry.registerNamespace('aiFieldOutputType')
+    $registry.registerNamespace('paidFeature')
+    $registry.registerNamespace('license')
+    $registry.registerNamespace('groupedAggregation')
+    $registry.registerNamespace('groupedAggregationGroupedBy')
+    $registry.registerNamespace('chartFieldFormatting')
 
-  app.$registry.register(
-    'viewDecorator',
-    new LeftBorderColorViewDecoratorType(context)
-  )
-  app.$registry.register(
-    'viewDecorator',
-    new BackgroundColorViewDecoratorType(context)
-  )
+    $registry.register('plugin', new PremiumPlugin(context))
+    $registry.register('admin', new LicensesAdminType(context))
+    $registry.register('exporter', new JSONTableExporter(context))
+    $registry.register('exporter', new XMLTableExporter(context))
+    $registry.register('exporter', new ExcelTableExporterType(context))
+    $registry.register('exporter', new FileTableExporter(context))
+    $registry.register('field', new AIFieldType(context))
+    $registry.register('field', new PremiumFormulaFieldType(context))
+    $registry.register('view', new KanbanViewType(context))
+    $registry.register('view', new CalendarViewType(context))
+    $registry.register('view', new TimelineViewType(context))
 
-  app.$registry.register(
-    'decoratorValueProvider',
-    new SingleSelectColorValueProviderType(context)
-  )
-  app.$registry.register(
-    'decoratorValueProvider',
-    new ConditionalColorValueProviderType(context)
-  )
+    $registry.register(
+      'viewDecorator',
+      new LeftBorderColorViewDecoratorType(context)
+    )
+    $registry.register(
+      'viewDecorator',
+      new BackgroundColorViewDecoratorType(context)
+    )
 
-  app.$registry.register(
-    'viewOwnershipType',
-    new PersonalViewOwnershipType(context)
-  )
+    $registry.register(
+      'decoratorValueProvider',
+      new SingleSelectColorValueProviderType(context)
+    )
+    $registry.register(
+      'decoratorValueProvider',
+      new ConditionalColorValueProviderType(context)
+    )
 
-  app.$registry.register('formViewMode', new FormViewSurveyModeType(context))
+    $registry.register(
+      'viewOwnershipType',
+      new PersonalViewOwnershipType(context)
+    )
 
-  app.$registry.register('license', new PremiumLicenseType(context))
+    $registry.register('formViewMode', new FormViewSurveyModeType(context))
 
-  app.$registry.register(
-    'permissionManager',
-    new ViewOwnershipPermissionManagerType(context)
-  )
+    $registry.register('license', new PremiumLicenseType(context))
 
-  registerRealtimeEvents(app.$realtime)
+    $registry.register(
+      'permissionManager',
+      new ViewOwnershipPermissionManagerType(context)
+    )
 
-  // Overwrite the existing database application type with the one customized for
-  // premium use.
-  app.$registry.register(
-    'application',
-    new PremiumDatabaseApplicationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new RowCommentMentionNotificationType(context)
-  )
-  app.$registry.register(
-    'notification',
-    new RowCommentNotificationType(context)
-  )
+    // Overwrite the existing database application type with the one customized for
+    // premium use.
+    $registry.register(
+      'application',
+      new PremiumDatabaseApplicationType(context)
+    )
+    $registry.register(
+      'notification',
+      new RowCommentMentionNotificationType(context)
+    )
+    $registry.register('notification', new RowCommentNotificationType(context))
 
-  app.$registry.register(
-    'rowModalSidebar',
-    new CommentsRowModalSidebarType(context)
-  )
+    $registry.register(
+      'rowModalSidebar',
+      new CommentsRowModalSidebarType(context)
+    )
 
-  app.$registry.register(
-    'aiFieldOutputType',
-    new TextAIFieldOutputType(context)
-  )
-  app.$registry.register(
-    'aiFieldOutputType',
-    new ChoiceAIFieldOutputType(context)
-  )
+    $registry.register('aiFieldOutputType', new TextAIFieldOutputType(context))
+    $registry.register(
+      'aiFieldOutputType',
+      new ChoiceAIFieldOutputType(context)
+    )
 
-  app.$registry.register('job', new GenerateAIValuesJobType(context))
+    $registry.register('job', new GenerateAIValuesJobType(context))
 
-  app.$registry.register(
-    'fieldContextItem',
-    new GenerateAIValuesContextItemType(context)
-  )
+    $registry.register(
+      'fieldContextItem',
+      new GenerateAIValuesContextItemType(context)
+    )
 
-  app.$registry.register(
-    'groupedAggregation',
-    new MinViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new MaxViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new SumViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new AverageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new MedianViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new StdDevViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new VarianceViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new CountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new EmptyCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new NotEmptyCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new CheckedCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new NotCheckedCountViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new EmptyPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new NotEmptyPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new CheckedPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new NotCheckedPercentageViewAggregationType(context)
-  )
-  app.$registry.register(
-    'groupedAggregation',
-    new UniqueCountViewAggregationType(context)
-  )
+    $registry.register(
+      'groupedAggregation',
+      new MinViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new MaxViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new SumViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new AverageViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new MedianViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new StdDevViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new VarianceViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new CountViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new EmptyCountViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new NotEmptyCountViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new CheckedCountViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new NotCheckedCountViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new EmptyPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new NotEmptyPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new CheckedPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new NotCheckedPercentageViewAggregationType(context)
+    )
+    $registry.register(
+      'groupedAggregation',
+      new UniqueCountViewAggregationType(context)
+    )
 
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new TextFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new LongTextFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new NumberFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new URLFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new RatingFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new BooleanFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new EmailFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new SingleSelectFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new PhoneNumberFieldType(context)
-  )
-  app.$registry.register(
-    'groupedAggregationGroupedBy',
-    new AutonumberFieldType(context)
-  )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new TextFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new LongTextFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new NumberFieldType(context)
+    )
+    $registry.register('groupedAggregationGroupedBy', new URLFieldType(context))
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new RatingFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new BooleanFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new EmailFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new SingleSelectFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new PhoneNumberFieldType(context)
+    )
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new AutonumberFieldType(context)
+    )
 
-  app.$registry.register('dashboardWidget', new ChartWidgetType(context))
-  app.$registry.register('dashboardWidget', new PieChartWidgetType(context))
-  app.$registry.register(
-    'chartFieldFormatting',
-    new SingleSelectFormattingType(context)
-  )
+    $registry.register('dashboardWidget', new ChartWidgetType(context))
+    $registry.register('dashboardWidget', new PieChartWidgetType(context))
+    $registry.register(
+      'chartFieldFormatting',
+      new SingleSelectFormattingType(context)
+    )
 
-  app.$registry.register('paidFeature', new KanbanViewPaidFeature(context))
-  app.$registry.register('paidFeature', new CalendarViewPaidFeature(context))
-  app.$registry.register('paidFeature', new TimelineViewPaidFeature(context))
-  app.$registry.register('paidFeature', new RowColoringPaidFeature(context))
-  app.$registry.register('paidFeature', new RowCommentsPaidFeature(context))
-  app.$registry.register(
-    'paidFeature',
-    new RowNotificationsPaidFeature(context)
-  )
-  app.$registry.register('paidFeature', new AIPaidFeature(context))
-  app.$registry.register('paidFeature', new PersonalViewsPaidFeature(context))
-  app.$registry.register('paidFeature', new ExportsPaidFeature(context))
-  app.$registry.register('paidFeature', new FormSurveyModePaidFeature(context))
-  app.$registry.register(
-    'paidFeature',
-    new PublicLogoRemovalPaidFeature(context)
-  )
-  app.$registry.register('paidFeature', new ChartPaidFeature(context))
+    $registry.register('paidFeature', new KanbanViewPaidFeature(context))
+    $registry.register('paidFeature', new CalendarViewPaidFeature(context))
+    $registry.register('paidFeature', new TimelineViewPaidFeature(context))
+    $registry.register('paidFeature', new RowColoringPaidFeature(context))
+    $registry.register('paidFeature', new RowCommentsPaidFeature(context))
+    $registry.register('paidFeature', new RowNotificationsPaidFeature(context))
+    $registry.register('paidFeature', new AIPaidFeature(context))
+    $registry.register('paidFeature', new PersonalViewsPaidFeature(context))
+    $registry.register('paidFeature', new ExportsPaidFeature(context))
+    $registry.register('paidFeature', new FormSurveyModePaidFeature(context))
+    $registry.register('paidFeature', new PublicLogoRemovalPaidFeature(context))
+    $registry.register('paidFeature', new ChartPaidFeature(context))
 
-  app.$registry.registerNamespace('timelineFieldRules')
-}
+    $registry.registerNamespace('timelineFieldRules')
+  },
+})

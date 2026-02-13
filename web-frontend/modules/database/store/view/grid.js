@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
@@ -353,7 +352,7 @@ export const mutations = {
           }
         })
       } else {
-        Vue.set(state.fieldOptions, key, fieldOptions[key])
+        state.fieldOptions[key] = fieldOptions[key]
       }
     })
 
@@ -361,7 +360,7 @@ export const mutations = {
     Object.keys(state.fieldOptions).forEach((key) => {
       const exists = Object.prototype.hasOwnProperty.call(fieldOptions, key)
       if (!exists) {
-        Vue.delete(state.fieldOptions, key)
+        delete state.fieldOptions[key]
       }
     })
   },
@@ -376,7 +375,7 @@ export const mutations = {
   },
   DELETE_FIELD_OPTIONS(state, fieldId) {
     if (Object.prototype.hasOwnProperty.call(state.fieldOptions, fieldId)) {
-      Vue.delete(state.fieldOptions, fieldId)
+      delete state.fieldOptions[fieldId]
     }
   },
   SET_ROW_HOVER(state, { row, value }) {
@@ -447,7 +446,7 @@ export const mutations = {
     state.multiSelectHolding = value
   },
   SET_MULTISELECT_ACTIVE(state, value) {
-    Vue.set(state, 'multiSelectActive', value)
+    state.multiSelectActive = value
   },
   CLEAR_AREA_SELECTION(state) {
     state.multiSelectHolding = false
@@ -657,7 +656,7 @@ export const mutations = {
         )
 
         if (existingIndex !== -1) {
-          Vue.set(existingMetadata[newGroupField], existingIndex, newGroupEntry)
+          existingMetadata[newGroupField][existingIndex] = newGroupEntry
         } else {
           existingMetadata[newGroupField].push(newGroupEntry)
         }
@@ -703,7 +702,7 @@ export const mutations = {
             count -= 1
           }
 
-          Vue.set(entry, 'count', count)
+          entry.count = count
           updated = true
         }
       })
@@ -722,11 +721,11 @@ export const mutations = {
   SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
     const addKey = (fieldId, rowId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      Vue.set(state.pendingFieldOps, key, [fieldId, rowId])
+      state.pendingFieldOps[key] = [fieldId, rowId]
     }
     const deleteKey = (fieldId, rowId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      Vue.delete(state.pendingFieldOps, key)
+      delete state.pendingFieldOps[key]
     }
     const operation = value ? addKey : deleteKey
 
@@ -735,7 +734,7 @@ export const mutations = {
   CLEAR_PENDING_FIELD_OPERATIONS(state, { fieldIds, rowId }) {
     fieldIds.forEach((fieldId) => {
       const key = getPendingOperationKey(fieldId, rowId)
-      Vue.delete(state.pendingFieldOps, key)
+      delete state.pendingFieldOps[key]
     })
   },
   CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD(state, { fieldId }) {
@@ -743,7 +742,7 @@ export const mutations = {
       (key) => state.pendingFieldOps[key][0] === fieldId
     )
     keysToDelete.forEach((key) => {
-      Vue.delete(state.pendingFieldOps, key)
+      delete state.pendingFieldOps[key]
     })
   },
   UPDATE_ROW_HEIGHT(state, value) {
@@ -812,6 +811,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { scrollTop, fields }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const windowHeight = getters.getWindowHeight
     const gridId = getters.getLastGridId
     const view = rootGetters['view/get'](getters.getLastGridId)
@@ -910,14 +910,14 @@ export const actions = {
       lastRequestOffset = requestOffset
       lastRequestLimit = requestLimit
       lastQueryController = new AbortController()
-      lastRequest = GridService(this.$client)
+      lastRequest = GridService($client)
         .fetchRows({
           gridId,
           offset: requestOffset,
           limit: requestLimit,
           signal: lastQueryController.signal,
           search: getters.getServerSearchTerm,
-          searchMode: getDefaultSearchModeFromEnv(this.$config),
+          searchMode: getDefaultSearchModeFromEnv($config),
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
@@ -967,6 +967,7 @@ export const actions = {
    * what the start and end index for the visible rows in the buffer should be.
    */
   visibleByScrollTop({ getters, commit }, scrollTop = null) {
+    const { $registry, $client, $i18n, $config } = this
     if (scrollTop !== null) {
       commit('SET_SCROLL_TOP', scrollTop)
     } else {
@@ -1033,6 +1034,7 @@ export const actions = {
    * milliseconds to prevent calling the actions who do a lot of calculating a lot.
    */
   fetchByScrollTopDelayed({ dispatch }, { scrollTop, fields }) {
+    const { $registry, $client, $i18n, $config } = this
     const now = Date.now()
 
     const fire = (scrollTop) => {
@@ -1071,6 +1073,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { gridId, fields, adhocFiltering, adhocSorting }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     // Reset scrollTop when switching table
     fireScrollTop.distance = 0
     fireScrollTop.last = Date.now()
@@ -1086,13 +1089,13 @@ export const actions = {
 
     const view = rootGetters['view/get'](getters.getLastGridId)
     const limit = getters.getBufferRequestSize * 2
-    const { data } = await GridService(this.$client).fetchRows({
+    const { data } = await GridService($client).fetchRows({
       gridId,
       offset: 0,
       limit,
       includeFieldOptions: true,
       search: getters.getServerSearchTerm,
-      searchMode: getDefaultSearchModeFromEnv(this.$config),
+      searchMode: getDefaultSearchModeFromEnv($config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
@@ -1139,6 +1142,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
   ) {
+    const { $client, $config } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     const gridId = getters.getLastGridId
@@ -1147,11 +1151,11 @@ export const actions = {
       lastRefreshRequestController.abort()
     }
     lastRefreshRequestController = new AbortController()
-    lastRefreshRequest = GridService(this.$client)
+    lastRefreshRequest = GridService($client)
       .fetchCount({
         gridId,
         search: getters.getServerSearchTerm,
-        searchMode: getDefaultSearchModeFromEnv(this.$config),
+        searchMode: getDefaultSearchModeFromEnv($config),
         signal: lastRefreshRequestController.signal,
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
@@ -1169,7 +1173,7 @@ export const actions = {
         return { limit, offset, count }
       })
       .then(({ limit, offset, count }) =>
-        GridService(this.$client)
+        GridService($client)
           .fetchRows({
             gridId,
             offset,
@@ -1177,7 +1181,7 @@ export const actions = {
             includeFieldOptions,
             signal: lastRefreshRequestController.signal,
             search: getters.getServerSearchTerm,
-            searchMode: getDefaultSearchModeFromEnv(this.$config),
+            searchMode: getDefaultSearchModeFromEnv($config),
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
@@ -1247,6 +1251,7 @@ export const actions = {
     { commit, getters, dispatch, rootGetters },
     { field, values, oldValues, readOnly = false, undoRedoActionGroupId }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const previousOptions = getters.getAllFieldOptions[field.id]
     let needAggregationValueUpdate = false
 
@@ -1277,7 +1282,7 @@ export const actions = {
       updateValues.field_options[field.id] = values
 
       try {
-        await ViewService(this.$client).updateFieldOptions({
+        await ViewService($client).updateFieldOptions({
           viewId: gridId,
           values: updateValues,
           undoRedoActionGroupId,
@@ -1300,6 +1305,7 @@ export const actions = {
    * the backend is made.
    */
   setFieldOptionsOfField({ commit, getters, dispatch }, { field, values }) {
+    const { $registry, $client, $i18n, $config } = this
     commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
       fieldId: field.id,
       values,
@@ -1319,6 +1325,7 @@ export const actions = {
       undoRedoActionGroupId = null,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     dispatch('forceUpdateAllFieldOptions', newFieldOptions)
 
     const gridId = getters.getLastGridId
@@ -1326,7 +1333,7 @@ export const actions = {
       const updateValues = { field_options: newFieldOptions }
 
       try {
-        await ViewService(this.$client).updateFieldOptions({
+        await ViewService($client).updateFieldOptions({
           viewId: gridId,
           values: updateValues,
           undoRedoActionGroupId,
@@ -1356,6 +1363,7 @@ export const actions = {
     { rootGetters, getters, commit },
     { view }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const isPublic = rootGetters['page/view/public/getIsPublic']
     const search = getters.getActiveSearchTerm
     const fieldOptions = getters.getAllFieldOptions
@@ -1385,23 +1393,23 @@ export const actions = {
 
       if (!isPublic) {
         lastAggregationRequest.request = GridService(
-          this.$client
+          $client
         ).fetchFieldAggregations({
           gridId: view.id,
           filters: getFilters(view, getters.getAdhocFiltering),
           search,
-          searchMode: getDefaultSearchModeFromEnv(this.$config),
+          searchMode: getDefaultSearchModeFromEnv($config),
           signal: lastAggregationRequest.controller.signal,
         })
       } else {
         lastAggregationRequest.request = GridService(
-          this.$client
+          $client
         ).fetchPublicFieldAggregations({
           slug: view.slug,
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           filters: getFilters(view, getters.getAdhocFiltering),
           search,
-          searchMode: getDefaultSearchModeFromEnv(this.$config),
+          searchMode: getDefaultSearchModeFromEnv($config),
           signal: lastAggregationRequest.controller.signal,
         })
       }
@@ -1469,6 +1477,7 @@ export const actions = {
     { commit, getters, dispatch },
     { order, readOnly = false, undoRedoActionGroupId = null }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const oldFieldOptions = clone(getters.getAllFieldOptions)
     const newFieldOptions = clone(getters.getAllFieldOptions)
 
@@ -1522,6 +1531,7 @@ export const actions = {
       readOnly = false,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const oldFieldOptions = clone(getters.getAllFieldOptions)
     const newFieldOptions = clone(getters.getAllFieldOptions)
 
@@ -1599,6 +1609,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { direction, fields }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     const rowIndex = getters.getMultiSelectStartRowIndex
     const fieldIndex = getters.getMultiSelectStartFieldIndex
@@ -1688,6 +1699,7 @@ export const actions = {
     dispatch('setMultiSelectHeadOrTail', { rowId, fieldIndex })
   },
   multiSelectShiftChange({ getters, commit, dispatch }, { direction }) {
+    const { $registry, $client, $i18n, $config } = this
     if (
       getters.getMultiSelectStartRowIndex === -1 ||
       getters.getMultiSelectStartFieldIndex === -1
@@ -1787,6 +1799,7 @@ export const actions = {
     { getters, commit, dispatch },
     { rowId, fieldIndex }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SELECTED_CELL', { rowId: -1, fieldId: -1 })
 
     const rowIndex = getters.getRowIndexById(rowId)
@@ -1849,6 +1862,7 @@ export const actions = {
    * If one or more rows are not in the buffer, they are fetched from the backend.
    */
   async getCurrentSelection({ dispatch, getters }, { fields }) {
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     let rows = []
     let fieldsToUse = fields
@@ -1856,7 +1870,7 @@ export const actions = {
 
     const allFieldsDataInBuffer = (rows, fields) => {
       return fields.every((field) => {
-        const fieldType = this.$registry.get('field', field.type)
+        const fieldType = $registry.get('field', field.type)
         return !fieldType.shouldRefetchFieldData(field, rows)
       })
     }
@@ -1874,7 +1888,7 @@ export const actions = {
       } else {
         fetchParams = {
           startIndex: 0,
-          limit: this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT,
+          limit: $config.public.baserowRowPageSizeLimit,
           fields,
           rowIds: selectedRowIds,
           limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
@@ -1918,6 +1932,7 @@ export const actions = {
     { getters, rootGetters },
     { startIndex, limit, fields, excludeFields, rowIds, limitLinkedItems }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
     }
@@ -1927,12 +1942,12 @@ export const actions = {
 
     const gridId = getters.getLastGridId
     const view = rootGetters['view/get'](getters.getLastGridId)
-    const { data } = await GridService(this.$client).fetchRows({
+    const { data } = await GridService($client).fetchRows({
       gridId,
       offset: startIndex,
       limit,
       search: getters.getServerSearchTerm,
-      searchMode: getDefaultSearchModeFromEnv(this.$config),
+      searchMode: getDefaultSearchModeFromEnv($config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
@@ -1990,12 +2005,13 @@ export const actions = {
     { commit, getters, rootGetters },
     { table, row }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_ROW_FETCHING', { row, value: true })
     try {
       const gridId = getters.getLastGridId
       const publicUrl = rootGetters['page/view/public/getIsPublic']
       const publicAuthToken = rootGetters['page/view/public/getAuthToken']
-      const { data } = await ViewService(this.$client).fetchRow(
+      const { data } = await ViewService($client).fetchRow(
         table.id,
         row.id,
         gridId,
@@ -2026,6 +2042,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     await dispatch('createNewRows', {
       view,
       table,
@@ -2049,6 +2066,7 @@ export const actions = {
       undoRedoActionGroupId = null,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )
@@ -2057,7 +2075,7 @@ export const actions = {
       // missing default values
       const fieldNewRowValueMap = fields.reduce((map, field) => {
         const name = `field_${field.id}`
-        const fieldType = this.$registry.get('field', field._.type.type)
+        const fieldType = $registry.get('field', field._.type.type)
         map[name] = fieldType.getNewRowValue(field)
         return map
       }, {})
@@ -2086,7 +2104,7 @@ export const actions = {
           : getters.getAllRows.findIndex((r) => r.id === before.id)
 
       const fieldPermissionsMap = fields.reduce((map, field) => {
-        const fieldType = this.$registry.get('field', field._.type.type)
+        const fieldType = $registry.get('field', field._.type.type)
         map[`field_${field.id}`] = fieldType.canWriteFieldValues(field)
         return map
       }, {})
@@ -2115,7 +2133,7 @@ export const actions = {
       const isSingleRowInsertion = rowsPopulated.length === 1
       const oldCount = getters.getCount
       const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-        this.$registry,
+        $registry,
         view,
         fields,
         getters.getActiveSearchTerm
@@ -2126,7 +2144,7 @@ export const actions = {
         if (isSingleRowInsertion) {
           commit('UPDATE_GROUP_BY_METADATA_COUNT', {
             fields,
-            registry: this.$registry,
+            registry: $registry,
             row: rowsPopulated[0],
             increase: true,
             decrease: false,
@@ -2165,8 +2183,8 @@ export const actions = {
         dispatch(
           'toast/success',
           {
-            title: this.$i18n.t('gridView.hiddenRowsInsertedTitle'),
-            message: this.$i18n.t('gridView.hiddenRowsInsertedMessage', {
+            title: $i18n.t('gridView.hiddenRowsInsertedTitle'),
+            message: $i18n.t('gridView.hiddenRowsInsertedMessage', {
               number: diff,
             }),
           },
@@ -2188,7 +2206,7 @@ export const actions = {
       // backend.
       const rowsPrepared = rows.map((row) => {
         row = { ...clone(fieldNewRowValueMap), ...row }
-        row = prepareRowForRequest(row, fields, this.$registry)
+        row = prepareRowForRequest(row, fields, $registry)
         return row
       })
 
@@ -2203,7 +2221,7 @@ export const actions = {
         // We're queueing this task, so other tasks, that may read state and modify it,
         // won't overalp.
 
-        const resp = await RowService(this.$client).batchCreate(
+        const resp = await RowService($client).batchCreate(
           table.id,
           rowsPrepared,
           before !== null ? before.id : null,
@@ -2215,7 +2233,7 @@ export const actions = {
         const fieldsToFinalize = fields
           .filter(
             (field) =>
-              this.$registry.get('field', field.type).isReadOnlyField(field) ||
+              $registry.get('field', field.type).isReadOnlyField(field) ||
               updatedFieldIds.includes(field.id)
           )
           .map((field) => `field_${field.id}`)
@@ -2234,7 +2252,7 @@ export const actions = {
           if (!canUpdateOptimistically) {
             commit('UPDATE_GROUP_BY_METADATA_COUNT', {
               fields,
-              registry: this.$registry,
+              registry: $registry,
               row,
               increase: true,
               decrease: false,
@@ -2265,7 +2283,7 @@ export const actions = {
         if (isSingleRowInsertion) {
           commit('UPDATE_GROUP_BY_METADATA_COUNT', {
             fields,
-            registry: this.$registry,
+            registry: $registry,
             row: rowsPopulated[0],
             increase: false,
             decrease: true,
@@ -2310,6 +2328,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, values, metadata, populate = true }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const row = clone(values)
 
     if (populate) {
@@ -2330,7 +2349,7 @@ export const actions = {
     // Update the group by metadata if needed.
     commit('UPDATE_GROUP_BY_METADATA_COUNT', {
       fields,
-      registry: this.$registry,
+      registry: $registry,
       row,
       increase: true,
       decrease: false,
@@ -2341,7 +2360,7 @@ export const actions = {
     const allRowsCopy = clone(getters.getAllRows)
     allRowsCopy.push(row)
     const sortFunction = getRowSortFunction(
-      this.$registry,
+      $registry,
       view.sortings,
       fields,
       view.group_bys
@@ -2380,6 +2399,7 @@ export const actions = {
     { commit, dispatch, getters },
     { table, grid, fields, getScrollTop, row, before = null }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const oldOrder = row.order
 
     // If before is not provided, then the row is added last. Because we don't know
@@ -2406,7 +2426,7 @@ export const actions = {
     const valuesBeforeOptimisticUpdate = {}
 
     fieldsToCallOnRowMove.forEach((field) => {
-      const fieldType = this.$registry.get('field', field._.type.type)
+      const fieldType = $registry.get('field', field._.type.type)
       const fieldID = `field_${field.id}`
       const currentFieldValue = row[fieldID]
       const fieldValue = fieldType.onRowMove(
@@ -2430,7 +2450,7 @@ export const actions = {
     })
 
     try {
-      const { data } = await RowService(this.$client).move(
+      const { data } = await RowService($client).move(
         table.id,
         row.id,
         before !== null ? before.id : null
@@ -2477,6 +2497,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     // Add the update actual update function to the queue so that the same row
     // will never be updated concurrency, and so that the value won't be
     // updated if the row hasn't been created yet
@@ -2499,7 +2520,7 @@ export const actions = {
           if (optimisticUpdate) {
             commit('UPDATE_GROUP_BY_METADATA_COUNT', {
               fields,
-              registry: this.$registry,
+              registry: $registry,
               row,
               increase: false,
               decrease: true,
@@ -2512,7 +2533,7 @@ export const actions = {
           if (optimisticUpdate) {
             commit('UPDATE_GROUP_BY_METADATA_COUNT', {
               fields,
-              registry: this.$registry,
+              registry: $registry,
               row,
               increase: true,
               decrease: false,
@@ -2546,11 +2567,11 @@ export const actions = {
           field,
           value,
           oldValue,
-          this.$registry
+          $registry
         )
 
       const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-        this.$registry,
+        $registry,
         view,
         fields,
         getters.getActiveSearchTerm
@@ -2565,7 +2586,7 @@ export const actions = {
       // made.
       await updateValues(row, newRowValues, canUpdateOptimistically)
       try {
-        const batchResponse = await RowService(this.$client).batchUpdate(
+        const batchResponse = await RowService($client).batchUpdate(
           table.id,
           [updateRequestValues],
           null,
@@ -2590,7 +2611,7 @@ export const actions = {
             updatedRowData,
             fields,
             updatedFieldIds,
-            this.$registry
+            $registry
           )
 
           // The backend may update rows that are not in the current buffer.
@@ -2645,6 +2666,7 @@ export const actions = {
     { commit, dispatch },
     { rowHeadIndex, fieldHeadIndex, rowTailIndex, fieldTailIndex }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('updateMultipleSelectIndexes', {
       position: 'head',
@@ -2670,12 +2692,13 @@ export const actions = {
     { commit, getters },
     { position, rowIndex, fieldIndex }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     if (
       (position === 'tail' && getters.getMultiSelectHeadRowIndex !== -1) ||
       (position === 'head' && getters.getMultiSelectTailRowIndex !== -1)
     ) {
       // check if the selection would go over limit
-      const limit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+      const limit = $config.public.baserowRowPageSizeLimit
       const previousIndex =
         position === 'head'
           ? getters.getMultiSelectTailRowIndex
@@ -2726,6 +2749,7 @@ export const actions = {
       selectUpdatedCells = true,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const copiedRowsCount = textData.length
     const copiedCellsInRowsCount = textData[0].length
     const isSingleCellCopied =
@@ -2823,7 +2847,7 @@ export const actions = {
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
     const writeFields = fieldsInOrder.filter((field) =>
-      this.$registry.get('field', field.type).canWriteFieldValues(field)
+      $registry.get('field', field.type).canWriteFieldValues(field)
     )
     if (writeFields.length === 0) {
       return
@@ -2868,7 +2892,7 @@ export const actions = {
       tsvData: textData.slice(0, rowsInOrder.length),
       jsonData: jsonData ? jsonData.slice(0, rowsInOrder.length) : null,
       fieldsInOrder,
-      registry: this.$registry,
+      registry: $registry,
       fromRows: rowsInOrder,
     })
 
@@ -2876,7 +2900,7 @@ export const actions = {
     // because we're showing a loading animation to the user indicating that the
     // rows are being updated.
     const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
-    const { data: responseData } = await RowService(this.$client).batchUpdate(
+    const { data: responseData } = await RowService($client).batchUpdate(
       table.id,
       valuesForUpdate,
       undoRedoActionGroupId,
@@ -2893,7 +2917,7 @@ export const actions = {
           tsvData: textDataToCreate,
           jsonData: jsonDataToCreate,
           fieldsInOrder,
-          registry: this.$registry,
+          registry: $registry,
           forUpdate: false,
         }),
         selectPrimaryCell: false,
@@ -2935,6 +2959,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row, values, metadata, updatedFieldIds = [] }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
@@ -2967,14 +2992,14 @@ export const actions = {
       // call the deleted and created mutation because that will have the same effect.
       commit('UPDATE_GROUP_BY_METADATA_COUNT', {
         fields,
-        registry: this.$registry,
+        registry: $registry,
         row: oldRow,
         increase: false,
         decrease: true,
       })
       commit('UPDATE_GROUP_BY_METADATA_COUNT', {
         fields,
-        registry: this.$registry,
+        registry: $registry,
         row: newRow,
         increase: true,
         decrease: false,
@@ -2993,7 +3018,7 @@ export const actions = {
 
       // Figure out if the row is currently in the buffer.
       const sortFunction = getRowSortFunction(
-        this.$registry,
+        $registry,
         view.sortings,
         fields,
         view.group_bys
@@ -3111,14 +3136,11 @@ export const actions = {
     { commit, dispatch, getters },
     { table, view, row, fields, getScrollTop }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_ROW_LOADING', { row, value: true })
 
     try {
-      await RowService(this.$client).delete(
-        table.id,
-        row.id,
-        getters.getLastGridId
-      )
+      await RowService($client).delete(table.id, row.id, getters.getLastGridId)
       await dispatch('deletedExistingRow', {
         view,
         fields,
@@ -3142,6 +3164,7 @@ export const actions = {
     { dispatch, getters },
     { table, view, fields, getScrollTop }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const selectionType = getters.getSelectionType
     let rowsToDelete = []
 
@@ -3166,7 +3189,7 @@ export const actions = {
     }
 
     const rowIdsToDelete = rowsToDelete.map((r) => r.id)
-    await RowService(this.$client).batchDelete(
+    await RowService($client).batchDelete(
       table.id,
       rowIdsToDelete,
       getters.getLastGridId
@@ -3195,6 +3218,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     row = clone(row)
     populateRow(row)
 
@@ -3211,7 +3235,7 @@ export const actions = {
     // Decrease the count in the group by metadata if an entry exists.
     commit('UPDATE_GROUP_BY_METADATA_COUNT', {
       fields,
-      registry: this.$registry,
+      registry: $registry,
       row,
       increase: false,
       decrease: true,
@@ -3234,7 +3258,7 @@ export const actions = {
     // Otherwise we have to calculate was before or after the current buffer.
     allRowsCopy.push(row)
     const sortFunction = getRowSortFunction(
-      this.$registry,
+      $registry,
       view.sortings,
       fields,
       view.group_bys
@@ -3274,7 +3298,6 @@ export const actions = {
     const matches = view.filters_disabled
       ? true
       : matchSearchFilters(
-          this.$registry,
           view.filter_type,
           view.filters,
           view.filter_groups,
@@ -3297,6 +3320,7 @@ export const actions = {
       refreshMatchesOnClient = true,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SEARCH', { activeSearchTerm, hideRowsNotMatchingSearch })
     if (refreshMatchesOnClient) {
       getters.getAllRows.forEach((row) =>
@@ -3317,6 +3341,7 @@ export const actions = {
     { commit, getters, rootGetters },
     { row, fields = null, overrides, forced = false }
   ) {
+    const { $registry, $config } = this
     // Avoid computing search on table loading
     if (getters.getActiveSearchTerm || forced) {
       const rowSearchMatches = calculateSingleRowSearchMatches(
@@ -3324,8 +3349,8 @@ export const actions = {
         getters.getActiveSearchTerm,
         getters.isHidingRowsNotMatchingSearch,
         fields,
-        this.$registry,
-        getDefaultSearchModeFromEnv(this.$config),
+        $registry,
+        getDefaultSearchModeFromEnv($config),
         overrides
       )
 
@@ -3341,6 +3366,7 @@ export const actions = {
     { commit, getters },
     { view, row, fields, overrides = {} }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const values = clone(row)
     Object.assign(values, overrides)
 
@@ -3349,7 +3375,7 @@ export const actions = {
     const sortedRows = clone(allRows)
     sortedRows[currentIndex] = values
     sortedRows.sort(
-      getRowSortFunction(this.$registry, view.sortings, fields, view.group_bys)
+      getRowSortFunction($registry, view.sortings, fields, view.group_bys)
     )
     const newIndex = sortedRows.findIndex((r) => r.id === row.id)
 
@@ -3371,6 +3397,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row === undefined) {
       return
@@ -3398,6 +3425,7 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const rowShouldBeHidden =
       (!row._.matchFilters || !row._.matchSearch) && !row._.loading
     const openedInModal =
@@ -3424,6 +3452,7 @@ export const actions = {
     { commit, getters, dispatch },
     { tableId, rowId, rowMetadataType, updateFunction }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row) {
       commit('UPDATE_ROW_METADATA', { row, rowMetadataType, updateFunction })
@@ -3436,6 +3465,7 @@ export const actions = {
     { getters, dispatch },
     { table, view, allVisibleFields, allFieldsInTable, getScrollTop }
   ) {
+    const { $registry, $client, $i18n, $config } = this
     const [minFieldIndex, maxFieldIndex] =
       getters.getMultiSelectFieldIndexSorted
 
@@ -3449,7 +3479,7 @@ export const actions = {
 
     // Get the empty value for each selected field
     const emptyValues = selectedFields.map((field) =>
-      this.$registry.get('field', field.type).getEmptyValue(field)
+      $registry.get('field', field.type).getEmptyValue(field)
     )
 
     // Copy the empty value array once for each row selected
@@ -3479,6 +3509,7 @@ export const actions = {
     commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value })
   },
   AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds }) {
+    const { $registry, $client, $i18n, $config } = this
     // If rowIds is empty, clear ALL pending operations for this field.
     if (rowIds.length === 0) {
       commit('CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD', { fieldId })
@@ -3488,8 +3519,8 @@ export const actions = {
     dispatch(
       'toast/error',
       {
-        title: this.$i18n.t('gridView.AIValuesGenerationErrorTitle'),
-        message: this.$i18n.t('gridView.AIValuesGenerationErrorMessage'),
+        title: $i18n.t('gridView.AIValuesGenerationErrorTitle'),
+        message: $i18n.t('gridView.AIValuesGenerationErrorMessage'),
       },
       { root: true }
     )
@@ -3498,8 +3529,9 @@ export const actions = {
     commit('UPDATE_ROW_HEIGHT', value)
   },
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
+    const { $registry, $client, $i18n, $config } = this
     const rowId = row.id
-    const limit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+    const limit = $config.public.baserowRowPageSizeLimit
     const checked = state.checkboxSelectedRows.includes(rowId)
 
     if (!checked && state.checkboxSelectedRows.length >= limit) {
@@ -3525,6 +3557,7 @@ export const actions = {
     }
   },
   setSelectionType({ commit, dispatch, getters }, { selectionType }) {
+    const { $registry, $client, $i18n, $config } = this
     commit('SET_SELECTION_TYPE', selectionType)
 
     if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {

@@ -1,13 +1,13 @@
 from io import BytesIO
+from unittest import mock
 
 import pytest
-from baserow_premium.fields.job_types import AIValueGenerator
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.core.utils import Progress
+from baserow_premium.fields.job_types import AIValueGenerator
 
 
 @pytest.mark.django_db
@@ -49,18 +49,15 @@ def test_ai_parallel_execution(premium_data_fixture):
 
     rows = table_model.objects.all()
 
-    progress = Progress(len(rows))
-    gen = AIValueGenerator(
-        user=user,
-        ai_field=ai_field,
-        progress=progress,
-    )
+    on_progress_mock = mock.Mock()
+
+    gen = AIValueGenerator(user=user, ai_field=ai_field, on_progress=on_progress_mock)
     gen.process(rows.order_by("id"))
 
     assert len(rows) == 30
     assert gen.finished == len(rows)
-    assert not gen.has_errors
-    assert progress.progress == 30
+    assert gen.error_msg is None
+    assert on_progress_mock.called
 
 
 @pytest.mark.django_db
@@ -108,11 +105,11 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
 
     rows = table_model.objects.all()
 
-    progress = Progress(len(rows))
+    on_progress_mock = mock.Mock()
     gen = AIValueGenerator(
         user=user,
         ai_field=ai_field,
-        progress=progress,
+        on_progress=on_progress_mock,
     )
 
     with pytest.raises(GenerativeAIPromptError):
@@ -120,5 +117,5 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
 
     assert len(rows) == 30
     assert gen.finished == 5
-    assert gen.has_errors
-    assert progress.progress == 5
+    assert gen.error_msg is not None
+    assert on_progress_mock.called

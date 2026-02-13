@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Dropdown component', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -13,7 +13,7 @@ describe('Dropdown component', () => {
   })
 
   const mountComponent = ({ props = {}, listeners = {}, slots = {} } = {}) => {
-    return testApp.mount(Dropdown, { propsData: props, listeners, slots })
+    return testApp.mount(Dropdown, { props: props, listeners, slots })
   }
 
   test('basics', async () => {
@@ -59,7 +59,7 @@ describe('Dropdown component', () => {
     expect(wrapper3.element).toMatchSnapshot()
   })
 
-  test('Test slots', async () => {
+  test('slots', async () => {
     const wrapper = await mountComponent({
       props: { value: 'a' },
       slots: {
@@ -84,10 +84,10 @@ describe('Dropdown component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('test interactions', async () => {
+  test('interactions', async () => {
     let wrapper = null
 
-    const onInput = jest.fn(async (newVal) => {
+    const onInput = vi.fn(async (newVal) => {
       wrapper.setProps({ value: newVal })
       await wrapper.vm.$nextTick()
     })
@@ -117,10 +117,10 @@ describe('Dropdown component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('test focus', async () => {
+  test('focus', async () => {
     let wrapper = null
 
-    const onInput = jest.fn(async (newVal) => {
+    const onInput = vi.fn(async (newVal) => {
       wrapper.setProps({ value: newVal })
       await wrapper.vm.$nextTick()
     })
@@ -144,7 +144,7 @@ describe('Dropdown component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('test children', async () => {
+  test('children', async () => {
     let wrapper = await mountComponent()
     let children = await wrapper.vm.getDropdownItemComponents()
     expect(children).toEqual([])

@@ -74,6 +74,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
 
 export default {
   name: 'AssistantPanel',
+  emits: ['toggle-right-sidebar'],
   components: {
     AssistantWelcomeMessage,
     AssistantInputMessage,
@@ -241,7 +242,7 @@ export default {
     this.scrollObserver = observer
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
     }

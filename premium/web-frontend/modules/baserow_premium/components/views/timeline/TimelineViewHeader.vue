@@ -79,6 +79,7 @@ import TimelineDateSettingsHeaderContext from '@baserow_premium/components/views
 
 export default {
   name: 'TimelineViewHeader',
+  emits: ['refresh'],
   components: {
     ViewFieldsContext,
     TimelineDateSettingsHeaderContext,
@@ -87,21 +88,16 @@ export default {
   mixins: [timelineViewHelpers],
   computed: {
     isDev() {
-      return process.env.NODE_ENV === 'development'
+      return import.meta.env.MODE === 'development'
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/timeline/getAllFieldOptions`
+      ]
     },
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        fieldOptions:
-          this.$options.propsData.storePrefix +
-          'view/timeline/getAllFieldOptions',
-      }),
-    }
   },
   methods: {
     showChooseDatesFieldContext() {

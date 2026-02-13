@@ -1,1205 +1,1205 @@
 {
-    "sidebarComponentBuilder": {
-        "settings": "Instellingen",
-        "createPage": "Pagina maken"
-    },
-    "builderSettingsModal": {
-        "title": "Applicatie"
-    },
-    "createPageModal": {
-        "header": "Pagina maken",
-        "submit": "Pagina toevoegen"
-    },
-    "pageForm": {
-        "nameLabel": "Naam",
-        "defaultName": "Pagina",
-        "errorNameNotUnique": "Een pagina met deze naam bestaat al",
-        "pathLabel": "Pad",
-        "errorPathNotUnique": "Een pagina met deze naam bestaat al",
-        "errorStartingSlash": "Een pad moet beginnen met een '/'",
-        "errorValidPathCharacters": "Het pad bevat ongeldige tekens",
-        "pathParamsTitle": "Pad parameters",
-        "pathParamsSubtitle": "Worden gedefinieerd door :parameter in het pad",
-        "nameSubtitle": "Unieke naam van de pagina",
-        "pathTitle": "Pad",
-        "pathParamsSubtitleTutorial": "Pad parameters kunnen worden gebruikt om gegevens dynamisch te laden, afhankelijk van de opgegeven parameter. Voeg :parameter toe aan het pad om er een toe te voegen.",
-        "nameTitle": "Naam",
-        "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter",
-        "namePlaceholder": "Voer een naam in...",
-        "pathPlaceholder": "Voer een pad in...",
-        "addAnotherParameter": "Nog een query string parameter toevoegen",
-        "addParameter": "Query string parameter toevoegen",
-        "queryParamsSubtitleTutorial": "Query parameters kunnen worden gebruikt om dynamisch gegevens te laden, afhankelijk van de opgegeven parameter.",
-        "queryParamsTitle": "Query string parameters"
-    },
-    "builderForm": {
-        "submit": "Applicatie toevoegen"
-    },
-    "builderSettingTypes": {
-        "themeName": "Thema",
-        "integrationsName": "Integraties",
-        "domainsName": "Domeinen",
-        "userSourcesName": "Gebruikers",
-        "generalName": "Algemeen"
-    },
-    "elementMenu": {
-        "moveUp": "Verplaats omhoog",
-        "moveDown": "Verplaats omlaag",
-        "moveRight": "Naar rechts",
-        "moveLeft": "Naar links",
-        "selectParent": "Selecteer ouder"
-    },
-    "pageHeaderItemTypes": {
-        "labelElements": "Elementen",
-        "labelDataSource": "Data",
-        "labelVariables": "Variabelen",
-        "labelSettings": "Pagina-instellingen"
-    },
-    "elementsContext": {
-        "searchPlaceholder": "Zoek elementen",
-        "noElements": "Geen elementen gevonden",
-        "noPageElements": "Geen elementen gevonden voor deze pagina"
-    },
-    "elementType": {
-        "heading": "Kop",
-        "headingDescription": "Titel paginakop",
-        "text": "Paragraaf",
-        "textDescription": "Tekst op één regel",
-        "link": "Link",
-        "image": "Afbeelding",
-        "linkDescription": "Een link naar pagina/URL",
-        "imageDescription": "Afbeelding weergeven",
-        "inputText": "Tekstinvoer",
-        "inputTextDescription": "Een tekstinvoerveld",
-        "column": "Kolommen",
-        "table": "Tabel",
-        "formContainer": "Formulier",
-        "tableDescription": "Een tabel element",
-        "columnDescription": "Kolommen container",
-        "button": "Knop",
-        "buttonDescription": "Een knop element",
-        "formContainerDescription": "Een formulier element",
-        "dropdownDescription": "Dropdown element",
-        "iframeDescription": "Inline frame",
-        "dropdown": "Dropdown",
-        "checkbox": "Checkbox",
-        "checkboxDescription": "Checkbox element",
-        "iframe": "IFrame",
-        "authForm": "Inlogformulier",
-        "authFormDescription": "Een login formulier voor gebruikers",
-        "repeat": "Herhaal",
-        "repeatDescription": "Een herhaalbare reeks elementen",
-        "choice": "Keuze",
-        "choiceDescription": "Voor enkele/meervoudige waarde selectie",
-        "recordSelector": "Recordkiezer",
-        "recordSelectorDescription": "Een gerelateerde recordkiezer",
-        "header": "Multi-pagina header",
-        "headerDescription": "Een container gedeeld over pagina's",
-        "footer": "Multi-pagina footer",
-        "footerDescription": "Een container gedeeld over pagina's",
-        "notAllowedUnlessTop": "Dit element is alleen toegestaan bovenaan de pagina",
-        "notAllowedUnlessBottom": "Dit element is alleen toegestaan onderaan de pagina",
-        "notAllowedUnlessHeader": "Dit element is alleen toegestaan in de pagina header",
-        "notAllowedUnlessFooter": "Dit element is alleen toegestaan in de footer van de pagina",
-        "notAllowedInsideContainer": "Dit element is niet toegestaan in een container",
-        "notAllowedInsideSameType": "Dit element is niet toegestaan in een container van hetzelfde type",
-        "notAllowedLocation": "Dit element is niet toegestaan op deze locatie",
-        "dateTimePicker": "Datum tijd kiezer",
-        "dateTimePickerDescription": "Een invoerveld voor datum en tijd",
-        "simpleContainer": "Container",
-        "menu": "Menu",
-        "menuDescription": "Menu element",
-        "simpleContainerDescription": "Een container voor andere elementen",
-        "invalidElementValue": "Ongeldige element waarde: {value}",
-        "ratingDescription": "Een beoordelings element",
-        "ratingInput": "Beoordeling invoer",
-        "rating": "Beoordeling",
-        "ratingInputDescription": "Een beoordeling selement",
-        "fileInput": "Bestandsinvoer",
-        "fileInputDescription": "Een invoerveld om bestanden te uploaden",
-        "errorValueMissing": "Ontbrekende waarde eigenschap",
-        "errorEmptyContainer": "Deze container is leeg",
-        "errorParentWithDataSourceMissing": "Geen gegevensbron geselecteerd op het element of een bovenliggende container",
-        "errorDataSourceMissing": "Geen gegevensbron geselecteerd",
-        "errorSchemaPropertyMissing": "Geen schema-eigenschap geselecteerd",
-        "errorWorkflowActionInError": "Ten minste één actie is verkeerd geconfigureerd",
-        "errorCollectionFieldInError": "Ten minste één veld is verkeerd geconfigureerd",
-        "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
-        "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
-        "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
-        "errorImageFileMissing": "Ontbrekend afbeeldingsbestand",
-        "errorImageUrlMissing": "Ontbrekende URL-eigenschap voor afbeelding",
-        "errorNoWorkflowAction": "Geen workflowactie geconfigureerd",
-        "errorOptionsMissing": "Geen optie geconfigureerd",
-        "errorIframeUrlMissing": "Ontbrekende IFrame URL eigenschap",
-        "errorIframeContentMissing": "Ontbrekende IFrame-inhoud",
-        "errorNoMenuItem": "Geen menu-item geconfigureerd",
-        "errorMenuItemInError": "Ten minste één menu is verkeerd geconfigureerd",
-        "errorSubMenuItemInError": "Ten minste één submenu is verkeerd geconfigureerd"
-    },
-    "addElementButton": {
-        "label": "Element"
-    },
-    "addElementModal": {
-        "title": "Nieuw element toevoegen",
-        "searchPlaceholder": "Zoek elementen",
-        "disabledElementTooltip": "Niet beschikbaar binnen dit element",
-        "elementInProgress": "Element toevoegen..."
-    },
-    "duplicatePageJobType": {
-        "duplicating": "Dupliceren",
-        "duplicatedTitle": "Pagina gedupliceerd",
-        "name": "Dupliceer pagina"
-    },
-    "pageSidePanelType": {
-        "general": "Algemeen",
-        "style": "Stijl",
-        "visibility": "Zichtbaarheid",
-        "events": "Gebeurtenissen",
-        "eventsTabDeactivatedNoEvents": "Dit element ondersteunt geen events",
-        "eventsTabInError": "Een of meer acties zijn verkeerd geconfigureerd."
-    },
-    "emptySidePanelState": {
-        "message": "Klik op een van de elementen om meer details te zien"
-    },
-    "headingElement": {
-        "noValue": "Geen titel...",
-        "emptyValue": "Lege titel...",
-        "missingValue": "Ontbrekende titel..."
-    },
-    "headingElementForm": {
-        "levelTitle": "Niveau",
-        "textTitle": "Tekst",
-        "headingName": "Kop {level} <h{level}>",
-        "textError": "De waarde is ongeldig.",
-        "textPlaceholder": "Tekst invoeren..."
-    },
-    "textElement": {
-        "noValue": "Lege paragraaf...",
-        "emptyValue": "Lege tekst...",
-        "missingValue": "Ontbrekende tekst..."
-    },
-    "textElementForm": {
-        "textTitle": "Tekst",
-        "textPlaceholder": "Tekst invoeren...",
-        "textError": "De waarde is ongeldig.",
-        "textFormatTypeLabel": "Format",
-        "textFormatTypePlain": "Platte tekst",
-        "textFormatTypeMarkdown": "Markdown"
-    },
-    "pageErrors": {
-        "errorPathNotUnique": "Een pad met deze naam bestaat al",
-        "errorValidPathCharacters": "Het pad bevat ongeldige tekens",
-        "errorUniquePathParams": "Pad parameters moeten uniek zijn.",
-        "errorStartingSlash": "Een pad moet beginnen met een '/'",
-        "errorNameNotUnique": "Een pagina met deze naam bestaat al",
-        "errorUniqueValidQueryParams": "Query parameternamen moeten uniek en geldig zijn."
-    },
-    "pageActionTypes": {
-        "preview": "Voorbeeld",
-        "publish": "Publiceren"
-    },
-    "publishActionModal": {
-        "title": "Publiceren",
-        "description": "Breng uw app live door te publiceren naar een van de domeinen. Houd er rekening mee dat uw applicatie meerdere domeinen kan hebben, die elk een andere versie van de applicatie hebben.",
-        "publish": "Publiceren",
-        "publishSucceedTitle": "Site gepubliceerd",
-        "publishSucceedDescription": "De site is met succes gepubliceerd.",
-        "publishFailedTitle": "Publiceren van de site is mislukt",
-        "publishFailedDescription": "Het publiceren van de site is mislukt. Probeer het later opnieuw.",
-        "openInNewTab": "Openen in nieuw tabblad",
-        "noDomain": "Je moet ten minste één domein hebben om uw applicatie te kunnen publiceren.",
-        "importingState": "importeren",
-        "addDomain": "Domein toevoegen",
-        "publishSucceedLink": "Bekijk site"
-    },
-    "lastPublishedDomainDate": {
-        "neverPublished": "nooit",
-        "lastPublished": "Laatst gepubliceerd:"
-    },
-    "imageElementForm": {
-        "invalidUrlError": "URL is ongeldig",
-        "altTextTitle": "Alt tekst",
-        "altTextDescription": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
-        "fileLabel": "Afbeeldingsbestand",
-        "fileSourceTypeURL": "URL",
-        "fileSourceTypeUpload": "Uploaden",
-        "urlWarning": "Opmerking: zorg ervoor dat u controle heeft over de ingevoerde URL of deze vertrouwt.",
-        "uploadFileButton": "Upload bestand",
-        "maxWidthLabel": "Max breedte",
-        "maxHeightLabel": "Max hoogte",
-        "maxHeightPlaceholder": "Voer een maximale hoogte in pixels in.",
-        "maxWidthPlaceholder": "Voer een maximale breedte in als percentage.",
-        "imageConstraintsLabel": "Beperkingen",
-        "imageConstraintFullWidth": "Uitbreiden tot max breedte",
-        "imageConstraintCover": "Omslag",
-        "imageConstraintCoverDisabled": "Niet beschikbaar met lege maximumhoogte.",
-        "imageConstraintContain": "Bevat",
-        "imageConstraintContainDisabled": "Niet beschikbaar met een maximale hoogte."
-    },
-    "domainSettings": {
-        "titleOverview": "Domeinen",
-        "noDomainMessage": "Je hebt nog geen domein aan deze applicatie gekoppeld. Je moet een domein toevoegen om uw applicatie te kunnen publiceren. Je kunt verschillende versies van je applicatie publiceren voor elk domein dat hier wordt vermeld.",
-        "titleAddDomain": "Domein toevoegen",
-        "addDomain": "Domein toevoegen"
-    },
-    "domainCard": {
-        "refresh": "Instellingen vernieuwen",
-        "detailLabel": "Toon details",
-        "unpublishedDomainWarning": "Publiceer de applicatie om deze beschikbaar te maken op dit domein."
-    },
-    "domainTypes": {
-        "customName": "Aangepast domein",
-        "subDomain": "Subdomein van {domain}",
-        "subDomainName": "Subdomein"
-    },
-    "linkElement": {
-        "noValue": "Naamloos...",
-        "missingValue": "Ontbrekende linktekst...",
-        "emptyValue": "Lege linktekst..."
-    },
-    "linkElementForm": {
-        "text": "Tekst",
-        "textPlaceholder": "Tekst invoeren...",
-        "navigateTo": "Navigeer naar",
-        "navigateToNotSet": "Geen bestemming",
-        "navigateToCustom": "Aangepaste URL",
-        "variantButton": "Knop",
-        "width": "Breedte",
-        "target": "Open in...",
-        "targetSelf": "Zelfde tabblad",
-        "paramsInErrorDescription": "De opgeslagen parameters komen niet overeen met de paginaparameters. De pagina is waarschijnlijk verwijderd of bijgewerkt.",
-        "pageParameterTypeError": "Ongeldig type",
-        "url": "Bestemmings-URL",
-        "widthAuto": "Auto",
-        "targetNewTab": "Nieuw tabblad",
-        "urlPlaceholder": "Voer een URL in...",
-        "variant": "Variant",
-        "widthFull": "Volle breedte",
-        "variantLink": "Link",
-        "paramPlaceholder": "Voer een waarde in...",
-        "paramsInErrorButton": "Parameters bijwerken",
-        "buttonColor": "Kleur knop"
-    },
-    "alignmentSelector": {
-        "alignment": "Uitlijning",
-        "alignmentLeft": "Link",
-        "alignmentCenter": "Centreren",
-        "alignmentRight": "Rechts"
-    },
-    "pageSettings": {
-        "pageUpdatedTitle": "Gewijzigd",
-        "pageUpdatedDescription": "De pagina-instellingen zijn bijgewerkt.",
-        "title": "Pagina"
-    },
-    "pathParamTypes": {
-        "textName": "Tekst",
-        "numericName": "Numeriek"
-    },
-    "publicPage": {
-        "siteNotFound": "Site niet gevonden",
-        "pageNotFound": "Pagina niet gevonden",
-        "loginToastTitle": "Authenticatie succesvol",
-        "loginToastMessage": "Je bent succesvol aangemeld.",
-        "authorizedToastTitle": "Authenticatie vereist",
-        "authorizedToastMessage": "Je moet ingelogd zijn om toegang te krijgen tot deze pagina. Log in om verder te gaan."
-    },
-    "integrationSettings": {
-        "title": "Integraties",
-        "integrationMessage": "Je kunt nieuwe integraties maken door gegevensbron, actie of gebruikers authenticatie toe te voegen.",
-        "noIntegrationMessage": "Je hebt nog geen verbinding gemaakt. Ze kunnen worden gemaakt door gegevensbron, actie of gebruikers authenticatie toe te voegen."
-    },
-    "dataSourceForm": {
-        "addIntegration": "Nieuwe integratie toevoegen",
-        "noIntegrations": "je hebt nog geen integratie",
-        "integrationPlaceholder": "Selecteer een integratie",
-        "errorUniqueName": "Data bron naam moet uniek zijn.",
-        "selectTypeFirst": "Selecteer eerst de dienst",
-        "servicePlaceholder": "Selecteer een dienst",
-        "namePlaceholder": "Bron naam",
-        "actionLabel": "Actie",
-        "nameLabel": "Naam",
-        "integrationLabel": "Integratie"
-    },
-    "dataSourceContext": {
-        "addDataSource": "Nieuwe gegevensbron toevoegen",
-        "noDataSourceTitle": "Je hebt nog geen data toegevoegd",
-        "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven.",
-        "sharedDataSourceTitle": "Gedeeld tussen pagina's",
-        "pageDataSourceTitle": "Voor deze pagina",
-        "sharedDataSourceDescription": "Toegankelijk op elke pagina en wordt eenmalig opgehaald bij de eerste keer dat de pagina wordt geladen.",
-        "pageDataSourceDescription": "Wordt opgehaald wanneer de gebruiker naar deze pagina navigeert."
-    },
-    "imageElement": {
-        "emptyState": "Geen alt-tekst gedefinieerd...",
-        "emptyValue": "Lege alt-tekst...",
-        "missingValue": "Ontbrekende alt-tekst..."
-    },
-    "elementForms": {
-        "textInputPlaceholder": "Voer tekst in...",
-        "urlInputPlaceholder": "Voer url in...",
-        "invalidFormula": "De formule is ongeldig"
-    },
-    "dnsStatus": {
-        "hostHeader": "Host",
-        "description": "Ga naar de DNS-instellingen van je domeinen en breng de volgende wijzigingen aan",
-        "valueHeader": "Waarde",
-        "typeHeader": "Type"
-    },
-    "customDomainForm": {
-        "domainNameLabel": "Domeinnaam",
-        "notUniqueDomain": "Het opgegeven domein is al in gebruik",
-        "invalidDomain": "De opgegeven domeinnaam is ongeldig"
-    },
-    "pageSettingsTypes": {
-        "pageName": "Pagina"
-    },
-    "dataProviderType": {
-        "currentRecord": "Gegevensbron",
-        "pageParameter": "Parameter",
-        "dataSource": "Data rijen",
-        "formData": "Formuliergegevens",
-        "user": "Gebruiker",
-        "previousAction": "Vorige actie",
-        "dataSourceContext": "Beschikbare opties",
-        "metadata": "Metadata"
-    },
-    "tableElementForm": {
-        "addField": "veld toevoegen",
-        "itemsPerPage": "Items per pagina",
-        "fieldType": "Type",
-        "fieldValueLabel": "Waarde",
-        "fieldDefaultName": "Kolom",
-        "dataSource": "Gegevensbron",
-        "fieldValuePlaceholder": "Waarde invoeren...",
-        "itemsPerPagePlaceholder": "Waarde invoeren...",
-        "fields": "Velden",
-        "selectSourceFirst": "Kies een lijstgegevensbron om te beginnen met het configureren van je velden.",
-        "buttonColor": "Kleur knop",
-        "refreshFieldsFromDataSource": "velden van gegevensbron verversen",
-        "name": "Naam",
-        "orientation": "Oriëntatie",
-        "orientationHorizontal": "Horizontaal",
-        "orientationVertical": "Verticaal",
-        "buttonLoadMoreLabel": "Toon meer label",
-        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om als rijen te gebruiken.",
-        "noName": "Geen naam"
-    },
-    "linkFieldForm": {
-        "fieldLinkNamePlaceholder": "Waarde invoeren...",
-        "fieldValuePlaceholder": "Waarde invoeren...",
-        "fieldLinkNameLabel": "Link tekst",
-        "fieldValueLabel": "Url",
-        "buttonColor": "Kleur knop"
-    },
-    "verticalAlignmentSelector": {
-        "alignmentTop": "Boven",
-        "alignmentBottom": "Onderkant",
-        "alignmentCenter": "Midden",
-        "alignment": "Verticale uitlijning"
-    },
-    "horizontalAlignmentSelector": {
-        "alignmentLeft": "Link",
-        "alignmentRight": "Rechts",
-        "alignment": "Horizontaal uitlijnen",
-        "alignmentCenter": "Centreren"
-    },
-    "defaultStyleForm": {
-        "widthLabel": "Breedte",
-        "boxTop": "Bovenkant",
-        "backgroundLabel": "Achtergrond",
-        "backgroundColor": "Achtergrond kleur",
-        "boxBottom": "Onderkant",
-        "boxRight": "Rechts",
-        "boxLeft": "Links",
-        "backgroundImage": "Afbeelding",
-        "backgroundImageMode": "Vulmodus",
-        "cssClasses": "CSS-klassen",
-        "cssClassesHelp": "Stel een door spaties gescheiden lijst in van klassen voor dit element die zullen verschijnen in de gegenereerde HTML.",
-        "cssClassesPlaceholder": "CSS-klassen invoeren..."
-    },
-    "updateUserSourceForm": {
-        "nameFieldLabel": "Naam",
-        "nameFieldPlaceholder": "Voer een naam in...",
-        "integrationFieldLabel": "Integratie",
-        "authTitle": "Authenticatie",
-        "addProvider": "Provider toevoegen"
-    },
-    "mainThemeConfigBlock": {
-        "colorsLabel": "Kleuren",
-        "primaryColor": "Primair",
-        "headingValue": "Kop <h{i}>",
-        "typography": "Typografie",
-        "headingLabel": "Kop {i} (h{i})",
-        "secondaryColor": "Secundair"
-    },
-    "inputTextElementForm": {
-        "placeholderPlaceholder": "Voer een placeholder in (optioneel)",
-        "valueTitle": "Standaardwaarde",
-        "valuePlaceholder": "Voer een standaardwaarde in (optioneel)",
-        "placeholderTitle": "Placeholder",
-        "labelTitle": "Label",
-        "requiredTitle": "Vereist",
-        "labelPlaceholder": "Voer een label in (optioneel)",
-        "multilineTitle": "Meerdere regels",
-        "rowsTitle": "Aantal regels",
-        "rowsPlaceholder": "Voer het aantal rijen van deze invoer in",
-        "validationTypeAnyLabel": "Elke",
-        "validationTypeIntegerLabel": "Nummer",
-        "validationTypeEmailLabel": "E-mail",
-        "validationTypeEmailDescription": "Dwing een e-mailadres waarde af in deze invoer.",
-        "validationTypeAnyDescription": "Sta toe dat deze invoer een willekeurige waarde bevat.",
-        "validationTypeIntegerDescription": "Dwing een getalwaarde af in deze invoer.",
-        "inputTypePasswordLabel": "Wachtwoord",
-        "passwordTypeWarning": "Wachtwoorden zijn gevoelige gegevens. Wees voorzichtig met hoe je wachtwoorden behandelt en opslaat in je applicatie.",
-        "inputType": "Input type",
-        "inputTypeTextLabel": "Tekst"
-    },
-    "widthSelector": {
-        "widthFull": "Volledige breedte",
-        "widthAuto": "Auto",
-        "width": "Breedte"
-    },
-    "buttonElementForm": {
-        "valuePlaceholder": "Voer tekst in...",
-        "valueLabel": "Tekst",
-        "buttonColor": "Kleur knop"
-    },
-    "workflowActionTypes": {
-        "updateRowLabel": "Rij bijwerken",
-        "createRowLabel": "Rij maken",
-        "notificationLabel": "Melding tonen",
-        "openPageLabel": "Pagina openen",
-        "logoutLabel": "Uitloggen",
-        "refreshDataSourceLabel": "Gegevensbron verversen",
-        "deleteRowLabel": "Verwijder Rij",
-        "httpRequest": "Stuur HTTP verzoek",
-        "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
-        "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
-        "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
-        "errorDataSourceMissing": "Geen gegevensbron geselecteerd"
-    },
-    "widthTypes": {
-        "full": "Volledige breedte",
-        "small": "Klein",
-        "medium": "Medium",
-        "normal": "Normaal",
-        "fullBleed": "Full bleed",
-        "fullWidth": "Volledige breedte"
-    },
-    "userSourceSettings": {
-        "titleOverview": "Gebruiker bronnen",
-        "titleUpdateUserSource": "Gebruikersbron bewerken",
-        "titleAddUserSource": "Nieuwe gebruikersbron",
-        "addUserSource": "Gebruikersbron toevoegen",
-        "noUserSourceMessage": "U hebt nog geen gebruikersbron toegevoegd aan deze applicatie. U moet een gebruikersbron toevoegen als u wilt dat gebruikers uw applicatie kunnen authenticeren."
-    },
-    "upsertRowWorkflowActionForm": {
-        "rowIdPlaceholder": "Selecteer een rij-ID",
-        "fieldMappingPlaceholder": "Kies een veldwaarde",
-        "integrationDropdownLabel": "Integratie",
-        "rowIdLabel": "Rij ID",
-        "noTableSelectedMessage": "Kies een tabel om te beginnen met het configureren van je velden."
-    },
-    "subDomainDetails": {
-        "text": "De DNS-instellingen van de domeinnaam zijn al geconfigureerd en gecontroleerd. Het werkt zonder extra wijzigingen."
-    },
-    "columnElementForm": {
-        "columnGapPlaceholder": "Voer ruimte in tussen kolommen...",
-        "columnGapTitle": "Ruimte tussen kolommen",
-        "columnAmountTitle": "Layout",
-        "columnAmountName": "geen kolommen | 1 kolom | {columnAmount} kolommen",
-        "verticalAlignment": "Verticale uitlijning"
-    },
-    "notificationWorkflowActionForm": {
-        "descriptionLabel": "Beschrijving",
-        "descriptionPlaceholder": "Tekst invoeren...",
-        "titleLabel": "Titel",
-        "titlePlaceholder": "Tekst invoeren..."
-    },
-    "currentRecordDataProviderType": {
-        "index": "Index",
-        "firstPartName": "Gegevensbron: {name}",
-        "schemaProperty": "{prefixName}: {schemaProperty}"
-    },
-    "domainForm": {
-        "notUniqueDomain": "De opgegeven domeinnaam is al in gebruik",
-        "invalidDomain": "De opgegeven domeinnaam is ongeldig"
-    },
-    "dispatchWorkflowActionError": {
-        "defaultMessage": "Er is een fout opgetreden die deze gebeurtenis heeft veroorzaakt.",
-        "defaultTitle": "Gebeurtenis fout",
-        "formDataInvalidTitle": "Ongeldig formulier",
-        "formDataInvalidMessage": "Een of meer velden bevatten ongeldige waarden."
-    },
-    "openPageWorkflowActionForm": {
-        "urlLabel": "URL",
-        "urlPlaceholder": "Tekst invoeren..."
-    },
-    "collectionFieldType": {
-        "text": "Tekst",
-        "link": "Link",
-        "boolean": "Boolean",
-        "tags": "Tags",
-        "button": "Knop",
-        "image": "Afbeelding",
-        "rating": "Beoordeling",
-        "errorValueMissing": "Ontbrekende waarde eigenschap"
-    },
-    "createUserSourceForm": {
-        "userSourceName": "Naam",
-        "userSourceIntegration": "Integratie",
-        "userSourceType": "Type"
-    },
-    "event": {
-        "addAction": "actie toevoegen"
-    },
-    "buttonElement": {
-        "noValue": "Naamloos...",
-        "missingValue": "Ontbrekende knop tekst...",
-        "emptyValue": "Lege knop tekst..."
-    },
-    "formDataProviderType": {
-        "nodeMissing": "Ontbrekend"
-    },
-    "textFieldForm": {
-        "fieldValuePlaceholder": "Waarde invoeren...",
-        "fieldValueLabel": "Waarde"
-    },
-    "tableElement": {
-        "empty": "Er zijn geen items gevonden.",
-        "showMore": "Meer tonen"
-    },
-    "fontSidePanelForm": {
-        "label": "Lettertype"
-    },
-    "styleBoxForm": {
-        "borderLabel": "Grens",
-        "paddingLabel": "Opvulling",
-        "error": "De waarde moet een geheel getal zijn tussen 0 en 200.",
-        "borderColor": "Kleur rand",
-        "marginLabel": "Marge"
-    },
-    "backgroundTypes": {
-        "color": "Kleur",
-        "none": "Geen"
-    },
-    "pagePreview": {
-        "emptyMessage": "Klik om het eerste element te maken",
-        "header": "HEADER",
-        "footer": "FOOTER"
-    },
-    "eventTypes": {
-        "submitLabel": "Op versturen",
-        "clickLabel": "Op klik",
-        "afterLoginLabel": "Na inloggen"
-    },
-    "formContainerElementForm": {
-        "submitButtonLabel": "Verstuur knop",
-        "submitButtonPlaceholder": "Waarde invoeren...",
-        "buttonColor": "Kleur knop",
-        "resetToInitialValuesTitle": "Terugzetten naar standaardwaarden na verzenden",
-        "resetToInitialValuesDescription": "Als aangevinkt, worden de standaardwaarden van het formulier gebruikt om het formulier te resetten na een succesvolle verzending. Als niet aangevinkt, blijven de waarden van de gebruiker behouden."
-    },
-    "subDomainForm": {
-        "domainNameLabel": "Domeinnaam"
-    },
-    "linkField": {
-        "details": "Details"
-    },
-    "getFormulaComponent": {
-        "errorTooltip": "Ongeldige referentie"
-    },
-    "generalForm": {
-        "labelTitle": "Label",
-        "labelPlaceholder": "Voer een label in (optioneel)",
-        "valueTitle": "Standaardwaarde",
-        "valuePlaceholder": "Voer een standaardwaarde in (optioneel)",
-        "placeholderTitle": "Placeholder",
-        "placeholderPlaceholder": "Voer een placeholder in (optioneel)",
-        "requiredTitle": "Verplicht",
-        "validationTitle": "Validatie",
-        "defaultValueTitle": "Standaardwaarde",
-        "defaultValuePlaceholder": "Standaardwaarde invoeren"
-    },
-    "linkNavigationSelection": {
-        "urlPlaceholder": "Voer een URL in...",
-        "navigateToCustom": "Aangepaste URL",
-        "navigateTo": "Navigeer naar",
-        "paramPlaceholder": "Voer een waarde in...",
-        "url": "Bestemmings URL",
-        "paramsInErrorDescription": "De opgeslagen parameters komen niet overeen met de paginaparameters. De pagina is waarschijnlijk verwijderd of bijgewerkt.",
-        "paramsInErrorButton": "Parameters bijwerken",
-        "target": "Open in...",
-        "targetSelf": "Zelfde tab",
-        "targetNewTab": "Nieuw tabblad"
-    },
-    "iframeElementForm": {
-        "empty": "Leeg IFrame...",
-        "sourceTypeLabel": "Bron soort",
-        "urlLabel": "URL",
-        "urlPlaceholder": "Link naar de externe bron die moet worden ingesloten",
-        "urlHelp": "Opmerking: zorg ervoor dat je controle hebt over de ingevoerde URL of dat je deze vertrouwt.",
-        "embedLabel": "Insluiten",
-        "embedPlaceholder": "Ruwe HTML-inhoud die moet worden ingesloten",
-        "heightLabel": "Hoogte (px)",
-        "heightPlaceholder": "Hoogte in pixels",
-        "missingValue": "IFrame bron ontbreekt...",
-        "emptyValue": "Lege IFrame bron..."
-    },
-    "dropdownOptionSelector": {
-        "label": "Opties",
-        "value": "Waarde",
-        "name": "Naam",
-        "addOption": "optie toevoegen"
-    },
-    "checkboxElementForm": {
-        "labelTitle": "Label",
-        "valueTitle": "Standaardwaarde",
-        "requiredTitle": "Verplicht"
-    },
-    "dispatchDataSourceError": {
-        "defaultMessage": "Er is een fout opgetreden tijdens het laden van gegevens voor de pagina.",
-        "defaultTitle": "Fout bij het laden van gegevens"
-    },
-    "authFormElementForm": {
-        "userSource": "Gebruiker bron"
-    },
-    "authFormElement": {
-        "email": "E-mail",
-        "passwordPlaceholder": "Voer je wachtwoord in...",
-        "selectOrConfigureUserSourceFirst": "Kies een gebruikersbron om dit aanmeldingselement te gaan gebruiken.",
-        "password": "Wachtwoord",
-        "emailPlaceholder": "Voer uw e-mailadres in..."
-    },
-    "userSourceUsersContext": {
-        "searchPlaceholder": "Gebruiker zoeken",
-        "noEmail": "Geen e-mail",
-        "anonymous": "Anoniem",
-        "unnamed": "Naamloos"
-    },
-    "userSelector": {
-        "viewAs": "Weergeven als: {user}",
-        "anonymous": "Anoniem",
-        "member": "{prefix} lid"
-    },
-    "formContainerElement": {
-        "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden",
-        "defaultSubmitButtonLabel": "Verstuur"
-    },
-    "visibilityForm": {
-        "allVisitors": "Alle bezoekers",
-        "loggedInVisitors": "Aangemelde bezoekers",
-        "notLoggedInVisitors": "Uitgelogde bezoekers",
-        "warningMessage": "Op dit moment wordt de zichtbaarheid alleen toegepast in de UI, de onderliggende gegevens zijn nog steeds toegankelijk via de API. Raadpleeg de <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'>documentatie</a> voor meer informatie over gegevensbeveiliging.",
-        "warningTitle": "We verbeteren voortdurend de beveiliging",
-        "excludedRolesLabel": "alle rollen behalve",
-        "switchAllowLabel": "Sta toe",
-        "switchDisallowLabel": "Niet toestaan",
-        "rolesSelectAll": "Selecteer alles",
-        "rolesDeselectAll": "Deselecteer alles",
-        "rolesSelectHint": "Selecteer een of meer rollen",
-        "roleTypesHint": "Selecteer een type rol",
-        "roleTypeAllowAllRoles": "Alle rollen",
-        "roleTypeAllowAllRolesExcept": "Rollen niet toestaan...",
-        "roleTypeDisallowAllRolesExcept": "Rollen toestaan...",
-        "rolesAllMembersOf": "Alle leden van {name}",
-        "noRole": "Geen rol",
-        "errorFetchingRolesTitle": "Kan gebruikersrollen niet ophalen",
-        "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
-        "visibilityCondition": "Zichtbaarheid voorwaarde",
-        "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
-        "visibilityConditionPlaceholder": "Voorwaarde..."
-    },
-    "imageInput": {
-        "labelButton": "Uploaden",
-        "labelDescription": "Standaard beschrijving"
-    },
-    "generalSettings": {
-        "labelForm": "Favicon",
-        "labelDescription": "Kies een 128x128px ICO, PNG, GIF of JPEG.",
-        "labelButton": "Favicon uploaden",
-        "cantUploadFaviconTitle": "Kon favicon bestand niet uploaden",
-        "cantUploadFaviconDescription": "Sorry, kon favicon afbeelding niet uploaden. Zorg ervoor dat het afbeeldingsbestand uniek is en een ondersteund afbeeldingsformaat heeft.",
-        "cantUpdateApplicationTitle": "Applicatie kan niet worden bijgewerkt",
-        "cantUpdateApplicationDescription": "Sorry, kon de applicatie niet bijwerken.",
-        "titleOverview": "Algemeen"
-    },
-    "repeatElementForm": {
-        "dataSource": "Gegevensbron",
-        "itemsPerRowDescription": "Kies per apparaattype wat het aantal herhalingen per rij moet zijn.",
-        "orientationVertical": "Verticaal",
-        "orientationLabel": "Oriëntatie",
-        "orientationHorizontal": "Horizontaal",
-        "itemsPerPage": "Items per pagina",
-        "itemsPerPagePlaceholder": "Waarde invoeren...",
-        "itemsPerRowLabel": "Items per rij",
-        "buttonLoadMoreLabel": "Toon meer label",
-        "toggleEditorRepetitionsLabel": "Herhalingen tijdelijk uitschakelen",
-        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om mee te herhalen.",
-        "gapLabel": "Ruimte tussen herhalingen",
-        "gapVerticalLabel": "Verticaal",
-        "gapHorizontalLabel": "Horizontaal"
-    },
-    "userDataProviderType": {
-        "isAuthenticated": "Is ingelogd",
-        "id": "Id",
-        "email": "E-mail",
-        "username": "Gebruikersnaam",
-        "role": "Rol"
-    },
-    "buttonField": {
-        "noLabel": "Naamloos..."
-    },
-    "repeatElement": {
-        "showMore": "Meer tonen",
-        "missingDataSourceTooltip": "Kies een gegevensbron om te beginnen met het toevoegen van elementen.",
-        "empty": "Er zijn geen items gevonden.",
-        "missingSchemaPropertyTooltip": "Kies een eigenschap om te beginnen met het toevoegen van elementen.",
-        "emptyState": "Geen rijen gevonden."
-    },
-    "tagsFieldForm": {
-        "fieldValuesLabel": "Waarden",
-        "fieldValuesPlaceholder": "Waarden invoeren...",
-        "fieldColorsLabel": "Kleuren",
-        "fieldColorsPlaceholder": "Voer kleuren in..."
-    },
-    "buttonFieldForm": {
-        "infoMessage": "Om acties voor deze knop te configureren, open je het tabblad \"Gebeurtenissen\" van het huidige element.",
-        "labelPlaceholder": "Voer een label in..."
-    },
-    "themeConfigBlockType": {
-        "color": "Kleuren",
-        "page": "Pagina",
-        "typography": "Typografie",
-        "link": "Link",
-        "button": "Knop",
-        "image": "Afbeelding",
-        "input": "Invoer",
-        "table": "Tabel"
-    },
-    "buttonThemeConfigBlock": {
-        "defaultState": "Standaard staat",
-        "hoverState": "Hover staat",
-        "textAlignment": "Tekstuitlijning",
-        "alignment": "Uitlijning",
-        "width": "Breedte",
-        "textColor": "Kleur tekst",
-        "borderColor": "Border kleur",
-        "borderSize": "Bordergrootte",
-        "borderRadius": "Border radius",
-        "padding": "Opvulling",
-        "fontFamily": "Lettertype",
-        "size": "Lettergrootte",
-        "backgroundColor": "Achtergrond kleur",
-        "button": "Knop",
-        "weight": "Lettertype gewicht",
-        "activeState": "Actieve status"
-    },
-    "linkThemeConfigBlock": {
-        "color": "Kleur",
-        "link": "Link",
-        "defaultState": "Standaard staat",
-        "hoverState": "Hover staat",
-        "alignment": "Uitlijning",
-        "fontFamily": "Lettertype",
-        "size": "Lettergrootte",
-        "weight": "Lettertype gewicht",
-        "activeState": "Actieve status",
-        "decoration": "Tekst decoratie"
-    },
-    "imageThemeConfigBlock": {
-        "alignment": "Uitlijning",
-        "maxWidthLabel": "Max breedte",
-        "maxHeightLabel": "Max hoogte",
-        "imageConstraintsLabel": "Beperkingen",
-        "imageConstraintCover": "Omslag",
-        "imageConstraintCoverDisabled": "Niet beschikbaar met lege maximumhoogte.",
-        "imageConstraintContain": "Bevat",
-        "imageConstraintContainDisabled": "Niet beschikbaar met een maximale hoogte.",
-        "maxWidthPlaceholder": "Voer een maximale breedte in",
-        "maxHeightPlaceholder": "Maximale hoogte invoeren",
-        "imageConstraintFullWidth": "Uitbreiden tot max breedte",
-        "imageBorderRadiusLabel": "Randradius",
-        "imageBorderRadiusPlaceholder": "Voer de afbeelding rand radius in"
-    },
-    "choiceElementForm": {
-        "multiple": "Meerdere waarden toestaan",
-        "display": "Weergave",
-        "dropdown": "Dropdown",
-        "checkbox": "Checkbox",
-        "radio": "Radio"
-    },
-    "choiceOptionSelector": {
-        "name": "Optie waargave namen",
-        "namePlaceholder": "Naam invoeren",
-        "addOption": "optie toevoegen",
-        "manual": "Handmatig",
-        "dataSource": "Gegevensbron",
-        "formulas": "Formules",
-        "optionType": "Opties type",
-        "label": "Opties",
-        "value": "Optiewaarden",
-        "valuePlaceholder": "Waarde invoeren",
-        "addOptionDescription": "Klik op 'optie toevoegen' om opties toe te voegen aan je vervolgkeuzelijst"
-    },
-    "choiceElement": {
-        "addOptions": "Opties toevoegen om dit element te gaan gebruiken..."
-    },
-    "backgroundModes": {
-        "tile": "Tegel",
-        "fill": "Vullen",
-        "fit": "Pas"
-    },
-    "customStyle": {
-        "themeOverrides": "Thema overschrijvingen",
-        "configureThemeOverrides": "Thema-overschrijvingen voor dit element configureren"
-    },
-    "colorThemeConfigBlock": {
-        "errorColor": "Fout",
-        "successColor": "Succes",
-        "secondaryColor": "Secundair",
-        "borderColor": "Border",
-        "warningColor": "Waarschuwing",
-        "primaryColor": "Primair",
-        "transparent": "Transparant",
-        "addCustomColor": "Aangepaste kleur toevoegen",
-        "customColorPrefix": "Maatwerk",
-        "customColors": "Aangepaste kleuren"
-    },
-    "colorThemeConfigBlockType": {
-        "secondary": "Secundair",
-        "success": "Succes",
-        "warning": "Waarschuwing",
-        "error": "Fout",
-        "primary": "Primair",
-        "border": "Border",
-        "transparent": "Transparant"
-    },
-    "pageThemeConfigBlock": {
-        "backgroundColor": "Achtergrond kleur",
-        "backgroundImage": "Achtergrondafbeelding",
-        "backgroundMode": "Achtergrondmodus"
-    },
-    "typographyThemeConfigBlock": {
-        "size": "Maat",
-        "textAlignment": "Uitlijning",
-        "headingLabel": "Kop {i} (h{i})",
-        "headingValue": "Kop <h{i}>",
-        "color": "Kleur",
-        "fontFamily": "Lettertype",
-        "bodyLabel": "Body",
-        "weight": "Gewicht",
-        "decoration": "Tekst decoratie"
-    },
-    "resetButton": {
-        "reset": "Terugzetten naar standaard themawaarde"
-    },
-    "inputThemeConfigBlock": {
-        "label": "Label",
-        "input": "Invoer",
-        "backgroundColor": "Achtergrond kleur",
-        "textColor": "Kleur tekst",
-        "borderColor": "Kleur rand",
-        "borderSize": "Randgrootte",
-        "borderRadius": "Randradius",
-        "padding": "Opvulling",
-        "fontFamily": "Lettertype",
-        "size": "Lettergrootte",
-        "weight": "Lettertype gewicht"
-    },
-    "tableThemeConfigBlock": {
-        "borderColor": "Kleur rand",
-        "backgroundAlternateColor": "Even rij kleur",
-        "textColor": "Kleur tekst",
-        "borderSize": "Randgrootte",
-        "fontSize": "Lettergrootte",
-        "table": "Tabel",
-        "header": "Kop",
-        "alignment": "Uitlijning",
-        "cells": "Cellen",
-        "separators": "Scheiders",
-        "verticalSeparatorColor": "Verticale kleur",
-        "verticalSeparatorSize": "Verticale grootte",
-        "horizontalSeparatorColor": "Horizontale kleur",
-        "horizontalSeparatorSize": "Horizontale grootte",
-        "borderRadius": "Randradius",
-        "padding": "Opvulling",
-        "size": "Grootte",
-        "backgroundColor": "Achtergrond kleur",
-        "fontFamily": "Lettertype",
-        "fontWeight": "Lettertype gewicht"
-    },
-    "dropdown": {
-        "empty": "Geen opties beschikbaar"
-    },
-    "abTable": {
-        "empty": "Er zijn geen items gevonden.",
-        "loading": "Aan het laden..."
-    },
-    "localBaserowServiceForm": {
-        "rowIdPlaceholder": "Selecteer een rij ID",
-        "rowIdLabel": "Rij ID",
-        "integrationDropdownLabel": "Integratie"
-    },
-    "fieldMappingContext": {
-        "enableField": "Veld inschakelen",
-        "disableField": "Veld uitschakelen"
-    },
-    "collectionElementForm": {
-        "noSchemaPropertyMessage": "Kies een eigenschap in de gegevensbron om te gebruiken als de lijstgegevens van je element.",
-        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten weer te geven, of een gegevensbron met één rij om een eigenschap in deze rij te kiezen.",
-        "propertyOptionLabel": "Acties van gebruikers"
-    },
-    "imageFieldForm": {
-        "fieldAltHelp": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
-        "fieldSrcPlaceholder": "Waarde invoeren",
-        "fieldSrcLabel": "Afbeelding bron",
-        "fieldAltLabel": "Alt tekst",
-        "fieldAltPlaceholder": "Waarde invoeren..."
-    },
-    "serviceSchemaPropertySelector": {
-        "label": "Eigenschap",
-        "noProperties": "Geen eigenschappen beschikbaar"
-    },
-    "dataSourceDropdown": {
-        "noDataSources": "Geen gegevensbronnen beschikbaar",
-        "label": "Gegevensbron",
-        "shared": "gedeeld",
-        "pageOnly": "deze pagina",
-        "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar"
-    },
-    "recordSelectorElementForm": {
-        "selectRecordsFrom": "Records selecteren uit",
-        "optionNameSuffix": "Optie naam achtervoegsel",
-        "optionNameSuffixPlaceholder": "Voer een achtervoegsel in...",
-        "optionNameSuffixHelper": "Dit achtervoegsel wordt toegevoegd aan elke optienaam wanneer je de vervolgkeuzelijst opent en helpt om ze te onderscheiden.",
-        "itemsPerPage": "Items per pagina",
-        "record": "Record {id}",
-        "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten te vermelden.",
-        "itemsPerPagePlaceholder": "Waarde invoeren...",
-        "multipleLabel": "Meerdere waarden toestaan"
-    },
-    "dataSourceItemContext": {
-        "unshareBetweenPages": "Stop delen met andere pagina's",
-        "shareBetweenPages": "Delen tussen pagina's"
-    },
-    "dataSourceCreateEditModal": {
-        "sharedWarning": "Deze gegevensbron wordt gedeeld, dus je wijzigingen kunnen invloed hebben op meerdere pagina's.",
-        "editTitle": "Gegevensbron bewerken",
-        "createTitle": "Gegevensbron maken"
-    },
-    "propertyOptionForm": {
-        "searchHeading": "Zoeken",
-        "filterHeading": "Filter",
-        "sortHeading": "Sorteren",
-        "fieldHeading": "Veld",
-        "noPropertiesAvailable": "Geen velden beschikbaar.",
-        "optionUnavailable": "Niet beschikbaar",
-        "formDescription": "Kies op welke eigenschappen in de gegevensbron van dit element externe gebruikers kunnen filteren, sorteren en zoeken."
-    },
-    "dataSourceItem": {
-        "notConfigured": "Niet geconfigureerd"
-    },
-    "recordSelectorElement": {
-        "emptyAdhocState": "Geen rijen gevonden die overeenkomen met '{query}'.",
-        "emptyState": "Geen rijen gevonden."
-    },
-    "common": {
-        "dateFormatEU": "Europees",
-        "dateFormatTitle": "Datum formaat",
-        "dateFormatUS": "VS",
-        "dateFormatISO": "ISO",
-        "timeFormatTitle": "Tijdformaat",
-        "timeFormat24Hour": "24 uur",
-        "timeFormat12Hour": "12 uur"
-    },
-    "dateTimePickerElementForm": {
-        "includeTime": "Inclusief tijd",
-        "invalidDateError": "Ongeldige datum. Controleer of de ingevoerde datum overeenkomt met het opgegeven formaat."
-    },
-    "themeSettings": {
-        "titleOverview": "Thema"
-    },
-    "pageVisibilitySettingsTypes": {
-        "pageName": "Zichtbaarheid",
-        "logInPageWarningTitle": "De login pagina is niet ingesteld",
-        "logInPagewarningMessage": "Als een anonieme gebruiker deze pagina probeert te openen, wordt hij doorgestuurd naar een inlogpagina. Stel de login pagina in bij de algemene instellingen van de applicatie.",
-        "logInPageInfoTitle": "Anonieme gebruikers worden omgeleid",
-        "logInPageInfoMessage": "Anonieme gebruikers die deze pagina proberen te openen, worden doorgestuurd naar de {logInPageName} pagina."
-    },
-    "pageVisibilitySettings": {
-        "title": "Zichtbaarheid",
-        "allVisitors": "Alle bezoekers",
-        "loggedInVisitors": "Aangemelde bezoekers",
-        "description": "Wie kan deze pagina zien"
-    },
-    "pageEditor": {
-        "pageNotFound": "Pagina niet gevonden"
-    },
-    "builderLoginPageForm": {
-        "pageDropdownDescription": "Selecteer de aanmeldpagina waar niet-ingelogde gebruikers naar moeten worden omgeleid als ze een pagina met verboden proberen te openen.",
-        "pageDropdownLabel": "Login pagina",
-        "pageDropdownPlaceholder": "Selecteer een pagina"
-    },
-    "multiPageContainerElementForm": {
-        "pagePosition": "Positie",
-        "behaviour": "Gedrag",
-        "display": "Weergave",
-        "selectAll": "Selecteer alles",
-        "deselectAll": "Deselecteer alles"
-    },
-    "pageShareType": {
-        "except": "Geselecteerde pagina's uitsluiten",
-        "all": "Op alle pagina's",
-        "only": "Alleen op geselecteerde pagina's"
-    },
-    "fontWeightType": {
-        "thin": "Dun",
-        "medium": "Middel",
-        "light": "Licht",
-        "extraLight": "Extra licht",
-        "extraBold": "Extra vet",
-        "regular": "Normaal",
-        "bold": "Vet",
-        "semiBold": "Halfvet",
-        "black": "Zwart",
-        "extraBlack": "Extra zwart"
-    },
-    "authProviderWithModal": {
-        "title": "Bewerk provider: {name}",
-        "authProviderInError": "Bewerk deze provider om de fout te herstellen."
-    },
-    "queryParamTypes": {
-        "textName": "Tekst",
-        "numericName": "Numeriek"
-    },
-    "radiusStyleForm": {
-        "cornerRadiusLabel": "Hoekradius",
-        "backgroundRadiusLabel": "Achtergrond",
-        "borderRadiusLabel": "Rand"
-    },
-    "addElementCategory": {
-        "suggestedElement": "Voorgestelde elementen",
-        "baseElement": "Basis elementen",
-        "layoutElement": "Layout elementen",
-        "formElement": "Formulier elementen"
-    },
-    "menuElement": {
-        "spacer": "Spacer",
-        "missingLinkValue": "Ontbrekende linknaam...",
-        "missingButtonValue": "Ontbrekende knopnaam...",
-        "emptyLinkValue": "Lege linknaam...",
-        "missingValue": "Ontbrekend menu-item",
-        "separator": "Scheider",
-        "emptyButtonValue": "Lege knopnaam..."
-    },
-    "menuElementForm": {
-        "menuItemsLabel": "Menu items",
-        "addMenuItemLink": "Toevoegen...",
-        "alignment": "Uitlijning",
-        "menuItemDefaultName": "Pagina",
-        "menuItemLabelLabel": "Label",
-        "menuItemTypeLabel": "Type",
-        "menuItemTypeItem": "Item",
-        "menuItemTypeSeparator": "Scheider",
-        "menuItemVariantLabel": "Variant",
-        "menuItemAddButton": "Knop",
-        "eventDescription": "Om acties te configureren voor deze knop, open de events van dit element.",
-        "noMenuItemsMessage": "Klik 'Toevoegen' om je eerste menu item toe te voegen.",
-        "menuItemVariantLink": "Link",
-        "menuItemAddSeparator": "Scheider",
-        "menuItemSubLinkDefaultName": "Sublink",
-        "addSubLink": "Sublink toevoegen",
-        "menuItemVariantButton": "Knop",
-        "namePlaceholder": "Pagina",
-        "menuItemAddSpacer": "Spacer",
-        "menuItemAddLink": "Link"
-    },
-    "simpleContainerElementForm": {
-        "noConfigurationOptions": "Het container element heeft geen configuratieopties."
-    },
-    "orientations": {
-        "vertical": "Vertical",
-        "horizontal": "Horizontaal",
-        "label": "Oriëntatie"
-    },
-    "ratingElementForm": {
-        "thumbsUp": "Duimen omhoog",
-        "maxValue": "Maximum",
-        "color": "Kleur",
-        "star": "Ster",
-        "flag": "Vlag",
-        "smile": "Lachen",
-        "heart": "Hart",
-        "ratingStyle": "Stijl"
-    },
-    "ratingFieldForm": {
-        "color": "Kleur",
-        "value": "Waarde",
-        "maxValue": "Maximale waarde",
-        "thumbsUp": "Duimen omhoog",
-        "flag": "Vlag",
-        "style": "Stijl",
-        "heart": "Hart",
-        "star": "Ster"
-    },
-    "linkDecorations": {
-        "plain": "Gewoon",
-        "normal": "Normaal"
-    },
-    "textDecorationSelector": {
-        "stroke": "Doorstreept",
-        "italic": "Cursief",
-        "underline": "Onderstrepen",
-        "uppercase": "Hoofdletters"
-    },
-    "userSourceDropdown": {
-        "label": "Gebruiker bron",
-        "addUserSource": "Voeg nieuwe gebruikersbron toe",
-        "noUserSources": "Geen gebruikersbronnen beschikbaar"
-    },
-    "abFileInput": {
-        "delete": "Verwijder"
-    },
-    "automationSettingsModal": {
-        "title": "Werkstroom"
-    },
-    "elementsGuidedTourStep": {
-        "title": "Elementen toevoegen aan je pagina",
-        "content": "Elke app heeft componenten nodig! Voeg elementen toe zoals tabellen, formulieren, knoppen en meer om je app tot leven te brengen."
-    },
-    "dataGuidedTourStep": {
-        "title": "Verbind uw gegevens",
-        "content": "Koppel hier je Baserow-tabellen om je gegevens dynamisch weer te geven, te filteren en bij te werken in verschillende elementen."
-    },
-    "previewGuidedTourStep": {
-        "title": "Je controlecentrum",
-        "content": "Hier configureer je de pagina's van je app. Voeg elementen toe, bekijk het resultaat en structureer je app precies zoals jij wilt."
-    },
-    "devicesGuidedTourStep": {
-        "title": "Voorbeeld op verschillende apparaten",
-        "content": "Schakel tussen previews voor desktop, tablet en mobiel om te zien hoe je app eruitziet op verschillende schermformaten. Zorg ervoor dat je ontwerp perfect werkt op alle apparaten!"
-    },
-    "sidePanelGuidedTourStep": {
-        "title": "Zijpaneel: Elementen aanpassen",
-        "content": "**Algemeen tabblad** - Configureer het geselecteerde element.\n\n**Tabblad Stijl** - Vulling, marge, randen en meer aanpassen.\n\n**Tabblad Zichtbaarheid** - Bepaal wie dit element kan zien: ingelogde gebruikers, uitgelogde gebruikers of specifieke rollen.\n\n**Tabblad Gebeurtenissen** - Als het element acties ondersteunt, configureer ze dan hier voor dynamische interactiviteit."
-    },
-    "previewPublishGuidedTourStep": {
-        "title": "Je app bekijken en publiceren",
-        "content": "Klik op **Preview** om je app privé te testen. Als je klaar bent, klik je op **Publiceer** om de app te delen met het publiek via een domein."
-    },
-    "builderToast": {
-        "details": "Details",
-        "defaultTitle": "Onverwachte fout",
-        "defaultMessage": "Er is een onverwachte fout opgetreden. Probeer het later nog eens.",
-        "invalidContextTitle": "Ongeldig verzoek",
-        "invalidContextMessage": "Het verzoek is ongeldig.",
-        "InvalidContentTitle": "Ongeldig formulier",
-        "invalidContentMessage": "Een of meer velden bevatten ongeldige waarden.",
-        "serviceMisconfiguredTitle": "Onvolledige configuratie",
-        "serviceMisconfiguredMessage": "Controleer de configuratie.",
-        "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
-        "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
-    }
+  "sidebarComponentBuilder": {
+    "settings": "Instellingen",
+    "createPage": "Pagina maken"
+  },
+  "builderSettingsModal": {
+    "title": "Applicatie"
+  },
+  "createPageModal": {
+    "header": "Pagina maken",
+    "submit": "Pagina toevoegen"
+  },
+  "pageForm": {
+    "nameLabel": "Naam",
+    "defaultName": "Pagina",
+    "errorNameNotUnique": "Een pagina met deze naam bestaat al",
+    "pathLabel": "Pad",
+    "errorPathNotUnique": "Een pagina met deze naam bestaat al",
+    "errorStartingSlash": "Een pad moet beginnen met een '/'",
+    "errorValidPathCharacters": "Het pad bevat ongeldige tekens",
+    "pathParamsTitle": "Pad parameters",
+    "pathParamsSubtitle": "Worden gedefinieerd door :parameter in het pad",
+    "nameSubtitle": "Unieke naam van de pagina",
+    "pathTitle": "Pad",
+    "pathParamsSubtitleTutorial": "Pad parameters kunnen worden gebruikt om gegevens dynamisch te laden, afhankelijk van de opgegeven parameter. Voeg :parameter toe aan het pad om er een toe te voegen.",
+    "nameTitle": "Naam",
+    "pathSubtitle": "Een parameter kan worden toegevoegd via :parameter",
+    "namePlaceholder": "Voer een naam in...",
+    "pathPlaceholder": "Voer een pad in...",
+    "addAnotherParameter": "Nog een query string parameter toevoegen",
+    "addParameter": "Query string parameter toevoegen",
+    "queryParamsSubtitleTutorial": "Query parameters kunnen worden gebruikt om dynamisch gegevens te laden, afhankelijk van de opgegeven parameter.",
+    "queryParamsTitle": "Query string parameters"
+  },
+  "builderForm": {
+    "submit": "Applicatie toevoegen"
+  },
+  "builderSettingTypes": {
+    "themeName": "Thema",
+    "integrationsName": "Integraties",
+    "domainsName": "Domeinen",
+    "userSourcesName": "Gebruikers",
+    "generalName": "Algemeen"
+  },
+  "elementMenu": {
+    "moveUp": "Verplaats omhoog",
+    "moveDown": "Verplaats omlaag",
+    "moveRight": "Naar rechts",
+    "moveLeft": "Naar links",
+    "selectParent": "Selecteer ouder"
+  },
+  "pageHeaderItemTypes": {
+    "labelElements": "Elementen",
+    "labelDataSource": "Data",
+    "labelVariables": "Variabelen",
+    "labelSettings": "Pagina-instellingen"
+  },
+  "elementsContext": {
+    "searchPlaceholder": "Zoek elementen",
+    "noElements": "Geen elementen gevonden",
+    "noPageElements": "Geen elementen gevonden voor deze pagina"
+  },
+  "elementType": {
+    "heading": "Kop",
+    "headingDescription": "Titel paginakop",
+    "text": "Paragraaf",
+    "textDescription": "Tekst op één regel",
+    "link": "Link",
+    "image": "Afbeelding",
+    "linkDescription": "Een link naar pagina/URL",
+    "imageDescription": "Afbeelding weergeven",
+    "inputText": "Tekstinvoer",
+    "inputTextDescription": "Een tekstinvoerveld",
+    "column": "Kolommen",
+    "table": "Tabel",
+    "formContainer": "Formulier",
+    "tableDescription": "Een tabel element",
+    "columnDescription": "Kolommen container",
+    "button": "Knop",
+    "buttonDescription": "Een knop element",
+    "formContainerDescription": "Een formulier element",
+    "dropdownDescription": "Dropdown element",
+    "iframeDescription": "Inline frame",
+    "dropdown": "Dropdown",
+    "checkbox": "Checkbox",
+    "checkboxDescription": "Checkbox element",
+    "iframe": "IFrame",
+    "authForm": "Inlogformulier",
+    "authFormDescription": "Een login formulier voor gebruikers",
+    "repeat": "Herhaal",
+    "repeatDescription": "Een herhaalbare reeks elementen",
+    "choice": "Keuze",
+    "choiceDescription": "Voor enkele/meervoudige waarde selectie",
+    "recordSelector": "Recordkiezer",
+    "recordSelectorDescription": "Een gerelateerde recordkiezer",
+    "header": "Multi-pagina header",
+    "headerDescription": "Een container gedeeld over pagina's",
+    "footer": "Multi-pagina footer",
+    "footerDescription": "Een container gedeeld over pagina's",
+    "notAllowedUnlessTop": "Dit element is alleen toegestaan bovenaan de pagina",
+    "notAllowedUnlessBottom": "Dit element is alleen toegestaan onderaan de pagina",
+    "notAllowedUnlessHeader": "Dit element is alleen toegestaan in de pagina header",
+    "notAllowedUnlessFooter": "Dit element is alleen toegestaan in de footer van de pagina",
+    "notAllowedInsideContainer": "Dit element is niet toegestaan in een container",
+    "notAllowedInsideSameType": "Dit element is niet toegestaan in een container van hetzelfde type",
+    "notAllowedLocation": "Dit element is niet toegestaan op deze locatie",
+    "dateTimePicker": "Datum tijd kiezer",
+    "dateTimePickerDescription": "Een invoerveld voor datum en tijd",
+    "simpleContainer": "Container",
+    "menu": "Menu",
+    "menuDescription": "Menu element",
+    "simpleContainerDescription": "Een container voor andere elementen",
+    "invalidElementValue": "Ongeldige element waarde: {value}",
+    "ratingDescription": "Een beoordelings element",
+    "ratingInput": "Beoordeling invoer",
+    "rating": "Beoordeling",
+    "ratingInputDescription": "Een beoordeling selement",
+    "fileInput": "Bestandsinvoer",
+    "fileInputDescription": "Een invoerveld om bestanden te uploaden",
+    "errorValueMissing": "Ontbrekende waarde eigenschap",
+    "errorEmptyContainer": "Deze container is leeg",
+    "errorParentWithDataSourceMissing": "Geen gegevensbron geselecteerd op het element of een bovenliggende container",
+    "errorDataSourceMissing": "Geen gegevensbron geselecteerd",
+    "errorSchemaPropertyMissing": "Geen schema-eigenschap geselecteerd",
+    "errorWorkflowActionInError": "Ten minste één actie is verkeerd geconfigureerd",
+    "errorCollectionFieldInError": "Ten minste één veld is verkeerd geconfigureerd",
+    "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
+    "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
+    "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
+    "errorImageFileMissing": "Ontbrekend afbeeldingsbestand",
+    "errorImageUrlMissing": "Ontbrekende URL-eigenschap voor afbeelding",
+    "errorNoWorkflowAction": "Geen workflowactie geconfigureerd",
+    "errorOptionsMissing": "Geen optie geconfigureerd",
+    "errorIframeUrlMissing": "Ontbrekende IFrame URL eigenschap",
+    "errorIframeContentMissing": "Ontbrekende IFrame-inhoud",
+    "errorNoMenuItem": "Geen menu-item geconfigureerd",
+    "errorMenuItemInError": "Ten minste één menu is verkeerd geconfigureerd",
+    "errorSubMenuItemInError": "Ten minste één submenu is verkeerd geconfigureerd"
+  },
+  "addElementButton": {
+    "label": "Element"
+  },
+  "addElementModal": {
+    "title": "Nieuw element toevoegen",
+    "searchPlaceholder": "Zoek elementen",
+    "disabledElementTooltip": "Niet beschikbaar binnen dit element",
+    "elementInProgress": "Element toevoegen..."
+  },
+  "duplicatePageJobType": {
+    "duplicating": "Dupliceren",
+    "duplicatedTitle": "Pagina gedupliceerd",
+    "name": "Dupliceer pagina"
+  },
+  "pageSidePanelType": {
+    "general": "Algemeen",
+    "style": "Stijl",
+    "visibility": "Zichtbaarheid",
+    "events": "Gebeurtenissen",
+    "eventsTabDeactivatedNoEvents": "Dit element ondersteunt geen events",
+    "eventsTabInError": "Een of meer acties zijn verkeerd geconfigureerd."
+  },
+  "emptySidePanelState": {
+    "message": "Klik op een van de elementen om meer details te zien"
+  },
+  "headingElement": {
+    "noValue": "Geen titel...",
+    "emptyValue": "Lege titel...",
+    "missingValue": "Ontbrekende titel..."
+  },
+  "headingElementForm": {
+    "levelTitle": "Niveau",
+    "textTitle": "Tekst",
+    "headingName": "Kop {level} <h{level}>",
+    "textError": "De waarde is ongeldig.",
+    "textPlaceholder": "Tekst invoeren..."
+  },
+  "textElement": {
+    "noValue": "Lege paragraaf...",
+    "emptyValue": "Lege tekst...",
+    "missingValue": "Ontbrekende tekst..."
+  },
+  "textElementForm": {
+    "textTitle": "Tekst",
+    "textPlaceholder": "Tekst invoeren...",
+    "textError": "De waarde is ongeldig.",
+    "textFormatTypeLabel": "Format",
+    "textFormatTypePlain": "Platte tekst",
+    "textFormatTypeMarkdown": "Markdown"
+  },
+  "pageErrors": {
+    "errorPathNotUnique": "Een pad met deze naam bestaat al",
+    "errorValidPathCharacters": "Het pad bevat ongeldige tekens",
+    "errorUniquePathParams": "Pad parameters moeten uniek zijn.",
+    "errorStartingSlash": "Een pad moet beginnen met een '/'",
+    "errorNameNotUnique": "Een pagina met deze naam bestaat al",
+    "errorUniqueValidQueryParams": "Query parameternamen moeten uniek en geldig zijn."
+  },
+  "pageActionTypes": {
+    "preview": "Voorbeeld",
+    "publish": "Publiceren"
+  },
+  "publishActionModal": {
+    "title": "Publiceren",
+    "description": "Breng uw app live door te publiceren naar een van de domeinen. Houd er rekening mee dat uw applicatie meerdere domeinen kan hebben, die elk een andere versie van de applicatie hebben.",
+    "publish": "Publiceren",
+    "publishSucceedTitle": "Site gepubliceerd",
+    "publishSucceedDescription": "De site is met succes gepubliceerd.",
+    "publishFailedTitle": "Publiceren van de site is mislukt",
+    "publishFailedDescription": "Het publiceren van de site is mislukt. Probeer het later opnieuw.",
+    "openInNewTab": "Openen in nieuw tabblad",
+    "noDomain": "Je moet ten minste één domein hebben om uw applicatie te kunnen publiceren.",
+    "importingState": "importeren",
+    "addDomain": "Domein toevoegen",
+    "publishSucceedLink": "Bekijk site"
+  },
+  "lastPublishedDomainDate": {
+    "neverPublished": "nooit",
+    "lastPublished": "Laatst gepubliceerd:"
+  },
+  "imageElementForm": {
+    "invalidUrlError": "URL is ongeldig",
+    "altTextTitle": "Alt tekst",
+    "altTextDescription": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
+    "fileLabel": "Afbeeldingsbestand",
+    "fileSourceTypeURL": "URL",
+    "fileSourceTypeUpload": "Uploaden",
+    "urlWarning": "Opmerking: zorg ervoor dat u controle heeft over de ingevoerde URL of deze vertrouwt.",
+    "uploadFileButton": "Upload bestand",
+    "maxWidthLabel": "Max breedte",
+    "maxHeightLabel": "Max hoogte",
+    "maxHeightPlaceholder": "Voer een maximale hoogte in pixels in.",
+    "maxWidthPlaceholder": "Voer een maximale breedte in als percentage.",
+    "imageConstraintsLabel": "Beperkingen",
+    "imageConstraintFullWidth": "Uitbreiden tot max breedte",
+    "imageConstraintCover": "Omslag",
+    "imageConstraintCoverDisabled": "Niet beschikbaar met lege maximumhoogte.",
+    "imageConstraintContain": "Bevat",
+    "imageConstraintContainDisabled": "Niet beschikbaar met een maximale hoogte."
+  },
+  "domainSettings": {
+    "titleOverview": "Domeinen",
+    "noDomainMessage": "Je hebt nog geen domein aan deze applicatie gekoppeld. Je moet een domein toevoegen om uw applicatie te kunnen publiceren. Je kunt verschillende versies van je applicatie publiceren voor elk domein dat hier wordt vermeld.",
+    "titleAddDomain": "Domein toevoegen",
+    "addDomain": "Domein toevoegen"
+  },
+  "domainCard": {
+    "refresh": "Instellingen vernieuwen",
+    "detailLabel": "Toon details",
+    "unpublishedDomainWarning": "Publiceer de applicatie om deze beschikbaar te maken op dit domein."
+  },
+  "domainTypes": {
+    "customName": "Aangepast domein",
+    "subDomain": "Subdomein van {domain}",
+    "subDomainName": "Subdomein"
+  },
+  "linkElement": {
+    "noValue": "Naamloos...",
+    "missingValue": "Ontbrekende linktekst...",
+    "emptyValue": "Lege linktekst..."
+  },
+  "linkElementForm": {
+    "text": "Tekst",
+    "textPlaceholder": "Tekst invoeren...",
+    "navigateTo": "Navigeer naar",
+    "navigateToNotSet": "Geen bestemming",
+    "navigateToCustom": "Aangepaste URL",
+    "variantButton": "Knop",
+    "width": "Breedte",
+    "target": "Open in...",
+    "targetSelf": "Zelfde tabblad",
+    "paramsInErrorDescription": "De opgeslagen parameters komen niet overeen met de paginaparameters. De pagina is waarschijnlijk verwijderd of bijgewerkt.",
+    "pageParameterTypeError": "Ongeldig type",
+    "url": "Bestemmings-URL",
+    "widthAuto": "Auto",
+    "targetNewTab": "Nieuw tabblad",
+    "urlPlaceholder": "Voer een URL in...",
+    "variant": "Variant",
+    "widthFull": "Volle breedte",
+    "variantLink": "Link",
+    "paramPlaceholder": "Voer een waarde in...",
+    "paramsInErrorButton": "Parameters bijwerken",
+    "buttonColor": "Kleur knop"
+  },
+  "alignmentSelector": {
+    "alignment": "Uitlijning",
+    "alignmentLeft": "Link",
+    "alignmentCenter": "Centreren",
+    "alignmentRight": "Rechts"
+  },
+  "pageSettings": {
+    "pageUpdatedTitle": "Gewijzigd",
+    "pageUpdatedDescription": "De pagina-instellingen zijn bijgewerkt.",
+    "title": "Pagina"
+  },
+  "pathParamTypes": {
+    "textName": "Tekst",
+    "numericName": "Numeriek"
+  },
+  "publicPage": {
+    "siteNotFound": "Site niet gevonden",
+    "pageNotFound": "Pagina niet gevonden",
+    "loginToastTitle": "Authenticatie succesvol",
+    "loginToastMessage": "Je bent succesvol aangemeld.",
+    "authorizedToastTitle": "Authenticatie vereist",
+    "authorizedToastMessage": "Je moet ingelogd zijn om toegang te krijgen tot deze pagina. Log in om verder te gaan."
+  },
+  "integrationSettings": {
+    "title": "Integraties",
+    "integrationMessage": "Je kunt nieuwe integraties maken door gegevensbron, actie of gebruikers authenticatie toe te voegen.",
+    "noIntegrationMessage": "Je hebt nog geen verbinding gemaakt. Ze kunnen worden gemaakt door gegevensbron, actie of gebruikers authenticatie toe te voegen."
+  },
+  "dataSourceForm": {
+    "addIntegration": "Nieuwe integratie toevoegen",
+    "noIntegrations": "je hebt nog geen integratie",
+    "integrationPlaceholder": "Selecteer een integratie",
+    "errorUniqueName": "Data bron naam moet uniek zijn.",
+    "selectTypeFirst": "Selecteer eerst de dienst",
+    "servicePlaceholder": "Selecteer een dienst",
+    "namePlaceholder": "Bron naam",
+    "actionLabel": "Actie",
+    "nameLabel": "Naam",
+    "integrationLabel": "Integratie"
+  },
+  "dataSourceContext": {
+    "addDataSource": "Nieuwe gegevensbron toevoegen",
+    "noDataSourceTitle": "Je hebt nog geen data toegevoegd",
+    "noDataSourceMessage": "Data kan worden gebruikt om gegevens op te halen uit interne of externe bronnen en deze op de pagina weer te geven.",
+    "sharedDataSourceTitle": "Gedeeld tussen pagina's",
+    "pageDataSourceTitle": "Voor deze pagina",
+    "sharedDataSourceDescription": "Toegankelijk op elke pagina en wordt eenmalig opgehaald bij de eerste keer dat de pagina wordt geladen.",
+    "pageDataSourceDescription": "Wordt opgehaald wanneer de gebruiker naar deze pagina navigeert."
+  },
+  "imageElement": {
+    "emptyState": "Geen alt-tekst gedefinieerd...",
+    "emptyValue": "Lege alt-tekst...",
+    "missingValue": "Ontbrekende alt-tekst..."
+  },
+  "elementForms": {
+    "textInputPlaceholder": "Voer tekst in...",
+    "urlInputPlaceholder": "Voer url in...",
+    "invalidFormula": "De formule is ongeldig"
+  },
+  "dnsStatus": {
+    "hostHeader": "Host",
+    "description": "Ga naar de DNS-instellingen van je domeinen en breng de volgende wijzigingen aan",
+    "valueHeader": "Waarde",
+    "typeHeader": "Type"
+  },
+  "customDomainForm": {
+    "domainNameLabel": "Domeinnaam",
+    "notUniqueDomain": "Het opgegeven domein is al in gebruik",
+    "invalidDomain": "De opgegeven domeinnaam is ongeldig"
+  },
+  "pageSettingsTypes": {
+    "pageName": "Pagina"
+  },
+  "dataProviderType": {
+    "currentRecord": "Gegevensbron",
+    "pageParameter": "Parameter",
+    "dataSource": "Data rijen",
+    "formData": "Formuliergegevens",
+    "user": "Gebruiker",
+    "previousAction": "Vorige actie",
+    "dataSourceContext": "Beschikbare opties",
+    "metadata": "Metadata"
+  },
+  "tableElementForm": {
+    "addField": "veld toevoegen",
+    "itemsPerPage": "Items per pagina",
+    "fieldType": "Type",
+    "fieldValueLabel": "Waarde",
+    "fieldDefaultName": "Kolom",
+    "dataSource": "Gegevensbron",
+    "fieldValuePlaceholder": "Waarde invoeren...",
+    "itemsPerPagePlaceholder": "Waarde invoeren...",
+    "fields": "Velden",
+    "selectSourceFirst": "Kies een lijstgegevensbron om te beginnen met het configureren van je velden.",
+    "buttonColor": "Kleur knop",
+    "refreshFieldsFromDataSource": "velden van gegevensbron verversen",
+    "name": "Naam",
+    "orientation": "Oriëntatie",
+    "orientationHorizontal": "Horizontaal",
+    "orientationVertical": "Verticaal",
+    "buttonLoadMoreLabel": "Toon meer label",
+    "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om als rijen te gebruiken.",
+    "noName": "Geen naam"
+  },
+  "linkFieldForm": {
+    "fieldLinkNamePlaceholder": "Waarde invoeren...",
+    "fieldValuePlaceholder": "Waarde invoeren...",
+    "fieldLinkNameLabel": "Link tekst",
+    "fieldValueLabel": "Url",
+    "buttonColor": "Kleur knop"
+  },
+  "verticalAlignmentSelector": {
+    "alignmentTop": "Boven",
+    "alignmentBottom": "Onderkant",
+    "alignmentCenter": "Midden",
+    "alignment": "Verticale uitlijning"
+  },
+  "horizontalAlignmentSelector": {
+    "alignmentLeft": "Link",
+    "alignmentRight": "Rechts",
+    "alignment": "Horizontaal uitlijnen",
+    "alignmentCenter": "Centreren"
+  },
+  "defaultStyleForm": {
+    "widthLabel": "Breedte",
+    "boxTop": "Bovenkant",
+    "backgroundLabel": "Achtergrond",
+    "backgroundColor": "Achtergrond kleur",
+    "boxBottom": "Onderkant",
+    "boxRight": "Rechts",
+    "boxLeft": "Links",
+    "backgroundImage": "Afbeelding",
+    "backgroundImageMode": "Vulmodus",
+    "cssClasses": "CSS-klassen",
+    "cssClassesHelp": "Stel een door spaties gescheiden lijst in van klassen voor dit element die zullen verschijnen in de gegenereerde HTML.",
+    "cssClassesPlaceholder": "CSS-klassen invoeren..."
+  },
+  "updateUserSourceForm": {
+    "nameFieldLabel": "Naam",
+    "nameFieldPlaceholder": "Voer een naam in...",
+    "integrationFieldLabel": "Integratie",
+    "authTitle": "Authenticatie",
+    "addProvider": "Provider toevoegen"
+  },
+  "mainThemeConfigBlock": {
+    "colorsLabel": "Kleuren",
+    "primaryColor": "Primair",
+    "headingValue": "Kop <h{i}>",
+    "typography": "Typografie",
+    "headingLabel": "Kop {i} (h{i})",
+    "secondaryColor": "Secundair"
+  },
+  "inputTextElementForm": {
+    "placeholderPlaceholder": "Voer een placeholder in (optioneel)",
+    "valueTitle": "Standaardwaarde",
+    "valuePlaceholder": "Voer een standaardwaarde in (optioneel)",
+    "placeholderTitle": "Placeholder",
+    "labelTitle": "Label",
+    "requiredTitle": "Vereist",
+    "labelPlaceholder": "Voer een label in (optioneel)",
+    "multilineTitle": "Meerdere regels",
+    "rowsTitle": "Aantal regels",
+    "rowsPlaceholder": "Voer het aantal rijen van deze invoer in",
+    "validationTypeAnyLabel": "Elke",
+    "validationTypeIntegerLabel": "Nummer",
+    "validationTypeEmailLabel": "E-mail",
+    "validationTypeEmailDescription": "Dwing een e-mailadres waarde af in deze invoer.",
+    "validationTypeAnyDescription": "Sta toe dat deze invoer een willekeurige waarde bevat.",
+    "validationTypeIntegerDescription": "Dwing een getalwaarde af in deze invoer.",
+    "inputTypePasswordLabel": "Wachtwoord",
+    "passwordTypeWarning": "Wachtwoorden zijn gevoelige gegevens. Wees voorzichtig met hoe je wachtwoorden behandelt en opslaat in je applicatie.",
+    "inputType": "Input type",
+    "inputTypeTextLabel": "Tekst"
+  },
+  "widthSelector": {
+    "widthFull": "Volledige breedte",
+    "widthAuto": "Auto",
+    "width": "Breedte"
+  },
+  "buttonElementForm": {
+    "valuePlaceholder": "Voer tekst in...",
+    "valueLabel": "Tekst",
+    "buttonColor": "Kleur knop"
+  },
+  "workflowActionTypes": {
+    "updateRowLabel": "Rij bijwerken",
+    "createRowLabel": "Rij maken",
+    "notificationLabel": "Melding tonen",
+    "openPageLabel": "Pagina openen",
+    "logoutLabel": "Uitloggen",
+    "refreshDataSourceLabel": "Gegevensbron verversen",
+    "deleteRowLabel": "Verwijder Rij",
+    "httpRequest": "Stuur HTTP verzoek",
+    "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
+    "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
+    "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
+    "errorDataSourceMissing": "Geen gegevensbron geselecteerd"
+  },
+  "widthTypes": {
+    "full": "Volledige breedte",
+    "small": "Klein",
+    "medium": "Medium",
+    "normal": "Normaal",
+    "fullBleed": "Full bleed",
+    "fullWidth": "Volledige breedte"
+  },
+  "userSourceSettings": {
+    "titleOverview": "Gebruiker bronnen",
+    "titleUpdateUserSource": "Gebruikersbron bewerken",
+    "titleAddUserSource": "Nieuwe gebruikersbron",
+    "addUserSource": "Gebruikersbron toevoegen",
+    "noUserSourceMessage": "U hebt nog geen gebruikersbron toegevoegd aan deze applicatie. U moet een gebruikersbron toevoegen als u wilt dat gebruikers uw applicatie kunnen authenticeren."
+  },
+  "upsertRowWorkflowActionForm": {
+    "rowIdPlaceholder": "Selecteer een rij-ID",
+    "fieldMappingPlaceholder": "Kies een veldwaarde",
+    "integrationDropdownLabel": "Integratie",
+    "rowIdLabel": "Rij ID",
+    "noTableSelectedMessage": "Kies een tabel om te beginnen met het configureren van je velden."
+  },
+  "subDomainDetails": {
+    "text": "De DNS-instellingen van de domeinnaam zijn al geconfigureerd en gecontroleerd. Het werkt zonder extra wijzigingen."
+  },
+  "columnElementForm": {
+    "columnGapPlaceholder": "Voer ruimte in tussen kolommen...",
+    "columnGapTitle": "Ruimte tussen kolommen",
+    "columnAmountTitle": "Layout",
+    "columnAmountName": "geen kolommen | 1 kolom | {columnAmount} kolommen",
+    "verticalAlignment": "Verticale uitlijning"
+  },
+  "notificationWorkflowActionForm": {
+    "descriptionLabel": "Beschrijving",
+    "descriptionPlaceholder": "Tekst invoeren...",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Tekst invoeren..."
+  },
+  "currentRecordDataProviderType": {
+    "index": "Index",
+    "firstPartName": "Gegevensbron: {name}",
+    "schemaProperty": "{prefixName}: {schemaProperty}"
+  },
+  "domainForm": {
+    "notUniqueDomain": "De opgegeven domeinnaam is al in gebruik",
+    "invalidDomain": "De opgegeven domeinnaam is ongeldig"
+  },
+  "dispatchWorkflowActionError": {
+    "defaultMessage": "Er is een fout opgetreden die deze gebeurtenis heeft veroorzaakt.",
+    "defaultTitle": "Gebeurtenis fout",
+    "formDataInvalidTitle": "Ongeldig formulier",
+    "formDataInvalidMessage": "Een of meer velden bevatten ongeldige waarden."
+  },
+  "openPageWorkflowActionForm": {
+    "urlLabel": "URL",
+    "urlPlaceholder": "Tekst invoeren..."
+  },
+  "collectionFieldType": {
+    "text": "Tekst",
+    "link": "Link",
+    "boolean": "Boolean",
+    "tags": "Tags",
+    "button": "Knop",
+    "image": "Afbeelding",
+    "rating": "Beoordeling",
+    "errorValueMissing": "Ontbrekende waarde eigenschap"
+  },
+  "createUserSourceForm": {
+    "userSourceName": "Naam",
+    "userSourceIntegration": "Integratie",
+    "userSourceType": "Type"
+  },
+  "event": {
+    "addAction": "actie toevoegen"
+  },
+  "buttonElement": {
+    "noValue": "Naamloos...",
+    "missingValue": "Ontbrekende knop tekst...",
+    "emptyValue": "Lege knop tekst..."
+  },
+  "formDataProviderType": {
+    "nodeMissing": "Ontbrekend"
+  },
+  "textFieldForm": {
+    "fieldValuePlaceholder": "Waarde invoeren...",
+    "fieldValueLabel": "Waarde"
+  },
+  "tableElement": {
+    "empty": "Er zijn geen items gevonden.",
+    "showMore": "Meer tonen"
+  },
+  "fontSidePanelForm": {
+    "label": "Lettertype"
+  },
+  "styleBoxForm": {
+    "borderLabel": "Grens",
+    "paddingLabel": "Opvulling",
+    "error": "De waarde moet een geheel getal zijn tussen 0 en 200.",
+    "borderColor": "Kleur rand",
+    "marginLabel": "Marge"
+  },
+  "backgroundTypes": {
+    "color": "Kleur",
+    "none": "Geen"
+  },
+  "pagePreview": {
+    "emptyMessage": "Klik om het eerste element te maken",
+    "header": "HEADER",
+    "footer": "FOOTER"
+  },
+  "eventTypes": {
+    "submitLabel": "Op versturen",
+    "clickLabel": "Op klik",
+    "afterLoginLabel": "Na inloggen"
+  },
+  "formContainerElementForm": {
+    "submitButtonLabel": "Verstuur knop",
+    "submitButtonPlaceholder": "Waarde invoeren...",
+    "buttonColor": "Kleur knop",
+    "resetToInitialValuesTitle": "Terugzetten naar standaardwaarden na verzenden",
+    "resetToInitialValuesDescription": "Als aangevinkt, worden de standaardwaarden van het formulier gebruikt om het formulier te resetten na een succesvolle verzending. Als niet aangevinkt, blijven de waarden van de gebruiker behouden."
+  },
+  "subDomainForm": {
+    "domainNameLabel": "Domeinnaam"
+  },
+  "linkField": {
+    "details": "Details"
+  },
+  "getFormulaComponent": {
+    "errorTooltip": "Ongeldige referentie"
+  },
+  "generalForm": {
+    "labelTitle": "Label",
+    "labelPlaceholder": "Voer een label in (optioneel)",
+    "valueTitle": "Standaardwaarde",
+    "valuePlaceholder": "Voer een standaardwaarde in (optioneel)",
+    "placeholderTitle": "Placeholder",
+    "placeholderPlaceholder": "Voer een placeholder in (optioneel)",
+    "requiredTitle": "Verplicht",
+    "validationTitle": "Validatie",
+    "defaultValueTitle": "Standaardwaarde",
+    "defaultValuePlaceholder": "Standaardwaarde invoeren"
+  },
+  "linkNavigationSelection": {
+    "urlPlaceholder": "Voer een URL in...",
+    "navigateToCustom": "Aangepaste URL",
+    "navigateTo": "Navigeer naar",
+    "paramPlaceholder": "Voer een waarde in...",
+    "url": "Bestemmings URL",
+    "paramsInErrorDescription": "De opgeslagen parameters komen niet overeen met de paginaparameters. De pagina is waarschijnlijk verwijderd of bijgewerkt.",
+    "paramsInErrorButton": "Parameters bijwerken",
+    "target": "Open in...",
+    "targetSelf": "Zelfde tab",
+    "targetNewTab": "Nieuw tabblad"
+  },
+  "iframeElementForm": {
+    "empty": "Leeg IFrame...",
+    "sourceTypeLabel": "Bron soort",
+    "urlLabel": "URL",
+    "urlPlaceholder": "Link naar de externe bron die moet worden ingesloten",
+    "urlHelp": "Opmerking: zorg ervoor dat je controle hebt over de ingevoerde URL of dat je deze vertrouwt.",
+    "embedLabel": "Insluiten",
+    "embedPlaceholder": "Ruwe HTML-inhoud die moet worden ingesloten",
+    "heightLabel": "Hoogte (px)",
+    "heightPlaceholder": "Hoogte in pixels",
+    "missingValue": "IFrame bron ontbreekt...",
+    "emptyValue": "Lege IFrame bron..."
+  },
+  "dropdownOptionSelector": {
+    "label": "Opties",
+    "value": "Waarde",
+    "name": "Naam",
+    "addOption": "optie toevoegen"
+  },
+  "checkboxElementForm": {
+    "labelTitle": "Label",
+    "valueTitle": "Standaardwaarde",
+    "requiredTitle": "Verplicht"
+  },
+  "dispatchDataSourceError": {
+    "defaultMessage": "Er is een fout opgetreden tijdens het laden van gegevens voor de pagina.",
+    "defaultTitle": "Fout bij het laden van gegevens"
+  },
+  "authFormElementForm": {
+    "userSource": "Gebruiker bron"
+  },
+  "authFormElement": {
+    "email": "E-mail",
+    "passwordPlaceholder": "Voer je wachtwoord in...",
+    "selectOrConfigureUserSourceFirst": "Kies een gebruikersbron om dit aanmeldingselement te gaan gebruiken.",
+    "password": "Wachtwoord",
+    "emailPlaceholder": "Voer uw e-mailadres in..."
+  },
+  "userSourceUsersContext": {
+    "searchPlaceholder": "Gebruiker zoeken",
+    "noEmail": "Geen e-mail",
+    "anonymous": "Anoniem",
+    "unnamed": "Naamloos"
+  },
+  "userSelector": {
+    "viewAs": "Weergeven als: {user}",
+    "anonymous": "Anoniem",
+    "member": "{prefix} lid"
+  },
+  "formContainerElement": {
+    "submitDeactivatedText": "Vul alle verplichte velden in om te verzenden",
+    "defaultSubmitButtonLabel": "Verstuur"
+  },
+  "visibilityForm": {
+    "allVisitors": "Alle bezoekers",
+    "loggedInVisitors": "Aangemelde bezoekers",
+    "notLoggedInVisitors": "Uitgelogde bezoekers",
+    "warningMessage": "Op dit moment wordt de zichtbaarheid alleen toegepast in de UI, de onderliggende gegevens zijn nog steeds toegankelijk via de API. Raadpleeg de &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentatie&lt;/a&gt; voor meer informatie over gegevensbeveiliging.",
+    "warningTitle": "We verbeteren voortdurend de beveiliging",
+    "excludedRolesLabel": "alle rollen behalve",
+    "switchAllowLabel": "Sta toe",
+    "switchDisallowLabel": "Niet toestaan",
+    "rolesSelectAll": "Selecteer alles",
+    "rolesDeselectAll": "Deselecteer alles",
+    "rolesSelectHint": "Selecteer een of meer rollen",
+    "roleTypesHint": "Selecteer een type rol",
+    "roleTypeAllowAllRoles": "Alle rollen",
+    "roleTypeAllowAllRolesExcept": "Rollen niet toestaan...",
+    "roleTypeDisallowAllRolesExcept": "Rollen toestaan...",
+    "rolesAllMembersOf": "Alle leden van {name}",
+    "noRole": "Geen rol",
+    "errorFetchingRolesTitle": "Kan gebruikersrollen niet ophalen",
+    "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
+    "visibilityCondition": "Zichtbaarheid voorwaarde",
+    "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
+    "visibilityConditionPlaceholder": "Voorwaarde..."
+  },
+  "imageInput": {
+    "labelButton": "Uploaden",
+    "labelDescription": "Standaard beschrijving"
+  },
+  "generalSettings": {
+    "labelForm": "Favicon",
+    "labelDescription": "Kies een 128x128px ICO, PNG, GIF of JPEG.",
+    "labelButton": "Favicon uploaden",
+    "cantUploadFaviconTitle": "Kon favicon bestand niet uploaden",
+    "cantUploadFaviconDescription": "Sorry, kon favicon afbeelding niet uploaden. Zorg ervoor dat het afbeeldingsbestand uniek is en een ondersteund afbeeldingsformaat heeft.",
+    "cantUpdateApplicationTitle": "Applicatie kan niet worden bijgewerkt",
+    "cantUpdateApplicationDescription": "Sorry, kon de applicatie niet bijwerken.",
+    "titleOverview": "Algemeen"
+  },
+  "repeatElementForm": {
+    "dataSource": "Gegevensbron",
+    "itemsPerRowDescription": "Kies per apparaattype wat het aantal herhalingen per rij moet zijn.",
+    "orientationVertical": "Verticaal",
+    "orientationLabel": "Oriëntatie",
+    "orientationHorizontal": "Horizontaal",
+    "itemsPerPage": "Items per pagina",
+    "itemsPerPagePlaceholder": "Waarde invoeren...",
+    "itemsPerRowLabel": "Items per rij",
+    "buttonLoadMoreLabel": "Toon meer label",
+    "toggleEditorRepetitionsLabel": "Herhalingen tijdelijk uitschakelen",
+    "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om mee te herhalen.",
+    "gapLabel": "Ruimte tussen herhalingen",
+    "gapVerticalLabel": "Verticaal",
+    "gapHorizontalLabel": "Horizontaal"
+  },
+  "userDataProviderType": {
+    "isAuthenticated": "Is ingelogd",
+    "id": "Id",
+    "email": "E-mail",
+    "username": "Gebruikersnaam",
+    "role": "Rol"
+  },
+  "buttonField": {
+    "noLabel": "Naamloos..."
+  },
+  "repeatElement": {
+    "showMore": "Meer tonen",
+    "missingDataSourceTooltip": "Kies een gegevensbron om te beginnen met het toevoegen van elementen.",
+    "empty": "Er zijn geen items gevonden.",
+    "missingSchemaPropertyTooltip": "Kies een eigenschap om te beginnen met het toevoegen van elementen.",
+    "emptyState": "Geen rijen gevonden."
+  },
+  "tagsFieldForm": {
+    "fieldValuesLabel": "Waarden",
+    "fieldValuesPlaceholder": "Waarden invoeren...",
+    "fieldColorsLabel": "Kleuren",
+    "fieldColorsPlaceholder": "Voer kleuren in..."
+  },
+  "buttonFieldForm": {
+    "infoMessage": "Om acties voor deze knop te configureren, open je het tabblad \"Gebeurtenissen\" van het huidige element.",
+    "labelPlaceholder": "Voer een label in..."
+  },
+  "themeConfigBlockType": {
+    "color": "Kleuren",
+    "page": "Pagina",
+    "typography": "Typografie",
+    "link": "Link",
+    "button": "Knop",
+    "image": "Afbeelding",
+    "input": "Invoer",
+    "table": "Tabel"
+  },
+  "buttonThemeConfigBlock": {
+    "defaultState": "Standaard staat",
+    "hoverState": "Hover staat",
+    "textAlignment": "Tekstuitlijning",
+    "alignment": "Uitlijning",
+    "width": "Breedte",
+    "textColor": "Kleur tekst",
+    "borderColor": "Border kleur",
+    "borderSize": "Bordergrootte",
+    "borderRadius": "Border radius",
+    "padding": "Opvulling",
+    "fontFamily": "Lettertype",
+    "size": "Lettergrootte",
+    "backgroundColor": "Achtergrond kleur",
+    "button": "Knop",
+    "weight": "Lettertype gewicht",
+    "activeState": "Actieve status"
+  },
+  "linkThemeConfigBlock": {
+    "color": "Kleur",
+    "link": "Link",
+    "defaultState": "Standaard staat",
+    "hoverState": "Hover staat",
+    "alignment": "Uitlijning",
+    "fontFamily": "Lettertype",
+    "size": "Lettergrootte",
+    "weight": "Lettertype gewicht",
+    "activeState": "Actieve status",
+    "decoration": "Tekst decoratie"
+  },
+  "imageThemeConfigBlock": {
+    "alignment": "Uitlijning",
+    "maxWidthLabel": "Max breedte",
+    "maxHeightLabel": "Max hoogte",
+    "imageConstraintsLabel": "Beperkingen",
+    "imageConstraintCover": "Omslag",
+    "imageConstraintCoverDisabled": "Niet beschikbaar met lege maximumhoogte.",
+    "imageConstraintContain": "Bevat",
+    "imageConstraintContainDisabled": "Niet beschikbaar met een maximale hoogte.",
+    "maxWidthPlaceholder": "Voer een maximale breedte in",
+    "maxHeightPlaceholder": "Maximale hoogte invoeren",
+    "imageConstraintFullWidth": "Uitbreiden tot max breedte",
+    "imageBorderRadiusLabel": "Randradius",
+    "imageBorderRadiusPlaceholder": "Voer de afbeelding rand radius in"
+  },
+  "choiceElementForm": {
+    "multiple": "Meerdere waarden toestaan",
+    "display": "Weergave",
+    "dropdown": "Dropdown",
+    "checkbox": "Checkbox",
+    "radio": "Radio"
+  },
+  "choiceOptionSelector": {
+    "name": "Optie waargave namen",
+    "namePlaceholder": "Naam invoeren",
+    "addOption": "optie toevoegen",
+    "manual": "Handmatig",
+    "dataSource": "Gegevensbron",
+    "formulas": "Formules",
+    "optionType": "Opties type",
+    "label": "Opties",
+    "value": "Optiewaarden",
+    "valuePlaceholder": "Waarde invoeren",
+    "addOptionDescription": "Klik op 'optie toevoegen' om opties toe te voegen aan je vervolgkeuzelijst"
+  },
+  "choiceElement": {
+    "addOptions": "Opties toevoegen om dit element te gaan gebruiken..."
+  },
+  "backgroundModes": {
+    "tile": "Tegel",
+    "fill": "Vullen",
+    "fit": "Pas"
+  },
+  "customStyle": {
+    "themeOverrides": "Thema overschrijvingen",
+    "configureThemeOverrides": "Thema-overschrijvingen voor dit element configureren"
+  },
+  "colorThemeConfigBlock": {
+    "errorColor": "Fout",
+    "successColor": "Succes",
+    "secondaryColor": "Secundair",
+    "borderColor": "Border",
+    "warningColor": "Waarschuwing",
+    "primaryColor": "Primair",
+    "transparent": "Transparant",
+    "addCustomColor": "Aangepaste kleur toevoegen",
+    "customColorPrefix": "Maatwerk",
+    "customColors": "Aangepaste kleuren"
+  },
+  "colorThemeConfigBlockType": {
+    "secondary": "Secundair",
+    "success": "Succes",
+    "warning": "Waarschuwing",
+    "error": "Fout",
+    "primary": "Primair",
+    "border": "Border",
+    "transparent": "Transparant"
+  },
+  "pageThemeConfigBlock": {
+    "backgroundColor": "Achtergrond kleur",
+    "backgroundImage": "Achtergrondafbeelding",
+    "backgroundMode": "Achtergrondmodus"
+  },
+  "typographyThemeConfigBlock": {
+    "size": "Maat",
+    "textAlignment": "Uitlijning",
+    "headingLabel": "Kop {i} (h{i})",
+    "headingValue": "Kop <h{i}>",
+    "color": "Kleur",
+    "fontFamily": "Lettertype",
+    "bodyLabel": "Body",
+    "weight": "Gewicht",
+    "decoration": "Tekst decoratie"
+  },
+  "resetButton": {
+    "reset": "Terugzetten naar standaard themawaarde"
+  },
+  "inputThemeConfigBlock": {
+    "label": "Label",
+    "input": "Invoer",
+    "backgroundColor": "Achtergrond kleur",
+    "textColor": "Kleur tekst",
+    "borderColor": "Kleur rand",
+    "borderSize": "Randgrootte",
+    "borderRadius": "Randradius",
+    "padding": "Opvulling",
+    "fontFamily": "Lettertype",
+    "size": "Lettergrootte",
+    "weight": "Lettertype gewicht"
+  },
+  "tableThemeConfigBlock": {
+    "borderColor": "Kleur rand",
+    "backgroundAlternateColor": "Even rij kleur",
+    "textColor": "Kleur tekst",
+    "borderSize": "Randgrootte",
+    "fontSize": "Lettergrootte",
+    "table": "Tabel",
+    "header": "Kop",
+    "alignment": "Uitlijning",
+    "cells": "Cellen",
+    "separators": "Scheiders",
+    "verticalSeparatorColor": "Verticale kleur",
+    "verticalSeparatorSize": "Verticale grootte",
+    "horizontalSeparatorColor": "Horizontale kleur",
+    "horizontalSeparatorSize": "Horizontale grootte",
+    "borderRadius": "Randradius",
+    "padding": "Opvulling",
+    "size": "Grootte",
+    "backgroundColor": "Achtergrond kleur",
+    "fontFamily": "Lettertype",
+    "fontWeight": "Lettertype gewicht"
+  },
+  "dropdown": {
+    "empty": "Geen opties beschikbaar"
+  },
+  "abTable": {
+    "empty": "Er zijn geen items gevonden.",
+    "loading": "Aan het laden..."
+  },
+  "localBaserowServiceForm": {
+    "rowIdPlaceholder": "Selecteer een rij ID",
+    "rowIdLabel": "Rij ID",
+    "integrationDropdownLabel": "Integratie"
+  },
+  "fieldMappingContext": {
+    "enableField": "Veld inschakelen",
+    "disableField": "Veld uitschakelen"
+  },
+  "collectionElementForm": {
+    "noSchemaPropertyMessage": "Kies een eigenschap in de gegevensbron om te gebruiken als de lijstgegevens van je element.",
+    "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten weer te geven, of een gegevensbron met één rij om een eigenschap in deze rij te kiezen.",
+    "propertyOptionLabel": "Acties van gebruikers"
+  },
+  "imageFieldForm": {
+    "fieldAltHelp": "Wordt gebruikt door schermlezers en weergegeven als de afbeelding niet kan worden geladen",
+    "fieldSrcPlaceholder": "Waarde invoeren",
+    "fieldSrcLabel": "Afbeelding bron",
+    "fieldAltLabel": "Alt tekst",
+    "fieldAltPlaceholder": "Waarde invoeren..."
+  },
+  "serviceSchemaPropertySelector": {
+    "label": "Eigenschap",
+    "noProperties": "Geen eigenschappen beschikbaar"
+  },
+  "dataSourceDropdown": {
+    "noDataSources": "Geen gegevensbronnen beschikbaar",
+    "label": "Gegevensbron",
+    "shared": "gedeeld",
+    "pageOnly": "deze pagina",
+    "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar"
+  },
+  "recordSelectorElementForm": {
+    "selectRecordsFrom": "Records selecteren uit",
+    "optionNameSuffix": "Optie naam achtervoegsel",
+    "optionNameSuffixPlaceholder": "Voer een achtervoegsel in...",
+    "optionNameSuffixHelper": "Dit achtervoegsel wordt toegevoegd aan elke optienaam wanneer je de vervolgkeuzelijst opent en helpt om ze te onderscheiden.",
+    "itemsPerPage": "Items per pagina",
+    "record": "Record {id}",
+    "noDataSourceMessage": "Kies een gegevensbron met meerdere rijen om alle resultaten te vermelden.",
+    "itemsPerPagePlaceholder": "Waarde invoeren...",
+    "multipleLabel": "Meerdere waarden toestaan"
+  },
+  "dataSourceItemContext": {
+    "unshareBetweenPages": "Stop delen met andere pagina's",
+    "shareBetweenPages": "Delen tussen pagina's"
+  },
+  "dataSourceCreateEditModal": {
+    "sharedWarning": "Deze gegevensbron wordt gedeeld, dus je wijzigingen kunnen invloed hebben op meerdere pagina's.",
+    "editTitle": "Gegevensbron bewerken",
+    "createTitle": "Gegevensbron maken"
+  },
+  "propertyOptionForm": {
+    "searchHeading": "Zoeken",
+    "filterHeading": "Filter",
+    "sortHeading": "Sorteren",
+    "fieldHeading": "Veld",
+    "noPropertiesAvailable": "Geen velden beschikbaar.",
+    "optionUnavailable": "Niet beschikbaar",
+    "formDescription": "Kies op welke eigenschappen in de gegevensbron van dit element externe gebruikers kunnen filteren, sorteren en zoeken."
+  },
+  "dataSourceItem": {
+    "notConfigured": "Niet geconfigureerd"
+  },
+  "recordSelectorElement": {
+    "emptyAdhocState": "Geen rijen gevonden die overeenkomen met '{query}'.",
+    "emptyState": "Geen rijen gevonden."
+  },
+  "common": {
+    "dateFormatEU": "Europees",
+    "dateFormatTitle": "Datum formaat",
+    "dateFormatUS": "VS",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "Tijdformaat",
+    "timeFormat24Hour": "24 uur",
+    "timeFormat12Hour": "12 uur"
+  },
+  "dateTimePickerElementForm": {
+    "includeTime": "Inclusief tijd",
+    "invalidDateError": "Ongeldige datum. Controleer of de ingevoerde datum overeenkomt met het opgegeven formaat."
+  },
+  "themeSettings": {
+    "titleOverview": "Thema"
+  },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "Zichtbaarheid",
+    "logInPageWarningTitle": "De login pagina is niet ingesteld",
+    "logInPagewarningMessage": "Als een anonieme gebruiker deze pagina probeert te openen, wordt hij doorgestuurd naar een inlogpagina. Stel de login pagina in bij de algemene instellingen van de applicatie.",
+    "logInPageInfoTitle": "Anonieme gebruikers worden omgeleid",
+    "logInPageInfoMessage": "Anonieme gebruikers die deze pagina proberen te openen, worden doorgestuurd naar de {logInPageName} pagina."
+  },
+  "pageVisibilitySettings": {
+    "title": "Zichtbaarheid",
+    "allVisitors": "Alle bezoekers",
+    "loggedInVisitors": "Aangemelde bezoekers",
+    "description": "Wie kan deze pagina zien"
+  },
+  "pageEditor": {
+    "pageNotFound": "Pagina niet gevonden"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownDescription": "Selecteer de aanmeldpagina waar niet-ingelogde gebruikers naar moeten worden omgeleid als ze een pagina met verboden proberen te openen.",
+    "pageDropdownLabel": "Login pagina",
+    "pageDropdownPlaceholder": "Selecteer een pagina"
+  },
+  "multiPageContainerElementForm": {
+    "pagePosition": "Positie",
+    "behaviour": "Gedrag",
+    "display": "Weergave",
+    "selectAll": "Selecteer alles",
+    "deselectAll": "Deselecteer alles"
+  },
+  "pageShareType": {
+    "except": "Geselecteerde pagina's uitsluiten",
+    "all": "Op alle pagina's",
+    "only": "Alleen op geselecteerde pagina's"
+  },
+  "fontWeightType": {
+    "thin": "Dun",
+    "medium": "Middel",
+    "light": "Licht",
+    "extraLight": "Extra licht",
+    "extraBold": "Extra vet",
+    "regular": "Normaal",
+    "bold": "Vet",
+    "semiBold": "Halfvet",
+    "black": "Zwart",
+    "extraBlack": "Extra zwart"
+  },
+  "authProviderWithModal": {
+    "title": "Bewerk provider: {name}",
+    "authProviderInError": "Bewerk deze provider om de fout te herstellen."
+  },
+  "queryParamTypes": {
+    "textName": "Tekst",
+    "numericName": "Numeriek"
+  },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "Hoekradius",
+    "backgroundRadiusLabel": "Achtergrond",
+    "borderRadiusLabel": "Rand"
+  },
+  "addElementCategory": {
+    "suggestedElement": "Voorgestelde elementen",
+    "baseElement": "Basis elementen",
+    "layoutElement": "Layout elementen",
+    "formElement": "Formulier elementen"
+  },
+  "menuElement": {
+    "spacer": "Spacer",
+    "missingLinkValue": "Ontbrekende linknaam...",
+    "missingButtonValue": "Ontbrekende knopnaam...",
+    "emptyLinkValue": "Lege linknaam...",
+    "missingValue": "Ontbrekend menu-item",
+    "separator": "Scheider",
+    "emptyButtonValue": "Lege knopnaam..."
+  },
+  "menuElementForm": {
+    "menuItemsLabel": "Menu items",
+    "addMenuItemLink": "Toevoegen...",
+    "alignment": "Uitlijning",
+    "menuItemDefaultName": "Pagina",
+    "menuItemLabelLabel": "Label",
+    "menuItemTypeLabel": "Type",
+    "menuItemTypeItem": "Item",
+    "menuItemTypeSeparator": "Scheider",
+    "menuItemVariantLabel": "Variant",
+    "menuItemAddButton": "Knop",
+    "eventDescription": "Om acties te configureren voor deze knop, open de events van dit element.",
+    "noMenuItemsMessage": "Klik 'Toevoegen' om je eerste menu item toe te voegen.",
+    "menuItemVariantLink": "Link",
+    "menuItemAddSeparator": "Scheider",
+    "menuItemSubLinkDefaultName": "Sublink",
+    "addSubLink": "Sublink toevoegen",
+    "menuItemVariantButton": "Knop",
+    "namePlaceholder": "Pagina",
+    "menuItemAddSpacer": "Spacer",
+    "menuItemAddLink": "Link"
+  },
+  "simpleContainerElementForm": {
+    "noConfigurationOptions": "Het container element heeft geen configuratieopties."
+  },
+  "orientations": {
+    "vertical": "Vertical",
+    "horizontal": "Horizontaal",
+    "label": "Oriëntatie"
+  },
+  "ratingElementForm": {
+    "thumbsUp": "Duimen omhoog",
+    "maxValue": "Maximum",
+    "color": "Kleur",
+    "star": "Ster",
+    "flag": "Vlag",
+    "smile": "Lachen",
+    "heart": "Hart",
+    "ratingStyle": "Stijl"
+  },
+  "ratingFieldForm": {
+    "color": "Kleur",
+    "value": "Waarde",
+    "maxValue": "Maximale waarde",
+    "thumbsUp": "Duimen omhoog",
+    "flag": "Vlag",
+    "style": "Stijl",
+    "heart": "Hart",
+    "star": "Ster"
+  },
+  "linkDecorations": {
+    "plain": "Gewoon",
+    "normal": "Normaal"
+  },
+  "textDecorationSelector": {
+    "stroke": "Doorstreept",
+    "italic": "Cursief",
+    "underline": "Onderstrepen",
+    "uppercase": "Hoofdletters"
+  },
+  "userSourceDropdown": {
+    "label": "Gebruiker bron",
+    "addUserSource": "Voeg nieuwe gebruikersbron toe",
+    "noUserSources": "Geen gebruikersbronnen beschikbaar"
+  },
+  "abFileInput": {
+    "delete": "Verwijder"
+  },
+  "automationSettingsModal": {
+    "title": "Werkstroom"
+  },
+  "elementsGuidedTourStep": {
+    "title": "Elementen toevoegen aan je pagina",
+    "content": "Elke app heeft componenten nodig! Voeg elementen toe zoals tabellen, formulieren, knoppen en meer om je app tot leven te brengen."
+  },
+  "dataGuidedTourStep": {
+    "title": "Verbind uw gegevens",
+    "content": "Koppel hier je Baserow-tabellen om je gegevens dynamisch weer te geven, te filteren en bij te werken in verschillende elementen."
+  },
+  "previewGuidedTourStep": {
+    "title": "Je controlecentrum",
+    "content": "Hier configureer je de pagina's van je app. Voeg elementen toe, bekijk het resultaat en structureer je app precies zoals jij wilt."
+  },
+  "devicesGuidedTourStep": {
+    "title": "Voorbeeld op verschillende apparaten",
+    "content": "Schakel tussen previews voor desktop, tablet en mobiel om te zien hoe je app eruitziet op verschillende schermformaten. Zorg ervoor dat je ontwerp perfect werkt op alle apparaten!"
+  },
+  "sidePanelGuidedTourStep": {
+    "title": "Zijpaneel: Elementen aanpassen",
+    "content": "**Algemeen tabblad** - Configureer het geselecteerde element.\n\n**Tabblad Stijl** - Vulling, marge, randen en meer aanpassen.\n\n**Tabblad Zichtbaarheid** - Bepaal wie dit element kan zien: ingelogde gebruikers, uitgelogde gebruikers of specifieke rollen.\n\n**Tabblad Gebeurtenissen** - Als het element acties ondersteunt, configureer ze dan hier voor dynamische interactiviteit."
+  },
+  "previewPublishGuidedTourStep": {
+    "title": "Je app bekijken en publiceren",
+    "content": "Klik op **Preview** om je app privé te testen. Als je klaar bent, klik je op **Publiceer** om de app te delen met het publiek via een domein."
+  },
+  "builderToast": {
+    "details": "Details",
+    "defaultTitle": "Onverwachte fout",
+    "defaultMessage": "Er is een onverwachte fout opgetreden. Probeer het later nog eens.",
+    "invalidContextTitle": "Ongeldig verzoek",
+    "invalidContextMessage": "Het verzoek is ongeldig.",
+    "InvalidContentTitle": "Ongeldig formulier",
+    "invalidContentMessage": "Een of meer velden bevatten ongeldige waarden.",
+    "serviceMisconfiguredTitle": "Onvolledige configuratie",
+    "serviceMisconfiguredMessage": "Controleer de configuratie.",
+    "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
+    "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
+  }
 }

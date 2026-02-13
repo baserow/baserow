@@ -52,6 +52,30 @@ export class SearchTypeRegistry {
     const searchType = this.get(type)
     return searchType.formatResultDisplay(result, context)
   }
+
+  isNavigable(type, result, context = null) {
+    const searchType = this.get(type)
+    if (!searchType) {
+      return true
+    }
+    return searchType.isNavigable(result, context)
+  }
+
+  focusInSidebar(type, result, context = null) {
+    const searchType = this.get(type)
+    if (!searchType) {
+      return false
+    }
+    return searchType.focusInSidebar(result, context)
+  }
+
+  getEmptyLabel(type, result, context = null) {
+    const searchType = this.get(type)
+    if (!searchType) {
+      return null
+    }
+    return searchType.getEmptyLabel(result, context)
+  }
 }
 
 export const searchTypeRegistry = new SearchTypeRegistry()

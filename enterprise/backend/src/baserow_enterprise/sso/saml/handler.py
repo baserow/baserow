@@ -1,6 +1,6 @@
 import base64
 import binascii
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -8,10 +8,6 @@ from django.db.models import Model, QuerySet
 
 from defusedxml import ElementTree
 from loguru import logger
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, entity
-from saml2.client import Saml2Client
-from saml2.config import Config as Saml2Config
-from saml2.response import AuthnResponse
 
 from baserow.core.auth_provider.types import UserInfo
 from baserow_enterprise.api.sso.utils import get_valid_frontend_url
@@ -26,6 +22,10 @@ from .exceptions import (
     InvalidSamlResponse,
 )
 
+if TYPE_CHECKING:
+    from saml2.client import Saml2Client
+    from saml2.response import AuthnResponse
+
 
 class SamlAuthProviderHandler:
     model_class: Model = SamlAuthProviderModel
@@ -34,7 +34,7 @@ class SamlAuthProviderHandler:
     def prepare_saml_client(
         cls,
         saml_auth_provider: SamlAuthProviderModelMixin,
-    ) -> Saml2Client:
+    ) -> "Saml2Client":
         """
         Returns a SAML client with the correct configuration for the given
         authentication provider.
@@ -43,6 +43,10 @@ class SamlAuthProviderHandler:
             used to authenticate the user.
         :return: The SAML client that can be used to authenticate the user.
         """
+
+        from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+        from saml2.client import Saml2Client
+        from saml2.config import Config as Saml2Config
 
         acs_url = saml_auth_provider.get_type().get_acs_absolute_url(
             saml_auth_provider.specific
@@ -74,7 +78,7 @@ class SamlAuthProviderHandler:
         return Saml2Client(config=sp_config)
 
     @classmethod
-    def check_authn_response_is_valid_or_raise(cls, authn_response: AuthnResponse):
+    def check_authn_response_is_valid_or_raise(cls, authn_response: "AuthnResponse"):
         """
         Checks if the authn response is valid and raises an exception if not.
 
@@ -244,6 +248,8 @@ class SamlAuthProviderHandler:
             valid.
         :return: The user that was signed in.
         """
+
+        from saml2 import entity
 
         try:
             saml_auth_provider = cls.get_saml_auth_provider_from_saml_response(

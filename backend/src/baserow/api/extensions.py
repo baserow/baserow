@@ -72,7 +72,7 @@ class CustomFieldRegistryMappingSerializerExtension(MappingSerializerExtension):
 
     def map_serializer(self, auto_schema, direction):
         try:
-            base_ref_name = getattr(getattr(self.target.base_class, "Meta"), "ref_name")
+            base_ref_name = self.target.base_class.Meta.ref_name
         except AttributeError:
             base_ref_name = None
 

@@ -109,7 +109,7 @@ def download_airtable_file(
     """
 
     if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
-        response = requests.get(download_file.url, headers=headers)  # nosec B113
+        response = requests.get(download_file.url, headers=headers)  # noqa: S113
     elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
         response = AirtableHandler.fetch_attachment(
             row_id=download_file.row_id,
@@ -197,12 +197,12 @@ class AirtableHandler:
         """
 
         url = f"{AIRTABLE_BASE_URL}/{share_id}"
-        response = requests.get(
+        response = requests.get(  # noqa: S113
             url,
             headers=BASE_HEADERS,
             cookies=config.get_session_cookies(),
             allow_redirects=False,
-        )  # nosec B113
+        )
 
         if response.status_code == 302 and response.headers.get(
             "Location", ""
@@ -720,7 +720,7 @@ class AirtableHandler:
                         SCOPE_FIELD,
                         table["name"],
                         ERROR_TYPE_UNSUPPORTED_FEATURE,
-                        f"""Field "{column['name']}" with field type {column["type"]} was not imported because it is not supported.""",
+                        f"""Field "{column["name"]}" with field type {column["type"]} was not imported because it is not supported.""",
                     )
                     continue
 
@@ -896,7 +896,7 @@ class AirtableHandler:
                         SCOPE_VIEW,
                         table["name"],
                         ERROR_TYPE_UNSUPPORTED_FEATURE,
-                        f"View \"{view['name']}\" was not imported because "
+                        f'View "{view["name"]}" was not imported because '
                         f"{view['type']} is not supported.",
                     )
                     continue

@@ -67,7 +67,7 @@ const prefillFieldScenarios = [
 
 describe('Form utils test', () => {
   test.each(valuesToCall)(
-    'Test that all values are correctly extracted from the query',
+    'that all values are correctly extracted from the query',
     ({ query, result }) => {
       expect(getPrefills(query)).toEqual(result)
     }

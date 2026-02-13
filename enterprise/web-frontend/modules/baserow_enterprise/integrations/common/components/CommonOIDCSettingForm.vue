@@ -7,10 +7,14 @@
     @hidden="checkValidity()"
   >
     <OpenIdConnectSettingsForm
-      v-bind="$props"
+      v-bind="$attrs"
       ref="form"
-      @values-changed="checkValidity"
-      v-on="$listeners"
+      :auth-provider="authProvider"
+      :auth-provider-type="authProviderType"
+      :auth-providers="authProviders"
+      :default-values="defaultValues"
+      :disabled="disabled"
+      @values-changed="onValuesChanged"
     >
       <template #config>
         <FormGroup
@@ -55,6 +59,7 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CommonOIDCSettingsForm',
+  emits: ['delete', 'values-changed'],
   components: { OpenIdConnectSettingsForm, AuthProviderWithModal },
   mixins: [authProviderForm],
   props: {
@@ -80,8 +85,8 @@ export default {
 
       const userSourceUid = userSourceType.genUid(this.userSource)
 
-      const url = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
-      const previewUrl = `${this.$config.PUBLIC_BACKEND_URL.substr(
+      const url = `${this.$config.public.publicBackendUrl}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
+      const previewUrl = `${this.$config.public.publicBackendUrl.substr(
         0,
         10
       )}.../user-source/${userSourceUid}/sso/...`
@@ -96,8 +101,8 @@ export default {
 
       const others = this.domains.map((domain) => ({
         name: domain.domain_name,
-        url: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
-        previewUrl: `${this.$config.PUBLIC_BACKEND_URL.substr(
+        url: `${this.$config.public.publicBackendUrl}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
+        previewUrl: `${this.$config.public.publicBackendUrl.substr(
           0,
           10
         )}.../user-source/domain_${domain.id}__${userSourceUid}/sso/...`,
@@ -113,8 +118,16 @@ export default {
   },
   methods: {
     copyToClipboard,
+    onValuesChanged(values) {
+      this.checkValidity()
+      this.$emit('values-changed', values)
+    },
     checkValidity() {
-      if (!this.$refs.form.isFormValid() && this.$refs.form.v$.$anyDirty) {
+      if (
+        this.$refs.form &&
+        !this.$refs.form.isFormValid() &&
+        this.$refs.form.v$.$anyDirty
+      ) {
         this.inError = true
       } else {
         this.inError = false

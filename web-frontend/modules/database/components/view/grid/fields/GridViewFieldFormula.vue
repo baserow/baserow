@@ -1,21 +1,26 @@
-<template functional>
-  <component
-    :is="$options.methods.getComponent(props.field, parent.$registry)"
-    v-bind="data.attrs"
-    :read-only="true"
-    class="active"
-    v-on="listeners"
-  ></component>
+<template>
+  <component :is="component" v-bind="forwarded" class="active" />
 </template>
 
 <script>
 export default {
   name: 'GridViewFieldFormula',
-  methods: {
-    getComponent(field, registry) {
-      return registry
-        .get('formula_type', field.formula_type)
-        .getGridViewFieldComponent(field)
+  inheritAttrs: false,
+  props: {
+    field: { type: Object, required: true },
+  },
+  computed: {
+    forwarded() {
+      return {
+        ...this.$attrs,
+        field: this.field,
+        readOnly: true,
+      }
+    },
+    component() {
+      return this.$registry
+        .get('formula_type', this.field.formula_type)
+        .getGridViewFieldComponent(this.field)
     },
   },
 }

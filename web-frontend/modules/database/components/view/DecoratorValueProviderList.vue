@@ -45,6 +45,7 @@ export default {
       default: false,
     },
   },
+  emits: ['select'],
   computed: {
     availableValueProviderTypes() {
       const decorationType = this.$registry.get(

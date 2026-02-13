@@ -1,6 +1,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
+  emits: ['click'],
+
   props: {
     workspace: {
       type: Object,

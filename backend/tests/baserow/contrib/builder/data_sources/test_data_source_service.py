@@ -160,8 +160,9 @@ def test_create_data_source_permission_denied(data_fixture, stub_check_permissio
 
     service_type = service_type_registry.get("local_baserow_get_row")
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().create_data_source(
             user,
@@ -193,8 +194,9 @@ def test_get_data_source_permission_denied(data_fixture, stub_check_permissions)
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().get_data_source(user, data_source.id)
 
@@ -245,12 +247,13 @@ def test_get_data_sources(data_fixture, stub_check_permissions):
 def test_delete_data_source(data_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
+    data_source_id = data_source.id
 
     service = DataSourceService()
     service.delete_data_source(user, data_source)
 
     data_source_deleted_mock.send.assert_called_once_with(
-        service, data_source_id=data_source.id, page=data_source.page, user=user
+        service, data_source_id=data_source_id, page=data_source.page, user=user
     )
 
 
@@ -259,8 +262,9 @@ def test_delete_data_source_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().delete_data_source(user, data_source)
 
@@ -298,8 +302,9 @@ def test_update_data_source_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().update_data_source(user, data_source, value="newValue")
 
@@ -366,8 +371,9 @@ def test_move_data_source_permission_denied(data_fixture, stub_check_permissions
         page=page
     )
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().move_data_source(user, data_source3, before=data_source2)
 
@@ -544,8 +550,9 @@ def test_dispatch_data_source_permission_denied(data_fixture, stub_check_permiss
         HttpRequest(), page, only_expose_public_allowed_properties=False
     )
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         DataSourceService().dispatch_data_source(user, data_source, dispatch_context)
 

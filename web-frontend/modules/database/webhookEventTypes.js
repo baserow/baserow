@@ -90,7 +90,7 @@ export class RowsCreatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.rowsCreated')
   }
 
@@ -107,7 +107,7 @@ export class RowsUpdatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.rowsUpdated')
   }
 
@@ -123,12 +123,12 @@ export class RowsUpdatedWebhookEventType extends WebhookEventType {
   }
 
   getRelatedFieldsPlaceholder() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhookForm.triggerWhenFieldsHaveChanged')
   }
 
   getRelatedFieldsHelpText() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhookForm.helpTriggerWhenFieldsHaveChanged')
   }
 }
@@ -139,7 +139,7 @@ export class RowsDeletedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.rowsDeleted')
   }
 
@@ -169,7 +169,7 @@ export class FieldCreatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.fieldCreated')
   }
 
@@ -186,7 +186,7 @@ export class FieldUpdatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.fieldUpdated')
   }
 
@@ -203,7 +203,7 @@ export class FieldDeletedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.fieldDeleted')
   }
 
@@ -244,7 +244,7 @@ export class ViewCreatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.viewCreated')
   }
 
@@ -261,7 +261,7 @@ export class ViewUpdatedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.viewUpdated')
   }
 
@@ -278,7 +278,7 @@ export class ViewDeletedWebhookEventType extends WebhookEventType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('webhook.eventType.viewDeleted')
   }
 

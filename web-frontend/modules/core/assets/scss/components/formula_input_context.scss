@@ -66,3 +66,7 @@
 
   @include rounded($rounded);
 }
+
+.formula-input-context__advanced-mode-modal {
+  z-index: $z-index-modal + 1;
+}

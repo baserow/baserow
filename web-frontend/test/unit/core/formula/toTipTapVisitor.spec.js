@@ -6,7 +6,7 @@ import testCases from '@baserow_test_cases/tip_tap_visitor_cases.json'
 
 describe('toTipTapVisitor', () => {
   let testApp = null
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 

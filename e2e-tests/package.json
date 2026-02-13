@@ -13,13 +13,14 @@
     "test-builder": "playwright test --project=chrome --grep builder",
     "test-automation": "playwright test --project=chrome --grep automation",
     "test-headed": "playwright test --project=chrome --headed",
-    "test-ci": "playwright test --grep-invert=@slow",
+    "test-ci": "CI=1 playwright test --grep-invert=@slow",
     "codegen": "playwright codegen"
   },
   "dependencies": {
     "@faker-js/faker": "7.6.0",
+    "@nuxt/test-utils": "^3.21.0",
     "@playwright/test": "^1.48.0",
-    "axios": "1.2.3",
+    "axios": "1.13.5",
     "dotenv": "16.0.3"
   }
 }

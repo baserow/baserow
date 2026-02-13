@@ -4,15 +4,13 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models import UniqueConstraint
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.formula.field import FormulaField as ModelFormulaField
-from baserow.core.jobs.mixins import (
-    JobWithUndoRedoIds,
-    JobWithUserIpAddress,
-    JobWithWebsocketId,
-)
+from baserow.core.jobs.mixins import JobWithUndoRedoIds, JobWithUserIpAddress
 from baserow.core.jobs.models import Job
+from baserow.core.mixins import BigAutoFieldMixin
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
@@ -68,13 +66,12 @@ class AIField(Field):
         return settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS
 
 
-class GenerateAIValuesJob(
-    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
-):
+class GenerateAIValuesJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
     class MODES(StrEnum):
         ROWS = "rows"
         VIEW = "view"
         TABLE = "table"
+        AUTO_UPDATE = "auto_update"
 
     field = models.ForeignKey(
         Field,
@@ -93,12 +90,55 @@ class GenerateAIValuesJob(
     only_empty = models.BooleanField(
         default=False, help_text="Whether to only generate values for empty cells."
     )
+    is_auto_update = models.BooleanField(
+        null=True,
+        db_default=False,
+        default=False,
+        help_text="If set, the job has been scheduled as a result of AI field auto-update.",
+    )
+
+    # TODO: no longer needed. Remove in a feature release
+    user_websocket_id = models.CharField(
+        max_length=36,
+        null=True,
+        help_text="The user websocket uuid needed to manage signals sent correctly.",
+    )
 
     @property
-    def mode(self):
-        if self.row_ids is not None:
+    def mode(self) -> MODES:
+        if self.is_auto_update:
+            return self.MODES.AUTO_UPDATE
+        elif self.row_ids is not None:
             return self.MODES.ROWS
         elif self.view_id is not None:
             return self.MODES.VIEW
         else:  # Without filters, generate the values for the whole table
             return self.MODES.TABLE
+
+
+class AIFieldScheduledUpdate(BigAutoFieldMixin, models.Model):
+    """
+    Stores information about scheduled AI field updates.
+
+    Part of debouncing infrastructure.
+    """
+
+    field_id = models.IntegerField(help_text="The ID of the field to update.")
+    row_id = models.IntegerField(help_text="Row ID to update")
+    updated_on = models.DateTimeField(
+        help_text="The time this update was last modified."
+    )
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["field_id", "row_id"], name="ai_field_id_row_id_uniq"
+            )
+        ]
+        indexes = [
+            # speeds up filtering of old values
+            models.Index(
+                name="ai_field_updated_on_idx",
+                fields=["field_id", "-updated_on"],
+            )
+        ]

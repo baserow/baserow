@@ -27,7 +27,7 @@
         @add-node="emit('add-node', $event)"
         @remove-node="emit('remove-node', $event)"
         @replace-node="emit('replace-node', $event)"
-        @select-node="emit('input', $event.id)"
+        @select-node="emit('update:modelValue', $event.id)"
         @move-node="emit('move-node', $event)"
         @duplicate-node="emit('duplicate-node', $event)"
       />
@@ -47,14 +47,14 @@
 </template>
 
 <script setup>
-import { VueFlow, useVueFlow } from '@vue2-flow/core'
-import { Background } from '@vue2-flow/background'
-import { Controls } from '@vue2-flow/controls'
-import { ref, watch, toRefs, onMounted } from 'vue'
-import { inject, computed } from '@nuxtjs/composition-api'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { ref, computed, watch, toRef, inject, onMounted } from 'vue'
+import debounce from 'lodash/debounce'
+
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
-import debounce from 'lodash.debounce'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
 const props = defineProps({
@@ -62,7 +62,7 @@ const props = defineProps({
     type: Array,
     required: true,
   },
-  value: {
+  modelValue: {
     type: [String, Number],
     default: null,
   },
@@ -72,27 +72,37 @@ const props = defineProps({
   },
 })
 
-const vueFlowEdges = []
 const emit = defineEmits([
+  'update:modelValue',
   'add-node',
   'remove-node',
-  'input',
+  'replace-node',
   'move-node',
   'duplicate-node',
 ])
 
+// Injected dependencies
+const workflow = inject('workflow')
+const workflowDebug = inject('workflowDebug')
+const workflowReadOnly = inject('workflowReadOnly')
+
+// Vue Flow setup
 const { onPaneClick } = useVueFlow()
+const vueFlowEdges = []
 
-const { value: selectedNodeId } = toRefs(props)
-
+// Local state
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 const updateKey = ref(1)
 
-const workflow = inject('workflow')
+// Computed properties
+const selectedNodeId = toRef(props, 'modelValue')
 
 const trigger = computed(() => {
+  if (!workflow.value?.graph) {
+    return null
+  }
   return new NodeGraphHandler(workflow.value).getFirstNode()
 })
 
@@ -107,22 +117,18 @@ const vueFlowNodes = computed(() => {
   ]
 })
 
-const workflowDebug = inject('workflowDebug')
-const workflowReadOnly = inject('workflowReadOnly')
+const computedNodes = computed(() => props.nodes)
 
-const computedNodes = computed(() => {
-  return props.nodes
-})
+const currentGraph = computed(() => workflow.value?.graph)
 
+// Debounced update function
 const triggerUpdate = debounce(() => {
   updateKey.value += 1
 }, 500)
 
-const currentGraph = computed(() => workflow.value.graph)
-
 /**
  * These watchers are used to force the update the workflow graph when nodes are updated.
- *  Vue-flow prevents the natural update.
+ * Vue-flow prevents the natural update.
  */
 watch(
   computedNodes,
@@ -131,6 +137,7 @@ watch(
   },
   { deep: true }
 )
+
 watch(
   currentGraph,
   () => {
@@ -145,7 +152,7 @@ watch(
  */
 onMounted(() => {
   if (props.nodes.length) {
-    emit('input', props.nodes[0].id)
+    emit('update:modelValue', props.nodes[0].id)
   }
 })
 
@@ -154,6 +161,6 @@ onMounted(() => {
  * clears the selected node in the node store.
  */
 onPaneClick(() => {
-  emit('input', null)
+  emit('update:modelValue', null)
 })
 </script>

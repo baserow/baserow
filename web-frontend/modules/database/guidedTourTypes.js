@@ -2,16 +2,17 @@ import {
   GuidedTourType,
   GuidedTourStep,
 } from '@baserow/modules/core/guidedTourTypes'
-import Vue from 'vue'
+
+import { nextTick } from 'vue'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 
 class FiltersSortGroupGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('filterSortGroupGuidedTourStep.title')
+    return this.app.$i18n.t('filterSortGroupGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('filterSortGroupGuidedTourStep.content')
+    return this.app.$i18n.t('filterSortGroupGuidedTourStep.content')
   }
 
   get selectors() {
@@ -29,11 +30,11 @@ class FiltersSortGroupGuidedTourStep extends GuidedTourStep {
 
 class AddFieldGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('addFieldGuidedTourStep.title')
+    return this.app.$i18n.t('addFieldGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('addFieldGuidedTourStep.content')
+    return this.app.$i18n.t('addFieldGuidedTourStep.content')
   }
 
   get selectors() {
@@ -47,11 +48,11 @@ class AddFieldGuidedTourStep extends GuidedTourStep {
 
 class CreateViewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('createViewGuidedTourStep.title')
+    return this.app.$i18n.t('createViewGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('createViewGuidedTourStep.content')
+    return this.app.$i18n.t('createViewGuidedTourStep.content')
   }
 
   get selectors() {
@@ -65,11 +66,11 @@ class CreateViewGuidedTourStep extends GuidedTourStep {
 
 class CreateFormViewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('createFormViewGuidedTourStep.title')
+    return this.app.$i18n.t('createFormViewGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('createFormViewGuidedTourStep.content')
+    return this.app.$i18n.t('createFormViewGuidedTourStep.content')
   }
 
   get selectors() {
@@ -82,7 +83,7 @@ class CreateFormViewGuidedTourStep extends GuidedTourStep {
 
   async beforeShow() {
     this.app.$bus.$emit('open-table-views-context')
-    await Vue.nextTick()
+    await nextTick()
   }
 
   afterShow() {
@@ -92,11 +93,11 @@ class CreateFormViewGuidedTourStep extends GuidedTourStep {
 
 class ViewOptionGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('viewOptionsGuidedTourStep.title')
+    return this.app.$i18n.t('viewOptionsGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('viewOptionsGuidedTourStep.content')
+    return this.app.$i18n.t('viewOptionsGuidedTourStep.content')
   }
 
   get selectors() {
@@ -109,7 +110,7 @@ class ViewOptionGuidedTourStep extends GuidedTourStep {
 
   async beforeShow() {
     this.app.$bus.$emit('open-table-view-context')
-    await Vue.nextTick()
+    await nextTick()
   }
 
   afterShow() {
@@ -119,11 +120,11 @@ class ViewOptionGuidedTourStep extends GuidedTourStep {
 
 class TablesGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('tablesGuidedTourStep.title')
+    return this.app.$i18n.t('tablesGuidedTourStep.title')
   }
 
   get content() {
-    return this.app.i18n.t('tablesGuidedTourStep.content')
+    return this.app.$i18n.t('tablesGuidedTourStep.content')
   }
 
   get selectors() {
@@ -159,10 +160,10 @@ export class DatabaseGuidedTourType extends GuidedTourType {
     return (
       // Use the `routeMounted` because that gives us the route that's actually
       // mounted, making sure that the selector elements have been rendered.
-      this.app.store.getters['routeMounted/routeMounted']?.name ===
+      this.app.$store.getters['routeMounted/routeMounted']?.name ===
         'database-table' &&
       // This tour is only compatible with the grid view.
-      this.app.store.getters['view/getSelected']?.type ===
+      this.app.$store.getters['view/getSelected']?.type ===
         GridViewType.getType()
     )
   }

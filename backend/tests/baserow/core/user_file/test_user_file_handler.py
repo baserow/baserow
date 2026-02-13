@@ -9,8 +9,8 @@ from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 
-import httpretty
 import pytest
+import responses
 import zipstream
 from freezegun import freeze_time
 from PIL import Image
@@ -287,23 +287,23 @@ def test_upload_user_file_with_unsupported_image_format(
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url(data_fixture, tmpdir):
     user = data_fixture.create_user()
 
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
     handler = UserFileHandler()
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "https://baserow.io/test.txt",
         body=b"Hello World",
         status=200,
         content_type="text/plain",
     )
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         "https://baserow.io/not-found.pdf",
         status=404,
     )
@@ -365,7 +365,7 @@ def test_upload_user_file_by_url_within_private_network(data_fixture, tmpdir):
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_with_querystring(data_fixture, tmpdir) -> None:
     user = data_fixture.create_user()
 
@@ -374,8 +374,8 @@ def test_upload_user_file_by_url_with_querystring(data_fixture, tmpdir) -> None:
 
     remote_file = "https://baserow.io/test.txt?utm_source=google&utm_medium=email&utm_campaign=fall"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         remote_file,
         body=b"Hello World",
         status=200,
@@ -399,7 +399,7 @@ def test_upload_user_file_by_url_with_querystring(data_fixture, tmpdir) -> None:
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_with_image_without_extension_with_wrong_content_type(
     data_fixture, tmpdir
 ) -> None:
@@ -410,8 +410,8 @@ def test_upload_user_file_by_url_with_image_without_extension_with_wrong_content
 
     remote_file = "https://baserow.io/image-without-url"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         remote_file,
         body=bytes(
             [
@@ -494,7 +494,7 @@ def test_upload_user_file_by_url_with_image_without_extension_with_wrong_content
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_with_slash(data_fixture, tmpdir) -> None:
     user = data_fixture.create_user()
 
@@ -503,8 +503,8 @@ def test_upload_user_file_by_url_with_slash(data_fixture, tmpdir) -> None:
 
     remote_file = "https://baserow.io/test.txt/"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         remote_file,
         body=b"Hello World",
         status=200,
@@ -528,7 +528,7 @@ def test_upload_user_file_by_url_with_slash(data_fixture, tmpdir) -> None:
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_without_path(data_fixture, tmpdir) -> None:
     user = data_fixture.create_user()
 
@@ -537,8 +537,8 @@ def test_upload_user_file_by_url_without_path(data_fixture, tmpdir) -> None:
 
     remote_file = "https://baserow.io/"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         remote_file,
         body=b"Hello World",
         status=200,
@@ -585,7 +585,7 @@ def test_upload_user_file_by_url_without_path(data_fixture, tmpdir) -> None:
     ],
 )
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_with_invalid_paths(
     data_fixture, tmpdir, uri, remote_file
 ) -> None:
@@ -594,9 +594,9 @@ def test_upload_user_file_by_url_with_invalid_paths(
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
     handler = UserFileHandler()
 
-    httpretty.register_uri(
-        httpretty.GET,
-        uri=uri,
+    responses.add(
+        responses.GET,
+        url=uri,
         body=b"Hello World",
         status=200,
         content_type="text/plain",
@@ -608,7 +608,7 @@ def test_upload_user_file_by_url_with_invalid_paths(
 
 
 @pytest.mark.django_db
-@httpretty.activate(verbose=True, allow_net_connect=False)
+@responses.activate
 def test_upload_user_file_by_url_with_invalid_content_type(
     data_fixture, tmpdir
 ) -> None:
@@ -619,8 +619,8 @@ def test_upload_user_file_by_url_with_invalid_content_type(
 
     remote_file = "https://baserow.io//"
 
-    httpretty.register_uri(
-        httpretty.GET,
+    responses.add(
+        responses.GET,
         re.compile(r"https://baserow.io.*"),
         body=b"Hello World",
         status=200,

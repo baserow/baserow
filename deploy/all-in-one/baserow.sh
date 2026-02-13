@@ -222,22 +222,22 @@ file_env EMAIL_SMTP_PASSWORD
 
 if [[ -z "${DISABLE_EMBEDDED_REDIS:-}" ]]; then
   mkdir -p "$DATA_DIR"/redis
-  chown -R redis:redis "$DATA_DIR"/redis
-fi
+    chown -R redis:redis "$DATA_DIR"/redis
+  fi
 
 if [[ -z "${DISABLE_EMBEDDED_PSQL:-}" ]]; then
   mkdir -p "$DATA_DIR"/postgres
-  chown -R postgres:postgres "$DATA_DIR"/postgres
-fi
+    chown -R postgres:postgres "$DATA_DIR"/postgres
+  fi
 
 mkdir -p "$DATA_DIR"/caddy
-chown -R "$DOCKER_USER": "$DATA_DIR"/caddy
+  chown -R "$DOCKER_USER": "$DATA_DIR"/caddy
 mkdir -p "$DATA_DIR"/media
-chown -R "$DOCKER_USER": "$DATA_DIR"/media
+  chown -R "$DOCKER_USER": "$DATA_DIR"/media
 mkdir -p "$DATA_DIR"/env
-chown -R "$DOCKER_USER": "$DATA_DIR"/env
+  chown -R "$DOCKER_USER": "$DATA_DIR"/env
 mkdir -p "$DATA_DIR"/backups
-chown -R "$DOCKER_USER": "$DATA_DIR"/backups
+  chown -R "$DOCKER_USER": "$DATA_DIR"/backups
 
 # ========================
 # = COMMAND LINE ARG HANDLER

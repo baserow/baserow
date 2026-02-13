@@ -117,7 +117,7 @@ export default {
       this.hideError()
 
       try {
-        const baseUrl = `${this.$config.PUBLIC_WEB_FRONTEND_URL}/change-email`
+        const baseUrl = `${this.$config.public.publicWebFrontendUrl}/change-email`
         await AuthService(this.$client).sendChangeEmailConfirmation(
           this.emailData.newEmail,
           this.emailData.password,

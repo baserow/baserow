@@ -1,5 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 import flushPromises from 'flush-promises'
 
 import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilterForm.vue'
@@ -8,11 +8,11 @@ import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilter
 let nextFilterUuid = 100
 const mockUuid = () => nextFilterUuid++
 
-jest.mock('@baserow/modules/core/utils/string', () => ({
+vi.mock('@baserow/modules/core/utils/string', () => ({
   uuid: () => mockUuid(),
 }))
 
-jest.mock('uuid', () => ({
+vi.mock('uuid', () => ({
   v1: () => mockUuid(),
   v4: () => mockUuid(),
 }))
@@ -94,13 +94,13 @@ describe('ViewFilterForm match snapshots', () => {
   let testApp = null
   let mockServer = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
   })
 
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
     testApp.afterEach()
     mockServer.resetMockEndpoints()
   })
@@ -135,61 +135,58 @@ describe('ViewFilterForm match snapshots', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
-  test('Test rating filter', (done) => {
-    const f = async function () {
-      // We want to bypass some setTimeout
-      jest.useFakeTimers()
-      // Mock server filter update call
-      mockServer.updateViewFilter(11, '5')
+  test('rating filter', async (done) => {
+    // We want to bypass some setTimeout
+    vi.useFakeTimers()
+    // Mock server filter update call
+    mockServer.updateViewFilter(11, '5')
 
-      // Add rating one filter
-      const viewClone = JSON.parse(JSON.stringify(view))
-      viewClone.filters = [
-        {
-          field: 2,
-          type: 'equal',
-          value: '2',
-          preload_values: {},
-          _: { hover: false, loading: false },
-          id: 11,
-        },
-      ]
+    // Add rating one filter
+    const viewClone = JSON.parse(JSON.stringify(view))
+    viewClone.filters = [
+      {
+        field: 2,
+        type: 'equal',
+        value: '2',
+        preload_values: {},
+        _: { hover: false, loading: false },
+        id: 11,
+      },
+    ]
 
-      const onChange = jest.fn(() => {
-        // The test is about to finish
-        expect(wrapper.emitted().changed).toBeTruthy()
-        // The Five star option should be selected
-        expect(wrapper.element).toMatchSnapshot()
-        done()
-      })
-
-      // Mounting the component
-      const wrapper = await mountViewFilterForm(
-        {
-          fields,
-          view: viewClone,
-          readOnly: false,
-        },
-        { changed: onChange }
-      )
-
-      // Open type dropdown
-      await wrapper.find('.filters__type .dropdown__selected').trigger('click')
+    const onChange = vi.fn(() => {
+      // The test is about to finish
+      expect(wrapper.emitted().changed).toBeTruthy()
+      // The Five star option should be selected
       expect(wrapper.element).toMatchSnapshot()
+      done()
+    })
 
-      // Select five stars
-      const option = wrapper.find(
-        '.filters__value  .rating > .rating__star:nth-child(5)'
-      )
+    // Mounting the component
+    const wrapper = await mountViewFilterForm(
+      {
+        fields,
+        view: viewClone,
+        readOnly: false,
+      },
+      { changed: onChange }
+    )
 
-      await option.trigger('click')
-      // Wait some timers
-      await jest.runAllTimers()
+    // Open type dropdown
+    await wrapper.find('.filters__type .dropdown__selected').trigger('click')
+    expect(wrapper.element).toMatchSnapshot()
 
-      // Test finishes only when onChange callback is called
-      // Wait for mockServer to respond -> see onChange callback
-    }
-    f()
+    // Select five stars
+    const option = wrapper.find(
+      '.filters__value  .rating > .rating__star:nth-child(5)'
+    )
+
+    await option.trigger('click')
+    // Wait some timers
+    await vi.runAllTimers()
+
+    // Test finishes only when onChange callback is called
+    // Wait for mockServer to respond -> see onChange callback
   })
 })
 

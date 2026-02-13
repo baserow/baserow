@@ -166,6 +166,13 @@ span[data-type='mention'] {
   height: 0;
 }
 
+// The BubbleMenu plugin toggles opacity 0/1 on its container element.
+// Override any transitions to make show/hide instant (no fade).
+.rich-text-editor__menu-container {
+  transition: none !important;
+  z-index: 6;
+}
+
 .rich-text-editor__floating-menu,
 .rich-text-editor__bubble-menu {
   @include elevation($elevation-medium);
@@ -175,12 +182,13 @@ span[data-type='mention'] {
   gap: 2px;
   border-radius: 6px;
   border: 1px solid $palette-neutral-500;
-  margin-block: 0 0;
+  margin-block: 0;
 }
 
-.rich-text-editor__bubble-menu {
+ul.rich-text-editor__bubble-menu {
   display: flex;
   list-style: none;
+  padding-inline-start: 4px;
 }
 
 .rich-text-editor__floating-menu--expanded {
@@ -305,7 +313,9 @@ span[data-type='mention'] {
   color: rgba(0, 0, 0, 0.8);
   overflow: hidden;
   font-size: 0.9rem;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 10px 20px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.1);
   max-height: 164px;
   width: 240px;
   overflow-y: auto;

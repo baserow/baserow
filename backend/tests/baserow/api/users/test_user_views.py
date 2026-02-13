@@ -177,7 +177,7 @@ def test_create_user(client, data_fixture):
     assert response_json["detail"]["language"][0]["code"] == "invalid_language"
     assert response_json["detail"]["language"][0]["error"] == (
         "Only the following language keys are "
-        f"valid: {','.join([l[0] for l in settings.LANGUAGES])}"
+        f"valid: {','.join([lang[0] for lang in settings.LANGUAGES])}"
     )
 
     # Test username with maximum length
@@ -267,7 +267,7 @@ def test_user_account(data_fixture, api_client):
     assert response_json["detail"]["language"][0]["code"] == "invalid_language"
     assert response_json["detail"]["language"][0]["error"] == (
         "Only the following language keys are "
-        f"valid: {','.join([l[0] for l in settings.LANGUAGES])}"
+        f"valid: {','.join([lang[0] for lang in settings.LANGUAGES])}"
     )
 
     response = api_client.patch(
@@ -1247,6 +1247,7 @@ def test_share_onboarding_details_with_baserow(mock_task, client, data_fixture):
             "role": "CEO",
             "size": "11 - 50",
             "country": "The Netherlands",
+            "how": "Google",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1260,6 +1261,7 @@ def test_share_onboarding_details_with_baserow(mock_task, client, data_fixture):
         role="CEO",
         size="11 - 50",
         country="The Netherlands",
+        how="Google",
     )
 
 

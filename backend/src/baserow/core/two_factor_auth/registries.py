@@ -9,8 +9,6 @@ from io import BytesIO
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
-import pyotp
-import qrcode
 from rest_framework import serializers
 
 from baserow.core.registry import (
@@ -28,6 +26,7 @@ from baserow.core.two_factor_auth.exceptions import (
 )
 from baserow.core.two_factor_auth.models import (
     TOTPAuthProviderModel,
+    TOTPUsedCode,
     TwoFactorAuthProviderModel,
     TwoFactorAuthRecoveryCode,
 )
@@ -112,6 +111,9 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         provider: TOTPAuthProviderModel | None = None,
         **kwargs,
     ) -> TOTPAuthProviderModel:
+        import pyotp
+        import qrcode
+
         if provider and provider.enabled:
             raise TwoFactorAuthAlreadyConfigured
 
@@ -132,6 +134,12 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
 
                 backup_codes_plaintext = self.generate_backup_codes()
                 self.store_backup_codes(provider, backup_codes_plaintext)
+
+                TOTPUsedCode.objects.create(
+                    user=provider.user,
+                    used_at=datetime.now(tz=timezone.utc),
+                    code=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+                )
 
                 provider._backup_codes = backup_codes_plaintext
                 return provider
@@ -192,6 +200,8 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         return provider.enabled
 
     def verify(self, **kwargs) -> bool:
+        import pyotp
+
         email = kwargs.get("email")
         code = kwargs.get("code")
         backup_code = kwargs.get("backup_code")
@@ -207,19 +217,36 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 recovery_code.delete()
                 return True
 
-        provider = TwoFactorAuthProviderModel.objects.filter(user__email=email).first()
+        provider = (
+            TwoFactorAuthProviderModel.objects.select_for_update(of=("self",))
+            .filter(user__email=email)
+            .first()
+        )
         if not provider:
             raise VerificationFailed
 
         totp = pyotp.TOTP(provider.specific.secret)
+        current_ts = datetime.now(tz=timezone.utc)
+        hashed_code = hashlib.sha256(code.encode("utf-8")).hexdigest()
 
-        if totp.verify(code):
+        code_already_used = TOTPUsedCode.objects.filter(
+            user=provider.user, code=hashed_code
+        ).exists()
+
+        if not code_already_used and totp.verify(code):
+            TOTPUsedCode.objects.filter(user=provider.user).delete()
+            TOTPUsedCode.objects.create(
+                user=provider.user,
+                used_at=current_ts,
+                code=hashed_code,
+            )
             return True
         else:
             raise VerificationFailed
 
     def disable(self, provider, user):
         TwoFactorAuthRecoveryCode.objects.filter(user=user).delete()
+        TOTPUsedCode.objects.filter(user=user).delete()
         provider.delete()
 
 

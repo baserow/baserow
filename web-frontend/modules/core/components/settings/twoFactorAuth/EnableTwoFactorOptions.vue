@@ -6,8 +6,8 @@
       :value="option.type"
       :model-value="values.twoFaChoice"
       :label="option.name"
-      :badge-label="option.sideLabel"
-      @input="updateValue"
+      :side-label="option.sideLabel"
+      @update:model-value="updateValue"
     >
       <div>
         {{ option.description }}
@@ -27,6 +27,7 @@
 <script>
 export default {
   name: 'EnableTwoFactorOptions',
+  emits: ['cancel', 'continue'],
   data() {
     return {
       values: {

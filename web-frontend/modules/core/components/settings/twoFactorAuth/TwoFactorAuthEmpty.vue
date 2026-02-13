@@ -27,5 +27,6 @@ export default {
       default: true,
     },
   },
+  emits: ['enable'],
 }
 </script>

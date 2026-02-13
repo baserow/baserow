@@ -16,8 +16,8 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
@@ -64,7 +64,7 @@ export class NodeType extends Registerable {
    * Returns the text to be displayed on the graph just before the node.
    */
   getBeforeLabel({ workflow, node }) {
-    return this.app.i18n.t('workflowNode.beforeLabelAction')
+    return this.app.$i18n.t('workflowNode.beforeLabelAction')
   }
 
   /**
@@ -272,7 +272,7 @@ export class LocalBaserowNodeType extends NodeType {
    * @returns {object} - An object containing the table name.
    */
   getLabelContext({ automation, node }) {
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](automation, node.service?.integration_id)
     const databases = integration?.context_data?.databases || []
@@ -294,7 +294,7 @@ export class LocalBaserowNodeType extends NodeType {
   getDefaultLabel({ automation, node }) {
     const { tableName } = this.getLabelContext({ automation, node })
     return tableName
-      ? this.app.i18n.t(this.labelTemplateName, { tableName })
+      ? this.app.$i18n.t(this.labelTemplateName, { tableName })
       : this.name
   }
 
@@ -395,7 +395,7 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.periodicTriggerLabel')
+    return this.app.$i18n.t('nodeType.periodicTriggerLabel')
   }
 
   get serviceType() {
@@ -408,13 +408,13 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     }
 
     const intervalLabels = {
-      MINUTE: this.app.i18n.t('periodicForm.everyMinute', {
+      MINUTE: this.app.$i18n.t('periodicForm.everyMinute', {
         minute: node.service.minute,
       }),
-      HOUR: this.app.i18n.t('periodicForm.everyHour'),
-      DAY: this.app.i18n.t('periodicForm.everyDay'),
-      WEEK: this.app.i18n.t('periodicForm.everyWeek'),
-      MONTH: this.app.i18n.t('periodicForm.everyMonth'),
+      HOUR: this.app.$i18n.t('periodicForm.everyHour'),
+      DAY: this.app.$i18n.t('periodicForm.everyDay'),
+      WEEK: this.app.$i18n.t('periodicForm.everyWeek'),
+      MONTH: this.app.$i18n.t('periodicForm.everyMonth'),
     }
 
     return intervalLabels[node.service.interval] || this.name
@@ -427,11 +427,11 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+    return this.app.$i18n.t('serviceType.coreHTTPTrigger')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
+    return this.app.$i18n.t('serviceType.coreHTTPTriggerDescription')
   }
 
   get serviceType() {
@@ -446,7 +446,7 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 
   getDefaultLabel({ automation, node }) {
-    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+    return this.app.$i18n.t('serviceType.coreHTTPTrigger')
   }
 }
 
@@ -602,7 +602,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.httpRequestLabel')
+    return this.app.$i18n.t('nodeType.httpRequestLabel')
   }
 
   get serviceType() {
@@ -625,7 +625,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.iterationLabel')
+    return this.app.$i18n.t('nodeType.iterationLabel')
   }
 
   get serviceType() {
@@ -640,12 +640,12 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
    * @returns {string} - An error message if the router cannot be deleted.
    */
   getDeleteErrorMessage({ workflow, node }) {
-    const children = this.app.store.getters[
+    const children = this.app.$store.getters[
       'automationWorkflowNode/getChildren'
     ](workflow, node)
     const count = children.length
     if (count) {
-      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesDeleteError', {
+      return this.app.$i18n.t('nodeType.iteratorWithChildrenNodesDeleteError', {
         count,
       })
     }
@@ -654,7 +654,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
 
   getBeforeLabel({ workflow, node, position, output }) {
     if (position === 'child') {
-      return this.app.i18n.t('workflowNode.beforeLabelRepeat')
+      return this.app.$i18n.t('workflowNode.beforeLabelRepeat')
     }
 
     return super.getBeforeLabel({ workflow, node, position, output })
@@ -668,14 +668,17 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
    * @returns {string} - An error message if the router cannot be replaced.
    */
   getReplaceErrorMessage({ workflow, node }) {
-    const children = this.app.store.getters[
+    const children = this.app.$store.getters[
       'automationWorkflowNode/getChildren'
     ](workflow, node)
     const count = children.length
     if (count) {
-      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesReplaceError', {
-        count,
-      })
+      return this.app.$i18n.t(
+        'nodeType.iteratorWithChildrenNodesReplaceError',
+        {
+          count,
+        }
+      )
     }
     return ''
   }
@@ -695,7 +698,7 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.smtpEmailLabel')
+    return this.app.$i18n.t('nodeType.smtpEmailLabel')
   }
 
   get serviceType() {
@@ -722,9 +725,9 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
 
   getBeforeLabel({ workflow, node, position, output }) {
     if (output.length > 0) {
-      return this.app.i18n.t('workflowNode.beforeLabelCondition')
+      return this.app.$i18n.t('workflowNode.beforeLabelCondition')
     }
-    return this.app.i18n.t('workflowNode.beforeLabelConditionDefault')
+    return this.app.$i18n.t('workflowNode.beforeLabelConditionDefault')
   }
 
   getOrder() {
@@ -734,7 +737,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
   getDefaultLabel({ node }) {
     if (!node.service) return this.name
     return node.service.edges.length
-      ? this.app.i18n.t('nodeType.routerLabel', {
+      ? this.app.$i18n.t('nodeType.routerLabel', {
           edgeCount: this.getEdges({ node }).length,
         })
       : this.name
@@ -760,7 +763,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
             uid: uuid(),
             order: 0,
             condition: '',
-            label: this.app.i18n.t('routerForm.edgeDefaultName'),
+            label: this.app.$i18n.t('routerForm.edgeDefaultName'),
           },
         ],
       },
@@ -777,7 +780,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
   getDeleteErrorMessage({ workflow, node }) {
     const outputCount = this.getOutputNodes({ workflow, router: node }).length
     if (outputCount) {
-      return this.app.i18n.t('nodeType.routerWithOutputNodesDeleteError', {
+      return this.app.$i18n.t('nodeType.routerWithOutputNodesDeleteError', {
         outputCount,
       })
     }
@@ -794,7 +797,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
   getReplaceErrorMessage({ workflow, node }) {
     const outputCount = this.getOutputNodes({ workflow, router: node }).length
     if (outputCount) {
-      return this.app.i18n.t('nodeType.routerWithOutputNodesReplaceError', {
+      return this.app.$i18n.t('nodeType.routerWithOutputNodesReplaceError', {
         outputCount,
       })
     }
@@ -808,7 +811,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    * @returns {Array} - An array of output nodes that are connected to the router's edges.
    */
   getOutputNodes({ workflow, router }) {
-    return this.app.store.getters['automationWorkflowNode/getNextNodes'](
+    return this.app.$store.getters['automationWorkflowNode/getNextNodes'](
       workflow,
       router
     )
@@ -829,7 +832,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
         condition: '',
         label:
           node.service.default_edge_label ||
-          this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
+          this.app.$i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
       },
     ]
   }
@@ -845,7 +848,7 @@ export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.aiAgent')
+    return this.app.$i18n.t('nodeType.aiAgent')
   }
 
   get iconClass() {
@@ -879,13 +882,13 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   get name() {
-    return this.app.i18n.t('nodeType.slackWriteMessageName')
+    return this.app.$i18n.t('nodeType.slackWriteMessageName')
   }
 
   getDefaultLabel({ node }) {
     if (!node.service) return this.name
     return node.service.channel.length
-      ? this.app.i18n.t('nodeType.slackWriteMessageLabel', {
+      ? this.app.$i18n.t('nodeType.slackWriteMessageLabel', {
           channel: node.service.channel,
         })
       : this.name

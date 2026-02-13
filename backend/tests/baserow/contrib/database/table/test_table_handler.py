@@ -160,8 +160,9 @@ def test_fill_table_with_initial_data(data_fixture):
     with pytest.raises(InvalidInitialTableData):
         table_handler.create_table(user, database, name="Table 1", data=[[]])
 
-    with override_settings(INITIAL_TABLE_DATA_LIMIT=2), pytest.raises(
-        InitialTableDataLimitExceeded
+    with (
+        override_settings(INITIAL_TABLE_DATA_LIMIT=2),
+        pytest.raises(InitialTableDataLimitExceeded),
     ):
         table_handler.create_table(user, database, name="Table 1", data=[[], [], []])
     with override_settings(MAX_FIELD_LIMIT=2), pytest.raises(MaxFieldLimitExceeded):

@@ -1,0 +1,483 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Table Component Tests > Adding a row to a table increases the row count 1`] = `
+"<div>
+  <div>
+    <header class="layout__col-2-1 header header--dark-border">
+      <div class="header__loading" style="display: none;"></div>
+      <ul class="header__filter">
+        <!--v-if-->
+        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a></li>
+        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a></li>
+        <li class="header__filter-item" data-highlight="view-filters">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a></div>
+        </li>
+        <li class="header__filter-item" data-highlight="view-sorts">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a></div>
+        </li>
+        <li class="header__filter-item" data-highlight="view-group-by">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
+        </li>
+      </ul>
+      <ul class="header__filter header__filter--full-width" table="[object Object]">
+        <li class="header__filter-item">
+          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-table-rows"></i><span class="header__filter-name">gridViewRowHeight.name</span></a>
+            <div class="dropdown dropdown--floating" tabindex="0" role="list">
+              <!--v-if-->
+              <div class="dropdown__items hidden">
+                <!--v-if-->
+                <ul class="select__items" tabindex="-1">
+                  <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.small">gridViewRowHeight.small</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.medium">gridViewRowHeight.medium</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.large">gridViewRowHeight.large</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                </ul>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="header__filter-item header__filter-item--full-width">
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+        </li>
+      </ul>
+    </header>
+    <div class="layout__col-2-2 content">
+      <!--v-if-->
+      <div class="grid-view grid-view--row-height-small" loading="false">
+        <div class="scrollbars" style="left: 72px;">
+          <!--v-if-->
+          <!--v-if-->
+        </div>
+        <div class="grid-view__left" style="width: 72px;">
+          <div class="grid-view__inner" style="min-width: 72px;">
+            <div class="grid-view__head">
+              <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
+                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i></div>
+              </div>
+              <!--v-if-->
+            </div>
+            <div class="grid-view__body">
+              <div class="grid-view__body-inner">
+                <div class="grid-view__placeholder" style="height: 33px; width: 72px;">
+                  <div class="grid-view__placeholder-groups" style="width: 0px;"></div>
+                </div>
+                <!--v-if-->
+                <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
+                  <div class="grid-view__row">
+                    <!--v-if-->
+                    <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
+                      <div class="grid-view__row-info">
+                        <div class="grid-view__row-count grid-view__row-count--hide-on-hover" title="1">
+                          <div class="grid-view__row-count-content">1</div>
+                        </div>
+                        <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-view__row" style="width: 72px; height: 33px;">
+                  <div class="grid-view__column" style="width: 72px; height: 33px;"><a class="grid-view__add-row"><i class="grid-view__add-row-icon iconoir-plus"></i></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid-view__foot">
+              <div class="grid-view__foot-info">gridView.rowCount - 1</div>
+            </div>
+          </div>
+          <div style="display: none;">
+            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
+            <div class="grid-view__field-target" style="left: 0px;"></div>
+          </div>
+        </div>
+        <div class="grid-view__divider" style="left: 72px;"></div>
+        <!--v-if-->
+        <div class="grid-view__right" style="left: 72px;">
+          <div class="grid-view__inner" style="min-width: 1000px;">
+            <div class="grid-view__head">
+              <!--v-if-->
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-text"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Name"><span>Name</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-text"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Last name"><span>Last name</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-align-left"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Notes"><span>Notes</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon baserow-icon-circle-checked"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Active"><span>Active</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
+            </div>
+            <div class="grid-view__body">
+              <div class="grid-view__body-inner">
+                <div class="grid-view__placeholder" style="height: 33px; width: 800px;">
+                  <!--v-if-->
+                  <div class="grid-view__placeholder-column" style="left: 199px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 399px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 599px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 799px;"></div>
+                </div>
+                <!--v-if-->
+                <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
+                  <div class="grid-view__row">
+                    <!--v-if-->
+                    <div class="grid-view__column" style="width: 200px;">
+                      <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
+                        <div class="grid-field-text">name</div>
+                      </div>
+                    </div>
+                    <div class="grid-view__column" style="width: 200px;">
+                      <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
+                        <div class="grid-field-text">last_name</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-view__row" style="width: 800px; height: 33px;">
+                  <div class="grid-view__column" style="width: 800px; height: 33px;"><a class="grid-view__add-row">
+                      <!--v-if-->
+                    </a></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid-view__foot">
+              <!--v-if-->
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: none;">
+            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
+            <div class="grid-view__field-target" style="left: 0px;"></div>
+          </div>
+        </div>
+        <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
+          <div class="grid-view__row-dragging" style="width: 872px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 872px; top: 0px;"></div>
+        </div>
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <!--v-if-->
+</div>"
+`;
+
+exports[`Table Component Tests > Adding a row to a table increases the row count 2`] = `
+"<div>
+  <div>
+    <header class="layout__col-2-1 header header--dark-border">
+      <div class="header__loading" style="display: none;"></div>
+      <ul class="header__filter">
+        <!--v-if-->
+        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a></li>
+        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a></li>
+        <li class="header__filter-item" data-highlight="view-filters">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a></div>
+        </li>
+        <li class="header__filter-item" data-highlight="view-sorts">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a></div>
+        </li>
+        <li class="header__filter-item" data-highlight="view-group-by">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
+        </li>
+      </ul>
+      <ul class="header__filter header__filter--full-width" table="[object Object]">
+        <li class="header__filter-item">
+          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a></div>
+        </li>
+        <li class="header__filter-item">
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-table-rows"></i><span class="header__filter-name">gridViewRowHeight.name</span></a>
+            <div class="dropdown dropdown--floating" tabindex="0" role="list">
+              <!--v-if-->
+              <div class="dropdown__items hidden">
+                <!--v-if-->
+                <ul class="select__items" tabindex="-1">
+                  <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.small">gridViewRowHeight.small</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.medium">gridViewRowHeight.medium</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                  <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+                      <div class="select__item-name">
+                        <!--v-if-->
+                        <!--v-if-->
+                        <!--v-if--><span class="select__item-name-text" title="gridViewRowHeight.large">gridViewRowHeight.large</span>
+                      </div>
+                      <!--v-if-->
+                    </a><i class="select__item-active-icon iconoir-check"></i></li>
+                </ul>
+                <!--v-if-->
+                <!--v-if-->
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="header__filter-item header__filter-item--full-width">
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+        </li>
+      </ul>
+    </header>
+    <div class="layout__col-2-2 content">
+      <!--v-if-->
+      <div class="grid-view grid-view--row-height-small" loading="false">
+        <div class="scrollbars" style="left: 72px;">
+          <!--v-if-->
+          <!--v-if-->
+        </div>
+        <div class="grid-view__left" style="width: 72px;">
+          <div class="grid-view__inner" style="min-width: 72px;">
+            <div class="grid-view__head">
+              <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
+                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i></div>
+              </div>
+              <!--v-if-->
+            </div>
+            <div class="grid-view__body">
+              <div class="grid-view__body-inner">
+                <div class="grid-view__placeholder" style="height: 66px; width: 72px;">
+                  <div class="grid-view__placeholder-groups" style="width: 0px;"></div>
+                </div>
+                <!--v-if-->
+                <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
+                  <div class="grid-view__row">
+                    <!--v-if-->
+                    <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
+                      <div class="grid-view__row-info">
+                        <div class="grid-view__row-count grid-view__row-count--hide-on-hover" title="1">
+                          <div class="grid-view__row-count-content">1</div>
+                        </div>
+                        <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-view__row" style="width: 72px; height: 33px;">
+                  <div class="grid-view__column" style="width: 72px; height: 33px;"><a class="grid-view__add-row"><i class="grid-view__add-row-icon iconoir-plus"></i></a></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid-view__foot">
+              <div class="grid-view__foot-info">gridView.rowCount - 2</div>
+            </div>
+          </div>
+          <div style="display: none;">
+            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
+            <div class="grid-view__field-target" style="left: 0px;"></div>
+          </div>
+        </div>
+        <div class="grid-view__divider" style="left: 72px;"></div>
+        <!--v-if-->
+        <div class="grid-view__right" style="left: 72px;">
+          <div class="grid-view__inner" style="min-width: 1000px;">
+            <div class="grid-view__head">
+              <!--v-if-->
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-text"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Name"><span>Name</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-text"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Last name"><span>Last name</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon iconoir-align-left"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Notes"><span>Notes</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 200px;" filters="">
+                <div class="grid-view__description">
+                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon baserow-icon-circle-checked"></i>
+                    <!--v-if-->
+                  </div>
+                  <div class="grid-view__description-name" title="Active"><span>Active</span></div>
+                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <div class="grid-view__description-width"></div>
+                </div>
+              </div>
+              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
+            </div>
+            <div class="grid-view__body">
+              <div class="grid-view__body-inner">
+                <div class="grid-view__placeholder" style="height: 66px; width: 800px;">
+                  <!--v-if-->
+                  <div class="grid-view__placeholder-column" style="left: 199px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 399px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 599px;"></div>
+                  <div class="grid-view__placeholder-column" style="left: 799px;"></div>
+                </div>
+                <!--v-if-->
+                <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
+                  <div class="grid-view__row">
+                    <!--v-if-->
+                    <div class="grid-view__column" style="width: 200px;">
+                      <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
+                        <div class="grid-field-text">name</div>
+                      </div>
+                    </div>
+                    <div class="grid-view__column" style="width: 200px;">
+                      <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
+                        <div class="grid-field-text">last_name</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-view__row" style="width: 800px; height: 33px;">
+                  <div class="grid-view__column" style="width: 800px; height: 33px;"><a class="grid-view__add-row">
+                      <!--v-if-->
+                    </a></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid-view__foot">
+              <!--v-if-->
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+              <div style="width: 200px;">
+                <div class="grid-view-aggregation">
+                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: none;">
+            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
+            <div class="grid-view__field-target" style="left: 0px;"></div>
+          </div>
+        </div>
+        <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
+          <div class="grid-view__row-dragging" style="width: 872px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 872px; top: 0px;"></div>
+        </div>
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <!--v-if-->
+</div>"
+`;

@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('removeFromWorkspaceModal.title') }}
     </h2>
@@ -48,6 +48,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-user'],
   data() {
     return {
       loading: false,

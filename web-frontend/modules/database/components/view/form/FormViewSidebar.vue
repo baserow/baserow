@@ -132,6 +132,7 @@ export default {
       required: true,
     },
   },
+  emits: ['ordered-fields'],
   computed: {
     modeType() {
       return this.$registry.get('formViewMode', this.view.mode)

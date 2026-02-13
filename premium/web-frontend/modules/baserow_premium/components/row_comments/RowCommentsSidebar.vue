@@ -231,7 +231,7 @@ export default {
           rowId: this.row.id,
           message: comment,
         })
-        this.$refs.infiniteScroll.scrollToStart()
+        this.$refs.infiniteScroll?.scrollToStart()
       } catch (e) {
         notifyIf(e, 'application')
       }

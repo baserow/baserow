@@ -513,9 +513,9 @@ def test_ai_field_choice_output_not_compatible_with_text_only_filters(
 
     filter_type = view_filter_type_registry.get("length_is_lower_than")
     is_compatible = filter_type.field_is_compatible(ai_field)
-    assert (
-        not is_compatible
-    ), "AI field with choice output should NOT be compatible with length_is_lower_than"
+    assert not is_compatible, (
+        "AI field with choice output should NOT be compatible with length_is_lower_than"
+    )
 
 
 @pytest.mark.django_db
@@ -549,9 +549,9 @@ def test_ai_field_choice_output_is_compatible_with_select_filters(
     for filter_type_name in select_filter_types:
         filter_type = view_filter_type_registry.get(filter_type_name)
         is_compatible = filter_type.field_is_compatible(ai_field)
-        assert (
-            is_compatible
-        ), f"AI field with choice output should be compatible with {filter_type_name}"
+        assert is_compatible, (
+            f"AI field with choice output should be compatible with {filter_type_name}"
+        )
 
 
 @pytest.mark.django_db

@@ -7,7 +7,7 @@ else
 endif
 
 # Get the Python interpreter path
-PYTHON:=$(shell which python3.11 || which python3 || which python)
+PYTHON:=$(shell which python3.14 || which python3 || which python)
 
 # Get the directory of the current Makefile.
 # If the Makefile is executed from another directory (e.g, using the '-C') flag

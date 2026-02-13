@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2021-10-28 20:39+0000\n"
-"PO-Revision-Date: 2024-12-16 15:08+0000\n"
-"Last-Translator: Hugel <qihu@nfschina.com>\n"
+"PO-Revision-Date: 2026-02-03 22:01+0000\n"
+"Last-Translator: Olga Trykush <olga@baserow.io>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/baserow/"
 "backend-core/uk/>\n"
 "Language: uk\n"
@@ -13,12 +13,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.9\n"
+"X-Generator: Weblate 5.16-dev\n"
 
 #: src/baserow/core/emails.py:88
 #, python-format
 msgid "%(by)s invited you to %(group_name)s - Baserow"
-msgstr ""
+msgstr "%(by)s запросив Вас до %(group_name)s"
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:7
 msgid "Invitation"
@@ -32,6 +32,9 @@ msgid ""
 "          <strong>%(group_name)s</strong>.\n"
 "        "
 msgstr ""
+"\n"
+"          %(first_name)s запросив(ла) вас співпрацювати над %(group_name)s\n"
+"        "
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:20
 msgid "Accept invitation"
@@ -48,6 +51,12 @@ msgid ""
 "          leaving your browser.\n"
 "        "
 msgstr ""
+"\n"
+"          Baserow — це інструмент для роботи з базами даних без коду з "
+"відкритим вихідним кодом, який дозволяє співпрацювати над проєктами, "
+"клієнтами та іншими даними. Він надає вам можливості розробника, не "
+"залишаючи браузера.\n"
+"        "
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:7
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:23
@@ -64,6 +73,13 @@ msgid ""
 "          you may simply ignore this email.\n"
 "        "
 msgstr ""
+"\n"
+"          Було надіслано запит на скидання пароля для вашого облікового "
+"запису (%(username)s) на\n"
+"Baserow (%(public_web_frontend_hostname)s). Якщо ви не ініціювали цей "
+"запит,\n"
+"ви можете просто проігнорувати цей лист.\n"
+"        "
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:16
 #, python-format
@@ -75,12 +91,18 @@ msgid ""
 "          %(hours)s hours.\n"
 "        "
 msgstr ""
+"\n"
+"          Щоб продовжити скидання пароля, просто натисніть кнопку нижче, і "
+"ви\n"
+"зможете змінити свій пароль. Це посилання стане недійсним через\n"
+"%(hours)s годин.\n"
+"        "
 
 #: src/baserow/core/user/emails.py:16
 msgid "Reset password - Baserow"
-msgstr "Скинути пароль - Базеров"
+msgstr "Скинути пароль - Baserow"
 
 #: src/baserow/core/user/handler.py:155
 #, python-format
 msgid "%(name)s's group"
-msgstr ""
+msgstr "%(name)s група"

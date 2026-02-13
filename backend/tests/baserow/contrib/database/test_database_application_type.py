@@ -124,7 +124,7 @@ def test_import_export_database(data_fixture):
     assert imported_row.updated_on == datetime(2021, 1, 2, 13, 30, tzinfo=timezone.utc)
     assert imported_row.last_modified_by == row.last_modified_by
     assert getattr(
-        imported_row, f'field_{id_mapping["database_fields"][text_field.id]}'
+        imported_row, f"field_{id_mapping['database_fields'][text_field.id]}"
     ) == (getattr(row, f"field_{text_field.id}"))
     assert (
         imported_formula_field.internal_formula == f"error_to_null(field('"
@@ -132,7 +132,7 @@ def test_import_export_database(data_fixture):
     )
     assert imported_formula_field.formula_type == "text"
     assert getattr(
-        imported_row, f'field_{id_mapping["database_fields"][formula_field.id]}'
+        imported_row, f"field_{id_mapping['database_fields'][formula_field.id]}"
     ) == (getattr(row, f"field_{formula_field.id}"))
 
     # Because the created on and updated on were not provided, we expect these values

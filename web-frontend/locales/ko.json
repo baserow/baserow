@@ -688,9 +688,9 @@
     "formulaInputContext": {
         "useRegularInput": "일반적인 입력을 사용",
         "useAdvancedInput": "고급 입력 사용",
-        "useRegularInputModalTitle": "일반 입력으로 전환하시겠습니까?",
-        "useAdvancedInputModalTitle": "고급 입력으로 전환하시겠습니까?",
-        "modalMessage": "다른 입력 모드로 전환하면 현재 수식이 삭제됩니다. 계속하시겠습니까?"
+        "useRegularInputModalTitle": "일반 입력 방식으로 전환하시겠습니까?",
+        "useAdvancedInputModalTitle": "고급 입력 방식으로 전환하시겠습니까?",
+        "modalMessage": "다른 입력 모드로 전환하면 현재 수식이 지워집니다. 계속하시겠습니까?"
     },
     "nodeExplorer": {
         "noResults": "검색 결과가 없습니다",

@@ -1,7 +1,6 @@
 import mimetypes
 from typing import Any, Dict, Optional
 
-from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -19,6 +18,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
 from baserow_enterprise.features import BUILDER_FILE_INPUT
+from baserow_premium.license.handler import LicenseHandler
 
 
 class AuthFormElementType(ElementType):
@@ -298,8 +298,7 @@ class FileInputElementType(InputElementType):
 
             if not self.is_allowed_content_type(element, file_content.content_type):
                 raise TypeError(
-                    f"The file {file_obj.get('name') or 'unnamed'} "
-                    f"type is not allowed."
+                    f"The file {file_obj.get('name') or 'unnamed'} type is not allowed."
                 )
 
             if file_content.size / 1024 / 1024 > element.max_filesize:

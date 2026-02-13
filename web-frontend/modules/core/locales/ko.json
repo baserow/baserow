@@ -260,7 +260,7 @@
         "openRouterOrganization": "조직 (선택 사항)",
         "openRouterModelsLabel": "활성화된 모델",
         "openaiBaseUrl": "기본 URL",
-        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
+        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://&lt;your-resource-name&gt;.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -421,7 +421,7 @@
         "title": "대시보드",
         "alertTitle": "도움이 필요합니다!",
         "alertText": "Baserow를 공유함으로써 제품을 개선하고 당신에게 더 유용하게 만들 수 있습니다.",
-        "tweetContent": "오픈 소스 노코드 데이터베이스 도구이자 Airtable 대안인 @baserow를 확인해보세요!",
+        "tweetContent": "오픈 소스 노코드 데이터베이스 도구이자 Airtable 대안인 {'@'}baserow를 확인해보세요!",
         "redditTitle": "'Baserow - 오픈 소스 노코드 데이터베이스",
         "becomeGithubSponsor": "GitHub 후원자가 되기",
         "starOnGitlab": "GitLab에서 별표하기",
@@ -520,10 +520,10 @@
         "settingAllowNonStaffCreateWorkspaceOperationDescription": "기본적으로 모든 사람이 새 작업공간을 생성할 수 있습니다. 이를 비활성화하여 직원만 새 작업공간을 생성할 수 있도록 합니다.",
         "settingAllowNonStaffCreateWorkspaceOperationWarning": "새로운 사용자에게는 그들이 관리자인 작업공간이 자동으로 생성됩니다.",
         "settingTrackWorkspaceUsage": "작업공간 사용량 추적",
-        "settingTrackWorkspaceUsageDescription": "작업공간별 행 및 파일 사용량을 집계하는 야간 작업을 활성화하여 프리미엄 작업공간 관리자 페이지에 표시됩니다.",
+        "settingTrackWorkspaceUsageDescription": "작업공간별 행 및 파일 사용량을 집계하는 야간 작업을 활성화하며, 해당 정보는 프리미엄 작업공간 관리 페이지에 표시됩니다.",
         "userSettings": "사용자",
         "settingUserDeletionGraceDelay": "삭제 유예 기간",
-        "settingUserDeletionGraceDelayDescription": "이것은 계정이 삭제되기로 예약된 후 로그인하지 않은 날 수입니다.",
+        "settingUserDeletionGraceDelayDescription": "계정이 삭제 예정 상태에서 로그인 없이 경과한 일수이며, 이 기간이 지나면 계정이 영구 삭제됩니다.",
         "invalidAccountDeletionGraceDelay": "이 값은 필수이며 32000보다 작은 양의 정수여야 합니다",
         "enabled": "활성화됨",
         "maintenance": "유지 관리",
@@ -559,7 +559,7 @@
             "format": {
                 "title": "형식",
                 "description": "쿼리 매개변수의 형식은 다음과 같습니다:",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "예제",
@@ -1073,11 +1073,11 @@
         "functions": "기능",
         "operators": "연산자",
         "search": "검색",
-        "useRegularInputModalTitle": "이 필드에 일반 입력을 사용하시겠습니까?",
+        "useRegularInputModalTitle": "이 필드에 일반 입력값을 사용하시겠습니까?",
         "useRegularInput": "일반적인 입력을 사용",
         "useAdvancedInput": "고급 입력 사용",
-        "useAdvancedInputModalTitle": "이 필드에 고급 입력을 사용하시겠습니까?",
-        "modalMessage": "해당 필드의 내용이 삭제되며 복구할 수 없습니다."
+        "useAdvancedInputModalTitle": "이 필드에 고급 입력 기능을 사용하시겠습니까?",
+        "modalMessage": "해당 필드의 내용이 모두 삭제되며 복구할 수 없습니다."
     },
     "twoFactorAuthField": {
         "enabled": "활성화됨",

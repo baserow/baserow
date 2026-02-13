@@ -792,7 +792,7 @@ def test_start_share_onboarding_details_with_baserow(mock_task, data_fixture):
     user = data_fixture.create_user()
 
     UserHandler().start_share_onboarding_details_with_baserow(
-        user, "Marketing", "CEO", "11 - 50", "The Netherlands"
+        user, "Marketing", "CEO", "11 - 50", "The Netherlands", "Google"
     )
 
     mock_task.delay.assert_called_with(
@@ -801,6 +801,7 @@ def test_start_share_onboarding_details_with_baserow(mock_task, data_fixture):
         role="CEO",
         size="11 - 50",
         country="The Netherlands",
+        how="Google",
     )
 
 
@@ -822,6 +823,7 @@ def test_share_onboarding_details_with_baserow_valid_response(data_fixture):
                     "role": "CEO",
                     "size": "11 - 50",
                     "country": "The Netherlands",
+                    "how": "Google",
                     "instance_id": "1",
                 }
             )
@@ -834,6 +836,7 @@ def test_share_onboarding_details_with_baserow_valid_response(data_fixture):
         role="CEO",
         size="11 - 50",
         country="The Netherlands",
+        how="Google",
     )
 
     assert response1.call_count == 1

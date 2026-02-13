@@ -124,8 +124,8 @@
 
 // Add margin-right when a group parenthesis is followed by another group parenthesis
 .formula-input-field__group-parenthesis:has(
-    + .formula-input-field__group-parenthesis
-  ) {
+  + .formula-input-field__group-parenthesis
+) {
   margin-right: 4px;
 }
 

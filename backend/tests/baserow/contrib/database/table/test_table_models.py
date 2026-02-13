@@ -677,7 +677,7 @@ def test_order_by_fields_string_queryset_with_user_field_names(data_fixture):
         **{
             f"field_{fields[0].id}": "Audi",
             f"field_{fields[1].id}": 2000,
-            f"field_" f"{fields[3].id}": "Old times",
+            f"field_{fields[3].id}": "Old times",
             "order": Decimal("0.1"),
         }
     )
@@ -1026,11 +1026,11 @@ def test_order_by_field_string_with_multiple_field_types_requiring_aggregations(
 
     model = table.get_model(attribute_names=True)
     row_1 = model.objects.create()
-    getattr(row_1, "multi_a").set([option_a.id])
-    getattr(row_1, "multi_b").set([option_c.id])
+    row_1.multi_a.set([option_a.id])
+    row_1.multi_b.set([option_c.id])
     row_2 = model.objects.create()
-    getattr(row_2, "multi_a").set([option_b.id])
-    getattr(row_2, "multi_b").set([option_d.id])
+    row_2.multi_a.set([option_b.id])
+    row_2.multi_b.set([option_d.id])
 
     results = model.objects.all().order_by_fields_string(
         f"field_{multiple_select_field_a.id},-field_{multiple_select_field_b.id}"

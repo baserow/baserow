@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 db_default=False,
                 default=False,
                 help_text="Hidden roles are not visible to the user and cannot be "
-                          "set. These are used for internal purposes.",
+                "set. These are used for internal purposes.",
             ),
         ),
     ]

@@ -460,7 +460,8 @@ def test_user_source_authenticate_missing_user(
     def get_user_raise_user_not_found(*args, **kwargs):
         raise UserNotFound()
 
-    with pytest.raises(AuthenticationFailed), stub_user_source_registry(
-        get_user_return=get_user_raise_user_not_found
+    with (
+        pytest.raises(AuthenticationFailed),
+        stub_user_source_registry(get_user_return=get_user_raise_user_not_found),
     ):
         auth.authenticate(fake_request)

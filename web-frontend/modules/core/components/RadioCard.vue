@@ -6,8 +6,8 @@
     <div class="radio-card__content">
       <div class="radio-card__labels">
         <label class="radio-card__label">{{ label }}</label>
-        <div v-if="badgeLabel" class="radio-card__badge">
-          <Badge :rounded="true" :small="true">{{ badgeLabel }}</Badge>
+        <div v-if="sideLabel">
+          <Badge :rounded="true" :small="true">{{ sideLabel }}</Badge>
         </div>
       </div>
       <div v-if="hasSlot" class="radio-card__description">
@@ -20,10 +20,6 @@
 <script>
 export default {
   name: 'RadioCard',
-  model: {
-    prop: 'modelValue',
-    event: 'input',
-  },
   props: {
     value: {
       type: [String, Number, Boolean, Object],
@@ -39,12 +35,13 @@ export default {
       type: String,
       required: true,
     },
-    badgeLabel: {
+    sideLabel: {
       type: String,
       required: false,
       default: undefined,
     },
   },
+  emits: ['input', 'update:modelValue'],
   computed: {
     classNames() {
       return {
@@ -64,6 +61,7 @@ export default {
         return
       }
       this.$emit('input', value)
+      this.$emit('update:modelValue', value)
     },
   },
 }

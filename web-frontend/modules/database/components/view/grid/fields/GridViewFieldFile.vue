@@ -26,7 +26,7 @@
           @click.prevent="showFileModal(index)"
         >
           <img
-            v-if="file.is_image"
+            v-if="file.is_image && file.thumbnails?.tiny?.url"
             class="grid-field-file__image"
             :src="file.thumbnails.tiny.url"
           />
@@ -87,12 +87,15 @@ export default {
   name: 'GridViewFieldFile',
   components: { UserFilesModal, FileFieldModal },
   mixins: [gridField, fileField],
+  emits: ['add-keep-alive', 'remove-keep-alive', 'select'],
   data() {
     return {
       modalOpen: false,
       dragging: false,
       loadings: [],
       dragTarget: null,
+      // Event handler reference for cleanup
+      keydownEvent: null,
     }
   },
   methods: {
@@ -160,15 +163,15 @@ export default {
     select() {
       // While the field is selected we want to open the select row toast by pressing
       // the enter key.
-      this.$el.keydownEvent = (event) => {
+      this.keydownEvent = (event) => {
         if (event.key === 'Enter' && !this.modalOpen) {
           this.showUploadModal()
         }
       }
-      document.body.addEventListener('keydown', this.$el.keydownEvent)
+      document.body.addEventListener('keydown', this.keydownEvent)
     },
     beforeUnSelect() {
-      document.body.removeEventListener('keydown', this.$el.keydownEvent)
+      document.body.removeEventListener('keydown', this.keydownEvent)
     },
     /**
      * If the user clicks inside the select row modal we do not want to unselect the

@@ -51,8 +51,9 @@ export const actions = {
     commit('SET_ROW', row)
   },
   async fetchRow({ commit }, { tableId, rowId, viewId = null }) {
+    const { $client } = this
     try {
-      const { data: row } = await RowService(this.$client).get(
+      const { data: row } = await RowService($client).get(
         tableId,
         rowId,
         true,
@@ -69,9 +70,10 @@ export const actions = {
     { commit, dispatch, state },
     { tableId, viewId, previous, activeSearchTerm }
   ) {
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
-      const { data: row, status } = await RowService(this.$client).getAdjacent({
+      const { data: row, status } = await RowService($client).getAdjacent({
         previous,
         tableId,
         viewId,

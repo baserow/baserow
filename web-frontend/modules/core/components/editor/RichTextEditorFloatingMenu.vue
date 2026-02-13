@@ -1,20 +1,19 @@
 <template>
-  <FloatingMenu
+  <BubbleMenu
     v-if="editor"
-    v-show="open && visible && insideContainer"
+    v-show="open"
     ref="menu"
+    class="rich-text-editor__menu-container"
     :editor="editor"
-    :tippy-options="{
-      duration: 250,
-      placement: 'left',
-      appendTo,
-      getReferenceClientRect: updateReferenceClientRect,
-      onShow,
-      onHidden,
-    }"
-    :should-show="() => true"
+    :plugin-key="pluginKey"
+    :append-to="appendTo"
+    :should-show="shouldShowMenu"
+    :update-delay="0"
+    :resize-delay="0"
+    :options="menuOptions"
+    :get-referenced-virtual-element="getVirtualElement"
   >
-    <div :style="{ visibility: 'visible' }">
+    <div>
       <div
         v-if="!expanded"
         class="rich-text-editor__floating-menu rich-text-editor__floating-menu--collapsed"
@@ -35,7 +34,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'p' }"
-            @click.stop.prevent="editor.chain().focus().setParagraph().run()"
+            @click.stop.prevent="setBlockType('paragraph')"
           >
             <i class="baserow-icon-paragraph"></i>
           </button>
@@ -46,9 +45,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'h1' }"
-            @click.stop.prevent="
-              editor.chain().focus().toggleHeading({ level: 1 }).run()
-            "
+            @click.stop.prevent="setBlockType('h1')"
           >
             <i class="baserow-icon-heading-1"></i>
           </button>
@@ -59,9 +56,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'h2' }"
-            @click.stop.prevent="
-              editor.chain().focus().toggleHeading({ level: 2 }).run()
-            "
+            @click.stop.prevent="setBlockType('h2')"
           >
             <i class="baserow-icon-heading-2"></i>
           </button>
@@ -72,9 +67,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'h3' }"
-            @click.stop.prevent="
-              editor.chain().focus().toggleHeading({ level: 3 }).run()
-            "
+            @click.stop.prevent="setBlockType('h3')"
           >
             <i class="baserow-icon-heading-3"></i>
           </button>
@@ -85,7 +78,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'code' }"
-            @click.stop.prevent="editor.chain().focus().toggleCodeBlock().run()"
+            @click.stop.prevent="setBlockType('code')"
           >
             <i class="iconoir-code"></i>
           </button>
@@ -96,9 +89,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'ol' }"
-            @click.stop.prevent="
-              editor.chain().focus().toggleOrderedList().run()
-            "
+            @click.stop.prevent="setBlockType('ol')"
           >
             <i class="baserow-icon-ordered-list"></i>
           </button>
@@ -109,9 +100,7 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'ul' }"
-            @click.stop.prevent="
-              editor.chain().focus().toggleBulletList().run()
-            "
+            @click.stop.prevent="setBlockType('ul')"
           >
             <i class="iconoir-list"></i>
           </button>
@@ -122,47 +111,67 @@
         >
           <button
             :class="{ 'is-active': activeNode == 'tl' }"
-            @click.stop.prevent="editor.chain().focus().toggleTaskList().run()"
+            @click.stop.prevent="setBlockType('tl')"
           >
             <i class="iconoir-task-list"></i>
           </button>
         </div>
       </div>
     </div>
-  </FloatingMenu>
+  </BubbleMenu>
 </template>
 
 <script>
 import { posToDOMRect } from '@tiptap/core'
-import { FloatingMenu } from '@tiptap/vue-2'
+import { BubbleMenu } from '@tiptap/vue-3/menus'
 import { isElement } from '@baserow/modules/core/utils/dom'
 
 export default {
-  name: 'RichTextEditorBubbleMenuContext',
-  components: { FloatingMenu },
+  name: 'RichTextEditorFloatingMenu',
+  components: { BubbleMenu },
   props: {
     editor: {
       type: Object,
       required: false,
       default: null,
     },
-    getScrollableAreaBoundingRect: {
-      type: Function,
-      default: () => null,
-    },
     visible: {
       type: Boolean,
       default: true,
+    },
+    pluginKey: {
+      type: [String, Object],
+      default: 'floatingBlockMenu',
+    },
+    appendTo: {
+      type: [Object, Function],
+      default: undefined,
+    },
+    scrollTarget: {
+      type: Object,
+      default: null,
     },
   },
   data() {
     return {
       open: true,
-      insideContainer: true,
       expanded: false,
     }
   },
   computed: {
+    menuOptions() {
+      const opts = {
+        strategy: 'fixed',
+        placement: 'left',
+        offset: { mainAxis: 14, crossAxis: 0 },
+        flip: false,
+        duration: 0,
+      }
+      if (this.scrollTarget) {
+        opts.scrollTarget = this.scrollTarget
+      }
+      return opts
+    },
     activeNode() {
       if (this.editor.isActive('heading', { level: 1 })) {
         return 'h1'
@@ -204,56 +213,105 @@ export default {
     },
   },
   methods: {
+    shouldShowMenu({ editor }) {
+      if (!this.visible) return false
+      const emptySelection = editor.state.selection.empty
+      if (editor.isActive('image')) return false
+      if (
+        (!emptySelection && !editor.isActive('codeBlock')) ||
+        editor.isActive('link')
+      ) {
+        return false
+      }
+      return true
+    },
     isEventTargetInside(event) {
       return (
         isElement(this.$el, event.target) ||
         isElement(this.$el, event.relatedTarget) ||
-        /// Safari set the relatedTarget to the tippyjs popover that contains this.$el,
+        // Safari set the relatedTarget to the floating-ui popover that contains this.$el,
         // but since we cannot access it by reference, try inverting the check.
         isElement(event.relatedTarget, this.$el)
       )
     },
-    onShow() {
-      this.$emit('show')
-    },
-    onHidden() {
-      this.$emit('hidden')
-    },
     expand() {
       this.open = true
       this.expanded = true
+      this.triggerPositionUpdate()
     },
     collapse() {
       this.open = true
       this.expanded = false
+      this.triggerPositionUpdate()
     },
-    appendTo() {
-      return document.body
+    triggerPositionUpdate() {
+      this.$nextTick(() => {
+        const { tr } = this.editor.state
+        tr.setMeta('bubbleMenu', 'updatePosition')
+        this.editor.view.dispatch(tr)
+      })
     },
-    updateInsideContainerFlag(boundingRect) {
-      const containerBoundingRect = this.getScrollableAreaBoundingRect()
-      if (!containerBoundingRect) {
+    setBlockType(type) {
+      if (!this.editor) {
         return
       }
-      this.insideContainer =
-        containerBoundingRect.top < boundingRect.bottom &&
-        containerBoundingRect.bottom > boundingRect.top
+
+      const chain = this.editor.chain().focus().clearNodes()
+
+      switch (type) {
+        case 'paragraph':
+          chain.setParagraph()
+          break
+        case 'h1':
+          chain.setHeading({ level: 1 })
+          break
+        case 'h2':
+          chain.setHeading({ level: 2 })
+          break
+        case 'h3':
+          chain.setHeading({ level: 3 })
+          break
+        case 'code':
+          chain.setCodeBlock()
+          break
+        case 'ol':
+          chain.toggleOrderedList()
+          break
+        case 'ul':
+          chain.toggleBulletList()
+          break
+        case 'tl':
+          chain.toggleTaskList()
+          break
+      }
+
+      chain.run()
+      this.open = true
+      // Trigger position recalculation after format change (line height may change)
+      this.triggerPositionUpdate()
     },
-    updateReferenceClientRect() {
-      const view = this.editor.view
-      const { state } = view
-      const { from } = state.selection
-      const boundingRect = posToDOMRect(view, from, from)
-
-      // Open the menu to the left of the editor with a small offset.
-      const editorBoundingRect = view.dom.getBoundingClientRect()
-      const offset = 4
-      boundingRect.left = editorBoundingRect.left - offset
-      boundingRect.right = editorBoundingRect.left - offset
-
-      this.updateInsideContainerFlag(boundingRect)
-
-      return boundingRect
+    getVirtualElement() {
+      const editor = this.editor
+      return {
+        // Compute fresh coordinates on each call so floating-ui's autoUpdate
+        // always gets the current cursor and editor position.
+        getBoundingClientRect: () => {
+          const view = editor.view
+          const { from } = view.state.selection
+          const cursorRect = posToDOMRect(view, from, from)
+          const editorRect = view.dom.getBoundingClientRect()
+          return {
+            top: cursorRect.top,
+            bottom: cursorRect.bottom,
+            left: editorRect.left,
+            right: editorRect.left,
+            x: editorRect.left,
+            y: cursorRect.top,
+            width: 0,
+            height: cursorRect.height,
+          }
+        },
+      }
     },
   },
 }

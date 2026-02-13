@@ -258,6 +258,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
  * will load the correct components into the header and body.
  */
 export default {
+  name: 'Table',
   components: {
     DefaultErrorPage,
     ViewGroupBy,
@@ -338,6 +339,12 @@ export default {
       default: '',
     },
   },
+  emits: [
+    'navigate-next',
+    'navigate-previous',
+    'selected-row',
+    'selected-view',
+  ],
   data() {
     return {
       // Shows a small spinning loading animation when the view is being refreshed.
@@ -482,9 +489,11 @@ export default {
     this.$el.resizeObserver = new ResizeObserver(this.checkHeaderOverflow)
     this.$el.resizeObserver.observe(this.$el)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$bus.$off('table-refresh', this.refresh)
-    this.$el.resizeObserver.unobserve(this.$el)
+    if (this.$el?.resizeObserver) {
+      this.$el.resizeObserver.unobserve(this.$el)
+    }
     this.$bus.$off('open-table-views-context', this.openTableViewsContext)
     this.$bus.$off('close-table-views-context', this.closeTableViewsContext)
   },

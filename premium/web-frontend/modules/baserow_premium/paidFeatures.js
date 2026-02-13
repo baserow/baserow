@@ -38,7 +38,7 @@ export class KanbanViewPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.kanbanView')
+    return this.app.$i18n.t('premiumFeatures.kanbanView')
   }
 
   getImage() {
@@ -46,7 +46,7 @@ export class KanbanViewPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.kanbanViewContent')
+    return this.app.$i18n.t('premiumFeatures.kanbanViewContent')
   }
 }
 
@@ -64,7 +64,7 @@ export class CalendarViewPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.calendarView')
+    return this.app.$i18n.t('premiumFeatures.calendarView')
   }
 
   getImage() {
@@ -72,7 +72,7 @@ export class CalendarViewPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.calendarViewContent')
+    return this.app.$i18n.t('premiumFeatures.calendarViewContent')
   }
 }
 
@@ -90,7 +90,7 @@ export class TimelineViewPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.timelineView')
+    return this.app.$i18n.t('premiumFeatures.timelineView')
   }
 
   getImage() {
@@ -98,7 +98,7 @@ export class TimelineViewPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.timelineViewContent')
+    return this.app.$i18n.t('premiumFeatures.timelineViewContent')
   }
 }
 
@@ -116,7 +116,7 @@ export class RowColoringPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.rowColoring')
+    return this.app.$i18n.t('premiumFeatures.rowColoring')
   }
 
   getImage() {
@@ -124,7 +124,7 @@ export class RowColoringPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.rowColoringContent')
+    return this.app.$i18n.t('premiumFeatures.rowColoringContent')
   }
 }
 
@@ -142,7 +142,7 @@ export class RowCommentsPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.rowComments')
+    return this.app.$i18n.t('premiumFeatures.rowComments')
   }
 
   getImage() {
@@ -150,7 +150,7 @@ export class RowCommentsPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.rowCommentsContent')
+    return this.app.$i18n.t('premiumFeatures.rowCommentsContent')
   }
 }
 
@@ -168,7 +168,7 @@ export class RowNotificationsPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.rowNotifications')
+    return this.app.$i18n.t('premiumFeatures.rowNotifications')
   }
 
   getImage() {
@@ -176,7 +176,7 @@ export class RowNotificationsPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.rowNotificationsContent')
+    return this.app.$i18n.t('premiumFeatures.rowNotificationsContent')
   }
 }
 
@@ -194,7 +194,7 @@ export class AIPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.aiFeatures')
+    return this.app.$i18n.t('premiumFeatures.aiFeatures')
   }
 
   getImage() {
@@ -202,7 +202,7 @@ export class AIPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.aiFeaturesContent')
+    return this.app.$i18n.t('premiumFeatures.aiFeaturesContent')
   }
 }
 
@@ -220,7 +220,7 @@ export class PersonalViewsPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.personalViews')
+    return this.app.$i18n.t('premiumFeatures.personalViews')
   }
 
   getImage() {
@@ -228,7 +228,7 @@ export class PersonalViewsPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.personalViewsContent')
+    return this.app.$i18n.t('premiumFeatures.personalViewsContent')
   }
 }
 
@@ -246,7 +246,7 @@ export class ExportsPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.exports')
+    return this.app.$i18n.t('premiumFeatures.exports')
   }
 
   getImage() {
@@ -254,7 +254,7 @@ export class ExportsPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.exportsContent')
+    return this.app.$i18n.t('premiumFeatures.exportsContent')
   }
 }
 
@@ -272,7 +272,7 @@ export class PublicLogoRemovalPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.publicLogoRemoval')
+    return this.app.$i18n.t('premiumFeatures.publicLogoRemoval')
   }
 
   getImage() {
@@ -280,7 +280,7 @@ export class PublicLogoRemovalPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.publicLogoRemovalContent')
+    return this.app.$i18n.t('premiumFeatures.publicLogoRemovalContent')
   }
 }
 
@@ -298,7 +298,7 @@ export class FormSurveyModePaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.surveyForm')
+    return this.app.$i18n.t('premiumFeatures.surveyForm')
   }
 
   getImage() {
@@ -306,7 +306,7 @@ export class FormSurveyModePaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.surveyFormContent')
+    return this.app.$i18n.t('premiumFeatures.surveyFormContent')
   }
 }
 
@@ -324,7 +324,7 @@ export class ChartPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('premiumFeatures.chartWidget')
+    return this.app.$i18n.t('premiumFeatures.chartWidget')
   }
 
   getImage() {
@@ -332,6 +332,6 @@ export class ChartPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('premiumFeatures.chartWidgetContent')
+    return this.app.$i18n.t('premiumFeatures.chartWidgetContent')
   }
 }

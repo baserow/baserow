@@ -348,5 +348,8 @@
         "authorizing": "Stai abilitando il tuo account per prelevare i dati dalla tabella sorgente.",
         "workspace": "Workspace",
         "database": "Database"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} sorgente | {count} sorgenti"
     }
 }

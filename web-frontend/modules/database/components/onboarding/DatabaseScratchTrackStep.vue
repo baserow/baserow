@@ -65,18 +65,22 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'DatabaseScratchTrackStep',
+  emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
   data() {
+    const { t } = useI18n()
+    const name = this.$store.getters['auth/getName']
     return {
       what: '',
-      tableName: '',
+      tableName: t('databaseImportStep.tableNamePrefill', { name }),
       own: false,
       row0: '',
       row1: '',
@@ -132,9 +136,11 @@ export default {
       this.updateValue()
     },
     updateValue() {
-      const tableName = this.what === 'own' ? this.tableName : this.what
-      const rows = [this.row0, this.row1, this.row2]
-      this.$emit('update-data', { tableName, rows })
+      this.$nextTick(() => {
+        const tableName = this.what === 'own' ? this.tableName : this.what
+        const rows = [this.row0, this.row1, this.row2]
+        this.$emit('update-data', { tableName, rows })
+      })
     },
   },
   validations() {

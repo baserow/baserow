@@ -1,7 +1,12 @@
 <template>
-  <Modal @show="onShow" @hidden="hideError">
+  <Modal ref="modal" @show="onShow" @hidden="hideError">
     <Error v-if="error.visible" :error="error"></Error>
-    <Tabs v-else :selected-index.sync="selectedTabIndex" no-padding>
+    <Tabs
+      v-else
+      no-padding
+      :selected-index="selectedTabIndex"
+      @update:selected-index="selectedTabIndex = $event"
+    >
       <Tab
         v-if="canManageDatabase"
         :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"
@@ -15,7 +20,9 @@
           scope-type="application"
           @invite-members="inviteDatabaseMembers"
           @invite-teams="inviteDatabaseTeams"
-          @role-updated="updateRole(databaseRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(databaseRoleAssignments, ra, role)
+          "
         />
       </Tab>
       <Tab
@@ -31,7 +38,9 @@
           scope-type="database_table"
           @invite-members="inviteTableMembers"
           @invite-teams="inviteTableTeams"
-          @role-updated="updateRole(tableRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(tableRoleAssignments, ra, role)
+          "
         />
       </Tab>
       <Tab
@@ -47,7 +56,9 @@
           scope-type="database_view"
           @invite-members="inviteViewMembers"
           @invite-teams="inviteViewTeams"
-          @role-updated="updateRole(viewRoleAssignments, ...arguments)"
+          @role-updated="
+            (ra, role) => updateRole(viewRoleAssignments, ra, role)
+          "
         />
       </Tab>
     </Tabs>
@@ -294,26 +305,24 @@ export default {
         ({ id }) => roleAssignment.id === id
       )
 
-      let previousRoleAssignement = null
+      let previousRoleAssignment = null
 
       if (roleAssignmentIndex !== -1) {
-        previousRoleAssignement = roleAssignments[roleAssignmentIndex]
+        previousRoleAssignment = roleAssignments[roleAssignmentIndex]
         if (newRole === null) {
           roleAssignments.splice(roleAssignmentIndex, 1)
         } else {
           // Updating the role
-          this.$set(
-            roleAssignments,
-            roleAssignmentIndex,
-            clone(previousRoleAssignement)
-          )
+          roleAssignments[roleAssignmentIndex] = clone(previousRoleAssignment)
           roleAssignments[roleAssignmentIndex].role = newRole
         }
       }
 
       try {
+        const subjectId =
+          roleAssignment.subject?.id ?? roleAssignment.subject_id
         await RoleAssignmentsService(this.$client).assignRole(
-          roleAssignment.subject.id,
+          subjectId,
           roleAssignment.subject_type,
           this.workspace.id,
           roleAssignment.scope_id,
@@ -327,11 +336,11 @@ export default {
             roleAssignments.splice(
               roleAssignmentIndex,
               0,
-              previousRoleAssignement
+              previousRoleAssignment
             )
           } else {
             roleAssignments[roleAssignmentIndex].role =
-              previousRoleAssignement.role
+              previousRoleAssignment.role
           }
         }
         notifyIf(error, 'application')

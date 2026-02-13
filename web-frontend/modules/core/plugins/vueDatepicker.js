@@ -1,4 +1,4 @@
-import Vue from 'vue'
-import Datepicker from 'vuejs-datepicker'
-
-Vue.component('DatePicker', Datepicker)
+export default defineNuxtPlugin((nuxtApp) => {
+  const Datepicker = defineAsyncComponent(() => import('vuejs3-datepicker'))
+  nuxtApp.vueApp.component('DatePicker', Datepicker)
+})

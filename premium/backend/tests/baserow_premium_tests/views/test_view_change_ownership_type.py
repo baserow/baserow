@@ -2,10 +2,10 @@ from django.shortcuts import reverse
 from django.test import override_settings
 
 import pytest
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 
 @override_settings(PERMISSION_MANAGERS=["basic"])

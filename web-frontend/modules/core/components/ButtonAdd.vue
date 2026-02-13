@@ -1,5 +1,5 @@
 <template>
-  <button class="button-add" :disabled="disabled" v-on="$listeners">
+  <button class="button-add" :disabled="disabled" v-on="$attrs">
     <i class="button-add__icon iconoir-plus" />
   </button>
 </template>

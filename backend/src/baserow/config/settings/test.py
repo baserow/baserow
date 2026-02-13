@@ -8,23 +8,44 @@ from fakeredis import FakeConnection, FakeServer
 
 from baserow.config.settings.utils import str_to_bool
 
-# Create a .env.testing file in the backend directory to store different test settings and
-# override the default ones. For different test settings, provide the TEST_ENV_FILE
-# environment variable with the name of the file to use. Everything that starts with
-# .env.testing will be ignored by git.
+# Test environment configuration:
+# - TEST_ENV_FILE: Optional env file for test settings (default: none)
+# - DATABASE_*, REDIS_*, and MEDIA_ROOT vars can be passed via real env vars or TEST_ENV_FILE
+# - All other settings are hardcoded in this file for consistency
+#
+# Example: DATABASE_URL=postgres://... just b test
+# Example: TEST_ENV_FILE=.env.testing-local just b test
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEST_ENV_FILE = os.getenv("TEST_ENV_FILE", ".env.testing")
-TEST_ENV_VARS = dotenv_values(os.path.join(BASE_DIR, f"../../../{TEST_ENV_FILE}"))
+
+# Load optional test env file
+TEST_ENV_FILE = os.environ.get("TEST_ENV_FILE", "")
+if TEST_ENV_FILE:
+    TEST_ENV_VARS = dotenv_values(os.path.join(BASE_DIR, f"../../../{TEST_ENV_FILE}"))
+else:
+    TEST_ENV_VARS = {}
+
+# Prefixes for vars that can be overridden via env vars (for DB/Redis configuration)
+ALLOWED_ENV_PREFIXES = ("DATABASE_",)
 
 
 def getenv_for_tests(key: str, default: str = "") -> str:
-    return TEST_ENV_VARS.get(key, default)
+    """
+    Get env var for tests:
+    - DATABASE_* vars: check real env first, then TEST_ENV_FILE, then default
+    - Other vars: only use TEST_ENV_FILE or default (never real env)
+    """
+
+    if key.startswith(ALLOWED_ENV_PREFIXES):
+        # Allow real env vars for database and redis configuration
+        return os.environ.get(key, TEST_ENV_VARS.get(key, default))
+    else:
+        # Block real env vars for other settings to ensure test consistency
+        return TEST_ENV_VARS.get(key, default)
 
 
 with patch("os.getenv", getenv_for_tests) as load_dotenv:
-    # Avoid loading .env settings to prevent conflicts with the test settings,
-    # but allow custom settings to be loaded from the .env.test file in the
-    # backend root directory.
+    # Import base settings with patched os.getenv to control which env vars are used
     from .base import *  # noqa: F403, F401
 
 TESTS = True
@@ -59,6 +80,7 @@ USER_THUMBNAILS = {"tiny": [21, 21]}
 # could break the tests. They are expecting it to be 'http://localhost:8000/media/'
 # because that is default value in `base.py`.
 MEDIA_URL = "http://localhost:8000/media/"
+MEDIA_ROOT = "/tmp/media-test/"  # noqa: S108
 
 
 CACHES = {

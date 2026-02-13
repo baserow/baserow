@@ -4,7 +4,8 @@
       <Tabs
         large
         :tab-items="[{ title: 'Basic' }, { title: 'Advanced' }]"
-        :selected-index.sync="selectedTabIndex"
+        :selected-index="selectedTabIndex"
+        @update:selected-index="selectedTabIndex = $event"
       ></Tabs>
     </div>
     <div v-auto-overflow-scroll class="context__form context__form--scrollable">
@@ -118,7 +119,6 @@
               ref="childForm"
               :table="table"
               :field-type="values.type"
-              :field-constraints="values.field_constraints"
               :view="view"
               :primary="primary"
               :all-fields-in-table="allFieldsInTable"
@@ -245,6 +245,7 @@ export default {
       required: true,
     },
   },
+  emits: ['input', 'keydown-enter'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

@@ -29,7 +29,6 @@
         />
       </FormGroup>
     </FormRow>
-
     <component
       :is="userSourceType.formComponent"
       v-if="integration"
@@ -104,11 +103,11 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import AuthProviderWithModal from '@baserow/modules/builder/components/userSource/AuthProviderWithModal'
 import { required, maxLength, helpers } from '@vuelidate/validators'
+import _ from 'lodash'
 
 export default {
-  components: { IntegrationDropdown, AuthProviderWithModal },
+  components: { IntegrationDropdown },
   mixins: [form],
   props: {
     builder: {
@@ -121,6 +120,7 @@ export default {
       default: null,
     },
   },
+  emits: ['values-changed'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -131,7 +131,7 @@ export default {
         name: '',
         auth_providers: [],
       },
-      fullValues: this.getFormValues(),
+      fullValues: {},
     }
   },
   computed: {
@@ -164,23 +164,25 @@ export default {
       )
     },
   },
+  mounted() {
+    // Initialize fullValues after component is mounted and registeredChildForms is ready
+    this.fullValues = this.getFormValues()
+  },
   methods: {
     // Override the default getChildFormValues to exclude the provider forms from
     // final values as they are handled directly by this component
     // The problem is that the child provider forms are not handled as a sub array
     // so they override the userSource configuration
+    // Note: excluded forms don't receive the :parent-form prop, so they won't be
+    // in registeredChildForms
     getChildFormsValues() {
       return Object.assign(
         {},
-        ...this.$children
-          .filter(
-            (child) =>
-              'getChildFormsValues' in child &&
-              child.$attrs['excluded-form'] === undefined
-          )
-          .map((child) => {
-            return child.getFormValues()
-          })
+        ...this.getChildForms(
+          (child) => 'getChildFormsValues' in child && !child.excludedForm
+        ).map((child) => {
+          return child.getFormValues()
+        })
       )
     },
     hasAtLeastOneOfThisType(appAuthProviderType) {

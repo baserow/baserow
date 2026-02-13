@@ -2,12 +2,10 @@ from typing import Annotated, Literal, Type
 
 from django.db.models import Q
 
-from baserow_premium.permission_manager import Table
 from pydantic import Field
 
-from baserow.contrib.database.fields.models import DateField
-from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.fields.models import (
+    DateField,
     FormulaField,
     LinkRowField,
     LookupField,
@@ -16,9 +14,11 @@ from baserow.contrib.database.fields.models import (
     RatingField,
     SingleSelectField,
 )
+from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow_enterprise.assistant.types import BaseModel
 from baserow_enterprise.data_sync.hubspot_contacts_data_sync import LongTextField
+from baserow_premium.permission_manager import Table
 
 
 class FieldItemCreate(BaseModel):

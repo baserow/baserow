@@ -70,6 +70,7 @@ export default {
       default: false,
     },
   },
+  emits: ['values-changed'],
   data() {
     return {
       allowedValues: ['field_mappings'],

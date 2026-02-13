@@ -36,5 +36,6 @@ export default {
       default: 'medium',
     },
   },
+  emits: ['click'],
 }
 </script>

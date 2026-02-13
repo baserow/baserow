@@ -61,6 +61,7 @@ from baserow.core.utils import (
 )
 
 WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
+WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_history_{}"
 AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
 tracer = trace.get_tracer(__name__)
@@ -580,9 +581,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             graph=serialized_workflow.get("graph", {}),
         )
 
-        id_mapping["automation_workflows"][
-            serialized_workflow["id"]
-        ] = workflow_instance.id
+        id_mapping["automation_workflows"][serialized_workflow["id"]] = (
+            workflow_instance.id
+        )
 
         if progress is not None:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
@@ -686,10 +687,46 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         self.reset_workflow_temporary_states(workflow)
 
         self._check_too_many_errors(workflow)
-        self._check_is_rate_limited(workflow.id)
 
     def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def _get_workflow_history_rate_limit_cache_key(self, workflow_id: int) -> str:
+        return WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def _should_create_rate_limited_workflow_history(self, workflow_id: int) -> bool:
+        """
+        Checks if the workflow history should be created when rate limited.
+
+        Returns True if the history should be created, False otherwise.
+        """
+
+        cache_key = self._get_workflow_history_rate_limit_cache_key(workflow_id)
+
+        should_create_history = False
+
+        def _should_create_history(history_exists):
+            """
+            Sets should_create_history to True if this is the first time
+            we're checking the workflow history in this window.
+
+            Returns True because we always want to set the cache key
+            when update() is called.
+            """
+
+            if not history_exists:
+                nonlocal should_create_history
+                should_create_history = True
+            return True
+
+        global_cache.update(
+            cache_key,
+            callback=_should_create_history,
+            default_value=lambda: False,
+            timeout=settings.AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS,
+        )
+
+        return should_create_history
 
     def _check_is_rate_limited(self, workflow_id: int) -> None:
         """Uses a global cache key to track recent runs for the given workflow."""
@@ -740,9 +777,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
 
         statuses = (
-            AutomationWorkflowHistory.objects.filter(workflow=workflow).order_by(
-                "-started_on"
-            )
+            AutomationWorkflowHistory.objects.filter(workflow=workflow)
+            .order_by("-started_on")
             # +1 because we will ignore the latest entry, since the workflow may
             # have just started.
             .values_list("status", flat=True)[: max_errors + 1]
@@ -835,6 +871,22 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
         """
+
+        try:
+            self._check_is_rate_limited(workflow.id)
+        except AutomationWorkflowRateLimited as e:
+            if self._should_create_rate_limited_workflow_history(workflow.id):
+                original_workflow = self.get_original_workflow(workflow)
+                now = timezone.now()
+                AutomationHistoryHandler().create_workflow_history(
+                    original_workflow,
+                    is_test_run=original_workflow == workflow,
+                    started_on=now,
+                    completed_on=now,
+                    message=str(e),
+                    status=HistoryStatusChoices.ERROR,
+                )
+            return
 
         start_workflow_celery_task.delay(
             workflow.id,

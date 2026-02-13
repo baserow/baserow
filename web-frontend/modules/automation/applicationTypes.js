@@ -4,6 +4,8 @@ import AutomationForm from '@baserow/modules/automation/components/form/Automati
 import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
 import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -15,22 +17,22 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automation')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automations')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDefaultName')
   }
 
@@ -51,26 +53,26 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   delete(application) {
-    const { store, router } = this.app
-    const workflowSelected = store.getters['automationWorkflow/getWorkflows'](
+    const { $store, $router } = this.app
+    const workflowSelected = $store.getters['automationWorkflow/getWorkflows'](
       application
     ).some((workflow) => workflow._.selected)
 
     if (workflowSelected) {
-      router.push({ name: 'dashboard' })
+      $router.push({ name: 'dashboard' })
     }
   }
 
   async loadExtraData(automation) {
-    const { store } = this.app
+    const { $store } = this.app
     if (!automation._loadedOnce) {
       await Promise.all([
-        store.dispatch('integration/fetch', {
+        $store.dispatch('integration/fetch', {
           application: automation,
         }),
       ])
 
-      await store.dispatch('application/forceUpdate', {
+      await $store.dispatch('application/forceUpdate', {
         application: automation,
         data: { _loadedOnce: true },
       })
@@ -90,24 +92,26 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   async select(application) {
-    const { router, store, i18n } = this.app
+    const { $router, $store, $i18n } = this.app
 
     const workflows =
-      store.getters['automationWorkflow/getWorkflows'](application)
+      $store.getters['automationWorkflow/getWorkflows'](application)
 
     if (workflows.length > 0) {
-      await router.push({
+      await $router.push({
         name: 'automation-workflow',
         params: {
           automationId: application.id,
           workflowId: workflows[0].id,
         },
       })
+      await pageFinished()
+      await nextTick()
       return true
     } else {
-      store.dispatch('toast/error', {
-        title: i18n.t('applicationType.cantSelectAutomationWorkflowTitle'),
-        message: i18n.t(
+      $store.dispatch('toast/error', {
+        title: $i18n.t('applicationType.cantSelectAutomationWorkflowTitle'),
+        message: $i18n.t(
           'applicationType.cantSelectAutomationWorkflowDescription'
         ),
       })

@@ -7,15 +7,15 @@
     :error="hasError"
   >
     <Dropdown
-      :value="value"
+      :value="modelValue"
       :show-search="true"
       :fixed-items="true"
       :disabled="disabled"
       :error="hasError"
       size="regular"
-      @change="
-        isAddNew($event) ? $emit('add-new', $event) : null
-        $emit('input', $event)
+      @update:model-value="
+        (isAddNew($event) ? $emit('add-new', $event) : null,
+        $emit('update:modelValue', $event))
       "
     >
       <DropdownItem
@@ -41,6 +41,7 @@ import _ from 'lodash'
 
 export default {
   name: 'DateDependencyFieldPicker',
+  emits: ['update:modelValue', 'add-new'],
   props: {
     required: {
       type: Boolean,
@@ -54,6 +55,11 @@ export default {
     fields: {
       type: Array,
       required: true,
+    },
+    modelValue: {
+      type: [Number, String],
+      required: false,
+      default: null,
     },
     value: {
       type: [Number, String],

@@ -10,7 +10,7 @@
     >
       <i class="header__filter-icon iconoir-eye-off"></i>
       <span class="header__filter-name">{{
-        $tc('gridViewHide.hideField', hiddenFields.length, {
+        $t('gridViewHide.hideField', {
           count: hiddenFields.length,
         })
       }}</span>
@@ -68,8 +68,13 @@ export default {
         return !exists || (exists && this.fieldOptions[field.id].hidden)
       })
     },
+    fieldOptions() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getAllFieldOptions'
+      ]
+    },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -77,7 +82,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getAllFieldOptions',
       }),
     }
-  },
+  },*/
   methods: {
     async updateAllFieldOptions({ newFieldOptions, oldFieldOptions }) {
       try {

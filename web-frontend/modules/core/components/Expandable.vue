@@ -53,6 +53,7 @@ export default {
       default: false,
     },
   },
+  emits: ['toggle'],
   data() {
     return { expandedState: this.defaultExpanded }
   },

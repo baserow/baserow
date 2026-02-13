@@ -11,6 +11,7 @@ import viewFilter from '@baserow/modules/database/mixins/viewFilter'
 export default {
   name: 'ViewFilterTypeBoolean',
   mixins: [viewFilter],
+  emits: ['input'],
   computed: {
     copy() {
       const value = String(this.filter.value ?? '')

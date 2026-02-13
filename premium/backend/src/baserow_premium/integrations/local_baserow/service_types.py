@@ -3,26 +3,6 @@ import re
 from django.conf import settings
 from django.db.models import F
 
-from baserow_premium.api.integrations.local_baserow.serializers import (
-    LocalBaserowTableServiceAggregationGroupBySerializer,
-    LocalBaserowTableServiceAggregationSeriesSerializer,
-    LocalBaserowTableServiceAggregationSortBySerializer,
-)
-from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
-from baserow_premium.integrations.registries import (
-    grouped_aggregation_group_by_registry,
-    grouped_aggregation_registry,
-)
-from baserow_premium.services.types import (
-    ServiceAggregationGroupByDict,
-    ServiceAggregationSeriesDict,
-    ServiceAggregationSortByDict,
-)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
@@ -48,6 +28,26 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
+from baserow_premium.api.integrations.local_baserow.serializers import (
+    LocalBaserowTableServiceAggregationGroupBySerializer,
+    LocalBaserowTableServiceAggregationSeriesSerializer,
+    LocalBaserowTableServiceAggregationSortBySerializer,
+)
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
+from baserow_premium.integrations.registries import (
+    grouped_aggregation_group_by_registry,
+    grouped_aggregation_registry,
+)
+from baserow_premium.services.types import (
+    ServiceAggregationGroupByDict,
+    ServiceAggregationSeriesDict,
+    ServiceAggregationSortByDict,
+)
 
 
 class LocalBaserowGroupedAggregateRowsUserServiceType(

@@ -1,5 +1,5 @@
-const pkg = require('../package.json')
+import pkg from '../../../package.json'
 
-export default (context, inject) => {
-  inject('baserowVersion', pkg.version)
-}
+export default defineNuxtPlugin((nuxtApp) => {
+  nuxtApp.provide('baserowVersion', pkg.version)
+})

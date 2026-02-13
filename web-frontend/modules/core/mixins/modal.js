@@ -5,21 +5,24 @@
 export default {
   methods: {
     getRootModal() {
-      if (
-        this.$children.length > 0 &&
-        this.$children[0].$options.name === 'Modal'
-      ) {
-        return this.$children[0]
+      // Search in the refs
+      if (this.$refs.modal) {
+        return this.$refs.modal
       }
+
+      return null
     },
     toggle(...args) {
-      this.getRootModal().toggle(...args)
+      const modal = this.getRootModal()
+      modal && modal.toggle(...args)
     },
     show(...args) {
-      this.getRootModal().show(...args)
+      const modal = this.getRootModal()
+      modal && modal.show(...args)
     },
     hide(...args) {
-      this.getRootModal().hide(...args)
+      const modal = this.getRootModal()
+      modal && modal.hide(...args)
     },
   },
 }

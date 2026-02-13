@@ -59,5 +59,6 @@ export default {
       required: true,
     },
   },
+  emits: ['set-col1-width'],
 }
 </script>

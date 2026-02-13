@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     :left-sidebar="true"
     :left-sidebar-scrollable="true"
     @hidden="$emit('hidden')"
@@ -50,6 +51,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hidden'],
   data() {
     return {
       selectedPage: 'synced-fields',

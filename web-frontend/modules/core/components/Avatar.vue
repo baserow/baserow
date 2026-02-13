@@ -26,7 +26,7 @@ export default {
     icon: {
       type: String,
       required: false,
-      default: null,
+      default: '',
     },
     /**
      * The URL of the image to display.
@@ -34,7 +34,7 @@ export default {
     image: {
       type: String,
       required: false,
-      default: null,
+      default: '',
     },
     /**
      * If true the avatar will be rounded.
@@ -50,7 +50,7 @@ export default {
     initials: {
       type: String,
       required: false,
-      default: null,
+      default: '',
     },
     /**
      * The background color of the avatar

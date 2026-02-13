@@ -256,11 +256,12 @@ def test_rows_enter_and_exit_view_are_called_when_view_filters_change(
         assert p.call_args[1]["view"].id == view_a.id
         assert p.call_args[1]["row_ids"] == [row_1.id]
 
-    with patch(
-        "baserow.contrib.database.views.signals.rows_entered_view.send"
-    ) as entered, patch(
-        "baserow.contrib.database.views.signals.rows_exited_view.send"
-    ) as exited:
+    with (
+        patch(
+            "baserow.contrib.database.views.signals.rows_entered_view.send"
+        ) as entered,
+        patch("baserow.contrib.database.views.signals.rows_exited_view.send") as exited,
+    ):
         view_filter_2 = ViewHandler().update_filter(
             user, view_filter_2, type_name="empty"
         )
@@ -418,18 +419,22 @@ def test_rows_enter_and_exit_view_with_periodic_fields_updates(data_fixture):
 
     ViewSubscriptionHandler.subscribe_to_views(user, [view])
 
-    with patch(
-        "baserow.contrib.database.views.signals.rows_entered_view.send"
-    ) as p, freeze_time("2022-01-01"), local_cache.context():
+    with (
+        patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p,
+        freeze_time("2022-01-01"),
+        local_cache.context(),
+    ):
         run_periodic_fields_updates(table.database.workspace_id)
 
         p.assert_called_once()
         assert p.call_args[1]["view"].id == view.id
         assert p.call_args[1]["row_ids"] == [row_1.id]
 
-    with patch(
-        "baserow.contrib.database.views.signals.rows_exited_view.send"
-    ) as p, freeze_time("2023-01-01"), local_cache.context():
+    with (
+        patch("baserow.contrib.database.views.signals.rows_exited_view.send") as p,
+        freeze_time("2023-01-01"),
+        local_cache.context(),
+    ):
         run_periodic_fields_updates(table.database.workspace_id)
 
         p.assert_called_once()
@@ -456,9 +461,10 @@ def test_rows_enter_and_exit_view_when_time_sensitive_filters_are_used(
         )
         ViewSubscriptionHandler.subscribe_to_views(user, [view])
 
-    with patch(
-        "baserow.contrib.database.views.signals.rows_entered_view.send"
-    ) as p, freeze_time("2022-01-01"):
+    with (
+        patch("baserow.contrib.database.views.signals.rows_entered_view.send") as p,
+        freeze_time("2022-01-01"),
+    ):
         with transaction.atomic():
             ViewSubscriptionHandler.check_views_with_time_sensitive_filters()
 
@@ -466,9 +472,10 @@ def test_rows_enter_and_exit_view_when_time_sensitive_filters_are_used(
         assert p.call_args[1]["view"].id == view.id
         assert p.call_args[1]["row_ids"] == [row_1.id]
 
-    with patch(
-        "baserow.contrib.database.views.signals.rows_exited_view.send"
-    ) as p, freeze_time("2022-01-02"):
+    with (
+        patch("baserow.contrib.database.views.signals.rows_exited_view.send") as p,
+        freeze_time("2022-01-02"),
+    ):
         with transaction.atomic():
             ViewSubscriptionHandler.check_views_with_time_sensitive_filters()
 

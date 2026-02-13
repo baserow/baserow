@@ -1,7 +1,7 @@
 <template>
   <textarea
     ref="textarea"
-    :value="fromValue(value)"
+    :value="fromValue(currentValue)"
     class="form-textarea"
     :rows="autoExpandable ? minRows : rows"
     :placeholder="placeholder"
@@ -19,7 +19,7 @@
     }"
     @blur="$emit('blur', $event)"
     @focus="$emit('focus', $event)"
-    @input="$emit('input', toValue($event.target.value))"
+    @input="input"
     @keyup="$emit('keyup', $event)"
     @keydown="$emit('keydown', $event)"
   ></textarea>
@@ -62,11 +62,18 @@ export default {
       default: false,
     },
     /**
-     * The value of the textarea.
+     * The model value of the textarea in Vue 3 style.
+     */
+    modelValue: {
+      type: String,
+      default: undefined,
+    },
+    /**
+     * The model value of the textarea in Vue 2 style.
      */
     value: {
       type: String,
-      default: null,
+      default: undefined,
     },
     toValue: {
       type: Function,
@@ -122,6 +129,7 @@ export default {
       default: 'regular',
     },
   },
+  emits: ['blur', 'focus', 'keyup', 'keydown', 'input', 'update:modelValue'],
   data() {
     return {
       numTextAreaLines: this.minRows,
@@ -129,6 +137,10 @@ export default {
     }
   },
   computed: {
+    // Support both Vue 2 (value) and Vue 3 (modelValue)
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
     textBoxSize() {
       if (this.autoExpandable) {
         return (
@@ -153,7 +165,7 @@ export default {
     },
   },
   watch: {
-    value() {
+    currentValue() {
       if (this.autoExpandable) this.resizeTextArea()
     },
   },
@@ -167,6 +179,13 @@ export default {
     },
     blur() {
       this.$refs.textarea.blur()
+    },
+    input(event) {
+      const value = toValue(event.target.value)
+      // emitting the updated value Vue 3 style.
+      this.$emit('update:modelValue', value)
+      // emitting the updated value Vue 2 style.
+      this.$emit('input', value)
     },
     resizeTextArea() {
       this.$nextTick(() => {

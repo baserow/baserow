@@ -1,5 +1,5 @@
 <template>
-  <Modal :wide="true">
+  <Modal ref="modal" :wide="true">
     <h2 class="box__title">{{ $t('apiDocsFiltersBuilderModal.title') }}</h2>
     <div class="control margin-bottom-2">
       <div class="control__elements">
@@ -67,12 +67,12 @@
         :sorted="true"
         :add-condition-string="$t('viewFilterContext.addFilter')"
         :add-condition-group-string="$t('viewFilterContext.addFilterGroup')"
-        @addFilter="addFilter"
-        @addFilterGroup="addFilter"
-        @deleteFilter="deleteFilter"
-        @updateFilter="updateFilter"
-        @updateFilterType="updateFilterType"
-        @deleteFilterGroup="deleteFilterGroup"
+        @add-filter="addFilter"
+        @add-filter-group="addFilter"
+        @delete-filter="deleteFilter"
+        @update-filter="updateFilter"
+        @update-filter-type="updateFilterType"
+        @delete-filter-group="deleteFilterGroup"
       />
     </div>
     <div class="flex">
@@ -121,17 +121,8 @@ export default {
     },
   },
   data() {
-    const view = populateView(
-      {
-        type: GridViewType.getType(),
-        filters: [this.getNewFilterObject(null)],
-        filter_groups: [],
-        filter_type: 'AND',
-      },
-      this.$registry
-    )
     return {
-      view,
+      view: null,
       mutableUserFieldNames: this.userFieldNames,
     }
   },
@@ -169,6 +160,17 @@ export default {
 
       return params + 'filters=' + encodeURIComponent(this.JSONFilters)
     },
+  },
+  created() {
+    this.view = populateView(
+      {
+        type: GridViewType.getType(),
+        filters: [this.getNewFilterObject(null)],
+        filter_groups: [],
+        filter_type: 'AND',
+      },
+      this.$registry
+    )
   },
   methods: {
     uuid,

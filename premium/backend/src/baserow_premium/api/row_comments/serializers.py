@@ -1,11 +1,11 @@
-from baserow_premium.row_comments.models import (
-    ALL_ROW_COMMENT_NOTIFICATION_MODES,
-    RowComment,
-)
 from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 from baserow.core.prosemirror.utils import is_valid_prosemirror_document
+from baserow_premium.row_comments.models import (
+    ALL_ROW_COMMENT_NOTIFICATION_MODES,
+    RowComment,
+)
 
 
 @extend_schema_serializer(deprecate_fields=["comment"])

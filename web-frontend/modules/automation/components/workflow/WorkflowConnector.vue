@@ -83,6 +83,7 @@ const viewBox = computed(
 const svgStyle = computed(() => ({
   position: 'absolute',
   left: `${bounds.value.left}px`,
+  top: `${bounds.value.top}px`,
   width: `${bounds.value.width}px`,
   height: `${bounds.value.height}px`,
   pointerEvents: 'none',

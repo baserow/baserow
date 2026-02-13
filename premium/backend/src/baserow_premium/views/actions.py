@@ -3,8 +3,6 @@ import dataclasses
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow_premium.views.models import CalendarView
-
 from baserow.contrib.database.action.scopes import (
     VIEW_ACTION_CONTEXT,
     ViewActionScopeType,
@@ -17,6 +15,7 @@ from baserow.core.action.registries import (
     ActionTypeDescription,
     UndoableActionType,
 )
+from baserow_premium.views.models import CalendarView
 
 ICAL_SLUG_FIELD = "ical_slug"
 

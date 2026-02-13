@@ -4,7 +4,6 @@ from urllib.request import Request
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
@@ -49,6 +48,7 @@ from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.types import NewRoleAssignment
+from baserow_premium.license.handler import LicenseHandler
 
 from .exceptions import DuplicateRoleAssignments
 from .serializers import (

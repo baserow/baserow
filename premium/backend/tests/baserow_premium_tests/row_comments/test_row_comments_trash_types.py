@@ -1,9 +1,9 @@
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.row_comments.models import RowComment
 
 from baserow.core.trash.handler import TrashHandler
+from baserow_premium.row_comments.models import RowComment
 
 
 @pytest.mark.django_db

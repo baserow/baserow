@@ -51,7 +51,7 @@ import {
 describe('Text-based array view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -798,7 +798,7 @@ describe('Boolean-based array view filters', () => {
     array_formula_type: 'boolean',
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldType = new FormulaFieldType({
       app: testApp._app,
@@ -1042,7 +1042,7 @@ describe('Number-based array view filters', () => {
     array_formula_type: 'number',
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldType = new LookupFieldType({
       app: testApp._app,
@@ -1355,7 +1355,7 @@ describe('Number-based array view filters', () => {
 describe('Multiple select-based array view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -1757,7 +1757,7 @@ describe('Multiple select-based array view filters', () => {
 describe('Date array view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -2140,7 +2140,7 @@ describe('Empty / not Empty array view filters', () => {
     },
   ]
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldType = new FormulaFieldType({
       app: testApp._app,
@@ -2303,7 +2303,7 @@ describe('Multiple collaborators view filters', () => {
     array_formula_type: 'multiple_collaborators',
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldType = new FormulaFieldType({ app: testApp.getApp() })
   })
@@ -2465,7 +2465,7 @@ const durationEmptyCases = [
 describe('Duration view filters', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -2509,7 +2509,7 @@ describe('Duration lookup filters', () => {
     array_formula_type: 'duration',
   }
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     fieldType = new FormulaFieldType({ app: testApp.getApp() })
   })

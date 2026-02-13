@@ -48,7 +48,7 @@ deps-install-dev:
 	@echo "noop install"
 
 eslint:
-	$(YARNBIN) run eslint || exit;
+	$(YARNBIN) run postinstall && $(YARNBIN) run eslint || exit;
 
 stylelint:
 	$(YARNBIN) run stylelint && $(YARNBIN) run prettier --check modules/**/*.scss || exit;
@@ -73,7 +73,7 @@ jest:
 test: jest
 
 ci-test-javascript:
-	$(YARNBIN) test-coverage || exit;
+	$(YARNBIN) test:coverage || exit;
 
 update-snapshots:
 	$(YARNBIN) run jest --updateSnapshot || exit;

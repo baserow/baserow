@@ -67,8 +67,7 @@
       @field-updated="$emit('refresh', $event)"
       @field-deleted="$emit('refresh')"
       @field-created="
-        fieldCreated($event)
-        showHiddenFieldsInRowModal = true
+        (fieldCreated($event), (showHiddenFieldsInRowModal = true))
       "
       @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
       @navigate-previous="$emit('navigate-previous', $event)"
@@ -118,7 +117,6 @@ import {
   filterVisibleFieldsFunction,
   sortFieldsByOrderAndIdFunction,
 } from '@baserow/modules/database/utils/view'
-import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal.vue'
@@ -128,6 +126,7 @@ import RowCreateModal from '@baserow/modules/database/components/row/RowCreateMo
 
 export default {
   name: 'CalendarView',
+  emits: ['navigate-next', 'navigate-previous', 'refresh', 'selected-row'],
   components: {
     CalendarMonth,
     RowEditModal,
@@ -172,6 +171,22 @@ export default {
     }
   },
   computed: {
+    row() {
+      return this.$store.getters['rowModalNavigation/getRow']
+    },
+    allRows() {
+      return this.$store.getters[`${this.storePrefix}view/calendar/getAllRows`]
+    },
+    fieldOptions() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getAllFieldOptions`
+      ]
+    },
+    getDateField() {
+      return this.$store.getters[
+        `${this.storePrefix}view/calendar/getDateField`
+      ]
+    },
     visibleCardFields() {
       return this.fields
         .filter(filterVisibleFieldsFunction(this.fieldOptions))
@@ -206,21 +221,6 @@ export default {
   mounted() {
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
-    }
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        row: 'rowModalNavigation/getRow',
-        allRows:
-          this.$options.propsData.storePrefix + 'view/calendar/getAllRows',
-        fieldOptions:
-          this.$options.propsData.storePrefix +
-          'view/calendar/getAllFieldOptions',
-        getDateField:
-          this.$options.propsData.storePrefix + 'view/calendar/getDateField',
-      }),
     }
   },
   methods: {

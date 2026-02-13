@@ -1,8 +1,8 @@
-<template functional>
+<template>
   <div>
     <Button
-      v-if="$options.methods.isValid(props.value)"
-      :href="props.value && props.value.url"
+      v-if="isValid(value)"
+      :href="value && value.url"
       tag="a"
       target="_blank"
       rel="nofollow noopener noreferrer"
@@ -11,10 +11,10 @@
       class="forced-pointer-events-auto"
       @mousedown.stop
     >
-      {{ $options.methods.getLabelOrURL(props.value) }}
+      {{ getLabelOrURL(value) }}
     </Button>
     <Button v-else tag="a" type="secondary" size="tiny" disabled>
-      {{ $options.methods.getLabelOrURL(props.value) }}
+      {{ getLabelOrURL(value) }}
     </Button>
   </div>
 </template>
@@ -24,6 +24,12 @@ import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 export default {
   name: 'RowCardFieldButton',
   mixins: [linkURLField],
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
   height: 26,
 }
 </script>

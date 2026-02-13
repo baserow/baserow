@@ -95,7 +95,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -118,13 +118,13 @@ def test_polymorphic_serializer_to_openapi_inline():
                         "enum": ["id", "count"],
                         "type": "string",
                         "description": "* `id` - Id\n* `count` - Count",
-                        "x-spec-enum-id": "a3569210bd7d4ead",
+                        "x-spec-enum-id": "1d246b77066dcabb",
                     },
                     "row_height_size": {
                         "enum": ["small", "medium", "large"],
                         "type": "string",
                         "description": "* `small` - Small\n* `medium` - Medium\n* `large` - Large",
-                        "x-spec-enum-id": "e1be587fa89889c6",
+                        "x-spec-enum-id": "fc68282295492d17",
                     },
                     "public": {
                         "type": "boolean",
@@ -153,7 +153,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -204,7 +204,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -393,7 +393,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -445,7 +445,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -502,7 +502,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                         ],
                         "type": "string",
                         "description": "* `grid` - grid\n* `gallery` - gallery\n* `form` - form\n* `kanban` - kanban\n* `calendar` - calendar\n* `timeline` - timeline",
-                        "x-spec-enum-id": "bc45559484b1f708",
+                        "x-spec-enum-id": "fa62d8e05d0fc78a",
                     },
                     "ownership_type": {
                         "enum": ["collaborative", "personal", "restricted"],
@@ -526,7 +526,7 @@ def test_polymorphic_serializer_to_openapi_inline():
                     "timescale": {
                         "enum": ["day", "week", "month", "year"],
                         "type": "string",
-                        "x-spec-enum-id": "b47bd58ee0e62834",
+                        "x-spec-enum-id": "cf8e742c49e533bc",
                         "description": "The timescale that the timeline should be displayed in.\n\n* `day` - Day\n* `week` - Week\n* `month` - Month\n* `year` - Year",
                     },
                     "public": {

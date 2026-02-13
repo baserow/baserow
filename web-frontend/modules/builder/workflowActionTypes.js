@@ -35,11 +35,11 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.notificationLabel')
+    return this.app.$i18n.t('workflowActionTypes.notificationLabel')
   }
 
   execute({ workflowAction: { title, description }, resolveFormula }) {
-    return this.app.store.dispatch('builderToast/info', {
+    return this.app.$store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
       message: ensureString(resolveFormula(description)),
     })
@@ -64,7 +64,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.openPageLabel')
+    return this.app.$i18n.t('workflowActionTypes.openPageLabel')
   }
 
   /**
@@ -76,23 +76,25 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
   getErrorMessage(workflowAction, applicationContext) {
     if (workflowAction.navigation_type === 'page') {
       if (!workflowAction.navigate_to_page_id) {
-        return this.app.i18n.t('workflowActionTypes.errorNavigateToPageMissing')
+        return this.app.$i18n.t(
+          'workflowActionTypes.errorNavigateToPageMissing'
+        )
       }
       if (
         pathParametersInError(
           workflowAction,
-          this.app.store.getters['page/getVisiblePages'](
+          this.app.$store.getters['page/getVisiblePages'](
             applicationContext.builder
           )
         )
       ) {
-        return this.app.i18n.t('workflowActionTypes.errorPageParameterInError')
+        return this.app.$i18n.t('workflowActionTypes.errorPageParameterInError')
       }
     } else if (
       workflowAction.navigation_type === 'custom' &&
       !workflowAction.navigate_to_url
     ) {
-      return this.app.i18n.t('workflowActionTypes.errorNavigationUrlMissing')
+      return this.app.$i18n.t('workflowActionTypes.errorNavigationUrlMissing')
     }
 
     return super.getErrorMessage(workflowAction, applicationContext)
@@ -106,7 +108,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
     const url = resolveElementUrl(
       workflowAction,
       builder,
-      this.app.store.getters['page/getVisiblePages'](builder),
+      this.app.$store.getters['page/getVisiblePages'](builder),
       resolveFormula,
       mode
     )
@@ -115,7 +117,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       return
     }
 
-    if (url === this.app.router.history.current?.fullPath) {
+    if (url === this.app.$router.currentRoute.value?.fullPath) {
       // Return early because the user is already on the page.
       return
     }
@@ -124,7 +126,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       if (!url.startsWith('/')) {
         window.location.href = url
       } else {
-        this.app.router.push(url)
+        this.app.$router.push(url)
       }
     } else {
       window.open(
@@ -154,11 +156,11 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.logoutLabel')
+    return this.app.$i18n.t('workflowActionTypes.logoutLabel')
   }
 
   execute({ applicationContext }) {
-    return this.app.store.dispatch('userSourceUser/logoff', {
+    return this.app.$store.dispatch('userSourceUser/logoff', {
       application: applicationContext.builder,
     })
   }
@@ -182,12 +184,12 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   }
 
   get label() {
-    return this.app.i18n.t('workflowActionTypes.refreshDataSourceLabel')
+    return this.app.$i18n.t('workflowActionTypes.refreshDataSourceLabel')
   }
 
   getErrorMessage(workflowAction, applicationContext) {
     if (!workflowAction.data_source_id) {
-      return this.app.i18n.t('workflowActionTypes.errorDataSourceMissing')
+      return this.app.$i18n.t('workflowActionTypes.errorDataSourceMissing')
     }
 
     return super.getErrorMessage(workflowAction, applicationContext)
@@ -202,7 +204,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
         return element.data_source_id === workflowAction.data_source_id
       })
       .map(async (element) => {
-        await this.app.store.dispatch(
+        await this.app.$store.dispatch(
           'elementContent/triggerElementContentReset',
           { element }
         )
@@ -214,7 +216,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     )
 
     try {
-      await this.app.store.dispatch(
+      await this.app.$store.dispatch(
         'dataSourceContent/fetchPageDataSourceContentById',
         {
           page: dataSourcePage,
@@ -225,13 +227,13 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
         }
       )
     } catch (error) {
-      const dataSource = this.app.store.getters[
+      const dataSource = this.app.$store.getters[
         'dataSource/getPageDataSourceById'
       ](applicationContext.page, workflowAction.data_source_id)
       handleDispatchError(
         error,
         this.app,
-        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+        this.app.$i18n.t('builderToast.errorDataSourceDispatch', {
           name: dataSource.name,
         })
       )
@@ -275,7 +277,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
         return [key, value]
       })
     )
-    return this.app.store.dispatch('builderWorkflowAction/dispatchAction', {
+    return this.app.$store.dispatch('builderWorkflowAction/dispatchAction', {
       workflowActionId: id,
       data: result,
       files,

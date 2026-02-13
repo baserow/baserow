@@ -169,7 +169,7 @@ import {
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
-import _, { clone } from 'lodash'
+import _ from 'lodash'
 import { trueValues } from '@baserow/modules/core/utils/constants'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
@@ -264,7 +264,7 @@ export class FieldType extends Registerable {
    * field type as dropdown or radio inputs.
    */
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return {
       [DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY]: {
         name: i18n.t('fieldType.defaultFormViewComponent'),
@@ -1029,7 +1029,7 @@ export class FieldType extends Registerable {
 
 class SelectOptionBaseFieldType extends FieldType {
   prepareFormViewFieldForFormEditInput(field, fieldOptions) {
-    const updatedField = clone(field)
+    const updatedField = _.clone(field)
     updatedField.select_options = updatedField.select_options.filter(
       (selectOption) => {
         return (
@@ -1069,7 +1069,7 @@ export class TextFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.singleLineText')
   }
 
@@ -1131,7 +1131,7 @@ export class TextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.text')
+    return this.app.$i18n.t('fieldDocs.text')
   }
 
   getDocsRequestExample(field) {
@@ -1177,7 +1177,7 @@ export class LongTextFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.longText')
   }
 
@@ -1251,7 +1251,7 @@ export class LongTextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.longText')
+    return this.app.$i18n.t('fieldDocs.longText')
   }
 
   getDocsRequestExample(field) {
@@ -1297,7 +1297,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.linkToTable')
   }
 
@@ -1322,7 +1322,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.linkRowSingle'
@@ -1502,7 +1502,9 @@ export class LinkRowFieldType extends FieldType {
       if (link.value) {
         return link.value
       }
-      return this.app.i18n.t('gridViewFieldLinkRow.unnamed', { value: link.id })
+      return this.app.$i18n.t('gridViewFieldLinkRow.unnamed', {
+        value: link.id,
+      })
     })
 
     // Use papa to generate a CSV string
@@ -1594,7 +1596,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.linkRow', {
+    return this.app.$i18n.t('fieldDocs.linkRow', {
       table: field.link_row_table_id,
     })
   }
@@ -1692,7 +1694,7 @@ export class NumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.number')
   }
 
@@ -1792,11 +1794,11 @@ export class NumberFieldType extends FieldType {
 
     const nrValue = new BigNumber(value)
     if (nrValue.isNaN() || !nrValue.isFinite()) {
-      return this.app.i18n.t('fieldErrors.invalidNumber')
+      return this.app.$i18n.t('fieldErrors.invalidNumber')
     }
     const maxVal = new BigNumber(`10e${NumberFieldType.getMaxNumberLength()}`)
     if (nrValue.absoluteValue().isGreaterThanOrEqualTo(maxVal)) {
-      return this.app.i18n.t('fieldErrors.maxDigits', {
+      return this.app.$i18n.t('fieldErrors.maxDigits', {
         max: NumberFieldType.getMaxNumberLength(),
       })
     }
@@ -1847,7 +1849,7 @@ export class NumberFieldType extends FieldType {
     if (!field.number_negative) {
       t += 'Positive'
     }
-    return this.app.i18n.t(`fieldDocs.${t}`, {
+    return this.app.$i18n.t(`fieldDocs.${t}`, {
       places: field.number_decimal_places,
     })
   }
@@ -1928,7 +1930,7 @@ export class RatingFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.rating')
   }
 
@@ -1990,8 +1992,8 @@ export class RatingFieldType extends FieldType {
           ? -1
           : 1
         : numberB < numberA
-        ? -1
-        : 1
+          ? -1
+          : 1
     }
   }
 
@@ -2022,7 +2024,7 @@ export class RatingFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t(`fieldDocs.rating`)
+    return this.app.$i18n.t(`fieldDocs.rating`)
   }
 
   getDocsRequestExample(field) {
@@ -2078,7 +2080,7 @@ export class BooleanFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.boolean')
   }
 
@@ -2176,7 +2178,7 @@ export class BooleanFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.boolean')
+    return this.app.$i18n.t('fieldDocs.boolean')
   }
 
   getDocsRequestExample(field) {
@@ -2415,8 +2417,8 @@ class BaseDateFieldType extends FieldType {
 
   getDocsDescription(field) {
     return field.date_include_time
-      ? this.app.i18n.t('fieldDocs.dateTime')
-      : this.app.i18n.t('fieldDocs.date')
+      ? this.app.$i18n.t('fieldDocs.dateTime')
+      : this.app.$i18n.t('fieldDocs.date')
   }
 
   getDocsRequestExample(field) {
@@ -2472,7 +2474,7 @@ export class DateFieldType extends BaseDateFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.date')
   }
 
@@ -2547,10 +2549,10 @@ export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
 
   getDocsDescription(field, firstPartOverwrite) {
     const firstPart =
-      firstPartOverwrite || this.app.i18n.t('fieldDocs.readOnly')
+      firstPartOverwrite || this.app.$i18n.t('fieldDocs.readOnly')
     return field.date_include_time
-      ? `${firstPart} ${this.app.i18n.t('fieldDocs.dateTimeResponse')}`
-      : `${firstPart} ${this.app.i18n.t('fieldDocs.dateResponse')}`
+      ? `${firstPart} ${this.app.$i18n.t('fieldDocs.dateTimeResponse')}`
+      : `${firstPart} ${this.app.$i18n.t('fieldDocs.dateResponse')}`
   }
 
   getDocsRequestExample(field) {
@@ -2572,7 +2574,7 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lastModified')
   }
 
@@ -2583,7 +2585,7 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
   getDocsDescription(field) {
     return super.getDocsDescription(
       field,
-      this.app.i18n.t('fieldDocs.lastModifiedReadOnly')
+      this.app.$i18n.t('fieldDocs.lastModifiedReadOnly')
     )
   }
 
@@ -2612,12 +2614,12 @@ export class CreatedOnFieldType extends CreatedOnLastModifiedBaseFieldType {
   getDocsDescription(field) {
     return super.getDocsDescription(
       field,
-      this.app.i18n.t('fieldDocs.createdOnReadOnly')
+      this.app.$i18n.t('fieldDocs.createdOnReadOnly')
     )
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.createdOn')
   }
 }
@@ -2632,7 +2634,7 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lastModifiedBy')
   }
 
@@ -2677,18 +2679,18 @@ export class LastModifiedByFieldType extends FieldType {
       let userNameA = a[name] === null ? '' : a[name].name
       let userNameB = b[name] === null ? '' : b[name].name
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
       const workspaceAvailable = workspaces.length > 0
       if (workspaceAvailable) {
         if (a[name] !== null) {
-          const workspaceUserA = this.app.store.getters[
+          const workspaceUserA = this.app.$store.getters[
             'workspace/getUserById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
-          const workspaceUserB = this.app.store.getters[
+          const workspaceUserB = this.app.$store.getters[
             'workspace/getUserById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
@@ -2705,8 +2707,8 @@ export class LastModifiedByFieldType extends FieldType {
 
   _getCurrentUserValue() {
     return {
-      id: this.app.store.getters['auth/getUserId'],
-      name: this.app.store.getters['auth/getName'],
+      id: this.app.$store.getters['auth/getUserId'],
+      name: this.app.$store.getters['auth/getName'],
     }
   }
 
@@ -2725,9 +2727,9 @@ export class LastModifiedByFieldType extends FieldType {
 
     const name = value.name
 
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.store.getters['workspace/getUserById'](
+      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
         value.id
       )
       return workspaceUser ? workspaceUser.name : name
@@ -2753,7 +2755,7 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.lastModifiedBy')
+    return this.app.$i18n.t('fieldDocs.lastModifiedBy')
   }
 
   getDocsRequestExample() {
@@ -2778,7 +2780,7 @@ export class CreatedByFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.createdBy')
   }
 
@@ -2819,18 +2821,18 @@ export class CreatedByFieldType extends FieldType {
       let userNameA = a[name] === null ? '' : a[name].name
       let userNameB = b[name] === null ? '' : b[name].name
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
       const workspaceAvailable = workspaces.length > 0
       if (workspaceAvailable) {
         if (a[name] !== null) {
-          const workspaceUserA = this.app.store.getters[
+          const workspaceUserA = this.app.$store.getters[
             'workspace/getUserById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
-          const workspaceUserB = this.app.store.getters[
+          const workspaceUserB = this.app.$store.getters[
             'workspace/getUserById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
@@ -2847,8 +2849,8 @@ export class CreatedByFieldType extends FieldType {
 
   _getCurrentUserValue() {
     return {
-      id: this.app.store.getters['auth/getUserId'],
-      name: this.app.store.getters['auth/getName'],
+      id: this.app.$store.getters['auth/getUserId'],
+      name: this.app.$store.getters['auth/getName'],
     }
   }
 
@@ -2867,9 +2869,9 @@ export class CreatedByFieldType extends FieldType {
 
     const name = value.name
 
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.store.getters['workspace/getUserById'](
+      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
         value.id
       )
       return workspaceUser ? workspaceUser.name : name
@@ -2895,7 +2897,7 @@ export class CreatedByFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.createdBy')
+    return this.app.$i18n.t('fieldDocs.createdBy')
   }
 
   getDocsRequestExample() {
@@ -2924,7 +2926,7 @@ export class DurationFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.duration')
   }
 
@@ -2941,7 +2943,7 @@ export class DurationFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.duration', {
+    return this.app.$i18n.t('fieldDocs.duration', {
       format: field.duration_format,
     })
   }
@@ -3020,14 +3022,14 @@ export class DurationFieldType extends FieldType {
     }
 
     if (totalSecs === null) {
-      return this.app.i18n.t('fieldErrors.invalidDuration', {
+      return this.app.$i18n.t('fieldErrors.invalidDuration', {
         durationFormat: this.getDocsRequestExample(field),
       })
     } else if (
       totalSecs > MAX_BACKEND_DURATION_VALUE_NUMBER_OF_SECS ||
       totalSecs < MIN_BACKEND_DURATION_VALUE_NUMBER_OF_SECS
     ) {
-      return this.app.i18n.t('fieldErrors.overflowDuration')
+      return this.app.$i18n.t('fieldErrors.overflowDuration')
     }
     return null
   }
@@ -3084,7 +3086,7 @@ export class URLFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.url')
   }
 
@@ -3135,7 +3137,7 @@ export class URLFieldType extends FieldType {
       return null
     }
     if (!isValidURL(value)) {
-      return this.app.i18n.t('fieldErrors.invalidUrl')
+      return this.app.$i18n.t('fieldErrors.invalidUrl')
     }
     return null
   }
@@ -3145,7 +3147,7 @@ export class URLFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.url')
+    return this.app.$i18n.t('fieldDocs.url')
   }
 
   getDocsRequestExample(field) {
@@ -3187,7 +3189,7 @@ export class EmailFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.email')
   }
 
@@ -3238,10 +3240,10 @@ export class EmailFieldType extends FieldType {
       return null
     }
     if (value.length > 254) {
-      return this.app.i18n.t('fieldErrors.max254Chars')
+      return this.app.$i18n.t('fieldErrors.max254Chars')
     }
     if (!isValidEmail(value)) {
-      return this.app.i18n.t('fieldErrors.invalidEmail')
+      return this.app.$i18n.t('fieldErrors.invalidEmail')
     }
     return null
   }
@@ -3251,7 +3253,7 @@ export class EmailFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.email')
+    return this.app.$i18n.t('fieldDocs.email')
   }
 
   getDocsRequestExample(field) {
@@ -3300,7 +3302,7 @@ export class FileFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.file')
   }
 
@@ -3426,7 +3428,7 @@ export class FileFieldType extends FieldType {
   }
 
   getDocsDescription() {
-    return this.app.i18n.t('fieldDocs.file')
+    return this.app.$i18n.t('fieldDocs.file')
   }
 
   getDocsRequestExample() {
@@ -3495,7 +3497,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.singleSelect')
   }
 
@@ -3520,7 +3522,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.singleSelectDropdown'
@@ -3676,7 +3678,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       .join('\n')
 
     return `
-      ${this.app.i18n.t('fieldDocs.singleSelect')}
+      ${this.app.$i18n.t('fieldDocs.singleSelect')}
       <br />
       ${options}
     `
@@ -3773,7 +3775,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.multipleSelect')
   }
 
@@ -3799,7 +3801,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
       'allow-create-options': false,
@@ -3951,7 +3953,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       .join('\n')
 
     return `
-      ${this.app.i18n.t('fieldDocs.multipleSelect')}
+      ${this.app.$i18n.t('fieldDocs.multipleSelect')}
       <br />
       ${options}
     `
@@ -4077,7 +4079,7 @@ export class PhoneNumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.phoneNumber')
   }
 
@@ -4128,7 +4130,7 @@ export class PhoneNumberFieldType extends FieldType {
       return null
     }
     if (!isSimplePhoneNumber(value)) {
-      return this.app.i18n.t('fieldErrors.invalidPhoneNumber')
+      return this.app.$i18n.t('fieldErrors.invalidPhoneNumber')
     }
     return null
   }
@@ -4142,7 +4144,7 @@ export class PhoneNumberFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.phoneNumber')
+    return this.app.$i18n.t('fieldDocs.phoneNumber')
   }
 
   getDocsRequestExample(field) {
@@ -4213,7 +4215,7 @@ export class FormulaFieldType extends mix(
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.formula')
   }
 
@@ -4281,7 +4283,7 @@ export class FormulaFieldType extends mix(
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.formula')
+    return this.app.$i18n.t('fieldDocs.formula')
   }
 
   getDocsRequestExample(field) {
@@ -4404,12 +4406,12 @@ export class CountFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.count')
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.count')
+    return this.app.$i18n.t('fieldDocs.count')
   }
 
   getFormComponent() {
@@ -4431,12 +4433,12 @@ export class RollupFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.rollup')
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.rollup')
+    return this.app.$i18n.t('fieldDocs.rollup')
   }
 
   getFormComponent() {
@@ -4458,12 +4460,12 @@ export class LookupFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lookup')
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.lookup')
+    return this.app.$i18n.t('fieldDocs.lookup')
   }
 
   getFormComponent() {
@@ -4485,11 +4487,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    return this.app.store.getters['workspace/getUserByEmail'](value) || null
+    return this.app.$store.getters['workspace/getUserByEmail'](value) || null
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.multipleCollaborators')
   }
 
@@ -4529,7 +4531,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.multipleCollaboratorsDropdown'
@@ -4561,13 +4563,13 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       let stringA = ''
       let stringB = ''
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
 
       if (valuesA.length > 0 && workspaces.length > 0) {
         stringA = valuesA
           .map(
             (obj) =>
-              this.app.store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getUserById'](obj.id).name
           )
           .join('')
       } else if (valuesA.length > 0) {
@@ -4578,7 +4580,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         stringB = valuesB
           .map(
             (obj) =>
-              this.app.store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getUserById'](obj.id).name
           )
           .join('')
       } else if (valuesB.length > 0) {
@@ -4599,11 +4601,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   _collaboratorCellValueToListOfNames(value) {
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
 
     if (workspaces.length > 0) {
       return value.map((value) => {
-        const workspaceUser = this.app.store.getters['workspace/getUserById'](
+        const workspaceUser = this.app.$store.getters['workspace/getUserById'](
           value.id
         )
         return workspaceUser.name
@@ -4652,11 +4654,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
               email = matches[2]
             }
             const workspaceUser =
-              this.app.store.getters['workspace/getUserByEmail'](email)
+              this.app.$store.getters['workspace/getUserByEmail'](email)
             if (workspaceUser !== undefined) {
               return workspaceUser
             }
-            return this.app.store.getters['workspace/getUserByName'](
+            return this.app.$store.getters['workspace/getUserByName'](
               emailOrName
             )
           })
@@ -4678,7 +4680,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.multipleCollaborators')
+    return this.app.$i18n.t('fieldDocs.multipleCollaborators')
   }
 
   getDocsRequestExample() {
@@ -4737,7 +4739,7 @@ export class UUIDFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.uuid')
   }
 
@@ -4786,7 +4788,7 @@ export class UUIDFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.uuid')
+    return this.app.$i18n.t('fieldDocs.uuid')
   }
 
   getDocsRequestExample(field) {
@@ -4820,7 +4822,7 @@ export class AutonumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.autonumber')
   }
 
@@ -4901,7 +4903,7 @@ export class AutonumberFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.autonumber')
+    return this.app.$i18n.t('fieldDocs.autonumber')
   }
 
   getDocsRequestExample(field) {
@@ -4931,7 +4933,7 @@ export class PasswordFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.password')
   }
 
@@ -4960,7 +4962,7 @@ export class PasswordFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.i18n.t('fieldDocs.password')
+    return this.app.$i18n.t('fieldDocs.password')
   }
 
   getDocsRequestExample(field) {
@@ -4978,10 +4980,10 @@ export class PasswordFieldType extends FieldType {
 
     const stringValue = value.toString()
     if (stringValue.length < 1) {
-      return this.app.i18n.t('fieldErrors.minChars', { min: 1 })
+      return this.app.$i18n.t('fieldErrors.minChars', { min: 1 })
     }
     if (stringValue.length > 128) {
-      return this.app.i18n.t('fieldErrors.maxChars', { max: 128 })
+      return this.app.$i18n.t('fieldErrors.maxChars', { max: 128 })
     }
     return null
   }

@@ -98,6 +98,7 @@ import { required } from '@vuelidate/validators'
 export default {
   name: 'AirtableImportForm',
   mixins: [form],
+  emits: ['input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

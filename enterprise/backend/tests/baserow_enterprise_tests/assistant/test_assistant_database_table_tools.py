@@ -686,6 +686,6 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
     # Verify at least some expected functions are present
     expected_common_functions = ["concat", "field", "if", "upper", "lower"]
     for func in expected_common_functions:
-        assert (
-            func in captured_formula_docs
-        ), f"Expected function '{func}' not found in documentation"
+        assert func in captured_formula_docs, (
+            f"Expected function '{func}' not found in documentation"
+        )

@@ -1,15 +1,15 @@
 from django.test.utils import override_settings
 
 import pytest
+from rest_framework.reverse import reverse
+from rest_framework.status import HTTP_200_OK
+
+from baserow.test_utils.helpers import AnyInt
 from baserow_premium.api.fields.exceptions import HTTP_400_BAD_REQUEST
 from baserow_premium.dashboard.widgets.models import ChartSeriesConfig
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationSeries,
 )
-from rest_framework.reverse import reverse
-from rest_framework.status import HTTP_200_OK
-
-from baserow.test_utils.helpers import AnyInt
 
 
 @pytest.mark.django_db

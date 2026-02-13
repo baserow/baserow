@@ -47,7 +47,8 @@ export const mutations = {
 
 export const actions = {
   async fetchAll({ commit }) {
-    const { data } = await authProviderAdmin(this.$client).fetchAll()
+    const { $client, $i18n } = this
+    const { data } = await authProviderAdmin($client).fetchAll()
     const items = {}
     for (const authProviderType of data.auth_provider_types) {
       items[authProviderType.type] = populateProviderType(
@@ -59,7 +60,8 @@ export const actions = {
     return items
   },
   async create({ commit, dispatch }, { type, values }) {
-    const { data: item } = await authProviderAdmin(this.$client).create({
+    const { $client, $i18n } = this
+    const { data: item } = await authProviderAdmin($client).create({
       type,
       ...values,
     })
@@ -68,7 +70,8 @@ export const actions = {
     return item
   },
   async update({ commit }, { authProvider, values }) {
-    const { data: item } = await authProviderAdmin(this.$client).update(
+    const { $client, $i18n } = this
+    const { data: item } = await authProviderAdmin($client).update(
       authProvider.id,
       values
     )
@@ -76,25 +79,28 @@ export const actions = {
     return item
   },
   async delete({ commit }, item) {
+    const { $client, $i18n } = this
     try {
-      await authProviderAdmin(this.$client).delete(item.id)
+      await authProviderAdmin($client).delete(item.id)
       commit('DELETE_ITEM', item)
     } catch (error) {
       notifyIf(error, 'authProvider')
     }
   },
   async fetchNextProviderId({ commit }) {
-    const { data } = await authProviderAdmin(this.$client).fetchNextProviderId()
+    const { $client, $i18n } = this
+    const { data } = await authProviderAdmin($client).fetchNextProviderId()
     const providerId = data.next_provider_id
     commit('SET_NEXT_PROVIDER_ID', providerId)
     return providerId
   },
   async setEnabled({ commit, dispatch }, { authProvider, enabled }) {
+    const { $client, $i18n } = this
     // use optimistic update to enable/disable the auth provider
     const wasEnabled = authProvider.enabled
     commit('UPDATE_ITEM', { ...authProvider, enabled })
     try {
-      await authProviderAdmin(this.$client).update(authProvider.id, { enabled })
+      await authProviderAdmin($client).update(authProvider.id, { enabled })
     } catch (error) {
       commit('UPDATE_ITEM', { ...authProvider, enabled: wasEnabled })
       notifyIf(error, 'authProvider')

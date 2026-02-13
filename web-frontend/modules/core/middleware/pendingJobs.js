@@ -2,9 +2,13 @@
  * If this middleware is added to a page, it will load the pending jobs
  * for the user from the server in order to show them in the UI.
  */
-export default async function ({ req, store }) {
+export default defineNuxtRouteMiddleware(async () => {
+  const nuxtApp = useNuxtApp()
+  const store = nuxtApp.$store
+  const event = import.meta.server ? useRequestEvent() : null
+
   // If nuxt generate, pass this middleware
-  if (process.server && !req) return
+  if (import.meta.server && !event) return
 
   if (
     // If the user is not authenticated we can't fetch unfinished jobs.
@@ -15,4 +19,4 @@ export default async function ({ req, store }) {
   ) {
     await store.dispatch('job/fetchAllUnfinished')
   }
-}
+})

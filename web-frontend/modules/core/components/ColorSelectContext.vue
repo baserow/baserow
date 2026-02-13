@@ -47,6 +47,7 @@ export default {
       required: false,
     },
   },
+  emits: ['selected'],
   data() {
     return {
       active: '',

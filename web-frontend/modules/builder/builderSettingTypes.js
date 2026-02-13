@@ -1,9 +1,16 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettings from '@baserow/modules/builder/components/settings/GeneralSettings'
-import IntegrationSettings from '@baserow/modules/builder/components/settings/IntegrationSettings'
-import ThemeSettings from '@baserow/modules/builder/components/settings/ThemeSettings'
-import DomainsSettings from '@baserow/modules/builder/components/settings/DomainsSettings'
-import UserSourcesSettings from '@baserow/modules/builder/components/settings/UserSourcesSettings'
+import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
+import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
+import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
+import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
+import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
+
+const GeneralSettings = markRaw(GeneralSettingsComponent)
+const IntegrationSettings = markRaw(IntegrationSettingsComponent)
+const ThemeSettings = markRaw(ThemeSettingsComponent)
+const DomainsSettings = markRaw(DomainsSettingsComponent)
+const UserSourcesSettings = markRaw(UserSourcesSettingsComponent)
 
 export class BuilderSettingType extends Registerable {
   static getType() {
@@ -45,7 +52,7 @@ export class GeneralBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.generalName')
+    return this.app.$i18n.t('builderSettingTypes.generalName')
   }
 
   get icon() {
@@ -67,7 +74,7 @@ export class IntegrationsBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.integrationsName')
+    return this.app.$i18n.t('builderSettingTypes.integrationsName')
   }
 
   get icon() {
@@ -89,7 +96,7 @@ export class ThemeBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.themeName')
+    return this.app.$i18n.t('builderSettingTypes.themeName')
   }
 
   get icon() {
@@ -111,7 +118,7 @@ export class DomainsBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.domainsName')
+    return this.app.$i18n.t('builderSettingTypes.domainsName')
   }
 
   get icon() {
@@ -133,7 +140,7 @@ export class UserSourcesBuilderSettingsType extends BuilderSettingType {
   }
 
   get name() {
-    return this.app.i18n.t('builderSettingTypes.userSourcesName')
+    return this.app.$i18n.t('builderSettingTypes.userSourcesName')
   }
 
   get icon() {

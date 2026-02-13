@@ -1,36 +1,27 @@
-import { BaseSearchType } from '@baserow/modules/core/search/types/base'
+import { ApplicationSearchType } from '@baserow/modules/core/search/types/base'
 
-export class AutomationSearchType extends BaseSearchType {
-  constructor() {
-    super()
+export class AutomationSearchType extends ApplicationSearchType {
+  constructor(context = {}) {
+    super(context)
     this.type = 'automation'
     this.name = 'Automation'
     this.icon = 'baserow-icon-automation'
     this.priority = 4
   }
 
-  buildUrl(result, context = null) {
-    const appId = result?.metadata?.application_id || result?.id
-    if (!appId) {
-      return null
-    }
+  _getApplicationId(result) {
+    const id = parseInt(result?.metadata?.application_id || result?.id)
+    return isNaN(id) ? null : id
+  }
 
-    if (context && context.store) {
-      const automation = context.store.getters['application/get'](appId)
-      if (
-        automation &&
-        automation.workflows &&
-        automation.workflows.length > 0
-      ) {
-        const workflows = [...automation.workflows].sort(
-          (a, b) => a.order - b.order
-        )
-        if (workflows.length > 0) {
-          return `/automation/${appId}/workflow/${workflows[0].id}`
-        }
-      }
-    }
+  _getApplicationChildren(application) {
+    return application.workflows
+  }
 
-    return null
+  _getApplicationPath(application, children) {
+    return {
+      name: 'automation-workflow',
+      params: { automationId: application.id, workflowId: children[0].id },
+    }
   }
 }

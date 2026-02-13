@@ -9,7 +9,7 @@ async function openViewContextAndClickOnCreateKanbanView(
   { userWorkspaceId = 1 } = {}
 ) {
   const viewsContext = await testApp.mount(ViewsContext, {
-    propsData: {
+    props: {
       database: { workspace: { id: userWorkspaceId } },
       views: [],
       table: {},
@@ -36,16 +36,15 @@ async function openViewContextAndClickOnCreateKanbanView(
 describe('Premium View Type Component Tests', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new PremiumTestApp()
   })
 
   afterEach(() => testApp.afterEach())
 
   test('User without premium features cannot create Kanban view', async () => {
-    const viewsContext = await openViewContextAndClickOnCreateKanbanView(
-      testApp
-    )
+    const viewsContext =
+      await openViewContextAndClickOnCreateKanbanView(testApp)
     expect(
       viewsContext
         .findAllComponents(CreateViewModal)
@@ -56,9 +55,8 @@ describe('Premium View Type Component Tests', () => {
   test('User with global premium features can create Kanban view', async () => {
     testApp.giveCurrentUserGlobalPremiumFeatures()
 
-    const viewsContext = await openViewContextAndClickOnCreateKanbanView(
-      testApp
-    )
+    const viewsContext =
+      await openViewContextAndClickOnCreateKanbanView(testApp)
 
     const visibleCreateViewModals = viewsContext
       .findAllComponents(CreateViewModal)

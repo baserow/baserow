@@ -1,8 +1,7 @@
+from baserow.core.models import User
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.models import License, LicenseUser
 from baserow_premium.license.registries import LicenseType, SeatUsageSummary
-
-from baserow.core.models import User
 
 
 class PremiumLicenseType(LicenseType):

@@ -9,6 +9,7 @@ class BaserowPremiumConfig(AppConfig):
     def ready(self):
         # noinspection PyUnresolvedReferences
         import baserow_premium.row_comments.receivers  # noqa: F401
+        from baserow.core.registries import application_type_registry
         from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
         from baserow_premium.builder.application_types import (
             PremiumBuilderApplicationType,
@@ -17,8 +18,6 @@ class BaserowPremiumConfig(AppConfig):
             RowCommentCountMetadataType,
             RowCommentsNotificationModeMetadataType,
         )
-
-        from baserow.core.registries import application_type_registry
 
         # We replace the original application type with the premium one to
         # add the licences to workspace serializer
@@ -165,25 +164,21 @@ class BaserowPremiumConfig(AppConfig):
 
         permission_manager_type_registry.register(ViewOwnershipPermissionManagerType())
 
+        from baserow.core.notifications.registries import notification_type_registry
         from baserow_premium.row_comments.notification_types import (
             RowCommentMentionNotificationType,
             RowCommentNotificationType,
         )
 
-        from baserow.core.notifications.registries import notification_type_registry
-
         notification_type_registry.register(RowCommentMentionNotificationType())
         notification_type_registry.register(RowCommentNotificationType())
 
+        from baserow.api.settings.registries import settings_data_registry
         from baserow_premium.api.settings.settings_types import (
             InstanceWideSettingsDataType,
         )
 
-        from baserow.api.settings.registries import settings_data_registry
-
         settings_data_registry.register(InstanceWideSettingsDataType())
-
-        from baserow_premium.integrations.registries import grouped_aggregation_registry
 
         from baserow.contrib.database.fields.field_aggregations import (
             AverageFieldAggregationType,
@@ -204,6 +199,7 @@ class BaserowPremiumConfig(AppConfig):
             UniqueCountFieldAggregationType,
             VarianceFieldAggregationType,
         )
+        from baserow_premium.integrations.registries import grouped_aggregation_registry
 
         grouped_aggregation_registry.register(CountFieldAggregationType())
         grouped_aggregation_registry.register(EmptyCountFieldAggregationType())
@@ -225,10 +221,6 @@ class BaserowPremiumConfig(AppConfig):
         grouped_aggregation_registry.register(VarianceFieldAggregationType())
         grouped_aggregation_registry.register(MedianFieldAggregationType())
 
-        from baserow_premium.integrations.registries import (
-            grouped_aggregation_group_by_registry,
-        )
-
         from baserow.contrib.database.fields.field_types import (
             AutonumberFieldType,
             BooleanFieldType,
@@ -240,6 +232,9 @@ class BaserowPremiumConfig(AppConfig):
             SingleSelectFieldType,
             TextFieldType,
             URLFieldType,
+        )
+        from baserow_premium.integrations.registries import (
+            grouped_aggregation_group_by_registry,
         )
 
         grouped_aggregation_group_by_registry.register(TextFieldType())
@@ -253,6 +248,8 @@ class BaserowPremiumConfig(AppConfig):
         grouped_aggregation_group_by_registry.register(AutonumberFieldType())
         grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
 
+        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+        from baserow.core.services.registries import service_type_registry
         from baserow_premium.dashboard.widgets.widget_types import (
             ChartWidgetType,
             PieChartWidgetType,
@@ -261,11 +258,10 @@ class BaserowPremiumConfig(AppConfig):
             LocalBaserowGroupedAggregateRowsUserServiceType,
         )
 
-        from baserow.contrib.dashboard.widgets.registries import widget_type_registry
-        from baserow.core.services.registries import service_type_registry
-
         service_type_registry.register(
             LocalBaserowGroupedAggregateRowsUserServiceType()
         )
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
+
+        from baserow_premium.fields import tasks  # noqa: F401

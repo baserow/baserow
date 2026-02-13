@@ -46,11 +46,12 @@ export const mutations = {
 
 export const actions = {
   async fetchInitial({ commit }, { tableId, rowId }) {
+    const { $client } = this
     commit('RESET_ENTRIES')
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
     try {
-      const { data } = await RowHistoryService(this.$client).fetchAll({
+      const { data } = await RowHistoryService($client).fetchAll({
         tableId,
         rowId,
         limit: 30,
@@ -64,9 +65,10 @@ export const actions = {
     }
   },
   async fetchNextPage({ commit, getters }, { tableId, rowId }) {
+    const { $client } = this
     commit('SET_LOADING', true)
     try {
-      const { data } = await RowHistoryService(this.$client).fetchAll({
+      const { data } = await RowHistoryService($client).fetchAll({
         tableId,
         rowId,
         offset: getters.getCurrentCount,

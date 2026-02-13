@@ -174,7 +174,7 @@ The embeddings enable the assistant to understand the semantic meaning of user q
 
 ## Dependencies
 
--   Python 3.13
+-   Python 3.14
 -   optimum[onnxruntime] 1.27.0
 -   transformers 4.53.0
 -   starlette 0.48.0

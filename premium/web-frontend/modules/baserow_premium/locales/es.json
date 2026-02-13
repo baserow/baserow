@@ -11,7 +11,8 @@
         "exporterType": {
             "json": "Exportar a JSON",
             "xml": "Exportar a XML",
-            "excel": "Exportar a Excel"
+            "excel": "Exportar a Excel",
+            "file": "Exportar archivos"
         },
         "deactivated": "Disponible en el plan Premium"
     },
@@ -110,7 +111,8 @@
         "expired": "Expirado",
         "validity": "Válido desde {start} hasta {end}",
         "seats": "asientos",
-        "premiumFeatures": "Características premium"
+        "premiumFeatures": "Características premium",
+        "applicationUsers": "Usuarios de la aplicación"
     },
     "license": {
         "title": "{name} plan",
@@ -144,7 +146,10 @@
         "automaticSeatsProgressBarStatus": "{asientos_ocupados} / {asientos} asientos pagados y {recuento_de_usuarios_libres} asientos libres en uso",
         "premiumFeatureName": "De primera calidad",
         "enterpriseFeatureName": "Empresa",
-        "supportFeatureName": "Soporte"
+        "supportFeatureName": "Soporte",
+        "applicationUsers": "Usuarios de la aplicación",
+        "applicationUsersDescription": "El número total de usuarios de la aplicación en las fuentes de usuarios del constructor de aplicaciones publicadas.",
+        "advancedFeatureName": "Avanzado"
     },
     "conditionalColorValueProviderForm": {
         "addCondition": "Añadir condición",
@@ -190,15 +195,29 @@
     "premiumFeatures": {
         "rowComments": "Comentarios de la fila",
         "kanbanView": "Vista de Kanban",
-        "exports": "Exportación JSON y XML",
+        "exports": "Exportación de tabla",
         "rowColoring": "Coloración de las filas",
         "admin": "Funciones de administración",
         "surveyForm": "Formulario de encuesta",
         "publicLogoRemoval": "Eliminación del logo público",
         "personalViews": "Vistas personales",
         "calendarView": "Vista del calendario",
-        "aiFeatures": "Campo de IA",
-        "timelineView": "Vista cronológica"
+        "aiFeatures": "Funciones de IA",
+        "timelineView": "Vista cronológica",
+        "rowCommentsContent": "Colabora directamente en tu tabla. Añade comentarios a filas individuales, menciona a los miembros del equipo y mantén la conversación en contexto.",
+        "kanbanViewContent": "Organiza tus datos visualmente en un tablero Kanban. Las tarjetas se agrupan en columnas según un campo de selección única, y puedes arrastrarlas y soltarlas fácilmente entre las columnas.",
+        "calendarViewContent": "Visualiza fácilmente tus filas en un calendario, usando el campo de fecha que prefieras. Es ideal para seguir plazos, eventos y horarios de un vistazo.",
+        "timelineViewContent": "Muestra las filas a lo largo de una línea de tiempo horizontal usando fechas de inicio y fin. Es ideal para la planificación de proyectos y hojas de ruta.",
+        "exportsContent": "Exporta tus datos fácilmente en formatos adicionales como Excel, JSON y XML, o descarga en bloque todos los archivos de una tabla, ideal para copias de seguridad, informes y compartir con otros.",
+        "rowColoringContent": "Resalta filas con colores según un campo de selección única o condiciones personalizadas. Así podrás identificar patrones y prioridades más fácilmente.",
+        "rowNotifications": "Notificaciones de fila",
+        "rowNotificationsContent": "Mantente al tanto con notificaciones personalizables de comentarios en filas. Elige entre recibir alertas de todos los comentarios o sólo cuando se te mencione.",
+        "aiFeaturesContent": "Utiliza IA para automatizar y mejorar tus flujos de trabajo. Con el tipo de campo de aviso de IA puedes generar texto, resúmenes o ideas directamente en las celdas a partir de avisos dinámicos que pueden hacer referencia a otros campos. Por separado, también puedes pedir a la IA que cree fórmulas para ti.",
+        "surveyFormContent": "Recopila respuestas pregunta por pregunta mediante el modo encuesta. Una versión simplificada de la vista de formulario, optimizada para la concentración y la facilidad de uso.",
+        "publicLogoRemovalContent": "Quita el logotipo de Baserow de las vistas públicas para que tu contenido compartido tenga un aspecto más limpio y con una imagen de marca más clara.",
+        "personalViewsContent": "Crea vistas que solo el autor pueda ver. Esto te da espacio para experimentar, filtrar y ordenar datos sin afectar el espacio de trabajo de los demás.",
+        "chartWidget": "Widget de gráfico",
+        "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen."
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -214,7 +233,8 @@
         "baserowLogo": {
             "label": "Esconder el logo de Baserow en la vista compartida",
             "premiumModalName": "eliminación del logo público"
-        }
+        },
+        "allowPublicExportLabel": "Permitir exportación en vista compartida"
     },
     "viewsContext": {
         "personal": "Personal"
@@ -276,7 +296,10 @@
         "promptPlaceholder": "¿Qué es Baserow?",
         "outputType": "Tipo de salida",
         "outputTypeTooltip": "Selecciona el formato de salida que desees para guiar al LLM en la generación de respuestas que se ajusten a tus opciones deseadas.",
-        "outputTypeChangedWarning": "Borra los valores de celda generados."
+        "outputTypeChangedWarning": "Borra los valores de celda generados.",
+        "autoUpdate": "Actualización automática",
+        "autoUpdateHelp": "Cuando esté habilitado, el valor del campo IA se regenerará automáticamente cuando cualquiera de los campos referenciados en el prompt se actualice.",
+        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados"
     },
     "rowEditFieldAI": {
         "generate": "Generar",
@@ -291,14 +314,14 @@
     },
     "aiFormulaModal": {
         "generate": "Generar",
-        "noModels": "Tu instancia de Baserow y tu espacio de trabajo no tienen ningún modelo AI configurado. Haz clic en los tres puntos junto a tu espacio de trabajo y luego en configuración para configurarlos.",
+        "noModels": "Tu instancia de Baserow y tu espacio de trabajo no tienen ningún modelo de IA configurado. Navega a la página de inicio, haz clic en el nombre de tu espacio de trabajo y, luego, en «Ajustes» para configurarlos.",
         "title": "Generar fórmulas con IA",
         "description": "Ten en cuenta que las fórmulas generadas pueden no funcionar siempre como se espera. Estamos construyendo un indicador para el modelo, y cargamos la salida en la entrada de la fórmula. Funciona mejor con un modelo de parámetros altos como gpt-4-turbo-preview.",
         "label": "Pregunta",
         "labelDescription": "Describe la fórmula que deseas generar"
     },
     "formulaFieldAI": {
-        "generateWithAI": "Generar con IA",
+        "generateWithAI": "Generar usando IA",
         "featureName": "Generar fórmulas con IA"
     },
     "calendarViewType": {
@@ -339,7 +362,7 @@
         "day": "Día",
         "week": "Semana",
         "month": "Mes",
-        "quarter": "Trimestral",
+        "quarter": "Trimestre",
         "year": "Año",
         "disabledTooltip": "Esta opción solo está disponible para campos de fecha con la opción `incluir hora` activada."
     },
@@ -351,5 +374,40 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Incluir nombres de campos como encabezado"
+    },
+    "paidFeaturesModal": {
+        "description": "Esta función está disponible con el plan {plan}. Para acceder a ella, por favor actualiza tu cuenta suscribiéndote. Haz clic en el botón de abajo para ver nuestras opciones de precios.",
+        "viewPricing": "Ver precios"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Agrupa archivos por ID de fila"
+    },
+    "kanbanView": {
+        "addStack": "Añadir una pila"
+    },
+    "publicViewExport": {
+        "export": "Exportar"
+    },
+    "chart": {
+        "true": "verdadero",
+        "false": "falso",
+        "other": "Otro"
+    },
+    "generateAIValuesModal": {
+        "title": "Generar todos los valores de IA"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Alcance",
+        "entireTable": "Tabla completa",
+        "skipPopulated": "Generar solo valores para celdas vacías",
+        "warningTitle": "Advertencia de uso de token",
+        "warningMessage": "Generar todos los valores de IA consumirá tokens de API y puede tomar un tiempo considerable dependiendo del número de filas."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Generar con IA",
+        "close": "Cerrar"
+    },
+    "jobType": {
+        "generateAIValues": "Regenerar los valores del campo IA"
     }
 }

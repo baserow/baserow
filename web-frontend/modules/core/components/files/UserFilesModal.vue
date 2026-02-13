@@ -1,5 +1,5 @@
 <template>
-  <Modal :left-sidebar="true" @hidden="$emit('hidden')">
+  <Modal ref="modal" :left-sidebar="true" @hidden="$emit('hidden')">
     <template #sidebar>
       <div class="modal-sidebar__title">
         {{ $t('userFilesModal.title') }}
@@ -57,6 +57,7 @@ export default {
       default: null,
     },
   },
+  emits: ['hidden', 'uploaded'],
   data() {
     return {
       page: null,

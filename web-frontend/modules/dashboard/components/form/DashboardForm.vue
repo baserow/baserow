@@ -13,7 +13,7 @@
         :disabled="loading"
       >
         {{ $t('action.add') }}
-        {{ dashboardApplicationType.getName() | lowercase }}
+        {{ $filters.lowercase(dashboardApplicationType.getName()) }}
       </Button>
     </div>
   </ApplicationForm>
@@ -40,6 +40,7 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted'],
   computed: {
     dashboardApplicationType() {
       return this.$registry.get('application', 'dashboard')

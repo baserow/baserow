@@ -1,5 +1,5 @@
 <template>
-  <Modal :full-height="true" :small="true">
+  <Modal ref="modal" :full-height="true" :small="true">
     <MemberSelectionList
       ref="memberSelectionList"
       class="padding-top-2"
@@ -23,6 +23,7 @@ export default {
       required: true,
     },
   },
+  emits: ['invite'],
   methods: {
     storeSelectedMembers(membersSelected) {
       this.$emit('invite', membersSelected)

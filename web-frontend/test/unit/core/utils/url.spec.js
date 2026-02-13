@@ -22,10 +22,10 @@ describe('test url utils', () => {
       '////example.com',
       '///example.com',
     ]
-    test.each(relativeUrls)('test with relative url %s', (url) => {
+    test.each(relativeUrls)('with relative url %s', (url) => {
       expect(isRelativeUrl(url)).toBe(true)
     })
-    test.each(absoluteUrls)('test with absolute url %s', (url) => {
+    test.each(absoluteUrls)('with absolute url %s', (url) => {
       expect(isRelativeUrl(url)).toBe(false)
     })
   })
@@ -45,10 +45,10 @@ describe('test url utils', () => {
       '//cdn.example.com/lib.js',
       'git+ssh://example.con/item',
     ]
-    test.each(validURLs)('test with valid url %s', (url) => {
+    test.each(validURLs)('with valid url %s', (url) => {
       expect(isValidURL(url)).toBe(true)
     })
-    test.each(invalidURLs)('test with invalid url %s', (url) => {
+    test.each(invalidURLs)('with invalid url %s', (url) => {
       expect(isValidURL(url)).toBe(false)
     })
   })
@@ -77,10 +77,10 @@ describe('test url utils', () => {
       'http://cdn.example.com/lib.js',
       'HtTp://example.con/item',
     ]
-    test.each(validURLs)('test with valid http/s url %s', (url) => {
+    test.each(validURLs)('with valid http/s url %s', (url) => {
       expect(isValidURLWithHttpScheme(url)).toBe(true)
     })
-    test.each(invalidURLs)('test with invalid http/s url %s', (url) => {
+    test.each(invalidURLs)('with invalid http/s url %s', (url) => {
       expect(isValidURLWithHttpScheme(url)).toBe(false)
     })
   })
@@ -110,15 +110,15 @@ describe('test url utils', () => {
       'http://cdn.example.com/lib.js',
       'HtTp://example.con/item',
     ]
-    test.each(validURLs)('test with valid http/s url %s', (url) => {
+    test.each(validURLs)('with valid http/s url %s', (url) => {
       expect(isValidAbsoluteURL(url)).toBe(true)
     })
-    test.each(invalidURLs)('test with invalid http/s url %s', (url) => {
+    test.each(invalidURLs)('with invalid http/s url %s', (url) => {
       expect(isValidAbsoluteURL(url)).toBe(false)
     })
   })
   describe('test parseHostnamesFromUrls', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     afterEach(() => {
       warnSpy.mockClear()

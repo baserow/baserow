@@ -10,7 +10,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Local baserow service types', () => {
   let testApp = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
   })
 
@@ -77,7 +77,7 @@ describe('Local baserow service types', () => {
       },
     }
 
-    dataProvider.getDataSourceContent = jest.fn(() => [
+    dataProvider.getDataSourceContent = vi.fn(() => [
       { id: 1, 'Field 42': 'Field 42 content row 1' },
       { id: 2, 'Field 42': 'Field 42 content row 2' },
     ])
@@ -114,7 +114,7 @@ describe('Local baserow service types', () => {
     ).toEqual(['Field 42 content row 1', 'Field 42 content row 2'])
   })
 
-  test('List service should resolve correctly in builder data provider', () => {
+  test('Get service should resolve correctly in builder data provider', () => {
     const dataProvider = testApp
       .getRegistry()
       .get('builderDataProvider', 'data_source')
@@ -127,7 +127,7 @@ describe('Local baserow service types', () => {
       },
     }
 
-    dataProvider.getDataSourceContent = jest.fn(() => ({
+    dataProvider.getDataSourceContent = vi.fn(() => ({
       id: 1,
       'Field 42': 'Field 42 content',
     }))

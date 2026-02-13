@@ -1,13 +1,12 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ChoiceElement as default 1`] = `
+exports[`ChoiceElement > as default 1`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -17,11 +16,12 @@ exports[`ChoiceElement as default 1`] = `
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-dropdown choice-element"
             tabindex="0"
@@ -29,61 +29,61 @@ exports[`ChoiceElement as default 1`] = `
             <a
               class="ab-dropdown__selected"
             >
+              
               <span
                 class="ab-dropdown__selected-placeholder"
               >
                 choiceElement.addOptions
               </span>
-               
+              
               <i
                 class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
               />
             </a>
-             
             <div
               class="ab-dropdown__items hidden"
             >
-              <!---->
-               
+              <!--v-if-->
               <ul
                 class="select__items"
                 style="display: none;"
                 tabindex="-1"
-              />
-               
+              >
+                
+                
+              </ul>
               <div
                 class="select__items--empty"
               >
                 
-        dropdown.empty
-      
+                dropdown.empty
+                
               </div>
-               
-              <!---->
+              <!--v-if-->
             </div>
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`ChoiceElement as manual checkboxes 1`] = `
+exports[`ChoiceElement > as manual checkboxes 1`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -93,65 +93,72 @@ exports[`ChoiceElement as manual checkboxes 1`] = `
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
+          
+          
+          
           <div
             class="ab-checkbox"
           >
             <input
+              aria-disabled="false"
               class="ab-checkbox__input"
               type="checkbox"
             />
-             
             <label
               class="ab-checkbox__label"
             >
               
-          First
-        
+              First
+              
             </label>
           </div>
           <div
             class="ab-checkbox"
           >
             <input
+              aria-disabled="false"
               class="ab-checkbox__input"
               type="checkbox"
             />
-             
             <label
               class="ab-checkbox__label"
             >
               
-          Second
-        
+              Second
+              
             </label>
           </div>
-           
-          <!---->
+          
+          
+          
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`ChoiceElement as manual dropdown 1`] = `
+exports[`ChoiceElement > as manual dropdown 1`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -161,11 +168,12 @@ exports[`ChoiceElement as manual dropdown 1`] = `
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-dropdown choice-element"
             tabindex="0"
@@ -173,27 +181,27 @@ exports[`ChoiceElement as manual dropdown 1`] = `
             <a
               class="ab-dropdown__selected"
             >
+              
               <span
                 class="ab-dropdown__selected-placeholder"
               >
                 action.makeChoice
               </span>
-               
+              
               <i
                 class="ab-dropdown__toggle-icon iconoir-nav-arrow-down"
               />
             </a>
-             
             <div
               class="ab-dropdown__items hidden"
             >
-              <!---->
-               
+              <!--v-if-->
               <ul
                 class="select__items"
-                style=""
                 tabindex="-1"
               >
+                
+                
                 <li
                   class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
                 >
@@ -203,19 +211,18 @@ exports[`ChoiceElement as manual dropdown 1`] = `
                     <div
                       class="ab-dropdownitem__item-name"
                     >
-                      <!---->
-                       
+                      <!--v-if-->
+                      
                       <span
                         class="ab-dropdownitem__item-name-text"
                         title="First"
                       >
                         First
                       </span>
+                      
                     </div>
-                     
-                    <!---->
+                    <!--v-if-->
                   </a>
-                   
                   <i
                     class="ab-dropdownitem__item-active-icon iconoir-check"
                   />
@@ -229,52 +236,51 @@ exports[`ChoiceElement as manual dropdown 1`] = `
                     <div
                       class="ab-dropdownitem__item-name"
                     >
-                      <!---->
-                       
+                      <!--v-if-->
+                      
                       <span
                         class="ab-dropdownitem__item-name-text"
                         title="Second"
                       >
                         Second
                       </span>
+                      
                     </div>
-                     
-                    <!---->
+                    <!--v-if-->
                   </a>
-                   
                   <i
                     class="ab-dropdownitem__item-active-icon iconoir-check"
                   />
                 </li>
+                
+                
               </ul>
-               
-              <!---->
-               
-              <!---->
+              <!--v-if-->
+              <!--v-if-->
             </div>
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`ChoiceElement as manual radio 1`] = `
+exports[`ChoiceElement > as manual radio 1`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -284,53 +290,61 @@ exports[`ChoiceElement as manual radio 1`] = `
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
+          
+          
+          
           <div
             class="ab-radio"
           >
             <input
+              aria-disabled="false"
               class="ab-radio__input"
               type="radio"
             />
-             
             <label
               class="ab-radio__label"
             >
               
-          First
-        
+              First
+              
             </label>
           </div>
           <div
             class="ab-radio"
           >
             <input
+              aria-disabled="false"
               class="ab-radio__input"
               type="radio"
             />
-             
             <label
               class="ab-radio__label"
             >
               
-          Second
-        
+              Second
+              
             </label>
           </div>
-           
-          <!---->
+          
+          
+          
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;

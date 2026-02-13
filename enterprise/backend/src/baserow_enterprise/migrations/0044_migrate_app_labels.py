@@ -24,10 +24,10 @@ class Migration(migrations.Migration):
         ),
         (
             "baserow_premium",
-            "0025_chartwidget_localbaserowgroupedaggregaterows_and_more"
-        )
+            "0025_chartwidget_localbaserowgroupedaggregaterows_and_more",
+        ),
     ]
 
     operations = [
-        migrations.RunPython(migrate_app_labels),
+        migrations.RunPython(migrate_app_labels, migrations.RunPython.noop),
     ]

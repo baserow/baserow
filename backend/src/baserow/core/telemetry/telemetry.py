@@ -5,30 +5,11 @@ import sys
 from celery import signals
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
-from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
-from opentelemetry.instrumentation.celery import CeleryInstrumentor
-from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs._internal.export import BatchLogRecordProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
-from opentelemetry.trace import ProxyTracerProvider
 
 from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
-
-if is_psycopg3:
-    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
-else:
-    from opentelemetry.instrumentation.psycopg2 import (
-        Psycopg2Instrumentor as PsycopgInstrumentor,
-    )
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -41,7 +22,7 @@ class LogGuruCompatibleLoggerHandler(LoggingHandler):
         del record.extra
 
         # by default otel doesn't send funcName, rename it so it does.
-        setattr(record, "python_function", record.funcName)
+        record.python_function = record.funcName
         super().emit(record)
 
 
@@ -94,6 +75,14 @@ def setup_telemetry(add_django_instrumentation: bool):
         process that is processing requests. Don't enable this for a celery process etc.
     """
 
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+        OTLPMetricExporter,
+    )
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
+    from opentelemetry.trace import ProxyTracerProvider
+
     if otel_is_enabled():
         existing_provider = trace.get_tracer_provider()
         if not isinstance(existing_provider, ProxyTracerProvider):
@@ -126,6 +115,9 @@ def setup_telemetry(add_django_instrumentation: bool):
 def _setup_log_exporting(logger):
     from django.conf import settings
 
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+    from opentelemetry.sdk._logs._internal.export import BatchLogRecordProcessor
+
     logger_provider = LoggerProvider()
     set_logger_provider(logger_provider)
     exporter = OTLPLogExporter()
@@ -154,6 +146,18 @@ def _setup_celery_metrics():
 
 
 def _setup_standard_backend_instrumentation():
+    from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
+    from opentelemetry.instrumentation.celery import CeleryInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    if is_psycopg3:
+        from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+    else:
+        from opentelemetry.instrumentation.psycopg2 import (
+            Psycopg2Instrumentor as PsycopgInstrumentor,
+        )
+
     BotocoreInstrumentor().instrument()
     PsycopgInstrumentor().instrument()
     RedisInstrumentor().instrument()
@@ -162,4 +166,6 @@ def _setup_standard_backend_instrumentation():
 
 
 def _setup_django_process_instrumentation():
+    from opentelemetry.instrumentation.django import DjangoInstrumentor
+
     DjangoInstrumentor().instrument()

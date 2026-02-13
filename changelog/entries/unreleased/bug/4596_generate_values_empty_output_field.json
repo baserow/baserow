@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix Generate all AI values doesn't work when the output field is Single Select and Generate only values for empty cells is checked",
+    "issue_origin": "github",
+    "issue_number": 4596,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-01-28"
+}

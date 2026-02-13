@@ -24,6 +24,7 @@ export default {
       required: true,
     },
   },
+  emits: ['disable'],
   computed: {
     providerType() {
       return this.$registry.get('twoFactorAuth', this.provider.type)

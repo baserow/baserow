@@ -11,10 +11,9 @@ from typing import Any
 from uuid import uuid4
 
 import udspy
-from posthog.ai.openai import AsyncOpenAI
 from udspy.callback import BaseCallback
 
-from baserow.core.posthog import posthog_client
+from baserow.core.posthog import get_posthog_client
 from baserow_enterprise.assistant.models import AssistantChat
 
 
@@ -64,6 +63,8 @@ class PosthogTracingCallback(BaseCallback):
         :param human_message: The initial user message
         """
 
+        from posthog.ai.openai import AsyncOpenAI
+
         self.chat = chat
         self.human_msg = human_message
 
@@ -81,11 +82,16 @@ class PosthogTracingCallback(BaseCallback):
         # patch the OpenAI client to automatically send the generation event
         lm = udspy.settings._context_lm.get()
         openai_client = lm.client
-        if not isinstance(openai_client, AsyncOpenAI):
+
+        # Check if client is already a PostHog-wrapped client by checking its
+        # module. We avoid isinstance() here because it can fail when the class
+        # is mocked in tests.
+        is_posthog_client = "posthog" in type(openai_client).__module__
+        if not is_posthog_client:
             lm.client = AsyncOpenAI(
                 api_key=openai_client.api_key,
                 base_url=openai_client.base_url,
-                posthog_client=posthog_client,
+                posthog_client=get_posthog_client(),
             )
 
         exception = None
@@ -130,6 +136,7 @@ class PosthogTracingCallback(BaseCallback):
         else:
             kwargs["properties"] = default_props
 
+        posthog_client = get_posthog_client()
         posthog_client.capture(
             distinct_id=str(self.user_id),
             event=event,

@@ -104,6 +104,8 @@
 import { sameAs } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 import { reactive, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRuntimeConfig, useRouter, useHead } from '#app'
 
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import LangPicker from '@baserow/modules/core/components/LangPicker'
@@ -134,6 +136,22 @@ export default {
       },
     }))
 
+    const { t } = useI18n()
+    const config = useRuntimeConfig()
+    const router = useRouter()
+
+    useHead({
+      title: t('resetPassword.title'),
+      link: [
+        {
+          rel: 'canonical',
+          href:
+            config.public.publicWebFrontendUrl +
+            router.resolve({ name: 'reset-password' }).href,
+        },
+      ],
+    })
+
     return {
       v$: useVuelidate(rules, values, { $lazy: true }),
       account: values.account,
@@ -143,11 +161,6 @@ export default {
     return {
       loading: false,
       success: false,
-    }
-  },
-  head() {
-    return {
-      title: this.$t('resetPassword.title'),
     }
   },
   computed: {

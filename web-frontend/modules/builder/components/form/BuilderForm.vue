@@ -38,5 +38,6 @@ export default {
       required: true,
     },
   },
+  emits: ['submitted'],
 }
 </script>

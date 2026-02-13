@@ -1,5 +1,5 @@
 <template>
-  <Modal :tiny="true">
+  <Modal ref="modal" :tiny="true">
     <div class="webhook__test-title">{{ $t('testWebhookModal.title') }}</div>
     <Error :error="error" />
     <div v-if="isLoading" class="loading"></div>

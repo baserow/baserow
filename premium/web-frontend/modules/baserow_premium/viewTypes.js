@@ -1,6 +1,5 @@
 import {
   BaseBufferedRowViewTypeMixin,
-  maxPossibleOrderValue,
   ViewType,
 } from '@baserow/modules/database/viewTypes'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
@@ -12,7 +11,10 @@ import CalendarViewHeader from '@baserow_premium/components/views/calendar/Calen
 import TimelineViewHeader from '@baserow_premium/components/views/timeline/TimelineViewHeader'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { isAdhocFiltering } from '@baserow/modules/database/utils/view'
+import {
+  isAdhocFiltering,
+  maxPossibleOrderValue,
+} from '@baserow/modules/database/utils/view'
 import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
 import CalendarSharingIcalSlugSection from '@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'
 import {
@@ -28,7 +30,7 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {
-    return this.app.i18n.t('premium.deactivated')
+    return this.app.$i18n.t('premium.deactivated')
   }
 
   getDeactivatedClickModal() {
@@ -65,8 +67,8 @@ export class KanbanViewType extends PremiumViewType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.kanban')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.kanban')
   }
 
   canFilter() {
@@ -296,8 +298,8 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.calendar')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.calendar')
   }
 
   canFilter() {
@@ -542,7 +544,7 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   getSharedViewText() {
-    return this.app.i18n.t('calendarViewType.sharedViewText')
+    return this.app.$i18n.t('calendarViewType.sharedViewText')
   }
 
   isShared(view) {
@@ -589,8 +591,8 @@ export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('premium.viewType.timeline')
+    const { $i18n } = this.app
+    return $i18n.t('premium.viewType.timeline')
   }
 
   canFilter() {

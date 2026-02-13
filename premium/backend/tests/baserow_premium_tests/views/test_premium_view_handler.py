@@ -1,6 +1,4 @@
 import pytest
-from baserow_premium.views.handler import get_rows_grouped_by_single_select_field
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
 from baserow.contrib.database.views.handler import ViewHandler
@@ -10,6 +8,8 @@ from baserow.contrib.database.views.models import (
     View,
 )
 from baserow.core.exceptions import PermissionDenied
+from baserow_premium.views.handler import get_rows_grouped_by_single_select_field
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 
 @pytest.mark.django_db

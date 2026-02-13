@@ -67,6 +67,7 @@ export default {
       default: false,
     },
   },
+  emits: ['toggle', 'delete'],
   data() {
     return { loading: false }
   },

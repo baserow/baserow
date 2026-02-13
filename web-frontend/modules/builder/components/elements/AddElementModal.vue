@@ -1,5 +1,5 @@
 <template>
-  <Modal class="add-element-modal">
+  <Modal ref="modal" class="add-element-modal">
     <h2 class="box__title">{{ $t('addElementModal.title') }}</h2>
     <div class="add-element-modal__content">
       <FormInput
@@ -11,10 +11,9 @@
         icon-left="iconoir-search"
       />
       <div class="add-element-modal__element-cards">
-        <template v-for="group in elementTypes">
+        <template v-for="group in elementTypes" :key="group.subject">
           <div
             v-if="group.elementTypes.length > 0"
-            :key="group.subject"
             class="add-element-modal__category"
           >
             <Expandable
@@ -78,6 +77,7 @@ export default {
       required: true,
     },
   },
+  emits: ['element-added'],
   data() {
     return {
       search: '',

@@ -79,6 +79,7 @@ export default {
       required: true,
     },
   },
+  emits: ['update-order'],
   computed: {
     sortIndicator() {
       return this.sortTypes[this.type].indicator

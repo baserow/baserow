@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypedDict, Union
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractUser  # noqa: F401
-    from django.contrib.auth.models import AnonymousUser  # noqa: F401
+    from django.contrib.auth.models import (
+        AbstractUser,  # noqa: F401
+        AnonymousUser,  # noqa: F401
+    )
 
     from baserow.contrib.automation.models import Automation  # noqa: F401
     from baserow.contrib.builder.models import Builder  # noqa: F401

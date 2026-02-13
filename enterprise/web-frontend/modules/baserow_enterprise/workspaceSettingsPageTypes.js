@@ -9,8 +9,8 @@ export class TeamsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   }
 
   getName() {
-    const { i18n } = this.app
-    return i18n.t('teamsSettings.teamsTabTitle')
+    const { $i18n } = this.app
+    return $i18n.t('teamsSettings.teamsTabTitle')
   }
 
   /**

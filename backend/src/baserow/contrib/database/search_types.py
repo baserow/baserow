@@ -27,6 +27,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search_base import DatabaseSearchableItemType
+from baserow.contrib.database.table.expressions import RowNotTrashedDynamicTable
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import ReadDatabaseTableOperationType
 from baserow.core.db import specific_iterator
@@ -352,9 +353,14 @@ class RowSearchType(SearchableItemType):
                 self.type, getattr(self, "priority", 10)
             )
 
+        field_ids_by_table_id = defaultdict(list)
+        for f_id, t_id in base_fields:
+            field_ids_by_table_id[t_id].append(f_id)
+
         # Build field_id -> table_id mapping for CASE expression
         when_clauses = [
-            When(field_id=f_id, then=Value(t_id)) for (f_id, t_id) in base_fields
+            When(field_id__in=f_ids, then=Value(t_id))
+            for (t_id, f_ids) in field_ids_by_table_id.items()
         ]
         table_id_case = Case(
             *when_clauses, default=Value(0), output_field=IntegerField()
@@ -377,6 +383,7 @@ class RowSearchType(SearchableItemType):
             .filter(rn=1)  # Only keep the best field per row
             .annotate(
                 search_type=Value(self.type, output_field=TextField()),
+                is_valid=RowNotTrashedDynamicTable(F("table_id"), F("row_id")),
                 object_id=Concat(
                     Cast(F("table_id"), output_field=TextField()),
                     Value("_", output_field=TextField()),
@@ -398,6 +405,7 @@ class RowSearchType(SearchableItemType):
                     query=Value(context.query),
                 ),
             )
+            .filter(is_valid=True)
             .values(
                 "search_type",
                 "object_id",
@@ -519,9 +527,9 @@ class RowSearchType(SearchableItemType):
             table_id_to_name[f.table_id] = f.table.name
             table_id_to_database_id[f.table_id] = f.table.database_id
             database_id_to_name[f.table.database_id] = f.table.database.name
-            database_id_to_workspace_id[
-                f.table.database_id
-            ] = f.table.database.workspace_id
+            database_id_to_workspace_id[f.table.database_id] = (
+                f.table.database.workspace_id
+            )
             table_id_to_primary_field[f.table_id] = (
                 f.table,
                 primary_fields[f.primary_field_id],
@@ -547,6 +555,7 @@ class RowSearchType(SearchableItemType):
 
             field_id_int = int(field_id)
             table_id_int = field_id_to_table_id.get(field_id_int) or int(table_id)
+
             database_id = table_id_to_database_id.get(table_id_int)
             database_name = database_id_to_name.get(database_id)
             workspace_id = database_id_to_workspace_id.get(database_id)

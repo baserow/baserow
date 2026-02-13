@@ -1,7 +1,9 @@
 .audit-log__filters {
   display: grid;
-  grid-template-columns: 3fr 3fr 3fr minmax(10%, 120px) minmax(10%, 120px) max-content;
-  grid-gap: 12px;
+  grid-template-columns:
+    3fr 3fr 3fr minmax(10%, 120px) minmax(10%, 120px)
+    max-content;
+  gap: 12px;
   padding: 16px 42px 25px;
   z-index: 4;
   max-width: 1200px;
@@ -15,7 +17,9 @@
 
 .audit-log__filters--workspace {
   max-width: 1024px;
-  grid-template-columns: 3fr 3fr minmax(15%, 120px) minmax(15%, 120px) max-content;
+  grid-template-columns:
+    3fr 3fr minmax(15%, 120px) minmax(15%, 120px)
+    max-content;
 }
 
 .audit-log__exported-list {

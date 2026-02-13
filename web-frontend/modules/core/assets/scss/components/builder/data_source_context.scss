@@ -38,7 +38,7 @@
 .data-source-context__none {
   padding: 50px;
   white-space: normal;
-  word-break: break-word;
+  overflow-wrap: break-word;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -7,6 +7,14 @@ from django.test.utils import override_settings
 
 import pytest
 import responses
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from freezegun import freeze_time
+from rest_framework.status import HTTP_200_OK
+
+from baserow.core.cache import local_cache
+from baserow.core.exceptions import IsNotAdminError
 from baserow_premium.license.exceptions import (
     FeaturesNotAvailableError,
     InvalidLicenseError,
@@ -21,14 +29,6 @@ from baserow_premium.license.exceptions import (
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.license.models import License, LicenseUser
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from freezegun import freeze_time
-from rest_framework.status import HTTP_200_OK
-
-from baserow.core.cache import local_cache
-from baserow.core.exceptions import IsNotAdminError
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
@@ -98,44 +98,46 @@ VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
     b"bL3jA=="
 )
 VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE = (
-    # id: "c26e4ef2-0492-4571-ad0d-49ca808c14b5"
+    # id: "a857b506-bf91-4a26-a716-085abfe0190f"
     # instance_id: "1"
-    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImMyNmU0ZWYyLTA0OTItNDU3MS1hZDBkLTQ5Y2E4MDhjMTRiNSIsI"
-    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI4LT"
-    b"AxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogMTAsICJhcHB"
-    b"saWNhdGlvbl91c2VycyI6IDEwLCAiaXNzdWVkX29uIjogIjIwMjUtMDItMTFUMTM6MzY6MjEuMDc1ODcz"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImE4NTdiNTA2LWJmOTEtNGEyNi1hNzE2LTA4NWFiZmUwMTkwZiIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
+    b"AxLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogMTAsICJhcHB"
+    b"saWNhdGlvbl91c2VycyI6IDEwLCAiaXNzdWVkX29uIjogIjIwMjYtMDEtMDhUMDk6NDY6NDguNzQzMTcz"
     b"IiwgImlzc3VlZF90b19lbWFpbCI6ICJwZXRlckBiYXNlcm93LmlvIiwgImlzc3VlZF90b19uYW1lIjogI"
-    b"lBldGVyIiwgImluc3RhbmNlX2lkIjogIjEifQ==.tEholymqZF9aoYUAPDvufzCLylDk92MVpb6J7XJEs"
-    b"k0zdgMdKwlrvCqNBpqtfDWJYJWKVxX4xk4NjTPBjdPbSRZM--kSL1uBa6djpLUU0XoXaOg74P39PW7gcQ"
-    b"qrsWbZRdDWn6fFePWQ4U9w83t5OvxflZE2Qd8tvWYAVbgKRZXbpkzKoJgMrGoC2QVBIqy6KA3FZxw5EVT"
-    b"KfMTkE34y8SsmTsvlDmLlt2fpkrFwM2Vpi4mE7GiY4nf5f4_8UHckpG8tqA-OK6KV4kPL_aTTLwdcZDL-"
-    b"aULpNydqXUfGMMgKzjq1L1cULsoZQc9ueFZBh8KmA2PEjw4i1o70-xePIA=="
+    b"lBldGVyIiwgImluc3RhbmNlX2lkIjogIjEifQ==.iRZWZQDQf2-pm0H8KSp_uw4OMwtKrlQ-LuZFVqgsi"
+    b"8yOFRVjKGnBaUC67yObYQAVfkRcGcPEQoZsx9_3ZC1K3Rxrj6lCbMl08BEhJbI3Td1I9Rbwd6L9t8b6iy"
+    b"LoCeObotB5BVUjBcU5gbQSW_vGULtzX-UzM8sjpUhJMio7kppl0N4b71FLFVjF2V92yD9meVNisoUCu6y"
+    b"XHPoAEBbo2I9OJ3q_BdTIOM-fp_CTai3icm9d3qz4eo8635V9y29yMwNpN6ZleBHgfuGkFID7K697EPxb"
+    b"9xav9CrZibRO6svmuMlEl3ILLVEB1Vjgi1DPzGMmHySbY4GyAkz7A6lAuw=="
 )
-VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE = (
-    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImY4YjRlOTk1LTJhMmEtNDg0NS04ZWI1LWM2MjBiYzA5YTdiMiIsI"
-    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI2LT"
-    b"AxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
-    b"pY2F0aW9uX3VzZXJzIjogMTUsICJpc3N1ZWRfb24iOiAiMjAyNS0wMi0xN1QxMTo0NToyNC44NjM3NjQi"
+VALID_PREMIUM_FIVE_SEAT_FIFTEEN_APP_USER_LICENSE = (
+    # id: "f4fcf139-4b2f-438e-9377-fc02d8a51405"
+    # instance_id: "1"
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImY0ZmNmMTM5LTRiMmYtNDM4ZS05Mzc3LWZjMDJkOGE1MTQwNSIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
+    b"AxLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
+    b"pY2F0aW9uX3VzZXJzIjogMTUsICJpc3N1ZWRfb24iOiAiMjAyNi0wMS0wOFQwOTo0ODoxNC4wMjQ4NTki"
     b"LCAiaXNzdWVkX3RvX2VtYWlsIjogInBldGVyQGJhc2Vyb3cuaW8iLCAiaXNzdWVkX3RvX25hbWUiOiAiU"
-    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.GsYLPV63FG5FAncOp6dyLysDqVSMR37C1zwTT-otZgGuu"
-    b"TpYg4aa9x-2ODonL9IAUmosyy6FZ1LcI4i8YdDyQ_rt-X_KhwR2S7Eotl6ZEepOYTbC7qKuG30szAKM6d"
-    b"4eL0unPB48pLJhSS_j745WgMn-4vUMmm6FTWaIPJaWFzwUjOp5zLgNpvvgkayzQ608XdYVjilVBcTlszj"
-    b"hxi00g0la2nMdCqDytZdJCn7XwAMA8itvSjYrWL1gMqTtPL6U92bJz97n8wQRBFW8kNKb2JTPfcbwozeg"
-    b"Vd44sPwBqWaA0wwpKyNs-Sa43FHcbQKIGG8A68hKQy2MG3EWHgLWTA=="
+    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.PQNYw9lTJrWNqGcIwPygE8kinldFg64c44yb1oXRhISxh"
+    b"LUs_zG2dwhG6j01XHw1psnkbwXFodT0AXbCJ5SA8QA1LRNXEV2DJce9Y1ve6De5LWh-BNnbA2g_sy0Tb5"
+    b"X89w7SmZWRrBWgFsgwIRj8ZCYJAVkNjPlTKyBArBM0syQYhg8DrCuWx-qeNUVahZzYYZJoAqf9Pv7X52X"
+    b"qVfffnhxaU872nr-5p_ctP9QhURlIRD9mzrDylFuNOwKqslpdknwoHZGwPBIgMNDV4fBLm3_VnIQDneNB"
+    b"ymX_rC2TJ_he-rt1MVWwnVUhu_e3UxY9DsF_EJ2apHD3IiNRdnYmHg=="
 )
 VALID_ENTERPRISE_FIFTEEN_SEAT_FIFTEEN_APP_USER_LICENSE = (
-    # id: "06b9bec3-d5d9-4286-be5a-c25b94188303"
+    # id: "ea098521-2b10-4f14-832f-ae3297b48c8f"
     # instance_id: "1"
-    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjA2YjliZWMzLWQ1ZDktNDI4Ni1iZTVhLWMyNWI5NDE4ODMwMyIsI"
-    b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI4LT"
-    b"AxLTAxVDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogMTUsICJ"
-    b"hcHBsaWNhdGlvbl91c2VycyI6IDE1LCAiaXNzdWVkX29uIjogIjIwMjUtMDItMTFUMTM6MzU6MjYuODYy"
-    b"NTg3IiwgImlzc3VlZF90b19lbWFpbCI6ICJwZXRlckBiYXNlcm93LmlvIiwgImlzc3VlZF90b19uYW1lI"
-    b"jogIlBldGVyIiwgImluc3RhbmNlX2lkIjogIjEifQ==.u1ws8JSZHta15GVqiUdQRb592aeIuAUxSNMDm"
-    b"_WAY1rSFzeY74MLhl7aQ3ZB5JalUwuT8Bi1PqCBqiSSVJGdF5pL4u25Gwn10mNDvfXmRh34DvV7ZIYdpV"
-    b"C_WiPOkeojoXtawuNmIzePON1pAv6TfG9Qq_57vSshht49TiG2PTYGdeeZa9sbrP589dhkIk0UY6Z6aCZ"
-    b"voGAXz0rbrsS6lQUFqkYdBgA4LpgsrWWjLRxKdmy64CYj1k37ERtU8w-uauhYW3IUHDmDiZQYjNrL7g7q"
-    b"Elk5YJBqjseMM_J4VkgULax1TDyG-q114UKCeCrCFA4pqsbxvGJ41-Le_-JOEg=="
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImVhMDk4NTIxLTJiMTAtNGYxNC04MzJmLWFlMzI5N2I0OGM4ZiIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
+    b"AxLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJlbnRlcnByaXNlIiwgInNlYXRzIjogMTUsICJ"
+    b"hcHBsaWNhdGlvbl91c2VycyI6IDE1LCAiaXNzdWVkX29uIjogIjIwMjYtMDEtMDhUMDk6NDg6NTcuMjI5"
+    b"NjAyIiwgImlzc3VlZF90b19lbWFpbCI6ICJwZXRlckBiYXNlcm93LmlvIiwgImlzc3VlZF90b19uYW1lI"
+    b"jogIlBldGVyIiwgImluc3RhbmNlX2lkIjogIjEifQ==.teZZNBx9shRZlnAOZJCKR4cx8OCZc2IlMlgDi"
+    b"zNYCO-dlJQxM_4_k06m_OqHtdEfrio_lVc7YJAHSE0yM1dELUOTc0pPgHE6sWFRO0NxwyTUN4KdD6H3B5"
+    b"pN7hpBAnNJVThjLaTAhbYil32U1FumHBa0pyOhxWruRy4dbW9SAsI0oiIW1CUvYhWG_VMEasfPOxB26JU"
+    b"RtDX3SIP6li4ES4ppehQ-Cv-JudQcc1a2gNkL3sXxIG6Mguu01p8aMKWpV7suET35UdxxhcVTBTMJvwG7"
+    b"IBQkIlED0RySD41484QdOfxh3ESg_WtoM4dxpHu5EVkzsSIDs5NkjWoK4n9gzg=="
 )
 INVALID_SIGNATURE_LICENSE = (
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogMSwgInZhbGlkX2Zyb20iOiAiMjAyMS0wOC0yOVQxOTo1NDoxMi4w"
@@ -161,7 +163,7 @@ INVALID_VERSION_LICENSE = (
     b"CVof8RBUq1DgMcDKEGE7WRHYDVP1QugBjf4GZlvIE4ZVr3tKr0aKPX8nuNVhbQeudCW8tnturmxevpRN"
     b"vLS5ETSQzJoP46cGuw0HUV20P4SnvQP_NRd5zifgllJqsUw=="
 )
-INVALID_PREMIUM_FIVE_SEAT_10_APP_USER_EXPIRED_LICENSE = (
+INVALID_PREMIUM_FIVE_SEAT_TEN_APP_USER_EXPIRED_LICENSE = (
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjkzZDExODYwLTU1Y2UtNDJhYy05NGI5LTY0YTlhMTBiNzI3MiIsI"
     b"CJ2YWxpZF9mcm9tIjogIjIwMjUtMDItMDFUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDI1LT"
     b"AyLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
@@ -620,13 +622,13 @@ def test_decode_license_with_valid_license():
         VALID_ENTERPRISE_FIFTEEN_SEAT_FIFTEEN_APP_USER_LICENSE
     ) == {
         "version": 1,
-        "id": "06b9bec3-d5d9-4286-be5a-c25b94188303",
-        "valid_from": "2025-02-01T00:00:00",
-        "valid_through": "2028-01-01T23:59:59",
+        "id": "ea098521-2b10-4f14-832f-ae3297b48c8f",
+        "valid_from": "2026-01-08T00:00:00",
+        "valid_through": "2050-01-08T23:59:59",
         "product_code": "enterprise",
         "seats": 15,
         "application_users": 15,
-        "issued_on": "2025-02-11T13:35:26.862587",
+        "issued_on": "2026-01-08T09:48:57.229602",
         "issued_to_email": "peter@baserow.io",
         "issued_to_name": "Peter",
         "instance_id": "1",
@@ -635,13 +637,13 @@ def test_decode_license_with_valid_license():
         VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE
     ) == {
         "version": 1,
-        "id": "c26e4ef2-0492-4571-ad0d-49ca808c14b5",
-        "valid_from": "2025-02-01T00:00:00",
-        "valid_through": "2028-01-01T23:59:59",
+        "id": "a857b506-bf91-4a26-a716-085abfe0190f",
+        "valid_from": "2026-01-08T00:00:00",
+        "valid_through": "2050-01-08T23:59:59",
         "product_code": "premium",
         "seats": 10,
         "application_users": 10,
-        "issued_on": "2025-02-11T13:36:21.075873",
+        "issued_on": "2026-01-08T09:46:48.743173",
         "issued_to_email": "peter@baserow.io",
         "issued_to_name": "Peter",
         "instance_id": "1",
@@ -1163,7 +1165,7 @@ def test_premium_license_builder_usage_license_extra_info(
     # users available, but now our application users taken is 30.
     mock_aggregate_user_source_counts.return_value = 30
     second_license = premium_data_fixture.create_premium_license(
-        license=VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE.decode()
+        license=VALID_PREMIUM_FIVE_SEAT_FIFTEEN_APP_USER_LICENSE.decode()
     )
 
     with local_cache.context():
@@ -1190,7 +1192,7 @@ def test_premium_license_builder_usage_license_extra_info(
     with local_cache.context():
         # An expired license reports an application user usage of 0.
         expired_license = premium_data_fixture.create_premium_license(
-            license=INVALID_PREMIUM_FIVE_SEAT_10_APP_USER_EXPIRED_LICENSE.decode()
+            license=INVALID_PREMIUM_FIVE_SEAT_TEN_APP_USER_EXPIRED_LICENSE.decode()
         )
         assert LicenseHandler.collect_extra_license_info(expired_license) == {
             "id": expired_license.license_id,

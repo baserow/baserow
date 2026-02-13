@@ -75,7 +75,7 @@
     <div class="api-docs__right">
       <APIDocsExample
         :value="value"
-        :url="$config.PUBLIC_BACKEND_URL"
+        :url="$config.public.publicBackendUrl"
         type=""
         :response="{
           error: 'ERROR_NO_PERMISSION_TO_TABLE',
@@ -101,5 +101,6 @@ export default {
       required: true,
     },
   },
+  emits: ['input'],
 }
 </script>

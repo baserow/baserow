@@ -1,8 +1,6 @@
 import json
 
 from asgiref.sync import sync_to_async
-from mcp import Tool
-from mcp.types import TextContent
 
 from baserow.contrib.database.api.tables.serializers import (
     TableWithoutDataSyncSerializer,
@@ -16,6 +14,8 @@ class ListTablesMcpTool(MCPTool):
     name = "list_tables"
 
     async def list(self, endpoint):
+        from mcp import Tool
+
         return [
             Tool(
                 name=self.name,
@@ -34,6 +34,8 @@ class ListTablesMcpTool(MCPTool):
         name_parameters,
         call_arguments,
     ):
+        from mcp.types import TextContent
+
         tables = await sync_to_async(get_all_tables)(endpoint)
         serializer = TableWithoutDataSyncSerializer(tables, many=True)
         table_json = json.dumps(serializer.data)

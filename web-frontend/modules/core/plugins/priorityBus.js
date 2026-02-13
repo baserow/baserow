@@ -1,22 +1,6 @@
-/**
- * Priority bus is a bus with the same API as $bus but with
- * the ability to specify a priority for the callback.
- *
- * This makes it possible to register multiple callbacks such as
- * "start search" callbacks and invoke only one based on its priority.
- */
-
-/*
-  Tracking global list of listeners per event.
-
-  'event': [{
-    priority: Number, (preference given to higher)
-    callback: Function,
-  }]
-*/
 const listeners = {}
 
-export default {
+const priorityBus = {
   $on(event, priority, callback) {
     if (!listeners[event]) {
       listeners[event] = []
@@ -48,3 +32,10 @@ export default {
     HIGHEST: 5,
   },
 }
+
+export default defineNuxtPlugin({
+  name: 'priorityBus',
+  setup(nuxtApp) {
+    nuxtApp.provide('priorityBus', priorityBus)
+  },
+})

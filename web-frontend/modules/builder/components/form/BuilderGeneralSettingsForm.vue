@@ -32,7 +32,7 @@
 
 <script>
 import { FAVICON_IMAGE_FILE_TYPES } from '@baserow/modules/core/enums'
-import DefaultFavicon from '@baserow/modules/core/static/img/favicon_192.png'
+import DefaultFavicon from '@baserow/modules/core/static/img/favicon_192.png?url'
 
 import form from '@baserow/modules/core/mixins/form'
 

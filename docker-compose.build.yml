@@ -1,0 +1,18 @@
+# Build overrides for production images
+# Usage: docker compose -f docker-compose.yml -f docker-compose.build.yml build --parallel
+#
+# This file only contains build directives - no runtime config.
+# Use with base docker-compose.yml to build production images locally.
+
+services:
+  backend:
+    build:
+      dockerfile: ./backend/Dockerfile
+      context: .
+      target: prod
+
+  web-frontend:
+    build:
+      dockerfile: ./web-frontend/Dockerfile
+      context: .
+      target: prod

@@ -2,6 +2,8 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import PageService from '@baserow/modules/builder/services/page'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export function populatePage(page) {
   return {
@@ -109,6 +111,8 @@ const actions = {
       commit('UNSELECT')
       // Redirect back to the dashboard because the page doesn't exist anymore.
       await this.$router.push({ name: 'dashboard' })
+      await pageFinished()
+      await nextTick()
     }
 
     commit('DELETE_ITEM', { builder, id: page.id })
@@ -117,7 +121,8 @@ const actions = {
     { commit, dispatch },
     { builder, name, path, pathParams, queryParams }
   ) {
-    const { data: page } = await PageService(this.$client).create(
+    const { $registry, $i18n, $client, $config } = this
+    const { data: page } = await PageService($client).create(
       builder.id,
       name,
       path,
@@ -132,7 +137,8 @@ const actions = {
     return page
   },
   async update({ dispatch }, { builder, page, values }) {
-    const { data } = await PageService(this.$client).update(page.id, values)
+    const { $registry, $i18n, $client, $config } = this
+    const { data } = await PageService($client).update(page.id, values)
 
     const update = Object.keys(values).reduce((result, key) => {
       result[key] = data[key]
@@ -142,7 +148,8 @@ const actions = {
     await dispatch('forceUpdate', { builder, page, values: update })
   },
   async delete({ dispatch }, { builder, page }) {
-    await PageService(this.$client).delete(page.id)
+    const { $registry, $i18n, $client, $config } = this
+    await PageService($client).delete(page.id)
 
     await dispatch('forceDelete', { builder, page })
   },
@@ -150,10 +157,11 @@ const actions = {
     { commit, getters },
     { builder, order, oldOrder, isHashed = false }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     commit('ORDER_PAGES', { builder, order, isHashed })
 
     try {
-      await PageService(this.$client).order(builder.id, order)
+      await PageService($client).order(builder.id, order)
     } catch (error) {
       commit('ORDER_PAGES', { builder, order: oldOrder, isHashed })
       throw error
@@ -163,7 +171,8 @@ const actions = {
     commit('SET_DEVICE_TYPE_SELECTED', deviceType)
   },
   async duplicate({ commit, dispatch }, { page }) {
-    const { data: job } = await PageService(this.$client).duplicate(page.id)
+    const { $registry, $i18n, $client, $config } = this
+    const { data: job } = await PageService($client).duplicate(page.id)
 
     await dispatch('job/create', job, { root: true })
 

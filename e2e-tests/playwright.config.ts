@@ -42,6 +42,9 @@ const config: PlaywrightTestConfig = {
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
     video: "on-first-retry",
+    nuxt: {
+      host: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
+    },
   },
   projects: [
     {

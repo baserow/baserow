@@ -1,7 +1,6 @@
+from baserow_enterprise.features import SSO
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.handler import LicenseHandler
-
-from baserow_enterprise.features import SSO
 
 
 def is_sso_feature_active():

@@ -1,5 +1,5 @@
 import { Locator, Page } from "@playwright/test";
-import { BaserowPage } from "../baserowPage";
+import { BaserowPage, PageConfig } from "../baserowPage";
 import { Builder } from "../../fixtures/builder/builder";
 import { BuilderPage } from "../../fixtures/builder/builderPage";
 import { Workspace } from "../../fixtures/workspace";
@@ -12,8 +12,12 @@ export class BuilderPagePage extends BaserowPage {
   builder: Builder;
   readonly workspace: Workspace;
 
-  constructor(page: Page, builder: Builder, builderPage: BuilderPage) {
-    super(page);
+  constructor(
+    pageConfig: PageConfig,
+    builder: Builder,
+    builderPage: BuilderPage
+  ) {
+    super(pageConfig);
     this.builder = builder;
     this.builderPage = builderPage;
   }
@@ -24,10 +28,10 @@ export class BuilderPagePage extends BaserowPage {
       .locator(".elements-context")
       .getByText("Element", { exact: true })
       .click();
-    return new BuilderElementModal(this.page);
+    return new BuilderElementModal({ page: this.page, goto: this._goto });
   }
 
-  async selectHeadingByName(name) {
+  async selectHeadingByName(name: string) {
     const heading = await this.page
       .locator(".ab-heading")
       .getByText(name, { exact: true });
@@ -42,7 +46,7 @@ export class BuilderPagePage extends BaserowPage {
     ).toBeVisible();
   }
 
-  async selectButtonByName(name) {
+  async selectButtonByName(name: string) {
     const button = await this.page
       .locator(".ab-button")
       .getByText(name, { exact: true });

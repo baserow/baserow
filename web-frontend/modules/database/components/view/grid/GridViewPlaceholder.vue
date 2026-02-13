@@ -78,18 +78,16 @@ export default {
       }
       return width
     },
-  },
-  beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        placeholderHeight:
-          this.$options.propsData.storePrefix +
-          'view/grid/getPlaceholderHeight',
-        activeGroupBys:
-          this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
-      }),
-    }
+    placeholderHeight() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getPlaceholderHeight'
+      ]
+    },
+    activeGroupBys() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getActiveGroupBys'
+      ]
+    },
   },
 }
 </script>

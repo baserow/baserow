@@ -10,11 +10,6 @@ from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 import responses
-from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
-from baserow_premium.license.exceptions import CantManuallyChangeSeatsError
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.license.registries import SeatUsageSummary
 from freezegun import freeze_time
 from PIL import Image
 from responses.matchers import json_params_matcher
@@ -35,6 +30,11 @@ from baserow_enterprise.role.seat_usage_calculator import (
     RoleBasedSeatUsageSummaryCalculator,
 )
 from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
+from baserow_premium.license.exceptions import CantManuallyChangeSeatsError
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.license.registries import SeatUsageSummary
 
 PAID_EDITOR_ROLE = "EDITOR"
 
@@ -1894,7 +1894,7 @@ def test_order_of_roles_is_as_expected(
             user, workspace, role=Role.objects.get(uid=uid), scope=table
         )
 
-        expected_report = {uid: 0 for uid in expected_role_order}
+        expected_report = dict.fromkeys(expected_role_order, 0)
         expected_report[uid] = 1
         assert (
             EnterpriseLicenseType()

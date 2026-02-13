@@ -7,6 +7,7 @@ import filterTypeInput from '@baserow/modules/database/mixins/filterTypeInput'
 
 export default {
   mixins: [filterTypeInput],
+  setup: filterTypeInput.setup,
   data() {
     return {
       copy: '',

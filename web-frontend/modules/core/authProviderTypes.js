@@ -1,5 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg'
+import PasswordAuthIcon from '@baserow/modules/core/assets/images/providers/Key.svg?url'
 
 /**
  * Base class for authorization provider types
@@ -148,7 +148,7 @@ export class PasswordAuthProviderType extends AuthProviderType {
   }
 
   getName() {
-    return this.app.i18n.t('authProviderTypes.password')
+    return this.app.$i18n.t('authProviderTypes.password')
   }
 
   getProviderName(provider) {

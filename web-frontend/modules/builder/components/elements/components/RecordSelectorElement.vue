@@ -84,7 +84,7 @@ export default {
      * @type {Object}
      * @property {boolean} required - If the element is required for form submission
      * @property {string} data_source_id - The data source for the record selector element
-     * @propeRty {number} items_per_page - Number of items to show per page
+     * @property {number} items_per_page - Number of items to show per page
      * @property {string} label - The label displayed above the record selector element
      * @property {string} default_value - The formula to generate the displayed name
      * @property {string} placeholder - The placeholder text which should be applied to the element

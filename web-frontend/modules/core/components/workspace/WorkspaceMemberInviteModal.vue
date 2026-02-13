@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">
       {{ $t('membersSettings.membersInviteModal.title') }}
     </h2>
@@ -47,6 +47,7 @@ export default {
       required: true,
     },
   },
+  emits: ['invite-submitted'],
   data() {
     return {
       inviteLoading: false,
@@ -60,7 +61,7 @@ export default {
       try {
         // The public accept url is the page where the user can publicly navigate too,
         // to accept the workspace invitation.
-        const acceptUrl = `${this.$config.BASEROW_EMBEDDED_SHARE_URL}/workspace-invitation`
+        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
         const { data } = await WorkspaceService(this.$client).sendInvitation(
           this.workspace.id,
           acceptUrl,

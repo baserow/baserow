@@ -1,11 +1,9 @@
 import random
 
 from django.conf import settings
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 
 from asgiref.local import Local
-
-DEFAULT_DB_ALIAS = "default"
 
 _db_state = Local()
 

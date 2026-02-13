@@ -60,6 +60,7 @@ export default {
       default: false,
     },
   },
+  emits: ['move'],
   computed: {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
     CHILD_WIDTH_TYPES: () => CHILD_WIDTH_TYPES,

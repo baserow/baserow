@@ -145,9 +145,10 @@ export default {
       default: '',
     },
   },
+  emits: ['updateFilter', 'deleteFilter'],
   computed: {
     hasAfterValueInputContent() {
-      return !!this.$scopedSlots.afterValueInput
+      return !!this.$slots.afterValueInput
     },
     /**
      * If a filter points to a `field` which is not present in `this.fields`,

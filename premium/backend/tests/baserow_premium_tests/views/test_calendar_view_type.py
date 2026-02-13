@@ -9,14 +9,6 @@ from django.core.files.storage import FileSystemStorage
 from django.urls import reverse
 
 import pytest
-from baserow_premium.ical_utils import build_calendar
-from baserow_premium.views.exceptions import CalendarViewHasNoDateField
-from baserow_premium.views.handler import (
-    generate_per_day_intervals,
-    get_rows_grouped_by_date_field,
-    to_midnight,
-)
-from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 from icalendar import Calendar
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
@@ -36,6 +28,14 @@ from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
+from baserow_premium.ical_utils import build_calendar
+from baserow_premium.views.exceptions import CalendarViewHasNoDateField
+from baserow_premium.views.handler import (
+    generate_per_day_intervals,
+    get_rows_grouped_by_date_field,
+    to_midnight,
+)
+from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 
 
 @pytest.mark.django_db
@@ -1238,7 +1238,7 @@ def test_calendar_ical_utils_queries(
         uid_url = urlparse(evt.get("uid"))
         assert uid_url.netloc
         assert uid_url.path == (
-            f"/database/{table.database_id}/table/{table.id}/{calendar_view.id}/row/{idx+1}"
+            f"/database/{table.database_id}/table/{table.id}/{calendar_view.id}/row/{idx + 1}"
         )
         assert evt.get("summary")
 

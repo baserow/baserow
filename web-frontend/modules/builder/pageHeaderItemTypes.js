@@ -1,8 +1,14 @@
+import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import ElementsContext from '@baserow/modules/builder/components/page/header/ElementsContext'
-import DataSourceContext from '@baserow/modules/builder/components/page/header/DataSourceContext'
-import VariablesContext from '@baserow/modules/builder/components/page/header/VariablesContext'
-import PageSettingsModal from '@baserow/modules/builder/components/page/settings/PageSettingsModal'
+import ElementsContextComponent from '@baserow/modules/builder/components/page/header/ElementsContext'
+import DataSourceContextComponent from '@baserow/modules/builder/components/page/header/DataSourceContext'
+import VariablesContextComponent from '@baserow/modules/builder/components/page/header/VariablesContext'
+import PageSettingsModalComponent from '@baserow/modules/builder/components/page/settings/PageSettingsModal'
+
+const ElementsContext = markRaw(ElementsContextComponent)
+const DataSourceContext = markRaw(DataSourceContextComponent)
+const VariablesContext = markRaw(VariablesContextComponent)
+const PageSettingsModal = markRaw(PageSettingsModalComponent)
 
 export class PageHeaderItemType extends Registerable {
   get label() {
@@ -50,7 +56,7 @@ export class ElementsPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app.i18n.t('pageHeaderItemTypes.labelElements')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelElements')
   }
 
   get icon() {
@@ -72,7 +78,7 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app.i18n.t('pageHeaderItemTypes.labelDataSource')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelDataSource')
   }
 
   get icon() {
@@ -89,8 +95,8 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
    * @returns {boolean} - If the data sources header is in error.
    */
   isInError({ builder, page }) {
-    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
-    const dataSources = this.app.store.getters[
+    const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
+    const dataSources = this.app.$store.getters[
       'dataSource/getPagesDataSources'
     ](pages).filter((dataSource) => dataSource.type)
     return dataSources.some((dataSource) => {
@@ -110,7 +116,7 @@ export class VariablesPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app.i18n.t('pageHeaderItemTypes.labelVariables')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelVariables')
   }
 
   get icon() {
@@ -132,7 +138,7 @@ export class SettingsPageHeaderItemType extends PageHeaderItemType {
   }
 
   get label() {
-    return this.app.i18n.t('pageHeaderItemTypes.labelSettings')
+    return this.app.$i18n.t('pageHeaderItemTypes.labelSettings')
   }
 
   get icon() {

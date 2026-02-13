@@ -20,6 +20,8 @@ import FieldService from '@baserow_premium/services/field'
 import PremiumFeatures from '@baserow_premium/features'
 
 export default {
+  emits: ['click'],
+
   props: {
     field: {
       type: Object,

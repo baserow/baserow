@@ -84,6 +84,7 @@ export default {
       default: null,
     },
   },
+  emits: ['close'],
   computed: {
     hasDefaultSlot() {
       return !!this.$slots.default

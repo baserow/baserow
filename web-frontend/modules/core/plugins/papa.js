@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 
-export default function (context, inject) {
+export default defineNuxtPlugin((nuxtApp) => {
   Papa.parsePromise = function (file, config = {}) {
     return new Promise((resolve, reject) => {
       Papa.parse(file, { complete: resolve, error: reject, ...config })
@@ -12,5 +12,6 @@ export default function (context, inject) {
   Papa.stringToArray = (str) => {
     return Papa.parse(str).data[0]
   }
-  inject('papa', Papa)
-}
+
+  return { provide: { papa: Papa } }
+})

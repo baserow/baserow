@@ -34,8 +34,7 @@ Follow this option if you are using:
 
 * The all-in-one Baserow image `baserow/baserow:2.0.6`
 * Any of the example compose files found in the root of our git
-  repository `docker-compose.yml`/`docker-compose.local-build.yml`
-  /`docker-compose.all-in-one.yml`
+  repository `docker-compose.yml`/`docker-compose.all-in-one.yml`
 
 ### Prerequisites
 

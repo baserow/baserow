@@ -709,6 +709,30 @@
   },
   "viewOwnershipType": {
     "restricted": "Restricted",
-    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It’s possible to manage the members."
+    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It's possible to manage the members."
+  },
+  "databaseStep": {
+    "ai": "Kuma AI"
+  },
+  "aiDatabaseOnboardingForm": {
+    "label": "Describe your database",
+    "placeholder": "e.g. Create project management solution",
+    "description": "Describe what you want to track. Kuma will create the tables and fields.",
+    "exampleProjectTrackerName": "Project Tracker",
+    "exampleProjectTrackerPrompt": "Create a project tracker with Projects, Tasks, Assignees, Status, Priority, Due dates, and dependencies.",
+    "exampleProductRoadmapName": "Product Roadmap",
+    "exampleProductRoadmapPrompt": "Create a product roadmap with Initiatives, Features, Owners, Status, Priority, Target quarter, and release notes.",
+    "exampleCompanyAssetTrackerName": "Company Asset Tracker",
+    "exampleCompanyAssetTrackerPrompt": "Create an asset tracker with Assets, Categories, Serial numbers, Purchase date, Assigned to, Location, and warranty expiry.",
+    "exampleTeamCheckInsName": "Team Check-ins",
+    "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups.",
+    "exampleBugTrackerName": "Bug Tracker",
+    "exampleBugTrackerPrompt": "Create a bug tracker with Bugs, Severity, Status, Steps to reproduce, Environment, Reporter, Assignee, and fix version."
+  },
+  "aiDatabaseOnboardingStepType": {
+    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}"
+  },
+  "assistantOnboardingMessage": {
+    "instructing": "Instructing Kuma to create your database."
   }
 }

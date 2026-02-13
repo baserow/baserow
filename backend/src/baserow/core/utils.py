@@ -455,7 +455,7 @@ def truncate_middle(content, max_length, middle="..."):
 
     if max_length <= len(middle):
         raise ValueError(
-            "The max_length cannot be lower than the length if the " "middle string."
+            "The max_length cannot be lower than the length if the middle string."
         )
 
     total = max_length - len(middle)
@@ -545,7 +545,7 @@ def remove_invalid_surrogate_characters(
 ) -> str:
     """
     Removes illegal unicode characters from the provided content. If you for example
-    run something like `b"\uD83D".encode("utf-8")`, it will result in a
+    run something like `b"\\ud83d".encode("utf-8")`, it will result in a
     UnicodeEncodeError. This function removed the illegal characters, it keeps the
     valid emoji's.
 

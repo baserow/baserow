@@ -69,6 +69,7 @@ export default {
       required: true,
     },
   },
+  emits: ['move'],
   computed: {
     submitButtonLabelResolved() {
       return (

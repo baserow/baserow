@@ -1,7 +1,7 @@
 <template>
   <div class="oidc-auth-link__wrapper">
-    <template v-for="authProvider in authProviders">
-      <ABButton :key="authProvider.id" @click.prevent="login(authProvider)">
+    <template v-for="authProvider in authProviders" :key="authProvider.id">
+      <ABButton @click.prevent="login(authProvider)">
         {{ getLabel(authProvider) }}
       </ABButton>
     </template>
@@ -71,7 +71,7 @@ export default {
       this.loading = true
 
       const dest = `${
-        this.$config.PUBLIC_BACKEND_URL
+        this.$config.public.publicBackendUrl
       }/api/user-source/${encodeURIComponent(
         this.userSource.uid
       )}/sso/oauth2/openid_connect/login/`

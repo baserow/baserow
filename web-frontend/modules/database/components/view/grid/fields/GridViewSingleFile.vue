@@ -1,5 +1,5 @@
 <template>
-  <div class="grid-view__cell grid-field-file__cell active">
+  <div ref="cell" class="grid-view__cell grid-field-file__cell active">
     <div v-if="value" class="grid-field-file__item">
       <a class="grid-field-file__link" @click.prevent="onClick">
         <img

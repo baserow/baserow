@@ -101,14 +101,16 @@ const updateCachedValues = (page) => {
 
 const mutations = {
   SET_ITEMS(state, { builder, page, elements }) {
+    const { $registry } = this
     builder.selectedElement = null
     page.elements = elements.map((element) =>
-      populateElement(element, this.$registry)
+      populateElement(element, $registry)
     )
     updateCachedValues(page)
   },
   ADD_ITEM(state, { page, element, beforeId = null }) {
-    page.elements.push(populateElement(element, this.$registry))
+    const { $registry } = this
+    page.elements.push(populateElement(element, $registry))
     updateCachedValues(page)
   },
   UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
@@ -164,18 +166,21 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
+    const { $registry, $i18n, $client, $config } = this
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })
 
-    const elementType = this.$registry.get('element', element.type)
+    const elementType = $registry.get('element', element.type)
     elementType.afterCreate(element, page)
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
+    const { $registry, $i18n, $client, $config } = this
     commit('UPDATE_ITEM', { builder, page, element, values })
-    const elementType = this.$registry.get('element', element.type)
+    const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
   forceDelete({ commit, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = this
     const elementToDelete = getters.getElementById(page, elementId)
 
     if (getters.getSelected(builder)?.id === elementId) {
@@ -183,7 +188,7 @@ const actions = {
     }
     commit('DELETE_ITEM', { page, elementId })
 
-    const elementType = this.$registry.get('element', elementToDelete.type)
+    const elementType = $registry.get('element', elementToDelete.type)
     elementType.afterDelete(elementToDelete, page)
   },
   forceMove(
@@ -247,9 +252,10 @@ const actions = {
       forceCreate = true,
     }
   ) {
-    const elementType = this.$registry.get('element', elementTypeName)
+    const { $registry, $i18n, $client, $config } = this
+    const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
-    const { data: element } = await ElementService(this.$client).create(
+    const { data: element } = await ElementService($client).create(
       page.id,
       elementTypeName,
       beforeId,
@@ -265,6 +271,7 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
+    const { $registry, $i18n, $client, $config } = this
     // Strip positional fields — position changes must go through the move
     // action which handles order recalculation and container validation.
     const safeValues = stripPositionalFields(values)
@@ -285,7 +292,7 @@ const actions = {
     await dispatch('forceUpdate', { builder, page, element, values: newValues })
 
     try {
-      await ElementService(this.$client).update(element.id, safeValues)
+      await ElementService($client).update(element.id, safeValues)
     } catch (error) {
       await dispatch('forceUpdate', {
         builder,
@@ -301,6 +308,7 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     // Strip positional fields — position changes must go through the move
     // action which handles order recalculation and container validation.
     const safeValues = stripPositionalFields(values)
@@ -327,7 +335,7 @@ const actions = {
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
-          await ElementService(this.$client).update(element.id, toUpdate)
+          await ElementService($client).update(element.id, toUpdate)
           updateContext.lastUpdatedValues = null
           resolve()
         } catch (error) {
@@ -361,6 +369,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = this
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
@@ -374,7 +383,7 @@ const actions = {
     await dispatch('forceDelete', { builder, page, elementId })
 
     try {
-      await ElementService(this.$client).delete(elementId)
+      await ElementService($client).delete(elementId)
     } catch (error) {
       await dispatch('forceCreate', {
         page,
@@ -390,9 +399,8 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { builder, page }) {
-    const { data: elements } = await ElementService(this.$client).fetchAll(
-      page.id
-    )
+    const { $registry, $i18n, $client, $config } = this
+    const { data: elements } = await ElementService($client).fetchAll(page.id)
 
     commit('SET_ITEMS', { builder, page, elements })
 
@@ -406,9 +414,9 @@ const actions = {
     return elements
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
-    const { data: elements } = await PublicBuilderService(
-      this.$client
-    ).fetchElements(page)
+    const { $registry, $i18n, $client, $config } = this
+    const { data: elements } =
+      await PublicBuilderService($client).fetchElements(page)
 
     commit('SET_ITEMS', { builder, page, elements })
 
@@ -432,6 +440,7 @@ const actions = {
       placeInContainer = null,
     }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     const element = getters.getElementById(page, elementId)
     const { order: previousOrder, place_in_container: previousPlace } = element
 
@@ -446,9 +455,12 @@ const actions = {
 
     const fire = async () => {
       try {
-        const { data: elementUpdated } = await ElementService(
-          this.$client
-        ).move(elementId, beforeElementId, parentElementId, placeInContainer)
+        const { data: elementUpdated } = await ElementService($client).move(
+          elementId,
+          beforeElementId,
+          parentElementId,
+          placeInContainer
+        )
 
         dispatch('forceUpdate', {
           builder,
@@ -476,9 +488,10 @@ const actions = {
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { elements, workflow_actions: workflowActions },
-    } = await ElementService(this.$client).duplicate(elementId)
+    } = await ElementService($client).duplicate(elementId)
 
     const elementPromises = elements.map((element) =>
       dispatch('forceCreate', { page, element })
@@ -504,13 +517,15 @@ const actions = {
     return elements
   },
   emitElementEvent({ getters }, { event, elements, ...rest }) {
+    const { $registry, $i18n, $client, $config } = this
     elements.forEach((element) => {
-      const elementType = this.$registry.get('element', element.type)
+      const elementType = $registry.get('element', element.type)
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
-    const elementType = this.$registry.get('element', element.type)
+    const { $registry, $i18n, $client, $config } = this
+    const elementType = $registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
       element,
       page

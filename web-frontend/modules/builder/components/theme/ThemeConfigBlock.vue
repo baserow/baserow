@@ -42,6 +42,7 @@ export default {
       default: true,
     },
   },
+  emits: ['values-changed'],
   methods: {
     reset() {
       this.$refs.themeConfigBlockForm.reset()

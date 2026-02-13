@@ -59,7 +59,7 @@ class RowCommentsNotificationModes(str, Enum):
 
 
 ALL_ROW_COMMENT_NOTIFICATION_MODES = [
-    getattr(mode, "value") for mode in RowCommentsNotificationModes
+    mode.value for mode in RowCommentsNotificationModes
 ]
 
 

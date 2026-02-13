@@ -314,8 +314,9 @@ def test_workspace_audit_log_can_export_to_csv_filtered_entries(
     )
     assert response.status_code == HTTP_404_NOT_FOUND
 
-    with freeze_time("2023-01-02 12:00"), django_capture_on_commit_callbacks(
-        execute=True
+    with (
+        freeze_time("2023-01-02 12:00"),
+        django_capture_on_commit_callbacks(execute=True),
     ):
         admin_token = enterprise_data_fixture.generate_token(admin_user)
         response = api_client.post(

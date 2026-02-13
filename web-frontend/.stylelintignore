@@ -2,3 +2,6 @@
 node_modules/*
 **/node_modules/*
 coverage/**
+# generated files
+modules/core/assets/scss/vendor/iconoir.scss
+modules/core/assets/scss/colors.module.scss

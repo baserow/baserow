@@ -1,14 +1,4 @@
-"""
-Tests for the Assistant class focusing on behaviors rather than implementation details.
-
-These tests verify that the Assistant:
-- Correctly loads and formats chat history for context
-- Persists messages to the database during streaming
-- Handles sources from tool outputs correctly
-- Generates and persists chat titles appropriately
-- Adapts its signature based on chat state
-"""
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
 
@@ -340,9 +330,9 @@ class TestAssistantChatHistory:
 
         assistant = Assistant(chat)
 
-        # Mock the router stream to delegate to agent with extracted context
-        def mock_router_stream_factory(*args, **kwargs):
-            # Verify conversation history is passed to router
+        # Mock the agent stream to verify conversation history is passed
+        def mock_agent_stream_factory(*args, **kwargs):
+            # Verify conversation history is passed to the agent
             assert kwargs["conversation_history"] == [
                 "[0] (user): What is Baserow?",
                 "[1] (assistant): Baserow is a no-code database",
@@ -351,31 +341,19 @@ class TestAssistantChatHistory:
             ]
 
             async def _stream():
-                yield Prediction(
-                    routing_decision="delegate_to_agent",
-                    extracted_context="User wants to add a view to their table",
-                    search_query="",
-                )
-
-            return _stream()
-
-        # Patch the instance method
-        assistant._request_router.astream = Mock(side_effect=mock_router_stream_factory)
-
-        # Mock the agent stream
-        def mock_agent_stream_factory(*args, **kwargs):
-            # Verify extracted context is passed to agent
-            assert kwargs["context"] == "User wants to add a view to their table"
-
-            async def _stream():
                 yield OutputStreamChunk(
-                    module=None,
+                    module=assistant._assistant.extract_module,
                     field_name="answer",
                     delta="Answer",
                     content="Answer",
                     is_complete=False,
                 )
-                yield Prediction(answer="Answer", trajectory=[], reasoning="")
+                yield Prediction(
+                    module=assistant._assistant,
+                    answer="Answer",
+                    trajectory=[],
+                    reasoning="",
+                )
 
             return _stream()
 
@@ -535,7 +513,9 @@ class TestAssistantMessagePersistence:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator
@@ -671,7 +651,9 @@ class TestAssistantStreaming:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator
@@ -780,10 +762,9 @@ class TestAssistantStreaming:
 
         thinking_messages = async_to_sync(consume_stream)()
 
-        # Should receive thinking messages
-        assert len(thinking_messages) == 2
-        assert thinking_messages[0].content == "Thinking..."
-        assert thinking_messages[1].content == "still thinking..."
+        # Should receive the thinking message emitted by the agent stream
+        assert len(thinking_messages) == 1
+        assert thinking_messages[0].content == "still thinking..."
 
 
 @pytest.mark.django_db

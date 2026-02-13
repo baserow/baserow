@@ -57,7 +57,7 @@ export class GeneralPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.general')
+    return this.app.$i18n.t('pageSidePanelType.general')
   }
 
   get component() {
@@ -75,7 +75,7 @@ export class StylePageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.style')
+    return this.app.$i18n.t('pageSidePanelType.style')
   }
 
   get component() {
@@ -93,7 +93,7 @@ export class VisibilityPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.visibility')
+    return this.app.$i18n.t('pageSidePanelType.visibility')
   }
 
   get component() {
@@ -111,7 +111,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
   }
 
   get label() {
-    return this.app.i18n.t('pageSidePanelType.events')
+    return this.app.$i18n.t('pageSidePanelType.events')
   }
 
   get component() {
@@ -124,7 +124,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
    * @returns {string}
    */
   getDeactivatedText() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('pageSidePanelType.eventsTabDeactivatedNoEvents')
   }
 
@@ -148,12 +148,12 @@ export class EventsPageSidePanelType extends pageSidePanelType {
     // If we don't have an element, then this element type
     // doesn't support events, so it can't be in-error.
     if (element) {
-      const elementPage = this.app.store.getters['page/getById'](
+      const elementPage = this.app.$store.getters['page/getById'](
         builder,
         element.page_id
       )
 
-      const workflowActions = this.app.store.getters[
+      const workflowActions = this.app.$store.getters[
         'builderWorkflowAction/getElementWorkflowActions'
       ](elementPage, element.id)
 
@@ -166,7 +166,7 @@ export class EventsPageSidePanelType extends pageSidePanelType {
       })
 
       if (hasActionInError) {
-        return this.app.i18n.t('pageSidePanelType.eventsTabInError')
+        return this.app.$i18n.t('pageSidePanelType.eventsTabInError')
       }
     }
 

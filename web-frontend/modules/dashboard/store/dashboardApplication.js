@@ -1,7 +1,7 @@
+import { useNuxtApp } from '#app'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import IntegrationService from '@baserow/modules/core/services/integration'
-import Vue from 'vue'
 import debounce from 'lodash/debounce'
 
 export const state = () => ({
@@ -65,8 +65,9 @@ export const mutations = {
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
+    // In Vue 3, direct assignment works thanks to Proxy-based reactivity
     if (Array.isArray(values.series_config)) {
-      Vue.set(widget, 'series_config', [...values.series_config])
+      widget.series_config = [...values.series_config]
     }
     Object.assign(widget, values)
   },
@@ -99,6 +100,7 @@ export const actions = {
   },
   updateWidget({ commit }, { widgetId, values, originalValues }) {
     return new Promise((resolve, reject) => {
+      const { $client } = this
       commit('UPDATE_WIDGET', { widgetId, values })
 
       let previousOriginalValues = originalValues
@@ -109,7 +111,7 @@ export const actions = {
 
       debouncedWidgetUpdate = debounce(async () => {
         try {
-          await WidgetService(this.$client).update(widgetId, values)
+          await WidgetService($client).update(widgetId, values)
           debouncedWidgetUpdate = null
           resolve()
         } catch (error) {
@@ -128,13 +130,14 @@ export const actions = {
     { commit, dispatch },
     { dataSourceId, values, widget }
   ) {
+    const { $client, $registry } = this
     commit('UPDATE_DATA', { dataSourceId, values: null })
-    const { data } = await DataSourceService(this.$client).update(
+    const { data } = await DataSourceService($client).update(
       dataSourceId,
       values
     )
     if (widget) {
-      const widgetType = this.$registry.get('dashboardWidget', widget.type)
+      const widgetType = $registry.get('dashboardWidget', widget.type)
       await widgetType.dataSourceUpdated(widget, data)
     }
     await dispatch('handleDataSourceUpdated', data)
@@ -154,11 +157,10 @@ export const actions = {
     }
   },
   async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
+    const { $client } = this
     commit('RESET')
     commit('SET_DASHBOARD_ID', dashboardId)
-    const { data } = await WidgetService(this.$client).getAllWidgets(
-      dashboardId
-    )
+    const { data } = await WidgetService($client).getAllWidgets(dashboardId)
     data.forEach((widget) => {
       commit('ADD_WIDGET', widget)
     })
@@ -166,18 +168,17 @@ export const actions = {
     await dispatch('fetchNewDataSources', dashboardId)
 
     if (forEditing) {
-      const { data: integrationsData } = await IntegrationService(
-        this.$client
-      ).fetchAll(dashboardId)
+      const { data: integrationsData } =
+        await IntegrationService($client).fetchAll(dashboardId)
       integrationsData.forEach((integration) => {
         commit('ADD_INTEGRATION', integration)
       })
     }
   },
   async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
-    const { data: dataSourcesData } = await DataSourceService(
-      this.$client
-    ).getAllDataSources(dashboardId)
+    const { $client } = this
+    const { data: dataSourcesData } =
+      await DataSourceService($client).getAllDataSources(dashboardId)
     dataSourcesData.forEach(async (dataSource) => {
       if (!getters.getDataSourceById(dataSource.id)) {
         commit('ADD_DATA_SOURCE', dataSource)
@@ -186,14 +187,12 @@ export const actions = {
     })
   },
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
+    const { $client } = this
     const tempId = Date.now()
     commit('ADD_WIDGET', { id: tempId, ...widget })
     let widgetData
     try {
-      const { data } = await WidgetService(this.$client).create(
-        dashboard.id,
-        widget
-      )
+      const { data } = await WidgetService($client).create(dashboard.id, widget)
       widgetData = data
     } catch (error) {
       commit('DELETE_WIDGET', tempId)
@@ -213,18 +212,18 @@ export const actions = {
     await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
   },
   async dispatchDataSource({ commit }, dataSourceId) {
+    const { $client } = this
     commit('UPDATE_DATA', { dataSourceId, values: null })
     try {
-      const { data } = await DataSourceService(this.$client).dispatch(
-        dataSourceId
-      )
+      const { data } = await DataSourceService($client).dispatch(dataSourceId)
       commit('UPDATE_DATA', { dataSourceId, values: data })
     } catch (error) {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
     }
   },
   async deleteWidget({ dispatch }, widgetId) {
-    await WidgetService(this.$client).delete(widgetId)
+    const { $client } = this
+    await WidgetService($client).delete(widgetId)
     dispatch('handleWidgetDeleted', widgetId)
   },
   handleWidgetDeleted({ commit }, widgetId) {

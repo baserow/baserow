@@ -37,7 +37,12 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed, ref } from 'vue'
+import { useAsyncData } from '#app'
+import { useHead } from '#imports'
+import { useRoute, useRouter } from 'vue-router'
+
 import { clone, isPromise } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -50,27 +55,44 @@ import {
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 
-export default {
-  components: {
-    Toasts,
-    FormViewPoweredBy,
-  },
+definePageMeta({
   middleware: ['settings'],
-  async asyncData({ params, error, app, route, redirect, store }) {
-    const slug = params.slug
-    const publicAuthToken = await store.dispatch(
+})
+
+const route = useRoute()
+const router = useRouter()
+const nuxtApp = useNuxtApp()
+const { $store, $client, $registry } = nuxtApp
+
+const loading = ref(false)
+const submitted = ref(false)
+const submitAction = ref('MESSAGE')
+const submitActionMessage = ref('')
+const submitActionRedirectUrl = ref('')
+
+const form = ref(null)
+
+// Replaces asyncData from Nuxt2
+const { data, error } = await useAsyncData(
+  `database-public-form-${route.params.slug}`,
+  async () => {
+    const slug = route.params.slug
+
+    const publicAuthToken = await $store.dispatch(
       'page/view/public/setAuthTokenFromCookiesIfNotSet',
       { slug }
     )
 
-    let data = null
+    let responseData = null
     try {
-      const { data: responseData } = await FormService(
-        app.$client
-      ).getMetaInformation(slug, publicAuthToken)
-      data = responseData
+      const { data } = await FormService($client).getMetaInformation(
+        slug,
+        publicAuthToken
+      )
+      responseData = data
     } catch (e) {
       const statusCode = e.response?.status
+
       // password protect forms require authentication
       if (statusCode === 401) {
         // Combine the path and query parameters to get the full URL
@@ -80,27 +102,30 @@ export default {
           ? '?' + new URLSearchParams(queryParams).toString()
           : ''
         const original = path + queryString
-        return redirect({
-          name: 'database-public-view-auth',
-          query: { original },
-        })
+
+        return {
+          redirect: router.resolve({
+            name: 'database-public-view-auth',
+            query: { original },
+          }),
+        }
       } else {
-        return error({ statusCode: 404, message: 'Form not found.' })
+        throw createError({ statusCode: 404, message: 'Form not found.' })
       }
     }
 
-    // After the form field metadata has been fetched, we need to make the values
-    // object with the empty field value as initial form value.
+    // Build initial values object
     const values = {}
     const prefills = getPrefills(route.query)
     const hiddenFields = getHiddenFieldNames(route.query)
     const promises = []
-    data.fields.forEach((field) => {
+
+    responseData.fields.forEach((field) => {
       field._ = {
         touched: false,
         hiddenViaQueryParam: hiddenFields.includes(field.name),
       }
-      const fieldType = app.$registry.get('field', field.field.type)
+      const fieldType = $registry.get('field', field.field.type)
       const setValue = (value) => {
         values[`field_${field.field.id}`] = value
       }
@@ -108,6 +133,7 @@ export default {
       const prefill = prefillField(field, prefills)
 
       values[`field_${field.field.id}`] = fieldType.getDefaultValue(field.field)
+
       if (
         prefill !== undefined &&
         prefill !== null &&
@@ -115,7 +141,7 @@ export default {
       ) {
         const result = fieldType.parseQueryParameter(field, prefill, {
           slug,
-          client: app.$client,
+          client: $client,
           publicAuthToken,
         })
 
@@ -130,212 +156,200 @@ export default {
 
     await Promise.all(promises)
 
-    // Order the fields directly after fetching the results to make sure the form is
-    // serverside rendered in the right order.
-    data.fields = data.fields.sort((a, b) => {
-      // First by order.
-      if (a.order > b.order) {
-        return 1
-      } else if (a.order < b.order) {
-        return -1
-      }
+    // Sort fields immediately (SSR order)
+    responseData.fields = responseData.fields.sort((a, b) => {
+      if (a.order > b.order) return 1
+      if (a.order < b.order) return -1
 
-      // Then by id.
-      if (a.field.id < b.field.id) {
-        return -1
-      } else if (a.field.id > b.field.id) {
-        return 1
-      } else {
-        return 0
-      }
+      if (a.field.id < b.field.id) return -1
+      if (a.field.id > b.field.id) return 1
+      return 0
     })
 
     return {
-      title: data.title,
-      description: data.description,
-      coverImage: data.cover_image,
-      logoImage: data.logo_image,
-      submitText: data.submit_text,
-      fields: data.fields,
-      mode: data.mode,
-      showLogo: data.show_logo,
+      title: responseData.title,
+      description: responseData.description,
+      coverImage: responseData.cover_image,
+      logoImage: responseData.logo_image,
+      submitText: responseData.submit_text,
+      fields: responseData.fields,
+      mode: responseData.mode,
+      showLogo: responseData.show_logo,
       values,
       publicAuthToken,
     }
   },
-  data() {
-    return {
-      loading: false,
-      submitted: false,
-      submitAction: 'MESSAGE',
-      submitActionMessage: '',
-      submitActionRedirectUrl: '',
+  // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
+  { watch: [() => route.fullPath] }
+)
+
+if (error.value) {
+  throw error.value
+}
+
+if (data.value?.redirect) {
+  await navigateTo(data.value.redirect.href)
+}
+
+// Expose data like the old asyncData return did
+const title = computed(() => data.value.title)
+const description = computed(() => data.value.description)
+const coverImage = computed(() => data.value.coverImage)
+const logoImage = computed(() => data.value.logoImage)
+const submitText = computed(() => data.value.submitText)
+const fields = computed(() => data.value.fields || [])
+const mode = computed(() => data.value.mode)
+const showLogo = computed(() => data.value.showLogo)
+const publicAuthToken = computed(() => data.value.publicAuthToken)
+const values = ref(data.value.values)
+
+useHead(() => {
+  const head = {
+    title: title.value || 'Form',
+    bodyAttrs: {
+      class: ['background-white'],
+    },
+  }
+  if (!showLogo.value) {
+    head.titleTemplate = '%s'
+  }
+  return head
+})
+
+const isRedirect = computed(() => {
+  return (
+    submitAction.value === 'REDIRECT' && submitActionRedirectUrl.value !== ''
+  )
+})
+
+const visibleFields = computed(() => {
+  return fields.value.reduce((visible, field, index) => {
+    // If the conditional visibility is disabled, we must always show the field.
+    if (!field.show_when_matching_conditions) {
+      return [...visible, field]
     }
-  },
-  head() {
-    const head = {
-      title: this.title || 'Form',
-      bodyAttrs: {
-        class: ['background-white'],
-      },
-    }
-    if (!this.showLogo) {
-      head.titleTemplate = '%s'
-    }
-    return head
-  },
-  computed: {
-    isRedirect() {
+
+    // A condition is only valid if the filter field is before this field.
+    const fieldsBefore = fields.value.slice(0, index).map((f) => f.field)
+
+    // Find valid filters
+    const conditions = field.conditions.filter((condition) => {
+      const filterType = $registry.get('viewFilter', condition.type)
+      const filterField = fieldsBefore.find((f) => f.id === condition.field)
       return (
-        this.submitAction === 'REDIRECT' && this.submitActionRedirectUrl !== ''
+        filterField !== undefined && filterType.fieldIsCompatible(filterField)
       )
-    },
-    /**
-     * Returns all the fields that should be visible to the visitor. They can change
-     * depending on the values because some fields have conditions whether they
-     * should be visible.
-     */
-    visibleFields() {
-      return this.fields.reduce((visibleFields, field, index, tmp) => {
-        // If the conditional visibility is disabled, we must always show the field.
-        if (!field.show_when_matching_conditions) {
-          return [...visibleFields, field]
-        }
+    })
 
-        // A condition is only valid if the filter field is before this field because
-        // you can only filter fields before. Therefore, we check which fields are
-        // before.
-        const fieldsBefore = this.fields.slice(0, index).map((f) => f.field)
-        // Find the valid filters by checking if the filter field is before this field
-        // and if the filter type is compatible with the field.
-        const conditions = field.conditions.filter((condition) => {
-          const filterType = this.$registry.get('viewFilter', condition.type)
-          const filterField = fieldsBefore.find((f) => f.id === condition.field)
-          return (
-            filterField !== undefined &&
-            filterType.fieldIsCompatible(filterField)
-          )
-        })
-        const conditionType = field.condition_type
+    const conditionType = field.condition_type
 
-        // If there aren't any conditions, we must always show the field.
-        if (conditions.length === 0) {
-          return [...visibleFields, field]
-        }
+    // If there aren't any conditions, we must always show the field.
+    if (conditions.length === 0) {
+      return [...visible, field]
+    }
 
-        // We only want to work with the values of fields that are actually visible.
-        // This to avoid matching the conditions on values of fields that aren't
-        // visible, but were filled out in the past and are still remembered in memory.
-        const visibleFieldIds = visibleFields.map((f) => f.field.id)
-        const visibleValues = clone(this.values)
-        this.fields
-          .filter(
-            (f) =>
-              !visibleFieldIds.includes(f.field.id) &&
-              f.field.id !== field.field.id
-          )
-          .forEach((f) => {
-            visibleValues['field_' + f.field.id] = this.$registry
-              .get('field', f.field.type)
-              .getDefaultValue(f.field)
-          })
+    // Only work with values of fields that are actually visible.
+    const visibleFieldIds = visible.map((f) => f.field.id)
+    const visibleValues = clone(values.value)
 
-        if (
-          matchSearchFilters(
-            this.$registry,
-            conditionType,
-            conditions,
-            field.condition_groups,
-            fieldsBefore,
-            visibleValues
-          )
-        ) {
-          return [...visibleFields, field]
-        }
-
-        return visibleFields
-      }, [])
-    },
-    component() {
-      return this.$registry.get('formViewMode', this.mode).getFormComponent()
-    },
-  },
-  methods: {
-    async submit() {
-      if (this.loading) {
-        return
-      }
-
-      this.touch()
-      this.loading = true
-      const values = clone(this.values)
-      const submitValues = {}
-
-      // Loop over the visible fields, because we only want to submit those values.
-      for (let i = 0; i < this.visibleFields.length; i++) {
-        const field = this.visibleFields[i]
-        const fieldType = this.$registry.get('field', field.field.type)
-        const valueName = `field_${field.field.id}`
-        const value = values[valueName]
-        const ref = this.$refs.form.$refs['field-' + field.field.id][0]
-
-        // If the field is required but empty or if the value has a validation error, then
-        // we don't want to submit the form, focus on the field and stop the loading.
-        if (
-          (field.required && fieldType.isEmpty(field.field, value)) ||
-          fieldType.getValidationError(field.field, value) !== null ||
-          // It could be that the field component is in an invalid state and hasn't
-          // update the value yet. In that case, we also don't want to submit the form.
-          !ref.isValid()
-        ) {
-          ref.focus()
-          this.loading = false
-          return
-        }
-
-        submitValues[valueName] = fieldType.prepareValueForUpdate(
-          field.field,
-          values[valueName]
-        )
-      }
-
-      try {
-        const slug = this.$route.params.slug
-        const { data } = await FormService(this.$client).submit(
-          slug,
-          submitValues,
-          this.publicAuthToken
-        )
-
-        this.submitted = true
-        this.submitAction = data.submit_action
-        this.submitActionMessage = data.submit_action_message
-        this.submitActionRedirectUrl = data.submit_action_redirect_url.replace(
-          `{row_id}`,
-          data.row_id
-        )
-
-        // If the submit action is a redirect, then we need to redirect safely to the
-        // provided URL.
-        if (this.isRedirect) {
-          setTimeout(() => {
-            window.location.assign(this.submitActionRedirectUrl)
-          }, 4000)
-        }
-      } catch (error) {
-        notifyIf(error, 'view')
-      }
-      this.loading = false
-    },
-    /**
-     * Marks all the fields are touched. This will show any validation error messages
-     * if there are any.
-     */
-    touch() {
-      this.visibleFields.forEach((field) => {
-        field._.touched = true
+    fields.value
+      .filter(
+        (f) =>
+          !visibleFieldIds.includes(f.field.id) && f.field.id !== field.field.id
+      )
+      .forEach((f) => {
+        visibleValues['field_' + f.field.id] = $registry
+          .get('field', f.field.type)
+          .getDefaultValue(f.field)
       })
-    },
-  },
+
+    if (
+      matchSearchFilters(
+        conditionType,
+        conditions,
+        field.condition_groups,
+        fieldsBefore,
+        visibleValues
+      )
+    ) {
+      return [...visible, field]
+    }
+
+    return visible
+  }, [])
+})
+
+const component = computed(() => {
+  return $registry.get('formViewMode', mode.value).getFormComponent()
+})
+
+function touch() {
+  visibleFields.value.forEach((field) => {
+    field._.touched = true
+  })
+}
+
+async function submit() {
+  if (loading.value) {
+    return
+  }
+
+  touch()
+  loading.value = true
+
+  const valuesCopy = clone(values.value)
+  const submitValues = {}
+
+  // Loop over visible fields only
+  for (let i = 0; i < visibleFields.value.length; i++) {
+    const field = visibleFields.value[i]
+    const fieldType = $registry.get('field', field.field.type)
+    const valueName = `field_${field.field.id}`
+    const value = valuesCopy[valueName]
+    const ref = form.value?.$refs?.['field-' + field.field.id]?.[0]
+
+    if (
+      (field.required && fieldType.isEmpty(field.field, value)) ||
+      fieldType.getValidationError(field.field, value) !== null ||
+      !ref.isValid()
+    ) {
+      ref.focus()
+      loading.value = false
+      return
+    }
+
+    submitValues[valueName] = fieldType.prepareValueForUpdate(
+      field.field,
+      valuesCopy[valueName]
+    )
+  }
+
+  try {
+    const slug = route.params.slug
+    const { data: submitResponse } = await FormService($client).submit(
+      slug,
+      submitValues,
+      publicAuthToken.value
+    )
+
+    submitted.value = true
+    submitAction.value = submitResponse.submit_action
+    submitActionMessage.value = submitResponse.submit_action_message
+    submitActionRedirectUrl.value =
+      submitResponse.submit_action_redirect_url.replace(
+        `{row_id}`,
+        submitResponse.row_id
+      )
+
+    if (isRedirect.value) {
+      setTimeout(() => {
+        window.location.assign(submitActionRedirectUrl.value)
+      }, 4000)
+    }
+  } catch (err) {
+    notifyIf(err, 'view')
+  }
+
+  loading.value = false
 }
 </script>

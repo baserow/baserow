@@ -1,13 +1,12 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 1`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 1`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -17,52 +16,50 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="DD/MM/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
-              <!---->
+              <!--v-if-->
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 2`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 2`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -72,52 +69,50 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="MM/DD/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
-              <!---->
+              <!--v-if-->
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 3`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 3`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -127,52 +122,50 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="YYYY-MM-DD"
               type="text"
+              value=""
             />
-             
             <div>
-              <!---->
+              <!--v-if-->
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 4`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 4`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -182,56 +175,55 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="DD/MM/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="HH:mm"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 5`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 5`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -241,56 +233,55 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="DD/MM/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="hh:mm A"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 6`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 6`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -300,56 +291,55 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="MM/DD/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="HH:mm"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 7`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 7`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -359,56 +349,55 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="MM/DD/YYYY"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="hh:mm A"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 8`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 8`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -418,56 +407,55 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="YYYY-MM-DD"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="HH:mm"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;
 
-exports[`DateTimePickerElement placeholder corresponds to date and time formats 9`] = `
+exports[`DateTimePickerElement > placeholder corresponds to date and time formats 9`] = `
 <div
   class="control ab-form-group"
+  data-form-error="false"
 >
-  <!---->
-   
-  <!---->
-   
+  
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -477,44 +465,44 @@ exports[`DateTimePickerElement placeholder corresponds to date and time formats 
       <div
         class="control__elements-wrapper"
       >
-        <!---->
-         
+        
+        <!--v-if-->
         <div
           class="ab-form-group__children"
         >
+          
           <div
             class="ab-datetime-picker__wrapper"
           >
             <i
               class="button-icon__icon iconoir-calendar"
             />
-             
             <input
               class="ab-input ab-datetime-picker__input"
               placeholder="YYYY-MM-DD"
               type="text"
+              value=""
             />
-             
             <div>
               <input
                 class="ab-input ab-datetime-picker__input"
                 placeholder="hh:mm A"
                 type="text"
+                value=""
               />
             </div>
-             
-             
           </div>
-           
-          <!---->
+          
+          <!--v-if-->
         </div>
+        
       </div>
-       
-      <!---->
-       
+      <!--v-if-->
+      
+      
     </div>
-     
-    <!---->
+    <!--v-if-->
   </div>
+  
 </div>
 `;

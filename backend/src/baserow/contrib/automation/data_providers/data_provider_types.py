@@ -13,8 +13,7 @@ from baserow.core.utils import get_value_at_path
 SENTINEL = "__no_results__"
 
 
-class AutomationDataProviderType(DataProviderType, ABC):
-    ...
+class AutomationDataProviderType(DataProviderType, ABC): ...
 
 
 class PreviousNodeProviderType(AutomationDataProviderType):

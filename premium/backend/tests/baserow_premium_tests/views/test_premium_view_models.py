@@ -1,6 +1,7 @@
 from django.db import IntegrityError
 
 import pytest
+
 from baserow_premium.views.models import (
     CalendarViewFieldOptions,
     KanbanViewFieldOptions,

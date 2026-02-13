@@ -1,5 +1,10 @@
 <template>
-  <Context max-height-if-outside-viewport class="select" @shown="onShow">
+  <Context
+    ref="context"
+    max-height-if-outside-viewport
+    class="select"
+    @shown="onShow"
+  >
     <div class="select__search">
       <i class="select__search-icon iconoir-search"></i>
       <input
@@ -34,7 +39,7 @@
           <div class="select__item-name">
             <Avatar
               class="dashboard__user-workspace-avatar"
-              :initials="workspace.name | nameAbbreviation"
+              :initials="$filters.nameAbbreviation(workspace.name)"
             ></Avatar>
             {{ workspace.name }}
             <span
@@ -44,7 +49,7 @@
           </div>
         </a>
       </li>
-      <li class="select__item">
+      <li v-if="$hasPermission('create_workspace')" class="select__item">
         <a class="select__item-link" @click="$refs.createWorkspaceModal.show()">
           <div class="select__item-name">
             <ButtonIcon
@@ -128,6 +133,8 @@ import context from '@baserow/modules/core/mixins/context'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
+import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { nextTick } from '#imports'
 
 export default {
   name: 'SidebarUserContext',
@@ -143,6 +150,7 @@ export default {
       required: true,
     },
   },
+  emits: ['toggle-admin'],
   data() {
     return {
       logoffLoading: false,
@@ -193,10 +201,10 @@ export default {
         this.$refs.search.focus()
       })
     },
-    logoff() {
+    async logoff() {
       this.logoffLoading = true
-      logoutAndRedirectToLogin(
-        this.$nuxt.$router,
+      await logoutAndRedirectToLogin(
+        this.$router,
         this.$store,
         false,
         false,
@@ -204,13 +212,17 @@ export default {
       )
     },
     async admin() {
-      this.$emit('toggle-admin', true)
       this.hide()
+      await this.$nextTick()
+
+      this.$emit('toggle-admin', true)
       const activatedAdminTypes = this.sortedAdminTypes.filter(
         (adminType) => !adminType.isDeactivated()
       )
       try {
         await this.$router.push({ name: activatedAdminTypes[0].routeName })
+        await pageFinished()
+        await nextTick()
       } catch {}
     },
     hasUnreadNotifications(workspaceId) {
@@ -225,6 +237,8 @@ export default {
         name: 'workspace',
         params: { workspaceId: workspace.id },
       })
+      await pageFinished()
+      await nextTick()
       this.hide()
     },
   },

@@ -1,9 +1,9 @@
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.row_comments.actions import CreateRowCommentActionType
 
 from baserow.core.action.registries import action_type_registry
+from baserow_premium.row_comments.actions import CreateRowCommentActionType
 
 
 @pytest.mark.django_db

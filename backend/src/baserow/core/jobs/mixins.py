@@ -76,7 +76,7 @@ class JobWithUserIpAddress(JobWithUserDataMixin):
         :param user: The user to save the data for.
         """
 
-        if getattr(self, "user_ip_address") is None:
+        if self.user_ip_address is None:
             self.user_ip_address = get_user_remote_addr_ip(user)
 
     def _restore_user_data_if_present(self, user: AbstractUser) -> None:
@@ -86,7 +86,7 @@ class JobWithUserIpAddress(JobWithUserDataMixin):
         :param user: The user to restore the data for.
         """
 
-        if getattr(self, "user_ip_address") is not None:
+        if self.user_ip_address is not None:
             set_user_remote_addr_ip(user, self.user_ip_address)
 
     class Meta:
@@ -113,7 +113,7 @@ class JobWithWebsocketId(JobWithUserDataMixin):
         :param user: The user to save the data for.
         """
 
-        if getattr(self, "user_websocket_id") is None:
+        if self.user_websocket_id is None:
             self.user_websocket_id = getattr(user, "web_socket_id", None)
 
     def _restore_user_data_if_present(self, user: AbstractUser) -> None:
@@ -123,7 +123,7 @@ class JobWithWebsocketId(JobWithUserDataMixin):
         :param user: The user to restore the data for.
         """
 
-        if getattr(self, "user_websocket_id") is not None:
+        if self.user_websocket_id is not None:
             user.web_socket_id = self.user_websocket_id
 
     class Meta:
@@ -155,10 +155,10 @@ class JobWithUndoRedoIds(JobWithUserDataMixin):
         :param user: The user to save the data for.
         """
 
-        if getattr(self, "user_session_id") is None:
+        if self.user_session_id is None:
             self.user_session_id = get_untrusted_client_session_id(user)
 
-        if getattr(self, "user_action_group_id") is None:
+        if self.user_action_group_id is None:
             self.user_action_group_id = get_client_undo_redo_action_group_id(user)
 
     def _restore_user_data_if_present(self, user: AbstractUser) -> None:
@@ -168,10 +168,10 @@ class JobWithUndoRedoIds(JobWithUserDataMixin):
         :param user: The user to restore the data for.
         """
 
-        if getattr(self, "user_session_id") is not None:
+        if self.user_session_id is not None:
             set_untrusted_client_session_id(user, self.user_session_id)
 
-        if getattr(self, "user_action_group_id") is not None:
+        if self.user_action_group_id is not None:
             set_client_undo_redo_action_group_id(user, self.user_action_group_id)
 
     class Meta:

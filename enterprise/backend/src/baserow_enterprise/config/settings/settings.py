@@ -22,8 +22,7 @@ def setup(settings):
 
     settings.BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS = int(
         # Default TTL is 120 minutes: 60 seconds * 120
-        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS")
-        or 7200
+        os.getenv("BASEROW_ENTERPRISE_USER_SOURCE_COUNTING_CACHE_TTL_SECONDS") or 7200
     )
 
     settings.BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES = int(
@@ -61,9 +60,9 @@ def setup(settings):
         os.getenv("BASEROW_SERVE_FILES_THROUGH_BACKEND", False)
     )
     if serve_files_through_backend:
-        settings.STORAGES["default"][
-            "BACKEND"
-        ] = "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
+        settings.STORAGES["default"]["BACKEND"] = (
+            "baserow_enterprise.secure_file_serve.storage.EnterpriseFileStorage"
+        )
 
     settings.BASEROW_SERVE_FILES_THROUGH_BACKEND = serve_files_through_backend
 

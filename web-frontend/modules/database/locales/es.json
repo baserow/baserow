@@ -110,7 +110,7 @@
         "userFieldNames": "Nombres de campo de usuario"
     },
     "apiDocsParameter": {
-        "optional": "Opcional",
+        "optional": "opcional",
         "defaultValue": "Default: {value}"
     },
     "apiDocsTableGetRow": {
@@ -146,14 +146,14 @@
         "userFieldNames": "Cuando se proporciona cualquier valor para el parámetro GET `user_field_names`, los nombres de campo devueltos por este extremo serán los nombres reales de los campos.\n\nSi no se proporciona el parámetro GET `user_field_names`, todos los nombres de campo devueltos serán `field_` seguidos de la identificación del campo. Por ejemplo, `field_1` se refiere al campo con una identificación de `1`.\n\nAdemás, cuando se establece `user_field_names`, cambia el comportamiento de los otros parámetros GET `order_by`, `include` y `exclude`. En su lugar, esperan listas separadas por comas de los nombres de campo reales.",
         "search": "Si se proporcionan, solo se devolverán las filas con datos que coincidan con la consulta de búsqueda.",
         "orderBy": "Opcionalmente se pueden ordenar las filas por campos separados por coma. De forma predeterminada o si se antepone un '+', un campo se ordena en orden ascendente (A-Z), pero al anteponer el campo con un '-' se puede ordenar de forma descendente (Z-A).\n\n #### Con `user_field_names`:\n\n `order_by` debe ser una lista separada por comas de los nombres de los campos por ordenar. Por ejemplo, si proporciona el siguiente parámetro GET `order_by=My Field,-My Field 2`, las filas se ordenarán por el campo llamado `My Field` en orden ascendente. Si algunos campos tienen el mismo valor, ese subconjunto se ordenará por el campo llamado `Mi campo 2` en orden descendente.\n\n Asegúrese de que los campos con nombres que comienzan con `+` o `-` estén explícitamente precedidos por otro `+` o `-`. Por ejemplo, `+-Nombre`.\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n#### Sin `user_field_names`:\n\n `order_by` debe ser una lista separada por comas de `field_` seguida de la identificación del campo por el que ordenar. Por ejemplo, si proporciona el siguiente parámetro GET `order_by=field_1,-field_2`, las filas se ordenarán por `field_1` en orden ascendente. Si algunos campos tienen el mismo valor, ese subconjunto se ordenará por `field_2` en orden descendente.",
-        "filter": "Las filas se pueden filtrar opcionalmente por los mismos filtros de vista disponibles para las vistas. Se pueden proporcionar múltiples filtros si siguen el mismo formato. Las variables `field` y `filter` indican cómo filtrar y el valor indica dónde filtrar.\n\n Por ejemplo, si proporciona el siguiente parámetro GET `filter__field_1__equal=test`, solo se devolverán las filas donde el valor de field_1 es igual a test. ",
+        "filter": "Las filas pueden filtrarse opcionalmente usando los mismos filtros de vista que están disponibles para las vistas. Se pueden aplicar varios filtros si siguen el mismo formato. Las variables `field` y `filter` indican, respectivamente, cómo y dónde aplicar el filtro.\n\n#### Con `user_field_names`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `filter__Name__equal=test`, solo se devolverán las filas cuyo valor en `Name` sea igual a `test`. Este método es retrocompatible y, si falla al buscar por nombre, verificará contra `field_id`.\n\n### Sin `user_field_names`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `filter__field_1__equal=test`, solo se devolverán las filas cuyo valor en `field_1` sea igual a `test`.\n\nTen en cuenta que, si se proporciona el parámetro filters, este parámetro será ignorado. ",
         "filterLink": "Puede encontrar una lista de todos los filtros aquí.",
         "filterType": "- `Y`: Indica que las filas deben coincidir con todos los filtros proporcionados.\n- `OR`: Indica que las filas solo tienen que coincidir con uno de los filtros.\n\n Esto funciona solo si se proporcionan dos o más filtros.",
         "include": "Todos los campos se incluyen en la respuesta de forma predeterminada. Puede seleccionar un subconjunto de campos para incluir proporcionando el parámetro de consulta de inclusión.\n\n #### Con `user_field_names`:\n\n `include` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo, si proporciona el siguiente parámetro GET: `include=My Field,-My Field 2`, solo se incluirán esos campos (a menos que se excluyan explícitamente).\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n #### Sin `user_field_names`:\n\n `include` debe ser una lista separada por comas de `field_` seguida de la identificación del campo para incluir en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `exclude=field_1,field_2`, los campos con id `1` e id `2` solo se incluirán esos campos (a menos que se excluyan explícitamente).",
         "exclude": "Todos los campos se incluyen en la respuesta de forma predeterminada. Puede seleccionar un subconjunto de campos para excluir proporcionando el parámetro de consulta de exclusión.\n\n #### Con `user_field_names`:\n\n `excluir` debe ser una lista separada por comas de nombres de campos que se excluirán de los resultados. Por ejemplo, si proporciona el siguiente parámetro GET: `exclude=My Field,-My Field 2`, esos campos se excluirán.\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n #### Sin `user_field_names`:\n\n `exclude` debe ser una lista separada por comas de `field_` seguida de la identificación del campo para excluir de los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `exclude=field_1,field_2`, los campos con id `1` e id `2` se excluirán.",
         "viewId": "Por defecto, no se aplica ningún filtro ni ordenación fuera de los definidos en los parámetros. Puedes añadir los filtros y ordenaciones de una vista proporcionando su `id` en el parámetro GET `view_id`. Por ejemplo, si proporcionas el siguiente parámetro GET `view_id=1`, se aplicarán los filtros y ordenaciones definidos en la vista con id `1`. Puede encontrar el `view_id` en el menú contextual de cualquier vista. Es el número entre paréntesis detrás del nombre de la vista. \n\n#### Con `filtro__{campo}__{filtro}`\n\nSe aplicará tanto el filtro proporcionado en el parámetro de consulta como los filtros definidos en la vista.\n\n#### Con `order_by`\n\nSi se proporciona `order_by` se ignorará la ordenación definida en la vista.",
         "filtersBuilder": "Abrir el creador de parámetros de filtros",
-        "filters": "Las filas se pueden filtrar opcionalmente utilizando los mismos filtros de vista que están disponibles para las vistas. Este parámetro acepta una cadena serializada JSON que contiene el árbol de filtros a aplicar a esta vista. El árbol de filtros es una estructura anidada que contiene los filtros que deben aplicarse. \n\n#### Con `nombres_campo_usuario`:\n\nUn ejemplo de árbol de filtros válido es el siguiente: `{\"tipo_filtro\": \"Y\", \" filtros\": [{\"campo\": \"Nombre\", \"tipo\": \"igual\", \"valor\": \"prueba\"}]}`.\n\n#### Sin `nombres_campo_usuario`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `{\"filter_type\": \"AND\", \"filters\": [{\"field\": 1, \"type\": \"equal\", \"value\": \"test\"}]}`.\n\nTen en cuenta que si proporcionas este parámetro, se ignorarán todos los demás `{filtro__{campo}__{filtro}`, así como el parámetro tipo_filtro.",
+        "filters": "Las filas se pueden filtrar opcionalmente utilizando los mismos filtros de vista que están disponibles para las vistas. Este parámetro acepta una cadena serializada JSON que contiene el árbol de filtros a aplicar a esta vista. El árbol de filtros es una estructura anidada que contiene los filtros que deben aplicarse. \n\n#### Con `nombres_campo_usuario`:\n\nUn ejemplo de árbol de filtros válido es el siguiente: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`.\n\n#### Sin `nombres_campo_usuario`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": 1, \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`.\n\nTen en cuenta que si proporcionas este parámetro, se ignorarán todos los demás `filter__{'{'}field{'}'}__{'{'}filter{'}'}`, así como el parámetro tipo_filtro.",
         "join": "Permite solicitar una búsqueda de valores de campo de una tabla de destino a través de campos de fila de vínculo existentes. El nombre del parámetro debe ser el nombre de un campo de fila de vínculo existente, seguido de __join. El valor debe ser una lista de nombres de campos para los que deseamos buscar valores adicionales. Puede proporcionar uno o varios campos de destino. No es posible buscar un valor de un campo de fila de vínculo en la tabla de destino.\n\n #### Con `user_field_names`:\n\n `join` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `LinkRowField__join=MyField,MyField2`, los valores de `MyField` y `My Field2` en la tabla vinculada por `LinkRowField` se incluirán en la respuesta.\n\n#### Sin `user_field_names`:\n\n `join` debe ser una lista separada por comas de `field_` seguida del id del campo que se incluirá en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `field_1__join=field_2,field_3`, los valores de `field_2` y `field_3` en la tabla vinculada por `field_1` se incluirán en la respuesta."
     },
     "apiDocsIntro": {
@@ -209,7 +209,8 @@
         "placeholder": "Texto predeterminado"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opciones"
+        "optionsLabel": "Opciones",
+        "defaultOptionLabel": "Opción predeterminada"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Opción no encontrada"
@@ -234,7 +235,8 @@
         "selectTableLabel": "Seleccione una tabla para vincular",
         "hasRelatedFieldLabel": "Crear campo relacionado en la tabla vinculada",
         "limitToView": "Limitar la selección para mostrar",
-        "limitToViewDescription": "Ten en cuenta que esto es solo visual. Aún es posible establecer relaciones fuera de la vista mediante la tabla relacionada o la API."
+        "limitToViewDescription": "Ten en cuenta que esto es solo visual. Aún es posible establecer relaciones fuera de la vista mediante la tabla relacionada o la API.",
+        "allowMultipleRelations": "Permitir múltiples relaciones"
     },
     "fieldSelectOptions": {
         "add": "Añadir una opción"
@@ -253,7 +255,9 @@
         "periodComma": "Punto, coma (1.000.000,00)",
         "separatorLabel": "Separador de miles y decimales",
         "commaPeriod": "Coma, punto (1.000.000,00)",
-        "noFormatting": "Sin formato"
+        "noFormatting": "Sin formato",
+        "defaultValueLabel": "Valor predeterminado",
+        "defaultValuePlaceholder": "Introduce un valor predeterminado"
     },
     "fieldContext": {
         "editField": "Editar campo",
@@ -268,7 +272,12 @@
         "nameNotAllowed": "Este nombre de campo no está permitido.",
         "nameTooLong": "Este nombre de campo es demasiado largo.",
         "addDescription": "Añadir descripción",
-        "description": "Descripción"
+        "description": "Descripción",
+        "dbIndex": "Índice",
+        "dbIndexError": "Este tipo de campo no puede tener un índice. Por favor, elimínalo antes de guardar o cambia el tipo de campo.",
+        "dbIndexDescription": "Indexar puede mejorar significativamente el rendimiento del filtrado, pero ralentiza las operaciones de creación, actualización y eliminación.",
+        "defaultValueDisabledByConstraint": "No se puede establecer un valor predeterminado con una restricción de valor único",
+        "dbIndexDisabledTooltip": "La indexación no está disponible para este tipo de campo."
     },
     "fieldLookupSubForm": {
         "noTable": "Necesita al menos un campo de fila de vínculo para crear un campo de búsqueda.",
@@ -314,7 +323,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Elige un enlace"
+        "addLink": "Elige un enlace",
+        "keepOnlyOneValue": "Mantén solo un valor. Este campo solo admite una relación. El valor se guarda si queda únicamente una relación."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Elija el archivo CSV",
@@ -383,7 +393,9 @@
         "filePreview": "Vista previa del contenido del archivo",
         "importPreview": "Vista previa de la importación",
         "changeImporterType": "Cambiar el tipo de importación",
-        "defaultName": "Tabla"
+        "defaultName": "Tabla",
+        "useUpsertField": "Actualizar filas si ya existen",
+        "upsertTooltip": "Coincidir filas existentes usando un campo único para sobrescribir los datos con los valores importados."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Haga clic para editar la fórmula",
@@ -478,7 +490,15 @@
     },
     "viewFilter": {
         "filter": "Filtro | 1 filtro | {count} filtros",
-        "hasAllValuesEqual": "tiene todos los valores iguales"
+        "hasAllValuesEqual": "tiene todos los valores iguales",
+        "hasValueHigherThan": "tiene un valor mayor que",
+        "hasValueHigherThanOrEqual": "tiene un valor mayor o igual que",
+        "hasValueLowerThan": "tiene un valor menor que",
+        "hasValueLowerThanOrEqual": "tiene un valor menor o igual que",
+        "hasNotValueHigherThan": "no tiene un valor mayor que",
+        "hasNotValueHigherThanOrEqual": "no tiene un valor mayor o igual que",
+        "hasNotValueLowerThan": "no tiene un valor menor que",
+        "hasNotValueLowerThanOrEqual": "no tiene un valor menor que o igual que"
     },
     "viewContext": {
         "exportView": "Exportar vista",
@@ -512,7 +532,9 @@
         "sortField": "Clasificar",
         "hideField": "Ocultar campo",
         "duplicate": "Duplicar campo",
-        "dataSyncField": "El campo es de sólo lectura y forma parte de la sincronización de datos de la tabla."
+        "dataSyncField": "El campo es de sólo lectura y forma parte de la sincronización de datos de la tabla.",
+        "dataSyncFieldTwoWaySync": "El campo está sincronizado con la sincronización de datos de la tabla.",
+        "noWriteValues": "Los cambios en este campo están restringidos."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La fila no coincide con los filtros",
@@ -535,14 +557,16 @@
         "copiedRowURL": "URL de la fila copiada",
         "copyRowURL": "Copiar URL de fila",
         "tooManyItemsTitle": "Demasiados artículos",
-        "tooManyItemsDescription": "No es posible actualizar más de {límite} filas a la vez, así que sólo actualizamos la primera.",
+        "tooManyItemsDescription": "No es posible actualizar más de {limit} filas a la vez, así que sólo actualizamos la primera.",
         "generateCellsValues": "Generar valores con IA",
         "AIValuesGenerationErrorTitle": "Falló la generación de valor de la IA",
         "AIValuesGenerationErrorMessage": "Por favor, comprueba tu API_KEY y verifica el modelo seleccionado.",
-        "copyCellsWithHeader": "Copiar celdas con encabezado"
+        "copyCellsWithHeader": "Copiar celdas con encabezado",
+        "generateAllAiValues": "Generar todos los valores de IA"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "fila sin nombre {value}"
+        "unnamed": "fila sin nombre {value}",
+        "keepOnlyOneValue": "Mantener solo un valor"
     },
     "gridViewIdentifierOptions": {
         "id": "Identificador de fila",
@@ -594,7 +618,7 @@
         "back": "volver al tablero"
     },
     "viewAggregationType": {
-        "emptyCount": "Vacio",
+        "emptyCount": "{Empty}",
         "notEmptyCount": "Lleno",
         "emptyPercentage": "Porcentaje vacío",
         "notEmptyPercentage": "Porcentaje lleno",
@@ -614,17 +638,20 @@
         "median": "Median",
         "stdDev": "Desviación Estándar",
         "stdDevShort": "Desviación Estándar",
-        "variance": "Diferencia"
+        "variance": "Diferencia",
+        "count": "Contar",
+        "distribution": "Distribución",
+        "othersCount": "Otros"
     },
     "databaseForm": {
         "importLabel": "¿Le gustaría importar datos existentes?",
         "emptyLabel": "Empezar desde el principio",
-        "airtableLabel": "Importar desde Airtable (beta)"
+        "airtableLabel": "Importar desde Airtable"
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Comparte un enlace a tu Base",
-        "airtableShareLinkDescription": "Para importar su base Airtable, debe tener un enlace compartido a toda su base. En Airtable, haz clic en el botón de compartir en la esquina superior derecha después de abrir tu base. Luego de eso debes elegir la opción \"Acceso a la base\". En el modal de compartir, puede hacer clic en el botón \"Crear un enlace compartido para toda la base\" y luego en \"Enlace privado de solo lectura\". Copie el enlace público y péguelo en la entrada a continuación.",
-        "airtableShareLinkBeta": "Tenga en cuenta que esta función está en versión beta, sus tablas, campos (excepto fórmula, búsqueda y recuento) y datos se importarán. Sus vistas no se importarán.",
+        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes escoger la opción «Compartir mediante enlace\". En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada que aparece a continuación.",
+        "airtableShareLinkBeta": "Esta funcionalidad importará la mayor parte de los datos, pero existen incompatibilidades. Por lo tanto, se añadirá una tabla llamada \"Airtable import report\" que contendrá una lista de cosas que no fueron importadas o que se importaron parcialmente.",
         "airtableShareLinkPaste": "Pega el enlace aquí",
         "importButtonLabel": "Importar desde Airtable",
         "openButtonLabel": "Abrir base de datos importada",
@@ -639,7 +666,14 @@
         "stateImportingTable": "Importando tabla {table}",
         "errorJobAlreadyRunningTitle": "Ya corriendo",
         "errorJobAlreadyRunningDescription": "Ya se está ejecutando otro trabajo de importación. Tienes que esperar a que termine antes de empezar otro.",
-        "linkError": "El enlace debería parecerse así: https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "El enlace debería parecerse así: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFiles": "Omitir la importación de archivos",
+        "skipFilesHelper": "Una base de Airtable con muchos archivos puede ralentizar la importación. Al habilitar esta opción se omite la importación de los archivos.",
+        "useSession": "Autenticación de sesión",
+        "useSessionHelper": "Utiliza esto si la base compartida públicamente requiere autenticación.",
+        "sessionDescription": "Si la importación devuelve «The Airtable base requires authentication.», puede ser que la configuración organizacional de Airtable impida acceder a la base sin autenticarte primero. Para ello, debes extraer manualmente la sesión y la firma. Abre la URL de la base pública compartida en tu navegador y, si es necesario, inicia sesión. Haz clic en el menú de la aplicación en la esquina superior derecha → «Más herramientas» → «Herramientas de desarrollador». En la pestaña «Aplicación» (en Firefox «Almacenamiento») selecciona «https://airtable.com». Busca los valores de cookie «__Host‑airtable‑session» y «__Host‑airtable‑session.sig» y pégalos en los campos que aparecen a continuación.",
+        "sessionLabel": "Cookie de sesión (__Host‑airtable‑session)",
+        "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)"
     },
     "viewDecorator": {
         "decorator": "Color | 1 Color | {recuento} Colores"
@@ -708,7 +742,9 @@
         "showFieldAs": "Mostrar campo como",
         "includeAllSelectOptions": "Incluir todas las opciones seleccionadas",
         "includeAllSelectOptionsHelper": "Elige las opciones de selección que deben incluirse en el formulario utilizando este desplegable",
-        "noSelectOptions": "No hay opciones de selección disponibles."
+        "noSelectOptions": "No hay opciones de selección disponibles.",
+        "noCollaboratorsAvailable": "No hay colaboradores disponibles.",
+        "cannotSumitValues": "Este campo es de solo lectura y no se mostrará en el formulario."
     },
     "duplicateFieldContext": {
         "duplicate": "Duplicar campo",
@@ -738,7 +774,8 @@
         "importingState": "Creando",
         "reset": "Crear otra",
         "cancel": "Cancelar",
-        "noSnapshots": "Aún no hay instantáneas de esta aplicación."
+        "noSnapshots": "Aún no hay instantáneas de esta aplicación.",
+        "nameAlreadyExists": "Ya existe una instantánea con este nombre."
     },
     "deleteSnapshotModal": {
         "content": "¿Estás seguro de que quieres eliminar permanentemente la imagen instantánea {nombre}?",
@@ -764,7 +801,9 @@
         "addLogo": "Añadir un logo",
         "noFields": "Este formulario no tiene ningún campo. Haz clic en un campo de la barra lateral izquierda para añadir uno.",
         "titlePlaceholder": "Título",
-        "descriptionPlaceholder": "Descripción"
+        "descriptionPlaceholder": "Descripción",
+        "noFieldsTitle": "Este formulario no tiene ningún campo",
+        "noFieldsContent": "Haz clic en un campo en la barra lateral izquierda para añadir uno."
     },
     "table": {
         "chooseView": "Elige la vista",
@@ -808,7 +847,8 @@
     },
     "duplicateTableJobType": {
         "duplicatedTitle": "Tabla duplicada",
-        "duplicating": "Duplicando"
+        "duplicating": "Duplicando",
+        "name": "Duplicar tabla"
     },
     "apiDocsUploadFile": {
         "description": "Sube un archivo a Baserow cargando el contenido del archivo directamente. Se espera una multiparte de `archivo` que contenga el contenido del archivo. La respuesta se puede utilizar para [subir un archivo a una fila]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
@@ -850,7 +890,15 @@
     "rowHistorySidebar": {
         "you": "Tú",
         "name": "Historia",
-        "empty": "Aún no hay cambios. Podrás seguir cualquier cambio a esta fila aquí."
+        "empty": "Aún no hay cambios. Podrás seguir cualquier cambio a esta fila aquí.",
+        "created": "creó esta fila",
+        "updated": "actualizó esta fila",
+        "submitted": "envió esta fila",
+        "deleted": "eliminó esta fila",
+        "restored": "restauró esta fila",
+        "createdUndo": "deshizo la creación de la fila",
+        "updatedUndo": "deshizo la actualización de la fila",
+        "deletedUndo": "deshizo la eliminación de la fila"
     },
     "viewGroupByContext": {
         "groupBy": "Agrupar por",
@@ -860,8 +908,9 @@
         "noGroupByText": "Agrupar filas por un campo."
     },
     "collaboratorAddedToRowNotification": {
-        "title": "{remitente} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}.",
-        "deletedUser": "Un usuario eliminado"
+        "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
+        "deletedUser": "Un usuario eliminado",
+        "unknownUser": "Un usuario desconocido"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Notificar al usuario cuando se añade"
@@ -878,7 +927,9 @@
         "durationFormatLabel": "Formato de duración"
     },
     "fieldPasswordSubForm": {
-        "description": "Todavía no es posible hacer nada directamente con el campo de contraseña, esto sólo es utilizado por la autenticación de usuario en el constructor de aplicaciones."
+        "description": "El campo de contraseña también puede ser usado por la autenticación de usuario en el constructor de aplicaciones.",
+        "allowEndpointAuthentication": "Permitir la autenticación del punto final (endpoint) API",
+        "allowEndpointAuthenticationHelp": "Esto expone un punto final (endpoint) donde se pueden comprobar el ID de la fila y la contraseña para ver si son correctos. Esto permite usar Baserow como servidor de autenticación en el lado del servidor (backend)."
     },
     "rowEditFieldPassword": {
         "setPassword": "Establecer contraseña"
@@ -896,7 +947,7 @@
     },
     "userMentionInRichTextFieldNotification": {
         "deletedUser": "Un usuario eliminado",
-        "title": "{sender} le ha mencionado en el campo {fieldName} de la fila {rowId} en {tableName}."
+        "title": "{sender} te mencionó en el campo {fieldName} de la fila {rowId} en {tableName}"
     },
     "databaseImportStep": {
         "tableNameLabel": "Nombre de la tabla",
@@ -911,8 +962,8 @@
         "productsRow1": "Rebranding del sitio web",
         "productsRow3": "Campaña publicitaria de pago",
         "teamsRow1": "Ventas",
-        "teamsRow2": "RH",
-        "teamsRow3": "Marketing",
+        "teamsRow2": "Recursos Humanos",
+        "teamsRow3": "Mercadotecnia",
         "tasks": "Tareas",
         "tasksRow1": "Rediseño del logo",
         "campaignsRow1": "Venta de verano",
@@ -929,11 +980,12 @@
     },
     "databaseStep": {
         "title": "Crea tu primera base de datos",
-        "description": "Cuéntanos en qué estás trabajando.",
+        "description": "Selecciona desde dónde te gustaría comenzar:",
         "databaseNameLabel": "Nombre de la base de datos",
-        "scratch": "Desde cero",
-        "import": "De archivo",
-        "airtable": "Desde Airtable"
+        "scratch": "Esbozo",
+        "import": "Archivo",
+        "airtable": "Airtable",
+        "template": "Plantilla"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrar al filtro de fecha de varios pasos",
@@ -1034,7 +1086,10 @@
         "next": "Siguiente",
         "fields": "Selecciona los campos que deseas sincronizar",
         "create": "Crear y sincronizar tabla",
-        "error": "Algo salió mal durante la sincronización"
+        "error": "Algo salió mal durante la sincronización",
+        "autoAddLabel": "Agregar automáticamente nuevas propiedades",
+        "autoAddHelper": "Automáticamente agrega y sincroniza las propiedades recién disponibles del origen de datos en la tabla de Baserow. Ten en cuenta que, para que esto funcione, todas las propiedades deben estar sincronizadas.",
+        "twoWaySyncLabel": "Sincronización bidireccional"
     },
     "syncTableModal": {
         "title": "Sincronizar {name}",
@@ -1076,5 +1131,62 @@
         "syncSettings": "Ajustes de sincronización",
         "syncedFields": "Campos sincronizados",
         "title": "Sincronización de datos"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "autenticación de {name}",
+        "description": "Comprueba si la contraseña y la fila proporcionadas coinciden con lo almacenado en la celda.",
+        "fieldId": "El ID del campo donde se debe comprobar la contraseña.",
+        "rowId": "El ID de la fila donde se debe comprobar la contraseña.",
+        "password": "La contraseña que debe verificarse para saber si es correcta."
+    },
+    "apiDocsListTables": {
+        "listTablesDescription": "Este endpoint solo funciona en combinación con la autenticación mediante token. Enumera todas las tablas a las que el token tiene acceso de crear, leer, actualizar o eliminar.",
+        "listTables": "Listar todas las tablas"
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Opciones",
+        "defaultOptionsLabel": "Opciones predeterminadas"
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Predeterminado"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "El campo al que está asociado este filtro ha sido eliminado."
+    },
+    "webhookDeactivatedNotification": {
+        "body": "{name} webhook ha sido desactivado porque falló demasiadas veces consecutivamente."
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "El payload para el webhook {name} con ID de evento {event_id} era demasiado grande. El contenido se ha dividido en varios lotes, pero los datos que superan el límite de lote de {batch_limit} fueron descartados."
+    },
+    "tablesGuidedTourStep": {
+        "title": "Configurar tablas",
+        "content": "Las tablas almacenan tu información ordenadamente. Crea una nueva tabla dentro de tu base de datos para comenzar a estructurar tus datos."
+    },
+    "filterSortGroupGuidedTourStep": {
+        "title": "Encuentra y organiza tus datos",
+        "content": "Ubica rápidamente la información filtrando y ordenando tus filas. Agrupa instantáneamente por cualquiera de los campos para visualizar claramente los patrones y simplificar tus flujos de trabajo."
+    },
+    "addFieldGuidedTourStep": {
+        "title": "Personaliza tus datos",
+        "content": "Haz clic en «+» para añadir nuevos campos (columnas). Elige entre varios tipos de campo para capturar exactamente lo que más importa a tu proyecto."
+    },
+    "createViewGuidedTourStep": {
+        "title": "Personaliza tus vistas",
+        "content": "Crea vistas personalizadas como cuadrícula, calendario, kanban o galería para visualizar tus datos exactamente como los quieres."
+    },
+    "createFormViewGuidedTourStep": {
+        "title": "Crear un formulario",
+        "content": "Construye rápidamente formularios a partir de tus tablas para recopilar respuestas directamente en tu tabla, agilizando la recopilación de datos."
+    },
+    "viewOptionsGuidedTourStep": {
+        "title": "Opciones de vista",
+        "content": "Haz clic en los tres puntos junto a la vista para exportar, importar, duplicar y configurar un webhook."
+    },
+    "fieldRules": {
+        "errorTitle": "Error durante el procesamiento de la regla de campo",
+        "ruleDoesNotExist": "La regla no existe",
+        "ruleTypeDoesNotExist": "El tipo de regla no existe",
+        "ruleAlreadyExists": "La regla ya existe"
     }
 }

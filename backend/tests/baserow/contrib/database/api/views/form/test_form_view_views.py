@@ -613,7 +613,7 @@ def test_submit_form_view_with_allowed_select_options_override_single_select(
             f"field_{single_select_field.id}": option_1.id,
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -624,7 +624,7 @@ def test_submit_form_view_with_allowed_select_options_override_single_select(
             f"field_{single_select_field.id}": option_2.id,
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     response_json = response.json()
     assert response_json == {
@@ -683,7 +683,7 @@ def test_submit_form_view_with_allowed_select_options_override_multiple_select(
             f"field_{multiple_select_field.id}": [option_1.id],
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -694,7 +694,7 @@ def test_submit_form_view_with_allowed_select_options_override_multiple_select(
             f"field_{multiple_select_field.id}": [option_2.id],
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     response_json = response.json()
     assert response_json == {
@@ -838,7 +838,7 @@ def test_submit_form_view(api_client, data_fixture):
 
     url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
     response = api_client.post(
-        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT" f" {token_2}"
+        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {token_2}"
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FORM_DOES_NOT_EXIST"
@@ -852,7 +852,7 @@ def test_submit_form_view(api_client, data_fixture):
             f"field_{number_field.id}": {},
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
@@ -869,7 +869,7 @@ def test_submit_form_view(api_client, data_fixture):
             f"field_{number_field.id}": 0,
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
@@ -996,7 +996,7 @@ def test_submit_form_view_skip_required_with_conditions(api_client, data_fixture
             f"field_{text_field.id}": "test",
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
@@ -1012,7 +1012,7 @@ def test_submit_form_view_skip_required_with_conditions(api_client, data_fixture
             f"field_{text_field.id}": "test",
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
@@ -1031,7 +1031,7 @@ def test_submit_form_view_skip_required_with_conditions(api_client, data_fixture
             f"field_{text_field.id}": "test",
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
 
@@ -1104,7 +1104,7 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token_2}",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
@@ -1117,7 +1117,7 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -1130,7 +1130,7 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -1143,7 +1143,7 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -1156,7 +1156,7 @@ def test_form_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -2977,7 +2977,7 @@ def test_submit_form_view_for_required_number_field_with_0(api_client, data_fixt
             f"field_{number_field.id}": "0",
         },
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK, (
         "Got an error response "

@@ -111,7 +111,7 @@ class BaserowBackupRunner:
 
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             with tarfile.open(backup_file_name, "r:gz") as backup_input_tar:
-                backup_input_tar.extractall(temporary_directory_name)  # nosec B202
+                backup_input_tar.extractall(temporary_directory_name)  # noqa: S202
 
             backup_internal_folder_name = Path(backup_file_name).name
             backup_sub_folder = Path(
@@ -139,7 +139,7 @@ class BaserowBackupRunner:
         params = [
             "--host=" + self.host,
             "--dbname=" + self.database,
-            "--port=" + self.port,
+            "--port=" + str(self.port),
             "--username=" + self.username,
             # Run in directory mode so we can do parallel dumps using the jobs flag.
             "-Fd",
@@ -266,7 +266,7 @@ class BaserowBackupRunner:
         print(" ".join(command))
         # Adding nosec ignore as this is only used by admin only command line tools
         # where it it is completely reasonable to use subprocess and not insecure.
-        subprocess.check_output(command)  # nosec
+        subprocess.check_output(command)  # noqa: S603
 
 
 def _get_sorted_user_tables_names(conn) -> List[str]:

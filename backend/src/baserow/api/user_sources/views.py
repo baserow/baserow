@@ -576,8 +576,7 @@ class UserSourceForceObtainJSONWebToken(APIView):
         responses={
             200: authenticate_schema,
             401: {
-                "description": "An active user with the provided ID "
-                "could not be found."
+                "description": "An active user with the provided ID could not be found."
             },
         },
     )

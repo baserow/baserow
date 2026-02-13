@@ -1,5 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
+import { useRouter, useRuntimeConfig } from '#imports'
 
 export class RealTimeHandler {
   constructor(context) {
@@ -23,6 +24,10 @@ export class RealTimeHandler {
    * received.
    */
   connect(reconnect = true, anonymous = false) {
+    if (!import.meta.client) {
+      return
+    }
+
     this.reconnect = reconnect
     this.anonymous = anonymous
 
@@ -51,7 +56,8 @@ export class RealTimeHandler {
 
     // The web socket url is the same as the PUBLIC_BACKEND_URL apart from the
     // protocol.
-    const rawUrl = this.context.app.$config.PUBLIC_BACKEND_URL
+    const config = useRuntimeConfig()
+    const rawUrl = config.public.publicBackendUrl
     const url = new URL(rawUrl)
     url.protocol = isSecureURL(rawUrl) ? 'wss:' : 'ws:'
     url.pathname = '/ws/core/'
@@ -86,7 +92,9 @@ export class RealTimeHandler {
         Object.prototype.hasOwnProperty.call(data, 'type') &&
         Object.prototype.hasOwnProperty.call(this.events, data.type)
       ) {
-        this.events[data.type](this.context, data)
+        for (const callback of this.events[data.type]) {
+          callback(this.context, data)
+        }
       }
     }
 
@@ -160,12 +168,14 @@ export class RealTimeHandler {
     this.pages = this.pages.filter(
       (item) => JSON.stringify(item) !== JSON.stringify({ page, parameters })
     )
-    this.socket.send(
-      JSON.stringify({
-        remove_page: page,
-        ...parameters,
-      })
-    )
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          remove_page: page,
+          ...parameters,
+        })
+      )
+    }
   }
 
   /*
@@ -220,7 +230,10 @@ export class RealTimeHandler {
    * Registers a new event with the event registry.
    */
   registerEvent(type, callback) {
-    this.events[type] = callback
+    if (!this.events[type]) {
+      this.events[type] = []
+    }
+    this.events[type].push(callback)
   }
 
   /**
@@ -419,10 +432,11 @@ export class RealTimeHandler {
         // TODO: some job types have no frontend handlers (JobType subclasses)
         //  registered. This will cause an error during creation. The proper fix
         //  would be to add missing JobTypes.
-        if (
-          err.message !==
-          `The type ${data.job.type} is not found under namespace job in the registry.`
-        ) {
+        // Check if the error is about a missing job type in the registry
+        const missingTypePattern = new RegExp(
+          `^The type "${data.job.type}" is not found under namespace "job" in the registry\\.`
+        )
+        if (!missingTypePattern.test(err.message)) {
           throw err
         }
       }
@@ -430,6 +444,15 @@ export class RealTimeHandler {
   }
 }
 
-export default function (context, inject) {
-  inject('realtime', new RealTimeHandler(context))
-}
+export default defineNuxtPlugin({
+  name: 'realtime',
+  dependsOn: ['store', 'registry'],
+  setup(nuxtApp) {
+    const context = {
+      store: nuxtApp.$store,
+      app: nuxtApp,
+    }
+
+    nuxtApp.provide('realtime', new RealTimeHandler(context))
+  },
+})

@@ -81,7 +81,8 @@ const actions = {
     { dispatch },
     { application, userSourceType, values, beforeId = null }
   ) {
-    const { data: userSource } = await UserSourceService(this.$client).create(
+    const { $registry, $i18n, $client, $config } = this
+    const { data: userSource } = await UserSourceService($client).create(
       application.id,
       userSourceType,
       values,
@@ -93,6 +94,7 @@ const actions = {
     return userSource
   },
   async update({ dispatch, getters }, { application, userSourceId, values }) {
+    const { $registry, $i18n, $client, $config } = this
     const userSourcesOfPage = getters.getUserSources(application)
     const userSource = userSourcesOfPage.find(({ id }) => id === userSourceId)
 
@@ -113,9 +115,10 @@ const actions = {
     })
 
     try {
-      const { data: newUserSource } = await UserSourceService(
-        this.$client
-      ).update(userSource.id, newValues)
+      const { data: newUserSource } = await UserSourceService($client).update(
+        userSource.id,
+        newValues
+      )
       await dispatch('forceUpdate', {
         application,
         userSource,
@@ -135,6 +138,7 @@ const actions = {
     { dispatch, getters },
     { application, userSourceId, values }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     const userSource = getters
       .getUserSources(application)
       .find(({ id }) => id === userSourceId)
@@ -156,7 +160,7 @@ const actions = {
     return new Promise((resolve, reject) => {
       const fire = async () => {
         try {
-          await UserSourceService(this.$client).update(userSource.id, values)
+          await UserSourceService($client).update(userSource.id, values)
           updateContext.lastUpdatedValues = values
           resolve()
         } catch (error) {
@@ -186,6 +190,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { application, userSourceId }) {
+    const { $registry, $i18n, $client, $config } = this
     const userSourcesOfPage = getters.getUserSources(application)
     const userSourceIndex = userSourcesOfPage.findIndex(
       (userSource) => userSource.id === userSourceId
@@ -199,7 +204,7 @@ const actions = {
     await dispatch('forceDelete', { application, userSourceId })
 
     try {
-      await UserSourceService(this.$client).delete(userSourceId)
+      await UserSourceService($client).delete(userSourceId)
     } catch (error) {
       await dispatch('forceCreate', {
         application,
@@ -210,9 +215,10 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { application }) {
-    const { data: userSources } = await UserSourceService(
-      this.$client
-    ).fetchAll(application.id)
+    const { $registry, $i18n, $client, $config } = this
+    const { data: userSources } = await UserSourceService($client).fetchAll(
+      application.id
+    )
 
     commit('CLEAR_ITEMS', { application })
     await Promise.all(
@@ -225,6 +231,7 @@ const actions = {
   },
 
   async move({ dispatch }, { application, userSourceId, beforeUserSourceId }) {
+    const { $registry, $i18n, $client, $config } = this
     await dispatch('forceMove', {
       application,
       userSourceId,
@@ -232,10 +239,7 @@ const actions = {
     })
 
     try {
-      await UserSourceService(this.$client).move(
-        userSourceId,
-        beforeUserSourceId
-      )
+      await UserSourceService($client).move(userSourceId, beforeUserSourceId)
     } catch (error) {
       await dispatch('forceMove', {
         application,

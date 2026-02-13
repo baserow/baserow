@@ -76,22 +76,11 @@
       required
       class="margin-bottom-2"
     >
-      <RadioButton
+      <RadioGroup
         v-model="values.option_type"
-        type="chips"
-        :value="CHOICE_OPTION_TYPES.MANUAL"
-        icon="iconoir-open-select-hand-gesture"
-      >
-        {{ $t('choiceOptionSelector.manual') }}
-      </RadioButton>
-      <RadioButton
-        v-model="values.option_type"
-        type="chips"
-        :value="CHOICE_OPTION_TYPES.FORMULAS"
-        icon="iconoir-sigma-function"
-      >
-        {{ $t('choiceOptionSelector.formulas') }}
-      </RadioButton>
+        :options="optionTypeOptions"
+        type="button"
+      />
     </FormGroup>
     <template v-if="values.option_type === CHOICE_OPTION_TYPES.MANUAL">
       <template v-if="values.options.length">
@@ -251,6 +240,20 @@ export default {
           icon: this.values.multiple
             ? 'baserow-icon-check-square'
             : 'iconoir-check-circle',
+        },
+      ]
+    },
+    optionTypeOptions() {
+      return [
+        {
+          label: this.$t('choiceOptionSelector.manual'),
+          value: CHOICE_OPTION_TYPES.MANUAL,
+          icon: 'iconoir-open-select-hand-gesture',
+        },
+        {
+          label: this.$t('choiceOptionSelector.formulas'),
+          value: CHOICE_OPTION_TYPES.FORMULAS,
+          icon: 'iconoir-sigma-function',
         },
       ]
     },

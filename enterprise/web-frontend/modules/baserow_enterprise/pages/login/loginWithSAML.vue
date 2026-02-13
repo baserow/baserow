@@ -20,14 +20,14 @@
           class="mb-24"
         >
           <FormInput
-            ref="email"
-            v-model="values.email"
+            ref="emailInput"
+            v-model="formData.email"
             type="email"
             size="large"
             :placeholder="$t('login.emailPlaceholder')"
             :error="fieldHasErrors('email') || loginRequestError"
-            @input="loginRequestError = null"
-            @blur="v$.values.email.$touch"
+            @input="loginRequestError = false"
+            @blur="v$.email.$touch"
           ></FormInput>
 
           <template #error>
@@ -72,132 +72,165 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import { useRoute } from 'vue-router'
 import { useVuelidate } from '@vuelidate/core'
-import { reactive } from 'vue'
-import decamelize from 'decamelize'
 import { required, email } from '@vuelidate/validators'
-import form from '@baserow/modules/core/mixins/form'
-import error from '@baserow/modules/core/mixins/error'
-import workspaceInvitationToken from '@baserow/modules/core/mixins/workspaceInvitationToken'
+import decamelize from 'decamelize'
+
 import { SamlAuthProviderType } from '@baserow_enterprise/authProviderTypes'
 import samlAuthProviderService from '@baserow_enterprise/services/samlAuthProvider'
+import WorkspaceService from '@baserow/modules/core/services/workspace'
 
-export default {
-  mixins: [form, error],
+definePageMeta({
   layout: 'login',
-  setup() {
-    const values = reactive({
-      values: {
-        email: '',
-      },
-    })
+})
 
-    const rules = {
-      values: {
-        email: { required, email },
-      },
-    }
+const store = useStore()
+const route = useRoute()
+const { $client } = useNuxtApp()
 
-    return {
-      v$: useVuelidate(rules, values, { $lazy: true }),
-      values: values.values,
-    }
-  },
-  async asyncData({ app, redirect, store, route }) {
-    // the SuperUser must create the account using username and password
-    if (store.getters['settings/get'].show_admin_signup_page === true) {
-      return redirect({ name: 'signup' })
-    }
-    // if this page is accessed directly, load the login options to
-    // populate the page with all the authentication providers
-    if (!store.getters['authProvider/getLoginOptionsLoaded']) {
-      await store.dispatch('authProvider/fetchLoginOptions')
-    }
-    const samlLoginOptions = store.getters[
-      'authProvider/getLoginOptionsForType'
-    ](new SamlAuthProviderType().getType())
-    if (!samlLoginOptions) {
-      return redirect({ name: 'login', query: route.query }) // no SAML provider enabled
-    }
-    // in case the email is not necessary or provided via workspace invitation,
-    // redirect the user directly to the SAML provider
-    const { invitation } = await workspaceInvitationToken.asyncData({
-      route,
-      app,
-    })
-    if (!samlLoginOptions.domainRequired || invitation?.email) {
-      try {
-        const { data } = await samlAuthProviderService(
-          app.$client
-        ).getSamlLoginUrl({
-          email: invitation?.email,
-          original: route.query.original,
-        })
-        return { redirectImmediately: true, redirectUrl: data.redirect_url }
-      } catch (error) {
-        return { values: { email: invitation?.email }, loginRequestError: true }
-      }
-    }
-    return { redirectUrl: samlLoginOptions.redirect_url }
-  },
-  data() {
-    return {
-      loading: false,
-      redirectImmediately: false,
-      loginRequestError: false,
-    }
-  },
-  computed: {
-    ...mapGetters({
-      passwordLoginEnabled: 'authProvider/getPasswordLoginEnabled',
-    }),
-  },
-  mounted() {
-    if (this.redirectImmediately) {
-      window.location.href = this.getRedirectUrlWithValidQueryParams(
-        this.redirectUrl
-      )
-    }
-  },
-  methods: {
-    async login() {
-      this.v$.$touch()
-      this.loginRequestError = false
-      if (this.v$.$invalid) {
-        this.focusOnFirstError()
-        return
-      }
+// Refs
+const emailInput = ref(null)
+const loading = ref(false)
+const loginRequestError = ref(false)
+const redirectImmediately = ref(false)
+const redirectUrl = ref(null)
 
-      this.loading = true
-      this.hideError()
+// Form data
+const formData = reactive({
+  email: '',
+})
 
-      const { original } = this.$route.query
-      try {
-        const { data } = await samlAuthProviderService(
-          this.$client
-        ).getSamlLoginUrl({
-          email: this.values.email,
-          original,
-        })
-        window.location = this.getRedirectUrlWithValidQueryParams(
-          data.redirect_url
-        )
-      } catch (error) {
-        this.loginRequestError = true
-        this.loading = false
-      }
-    },
-    getRedirectUrlWithValidQueryParams(url) {
-      const parsedUrl = new URL(url)
-      for (const [key, value] of Object.entries(this.$route.query)) {
-        if (['language', 'workspaceInvitationToken'].includes(key)) {
-          parsedUrl.searchParams.append(decamelize(key), value)
-        }
-      }
-      return parsedUrl.toString()
-    },
-  },
+// Vuelidate
+const rules = {
+  email: { required, email },
 }
+
+const v$ = useVuelidate(rules, formData, { $lazy: true })
+
+// Computed
+const passwordLoginEnabled = computed(
+  () => store.getters['authProvider/getPasswordLoginEnabled']
+)
+
+// Methods
+const fieldHasErrors = (field) => {
+  return v$.value[field].$error
+}
+
+const getRedirectUrlWithValidQueryParams = (url) => {
+  const parsedUrl = new URL(url)
+  for (const [key, value] of Object.entries(route.query)) {
+    if (['language', 'workspaceInvitationToken'].includes(key)) {
+      parsedUrl.searchParams.append(decamelize(key), value)
+    }
+  }
+  return parsedUrl.toString()
+}
+
+const login = async () => {
+  v$.value.$touch()
+  loginRequestError.value = false
+
+  if (v$.value.$invalid) {
+    emailInput.value?.$el?.focus()
+    return
+  }
+
+  loading.value = true
+
+  const { original } = route.query
+  try {
+    const { data } = await samlAuthProviderService($client).getSamlLoginUrl({
+      email: formData.email,
+      original,
+    })
+    window.location = getRedirectUrlWithValidQueryParams(data.redirect_url)
+  } catch (error) {
+    loginRequestError.value = true
+    loading.value = false
+  }
+}
+
+// Async data fetching
+const { data: asyncData } = await useAsyncData('saml-login', async () => {
+  // the SuperUser must create the account using username and password
+  if (store.getters['settings/get'].show_admin_signup_page === true) {
+    await navigateTo({ name: 'signup' })
+    return {}
+  }
+
+  // if this page is accessed directly, load the login options to
+  // populate the page with all the authentication providers
+  if (!store.getters['authProvider/getLoginOptionsLoaded']) {
+    await store.dispatch('authProvider/fetchLoginOptions')
+  }
+
+  const samlLoginOptions = store.getters['authProvider/getLoginOptionsForType'](
+    new SamlAuthProviderType().getType()
+  )
+
+  if (!samlLoginOptions) {
+    await navigateTo({ name: 'login', query: route.query }) // no SAML provider enabled
+    return {}
+  }
+
+  // Fetch workspace invitation if token exists
+  let invitation = null
+  const invitationToken = route.query.workspaceInvitationToken
+  if (invitationToken) {
+    try {
+      const { data } =
+        await WorkspaceService($client).fetchInvitationByToken(invitationToken)
+      invitation = data
+    } catch {}
+  }
+
+  // in case the email is not necessary or provided via workspace invitation,
+  // redirect the user directly to the SAML provider
+  if (!samlLoginOptions.domainRequired || invitation?.email) {
+    try {
+      const { data } = await samlAuthProviderService($client).getSamlLoginUrl({
+        email: invitation?.email,
+        original: route.query.original,
+      })
+      return {
+        redirectImmediately: true,
+        redirectUrl: data.redirect_url,
+      }
+    } catch (error) {
+      return {
+        email: invitation?.email,
+        loginRequestError: true,
+      }
+    }
+  }
+
+  return { redirectUrl: samlLoginOptions.redirect_url }
+})
+
+// Apply async data results
+if (asyncData.value?.redirectImmediately) {
+  redirectImmediately.value = true
+  redirectUrl.value = asyncData.value.redirectUrl
+}
+if (asyncData.value?.redirectUrl) {
+  redirectUrl.value = asyncData.value.redirectUrl
+}
+if (asyncData.value?.email) {
+  formData.email = asyncData.value.email
+}
+if (asyncData.value?.loginRequestError) {
+  loginRequestError.value = true
+}
+
+// Mounted
+onMounted(() => {
+  if (redirectImmediately.value && redirectUrl.value) {
+    window.location.href = getRedirectUrlWithValidQueryParams(redirectUrl.value)
+  }
+})
 </script>

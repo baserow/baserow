@@ -64,7 +64,13 @@
                 </div>
                 <div class="workspace-search__result-main">
                   <div class="workspace-search__result-title">
-                    {{ displayFor(result).title }}
+                    {{ displayFor(result).title
+                    }}<span
+                      v-if="getEmptyLabel(result)"
+                      class="workspace-search__result-empty-badge"
+                    >
+                      {{ getEmptyLabel(result) }}</span
+                    >
                   </div>
                   <div
                     v-if="displayFor(result).subtitle"
@@ -250,7 +256,7 @@ export default {
     })
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.removeScrollListener()
   },
 
@@ -470,7 +476,21 @@ export default {
       if (url) {
         this.$router.push(url)
         this.hide()
+      } else {
+        // Try to focus in sidebar as fallback if there is no navigable route
+        const focused = searchTypeRegistry.focusInSidebar(result.type, result, {
+          store: this.$store,
+        })
+        if (focused) {
+          this.hide()
+        }
       }
+    },
+
+    getEmptyLabel(result) {
+      return searchTypeRegistry.getEmptyLabel(result.type, result, {
+        store: this.$store,
+      })
     },
 
     buildResultUrl(result) {

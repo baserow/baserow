@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import {
   getValueAtPath,
   setValueAtPath,
@@ -29,7 +28,8 @@ function setFormEntryAtPath(page, uniqueElementId, value) {
 const mutations = {
   SET_FORM_DATA(state, { page, uniqueElementId, payload }) {
     if (!page.formData) {
-      Vue.set(page, 'formData', {})
+      // In Vue 3, direct assignment is reactive
+      page.formData = {}
     }
 
     setFormEntryAtPath(page, uniqueElementId, payload)

@@ -1,26 +1,22 @@
-<template functional>
+<template>
   <GridViewRowExpandButton
     v-if="
-      !props.row ||
-      !props.row._.metadata.row_comment_count ||
-      !injections.$hasPermission(
-        'database.table.list_comments',
-        props.table,
-        props.workspaceId
-      )
+      !row ||
+      !rowCommentCount ||
+      !$hasPermission('database.table.list_comments', table, workspaceId)
     "
-    :row="props.row"
-    v-on="listeners"
-  >
-  </GridViewRowExpandButton>
+    :row="row"
+    v-bind="$attrs"
+    @edit-modal="$emit('edit-modal')"
+  />
   <a
     v-else
     class="row-comments-expand-button"
-    :title="props.row._.metadata.row_comment_count + ' comments'"
-    @click="listeners['edit-modal'] && listeners['edit-modal']()"
+    :title="rowCommentCount + ' comments'"
+    @click="onEditModalClick"
   >
-    <template v-if="props.row._.metadata.row_comment_count < 100">
-      {{ props.row._.metadata.row_comment_count }}
+    <template v-if="rowCommentCount < 100">
+      {{ rowCommentCount }}
     </template>
     <i v-else class="row-comments-expand-button__icon iconoir-multi-bubble"></i>
   </a>
@@ -30,8 +26,38 @@ import GridViewRowExpandButton from '@baserow/modules/database/components/view/g
 
 export default {
   name: 'GridViewRowExpandButtonWithCommentCount',
-  functional: true,
+  emits: ['edit-modal'],
   components: { GridViewRowExpandButton },
   inject: { $hasPermission: '$hasPermission' },
+  props: {
+    row: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    table: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    workspaceId: {
+      type: [Number, String],
+      required: false,
+      default: null,
+    },
+  },
+  computed: {
+    rowCommentCount() {
+      if (!this.row || !this.row._ || !this.row._.metadata) {
+        return null
+      }
+      return this.row._.metadata.row_comment_count
+    },
+  },
+  methods: {
+    onEditModalClick() {
+      this.$emit('edit-modal')
+    },
+  },
 }
 </script>

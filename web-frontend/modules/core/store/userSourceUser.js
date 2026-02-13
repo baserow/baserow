@@ -1,5 +1,4 @@
 import jwtDecode from 'jwt-decode'
-import Vue from 'vue'
 
 import UserSourceService from '@baserow/modules/core/services/userSource'
 
@@ -17,7 +16,7 @@ export const state = () => ({
 
 const checkApplication = (application) => {
   if (!application.userSourceUser) {
-    Vue.set(application, 'userSourceUser', {
+    application.userSourceUser = {
       refreshing: false,
       token: null,
       refreshToken: null,
@@ -25,7 +24,7 @@ const checkApplication = (application) => {
       tokenPayload: null,
       user: { email: '', id: 0, username: '', role: '', user_source_uid: '' },
       authenticated: false,
-    })
+    }
   }
 }
 
@@ -90,9 +89,10 @@ export const actions = {
     commit('SET_CURRENT_APPLICATION', { application })
   },
   async forceAuthenticate({ dispatch }, { application, userSource, user }) {
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { access_token: access, refresh_token: refresh },
-    } = await UserSourceService(this.$client).forceAuthenticate(
+    } = await UserSourceService($client).forceAuthenticate(
       userSource.id,
       user.id
     )
@@ -108,9 +108,10 @@ export const actions = {
     { dispatch },
     { application, userSource, credentials, setCookie }
   ) {
+    const { $registry, $i18n, $client, $config } = this
     const {
       data: { access_token: access, refresh_token: refresh },
-    } = await UserSourceService(this.$client).authenticate(
+    } = await UserSourceService($client).authenticate(
       userSource.id,
       credentials
     )
@@ -122,10 +123,11 @@ export const actions = {
       setCookie,
     })
   },
-  login(
+  async login(
     { commit, getters },
     { application, access, refresh, tokenUpdatedAt, setCookie = true }
   ) {
+    const nuxtApp = this.app
     commit('SET_TOKENS', { application, access, refresh, tokenUpdatedAt })
     const tokenPayload = jwtDecode(access)
     commit('SET_USER_DATA', {
@@ -142,8 +144,8 @@ export const actions = {
 
     if (setCookie) {
       // Set the token for next page load
-      setToken(
-        this.app,
+      await setToken(
+        nuxtApp,
         getters.refreshToken(application),
         userSourceCookieTokenName,
         {
@@ -158,7 +160,7 @@ export const actions = {
    * data.
    */
   async logoff({ commit, getters }, { application, invalidateToken = true }) {
-    unsetToken(this.app, userSourceCookieTokenName)
+    await unsetToken(this.app, userSourceCookieTokenName)
     if (!getters.isAuthenticated(application)) {
       return
     }

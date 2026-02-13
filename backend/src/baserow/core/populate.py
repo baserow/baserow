@@ -38,13 +38,13 @@ def load_test_data():
 
         try:
             workspace = Workspace.objects.get(
-                name=f"Acme Corp ({i +1})" if i > 0 else "Acme Corp"
+                name=f"Acme Corp ({i + 1})" if i > 0 else "Acme Corp"
             )
         except Workspace.DoesNotExist:
             workspace = (
                 CoreHandler()
                 .create_workspace(
-                    admin, name=f"Acme Corp ({i +1})" if i > 0 else "Acme Corp"
+                    admin, name=f"Acme Corp ({i + 1})" if i > 0 else "Acme Corp"
                 )
                 .workspace
             )
@@ -52,7 +52,9 @@ def load_test_data():
         # Create a second admin for the workspace
         email = f"admin{i + 1}_bis@baserow.io" if i > 0 else "admin_bis@baserow.io"
         try:
-            admin_bis = user_handler.create_user(f"Admin {i+1} bis", email, "password")
+            admin_bis = user_handler.create_user(
+                f"Admin {i + 1} bis", email, "password"
+            )
         except UserAlreadyExist:
             admin_bis = User.objects.get(email=email)
         WorkspaceUser.objects.update_or_create(
@@ -62,14 +64,14 @@ def load_test_data():
         )
 
         for j in range(3):
-            member_email_prefix = f"member{i+1}" if j > 0 else "member"
+            member_email_prefix = f"member{i + 1}" if j > 0 else "member"
             member_email_prefix = (
-                f"{member_email_prefix}_{j+1}" if i > 0 else member_email_prefix
+                f"{member_email_prefix}_{j + 1}" if i > 0 else member_email_prefix
             )
             member_email = f"{member_email_prefix}@baserow.io"
             try:
                 member = user_handler.create_user(
-                    f"Member {i+1} {j+1}", member_email, "password"
+                    f"Member {i + 1} {j + 1}", member_email, "password"
                 )
             except UserAlreadyExist:
                 member = User.objects.get(email=member_email)

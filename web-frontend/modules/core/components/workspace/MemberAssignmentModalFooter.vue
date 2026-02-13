@@ -39,6 +39,7 @@ export default {
       default: false,
     },
   },
+  emits: ['invite', 'toggle-select-all'],
   computed: {
     toggleEnabled() {
       return this.filteredMembersCount !== 0

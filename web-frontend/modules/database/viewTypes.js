@@ -13,13 +13,12 @@ import {
   isAdhocSorting,
   newFieldMatchesActiveSearchTerm,
   sortFieldsByOrderAndIdFunction,
+  maxPossibleOrderValue,
 } from '@baserow/modules/database/utils/view'
 import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 import { waitFor } from '@baserow/modules/core/utils/queue'
-
-export const maxPossibleOrderValue = 32767
 
 export class ViewType extends Registerable {
   /**
@@ -141,7 +140,7 @@ export class ViewType extends Registerable {
    * `Share {this.getSharingLinkName()}`
    */
   getSharingLinkName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.sharing.linkName')
   }
 
@@ -484,7 +483,7 @@ export class ViewType extends Registerable {
    * @returns {null|String}
    */
   getSharedViewText() {
-    return this.app.i18n.t('shareViewLink.shareViewText')
+    return this.app.$i18n.t('shareViewLink.shareViewText')
   }
 
   /**
@@ -519,7 +518,7 @@ export class GridViewType extends ViewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.grid')
   }
 
@@ -561,6 +560,7 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+
     await store.dispatch(
       storePrefix + 'view/grid/setRowHeight',
       GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING[view.row_height_size]
@@ -576,7 +576,7 @@ export class GridViewType extends ViewType {
     // being sorted, and this will only be the case after a refresh.
     await store.dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
-      clone(view.group_bys)
+      clone(view.group_bys || [])
     )
 
     if (
@@ -720,7 +720,7 @@ export class GridViewType extends ViewType {
     // active group bys.
     await dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
-      clone(rootGetters['view/getSelected'].group_bys),
+      clone(rootGetters['view/getSelected'].group_bys || []),
       {
         root: true,
       }
@@ -1109,7 +1109,7 @@ export class GalleryViewType extends BaseBufferedRowViewTypeMixin(ViewType) {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.gallery')
   }
 
@@ -1204,7 +1204,7 @@ export class FormViewType extends ViewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.form')
   }
 
@@ -1225,7 +1225,7 @@ export class FormViewType extends ViewType {
   }
 
   getSharingLinkName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.sharing.formLinkName')
   }
 
