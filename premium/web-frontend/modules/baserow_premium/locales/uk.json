@@ -477,7 +477,19 @@
         "other": "Інше"
     },
     "generateAIValuesModal": {
-        "title": "Згенерувати всі значення ШІ"
+        "title": "Згенерувати всі значення ШІ",
+        "noPreviousJobs": "Немає попередніх завдань",
+        "started": "Розпочато",
+        "finished": "Виконано",
+        "running": "Виконується",
+        "failed": "Збій",
+        "cancelled": "Скасовано",
+        "pending": "Очікує",
+        "view": "Подання: {name}",
+        "table": "Таблиця: Усі рядки",
+        "deletedView": "Подання: ID {viewId} (видалено)",
+        "rows": "Рядки: {count} рядків",
+        "autoUpdate": "Автооновлення: змінено пов’язані поля"
     },
     "generateAIValuesForm": {
         "scopeLabel": "Область",
@@ -492,5 +504,9 @@
     },
     "jobType": {
         "generateAIValues": "Перегенерувати значення поля ШІ"
+    },
+    "viewOwnershipType": {
+        "personal": "Персональне",
+        "personalDescription": "Тільки ви можете бачити це подання."
     }
 }
