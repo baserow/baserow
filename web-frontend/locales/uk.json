@@ -95,7 +95,8 @@
         "deleteAccount": "Видалити обліковий запис",
         "emailNotifications": "Сповіщення електронною поштою",
         "mcpEndpoint": "MCP сервер",
-        "twoFactorAuth": "Двофакторна автентифікація"
+        "twoFactorAuth": "Двофакторна автентифікація",
+        "email": "Змінити електронну адресу"
     },
     "userFileUploadType": {
         "file": "мій пристрій",
