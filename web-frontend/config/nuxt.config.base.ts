@@ -35,7 +35,6 @@ function baserowModuleConfig(
       enterpriseBase + '/modules/baserow_enterprise/module.js'
     )
   }
-  // baseModules.push('@nuxtjs/sentry')
 
   const modules = baseModules.concat(additionalModules)
 
