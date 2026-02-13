@@ -16,6 +16,7 @@ from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
 )
+from baserow.core.serialization import normalize_payload_for_serialization
 from baserow.core.services.registries import service_type_registry
 
 CORE_WEBHOOKS_TAG = "Core webhooks"
@@ -54,6 +55,12 @@ class CoreHTTPTriggerView(APIView):
         query_params = dict(request.GET.items())
         raw_body = request.body.decode("utf-8") if request.body else ""
         body = request.data if hasattr(request, "data") else {}
+
+        # Normalize the parsed body to convert integers that exceed the
+        # msgpack serialization range (used by channels_redis) to strings.
+        # Without this, oversized integers in HTTP trigger payloads cause
+        # OverflowError during websocket broadcast to connected clients.
+        body = normalize_payload_for_serialization(body)
 
         return {
             "method": request.method,

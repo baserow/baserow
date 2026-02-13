@@ -1,6 +1,7 @@
 from typing import Any, Dict, Iterable, List, Optional
 
 from baserow.config.celery import app
+from baserow.core.serialization import normalize_payload_for_serialization
 
 
 @app.task(bind=True)
@@ -41,12 +42,19 @@ async def send_message_to_channel_group(
     bug in channels 4.0.0 as recommended on
     https://github.com/django/channels_redis/issues/332
 
+    Messages are normalized before sending to ensure all integer values fall
+    within the msgpack serialization range supported by channels_redis. This
+    is a defensive boundary: even if upstream code (e.g. HTTP triggers, workflow
+    actions) correctly normalizes data, this ensures no out-of-range integer
+    can reach the channel layer and cause an OverflowError.
+
     :param channel_layer: The channel layer instance to use.
     :param channel_group_name: The channel group name identifying the channel group
         that should receive the message.
     :param messsage: JSON to send.
     """
 
+    message = normalize_payload_for_serialization(message)
     await channel_layer.group_send(channel_group_name, message)
     if hasattr(channel_layer, "close_pools"):
         # The inmemory channel layer in tests does not have this function.
