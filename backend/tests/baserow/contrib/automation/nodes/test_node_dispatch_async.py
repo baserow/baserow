@@ -362,6 +362,11 @@ def test_dispatch_node_async_dispatches_iterator_children(
                 "order": AnyStr(),
             }
 
+    # workflow history should still be "started", since the final node
+    # hasn't been dispatched yet.
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
     # After the iterator nodes are dispatched sync, the after_iteration_node
     # should have been dispatched async.
     mock_dispatch_task.delay.assert_called_once_with(
@@ -370,10 +375,20 @@ def test_dispatch_node_async_dispatches_iterator_children(
         current_iterations=None,
     )
 
-    # And the workflow history is updated correctly.
+    # Dispatch the after iteration node
+    mock_dispatch_task.reset_mock()
+    AutomationNodeHandler().dispatch_node_async(
+        after_iteration_node.id,
+        history_id=workflow_history.id,
+    )
+
+    # workflow history should be finally be updated as success
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -615,9 +630,10 @@ def test_dispatch_node_async_dispatches_test_run(
             history_id=workflow_history.id,
         )
 
-    # workflow history should be updated
+    # workflow history should still be "started", since the after iteration node
+    # hasn't been dispatched yet.
     workflow_history.refresh_from_db()
-    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+    assert workflow_history.status == HistoryStatusChoices.STARTED
 
     # Make sure all nodes have a history and node result
     for node in [
@@ -625,7 +641,6 @@ def test_dispatch_node_async_dispatches_test_run(
         iterator_node,
         iterator_child_1_node,
         iterator_child_2_node,
-        after_iteration_node,
     ]:
         for index, node_history in enumerate(
             AutomationNodeHistory.objects.filter(
@@ -652,6 +667,20 @@ def test_dispatch_node_async_dispatches_test_run(
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is True
     )
+
+    # Dispatch the after iteration node
+    mock_dispatch_task.reset_mock()
+    AutomationNodeHandler().dispatch_node_async(
+        after_iteration_node.id,
+        history_id=workflow_history.id,
+    )
+
+    # workflow history should be finally be updated as success
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    # There are no next nodes
+    mock_dispatch_task.delay.assert_not_called()
 
 
 @pytest.mark.django_db

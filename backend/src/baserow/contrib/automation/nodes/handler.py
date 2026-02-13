@@ -502,7 +502,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_history.save()
 
         next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-        if not next_nodes and not node.get_children():
+        if not next_nodes and not current_iterations:
             workflow_history.completed_on = now
             workflow_history.status = HistoryStatusChoices.SUCCESS
             workflow_history.save()
