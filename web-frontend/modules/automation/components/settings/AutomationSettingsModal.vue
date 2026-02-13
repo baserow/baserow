@@ -17,7 +17,11 @@
         <li v-for="setting in registeredSettings" :key="setting.getType()">
           <a
             class="modal-sidebar__nav-link"
-            :class="{ active: setting === settingSelected }"
+            :class="{
+              active:
+                settingSelected &&
+                setting.getType() === settingSelected.getType(),
+            }"
             @click="settingSelected = setting"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
