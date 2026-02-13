@@ -34,6 +34,11 @@ SINGLE_SELECT_SORT_BY_ORDER = "order"
 
 UNIQUE_WITH_EMPTY_CONSTRAINT_NAME = "unique_with_empty"
 
+# PostgreSQL btree indexes have a maximum entry size of 8191 bytes. We use 8000
+# as the maximum allowed UTF-8 byte length for text field values that are covered
+# by a unique index, leaving margin for index tuple header overhead.
+MAX_UNIQUE_TEXT_FIELD_VALUE_BYTES = 8000
+
 
 class DeleteFieldStrategyEnum(Enum):
     """

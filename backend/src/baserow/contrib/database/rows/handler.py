@@ -80,7 +80,11 @@ from baserow.core.exceptions import (
     PermissionException,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.psycopg import is_unique_violation_error, sql
+from baserow.core.psycopg import (
+    is_program_limit_exceeded_error,
+    is_unique_violation_error,
+    sql,
+)
 from baserow.core.registries import OperationType
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
@@ -940,7 +944,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             instance.save(force_insert=True)
             rows_created_counter.add(1)
         except Exception as exc:
-            if is_unique_violation_error(exc):
+            if is_unique_violation_error(exc) or is_program_limit_exceeded_error(exc):
                 raise FieldDataConstraintException()
             else:
                 raise exc
@@ -1183,7 +1187,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             row.save(update_fields=update_row_fields + always_updated_fields)
         except Exception as exc:
-            if is_unique_violation_error(exc):
+            if is_unique_violation_error(exc) or is_program_limit_exceeded_error(exc):
                 raise FieldDataConstraintException()
             else:
                 raise exc
@@ -1394,7 +1398,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 inserted_rows = model.objects.bulk_create(rows)
         except Exception as exc:
             inserted_rows = []
-            if is_unique_violation_error(exc):
+            if is_unique_violation_error(exc) or is_program_limit_exceeded_error(exc):
                 if not generate_error_report:
                     raise FieldDataConstraintException()
 
@@ -1848,7 +1852,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     report.update(result.errors)
                     all_updated_rows.extend(result.updated_rows)
             except Exception as exc:
-                if is_unique_violation_error(exc):
+                if is_unique_violation_error(exc) or is_program_limit_exceeded_error(
+                    exc
+                ):
                     for index, _ in enumerate(chunk):
                         report[row_start_index + index] = {
                             "non_field_errors": [
@@ -2415,7 +2421,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     rows_to_update, bulk_update_fields, batch_size=2000
                 )
             except Exception as exc:
-                if is_unique_violation_error(exc):
+                if is_unique_violation_error(exc) or is_program_limit_exceeded_error(
+                    exc
+                ):
                     if generate_error_report:
                         for idx, row in enumerate(rows_to_update):
                             report[idx] = {

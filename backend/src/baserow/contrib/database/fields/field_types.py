@@ -97,6 +97,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
+from baserow.contrib.database.fields.constants import (
+    MAX_UNIQUE_TEXT_FIELD_VALUE_BYTES,
+    UNIQUE_WITH_EMPTY_CONSTRAINT_NAME,
+)
 from baserow.contrib.database.fields.exceptions import SelectOptionDoesNotBelongToField
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
@@ -417,6 +421,36 @@ class ManyToManyFieldTypeSerializeToInputValueMixin:
         return value
 
 
+def _validate_unique_text_field_byte_length(instance, value):
+    """
+    Validates that a text value doesn't exceed the PostgreSQL btree index entry
+    size limit when the field has a unique constraint. Without this check,
+    PostgreSQL raises ProgramLimitExceeded which would surface as a 500 error.
+    """
+
+    if not value:
+        return
+
+    if not hasattr(instance, "_cached_has_unique_constraint"):
+        instance._cached_has_unique_constraint = (
+            instance.field_constraints.filter(
+                type_name=UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
+            ).exists()
+        )
+
+    if not instance._cached_has_unique_constraint:
+        return
+
+    byte_length = len(value.encode("utf-8"))
+    if byte_length > MAX_UNIQUE_TEXT_FIELD_VALUE_BYTES:
+        raise ValidationError(
+            f"The value is too long for a field with a unique constraint. "
+            f"The maximum size is {MAX_UNIQUE_TEXT_FIELD_VALUE_BYTES} bytes, "
+            f"but the value is {byte_length} bytes.",
+            code="unique_value_too_long",
+        )
+
+
 class TextFieldType(CollationSortMixin, FieldType):
     type = "text"
     model_class = TextField
@@ -426,6 +460,10 @@ class TextFieldType(CollationSortMixin, FieldType):
     _can_have_db_index = True
 
     can_upsert = True
+
+    def prepare_value_for_db(self, instance, value):
+        _validate_unique_text_field_byte_length(instance, value)
+        return value
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -489,6 +527,10 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 field_or_values, "long_text_enable_rich_text", False
             )
         return enable_rich_text is False
+
+    def prepare_value_for_db(self, instance, value):
+        _validate_unique_text_field_byte_length(instance, value)
+        return value
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)

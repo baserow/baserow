@@ -30,3 +30,9 @@ def is_unique_violation_error(exc: Exception) -> bool:
     return isinstance(exc, IntegrityError) and isinstance(
         exc.__cause__, errors.UniqueViolation
     )
+
+
+def is_program_limit_exceeded_error(exc: Exception) -> bool:
+    return isinstance(exc, OperationalError) and isinstance(
+        exc.__cause__, errors.ProgramLimitExceeded
+    )

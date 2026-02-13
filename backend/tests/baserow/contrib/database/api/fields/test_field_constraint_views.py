@@ -996,3 +996,302 @@ def test_update_field_remove_default_and_add_constraint_succeeds(
         text_field.field_constraints.first().type_name
         == UNIQUE_WITH_EMPTY_CONSTRAINT_NAME
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_create_row_with_very_long_value_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that inserting a very long value into a long_text field with a unique
+    constraint returns a 400 validation error instead of a 500 PostgreSQL error.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    # A value that exceeds the 8000-byte limit for unique indexed fields
+    very_long_value = "x" * 9000
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": very_long_value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_create_row_with_normal_length_value_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that inserting a normal-length value into a long_text field with a
+    unique constraint succeeds.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": "normal length value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json[f"field_{long_text_field.id}"] == "normal length value"
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_create_row_with_empty_value_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that inserting empty values into a long_text field with a unique
+    constraint succeeds (empty values are allowed by "unique with empty").
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    # First empty value
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": ""},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # Second empty value - should also succeed
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": ""},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_update_row_with_very_long_value_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that updating a row to a very long value on a long_text field with a
+    unique constraint returns a 400 error.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": "short value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    row_id = response.json()["id"]
+
+    # Update to a very long value
+    very_long_value = "y" * 9000
+    update_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row_id}
+    )
+    response = api_client.patch(
+        update_url,
+        {f"field_{long_text_field.id}": very_long_value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_create_duplicate_long_values_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that inserting two rows with the same long (but valid length) value
+    into a long_text field with a unique constraint returns a 400 error on the
+    second insert.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    long_value = "a" * 5000  # Under the limit but still long
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    # First insert should succeed
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": long_value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # Second insert with same value should fail with constraint violation
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": long_value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_FIELD_DATA_CONSTRAINT"
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_batch_create_rows_with_very_long_value_unique_long_text_constraint(
+    api_client, data_fixture
+):
+    """
+    Test that batch creating rows with a very long value in a long_text field
+    with a unique constraint returns a 400 error.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Unique Long Text",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    very_long_value = "z" * 9000
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {
+            "items": [
+                {f"field_{long_text_field.id}": very_long_value},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+@pytest.mark.field_constraints
+def test_long_value_allowed_without_unique_constraint(api_client, data_fixture):
+    """
+    Test that a very long value is allowed in a long_text field that does NOT
+    have a unique constraint (no byte limit enforced).
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    handler = FieldHandler()
+    long_text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="No Constraint Long Text",
+    )
+
+    very_long_value = "x" * 9000
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": very_long_value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
