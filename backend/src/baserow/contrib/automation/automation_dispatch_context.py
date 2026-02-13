@@ -71,6 +71,11 @@ class AutomationDispatchContext(DispatchContext):
         return new_context
 
     def _update_previous_results(self, history_id: int):
+        """
+        Updates the previous_nodes_results using data from the node
+        history related to the history_id.
+        """
+
         previous_results = AutomationNodeResult.objects.filter(
             node_history__workflow_history_id=history_id
         ).select_related("node_history__node")
