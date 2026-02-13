@@ -57,22 +57,22 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
-
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
+import job from '@baserow/modules/core/mixins/job'
 import moment from '@baserow/modules/core/moment'
 import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
 import ExportLoadingBar from '@baserow/modules/database/components/export/ExportLoadingBar'
 import AuditLogExportForm from '@baserow_enterprise/components/admin/forms/AuditLogExportForm'
 import AuditLogAdminService from '@baserow_enterprise/services/auditLog'
+import { AuditLogExportJobType } from '@baserow_enterprise/jobTypes'
 
 const MAX_EXPORT_FILES = 4
 
 export default {
   name: 'AuditLogExportModal',
   components: { AuditLogExportForm, ExportLoadingBar },
-  mixins: [modal, error],
+  mixins: [modal, error, job],
   props: {
     filters: {
       type: Object,
@@ -86,9 +86,6 @@ export default {
   data() {
     return {
       loading: false,
-      timeoutId: null,
-      timeNextPoll: 1000,
-      job: null,
       lastFinishedJobs: [],
     }
   },
@@ -103,35 +100,30 @@ export default {
     this.lastFinishedJobs = filteredJobs.filter(
       (job) => job.state === 'finished'
     )
-    const runningJob = filteredJobs.find(
-      (job) => !['failed', 'cancelled', 'finished'].includes(job.state)
-    )
-    this.job = runningJob || null
-    if (this.job) {
-      this.scheduleNextPoll()
-    } else {
+    this.loadRunningJob()
+    if (!this.jobIsRunning) {
       this.loading = false
     }
   },
-  // the poll timeout can only be scheduled on the client
   fetchOnServer: false,
-  computed: {
-    jobHasFailed() {
-      return ['failed', 'cancelled'].includes(this.job.state)
-    },
-    jobIsRunning() {
-      return (
-        this.job !== null && this.job.state !== 'finished' && !this.jobHasFailed
-      )
-    },
-    ...mapState({
-      selectedTableViews: (state) => state.view.items,
-    }),
-  },
-  beforeUnmount() {
-    this.stopPollIfRunning()
-  },
   methods: {
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (job) => {
+          if (job.type !== AuditLogExportJobType.getType()) {
+            return false
+          }
+          if (this.workspaceId) {
+            return job.filter_workspace_id === this.workspaceId
+          }
+          return true
+        }
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.loading = true
+      }
+    },
     getExportedFilename(job) {
       return job ? `audit_log_${job.created_on}.csv` : ''
     },
@@ -152,7 +144,6 @@ export default {
       return this.$t(`datetime.${period}Ago`, { count }, count)
     },
     hidden() {
-      this.stopPollIfRunning()
       if (this.job && !this.jobIsRunning) {
         this.lastFinishedJobs = [this.job, ...this.lastFinishedJobs]
         this.job = null
@@ -165,7 +156,6 @@ export default {
 
       this.loading = true
       this.hideError()
-      this.stopPollIfRunning()
       const filters = Object.fromEntries(
         Object.entries(this.filters).map(([key, value]) => [
           `filter_${key}`,
@@ -188,49 +178,28 @@ export default {
           0,
           MAX_EXPORT_FILES - 1
         )
-        this.job = data
-        this.scheduleNextPoll()
+        await this.createAndMonitorJob(data)
       } catch (error) {
         this.loading = false
         this.handleError(error, 'export')
       }
     },
-    async getJobInfo() {
-      try {
-        const { data } = await AuditLogAdminService(
-          this.$client
-        ).getExportJobInfo(this.job.id)
-        this.job = data
-
-        if (this.jobIsRunning) {
-          this.scheduleNextPoll()
-          return
-        }
-
-        this.loading = false
-        if (this.jobHasFailed) {
-          let title, message
-          if (this.job.status === 'failed') {
-            title = this.$t('auditLogExportModal.failedTitle')
-            message = this.$t('auditLogExportModal.failedDescription')
-          } else {
-            // cancelled
-            title = this.$t('auditLogExportModal.cancelledTitle')
-            message = this.$t('auditLogExportModal.cancelledDescription')
-          }
-          this.showError(title, message)
-        }
-      } catch (error) {
-        this.handleError(error, 'export')
-      }
+    onJobFinished() {
+      this.loading = false
     },
-    scheduleNextPoll() {
-      this.timeNextPoll = Math.min(this.timeNextPoll * 1.1, 5000)
-      this.timeoutId = setTimeout(this.getJobInfo, this.timeNextPoll)
+    onJobFailed() {
+      this.loading = false
+      this.showError(
+        this.$t('auditLogExportModal.failedTitle'),
+        this.$t('auditLogExportModal.failedDescription')
+      )
     },
-    stopPollIfRunning() {
-      clearTimeout(this.timeoutId)
-      this.timeoutId = null
+    onJobCancelled() {
+      this.loading = false
+      this.showError(
+        this.$t('auditLogExportModal.cancelledTitle'),
+        this.$t('auditLogExportModal.cancelledDescription')
+      )
     },
     valuesChanged() {
       this.isValid = this.$refs.form.isFormValid()
