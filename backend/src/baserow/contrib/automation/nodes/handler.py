@@ -420,13 +420,14 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
+            now = timezone.now()
             error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
-            workflow_history.completed_on = timezone.now()
+            workflow_history.completed_on = now
             workflow_history.message = error
             workflow_history.status = HistoryStatusChoices.ERROR
             workflow_history.save()
 
-            node_history.completed_on = timezone.now()
+            node_history.completed_on = now
             node_history.message = error
             node_history.status = HistoryStatusChoices.ERROR
             node_history.save()
@@ -441,12 +442,13 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             )
             logger.exception(error)
 
-            workflow_history.completed_on = timezone.now()
+            now = timezone.now()
+            workflow_history.completed_on = now
             workflow_history.message = error
             workflow_history.status = HistoryStatusChoices.ERROR
             workflow_history.save()
 
-            node_history.completed_on = timezone.now()
+            node_history.completed_on = now
             node_history.message = error
             node_history.status = HistoryStatusChoices.ERROR
             node_history.save()
@@ -494,13 +496,14 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     if simulation_completed:
                         return True
 
-        node_history.completed_on = timezone.now()
+        now = timezone.now()
+        node_history.completed_on = now
         node_history.status = HistoryStatusChoices.SUCCESS
         node_history.save()
 
         next_nodes = node.get_next_nodes(dispatch_result.output_uid)
         if not next_nodes and not node.get_children():
-            workflow_history.completed_on = timezone.now()
+            workflow_history.completed_on = now
             workflow_history.status = HistoryStatusChoices.SUCCESS
             workflow_history.save()
             return False
