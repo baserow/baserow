@@ -315,6 +315,7 @@ export default {
         this.dependency[dependencyFieldName] = fieldCreated.id
       } finally {
         this.creatingField = false
+        this.$refs[dependencyFieldName].hideDropdown()
       }
     },
 

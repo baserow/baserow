@@ -7,10 +7,11 @@
     :error="hasError"
   >
     <Dropdown
+      ref="dropdown"
       :value="modelValue"
       show-search
       fixed-items
-      :show-footer="isAddNew"
+      show-footer
       :disabled="disabled"
       :error="hasError"
       size="regular"
@@ -99,8 +100,9 @@ export default {
     },
   },
   methods: {
-    isAddNew(value) {
-      return value === 'add-new'
+    async hideDropdown() {
+      await this.$nextTick()
+      this.$refs.dropdown.hide()
     },
   },
 }
