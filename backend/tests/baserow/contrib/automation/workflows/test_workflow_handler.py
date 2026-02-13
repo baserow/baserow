@@ -8,23 +8,23 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
     WorkflowState,
 )
 from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
     AutomationWorkflowRateLimited,
     AutomationWorkflowTooManyErrors,
-    AutomationWorkflowBeforeRunError,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.trash.handler import TrashHandler
@@ -942,9 +942,7 @@ def test_clear_old_history_keeps_entries(data_fixture):
 
 
 @pytest.mark.django_db
-@patch(
-    f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run"
-)
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
 @patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
 def test_start_workflow_too_many_errors(
     mock_dispatch_task, mock_before_run, data_fixture
@@ -984,18 +982,14 @@ def test_start_workflow_too_many_errors(
 
 
 @pytest.mark.django_db
-@patch(
-    f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run"
-)
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
 @patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
 def test_start_workflow_before_run_error(
     mock_dispatch_task, mock_before_run, data_fixture
 ):
     # We already test the specific AutomationWorkflowTooManyErrors error above,
     # but we should also test that before_run() has error handling.
-    mock_before_run.side_effect = AutomationWorkflowBeforeRunError(
-        "unexpected error"
-    )
+    mock_before_run.side_effect = AutomationWorkflowBeforeRunError("unexpected error")
 
     original_workflow = data_fixture.create_automation_workflow()
     published_workflow = data_fixture.create_automation_workflow(

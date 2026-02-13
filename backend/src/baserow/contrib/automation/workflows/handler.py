@@ -10,7 +10,6 @@ from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from loguru import logger
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
