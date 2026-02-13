@@ -187,6 +187,8 @@ export default {
       try {
         const { data } = await this.$store.dispatch('field/deleteCall', field)
         this.$emit('delete')
+        this.hide()
+        this.deleteLoading = false
         await this.$store.dispatch('field/forceDelete', field)
         await this.$store.dispatch('field/forceUpdateFields', {
           fields: data.related_fields,
@@ -198,13 +200,14 @@ export default {
       } catch (error) {
         if (error.response && error.response.status === 404) {
           this.$emit('delete')
+          this.hide()
+          this.deleteLoading = false
           await this.$store.dispatch('field/forceDelete', field)
         } else {
           notifyIf(error, 'field')
+          this.deleteLoading = false
         }
       }
-      this.hide()
-      this.deleteLoading = false
     },
   },
 }
