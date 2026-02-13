@@ -20,9 +20,6 @@ services:
   caddy:
     volumes:
       - $PWD/Caddyfile.dev:/etc/caddy/Caddyfile
-      # For local development, mount the local backend/media folder so Caddy can
-      # serve files uploaded by the native backend process.
-      - $PWD/backend/media:/baserow/media
 
   backend:
     image: baserow_backend:dev
