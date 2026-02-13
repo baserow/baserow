@@ -13,6 +13,7 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
     WorkflowState,
@@ -23,6 +24,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowNotInAutomation,
     AutomationWorkflowRateLimited,
     AutomationWorkflowTooManyErrors,
+    AutomationWorkflowBeforeRunError,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.trash.handler import TrashHandler
@@ -937,3 +939,89 @@ def test_clear_old_history_keeps_entries(data_fixture):
 
     # history is within limits, so it should be kept
     assert workflow.workflow_histories.filter(id=history.id).exists() is True
+
+
+@pytest.mark.django_db
+@patch(
+    f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run"
+)
+@patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
+def test_start_workflow_too_many_errors(
+    mock_dispatch_task, mock_before_run, data_fixture
+):
+    mock_before_run.side_effect = AutomationWorkflowTooManyErrors(
+        "mock too many errors"
+    )
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().start_workflow(published_workflow, None, None)
+
+    # Nodes shouldn't be dispatched because before_run() should return early.
+    mock_dispatch_task.delay.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+
+    assert len(histories) == 1
+
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == HistoryStatusChoices.DISABLED
+
+    error_msg = "mock too many errors"
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DISABLED
+    assert published_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+@patch(
+    f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run"
+)
+@patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
+def test_start_workflow_before_run_error(
+    mock_dispatch_task, mock_before_run, data_fixture
+):
+    # We already test the specific AutomationWorkflowTooManyErrors error above,
+    # but we should also test that before_run() has error handling.
+    mock_before_run.side_effect = AutomationWorkflowBeforeRunError(
+        "unexpected error"
+    )
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().start_workflow(published_workflow, None, None)
+
+    # Nodes shouldn't be dispatched because before_run() should return early.
+    mock_dispatch_task.delay.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+
+    assert len(histories) == 1
+
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == HistoryStatusChoices.ERROR
+
+    error_msg = "unexpected error"
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DRAFT
+    assert published_workflow.state == WorkflowState.LIVE
