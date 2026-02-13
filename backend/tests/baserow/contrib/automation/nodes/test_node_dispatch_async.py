@@ -149,7 +149,7 @@ def test_dispatch_node_async_returns_early_if_node_not_allowed(
         allowed_node_ids=[action_node.id],
     )
 
-    assert result is None
+    assert result is False
     mock_dispatch.assert_not_called()
 
 
