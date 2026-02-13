@@ -14,6 +14,10 @@ export const routes = [
       {
         path: 'row/:rowId',
         name: 'database-table-row',
+        file: path.resolve(
+          __dirname,
+          '../core/components/RouterViewPlaceholder.vue'
+        ),
       },
       {
         path: 'webhooks',
