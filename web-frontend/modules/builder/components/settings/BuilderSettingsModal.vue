@@ -16,7 +16,11 @@
           <a
             v-tooltip="setting.isDeactivatedReason({ workspace }) || null"
             class="modal-sidebar__nav-link"
-            :class="{ active: setting === settingSelected }"
+            :class="{
+              active:
+                settingSelected &&
+                setting.getType() === settingSelected.getType(),
+            }"
             @click="onClick(setting)"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
