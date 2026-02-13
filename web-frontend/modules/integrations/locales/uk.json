@@ -123,7 +123,7 @@
     "localBaserowGetRowForm": {
         "rowFieldLabel": "ID рядка",
         "invalidFormula": "Формула недійсна",
-        "rowFieldPlaceHolder": "Виберіть ID рядка",
+        "rowFieldPlaceHolder": "Виберіть ідентифікатор одного рядка",
         "rowFieldHelpText": "Залиште це значення порожнім, щоб повернути перший рядок.",
         "searchFieldPlaceHolder": "Введіть пошуковий запит...",
         "noTableChosenForFiltering": "Виберіть таблицю, щоб почати використовувати фільтри джерела даних.",
@@ -207,12 +207,13 @@
         "supportSetupHeading": "1. Налаштування застосунку",
         "supportSetupDescription": "Залежно від налаштувань вашого робочого простору Slack, ви можете створити новий застосунок Slack. В іншому випадку адміністратор повинен зробити це за вас. Якщо ви повторно використовуєте існуючий застосунок, який може надсилати повідомлення, перейдіть до розділу \"Підключення до вашого застосунку Slack\".",
         "supportSetupStep2": "Створіть новий застосунок, виберіть \"З нуля\" та введіть назву. Виберіть робочий простір, у якому повинен працювати ваш застосунок, і натисніть \"Створити\".",
-        "supportSetupStep3": "На лівій бічній панелі перейдіть до \"OAuth & Permissions\", прокрутіть вниз до Scopes і в розділі \"Bot Token Scopes\" виберіть \"Add an OAuth Scope\".",
+        "supportSetupStep3": "На лівій бічній панелі перейдіть до \"OAuth &amp; Permissions\", прокрутіть вниз до Scopes і в розділі \"Bot Token Scopes\" виберіть \"Add an OAuth Scope\".",
         "supportPairingHeading": "2. Підключення до вашого застосунку Slack",
-        "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" > \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
+        "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" &gt; \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
         "supportPairingStep2": "Скопіюйте ваш \"Bot User OAuth Token\" і збережіть його в полі \"Токен користувача бота\" у цій формі.",
-        "supportSetupStep1": "Перейдіть до вашого робочого простору <a href=\"https://api.slack.com/apps\" target=\"_blank\">.",
-        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  <pre>chat:write</pre> область."
+        "supportSetupStep1": "Перейдіть до вашого робочого простору <&lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;apps page&lt;/a&gt;",
+        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  &lt;pre&gt;chat:write&lt;/pre&gt; область.",
+        "supportPairingStep3": "Нарешті, якщо ваш додаток новий: у Slack запросіть його до обраного каналу за допомогою команди &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;"
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Ця дія повинна бути пов'язана із застосунком Slack. Дотримуйтесь інструкцій у спливаючому вікні інтеграцій, щоб почати.",
@@ -228,7 +229,9 @@
         "tableFieldLabel": "Таблиця",
         "chooseNoView": "Не вибрано",
         "databaseFieldLabel": "База даних",
-        "dataSyncedTableDescription": "Синхронізована таблиця даних"
+        "dataSyncedTableDescription": "Синхронізована таблиця даних",
+        "oneWayDataSyncedTableDescription": "Одностороння синхронізація",
+        "twoWayDataSyncedTableDescription": "Синхронізація в обидва боки"
     },
     "smtpIntegrationType": {
         "smtpSummary": "SMTP - {host}:{port}"
@@ -240,22 +243,22 @@
         "portPlaceholder": "587",
         "useTls": "Використовувати TLS",
         "username": "Ім'я користувача",
-        "usernamePlaceholder": "your-email@example.com",
+        "usernamePlaceholder": "your-email{'@'}example.com",
         "password": "Пароль",
         "passwordPlaceholder": "ваш-пароль"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "Інтеграція",
         "fromEmail": "Від кого (Email)",
-        "fromEmailPlaceholder": "sender@example.com",
+        "fromEmailPlaceholder": "sender@{'@'}example.com",
         "fromName": "Від кого (Ім'я)",
         "fromNamePlaceholder": "Ваше ім'я",
         "toEmails": "Кому (Email)",
-        "toEmailsPlaceholder": "recipient1@example.com,recipient2@example.com",
+        "toEmailsPlaceholder": "recipient1{'@'}example.com,recipient2{'@'}example.com",
         "ccEmails": "Копія (CC)",
-        "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
+        "ccEmailsPlaceholder": "cc1{'@'}example.com,cc2{'@'}example.com",
         "bccEmails": "Прихована копія (BCC)",
-        "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
+        "bccEmailsPlaceholder": "bcc1{'@'}example.com,bcc2{'@'}example.com",
         "subject": "Тема",
         "subjectPlaceholder": "Тема вашого листа",
         "bodyType": "Тип тіла",
@@ -276,7 +279,7 @@
         "branchesDescription": "Гілки дозволяють виконувати вузли лише коли умова виконана. Гілки виконуються зліва направо, поки не буде виконана умова, інакше буде виконана гілка за замовчуванням. ",
         "branchLabel": "Мітка",
         "branchConditionLabel": "Умова",
-        "branchConditionPlaceholder": "Введіть умову...",
+        "branchConditionPlaceholder": "Якщо значення істинне, буде виконано цю гілку.",
         "addEdge": "Додати гілку",
         "edgeDefaultName": "Гілка",
         "noLabel": "Без мітки",
@@ -308,5 +311,21 @@
         "monthHelper": "Цей робочий процес буде запускатися щомісяця у вказаний день і час у вашому місцевому часовому поясі ({timezone})",
         "deactivatedTitle": "Періодичний тригер деактивовано",
         "deactivatedText": "Цей періодичний тригер було автоматично деактивовано через послідовні невдачі."
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Інтеграція",
+        "rowIdLabel": "ID рядка",
+        "rowIdPlaceholder": "Виберіть ідентифікатор одного рядка"
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderArray": "Виберіть значення масиву, наприклад [42]",
+        "fieldMappingPlaceholderString": "Виберіть рядкове значення, наприклад \\'baserow\\'",
+        "fieldMappingPlaceholderNumber": "Виберіть числове значення, наприклад 42",
+        "fieldMappingPlaceholderBoolean": "Виберіть булеве значення, наприклад true",
+        "fieldMappingPlaceholderDate": "Виберіть значення дати, наприклад 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Виберіть десяткове значення, наприклад 3.14",
+        "fieldMappingPlaceholderDuration": "Виберіть значення тривалості, наприклад 1:23:40",
+        "noTableSelectedMessage": "Виберіть таблицю, щоб почати налаштовувати поля.",
+        "noWritableFields": "Ця таблиця не містить жодних полів, доступних для запису."
     }
 }
