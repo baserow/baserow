@@ -60,7 +60,8 @@
         "errorStartingSlash": "Шлях повинен починатися з '/'",
         "errorValidPathCharacters": "Шлях містить недійсні символи",
         "errorUniquePathParams": "Параметри шляху мають бути унікальними.",
-        "errorUniqueValidQueryParams": "Назви параметрів запиту мають бути унікальними та дійсними."
+        "errorUniqueValidQueryParams": "Назви параметрів запиту мають бути унікальними та дійсними.",
+        "errorNameNotUniqueDescription": "Будь ласка, введіть унікальну назву сторінки"
     },
     "pageHeaderItemTypes": {
         "labelElements": "Елементи",
