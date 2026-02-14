@@ -226,6 +226,15 @@ class LockConflict(Exception):
     """
 
 
+class UndoRedoNotificableException(Exception):
+    """
+    Base class for exceptions that should be propagated to the API layer during
+    undo/redo operations instead of being silently caught and stored as action
+    errors. Subclass this to ensure the exception reaches @map_exceptions and
+    returns a structured error response to the frontend.
+    """
+
+
 class InvalidPermissionContext(Exception):
     """
     Used when an invalid context is passed to a permission checker.

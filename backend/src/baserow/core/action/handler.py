@@ -10,7 +10,7 @@ from django.db.models import Q
 from loguru import logger
 from opentelemetry import trace
 
-from baserow.core.exceptions import LockConflict
+from baserow.core.exceptions import LockConflict, UndoRedoNotificableException
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_methods
 
 from .models import Action
@@ -134,6 +134,8 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
                     cls._undo_action(user, action, undone_at)
         except LockConflict:
             raise
+        except UndoRedoNotificableException:
+            raise
         except Exception:
             # if any single action fails, rollback and set the same error for all.
             tb = traceback.format_exc()
@@ -243,6 +245,8 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
                     for action in actions_being_redone:
                         cls._redo_action(user, action)
             except LockConflict:
+                raise
+            except UndoRedoNotificableException:
                 raise
             except Exception:
                 # if just one action fails, rollback and set the same error for all.

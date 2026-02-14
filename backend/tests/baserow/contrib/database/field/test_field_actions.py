@@ -14,7 +14,10 @@ from baserow.contrib.database.fields.actions import (
     DuplicateFieldActionType,
     UpdateFieldActionType,
 )
-from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
+from baserow.contrib.database.fields.exceptions import (
+    FieldDoesNotExist,
+    InvalidLookupThroughField,
+)
 from baserow.contrib.database.fields.field_types import TextFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
@@ -1631,3 +1634,49 @@ def test_undo_multiple_select_conversion_with_default_value(data_fixture):
 
     restored_ids = [opt.id for opt in restored_options]
     assert set(option_field.multiple_select_default) == set(restored_ids)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_lookup_field_update_raises_error_when_through_field_deleted(
+    data_fixture,
+):
+    """
+    When a lookup field is updated and then the link row field (through field) is
+    deleted, undoing the update should raise InvalidLookupThroughField instead of
+    silently storing a generic error traceback.
+    """
+
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    table_a = data_fixture.create_database_table(user=user)
+    table_b = data_fixture.create_database_table(
+        user=user, database=table_a.database
+    )
+
+    link_field = FieldHandler().create_field(
+        user, table_a, "link_row", name="Link", link_row_table=table_b
+    )
+    target_field = data_fixture.create_text_field(user=user, table=table_b, name="Name")
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "lookup",
+        name="Lookup",
+        through_field_id=link_field.id,
+        target_field_id=target_field.id,
+    )
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user, lookup_field, name="Lookup Renamed"
+    )
+
+    # Delete the link row field. The SET_NULL on the FK sets lookup.through_field
+    # to None, simulating the scenario where the linked table has been removed.
+    LinkRowField.objects.filter(id=link_field.id).delete()
+
+    with pytest.raises(InvalidLookupThroughField):
+        ActionHandler.undo(
+            user, [UpdateFieldActionType.scope(table_a.id)], session_id
+        )

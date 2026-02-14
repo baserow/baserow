@@ -4,6 +4,7 @@ from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
     InstanceTypeDoesNotExist,
     LockConflict,
+    UndoRedoNotificableException,
 )
 
 
@@ -237,18 +238,40 @@ class InvalidRollupTargetField(Exception):
     """
 
 
-class InvalidLookupThroughField(Exception):
+class InvalidLookupThroughField(UndoRedoNotificableException):
     """
-    Raised when a a lookup field is attempted to be created or updated with a through
+    Raised when a lookup field is attempted to be created or updated with a through
     field that does not exist, is in a different table or is not a link row field.
+    This also occurs during undo/redo when the linked table has been deleted.
     """
 
+    def __init__(self, *args, **kwargs):
+        if not args:
+            super().__init__(
+                "The through field used by this lookup no longer exists. This can "
+                "happen when the linked table has been deleted.",
+                **kwargs,
+            )
+        else:
+            super().__init__(*args, **kwargs)
 
-class InvalidLookupTargetField(Exception):
+
+class InvalidLookupTargetField(UndoRedoNotificableException):
     """
     Raised when a lookup field is attempted to be created or updated with a target
     field that does not exist or is not in the through fields linked table.
+    This also occurs during undo/redo when the target field has been deleted.
     """
+
+    def __init__(self, *args, **kwargs):
+        if not args:
+            super().__init__(
+                "The target field used by this lookup no longer exists. This can "
+                "happen when the linked table or target field has been deleted.",
+                **kwargs,
+            )
+        else:
+            super().__init__(*args, **kwargs)
 
 
 class IncompatibleFieldTypeForUniqueValues(Exception):

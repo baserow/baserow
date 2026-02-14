@@ -7,8 +7,11 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_409_CONFLICT
 
 from baserow.api.actions.serializers import UndoRedoResultCodeField
-from baserow.contrib.database.fields.models import NumberField, TextField
+from baserow.contrib.database.fields.actions import UpdateFieldActionType
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import LinkRowField, NumberField, TextField
 from baserow.core.action.models import Action
+from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import CreateWorkspaceActionType
 from baserow.core.models import Workspace
 from baserow.test_utils.helpers import independent_test_db_connection
@@ -536,3 +539,57 @@ def test_undoing_field_delete_whilst_field_locked_works(api_client, data_fixture
 
     assert TextField.objects.filter(id=field.id).exists()
     assert Action.objects.get().is_undone()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_lookup_field_after_through_field_deleted_returns_structured_error(
+    api_client, data_fixture
+):
+    """
+    When undoing a lookup field update fails because the through field (link row
+    field) has been deleted, the API should return a 400 response with
+    ERROR_INVALID_LOOKUP_THROUGH_FIELD instead of silently skipping the action
+    with a generic SKIPPED_DUE_TO_ERROR code.
+    """
+
+    session_id = "test"
+    user, token = data_fixture.create_user_and_token(session_id=session_id)
+    table_a = data_fixture.create_database_table(user=user)
+    table_b = data_fixture.create_database_table(
+        user=user, database=table_a.database
+    )
+
+    link_field = FieldHandler().create_field(
+        user, table_a, "link_row", name="Link", link_row_table=table_b
+    )
+    target_field = data_fixture.create_text_field(
+        user=user, table=table_b, name="Name"
+    )
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "lookup",
+        name="Lookup",
+        through_field_id=link_field.id,
+        target_field_id=target_field.id,
+    )
+
+    # Update the lookup field via the action system to create an undoable action.
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user, lookup_field, name="Lookup Renamed"
+    )
+
+    # Delete the through field to simulate linked table removal.
+    LinkRowField.objects.filter(id=link_field.id).delete()
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"table": table_a.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_LOOKUP_THROUGH_FIELD"

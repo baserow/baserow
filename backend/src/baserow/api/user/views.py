@@ -47,6 +47,14 @@ from baserow.core.auth_provider.exceptions import (
     AuthProviderDisabled,
     EmailVerificationRequired,
 )
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_INVALID_LOOKUP_TARGET_FIELD,
+    ERROR_INVALID_LOOKUP_THROUGH_FIELD,
+)
+from baserow.contrib.database.fields.exceptions import (
+    InvalidLookupTargetField,
+    InvalidLookupThroughField,
+)
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.exceptions import (
     BaseURLHostnameNotAllowed,
@@ -768,6 +776,8 @@ class DashboardView(APIView):
 UNDO_REDO_EXCEPTIONS_MAP = {
     ClientSessionIdHeaderNotSetException: ERROR_CLIENT_SESSION_ID_HEADER_NOT_SET,
     LockConflict: ERROR_UNDO_REDO_LOCK_CONFLICT,
+    InvalidLookupThroughField: ERROR_INVALID_LOOKUP_THROUGH_FIELD,
+    InvalidLookupTargetField: ERROR_INVALID_LOOKUP_TARGET_FIELD,
 }
 
 
