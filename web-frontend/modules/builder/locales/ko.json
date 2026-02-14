@@ -252,7 +252,7 @@
         "altTextDescription": "스크린 리더에서 사용되며 이미지를 로드할 수 없는 경우 표시됩니다",
         "fileSourceTypeUpload": "업로드",
         "fileSourceTypeURL": "URL",
-        "urlWarning": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "urlWarning": "참고: 입력하신 URL을 직접 관리하시거나 신뢰할 수 있는 사이트인지 확인해 주십시오.",
         "uploadFileButton": "파일 업로드"
     },
     "iframeElementForm": {
@@ -261,7 +261,7 @@
         "sourceTypeLabel": "소스 유형",
         "urlLabel": "URL",
         "urlPlaceholder": "삽입할 외부 리소스의 링크",
-        "urlHelp": "참고: 입력한 URL을 신뢰하거나 제어할 수 있는지 확인하세요.",
+        "urlHelp": "참고: 입력하신 URL을 직접 관리하시거나 신뢰할 수 있는 사이트인지 확인해 주십시오.",
         "embedLabel": "임베드",
         "embedPlaceholder": "삽입할 원시 HTML 콘텐츠",
         "heightLabel": "높이 (px)",
