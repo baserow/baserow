@@ -494,7 +494,8 @@
         "numericName": "Числовий"
     },
     "pageEditor": {
-        "pageNotFound": "Сторінку не знайдено"
+        "pageNotFound": "Сторінку не знайдено",
+        "title": "Baserow | Створення застосунків"
     },
     "publicPage": {
         "siteNotFound": "Сайт не знайдено",
