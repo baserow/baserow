@@ -1,6 +1,7 @@
 {
     "automationWelcomeGuidedTourStep": {
-        "content": "간단한 둘러보기를 해볼까요? 코딩 없이 트리거 설정, 액션 추가, 워크플로 테스트 및 게시 방법을 확인할 수 있습니다."
+        "content": "간단한 둘러보기를 해볼까요? 코딩 없이 트리거 설정, 액션 추가, 워크플로 테스트 및 게시 방법을 확인할 수 있습니다.",
+        "title": "Baserow 자동화에 오신 것을 환영합니다!"
     },
     "automationGraphGuidedTourStep": {
         "title": "여기에서 워크플로 그래프를 관리하세요",
