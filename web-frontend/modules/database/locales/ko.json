@@ -152,9 +152,10 @@
         "filterType": "- `AND`: 제공된 모든 필터와 일치해야 함을 나타냅니다.\n- `OR`: 필터 중 하나와만 일치하면 됨을 나타냅니다.\n\n 이는 두 개 이상의 필터가 제공된 경우에만 작동합니다.",
         "include": "기본적으로 모든 필드가 응답에 포함됩니다. include 쿼리 매개변수를 제공하여 포함할 필드의 하위 집합을 선택할 수 있습니다.\n\n #### `user_field_names` 사용 시:\n\n `include`는 결과에 포함할 필드 이름의 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우: `include=My Field,-My Field 2` 해당 필드만 포함됩니다(명시적으로 제외되지 않은 경우).\n\n 쉼표를 포함하는 필드 이름은 따옴표로 묶어야 합니다: `\"Name ,\"`. 필드 이름에 따옴표가 포함된 경우 `\\` 문자를 사용하여 이스케이프해야 합니다. 예: `Name \\\"`.\n\n #### `user_field_names` 없이:\n\n `include`는 결과에 포함할 필드의 ID 뒤에 `field_`가 오는 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `include=field_1,field_2` ID가 `1` 및 `2`인 필드만 포함됩니다(명시적으로 제외되지 않은 경우).",
         "exclude": "기본적으로 모든 필드가 응답에 포함됩니다. exclude 쿼리 매개변수를 제공하여 제외할 필드의 하위 집합을 선택할 수 있습니다.\n\n #### `user_field_names` 사용 시:\n\n `exclude`는 결과에서 제외할 필드 이름의 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우: `exclude=My Field,-My Field 2` 해당 필드가 제외됩니다.\n\n 쉼표를 포함하는 필드 이름은 따옴표로 묶어야 합니다: `\"Name ,\"`. 필드 이름에 따옴표가 포함된 경우 `\\` 문자를 사용하여 이스케이프해야 합니다. 예: `Name \\\"`.\n\n #### `user_field_names` 없이:\n\n `exclude`는 결과에서 제외할 필드의 ID 뒤에 `field_`가 오는 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `exclude=field_1,field_2` ID가 `1` 및 `2`인 필드가 제외됩니다.",
-        "viewId": "기본적으로 쿼리 매개변수에 정의된 것 외의 필터와 정렬은 적용되지 않습니다. `view_id` GET 매개변수에 해당 뷰의 `id`를 제공하여 뷰의 필터와 정렬을 추가할 수 있습니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `view_id=1` ID가 `1`인 뷰에 정의된 필터와 정렬이 적용됩니다. `view_id`는 주어진 뷰의 컨텍스트 메뉴에서 찾을 수 있습니다. 뷰 이름 뒤의 괄호 안에 있는 숫자입니다. \n\n #### `filter__{field}__{filter}` 사용 시 \n\n 쿼리 매개변수에 제공된 필터와 뷰에 정의된 필터가 모두 적용됩니다.\n\n #### `order_by` 사용 시 \n\n `order_by`가 제공되면 뷰에 정의된 정렬은 무시됩니다.",
+        "viewId": "기본적으로 쿼리 매개변수에 정의된 필터 및 정렬 외의 다른 필터 및 정렬은 적용되지 않습니다. 뷰의 `view_id` GET 매개변수에 해당 뷰의 `id`를 제공하여 뷰에 필터 및 정렬을 추가할 수 있습니다. 예를 들어, `view_id=1`과 같은 GET 매개변수를 제공하면 `view_id`가 `1`인 뷰에 정의된 필터 및 정렬이 적용됩니다. `view_id`는 모든 뷰의 컨텍스트 메뉴에서 확인할 수 있으며, 뷰 이름 뒤에 괄호 안에 있는 숫자입니다.\n\n#### `filter__{'{'}field{'}'}__{'{'}filter{'}'}` 사용 시\n\n쿼리 매개변수에 제공된 필터와 뷰에 정의된 필터가 모두 적용됩니다.\n\n#### `order_by` 사용 시\n\n`order_by`가 제공되면 뷰에 정의된 정렬은 무시됩니다.",
         "filtersBuilder": "필터 매개변수 빌더 열기",
-        "join": "기존의 링크 행 필드를 통해 대상 테이블에서 필드 값을 조회하도록 요청할 수 있습니다. 매개변수 이름은 기존의 링크 행 필드 이름 뒤에 __join이 와야 합니다. 값은 추가로 조회하려는 필드 이름의 목록이어야 합니다. 하나 이상의 대상 필드를 제공할 수 있습니다. 대상 테이블에서 링크 행 필드의 값을 조회하는 것은 불가능합니다.\n\n #### `user_field_names` 사용 시:\n\n `join`은 결과에 포함할 필드 이름의 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `LinkRowField__join=MyField,MyField2` `LinkRowField`로 연결된 테이블에서 `MyField`와 `My Field2`의 값이 응답에 포함됩니다.\n\n#### `user_field_names` 없이:\n\n `join`은 결과에 포함할 필드의 ID 뒤에 `field_`가 오는 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `field_1__join=field_2,field_3` `field_1`로 연결된 테이블에서 `field_2`와 `field_3`의 값이 응답에 포함됩니다."
+        "join": "기존의 링크 행 필드를 통해 대상 테이블에서 필드 값을 조회하도록 요청할 수 있습니다. 매개변수 이름은 기존의 링크 행 필드 이름 뒤에 __join이 와야 합니다. 값은 추가로 조회하려는 필드 이름의 목록이어야 합니다. 하나 이상의 대상 필드를 제공할 수 있습니다. 대상 테이블에서 링크 행 필드의 값을 조회하는 것은 불가능합니다.\n\n #### `user_field_names` 사용 시:\n\n `join`은 결과에 포함할 필드 이름의 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `LinkRowField__join=MyField,MyField2` `LinkRowField`로 연결된 테이블에서 `MyField`와 `My Field2`의 값이 응답에 포함됩니다.\n\n#### `user_field_names` 없이:\n\n `join`은 결과에 포함할 필드의 ID 뒤에 `field_`가 오는 쉼표로 구분된 목록이어야 합니다. 예를 들어 다음 GET 매개변수를 제공하는 경우 `field_1__join=field_2,field_3` `field_1`로 연결된 테이블에서 `field_2`와 `field_3`의 값이 응답에 포함됩니다.",
+        "test": "`{'{'}\"filter_type\": \"그리고\", \"필터\": [{'{'}\"필드\": \"이름\", \"유형\": \"일치\", \"값\": \"테스트\"{'}'}]{'}'}"
     },
     "apiDocsIntro": {
         "intro": "{name} 데이터베이스는 데이터를 외부 시스템과 통합하는 쉬운 방법을 제공합니다. API는 REST 의미론을 따르고, 객체를 인코딩하기 위해 JSON을 사용하며, 표준 HTTP 코드, 기계 및 사람이 읽을 수 있는 오류를 통해 작업 결과를 나타냅니다.",
@@ -182,7 +183,7 @@
     },
     "apiDocsTableDeleteRows": {
         "description": "기존 {name} 행들을 삭제합니다.",
-        "items": "삭제할 행 ID의 배열입니다."
+        "items": "삭제해야 할 행 ID 배열입니다."
     },
     "apiDocsTableMoveRow": {
         "description": "기존 {name} 행을 다른 행 앞에 이동합니다. `before_id`가 제공되지 않으면 행은 테이블의 끝으로 이동합니다.",
@@ -200,19 +201,19 @@
     "apiDocsTableUpdateRow": {
         "description": "기존 {name} 행을 업데이트합니다.",
         "rowId": "업데이트해야 하는 행의 고유 식별자입니다.",
-        "before": "제공된 경우 새로 생성된 행은 제공된 ID의 행 앞에 배치됩니다."
+        "before": "제공된 ID가 있는 경우, 새로 생성된 행은 해당 ID를 가진 행 앞에 배치됩니다."
     },
     "apiDocsTableUpdateRows": {
         "description": "기존 {name} 행들을 업데이트합니다.",
-        "id": "행 ID입니다."
+        "id": "행 ID."
     },
     "apiDocsTableCreateRow": {
         "description": "새로운 {name} 행을 생성합니다.",
-        "before": "제공된 경우 새로 생성된 행은 제공된 ID의 행 앞에 배치됩니다."
+        "before": "제공된 ID가 있는 경우, 새로 생성된 행은 해당 ID를 가진 행 앞에 배치됩니다."
     },
     "apiDocsTableCreateRows": {
         "description": "새로운 {name} 행들을 생성합니다.",
-        "before": "제공된 경우 새로 생성된 행들은 제공된 ID의 행 앞에 배치됩니다."
+        "before": "제공된 ID가 있는 경우, 새로 생성된 행은 해당 ID를 가진 행 앞에 배치됩니다."
     },
     "apiDocsAuth": {
         "description": "Baserow는 간단한 토큰 기반 인증을 사용합니다. 아래에 설명된 엔드포인트를 사용하려면 {settingsLink}에서 최소한 하나의 데이터베이스 토큰을 생성해야 합니다. 토큰당 테이블 수준까지 생성, 읽기, 업데이트 및 삭제 권한을 부여할 수 있습니다. HTTP 인증 베어러 토큰 헤더에 토큰을 제공하여 API에 인증할 수 있습니다. 모든 API 요청은 인증되어야 하며 HTTPS를 통해 이루어져야 합니다.",
@@ -253,7 +254,7 @@
         "showTimezoneLabel": "시간대 표시",
         "forceTimezoneLabel": "모든 협업자에게 시간대 설정",
         "forceTimezoneValue": "시간대",
-        "addTimezoneOffsetLabel": "값 변환 (UTC 오프셋 {utcOffsetDiff}분 추가)",
+        "addTimezoneOffsetLabel": "값 변환 ({utcOffsetDiff}분 추가)",
         "subTimezoneOffsetLabel": "값 변환 (UTC 오프셋 {utcOffsetDiff}분 빼기)",
         "timeFormatLabel": "시간 형식",
         "24Hour": "24시간",
