@@ -191,11 +191,12 @@
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "데이터베이스",
-        "memberRolesTableTabTitle": "현재 테이블",
+        "memberRolesTableTabTitle": "테이블",
         "error": {
             "title": "데이터를 가져올 수 없습니다",
             "description": "멤버 데이터를 가져오는 동안 오류가 발생했습니다."
-        }
+        },
+        "memberRolesViewTabTitle": "뷰"
     },
     "memberRolesTab": {
         "database": {
@@ -215,6 +216,15 @@
             "warningTitle": "다른 사용자가 액세스를 상속받을 수 있습니다!",
             "warningMessage": "다른 사용자가 상위 데이터베이스 또는 작업공간의 해당 역할을 통해 액세스를 상속받을 수 있습니다.",
             "headerTooltip": "테이블 역할은 작업공간 및 데이터베이스 역할을 재정의합니다."
+        },
+        "view": {
+            "title": "{name} 뷰",
+            "selectMembers": "멤버를 선택하세요",
+            "everyoneHasAccess": "{name} 워크스페이스의 모든 사용자는 이 보기에 접근할 수 있습니다.",
+            "onlyYouHaveAccess": "이 화면은 당신만 볼 수 있습니다.",
+            "warningTitle": "다른 사용자가 접근 권한을 상속받을 수도 있습니다!",
+            "warningMessage": "다른 사용자는 상위 테이블, 데이터베이스 또는 작업 공간에 대한 각자의 역할에 따라 액세스 권한을 상속받을 수 있습니다.",
+            "headerTooltip": "보기 역할은 작업 공간, 데이터베이스 및 테이블 역할을 재정의합니다."
         }
     },
     "memberRolesShareToggle": {
@@ -554,7 +564,7 @@
         "helpTextTitle": "도움말",
         "defaultNameTitle": "초기 파일 이름|초기 파일 이름",
         "defaultNamePlaceholder": "파일 이름을 입력하세요...|파일 이름을 입력하세요...",
-        "defaultNameHelp": "이름의 수는 URL의 수와 일치해야 합니다.",
+        "defaultNameHelp": "이름의 개수는 URL의 개수와 일치해야 합니다.",
         "defaultUrlTitle": "초기 파일 URL|초기 파일 URL",
         "defaultUrlPlaceholder": "기본 URL을 입력하세요...|기본 URL을 입력하세요...",
         "helpTextPlaceholder": "비워두면 기본값이 사용됩니다...",
