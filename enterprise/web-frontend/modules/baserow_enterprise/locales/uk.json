@@ -692,7 +692,9 @@
         "includeWeekendsLabel": "Включати вихідні при обчисленні тривалості",
         "dependencyFieldForReaderTooltip": "Це поле включено до правила залежності дат",
         "fieldInvalidTitle": "Помилка поля залежності дат",
-        "durationFieldHint": "Це поле повинно використовувати формат \"д г\"."
+        "durationFieldHint": "Це поле повинно використовувати формат \"д г\".",
+        "addNewField": "Додати нове поле",
+        "linkRowFieldTitle": "Батьківські елементи"
     },
     "dateDependency": {
         "invalidChildRow": "Рядок-наступник недійсний",
@@ -704,5 +706,9 @@
         "invalidDurationEmpty": "Тривалість порожня",
         "invalidDurationValue": "Значення тривалості недійсне",
         "invalidDurationMismatch": "Невідповідність значення тривалості"
+    },
+    "viewOwnershipType": {
+        "restricted": "Обмежено",
+        "restrictedDescription": "Редактори та користувачі з нижчими ролями можуть бачити лише відфільтровані дані й видимі поля. Вони також можуть керувати учасниками."
     }
 }
