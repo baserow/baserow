@@ -284,29 +284,43 @@
         "action": ""
     },
     "errorLayout": {
-        "notFound": "",
-        "error": "",
-        "backDashboard": "",
-        "backLogin": "",
-        "wrong": "",
-        "refresh": ""
+        "notFound": "Сторінку, яку ви шукаєте, не знайдено. Можливо, URL-адреса неправильна або у вас немає прав для перегляду цієї сторінки.",
+        "error": "Під час завантаження сторінки сталася помилка. Наших розробників уже повідомлено про проблему. Спробуйте оновити сторінку або повернутися до панелі керування.",
+        "backDashboard": "Назад до панелі керування",
+        "backLogin": "Повернутися до входу",
+        "wrong": "Щось пішло не так",
+        "refresh": "Оновити сторінку"
     },
     "dashboard": {
-        "title": "",
-        "alertTitle": "",
-        "alertText": "",
-        "tweetContent": "",
-        "redditTitle": "",
+        "title": "Дашборд",
+        "alertTitle": "Нам потрібна ваша допомога!",
+        "alertText": "Розповідаючи про Baserow, ви допомагаєте нам розвивати продукт і робити його більш корисним для вас.",
+        "tweetContent": "Зверніть увагу на {'@'}baserow — інструмент для баз даних з відкритим кодом і без програмування, альтернатива Airtable!",
+        "redditTitle": "'Baserow — база даних з відкритим кодом без програмування",
         "noWorkspaceTitle": "",
         "noWorkspaceText": "",
         "noWorkspaceTextWithoutCreatePermission": "",
         "createWorkspace": "",
-        "becomeGithubSponsor": "",
+        "becomeGithubSponsor": "Підтримайте нас як спонсор на GitHub",
         "starOnGitlab": "",
-        "shareOnTwitter": "",
-        "shareOnReddit": "",
-        "shareOnFacebook": "",
-        "shareOnLinkedIn": ""
+        "shareOnTwitter": "Поділіться твітом про Baserow",
+        "shareOnReddit": "Поширити на Reddit",
+        "shareOnFacebook": "Поділитися у Facebook",
+        "shareOnLinkedIn": "Поділитися у LinkedIn",
+        "starOnGitHub": "Поставте нам зірку на GitHub",
+        "suggestedTemplates": "Рекомендовані шаблони",
+        "resources": "Ресурси",
+        "knowledgeBase": "Центр знань",
+        "knowledgeBaseMessage": "Знайдіть відповіді на всі ваші запитання",
+        "tutorials": "Навчальні матеріали",
+        "tutorialsMessage": "Дослідіть можливості Baserow",
+        "apiDocumentation": "Документація API",
+        "apiDocumentationMessage": "Докладніше про наш код",
+        "emptyWorkspace": "Цей робочий простір порожній",
+        "emptyWorkspaceMessage": "Розпочніть, створивши нову базу даних або застосунок.",
+        "addNew": "Додати новий…",
+        "noWorkspace": "Немає робочого простору",
+        "noWorkspaceDescription": "Почніть зі створення нового робочого простору"
     },
     "dashboardSidebar": {
         "workspaces": "",
@@ -318,156 +332,178 @@
         "logoff": ""
     },
     "login": {
-        "title": "",
-        "emailPlaceholder": "",
-        "passwordPlaceholder": "",
-        "forgotPassword": "",
-        "signUpText": "",
-        "signUp": "",
-        "displayPasswordLogin": "",
-        "redirecting": ""
+        "title": "З поверненням",
+        "emailPlaceholder": "Введіть свою електронну адресу..",
+        "passwordPlaceholder": "Введіть свій пароль..",
+        "forgotPassword": "Забули?",
+        "signUpText": "Вперше в Baserow?",
+        "signUp": "Зареєструватися",
+        "displayPasswordLogin": "Увійти за допомогою email та пароля",
+        "redirecting": "Перенаправлення до провайдера автентифікації..."
     },
     "resetPassword": {
-        "title": "",
-        "newPassword": "",
-        "repeatNewPassword": "",
-        "submit": "",
-        "changed": "",
-        "errorInvalidLinkTitle": "",
-        "errorInvalidLinkMessage": "",
-        "errorLinkExpiredTitle": "",
-        "errorLinkExpiredMessage": "",
-        "disabled": "",
-        "disabledMessage": ""
+        "title": "Скинути пароль",
+        "newPassword": "Новий пароль",
+        "repeatNewPassword": "Повторіть новий пароль",
+        "submit": "Змінити пароль",
+        "changed": "Пароль змінено",
+        "errorInvalidLinkTitle": "Неправильне посилання",
+        "errorInvalidLinkMessage": "Не вдалося скинути пароль, оскільки посилання недійсне.",
+        "errorLinkExpiredTitle": "Термін дії посилання минув",
+        "errorLinkExpiredMessage": "Термін дії посилання для скидання пароля минув. Будь ласка, запросіть нове.",
+        "disabled": "Скидання пароля вимкнено",
+        "disabledMessage": "Скинути пароль неможливо, оскільки цю функцію вимкнено.",
+        "message": "Тепер ви можете увійти в Baserow, використовуючи новий пароль."
     },
     "signup": {
-        "headTitle": "",
-        "title": "",
-        "disabled": "",
-        "disabledMessage": "",
-        "requireFirstUser": "",
-        "requireFirstUserMessage": "",
-        "emailPlaceholder": "",
-        "namePlaceholder": "",
-        "passwordPlaceholder": "",
-        "passwordRepeatPlaceholder": "",
-        "loginText": "",
-        "login": ""
+        "headTitle": "Створити обліковий запис",
+        "title": "Зареєструватися",
+        "disabled": "Реєстрацію вимкнено",
+        "disabledMessage": "Неможливо створити обліковий запис, оскільки цю можливість вимкнено.",
+        "requireFirstUser": "Вітаємо в Baserow!",
+        "requireFirstUserMessage": "Будь ласка, заповніть форму нижче, щоб створити адміністратора.",
+        "emailPlaceholder": "Введіть свою електронну адресу..",
+        "namePlaceholder": "Вкажіть своє ім’я..",
+        "passwordPlaceholder": "Введіть свій пароль..",
+        "passwordRepeatPlaceholder": "Підтвердіть свій пароль..",
+        "loginText": "Вже маєте обліковий запис?",
+        "login": "Вхід"
     },
     "forgotPassword": {
-        "title": "",
-        "message": "",
-        "submit": "",
-        "confirmation": "",
-        "disabled": "",
-        "disabledMessage": "",
-        "loginText": ""
+        "title": "Забули пароль",
+        "message": "Введіть свою електронну адресу, і ми надішлемо вам посилання для скидання пароля.",
+        "submit": "Надіслати посилання",
+        "confirmation": "Ми надіслали лист на адресу {email}, який містить посилання для скидання вашого пароля в Baserow.",
+        "disabled": "Відновлення пароля вимкнено",
+        "disabledMessage": "Скинути пароль неможливо, оскільки цю функцію вимкнено.",
+        "loginText": "Вже маєте обліковий запис і пароль?",
+        "confirmationTitle": "Перевірте свою електронну пошту",
+        "goBack": "Повернутися назад"
     },
     "settings": {
-        "settingsTitle": "",
-        "baserowInstanceId": "",
-        "instanceIdDescription": "",
-        "accountRestrictions": "",
-        "settingAllowResetPasswordName": "",
-        "settingAllowResetPasswordDescription": "",
-        "settingAllowResetPasswordWarning": "",
-        "settingAllowNewAccountsName": "",
-        "settingAllowNewAccountsDescription": "",
-        "settingAllowSignupsViaWorkspaceInvitationsName": "",
-        "settingAllowSignupsViaWorkspaceInvitationDescription": "",
-        "settingAllowNonStaffCreateWorkspaceOperation": "",
-        "settingAllowNonStaffCreateWorkspaceOperationDescription": "",
-        "settingAllowNonStaffCreateWorkspaceOperationWarning": "",
+        "settingsTitle": "Налаштування адміністратора",
+        "baserowInstanceId": "Ідентифікатор інстансу",
+        "instanceIdDescription": "Ідентифікатор інстансу — це унікальний ідентифікатор вашої копії Baserow.",
+        "accountRestrictions": "Обмеження облікового запису",
+        "settingAllowResetPasswordName": "Дозволити скидання пароля",
+        "settingAllowResetPasswordDescription": "За замовчуванням користувачі можуть запитувати посилання для скидання пароля.",
+        "settingAllowResetPasswordWarning": "Зверніть увагу, що ви можете втратити доступ до системи, і його неможливо буде відновити, якщо ви забудете пароль.",
+        "settingAllowNewAccountsName": "Дозволити створення нових облікових записів",
+        "settingAllowNewAccountsDescription": "За замовчуванням будь-який користувач, який відвідує ваш домен Baserow, може зареєструвати новий обліковий запис.",
+        "settingAllowSignupsViaWorkspaceInvitationsName": "Дозволити реєстрацію через запрошення до робочого простору",
+        "settingAllowSignupsViaWorkspaceInvitationDescription": "Навіть якщо створення нових облікових записів вимкнено, ця опція дозволяє безпосередньо запрошеним користувачам усе ж створити обліковий запис.",
+        "settingAllowNonStaffCreateWorkspaceOperation": "Дозволити всім створювати нові робочі простори",
+        "settingAllowNonStaffCreateWorkspaceOperationDescription": "За замовчуванням усі можуть створювати нові робочі простори. Вимкніть це, щоб дозволити створювати нові робочі простори лише персоналу.",
+        "settingAllowNonStaffCreateWorkspaceOperationWarning": "Для нових користувачів автоматично створюватиметься робочий простір, у якому вони будуть адміністраторами.",
         "userDeletionGraceDelay": "",
-        "settingUserDeletionGraceDelay": "",
-        "settingUserDeletionGraceDelayDescription": "",
-        "invalidAccountDeletionGraceDelay": "",
-        "enabled": ""
+        "settingUserDeletionGraceDelay": "Період відстрочки видалення",
+        "settingUserDeletionGraceDelayDescription": "Це кількість днів без входу, після яких обліковий запис, запланований до видалення, видаляється остаточно.",
+        "invalidAccountDeletionGraceDelay": "Це значення є обов’язковим і має бути додатним цілим числом, меншим за 32000",
+        "enabled": "увімкнено",
+        "baserowVersion": "Версія Baserow",
+        "baserowVersionDescription": "Номер версії цього інстансу.",
+        "settingTrackWorkspaceUsage": "Відстежувати використання робочого простору",
+        "settingTrackWorkspaceUsageDescription": "Увімкнення нічного завдання, яке підраховує використання рядків і файлів для кожного робочого простору; результати відображаються на сторінці адміністратора преміум-робочого простору.",
+        "userSettings": "Користувач",
+        "maintenance": "Технічне обслуговування",
+        "emailVerification": "Підтвердження електронної пошти",
+        "emailVerificationDescription": "Визначає, чи потрібно підтверджувати електронні адреси.",
+        "emailVerificationNoVerification": "Без підтвердження",
+        "emailVerificationRecommended": "Рекомендовано",
+        "emailVerificationEnforced": "Обов’язково",
+        "settingsVerifyImportSignature": "Перевіряти підпис імпорту",
+        "settingsVerifyImportSignatureDescription": "Коли ввімкнено, перевіряється підпис імпортованих даних, щоб переконатися, що їх не було змінено."
     },
     "formSidebar": {
         "actions": {
-            "addAll": "",
-            "removeAll": "",
-            "addField": ""
+            "addAll": "Додати все",
+            "removeAll": "Видалити все",
+            "addField": "Додати поле"
         },
-        "fieldsDescription": "",
-        "prefillOrHideInfoLink": "",
+        "fieldsDescription": "Усі поля є у формі.",
+        "prefillOrHideInfoLink": "Динамічно заповнювати або приховувати",
         "modal": {
-            "title": "",
-            "descriptionPartOne": "",
-            "descriptionPartTwo": "",
+            "title": "Динамічно автозаповнювати або приховувати поля",
+            "descriptionPartOne": "Попереднє заповнення форм допомагає користувачу швидше їх заповнювати.",
+            "descriptionPartTwo": "Усі поля, доступні у формі, можна попередньо заповнити.",
             "howToHide": {
-                "title": "",
-                "description": ""
+                "title": "Як приховати поле",
+                "description": "Якщо ви хочете динамічно приховати поле, це можна зробити за допомогою параметрів запиту, доданих до публічного посилання форми. Ці параметри мають префікс `hide_`, щоб уникнути конфлікту з можливими майбутніми параметрами запиту."
             },
             "howToPrefill": {
-                "title": "",
-                "description": ""
+                "title": "Як попередньо заповнити форму",
+                "description": "Якщо ви хочете попередньо заповнити форму даними, це можна зробити за допомогою параметрів запиту, доданих до публічного посилання форми. Ці параметри мають префікс `prefill`, щоб уникнути конфліктів із можливими майбутніми параметрами запиту."
             },
             "format": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
+                "title": "Формат",
+                "description": "Формат параметрів запиту наведено нижче:",
+                "codeSnippet": "?prefill_&#60;field_name&#62;=&#60;value&#62;"
             },
             "example": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
+                "title": "Приклад",
+                "description": "У наведеному прикладі ми хочемо попередньо заповнити поле `Name` значенням `Mike`",
+                "codeSnippet": "?prefill_Name=Mike"
             },
             "spaces": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
+                "title": "Пробіли",
+                "description": "Пробіли в назві поля замінюються на `+`, щоб уникнути проблем із параметром запиту.",
+                "codeSnippet": "?prefill_my+field=Mike"
             },
             "multipleValues": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
+                "title": "Кілька значень",
+                "description": "Якщо ви хочете попередньо заповнити кілька полів, це можна зробити, додавши `,` між значеннями.",
+                "codeSnippet": "?prefill_multi+select=Mike,John"
             },
             "specialFieldTypes": {
-                "title": "",
-                "description": "",
+                "title": "Спеціальні типи полів",
+                "description": "Зазвичай значення для автозаповнення збігається зі значенням поля. Але є деякі випадки, коли значення перетворюється на інше.",
                 "ratingField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Поле оцінки",
+                    "description": "Поле оцінки приймає число, яке вказує, скільки зірок має бути заповнено.",
+                    "codeSnippet": "?prefill_rating=3"
                 },
                 "linkRowField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Поле зв’язку рядків",
+                    "description": "Поле зв’язку рядків може приймати значення, яке відображається у випадаючому списку.",
+                    "codeSnippet": "?prefill_link+row=Mike"
                 },
                 "selectField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Поле з одним вибором / кількома виборами",
+                    "description": "Поле з одним вибором може приймати значення, яке відображається у випадаючому списку. Поле з кількома виборами працює так само, але також може приймати кілька значень.",
+                    "codeSnippet": "?prefill_single+select=Mike"
                 },
                 "dateField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Поле дати",
+                    "description": "Поле дати може приймати дату у наступних форматах і використовує формат дати поля для її обробки.",
+                    "codeSnippet": "\n// Стандарти\nISO_8601\n\n// Загальні формати\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// Європейські формати (EU)\n'DD/MM/YYYY',         \n'DD/MM/YYYY hh:mm A',\n'DD/MM/YYYY HH:mm'\n\n// Американські формати (US)\n'MM/DD/YYYY',     \n'MM/DD/YYYY hh:mm A',\n'MM/DD/YYYY HH:mm'"
                 }
             }
-        }
+        },
+        "notifyUserOnSubmit": "Отримувати сповіщення під час надсилання"
     },
     "job": {
-        "statePending": "",
-        "stateStarted": "",
-        "stateFinished": "",
-        "stateFailed": "",
-        "errorJobAlreadyRunningTitle": "",
-        "errorJobAlreadyRunningDescription": ""
+        "statePending": "Очікування початку…",
+        "stateStarted": "Почато…",
+        "stateFinished": "Виконано",
+        "stateFailed": "Не вдалося",
+        "errorJobAlreadyRunningTitle": "Вже запущено",
+        "errorJobAlreadyRunningDescription": "Інше завдання імпорту вже виконується. Потрібно дочекатися його завершення, перш ніж запускати нове.",
+        "stateCanceled": "Відмінено",
+        "errorJobCannotBeCancelledTitle": "Не вдалося скасувати",
+        "errorJobCannotBeCancelledDescription": "Скасувати завдання неможливо, оскільки воно вже виконане.\nБудь ласка, видаліть перший знімок у списку нижче, щоб його прибрати."
     },
     "datetime": {
-        "secondsAgo": "",
-        "minutesAgo": "",
-        "hoursAgo": "",
-        "daysAgo": "",
-        "monthsAgo": "",
-        "yearsAgo": ""
+        "secondsAgo": "Щойно | 1 секунду тому | {n} секунд тому",
+        "minutesAgo": "0 хвилин тому | 1 хвилину тому | {n} хвилин тому",
+        "hoursAgo": "0 годин тому | 1 годину тому | {n} годин тому",
+        "daysAgo": "0 днів тому | 1 день тому | {n} днів тому",
+        "monthsAgo": "0 місяців тому | 1 місяць тому | {n} місяців тому",
+        "yearsAgo": "0 років тому | 1 рік тому | {n} років тому",
+        "lessThanMinuteAgo": "менше хвилини тому",
+        "justNow": "щойно"
     },
     "crudTableSearch": {
-        "search": ""
+        "search": "Пошук"
     },
     "membersSettings": {
         "membersTabTitle": "",
@@ -764,6 +800,76 @@
         "content": "Спроба відновити оновлення в режимі реального часу."
     },
     "failedConnectingToast": {
-        "title": "Не вдалося"
+        "title": "Не вдалося",
+        "content": "Не вдалося відновити оновлення в режимі реального часу. Будь ласка, оновіть сторінку, щоб продовжити.",
+        "action": "Оновити сторінку"
+    },
+    "authorizationErrorToast": {
+        "title": "Помилка авторизації",
+        "content": "Схоже, у вас немає дозволу на перегляд цього ресурсу.",
+        "action": "Оновити сторінку"
+    },
+    "userSessionExpiredToast": {
+        "title": "Термін дії сесії минув",
+        "content": "Ви вийшли через прострочений токен автентифікації. Повторно увійдіть у систему."
+    },
+    "userPasswordChangedToast": {
+        "title": "Пароль змінено",
+        "content": "Ваш пароль було змінено. Будь ласка, увійдіть у систему ще раз."
+    },
+    "restoreToast": {
+        "restore": "Відновити видалений {type}"
+    },
+    "copyingToast": {
+        "title": "Копіювання…",
+        "content": "Підготовка ваших даних"
+    },
+    "PastingToast": {
+        "title": "Вставлення…",
+        "content": "Підготовка ваших даних"
+    },
+    "clearingToast": {
+        "title": "Очищення…",
+        "content": "Підготовка ваших даних"
+    },
+    "undoRedoToast": {
+        "undoingTitle": "Скасування…",
+        "undoingText": "Скасування вашої дії",
+        "undoneTitle": "Дію скасовано",
+        "undoneText": "Дію відмінено",
+        "noMoreUndo": "Більше немає дій для скасування",
+        "skippingUndoDueToError": "Скасування завершилося невдачею через невідому помилку, пропускаємо дію.",
+        "redoingTitle": "Повторюємо...",
+        "redoingText": "Повторюємо вашу дію",
+        "redoneTitle": "Повторено",
+        "redoneText": "Дію повторено",
+        "noMoreRedo": "Більше немає дій для повторення",
+        "skippingRedoDueToError": "Повторення не вдалося через невідому помилку, пропускаємо.",
+        "failed": "Не вдалося"
+    },
+    "permissionsUpdatedToast": {
+        "title": "Права доступу оновлено",
+        "content": "Це може вплинути на ваш доступ, будь ласка, перезавантажте сторінку.",
+        "action": "Перезавантажити"
+    },
+    "dashboardApplication": {
+        "createdAt": "створено"
+    },
+    "templateCard": {
+        "viewMore": "Переглянути більше"
+    },
+    "changeEmail": {
+        "title": "Підтвердити зміну електронної адреси",
+        "submit": "Підтвердити зміну електронної адреси",
+        "changed": "Електронну адресу змінено",
+        "message": "Вашу електронну адресу успішно змінено. Тепер ви можете увійти в Baserow, використовуючи нову електронну адресу.",
+        "errorInvalidLinkTitle": "Неправильне посилання",
+        "errorInvalidLinkMessage": "Не вдалося змінити електронну адресу, оскільки посилання недійсне.",
+        "errorLinkExpiredTitle": "Термін дії посилання минув",
+        "errorLinkExpiredMessage": "Термін дії посилання для зміни електронної адреси минув. Будь ласка, запросіть нове в налаштуваннях облікового запису.",
+        "errorEmailExistsTitle": "Електронна адреса вже існує",
+        "errorEmailExistsMessage": "Не вдалося змінити електронну адресу, оскільки обліковий запис із цією адресою вже існує.",
+        "errorEmailAlreadyChangedTitle": "Електронну адресу вже змінено",
+        "errorEmailAlreadyChangedMessage": "Електронну адресу вже змінено на запитану адресу."
     }
 }
