@@ -366,7 +366,7 @@
         "export": "내보내기"
     },
     "tableFileExporter": {
-        "organizeFiles": "행 ID로 파일 그룹화"
+        "organizeFiles": "행 ID별로 파일을 그룹화"
     },
     "kanbanView": {
         "addStack": "스택 추가"
@@ -381,7 +381,19 @@
         "false": "거짓"
     },
     "generateAIValuesModal": {
-        "title": "모든 AI 값 생성"
+        "title": "모든 AI 값 생성",
+        "noPreviousJobs": "이전 작업 없음",
+        "started": "시작됨",
+        "finished": "완료됨",
+        "running": "실행중",
+        "failed": "실패함",
+        "cancelled": "취소됨",
+        "pending": "보류 중",
+        "view": "뷰: {name}",
+        "table": "표: 모든 행",
+        "deletedView": "뷰: ID {viewId} (삭제됨)",
+        "rows": "행 수: {count} 행",
+        "autoUpdate": "자동 업데이트: 참조된 필드가 변경되었습니다"
     },
     "generateAIValuesForm": {
         "scopeLabel": "범위",
