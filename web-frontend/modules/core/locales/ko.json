@@ -550,11 +550,11 @@
             "descriptionPartTwo": "양식에서 사용할 수 있는 모든 필드를 미리 채울 수 있습니다.",
             "howToHide": {
                 "title": "필드를 숨기는 방법",
-                "description": "필드를 동적으로 숨기려면, 공개 양식 URL에 쿼리 매개변수를 추가할 수 있습니다. 이 쿼리 매개변수는 잠재적인 미래의 쿼리 매개변수와의 충돌을 피하기 위해 `hide_`로 접두어가 붙습니다."
+                "description": "필드를 동적으로 숨기려면 URL의 공개 값에 쿼리 매개변수를 추가하면 됩니다. 이러한 쿼리 매개변수는 향후 추가될 수 있는 쿼리 매개변수와의 충돌을 방지하기 위해 `hide_` 접두사로 시작합니다."
             },
             "howToPrefill": {
                 "title": "양식을 미리 채우는 방법",
-                "description": "양식을 데이터로 미리 채우려면, 공개 양식 URL에 쿼리 매개변수를 추가할 수 있습니다. 이 쿼리 매개변수는 잠재적인 미래의 쿼리 매개변수와의 충돌을 피하기 위해 `prefill`로 접두어가 붙습니다."
+                "description": "양식에 데이터를 미리 채우려면 공개 양식 URL에 쿼리 매개변수를 추가하면 됩니다. 이러한 쿼리 매개변수는 향후 추가될 쿼리 매개변수와의 충돌을 방지하기 위해 `prefill` 접두사로 시작합니다."
             },
             "format": {
                 "title": "형식",
@@ -1129,5 +1129,20 @@
     },
     "adminWorkspaces": {
         "title": "작업공간"
+    },
+    "emailSettings": {
+        "title": "이메일 주소 변경",
+        "successTitle": "확인 이메일이 발송되었습니다",
+        "successDescription": "새 이메일 주소로 확인 이메일을 보내드렸습니다. 받은 편지함을 확인하시고 링크를 클릭하여 이메일 주소 변경을 완료해 주세요.",
+        "currentEmailLabel": "현재 이메일 주소",
+        "newEmailLabel": "새 이메일 주소",
+        "passwordLabel": "현재 비밀번호",
+        "submitButton": "확인 이메일 발송",
+        "errorInvalidPasswordTitle": "잘못된 비밀번호입니다",
+        "errorInvalidPasswordMessage": "비밀번호가 잘못되어 이메일 변경을 요청할 수 없습니다.",
+        "errorEmailExistsTitle": "이메일이 이미 존재합니다",
+        "errorEmailExistsMessage": "이미 해당 이메일 주소를 사용하는 계정이 존재하므로 이메일 변경을 요청할 수 없습니다.",
+        "errorNotAllowedTitle": "이메일 변경은 허용되지 않습니다",
+        "errorNotAllowedMessage": "귀하의 계정은 단일 로그인(SSO) 인증을 사용하고 있으므로 이메일 주소를 변경할 수 없습니다."
     }
 }
