@@ -581,11 +581,12 @@
     },
     "viewForm": {
         "name": "Назва",
-        "whoCanEdit": "Хто може редагувати"
+        "whoCanEdit": "Хто може редагувати цей вигляд?"
     },
     "viewOwnershipType": {
         "collaborative": "Спільний",
-        "personal": "Особистий"
+        "personal": "Особистий",
+        "collaborativeDescription": "Усі можуть бачити всі дані та змінювати властивості, якщо мають відповідні права доступу."
     },
     "galleryViewHeader": {
         "customizeCards": "Налаштувати картки"
