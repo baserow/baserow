@@ -25,6 +25,7 @@ export class PeriodicDataSyncDeactivatedNotificationType extends NotificationTyp
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         selectedPage: PeriodicIntervalFieldsConfigureDataSyncType.getType(),
       },
     }
@@ -50,6 +51,7 @@ export class TwoWayDataSyncUpdateFiledNotificationType extends NotificationType 
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         selectedPage: SyncedFieldsConfigureDataSyncType.getType(),
       },
     }
@@ -75,6 +77,7 @@ export class TwoWaySyncDeactivatedNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         selectedPage: SyncedFieldsConfigureDataSyncType.getType(),
       },
     }

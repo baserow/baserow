@@ -103,6 +103,7 @@ export class WebhookDeactivatedNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
       },
     }
   }
@@ -127,6 +128,7 @@ export class WebhookPayloadTooLargedNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
       },
     }
   }
