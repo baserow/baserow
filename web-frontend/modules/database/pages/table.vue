@@ -139,6 +139,7 @@ const { data, error, pending, status, refresh } = await useAsyncData(
 
         if (type.isDeactivated(currentDatabase.workspace.id)) {
           result.error = { statusCode: 400, message: type.getDeactivatedText() }
+          $store.dispatch('table/setLoading', false)
           return result
         }
 
@@ -153,6 +154,7 @@ const { data, error, pending, status, refresh } = await useAsyncData(
         if (e.response === undefined && !(e instanceof StoreItemLookupError))
           throw e
         result.error = normalizeError(e)
+        $store.dispatch('table/setLoading', false)
         return result
       }
     }
