@@ -85,7 +85,8 @@ const { data, error, pending, status, refresh } = await useAsyncData(
     const currentParams = route.params
     const viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
     // It's okay to use the `table/getSelected` because the correct ones are selected
-    // using the `modules/database/middleware/selectWorkspaceDatabaseTable.js` middleware.
+    // using the `modules/database/middleware/selectWorkspaceDatabaseTable.js`
+    // middleware.
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
 
@@ -126,6 +127,7 @@ const { data, error, pending, status, refresh } = await useAsyncData(
     // Fetch the Fields
     await $store.dispatch('field/fetchAll', currentTable)
     const fetchedFields = $store.getters['field/getAll']
+    result.fields = fetchedFields
 
     // Select view
     if (viewId !== null && viewId !== 0) {
@@ -179,14 +181,13 @@ if (data.value?.redirect) {
   await navigateTo(data.value.redirect.href)
 }
 
-const database = computed(() => data.value?.database)
-const table = computed(() => data.value?.table)
-
 /**
  * Expose the actual values via computed shortcuts
  */
+const database = computed(() => data.value?.database)
+const table = computed(() => data.value?.table)
 const view = computed(() => data.value?.view || {})
-const fields = computed(() => $store.getters['field/getAll'])
+const fields = computed(() => data.value?.fields)
 const dataError = computed(() => data.value?.error)
 
 /**
