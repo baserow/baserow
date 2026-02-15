@@ -1,1 +1,126 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Процес"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "Ласкаво просимо до Baserow Автоматизацій!"
+    },
+    "automationGraphGuidedTourStep": {
+        "content": "Створіть тут тригер та дії, щоб визначити, що має виконувати робочий процес. Виберіть тригер або дію, щоб налаштувати їх у бічній панелі."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Протестуйте робочий процес",
+        "content": "Коли будете готові, запустіть тест, щоб побачити робочий процес у дії. Тригер спрацює один раз, щоб змоделювати повне виконання."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Переглянути історію робочого процесу",
+        "content": "Використовуйте панель історії, щоб переглянути минулі тестові запуски та опубліковані виконання. Це зручний спосіб налагодження або підтвердження результатів."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Опублікувати робочий процес",
+        "content": "Після того як ви протестували та вдосконалили налаштування, опублікуйте робочий процес, щоб він запрацював. Тригер тепер виконуватиметься автоматично за розкладом."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "Керувати станом робочого процесу",
+        "content": "Тут ви можете призупинити або відновити робочий процес у будь-який момент. Ви завжди контролюєте, чи він активний, чи вимкнений."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Ознайомтеся з документацією",
+        "content": "Якщо ви коли-небудь застрягнете або захочете дізнатися більше, натисніть виділену кнопку для докладних посібників та розділу FAQ про створення автоматизацій у Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Новий робочий процес"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Створити робочий процес",
+        "submit": "Додати робочий процес"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Робочий процес",
+        "nameTitle": "Ім'я",
+        "nameSubtitle": "Унікальна назва робочого процесу",
+        "namePlaceholder": "Введіть назву…"
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Дублювати робочий процес автоматизації",
+        "duplicating": "Дублювання",
+        "duplicatedTitle": "Робочий процес дубльовано"
+    },
+    "automationWorkflowErrors": {
+        "errorNameNotUnique": "Робочий процес із такою назвою вже існує",
+        "errorNameNotUniqueDescription": "Будь ласка, введіть унікальну назву для робочого процесу"
+    },
+    "trashType": {
+        "workflow": "робочий процес",
+        "automation": "автоматизація"
+    },
+    "generalSettings": {
+        "titleOverview": "Загальні",
+        "nameLabel": "Назва автоматизації",
+        "notificationLabel": "Сповіщення",
+        "notificationCheckboxLabel": "Отримувати сповіщення, коли ця автоматизація не спрацьовує",
+        "cantUpdateAutomationTitle": "Не вдалося оновити автоматизацію",
+        "cantUpdateAutomationDescription": "Вибачте, не вдалося оновити автоматизацію."
+    },
+    "integrationSettings": {
+        "title": "Інтеграції",
+        "noIntegrationMessage": "Ви ще не створили жодних інтеграцій. Їх можна створити, додавши джерело даних, дію або автентифікацію користувача.",
+        "integrationMessage": "Ви можете створювати нові інтеграції, додаючи джерело даних, дію або автентифікацію користувача."
+    },
+    "automationHeader": {
+        "startTestRun": "Запустити тестовий запуск",
+        "stopTestRun": "Зупинити тестовий запуск",
+        "publishBtn": "Опублікувати",
+        "settingsBtn": "Налаштування",
+        "historyBtn": "Історія",
+        "docsBtn": "Документація",
+        "switchLabelDraft": "Чернетка",
+        "switchLabelDisabled": "Вимкнено",
+        "switchLabelPaused": "Призупинено",
+        "switchLabelLive": "У роботі",
+        "lastPublished": "Остання публікація"
+    },
+    "dataProviderType": {
+        "currentIteration": "Поточна ітерація",
+        "item": "Об’єкт",
+        "previousNode": "Попередній елемент"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Позначка"
+    },
+    "historySidePanel": {
+        "title": "Історія",
+        "noRunsTitle": "Ще немає запусків",
+        "noRunsDescription": "Коли цей робочий процес буде виконано, результати відображатимуться тут.",
+        "statusSuccess": "Виконано успішно",
+        "statusError": "Не вдалося виконати",
+        "statusDisabled": "Вимкнено Baserow",
+        "completedInSeconds": "Виконано за {s} секунд.",
+        "completedInLessThanSecond": "Виконано менше ніж за 1 секунду.",
+        "testRun": "Тест"
+    },
+    "nodeType": {
+        "triggerDeletionError": "Тригери не можна видаляти, лише замінювати.",
+        "localBaserowRowsCreatedLabel": "Рядки створюються в {tableName}",
+        "localBaserowRowsUpdatedLabel": "Рядки оновлюються в {tableName}",
+        "localBaserowRowsDeletedLabel": "Рядки видаляються в {tableName}",
+        "localBaserowCreateRowLabel": "Створити рядок у {tableName}",
+        "localBaserowUpdateRowLabel": "Оновити рядок у {tableName}",
+        "localBaserowDeleteRowLabel": "Видалити рядок у {tableName}",
+        "localBaserowGetRowLabel": "Прочитати рядок у {tableName}",
+        "localBaserowListRowsLabel": "Перелік рядків у {tableName}",
+        "localBaserowAggregateRowsLabel": "Підсумувати рядки в {tableName}",
+        "httpRequestLabel": "Надіслати HTTP-запит",
+        "smtpEmailLabel": "Надіслати електронного листа",
+        "routerLabel": "Слідувати 1 із {edgeCount} гілок",
+        "iterationLabel": "Обробляти елементи по черзі",
+        "routerDefaultEdgeLabelFallback": "За замовчуванням",
+        "routerWithOutputNodesDeleteError": "Не можна видалити, поки не будуть видалені {outputCount} вихідних вузлів.",
+        "routerWithOutputNodesReplaceError": "Не можна замінити, поки не будуть видалені {outputCount} вихідних вузлів.",
+        "iteratorWithChildrenNodesDeleteError": "Не можна видалити, поки не будуть видалені дочірні вузли.",
+        "iteratorWithChildrenNodesReplaceError": "Не можна замінити, поки не будуть видалені дочірні вузли.",
+        "periodicTriggerLabel": "Періодичний тригер",
+        "aiAgent": "Запит для ШІ",
+        "slackWriteMessageName": "Надіслати повідомлення в Slack"
+    }
+}
