@@ -3,7 +3,8 @@
   inset: 0;
   overflow: auto;
   z-index: $z-index-modal;
-  background-color: themed-alpha($color-neutral-700, 0.16);
+  background-color: themed-alpha($color-neutral-700, 0.28);
+  backdrop-filter: blur(2px);
   scrollbar-gutter: stable;
 }
 
@@ -11,11 +12,17 @@
   @extend %box;
 
   position: relative;
-  margin: 40px auto;
+  margin: 48px auto;
   max-width: 660px;
   background-color: $white;
+  border: 1px solid themed-alpha($color-neutral-900, 0.08);
+  box-shadow: 0 22px 52px themed-alpha($color-neutral-900, 0.22);
 
   @include rounded($rounded-md);
+
+  @media (max-width: 720px) {
+    margin: 24px auto;
+  }
 
   &.modal__box--with-sidebar {
     display: flex;

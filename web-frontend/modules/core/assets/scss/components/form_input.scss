@@ -11,6 +11,11 @@
   @include elevation($elevation-low);
   @include rounded($rounded-md);
 
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+
   &.form-input--small {
     height: 28px;
   }
@@ -28,16 +33,24 @@
     box-shadow: none;
   }
 
+  &:hover:not(.form-input--disabled):not(.form-input--no-border):not(
+      .form-input--error
+    ) {
+    border-color: $color-neutral-400;
+  }
+
   &:active:not(.form-input--no-border),
   &:focus:not(.form-input--no-border),
   &:focus-within:not(.form-input--no-border) {
     &:not(.form-input--disabled):not(.form-input--error) {
       border-color: $color-primary-500;
+      box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.16);
     }
   }
 
   &.form-input--error {
-    border-color: $color-error-600;
+    border-color: $color-error-500;
+    box-shadow: 0 0 0 2px themed-alpha($color-error-400, 0.14);
   }
 
   &.form-input--disabled {
@@ -83,7 +96,7 @@
   @include rounded($rounded-md);
 
   &::placeholder {
-    color: $color-neutral-500;
+    color: $color-neutral-600;
 
     @extend %ellipsis;
   }

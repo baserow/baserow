@@ -19,12 +19,15 @@
 
   position: relative;
   margin: 2px 0;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 
   @include rounded($rounded-md);
 
   &.active {
     background-color: themed-alpha($color-primary-500, 0.12);
-    border: 1px solid themed-alpha($color-primary-500, 0.24);
+    box-shadow: inset 0 0 0 1px themed-alpha($color-primary-500, 0.35);
   }
 
   &.tree__item--loading::after {
@@ -42,7 +45,7 @@
 .tree__action {
   @extend %tree-size;
 
-  padding: 0 8px;
+  padding: 0 10px;
 
   @include rounded($rounded);
 
@@ -56,7 +59,7 @@
   }
 
   &:not(.tree__action--disabled):hover {
-    background-color: themed-alpha($color-primary-500, 0.08);
+    background-color: themed-alpha($color-primary-500, 0.1);
   }
 
   &.tree__action--highlighted {
@@ -77,7 +80,7 @@
 .tree__link {
   @extend %tree-size;
 
-  color: $color-neutral-800;
+  color: $color-neutral-700;
 
   @include flex-align-items(8px);
 
@@ -113,11 +116,12 @@
 
   display: flex;
   min-width: 0;
-  color: $color-neutral-800;
+  color: $color-neutral-700;
   font-weight: 500;
 
   .active & {
-    color: $color-primary-500;
+    color: $color-primary-700;
+    font-weight: 600;
   }
 }
 
@@ -132,11 +136,11 @@
   @extend %tree-size;
 
   text-align: center;
-  color: $color-neutral-600;
+  color: $color-neutral-500;
   font-size: 16px;
 
   .active & {
-    color: $color-primary-500;
+    color: $color-primary-700;
   }
 }
 
@@ -167,7 +171,7 @@
 
   &:hover,
   &.active {
-    background-color: themed-alpha($color-primary-500, 0.1);
+    background-color: themed-alpha($color-primary-500, 0.12);
   }
 
   &::before,
@@ -216,7 +220,8 @@
   }
 
   .active > & {
-    color: $color-primary-500;
+    color: $color-primary-700;
+    font-weight: 600;
   }
 
   /* stylelint-disable-next-line */
@@ -308,7 +313,7 @@
 
 .tree__counter {
   position: absolute;
-  top: 8px;
+  top: 7px;
   right: 8px;
 }
 

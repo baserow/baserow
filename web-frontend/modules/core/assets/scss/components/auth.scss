@@ -1,16 +1,16 @@
 .auth__body {
   background:
     radial-gradient(
-      circle at 15% 10%,
-      themed-alpha($color-primary-500, 0.12) 0%,
+      circle at 10% 8%,
+      themed-alpha($color-primary-500, 0.09) 0%,
       transparent 45%
     ),
     radial-gradient(
-      circle at 85% 90%,
-      themed-alpha($color-purple-400, 0.08) 0%,
-      transparent 40%
+      circle at 90% 92%,
+      themed-alpha($color-primary-500, 0.05) 0%,
+      transparent 42%
     ),
-    $color-neutral-100;
+    $color-neutral-50;
   color: $color-neutral-900;
 }
 
@@ -60,28 +60,28 @@
   width: 100%;
   gap: 8px;
 
-  @extend %mb-32;
+  @extend %mb-24;
 }
 
 .auth__head-text {
   font-size: 13px;
-  color: $color-neutral-700;
+  color: $color-neutral-600;
 
   a {
-    font-weight: 500;
+    font-weight: 600;
     color: $color-primary-400;
   }
 }
 
 .auth__head-title {
   overflow-wrap: break-word;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   padding: 0;
   color: $color-neutral-900;
   letter-spacing: -0.02em;
 
   &:last-child {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 }
 
@@ -178,14 +178,14 @@
   padding: 28px;
   box-sizing: border-box;
   border: 1px solid $color-neutral-200;
-  background: linear-gradient(
-    180deg,
-    $color-neutral-10 0%,
-    $color-neutral-50 100%
-  );
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, $white 0%, $color-neutral-50 100%);
+  box-shadow: 0 18px 42px rgba(7, 8, 16, 0.12);
 
   @include rounded($rounded-lg);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &::before {
     content: '';
@@ -211,21 +211,26 @@
   }
 
   .form-input {
-    background: $color-neutral-50;
-    border-color: $color-neutral-200;
+    background: $white;
+    border-color: $color-neutral-300;
     box-shadow: none;
+
+    &:hover:not(.form-input--error):not(.form-input--disabled) {
+      border-color: $color-neutral-400;
+    }
 
     &:focus,
     &:focus-within,
     &:active {
       &:not(.form-input--error):not(.form-input--disabled) {
         border-color: $color-primary-500;
+        box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.16);
       }
     }
   }
 
   .form-input__input {
-    background: $color-neutral-50;
+    background: $white;
     color: $color-neutral-900;
 
     &::placeholder {
@@ -239,8 +244,9 @@
 
   .button:not(.button--secondary):not(.button--ghost):not(.button--danger) {
     border: 1px solid transparent;
-    background: linear-gradient(135deg, $color-primary-500 0%, $color-primary-400 100%);
-    box-shadow: 0 8px 20px themed-alpha($color-primary-500, 0.3);
+    background: linear-gradient(180deg, $color-primary-500 0%, $color-primary-400 100%);
+    box-shadow: 0 8px 18px themed-alpha($color-primary-500, 0.26);
+    min-height: 38px;
 
     &:hover:not([disabled]) {
       filter: brightness(1.05);

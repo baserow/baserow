@@ -1,5 +1,5 @@
 .onboarding {
-  background-color: $white;
+  background: linear-gradient(90deg, $white 0%, $white 50%, $color-neutral-100 100%);
 
   @include absolute(0, 0, 0, 0);
 }
@@ -51,7 +51,8 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 40px;
+  padding: 32px 40px 24px;
+  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.06);
 }
 
 .onboarding__logo {
@@ -64,11 +65,12 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
+  background: $white;
 }
 
 .onboarding__body {
   height: 100%;
-  margin: 40px auto 0;
+  margin: 24px auto 0;
   max-width: 542px;
   padding: 0 40px;
   width: 100%;
@@ -77,7 +79,7 @@
 }
 
 .onboarding__actions {
-  margin-top: auto;
+  margin-top: 32px;
   padding: 20px 0 40px;
 }
 
@@ -96,7 +98,8 @@
 .onboarding__preview {
   display: block;
   overflow: hidden;
-  background-color: $color-neutral-200;
+  background-color: $color-neutral-100;
+  border-left: 1px solid themed-alpha($color-neutral-900, 0.06);
 
   @include absolute(0, 0, 0, 50%);
 

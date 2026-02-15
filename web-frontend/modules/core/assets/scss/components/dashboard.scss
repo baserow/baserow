@@ -5,7 +5,7 @@
 }
 
 .dashboard__scroll-container {
-  height: calc(100vh - 74px);
+  height: calc(100dvh - 74px);
   overflow-y: auto;
   padding: 24px;
   background: transparent;
@@ -19,7 +19,7 @@
   display: flex;
   gap: 15px;
   align-items: center;
-  background: $color-neutral-50;
+  background: themed-alpha($white, 0.92);
   backdrop-filter: blur(8px);
   z-index: 1;
   height: 74px;
@@ -35,7 +35,7 @@
 
 .dashboard__workspace-name {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   padding: 24px 0;
   display: flex;
@@ -94,13 +94,13 @@
   gap: 16px;
   padding: 10px;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid themed-alpha($color-neutral-900, 0.05);
   transition: all 0.15s ease;
 
   @include rounded($rounded-md);
 
   &:hover {
-    background: themed-alpha($color-primary-500, 0.08);
+    background: themed-alpha($color-primary-500, 0.06);
     border-color: themed-alpha($color-primary-500, 0.3);
 
     .dashboard__application-more-button {
@@ -183,7 +183,7 @@
 .dashboard__extras {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   order: 1;
 
   @media screen and (min-width: 1280px) {
@@ -199,10 +199,11 @@
 }
 
 .dashboard__suggested-templates-wrapper {
-  background: $color-neutral-50;
+  background: $white;
   border: 1px solid $color-neutral-200;
   padding: 24px;
   height: calc(100% - 33px);
+  box-shadow: 0 2px 14px themed-alpha($color-neutral-900, 0.04);
 
   @include flex-align-items(16px);
   @include rounded($rounded-md);
@@ -235,14 +236,14 @@
 
 .dashboard__resource {
   border: 1px solid $color-neutral-200;
-  background: linear-gradient(
-    180deg,
-    $color-neutral-50 0%,
-    $color-neutral-10 100%
-  );
+  background: $white;
   padding: 21px;
   text-decoration: none;
   display: flex;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 
   @include rounded($rounded-md);
   @include elevation($elevation-low);
@@ -250,6 +251,8 @@
   &:hover {
     text-decoration: none;
     border-color: themed-alpha($color-primary-500, 0.45);
+    box-shadow: 0 8px 24px themed-alpha($color-primary-500, 0.12);
+    transform: translateY(-1px);
   }
 }
 
@@ -274,7 +277,7 @@
 .dashboard__resource-icon {
   width: 40px;
   height: 40px;
-  background: themed-alpha($color-primary-500, 0.12);
+  background: themed-alpha($color-primary-500, 0.1);
   color: $color-primary-500;
   display: flex;
   align-items: center;
@@ -287,7 +290,7 @@
 
 .dashboard__resource-title {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: $color-neutral-900;
   margin: 0;
 }
