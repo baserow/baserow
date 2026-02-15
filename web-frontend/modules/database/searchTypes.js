@@ -133,7 +133,6 @@ export class DatabaseRowSearchType extends BaseSearchType {
         tableId: result.metadata.table_id,
         viewId: '',
         rowId: result.metadata.row_id,
-        viewId: '',
       },
     }
   }
