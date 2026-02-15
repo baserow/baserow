@@ -1,1 +1,45 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Опис"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Редагування завершено"
+    },
+    "emptyDashboard": {
+        "addWidget": "Додати віджет"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Режим редагування"
+    },
+    "createWidgetModal": {
+        "title": "Додати новий віджет"
+    },
+    "widget": {
+        "fixConfiguration": "Виправити налаштування"
+    },
+    "summaryWidget": {
+        "name": "Підсумок"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Елемент не вибрано",
+        "message": "Клацніть на один із елементів, щоб переглянути деталі."
+    },
+    "widgetSettings": {
+        "title": "Назва елемента",
+        "description": "Опис"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Дані",
+        "sourceFieldLabel": "Джерело",
+        "viewFieldLabel": "Вигляд",
+        "notSelected": "Не вибрано",
+        "aggregationFieldLabel": "Поле",
+        "aggregationTypeLabel": "Підсумок"
+    },
+    "widgetContext": {
+        "delete": "Видалити"
+    },
+    "trashType": {
+        "widget": "Віджет"
+    }
+}
