@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fixed misleading error messages when file field validation fails. Users now receive clear guidance when attempting to use original filenames instead of generated file names.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2025-02-15"
+}
