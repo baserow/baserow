@@ -48,6 +48,7 @@ export default {
       return {
         databaseId: this.notification.data.database_id,
         tableId: this.notification.data.table_id,
+        viewId: '',
         rowId: this.notification.data.row_id,
       }
     },

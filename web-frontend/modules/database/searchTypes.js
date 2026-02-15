@@ -129,6 +129,7 @@ export class DatabaseRowSearchType extends BaseSearchType {
       params: {
         databaseId: result.metadata.database_id,
         tableId: result.metadata.table_id,
+        viewId: '',
         rowId: result.metadata.row_id,
       },
     }

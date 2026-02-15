@@ -22,6 +22,7 @@ export class RowCommentMentionNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         rowId: notificationData.row_id,
       },
     }
@@ -47,6 +48,7 @@ export class RowCommentNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         rowId: notificationData.row_id,
       },
     }

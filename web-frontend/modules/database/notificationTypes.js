@@ -25,6 +25,7 @@ export class CollaboratorAddedToRowNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         rowId: notificationData.row_id,
       },
     }
@@ -50,6 +51,7 @@ export class FormSubmittedNotificationType extends NotificationType {
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         rowId: notificationData.row_id,
       },
     }
@@ -75,6 +77,7 @@ export class UserMentionInRichTextFieldNotificationType extends NotificationType
       params: {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
+        viewId: '',
         rowId: notificationData.row_id,
       },
     }
