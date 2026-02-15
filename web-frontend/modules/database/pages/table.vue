@@ -101,8 +101,12 @@ const { data, error, pending, status, refresh } = await useAsyncData(
       await $store.dispatch('view/fetchAll', currentTable)
     }
 
-    // No viewId → redirect to default view
-    if (viewId === null) {
+    const viewExistsInTable =
+      viewId !== null &&
+      $store.state.view.items.some((v) => v.id === viewId)
+
+    // No viewId or stale viewId → redirect to default view
+    if (viewId === null || !viewExistsInTable) {
       const rowId = currentParams.rowId ? parseInt(currentParams.rowId) : null
       const workspaceId = currentDatabase.workspace.id
       const viewToUse = getDefaultView(
