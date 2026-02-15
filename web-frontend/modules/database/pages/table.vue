@@ -219,8 +219,8 @@ onBeforeUnmount(() => {
  * Unselect when leaving page.
  */
 onBeforeRouteLeave((to, from) => {
-  // $store.dispatch('view/unselect')
-  // $store.dispatch('table/unselect')
+  $store.dispatch('view/unselect')
+  $store.dispatch('table/unselect')
 })
 
 onBeforeRouteUpdate(async (to, from, next) => {
