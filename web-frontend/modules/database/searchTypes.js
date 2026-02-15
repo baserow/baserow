@@ -56,6 +56,7 @@ export class DatabaseTableSearchType extends BaseSearchType {
       params: {
         databaseId: result.metadata.database_id,
         tableId: result.metadata.table_id,
+        rowId: null,
       },
     }
   }
@@ -92,6 +93,7 @@ export class DatabaseFieldSearchType extends BaseSearchType {
       params: {
         databaseId: result.metadata.database_id,
         tableId: result.metadata.table_id,
+        rowId: null,
       },
     }
   }
@@ -130,6 +132,7 @@ export class DatabaseRowSearchType extends BaseSearchType {
         databaseId: result.metadata.database_id,
         tableId: result.metadata.table_id,
         rowId: result.metadata.row_id,
+        viewId: '',
       },
     }
   }
