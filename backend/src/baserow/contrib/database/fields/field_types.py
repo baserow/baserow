@@ -3787,7 +3787,25 @@ class FileFieldType(FieldType):
         # Create a list of the serialized UserFiles in the originally provided order
         # because that is also the order we need to store the serialized versions in.
         user_files = []
-        queryset = UserFile.objects.all().name(*[f["name"] for f in provided_files])
+        
+        # Extract file names for lookup
+        file_names = [f["name"] for f in provided_files]
+        
+        # Validate each filename format before attempting database lookup
+        for file_name in file_names:
+            try:
+                UserFile.deconstruct_name(file_name)
+            except Exception as e:
+                raise ValidationError(
+                    f"Invalid file name '{file_name}'. "
+                    f"File names must be in the format returned by the upload endpoint "
+                    f"(e.g., 'abc123_def456.png'). "
+                    f"Original filenames with special characters like hyphens cannot be used directly. "
+                    f"Please upload the file first and use the returned 'name' field.",
+                    code="invalid_file_name"
+                )
+        
+        queryset = UserFile.objects.all().name(*file_names)
         for file in provided_files:
             try:
                 user_file = next(

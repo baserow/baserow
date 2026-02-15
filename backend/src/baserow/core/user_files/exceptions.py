@@ -31,7 +31,16 @@ class InvalidUserFileNameError(Exception):
 
     def __init__(self, name, *args, **kwargs):
         self.name = name
-        super().__init__(*args, **kwargs)
+        # Provide a more helpful error message
+        message = (
+            f"The file name '{name}' is not in the expected format. "
+            f"File names must be in the format 'unique_hash.extension' where "
+            f"'unique' and 'hash' contain only alphanumeric characters. "
+            f"If you're seeing this error, the file may not have been uploaded correctly. "
+            f"Please ensure you're using the generated file name returned from the upload endpoint, "
+            f"not the original filename."
+        )
+        super().__init__(message, *args, **kwargs)
 
 
 class UserFileDoesNotExist(ValidationError):
