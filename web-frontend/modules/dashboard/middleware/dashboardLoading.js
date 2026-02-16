@@ -14,7 +14,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const fromDashboardId = parseIntOrNull(from?.params?.dashboardId)
   const differentDashboardId = fromDashboardId !== toDashboardId
 
-  if (!from || differentDashboardId) {
+  // If it's the first page or the server side rendered page, then always put the
+  // dashboard in the loading state for the correct animation.
+  if (import.meta.server || !from || differentDashboardId) {
     await store.dispatch('dashboardApplication/setLoading', true)
   }
 })

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="dashboard" class="dashboard-app">
+  <div class="dashboard-app">
     <DashboardHeader :dashboard="dashboard" />
     <DashboardContent :dashboard="dashboard" />
   </div>
@@ -16,15 +16,18 @@ import DashboardContent from '@baserow/modules/dashboard/components/DashboardCon
 
 definePageMeta({
   layout: 'app',
-  middleware: ['dashboardLoading'],
+  middleware: [
+    'settings',
+    'authenticated',
+    'workspacesAndApplications',
+    'dashboardLoading',
+  ],
 })
 
 const store = useStore()
 const route = useRoute()
-const router = useRouter()
 const { $hasPermission, $realtime } = useNuxtApp()
 
-// Fetch dashboard data
 const {
   data,
   pending,
@@ -49,11 +52,14 @@ const {
         dashboard,
       }
     } catch (e) {
-      console.error('Error loading dashboard:', e)
       throw createError({ statusCode: 404, message: 'Dashboard not found.' })
     }
   }
 )
+
+if (fetchError.value) {
+  throw fetchError.value
+}
 
 const dashboard = computed(() => data.value?.dashboard)
 const workspace = computed(() => data.value?.workspace)
@@ -71,7 +77,9 @@ onMounted(() => {
     forEditing,
   })
 
-  $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
+  if (dashboard.value) {
+    $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
+  }
 })
 
 // Cleanup
