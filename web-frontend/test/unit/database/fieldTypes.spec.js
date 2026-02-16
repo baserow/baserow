@@ -802,6 +802,21 @@ describe('FieldType tests', () => {
     }
   )
 
+  test('MultipleSelectFieldType.parseFromLinkedRowItemValue supports CSV quoted values', () => {
+    const fieldType = fieldRegistry.multiple_select
+    expect(
+      fieldType.parseFromLinkedRowItemValue({}, '"test,with,comma",other')
+    ).toStrictEqual([{ value: 'test,with,comma' }, { value: 'other' }])
+  })
+
+  test('MultipleSelectFieldType.parseFromLinkedRowItemValue returns empty array for non-strings', () => {
+    const fieldType = fieldRegistry.multiple_select
+    expect(fieldType.parseFromLinkedRowItemValue({}, null)).toStrictEqual([])
+    expect(fieldType.parseFromLinkedRowItemValue({}, undefined)).toStrictEqual(
+      []
+    )
+  })
+
   test.each(Object.keys(mockedFields))(
     'Verify that the %s getGroupValueFromRowValue, getRowValueFromGroupValue, and' +
       ' isEqual are compatible.',

@@ -321,19 +321,18 @@ export default {
     this.v$.$touch()
   },
   validations() {
-    const self = this
     return {
       values: {
         table_id: {
           required,
           isValidTableId: (value) => {
-            const ids = self.tableIds
+            const ids = this.tableIds
             return includesIfSet(ids)(value)
           },
         },
         view_id: {
           isValidViewId: (value) => {
-            const ids = self.tableViewIds
+            const ids = this.tableViewIds
             return includesIfSet(ids)(value)
           },
         },

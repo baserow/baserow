@@ -63,6 +63,7 @@
 
 <script>
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 
 export default {
   name: 'EnterpriseFeatures',
@@ -71,7 +72,6 @@ export default {
       return EnterpriseFeaturesObject
     },
     hiddenFeatures() {
-      const { EnterprisePlugin } = require('@baserow_enterprise/plugins')
       return this.$registry
         .get('plugin', EnterprisePlugin.getType())
         .getVisuallyHiddenFeatures()

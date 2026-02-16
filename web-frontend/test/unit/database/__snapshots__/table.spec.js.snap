@@ -2,7 +2,7 @@
 
 exports[`Table Component Tests > Adding a row to a table increases the row count 1`] = `
 "<div>
-  <div>
+  <div class="tcr-table-home">
     <header class="layout__col-2-1 header header--dark-border">
       <div class="header__loading" style="display: none;"></div>
       <ul class="header__filter">
@@ -68,7 +68,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> action.search</a></div>
         </li>
       </ul>
     </header>
@@ -243,7 +243,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
 
 exports[`Table Component Tests > Adding a row to a table increases the row count 2`] = `
 "<div>
-  <div>
+  <div class="tcr-table-home">
     <header class="layout__col-2-1 header header--dark-border">
       <div class="header__loading" style="display: none;"></div>
       <ul class="header__filter">
@@ -309,7 +309,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> action.search</a></div>
         </li>
       </ul>
     </header>

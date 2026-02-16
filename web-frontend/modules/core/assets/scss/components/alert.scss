@@ -181,8 +181,7 @@
     height: 14px;
     border-radius: 50%;
     border: 0.18em solid;
-    border-color: $color-neutral-500 transparent $color-neutral-500
-      transparent;
+    border-color: $color-neutral-500 transparent $color-neutral-500 transparent;
     animation: spin infinite 1800ms;
     animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
   }

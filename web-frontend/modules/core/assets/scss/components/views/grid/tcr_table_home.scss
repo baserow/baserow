@@ -167,28 +167,30 @@
   }
 }
 
+/* stylelint-disable no-descending-specificity */
 [data-theme='light'],
 :root:not([data-theme]) {
   .tcr-table-home {
     .layout__col-2-1.header {
-      background: $white;
-      border-bottom: 1px solid themed-alpha($color-neutral-900, 0.055);
+      background: themed-alpha($white, 0.98);
+      border-bottom: 1px solid themed-alpha($color-neutral-900, 0.08);
+      box-shadow: 0 1px 2px themed-alpha($color-neutral-900, 0.03);
     }
 
     .header > .header__filter:not(.header__filter--full-width) {
-      border-bottom: 1px solid themed-alpha($color-neutral-900, 0.045);
+      border-bottom: 1px solid themed-alpha($color-neutral-900, 0.06);
     }
 
     .header > .header__filter.header__filter--full-width {
-      background-color: themed-alpha($color-neutral-100, 0.36);
+      background-color: themed-alpha($color-neutral-100, 0.5);
     }
 
     .header__filter-link {
       color: $color-neutral-700;
 
       &:hover {
-        background-color: themed-alpha($color-neutral-100, 0.7);
-        border-color: themed-alpha($color-neutral-900, 0.055);
+        background-color: themed-alpha($color-neutral-100, 0.78);
+        border-color: themed-alpha($color-neutral-900, 0.09);
         text-decoration: none;
       }
 
@@ -224,9 +226,9 @@
     }
 
     .header__filter-item--grids > .header__filter-link {
-      border-color: themed-alpha($color-neutral-900, 0.065);
+      border-color: themed-alpha($color-neutral-900, 0.1);
       background-color: themed-alpha($white, 0.96);
-      box-shadow: 0 1px 1px themed-alpha($color-neutral-900, 0.025);
+      box-shadow: 0 1px 2px themed-alpha($color-neutral-900, 0.045);
     }
 
     .header__filter-item--grids > .header__filter-link.active {
@@ -251,7 +253,7 @@
     }
 
     .header__search .header__filter-link {
-      border-color: themed-alpha($color-neutral-900, 0.07);
+      border-color: themed-alpha($color-neutral-900, 0.1);
       background-color: themed-alpha($white, 0.96);
       color: $color-neutral-600;
     }
@@ -267,21 +269,27 @@
     }
 
     .layout__col-2-2.content {
-      background-color: #f5f5f5;
+      background:
+        radial-gradient(
+          circle at 0% 0%,
+          themed-alpha($color-primary-500, 0.035) 0%,
+          transparent 44%
+        ),
+        #f2f3f5;
     }
 
     .grid-view__head,
     .grid-view__left,
     .grid-view__foot {
-      border-color: themed-alpha($color-neutral-900, 0.05);
+      border-color: themed-alpha($color-neutral-900, 0.07);
     }
 
     .grid-view__head {
-      background-color: $white;
+      background-color: themed-alpha($white, 0.98);
     }
 
     .grid-view__left {
-      background-color: $white;
+      background-color: themed-alpha($white, 0.98);
     }
 
     .grid-view__rows {
@@ -289,12 +297,12 @@
     }
 
     .grid-view__column {
-      border-right-color: themed-alpha($color-neutral-900, 0.05);
-      border-bottom-color: themed-alpha($color-neutral-900, 0.05);
+      border-right-color: themed-alpha($color-neutral-900, 0.07);
+      border-bottom-color: themed-alpha($color-neutral-900, 0.07);
 
       .grid-view__head & {
-        background-color: $white;
-        border-right-color: themed-alpha($color-neutral-900, 0.05);
+        background-color: themed-alpha($white, 0.98);
+        border-right-color: themed-alpha($color-neutral-900, 0.07);
       }
     }
 
@@ -315,30 +323,30 @@
     }
 
     .simple-grid__field {
-      border-color: themed-alpha($color-neutral-900, 0.05);
+      border-color: themed-alpha($color-neutral-900, 0.07);
       background-color: $white;
     }
 
     .simple-grid__cell {
-      border-color: themed-alpha($color-neutral-900, 0.05);
+      border-color: themed-alpha($color-neutral-900, 0.07);
       background-color: $white;
     }
 
     .simple-grid__left {
-      border-right-color: themed-alpha($color-neutral-900, 0.06);
+      border-right-color: themed-alpha($color-neutral-900, 0.08);
     }
 
     .simple-grid__row--hover {
       .simple-grid__cell,
       .grid-view__cell {
-        background-color: themed-alpha($color-primary-500, 0.03);
+        background-color: themed-alpha($color-primary-500, 0.045);
       }
     }
 
     .simple-grid__row--checked {
       .simple-grid__cell,
       .grid-view__cell {
-        background-color: themed-alpha($color-primary-500, 0.06);
+        background-color: themed-alpha($color-primary-500, 0.08);
       }
     }
   }
@@ -376,7 +384,7 @@
     }
 
     .header__filter-item--grids > .header__filter-link {
-      border-color: #333333;
+      border-color: #333;
       background-color: #1c1c1c;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     }
@@ -455,8 +463,9 @@
     .simple-grid__row--checked {
       .simple-grid__cell,
       .grid-view__cell {
-        background-color: #222222;
+        background-color: #222;
       }
     }
   }
 }
+/* stylelint-enable no-descending-specificity */

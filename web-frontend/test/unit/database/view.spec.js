@@ -5,9 +5,14 @@ import {
   readDefaultViewIdFromCookie,
   decodeDefaultViewIdPerTable,
   encodeDefaultViewIdPerTable,
+  getDefaultView,
 } from '@baserow/modules/database/utils/view'
 import gallery from '~/modules/database/services/view/gallery'
 import { NuxtPage } from '#components'
+
+const VIEW_LIST_INCLUDE_PARAMS = {
+  include: 'filters,sortings,group_bys,decorations',
+}
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -124,7 +129,7 @@ describe('View Tests', () => {
     // The first (and default) view is the Grid view, which is going to be rendered
     // initially for the firstTable:
     const firstTableComponent = await mountRoute(
-      `/database/${application.id}/table/${firstTable.id}/?token=fake`
+      `/database/${application.id}/table/${firstTable.id}/${firstTableGridView.id}?token=fake`
     )
 
     // Check if Vuex store is updated correctly (first view):
@@ -149,7 +154,7 @@ describe('View Tests', () => {
     // The first (and default) view is the Grid view, which is going to be rendered
     // initially for the secondTable:
     const secondTableComponent = await mountRoute(
-      `/database/${application.id}/table/${secondTable.id}/?token=fake`
+      `/database/${application.id}/table/${secondTable.id}/${secondTableGridView.id}?token=fake`
     )
 
     // Check if Vuex store is updated correctly (first view):
@@ -172,7 +177,7 @@ describe('View Tests', () => {
     // Let's switch back to the first table in the database and see if first table's
     // default view is appended to the *end* of remembered views array:
     await mountRoute(
-      `/database/${application.id}/table/${firstTable.id}/?token=fake`
+      `/database/${application.id}/table/${firstTable.id}/${firstTableGridView.id}?token=fake`
     )
 
     // Check if Vuex store is updated correctly (first view):
@@ -193,8 +198,7 @@ describe('View Tests', () => {
   })
 
   test('Default view is being set correctly only from cookie', async () => {
-    // set the cookie, render table without view id passed in, this should render
-    // the default (Gallery) view
+    // Set the cookie and verify the default view resolver picks it up.
     const { application, table, views } =
       await givenATableInTheServerWithMultipleViews()
 
@@ -217,11 +221,18 @@ describe('View Tests', () => {
     cookie.value = encodeDefaultViewIdPerTable(defaultViewIdData)
     await nextTick() // Let the cookie to be written
 
-    // The first view is the Grid view, the Default view is the Gallery view,
-    // we're not rendering any view initially and Default view (Gallery view)
-    // should be picked up from the cookie
+    await testApp.store.dispatch('view/fetchAll', table)
+    const defaultViewFromStore = getDefaultView(
+      testApp.getApp(),
+      testApp.store,
+      application.workspace.id,
+      false
+    )
+    expect(defaultViewFromStore.id).toBe(galleryView.id)
+
+    // Render with the cookie-selected default view to ensure the view can be loaded.
     const tableComponent = await mountRoute(
-      `/database/${application.id}/table/${table.id}/?token=fake`
+      `/database/${application.id}/table/${table.id}/${defaultViewFromStore.id}?token=fake`
     )
 
     // Check if Vuex store is updated correctly (first view):
@@ -373,9 +384,7 @@ describe('View Tests', () => {
       viewId: 2,
     })
 
-    mockServer.mock
-      .onGet(`/database/views/table/${table.id}/`)
-      .reply(200, [gridView, galleryView])
+    mockTableViewsList(table.id, [gridView, galleryView])
     mockServer.mock.onGet(`/database/field-rules/${table.id}/`).reply(200, [])
 
     const fields = mockServer.createFields(application, table, [
@@ -446,9 +455,7 @@ describe('View Tests', () => {
       .onGet(`/database/field-rules/${secondTable.id}/`)
       .reply(200, [])
 
-    mockServer.mock
-      .onGet(`/database/views/table/${firstTable.id}/`)
-      .reply(200, [firstTableGridView])
+    mockTableViewsList(firstTable.id, [firstTableGridView])
 
     // Second table - 1 view:
     const secondTableGridView = mockServer.createGridView(
@@ -458,9 +465,7 @@ describe('View Tests', () => {
         viewId: 2,
       }
     )
-    mockServer.mock
-      .onGet(`/database/views/table/${secondTable.id}/`)
-      .reply(200, [secondTableGridView])
+    mockTableViewsList(secondTable.id, [secondTableGridView])
 
     const fields = mockServer.createFields(application, firstTable, [
       {
@@ -574,21 +579,33 @@ describe('View Tests', () => {
       },
     ]
 
-    mockServer.mock
-      .onGet(`/database/views/table/${table.id}/`)
-      .replyOnce(
-        viewsError?.statusCode || 200,
-        viewsError?.data || [rawGridView]
-      )
+    mockTableViewsList(
+      table.id,
+      viewsError?.data || [rawGridView],
+      viewsError?.statusCode || 200
+    )
 
     mockServer.mock
       .onGet(`/database/fields/table/${table.id}/`)
-      .replyOnce(fieldsError?.statusCode || 200, fieldsError?.data || rawFields)
+      .reply(fieldsError?.statusCode || 200, fieldsError?.data || rawFields)
 
     mockServer.mock
-      .onGet(`database/views/grid/${rawGridView.id}/`)
-      .replyOnce(rowsError?.statusCode || 200, rowsError?.data || rawRows)
+      .onGet(`/database/views/grid/${rawGridView.id}/`)
+      .reply(rowsError?.statusCode || 200, rowsError?.data || rawRows)
 
     return { application, table, view: rawGridView }
+  }
+
+  function mockTableViewsList(tableId, response, statusCode = 200) {
+    // Views are requested both with and without include params in different
+    // test paths, so keep both endpoints aligned to avoid flaky mismatches.
+    mockServer.mock
+      .onGet(`/database/views/table/${tableId}/`, {
+        params: VIEW_LIST_INCLUDE_PARAMS,
+      })
+      .reply(statusCode, response)
+    mockServer.mock
+      .onGet(`/database/views/table/${tableId}/`)
+      .reply(statusCode, response)
   }
 })

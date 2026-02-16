@@ -3796,8 +3796,21 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    // FIXME: what if the option value contains a comma?
-    return value.split(',').map((value) => ({ value: value.trim() }))
+    if (typeof value !== 'string') {
+      return []
+    }
+
+    let values
+    if (this.app?.$papa?.stringToArray) {
+      values = this.app.$papa.stringToArray(value)
+    } else {
+      values = value.split(',')
+    }
+    if (!Array.isArray(values)) {
+      values = value.split(',')
+    }
+
+    return values.map((optionValue) => ({ value: optionValue.trim() }))
   }
 
   getFormViewFieldComponents(field) {

@@ -15,7 +15,7 @@
   --color-neutral-300: #4f4f4f;
   --color-neutral-400: #5d5d5d;
   --color-neutral-500: #676767;
-  --color-neutral-600: #999999;
+  --color-neutral-600: #999;
   --color-neutral-700: #cecfd2;
   --color-neutral-800: #e0e0e0;
   --color-neutral-900: #f7f7f7;
@@ -96,8 +96,12 @@
 
   // Elevations (from Figma shadow tokens)
   --elevation-low: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.15), 0 12px 16px -4px rgba(10, 13, 18, 0.2);
-  --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.15), 0 20px 24px -4px rgba(10, 13, 18, 0.2);
+  --elevation-medium:
+    0 4px 6px -2px rgba(10, 13, 18, 0.15),
+    0 12px 16px -4px rgba(10, 13, 18, 0.2);
+  --elevation-high:
+    0 8px 8px -4px rgba(10, 13, 18, 0.15),
+    0 20px 24px -4px rgba(10, 13, 18, 0.2);
 
   // Scrollbar
   --scrollbar-thumb: rgba(255, 255, 255, 0.1);
@@ -107,6 +111,7 @@
 
 [data-theme='light'] {
   --white: #fefefe;
+
   // Neutrals from Figma light context
   --color-neutral-10: #fefefe;
   --color-neutral-50: #fafafa;
@@ -119,6 +124,7 @@
   --color-neutral-700: #454545;
   --color-neutral-800: #323232;
   --color-neutral-900: #171717;
+
   // Primary / Orange (TCR brand)
   --color-primary-100: #fef6ee;
   --color-primary-200: #f9d1af;
@@ -129,6 +135,7 @@
   --color-primary-700: #b73817;
   --color-primary-800: #993015;
   --color-primary-900: #762818;
+
   // Success / Green (from Figma)
   --color-success-100: #ecfdf3;
   --color-success-200: #d1fadf;
@@ -139,6 +146,7 @@
   --color-success-700: #067647;
   --color-success-800: #085d3a;
   --color-success-900: #074d31;
+
   // Warning / Yellow-Amber
   --color-warning-100: #fffbf0;
   --color-warning-200: #fff4da;
@@ -149,6 +157,7 @@
   --color-warning-700: #997729;
   --color-warning-800: #806422;
   --color-warning-900: #66501b;
+
   // Error / Red (from Figma)
   --color-error-100: #fef3f2;
   --color-error-200: #fee4e2;
@@ -159,6 +168,7 @@
   --color-error-700: #b42318;
   --color-error-800: #912018;
   --color-error-900: #7a271a;
+
   // Tag colors
   --color-yellow-100: #fffbf0;
   --color-yellow-200: #ffe9b4;
@@ -180,10 +190,15 @@
   --color-cyan-200: #a0ebf5;
   --color-cyan-300: #70e0ef;
   --color-cyan-400: #41d6ea;
+
   // Elevations (from Figma shadow-xs, shadow-lg, shadow-xl)
   --elevation-low: 0 1px 2px 0 rgba(10, 13, 18, 0.05);
-  --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.03), 0 12px 16px -4px rgba(10, 13, 18, 0.08);
-  --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.03), 0 20px 24px -4px rgba(10, 13, 18, 0.08);
+  --elevation-medium:
+    0 4px 6px -2px rgba(10, 13, 18, 0.03),
+    0 12px 16px -4px rgba(10, 13, 18, 0.08);
+  --elevation-high:
+    0 8px 8px -4px rgba(10, 13, 18, 0.03),
+    0 20px 24px -4px rgba(10, 13, 18, 0.08);
   --scrollbar-thumb: rgba(0, 0, 0, 0.1);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-active: rgba(0, 0, 0, 0.3);
@@ -261,8 +276,12 @@
     --color-cyan-300: #70e0ef;
     --color-cyan-400: #41d6ea;
     --elevation-low: 0 1px 2px 0 rgba(10, 13, 18, 0.05);
-    --elevation-medium: 0 4px 6px -2px rgba(10, 13, 18, 0.03), 0 12px 16px -4px rgba(10, 13, 18, 0.08);
-    --elevation-high: 0 8px 8px -4px rgba(10, 13, 18, 0.03), 0 20px 24px -4px rgba(10, 13, 18, 0.08);
+    --elevation-medium:
+      0 4px 6px -2px rgba(10, 13, 18, 0.03),
+      0 12px 16px -4px rgba(10, 13, 18, 0.08);
+    --elevation-high:
+      0 8px 8px -4px rgba(10, 13, 18, 0.03),
+      0 20px 24px -4px rgba(10, 13, 18, 0.08);
     --scrollbar-thumb: rgba(0, 0, 0, 0.1);
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
     --scrollbar-thumb-active: rgba(0, 0, 0, 0.3);

@@ -1,5 +1,9 @@
 .row-edit-modal-sidebar {
-  background: linear-gradient(180deg, $color-neutral-10 0%, $color-neutral-50 100%);
+  background: linear-gradient(
+    180deg,
+    $color-neutral-10 0%,
+    $color-neutral-50 100%
+  );
   border-top-right-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
 
@@ -131,7 +135,9 @@
   border-radius: 10px;
   background-color: themed-alpha($color-neutral-10, 0.94);
   color: inherit;
-  transition: border-color 0.12s ease, background-color 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
 
   &:hover {
     text-decoration: none;
@@ -185,7 +191,9 @@
   overflow: hidden;
   background-color: themed-alpha($color-neutral-10, 0.95);
   color: inherit;
-  transition: border-color 0.12s ease, transform 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease;
 
   &:hover {
     text-decoration: none;

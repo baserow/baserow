@@ -4,10 +4,13 @@
   background: linear-gradient(
     180deg,
     $white 0%,
+    themed-alpha($white, 0.96) 28%,
     $color-neutral-50 100%
   );
-  border-right: solid 1px $color-neutral-200;
-  box-shadow: inset -1px 0 0 themed-alpha($color-neutral-900, 0.05);
+  border-right: solid 1px themed-alpha($color-neutral-900, 0.08);
+  box-shadow:
+    inset -1px 0 0 themed-alpha($color-neutral-900, 0.04),
+    4px 0 18px themed-alpha($color-neutral-900, 0.03);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -18,7 +21,7 @@
   flex: 0 0;
 
   &:not(:last-child) {
-    border-bottom: solid 1px $color-neutral-200;
+    border-bottom: solid 1px themed-alpha($color-neutral-900, 0.06);
   }
 
   &.sidebar__section--scrollable {
@@ -40,22 +43,23 @@
 }
 
 .sidebar__section-scrollable-inner {
-  padding: 10px 8px;
+  padding: 10px 8px 12px;
 }
 
 .sidebar__workspaces-selector {
   @include flex-align-items(10px);
 
-  border-bottom: 1px solid $color-neutral-200;
+  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.06);
   padding: 0 16px;
   height: 51px;
   color: $color-neutral-900;
   font-weight: 600;
   border-radius: $rounded-md;
+  transition: background-color 0.16s ease;
 
   &:hover {
     text-decoration: none;
-    background: themed-alpha($color-primary-500, 0.08);
+    background: themed-alpha($color-primary-500, 0.1);
   }
 
   .sidebar--collapsed & {
@@ -71,12 +75,16 @@
 
 .sidebar__workspaces-selector-icon {
   font-size: 18px;
-  color: $color-neutral-600;
+  color: $color-neutral-500;
 }
 
 .sidebar__user {
-  border-top: solid 1px $color-neutral-200;
-  background: $color-neutral-50;
+  border-top: solid 1px themed-alpha($color-neutral-900, 0.06);
+  background: linear-gradient(
+    180deg,
+    $color-neutral-50 0%,
+    $color-neutral-100 100%
+  );
   padding-bottom: 8px;
   border-bottom-left-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
@@ -110,26 +118,26 @@
 }
 
 .sidebar__new-wrapper--separator {
-  border-top: solid 1px $color-neutral-200;
+  border-top: solid 1px themed-alpha($color-neutral-900, 0.06);
 }
 
 .sidebar__new {
   font-size: 13px;
   font-weight: 600;
   line-height: 17px;
-  color: $color-neutral-700;
+  color: $color-neutral-800;
 
   @include flex-align-items(4px);
 
   &:hover {
-    color: $color-neutral-900;
+    color: $color-primary-600;
     text-decoration: none;
   }
 }
 
 .sidebar__new-icon {
   font-size: 16px;
-  color: $color-neutral-600;
+  color: $color-neutral-500;
 
   .sidebar__new:hover & {
     color: $color-primary-500;
@@ -180,7 +188,7 @@
 .sidebar__foot-separator {
   width: 1px;
   height: 16px;
-  background-color: $color-neutral-200;
+  background-color: themed-alpha($color-neutral-900, 0.08);
 
   .sidebar--collapsed & {
     width: 16px;
@@ -190,7 +198,7 @@
 
 .sidebar__foot-link {
   position: relative;
-  color: $color-neutral-600;
+  color: $color-neutral-500;
 
   @include center-text(16px, 16px);
 
@@ -255,7 +263,7 @@
 .sidebar__head {
   @include flex-align-items(15px);
 
-  border-bottom: 1px solid $color-neutral-200;
+  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.06);
   padding: 0 21px;
   height: 51px;
   color: $color-neutral-900;
@@ -278,7 +286,7 @@
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: themed-alpha($color-primary-500, 0.1);
+    background-color: themed-alpha($color-primary-500, 0.12);
   }
 }
 
@@ -309,7 +317,7 @@
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: themed-alpha($color-primary-500, 0.1);
+    background-color: themed-alpha($color-primary-500, 0.12);
   }
 }
 
@@ -342,8 +350,8 @@
   line-height: 34px;
   width: 100%;
   padding: 0 44px 0 10px;
-  background-color: $white;
-  border: 1px solid $color-neutral-300;
+  background-color: themed-alpha($white, 0.95);
+  border: 1px solid themed-alpha($color-neutral-900, 0.12);
   cursor: pointer;
   transition:
     border-color 0.2s ease,
@@ -355,14 +363,14 @@
   box-shadow: none;
 
   &:hover {
-    border-color: $color-neutral-400;
-    background-color: $color-neutral-10;
+    border-color: themed-alpha($color-neutral-900, 0.2);
+    background-color: $white;
   }
 }
 
 .sidebar__search:focus-within .sidebar__search-input {
   border-color: $color-primary-500;
-  box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.14);
+  box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.16);
 }
 
 .sidebar__search-icon {
@@ -376,7 +384,7 @@
   min-width: 0;
   font-size: 12px;
   line-height: 12px;
-  color: $color-neutral-600;
+  color: $color-neutral-700;
   font-weight: 400;
 }
 
@@ -389,13 +397,13 @@
   gap: 2px;
 
   kbd {
-    border: 1px solid $color-neutral-300;
-    background-color: $color-neutral-100;
+    border: 1px solid themed-alpha($color-neutral-900, 0.14);
+    background-color: themed-alpha($color-neutral-100, 0.72);
     border-radius: 4px;
     font-family: inherit;
     font-size: 10px;
     font-weight: 600;
-    color: $color-neutral-700;
+    color: $color-neutral-800;
     height: 16px;
     line-height: 16px;
     padding: 0;

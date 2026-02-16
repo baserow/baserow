@@ -1,8 +1,8 @@
 .form-input,
 %form-input {
-  background: $white;
+  background: themed-alpha($white, 0.98);
   display: flex;
-  border: 1px solid $color-neutral-300;
+  border: 1px solid themed-alpha($color-neutral-900, 0.16);
   position: relative;
   height: 36px;
   box-sizing: border-box;
@@ -36,7 +36,7 @@
   &:hover:not(.form-input--disabled):not(.form-input--no-border):not(
       .form-input--error
     ) {
-    border-color: $color-neutral-400;
+    border-color: themed-alpha($color-neutral-900, 0.28);
   }
 
   &:active:not(.form-input--no-border),
@@ -44,19 +44,20 @@
   &:focus-within:not(.form-input--no-border) {
     &:not(.form-input--disabled):not(.form-input--error) {
       border-color: $color-primary-500;
-      box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.16);
+      box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.17);
     }
   }
 
   &.form-input--error {
     border-color: $color-error-500;
-    box-shadow: 0 0 0 2px themed-alpha($color-error-400, 0.14);
+    box-shadow: 0 0 0 3px themed-alpha($color-error-400, 0.12);
   }
 
   &.form-input--disabled {
     cursor: not-allowed;
     box-shadow: none;
-    background-color: $color-neutral-100;
+    background-color: themed-alpha($color-neutral-100, 0.92);
+    border-color: themed-alpha($color-neutral-900, 0.1);
   }
 
   /* stylelint-disable-next-line selector-class-pattern */
@@ -91,12 +92,12 @@
   line-height: 100%;
   background: none;
   padding: 12px 16px;
-  background-color: $white;
+  background-color: transparent;
 
   @include rounded($rounded-md);
 
   &::placeholder {
-    color: $color-neutral-600;
+    color: $color-neutral-500;
 
     @extend %ellipsis;
   }
@@ -115,7 +116,7 @@
 
   .form-input--disabled & {
     cursor: not-allowed;
-    background-color: $color-neutral-100;
+    background-color: transparent;
     color: $color-neutral-500;
   }
 
@@ -147,7 +148,7 @@
 
 .form-input__icon {
   position: relative;
-  color: $color-neutral-400;
+  color: $color-neutral-500;
   font-size: 16px;
   top: 50%;
   margin-top: -8px;
@@ -198,12 +199,12 @@
   display: flex;
   align-items: center;
   width: fit-content;
-  border-left: 1px solid $color-neutral-300;
+  border-left: 1px solid themed-alpha($color-neutral-900, 0.14);
   appearance: none;
   padding: 0 12px;
   outline: none;
   line-height: 100%;
-  background: $color-neutral-50;
+  background: themed-alpha($color-neutral-100, 0.72);
   border-top-right-radius: $rounded-md;
   border-bottom-right-radius: $rounded-md;
 }

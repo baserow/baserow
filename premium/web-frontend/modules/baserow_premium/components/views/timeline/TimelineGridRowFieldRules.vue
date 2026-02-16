@@ -35,7 +35,6 @@ export default {
   computed: {
     fieldRules() {
       const table = this.$store.getters['table/getSelected']
-      const that = this
       const out = []
 
       this.$store.getters['fieldRules/getRules']({
@@ -43,7 +42,7 @@ export default {
       })
         .filter((rule) => rule.is_valid && rule.is_active)
         .forEach((rule) => {
-          const component = that.getComponentForRule(rule)
+          const component = this.getComponentForRule(rule)
           if (component) {
             out.push({ rule, component })
           }

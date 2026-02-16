@@ -32,7 +32,11 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, $color-primary-500 0%, $color-primary-400 100%);
+    background: linear-gradient(
+      90deg,
+      $color-primary-500 0%,
+      $color-primary-400 100%
+    );
     border-top-left-radius: $rounded;
     border-top-right-radius: $rounded;
   }

@@ -50,7 +50,7 @@
         <div v-show="isValidRow(row)" class="timeline-grid__row">
           <!-- Pass strings instead of moment objects to prevent unnecessary re-renders -->
           <TimelineGridRow
-            ::ref="`row-${row.id}`"
+            :ref="`row-${row.id}`"
             :label="getRowLabel(row)"
             :start-date="getRowDateValue(row, startDateField)?.format()"
             :end-date="getRowDateValue(row, endDateField)?.format()"
@@ -119,18 +119,17 @@ export default {
     TimelineGridShowRowButton,
   },
   provide: function () {
-    const that = this
     return {
       getRowPosition: (rowItem) => {
         if (!rowItem.item) {
           return
         }
-        const pos = that.getRowStyleProps(rowItem.item)
+        const pos = this.getRowStyleProps(rowItem.item)
         const out = {
           left: pos.leftPadding + pos.left,
           top: rowItem.position.top,
           width: pos.width,
-          height: that.rowHeight,
+          height: this.rowHeight,
         }
         return out
       },

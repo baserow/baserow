@@ -6,6 +6,4 @@
  * 1. Add the locale entry here
  * 2. Create the corresponding .json translation files in each module's locales/ directory
  */
-export const locales = [
-  { code: 'en', name: 'English', file: 'en.json' },
-]
+export const locales = [{ code: 'en', name: 'English', file: 'en.json' }]

@@ -1,5 +1,6 @@
 .form-textarea {
-  border: 1px solid $color-neutral-300;
+  border: 1px solid themed-alpha($color-neutral-900, 0.16);
+  background: themed-alpha($white, 0.98);
   position: relative;
   width: 100%;
   padding: 12px 16px;
@@ -8,16 +9,27 @@
   @include elevation($elevation-low);
   @include rounded($rounded-md);
 
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover:not(.form-textarea--disabled):not(.form-textarea--error) {
+    border-color: themed-alpha($color-neutral-900, 0.28);
+  }
+
   &:active,
   &:focus,
   &:focus-within {
     &:not(.form-textarea--disabled):not(.form-textarea--error) {
       border-color: $color-primary-500;
+      box-shadow: 0 0 0 3px themed-alpha($color-primary-500, 0.17);
     }
   }
 
   &.form-textarea--error {
-    border-color: $color-error-600;
+    border-color: $color-error-500;
+    box-shadow: 0 0 0 3px themed-alpha($color-error-400, 0.12);
   }
 
   &--small {
@@ -27,7 +39,8 @@
 
 .form-textarea--disabled {
   cursor: not-allowed;
-  background-color: $color-neutral-100;
+  background-color: themed-alpha($color-neutral-100, 0.92);
+  border-color: themed-alpha($color-neutral-900, 0.1);
   color: $color-neutral-500;
   box-shadow: none;
 }

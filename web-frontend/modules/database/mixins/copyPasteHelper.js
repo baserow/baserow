@@ -121,6 +121,12 @@ export default {
     ) {
       const tsvData = this.$papa.unparse(textData, PAPA_CONFIG)
       const htmlData = this.prepareHTMLData(textData, includeHeader)
+      const hasLocalStorageWriter =
+        typeof localStorage !== 'undefined' &&
+        typeof localStorage.setItem === 'function'
+      if (!hasLocalStorageWriter) {
+        return { tsvData, htmlData }
+      }
       try {
         localStorage.setItem(
           LOCAL_STORAGE_CLIPBOARD_KEY,

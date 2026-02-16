@@ -13,10 +13,7 @@
 
   .ab-table__header-cell {
     font-weight: var(--table-header-font-weight, 600);
-    background-color: var(
-      --table-header-background-color,
-      $color-neutral-200
-    );
+    background-color: var(--table-header-background-color, $color-neutral-200);
     font-size: var(--table-header-font-size, 13px);
     color: var(--table-header-text-color, $color-neutral-900);
     font-family: var(--table-header-font-family, Inter);
@@ -39,10 +36,7 @@
     // by filling the thead element with the same background color as the
     // header cells.
     // See: https://gitlab.com/baserow/baserow/-/issues/3250
-    background-color: var(
-      --table-header-background-color,
-      $color-neutral-200
-    );
+    background-color: var(--table-header-background-color, $color-neutral-200);
   }
 
   .baserow-table__empty-message {

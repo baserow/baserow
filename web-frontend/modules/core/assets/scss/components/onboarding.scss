@@ -1,5 +1,11 @@
 .onboarding {
-  background: linear-gradient(90deg, $white 0%, $white 50%, $color-neutral-100 100%);
+  background: linear-gradient(
+    90deg,
+    $white 0%,
+    themed-alpha($white, 0.98) 48%,
+    $color-neutral-100 48%,
+    themed-alpha($color-neutral-200, 0.62) 100%
+  );
 
   @include absolute(0, 0, 0, 0);
 }
@@ -52,7 +58,12 @@
   align-items: center;
   width: 100%;
   padding: 32px 40px 24px;
-  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.06);
+  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.08);
+  background: linear-gradient(
+    180deg,
+    themed-alpha($white, 0.95) 0%,
+    $white 100%
+  );
 }
 
 .onboarding__logo {
@@ -65,13 +76,20 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
-  background: $white;
+  background:
+    radial-gradient(
+      circle at 8% 0%,
+      themed-alpha($color-primary-500, 0.05) 0%,
+      transparent 42%
+    ),
+    $white;
+  box-shadow: inset -1px 0 0 themed-alpha($color-neutral-900, 0.08);
 }
 
 .onboarding__body {
   height: 100%;
   margin: 24px auto 0;
-  max-width: 542px;
+  max-width: 560px;
   padding: 0 40px;
   width: 100%;
   display: flex;
@@ -90,7 +108,7 @@
 
 .onboarding__cancel {
   width: 100%;
-  border-top: solid 1px $color-neutral-200;
+  border-top: solid 1px themed-alpha($color-neutral-900, 0.08);
   padding: 28px;
   text-align: center;
 }
@@ -98,8 +116,18 @@
 .onboarding__preview {
   display: block;
   overflow: hidden;
-  background-color: $color-neutral-100;
-  border-left: 1px solid themed-alpha($color-neutral-900, 0.06);
+  background:
+    radial-gradient(
+      circle at 20% 5%,
+      themed-alpha($color-primary-500, 0.08) 0%,
+      transparent 46%
+    ),
+    linear-gradient(
+      180deg,
+      themed-alpha($white, 0.65) 0%,
+      $color-neutral-100 100%
+    );
+  border-left: 1px solid themed-alpha($color-neutral-900, 0.08);
 
   @include absolute(0, 0, 0, 50%);
 

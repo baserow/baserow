@@ -194,7 +194,11 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, $color-primary-500 0%, $color-primary-400 100%);
+    background: linear-gradient(
+      90deg,
+      $color-primary-500 0%,
+      $color-primary-400 100%
+    );
     border-top-left-radius: $rounded-lg;
     border-top-right-radius: $rounded-lg;
   }
@@ -244,7 +248,11 @@
 
   .button:not(.button--secondary):not(.button--ghost):not(.button--danger) {
     border: 1px solid transparent;
-    background: linear-gradient(180deg, $color-primary-500 0%, $color-primary-400 100%);
+    background: linear-gradient(
+      180deg,
+      $color-primary-500 0%,
+      $color-primary-400 100%
+    );
     box-shadow: 0 8px 18px themed-alpha($color-primary-500, 0.26);
     min-height: 38px;
 

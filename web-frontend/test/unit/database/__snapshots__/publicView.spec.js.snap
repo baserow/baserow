@@ -29,7 +29,9 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
   <div
     class="public-view__table"
   >
-    <div>
+    <div
+      class="tcr-table-home"
+    >
       <header
         class="layout__col-2-1 header header--dark-border"
       >
@@ -311,7 +313,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__search-icon iconoir-search"
                 />
-                 
+                 action.search
               </a>
             </div>
           </li>

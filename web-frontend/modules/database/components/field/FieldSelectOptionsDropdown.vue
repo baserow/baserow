@@ -137,17 +137,22 @@ export default {
   data() {
     return {
       createOptionLoading: false,
-      selectedColor: null,
+      selectedColorRefreshKey: 0,
     }
   },
   computed: {
     canCreateOption() {
       return this.allowCreateOption && this.query !== '' && !this.hasItems
     },
+    selectedColor() {
+      // Add a dependency to force recomputation when dropdown items are mounted.
+      const refreshKey = this.selectedColorRefreshKey
+      return this.getSelectedProperty(this.value, 'color', refreshKey)
+    },
   },
   methods: {
     forceRefreshSelectedValue() {
-      this.selectedColor = this.getSelectedProperty(this.value, 'color')
+      this.selectedColorRefreshKey++
       dropdown.methods.forceRefreshSelectedValue.call(this)
     },
     createOption(value) {

@@ -4,10 +4,20 @@
   background:
     radial-gradient(
       circle at 0% 0%,
-      themed-alpha($color-primary-500, 0.08) 0%,
-      transparent 40%
+      themed-alpha($color-primary-500, 0.06) 0%,
+      transparent 38%
     ),
-    $color-neutral-100;
+    radial-gradient(
+      circle at 100% 100%,
+      themed-alpha($color-primary-500, 0.04) 0%,
+      transparent 44%
+    ),
+    linear-gradient(
+      180deg,
+      $white 0%,
+      $color-neutral-100 72%,
+      themed-alpha($color-neutral-300, 0.32) 100%
+    );
 }
 
 .layout__resize {
@@ -42,7 +52,11 @@
   position: absolute;
   z-index: $z-index-layout-col-3;
   inset: 0 0 0 240px;
-  background: transparent;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    themed-alpha($white, 0.35) 100%
+  );
 }
 
 .layout__col-2-scroll {
@@ -51,7 +65,7 @@
   overflow: auto;
 
   &.layout__col-2-scroll--white-background {
-    background-color: $color-neutral-50;
+    background-color: themed-alpha($white, 0.96);
   }
 }
 
@@ -74,6 +88,6 @@
   position: absolute;
   z-index: $z-index-layout-col-3;
   height: 100%;
-  border-left: 1px solid $color-neutral-200;
+  border-left: 1px solid themed-alpha($color-neutral-900, 0.08);
   background: $color-neutral-50;
 }

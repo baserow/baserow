@@ -7,7 +7,7 @@
 }
 
 .onboarding-user-preview__wrapper {
-  width: 302px;
+  width: 320px;
 }
 
 .onboarding-user-preview {
@@ -21,7 +21,7 @@
   border-radius: 50%;
   color: $white;
   font-weight: 600;
-  outline: solid 5px $color-neutral-200;
+  outline: solid 5px themed-alpha($white, 0.8);
 
   @include center-text(56px, 18px);
   @include absolute(0, auto, auto, 50%);
@@ -32,16 +32,30 @@
 }
 
 .onboarding-user-preview__box {
-  background-color: $white;
+  background: linear-gradient(
+    180deg,
+    themed-alpha($white, 0.98) 0%,
+    $white 100%
+  );
   overflow: hidden;
 
   @include rounded($rounded-xl);
-  @include elevation($elevation-low);
+
+  box-shadow:
+    0 14px 32px themed-alpha($color-neutral-900, 0.16),
+    0 2px 6px themed-alpha($color-neutral-900, 0.06);
 }
 
 .onboarding-user-preview__head {
   padding: 48px 40px 28px;
-  background-color: $color-neutral-10;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      themed-alpha($color-primary-500, 0.1) 0%,
+      transparent 65%
+    ),
+    $color-neutral-10;
+  border-bottom: 1px solid themed-alpha($color-neutral-900, 0.08);
 }
 
 .onboarding-user-preview__name {
@@ -55,6 +69,7 @@
 
 .onboarding-user-preview__body {
   padding: 24px 40px;
+  background: themed-alpha($white, 0.94);
 }
 
 .onboarding-user-preview__team {
