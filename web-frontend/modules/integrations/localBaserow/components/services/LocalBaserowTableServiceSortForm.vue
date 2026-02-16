@@ -8,11 +8,22 @@
         {{ $t('localBaserowTableServiceSortForm.noSortText') }}
       </div>
     </div>
-    <div v-if="modelValue.length > 0" v-auto-overflow-scroll class="sortings__items">
+    <div
+      v-if="modelValue.length > 0"
+      v-auto-overflow-scroll
+      class="sortings__items"
+    >
       <div
-v-for="(sort, index) in modelValue" :key="sort.id" class="sortings__item"
-        :set="field = getField(sort.field)">
-        <a v-if="!disableSort" class="sortings__remove" @click.stop="deleteSort(sort)">
+        v-for="(sort, index) in modelValue"
+        :key="sort.id"
+        class="sortings__item"
+        :set="field = getField(sort.field)"
+      >
+        <a
+          v-if="!disableSort"
+          class="sortings__remove"
+          @click.stop="deleteSort(sort)"
+        >
           <i class="iconoir-cancel"></i>
         </a>
 
@@ -35,43 +46,70 @@ v-for="(sort, index) in modelValue" :key="sort.id" class="sortings__item"
           </div>
           <div class="sortings__field">
             <Dropdown
-:value="sort.field" :disabled="disableSort" :fixed-items="true" class="dropdown--floating"
-              @input="updateSort(sort, { field: $event })">
+              :value="sort.field"
+              :disabled="disableSort"
+              :fixed-items="true"
+              class="dropdown--floating"
+              @input="updateSort(sort, { field: $event })"
+            >
               <DropdownItem
-v-for="field in fields" :key="'sort-field-' + sort.id + '-' + field.id" :name="field.name"
-                :value="field.id" :disabled="sort.field !== field.id && !isFieldAvailable(field)"></DropdownItem>
+                v-for="field in fields"
+                :key="'sort-field-' + sort.id + '-' + field.id"
+                :name="field.name"
+                :value="field.id"
+                :disabled="sort.field !== field.id && !isFieldAvailable(field)"
+              ></DropdownItem>
             </Dropdown>
           </div>
-          <div class="sortings__order" :class="{ 'sortings__order--disabled': disableSort }">
+          <div
+            class="sortings__order"
+            :class="{ 'sortings__order--disabled': disableSort }"
+          >
             <a
-class="sortings__order-item" :class="{ active: sort.order_by === 'ASC' }"
-              @click="updateSort(sort, { order_by: 'ASC' })">
+              class="sortings__order-item"
+              :class="{ active: sort.order_by === 'ASC' }"
+              @click="updateSort(sort, { order_by: 'ASC' })"
+            >
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 1)
-                }}</template>
-              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 1)"></i>
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 1)"
+              ></i>
 
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 2)
-                }}</template>
-              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 2)"></i>
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 2)"
+              ></i>
             </a>
             <a
-class="sortings__order-item" :class="{ active: sort.order_by === 'DESC' }"
-              @click="updateSort(sort, { order_by: 'DESC' })">
+              class="sortings__order-item"
+              :class="{ active: sort.order_by === 'DESC' }"
+              @click="updateSort(sort, { order_by: 'DESC' })"
+            >
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 2)
-                }}</template>
-              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 2)"></i>
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 2)"
+              ></i>
 
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 1)
-                }}</template>
-              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 1)"></i>
+              }}</template>
+              <i
+                v-if="getSortIndicator(field, 0) === 'icon'"
+                :class="getSortIndicator(field, 1)"
+              ></i>
             </a>
           </div>
         </template>
@@ -80,17 +118,34 @@ class="sortings__order-item" :class="{ active: sort.order_by === 'DESC' }"
     <template v-if="modelValue.length < availableFieldsLength && !disableSort">
       <div ref="addContextToggle">
         <ButtonText
-type="secondary" size="small" icon="iconoir-plus" @click="
-          $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
-          ">
+          type="secondary"
+          size="small"
+          icon="iconoir-plus"
+          @click="
+            $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
+          "
+        >
           {{ $t('localBaserowTableServiceSortForm.addSort') }}
         </ButtonText>
       </div>
-      <Context ref="context" class="sortings__add-context" overflow-scroll max-height-if-outside-viewport>
+      <Context
+        ref="context"
+        class="sortings__add-context"
+        overflow-scroll
+        max-height-if-outside-viewport
+      >
         <ul ref="items" class="context__menu">
-          <li v-for="field in fields" v-show="isFieldAvailable(field)" :key="field.id" class="context__menu-item">
+          <li
+            v-for="field in fields"
+            v-show="isFieldAvailable(field)"
+            :key="field.id"
+            class="context__menu-item"
+          >
             <a class="context__menu-item-link" @click="addSort(field)">
-              <i class="context__menu-icon" :class="getFieldType(field).iconClass"></i>
+              <i
+                class="context__menu-icon"
+                :class="getFieldType(field).iconClass"
+              ></i>
               {{ field.name }}
             </a>
           </li>
