@@ -31,7 +31,6 @@ import _ from 'lodash'
 
 definePageMeta({
   layout: 'app',
-  applicationContext: true,
   middleware: [
     'settings',
     'authenticated',

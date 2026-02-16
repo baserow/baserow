@@ -21,7 +21,6 @@ import {
   useHead,
   useNuxtApp,
   navigateTo,
-  useRequestHeaders,
   createError,
 } from '#app'
 import PageContent from '@baserow/modules/builder/components/page/PageContent'
@@ -65,14 +64,6 @@ const router = useRouter()
 const nuxtApp = useNuxtApp()
 
 const { $registry, $i18n } = nuxtApp
-
-const builderId = route.params.builderId
-  ? parseInt(route.params.builderId, 10)
-  : null
-
-const currentRoute = Array.isArray(route.params.pathMatch)
-  ? route.params.pathMatch.join('/')
-  : route.params.pathMatch
 
 const requestHostname = useRequestURL().hostname
 
@@ -608,15 +599,15 @@ const maybeRedirectUserToLoginPage = async () => {
         message: $i18n.t('publicPage.authorizedToastMessage'),
       })
       const nextPath = encodeURIComponent(currentPath)
-      router.push({ path: url, query: { next: nextPath } })
+      await router.push({ path: url, query: { next: nextPath } })
     }
   }
 }
 
-const maybeRedirectToNextPage = () => {
+const maybeRedirectToNextPage = async () => {
   if (route.query.next) {
     const decodedNext = decodeURIComponent(route.query.next)
-    router.push(decodedNext)
+    await router.push(decodedNext)
   }
 }
 
