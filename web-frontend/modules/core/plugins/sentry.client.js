@@ -1,6 +1,4 @@
 export default defineNuxtPlugin(async (nuxtApp) => {
-  console.log('load client')
-
   // Only run on client side
   if (import.meta.server) {
     return
