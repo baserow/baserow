@@ -16,7 +16,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   Sentry.init({
     app: nuxtApp.vueApp,
     dsn,
-    release: `baserow@${config.public.version}`, // This allows Sentry to link errors to the uploaded source maps via the release ID.
+    release: `baserow-saas-web-frontend@${config.public.version}`, // This allows Sentry to link errors to the uploaded source maps via the release ID.
     environment: config.public.sentryEnvironment || 'production',
     integrations: [
       Sentry.browserTracingIntegration({
