@@ -3,10 +3,12 @@
         "title": "Процес"
     },
     "automationWelcomeGuidedTourStep": {
-        "title": "Ласкаво просимо до Baserow Автоматизацій!"
+        "title": "Ласкаво просимо до Baserow Автоматизацій!",
+        "content": "Давайте швидко ознайомимося. Ви побачите, як налаштувати тригери, додавати дії, тестувати ваш робочий процес і публікувати його — без необхідності програмування."
     },
     "automationGraphGuidedTourStep": {
-        "content": "Створіть тут тригер та дії, щоб визначити, що має виконувати робочий процес. Виберіть тригер або дію, щоб налаштувати їх у бічній панелі."
+        "content": "Створіть тут тригер та дії, щоб визначити, що має виконувати робочий процес. Виберіть тригер або дію, щоб налаштувати їх у бічній панелі.",
+        "title": "Керуйте графом вашого робочого процесу тут"
     },
     "automationTestRunGuidedTourStep": {
         "title": "Протестуйте робочий процес",
@@ -121,6 +123,83 @@
         "iteratorWithChildrenNodesReplaceError": "Не можна замінити, поки не будуть видалені дочірні вузли.",
         "periodicTriggerLabel": "Періодичний тригер",
         "aiAgent": "Запит для ШІ",
-        "slackWriteMessageName": "Надіслати повідомлення в Slack"
+        "slackWriteMessageName": "Надіслати повідомлення в Slack",
+        "slackWriteMessageLabel": "Надіслати повідомлення в #{channel}"
+    },
+    "workflowNode": {
+        "actionDelete": "Видалити",
+        "actionReplace": "Замінити",
+        "actionDuplicate": "Дублювати",
+        "actionConfigure": "Налаштувати",
+        "beforeLabelTrigger": "Починається, коли",
+        "beforeLabelAction": "Тоді",
+        "beforeLabelCondition": "Якщо умова виконана",
+        "beforeLabelConditionDefault": "Якщо жодна умова не виконана",
+        "beforeLabelRepeat": "Для кожного елемента",
+        "moreEdit": "Редагувати",
+        "moreReplace": "Замінити",
+        "nodeOptions": "Параметри кроку автоматизації",
+        "displayLabelDebug": "ID: {id} | Попередній: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "Дублювати"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Створити крок автоматизації"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Пошук тригера…",
+        "searchPlaceholderActions": "Пошук дій…",
+        "noResults": "Результатів не знайдено"
+    },
+    "serviceType": {
+        "periodicTrigger": "Періодичний тригер",
+        "periodicTriggerDescription": "Запускає робочий процес періодично через задані інтервали",
+        "periodicTriggerTriggeredAt": "Активовано о",
+        "errorIntervalMissing": "Необхідно вказати інтервал.",
+        "coreHTTPTrigger": "HTTP-тригер",
+        "coreHTTPTriggerDescription": "Отримує HTTP-запити для запуску робочих процесів"
+    },
+    "periodicTriggerServiceForm": {
+        "intervalLabel": "Інтервал",
+        "intervalHelper": "Виберіть, як часто ви хочете запускати цей робочий процес",
+        "everyMinute": "Щохвилини",
+        "everyHour": "Щогодини",
+        "everyDay": "Щодня",
+        "everyWeek": "Щотижня",
+        "everyMonth": "Щомісяця",
+        "hour": "Година",
+        "minute": "Хвилина",
+        "dayOfWeek": "День тижня",
+        "dayOfMonth": "День місяця",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Цей робочий процес буде запускатися щохвилини",
+        "hourHelper": "Цей робочий процес буде запускатися щогодини у вказану хвилину за вашим локальним часовим поясом ({timezone})",
+        "dayHelper": "Цей робочий процес буде запускатися щодня у вказаний час за вашим локальним часовим поясом ({timezone})",
+        "weekHelper": "Цей робочий процес буде запускатися щотижня у вказаний день та час за вашим локальним часовим поясом ({timezone})",
+        "monthHelper": "Цей робочий процес буде запускатися щомісяця у вказаний день та час за вашим локальним часовим поясом ({timezone})",
+        "deactivatedTitle": "Періодичний тригер деактивовано",
+        "deactivatedText": "Цей періодичний тригер був автоматично деактивований через послідовні збої."
+    },
+    "workflowEditor": {
+        "chooseEvent": "Оберіть подію…"
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "Результат",
+        "triggerNodeAwaitingEvent": "Крок очікує. Для завершення тесту вручну активуйте подію, щоб заповнити дані.",
+        "simulationInProgress": "Виконується тест кроку…",
+        "errorNodeNotConfigured": "Крок повинен бути налаштований перед тестуванням.",
+        "errorPreviousNodeNotConfigured": "Попередній крок \"{node}\" повинен бути налаштований.",
+        "errorPreviousNodesNotTested": "Попередній крок \"{node}\" спочатку потрібно протестувати.",
+        "buttonLabelTest": "Тестова подія",
+        "buttonLabelTestAgain": "Повторити тестову подію",
+        "testNodeDescription": "Протестуйте цю подію, щоб підтвердити правильність налаштувань. Дані з цього тесту можна буде використовувати на наступних кроках.",
+        "buttonLabelShowPayload": "Показати дані",
+        "buttonLabelShowError": "Показати помилку",
+        "sampleDataModalTitle": "Дані для {nodeLabel}",
+        "sampleDataModalSubTitle": "JSON-дані",
+        "sampleDataCopy": "Скопіювати",
+        "errorOccurred": "Сталася помилка…",
+        "sampleDataCopied": "Дані скопійовано в буфер обміну"
     }
 }
