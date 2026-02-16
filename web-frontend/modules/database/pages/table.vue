@@ -28,19 +28,13 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue'
-import {
-  onBeforeRouteLeave,
-  onBeforeRouteUpdate,
-  useRoute,
-  useRouter,
-} from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHead } from '#imports'
 import { useAsyncData } from '#app'
 
 import Table from '@baserow/modules/database/components/table/Table'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
-import { getDefaultView } from '@baserow/modules/database/utils/view'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 definePageMeta({
@@ -56,7 +50,8 @@ definePageMeta({
     // switching views.
     'tableLoading',
     // Middleware specifically for the table. It makes sure that the workspace,
-    // database, table, fields, views, etc are all fetched.
+    // database, table, fields, views, row, etc are all fetched based on the provided
+    // route parameters.
     'selectWorkspaceDatabaseTable',
     'pendingJobs',
   ],
@@ -76,18 +71,13 @@ function finishLoading() {
   nuxtApp.callHook('page:loading:end')
 }
 
-// We need the tableLoading state to show a small loading animation when
-// switching between views. Because some of the data will be populated by
-// the asyncData function and some by mapping the state of a store it could look
-// a bit strange for the user when switching between views because not all data
-// renders at the same time. That is why we show this loading animation. Store
-// changes are always rendered right away.
+// We need the tableLoading state to show a small loading animation when switching
+// between views or tables. Because some of the data will be populated by the asyncData
+// function and some by mapping the state of a store it could look a bit strange for the
+// user when switching between views because not all data renders at the same time. That
+// is why we show this loading animation. Store changes are always rendered right away.
 const tableLoading = computed(() => $store.state.table.loading)
 const views = computed(() => $store.state.view.items)
-
-function parseIntOrNull(x) {
-  return x != null ? parseInt(x) : null
-}
 
 const { data, error } = await useAsyncData(
   `database-table-page-${route.params.databaseId}-${route.params.tableId}-${route.params.viewId ?? 'null'}`,
@@ -140,20 +130,18 @@ const { data, error } = await useAsyncData(
 )
 
 if (error.value) {
-  // If we have an error we want to display it.
+  // If we have an unexpected error after the useAsyncData, we want to display it
+  // directly to the user.
   throw error.value
 }
 
-/**
- * Expose the actual values via computed shortcuts to make sure that if the asyncData
- * recomputes, it will show the correct values.
- */
+// Expose the actual values via computed shortcuts to make sure that if the asyncData
+// recomputes, it will show the correct values.
 const database = computed(() => data.value?.database)
 const table = computed(() => data.value?.table)
 const view = computed(() => data.value?.view)
 const fields = computed(() => data.value?.fields)
 const dataError = computed(() => data.value?.error)
-
 
 useHead(() => ({
   title:
@@ -188,55 +176,6 @@ onBeforeRouteLeave((to, from) => {
   $store.dispatch('table/unselect')
 })
 
-/**
- * If a `rowId` is provided in the route params, we want to immediately open
- * the row modal in the table page and show the `database-table-row` URL in
- * the browser. This function parses the params and fetches the data needed to
- * render the page correctly, redirecting to the table page if the row is not
- * found. If the row is found in the store or in the backend, calling `next()`
- * will open the row modal and will update the URL in the browser correctly.
- */
-onBeforeRouteUpdate(async (to, from, next) => {
-  const currentRowId = parseIntOrNull(to.params?.rowId)
-  const currentTableId = parseIntOrNull(to.params.tableId)
-  const prevTableId = parseIntOrNull(from.params.tableId)
-
-  const isRowOnlyNavigation =
-    currentTableId === prevTableId &&
-    to.params.viewId === from.params.viewId &&
-    to.params.rowId !== from.params.rowId
-
-  if (currentRowId == null) {
-    // If the rowId is null, we want to close the row modal and show the table
-    // page, so clear the store accordingly.
-    await $store.dispatch('rowModalNavigation/clearRow')
-  } else {
-    // Row is fetched by selectWorkspaceDatabaseTable middleware
-    // Check if the fetch failed (middleware sets this on failure)
-    const failed = $store.getters['rowModalNavigation/getFailedToFetchTableRowId']
-    if (
-      failed &&
-      parseIntOrNull(failed?.rowId) === currentRowId &&
-      parseIntOrNull(failed?.tableId) === currentTableId
-    ) {
-      // Show the table page if the row failed to fetch
-      return next({
-        name: 'database-table',
-        params: { ...to.params, rowId: null },
-      })
-    }
-  }
-
-  next()
-
-  if (isRowOnlyNavigation) {
-    finishLoading()
-  }
-})
-
-/**
- * Methods
- */
 function selectedView(v) {
   if (view.value && view.value.id === v.id) return
 
@@ -255,7 +194,7 @@ async function navigateToRowModal(row) {
 
   if (row) {
     // Prevent the row from being fetched again from the backend
-    // when the route is updated
+    // when the route is updated.
     await $store.dispatch('rowModalNavigation/setRow', row)
   }
 

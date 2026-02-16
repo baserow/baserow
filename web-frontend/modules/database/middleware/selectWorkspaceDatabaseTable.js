@@ -10,7 +10,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const tableId = parseInt(to.params.tableId)
   const viewId = to.params.viewId ? parseInt(to.params.viewId) : null
 
-  // Select the table
   try {
     const { database, table } = await $store.dispatch('table/selectById', {
       databaseId,
@@ -18,14 +17,15 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     })
     await $store.dispatch('workspace/selectById', database.workspace.id)
 
-    // Fetch views and fields if the table has changed
+    // Fetch views and fields only if the table has changed because there is no need
+    // to fetch them if the view or row changes.
     if ($store.state.view.tableId !== table.id) {
       await $store.dispatch('view/fetchAll', table)
       await $store.dispatch('field/fetchAll', table)
     }
 
-    // If no viewId is provided, redirect to the default view
-    // This prevents the page component from being created twice
+    // If the viewId is not provided, redirect to the default view. This prevents the
+    // page component from being created twice.
     if (viewId === null) {
       const rowId = to.params.rowId ? parseInt(to.params.rowId) : null
       const defaultView = getDefaultView(
@@ -36,27 +36,39 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       )
 
       if (defaultView) {
-        // Redirect to the same route but with the viewId
-        // Using navigateTo with replace: true to avoid adding to browser history
+        return navigateTo({
+          name: to.name,
+          params: { ...to.params, viewId: defaultView.id },
+          query: to.query,
+        })
+      }
+    }
+
+    // Handle row modal state
+    const rowId = to.params.rowId ? parseInt(to.params.rowId) : null
+    if (rowId) {
+      const row = await $store.dispatch('rowModalNavigation/fetchRow', {
+        tableId: table.id,
+        rowId,
+      })
+
+      // If fetch failed, redirect to table without rowId so that the table is still
+      // visible.
+      if (!row) {
         return navigateTo(
           {
-            name: to.name,
-            params: { ...to.params, viewId: defaultView.id },
+            name: 'database-table',
+            params: { ...to.params, rowId: '' },
             query: to.query,
           },
           { replace: true }
         )
       }
-    }
-
-    // Fetch row if rowId is provided
-    // This centralizes all data fetching in middleware
-    const rowId = to.params.rowId ? parseInt(to.params.rowId) : null
-    if (rowId) {
-      await $store.dispatch('rowModalNavigation/fetchRow', {
-        tableId: table.id,
-        rowId,
-      })
+    } else {
+      // If no rowId is provided, then we want to make 100% sure any old rows are
+      // cleared. This could be the case when a row is open, but the user navigates
+      // to page without selected row.
+      await $store.dispatch('rowModalNavigation/clearRow')
     }
   } catch (e) {
     if (e.response === undefined && !(e instanceof StoreItemLookupError))
