@@ -45,7 +45,9 @@ const mutations = {
     { workflow, node: nodeToUpdate, values, override = false }
   ) {
     if (override) {
-      workflow.nodeMap[nodeToUpdate.id] = populateNode(values)
+      const index = workflow.nodes.findIndex((item) => item.id === nodeToUpdate.id)
+      workflow.nodes[index] = populateNode(values)
+      updateCachedValues(workflow)
     } else {
       Object.assign(workflow.nodeMap[nodeToUpdate.id], values)
     }

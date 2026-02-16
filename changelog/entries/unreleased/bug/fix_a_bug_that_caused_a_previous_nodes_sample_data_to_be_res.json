@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where a previously tested node's sample data would disappear in the UI after adding a new node.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-02-16"
+}
