@@ -3,6 +3,7 @@ import { defineNuxtConfig } from 'nuxt/config'
 import svgLoader from 'vite-svg-loader'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { locales } from './locales.js'
+import pkg from '../package.json'
 
 function baserowModuleConfig(
   premiumBase = '../premium/web-frontend',
@@ -55,6 +56,11 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
+  runtimeConfig: {
+    public: {
+      version: pkg.version,
+    },
+  },
   modules: [...baserow.modules, '@nuxtjs/i18n'],
   i18n: {
     strategy: 'no_prefix',
