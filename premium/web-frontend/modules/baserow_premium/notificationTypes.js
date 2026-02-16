@@ -2,6 +2,7 @@ import { NotificationType } from '@baserow/modules/core/notificationTypes'
 import RowCommentMentionNotification from '@baserow_premium/components/row_comments/RowCommentMentionNotification'
 import RowCommentNotification from '@baserow_premium/components/row_comments/RowCommentNotification'
 import NotificationSenderInitialsIcon from '@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing.js'
 
 export class RowCommentMentionNotificationType extends NotificationType {
   static getType() {
@@ -17,15 +18,11 @@ export class RowCommentMentionNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: notificationData.database_id,
-        tableId: notificationData.table_id,
-        viewId: '',
-        rowId: notificationData.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: notificationData.database_id,
+      tableId: notificationData.table_id,
+      rowId: notificationData.row_id,
+    })
   }
 }
 
@@ -43,14 +40,10 @@ export class RowCommentNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: notificationData.database_id,
-        tableId: notificationData.table_id,
-        viewId: '',
-        rowId: notificationData.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: notificationData.database_id,
+      tableId: notificationData.table_id,
+      rowId: notificationData.row_id,
+    })
   }
 }

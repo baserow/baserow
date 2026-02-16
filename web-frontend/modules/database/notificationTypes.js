@@ -5,6 +5,7 @@ import UserMentionInRichTextFieldNotification from '@baserow/modules/database/co
 import FormSubmittedNotification from '@baserow/modules/database/components/notifications/FormSubmittedNotification'
 import WebhookDeactivatedNotification from '@baserow/modules/database/components/notifications/WebhookDeactivatedNotification'
 import WebhookPayloadTooLargeNotification from '@baserow/modules/database/components/notifications/WebhookPayloadTooLargeNotification'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export class CollaboratorAddedToRowNotificationType extends NotificationType {
   static getType() {
@@ -20,15 +21,11 @@ export class CollaboratorAddedToRowNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: notificationData.database_id,
-        tableId: notificationData.table_id,
-        viewId: '',
-        rowId: notificationData.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: notificationData.database_id,
+      tableId: notificationData.table_id,
+      rowId: notificationData.row_id,
+    })
   }
 }
 
@@ -46,15 +43,11 @@ export class FormSubmittedNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: notificationData.database_id,
-        tableId: notificationData.table_id,
-        viewId: '',
-        rowId: notificationData.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: notificationData.database_id,
+      tableId: notificationData.table_id,
+      rowId: notificationData.row_id,
+    })
   }
 }
 
@@ -72,15 +65,11 @@ export class UserMentionInRichTextFieldNotificationType extends NotificationType
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: notificationData.database_id,
-        tableId: notificationData.table_id,
-        viewId: '',
-        rowId: notificationData.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: notificationData.database_id,
+      tableId: notificationData.table_id,
+      rowId: notificationData.row_id,
+    })
   }
 }
 
@@ -98,14 +87,13 @@ export class WebhookDeactivatedNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-open-webhooks',
-      params: {
+    return tableRouteResetViewIfNeeded(
+      {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
-        viewId: '',
       },
-    }
+      'database-table-open-webhooks'
+    )
   }
 }
 
@@ -123,13 +111,12 @@ export class WebhookPayloadTooLargedNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return {
-      name: 'database-table-open-webhooks',
-      params: {
+    return tableRouteResetViewIfNeeded(
+      {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
-        viewId: '',
       },
-    }
+      'database-table-open-webhooks'
+    )
   }
 }

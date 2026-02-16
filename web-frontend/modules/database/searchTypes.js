@@ -2,6 +2,7 @@ import {
   ApplicationSearchType,
   BaseSearchType,
 } from '@baserow/modules/core/search/types/base'
+import { tableRouteResetViewIfNeeded } from '~/modules/database/utils/routing.js'
 
 export class DatabaseSearchType extends ApplicationSearchType {
   constructor(context = {}) {
@@ -126,15 +127,11 @@ export class DatabaseRowSearchType extends BaseSearchType {
       return null
     }
 
-    return {
-      name: 'database-table-row',
-      params: {
-        databaseId: result.metadata.database_id,
-        tableId: result.metadata.table_id,
-        viewId: '',
-        rowId: result.metadata.row_id,
-      },
-    }
+    return tableRouteResetViewIfNeeded({
+      databaseId: result.metadata.database_id,
+      tableId: result.metadata.table_id,
+      rowId: result.metadata.row_id,
+    })
   }
 
   isNavigable(result, context = null) {

@@ -32,6 +32,7 @@
 
 <script>
 import notificationContent from '@baserow/modules/core/mixins/notificationContent'
+import { tableRouteResetViewIfNeeded } from '~/modules/database/utils/routing.js'
 
 export default {
   name: 'UserMentionInRichTextFieldNotification',
@@ -48,15 +49,11 @@ export default {
       return {
         databaseId: this.notification.data.database_id,
         tableId: this.notification.data.table_id,
-        viewId: '',
         rowId: this.notification.data.row_id,
       }
     },
     url() {
-      return {
-        name: 'database-table-row',
-        params: this.params,
-      }
+      return tableRouteResetViewIfNeeded(this.params)
     },
   },
   methods: {
