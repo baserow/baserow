@@ -2,7 +2,7 @@ import { NotificationType } from '@baserow/modules/core/notificationTypes'
 import RowCommentMentionNotification from '@baserow_premium/components/row_comments/RowCommentMentionNotification'
 import RowCommentNotification from '@baserow_premium/components/row_comments/RowCommentNotification'
 import NotificationSenderInitialsIcon from '@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon'
-import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing.js'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export class RowCommentMentionNotificationType extends NotificationType {
   static getType() {

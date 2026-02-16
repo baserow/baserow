@@ -5,7 +5,7 @@ import TwoWaySyncUpdateFailedNotification from '@baserow_enterprise/components/n
 import TwoWaySyncDeactivatedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncDeactivatedNotification'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import { SyncedFieldsConfigureDataSyncType } from '@baserow/modules/database/configureDataSyncTypes'
-import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing.js'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export class PeriodicDataSyncDeactivatedNotificationType extends NotificationType {
   static getType() {

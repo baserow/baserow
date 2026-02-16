@@ -2,7 +2,7 @@ import {
   ApplicationSearchType,
   BaseSearchType,
 } from '@baserow/modules/core/search/types/base'
-import { tableRouteResetViewIfNeeded } from '~/modules/database/utils/routing.js'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export class DatabaseSearchType extends ApplicationSearchType {
   constructor(context = {}) {

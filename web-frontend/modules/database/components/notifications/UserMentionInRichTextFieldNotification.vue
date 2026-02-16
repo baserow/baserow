@@ -32,7 +32,7 @@
 
 <script>
 import notificationContent from '@baserow/modules/core/mixins/notificationContent'
-import { tableRouteResetViewIfNeeded } from '~/modules/database/utils/routing.js'
+import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
 
 export default {
   name: 'UserMentionInRichTextFieldNotification',
