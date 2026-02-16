@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHead } from '#imports'
 import { useAsyncData } from '#app'
