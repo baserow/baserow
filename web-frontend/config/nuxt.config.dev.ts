@@ -3,9 +3,6 @@ import baseConfig from './nuxt.config.base.ts'
 
 export default defineNuxtConfig({
   ...baseConfig,
-  modules: [
-    ...(baseConfig.modules || []),
-    ['@nuxt/eslint', { config: { typescript: false } }],
-  ],
+  modules: [...(baseConfig.modules || []), '@nuxt/eslint'],
   devtools: { enabled: true },
 })
