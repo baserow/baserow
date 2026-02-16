@@ -50,6 +50,10 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
+     // Because there is no hook that is called before the route changes, we need the
+     // tableLoading middleware to change the table loading state. This change will get
+     // rendered right away. This allows us to have a custom loading animation when
+     // switching views.
     'tableLoading',
     'selectWorkspaceDatabaseTable',
     'pendingJobs',
@@ -70,6 +74,12 @@ function finishLoading() {
   nuxtApp.callHook('page:loading:end')
 }
 
+// We need the tableLoading state to show a small loading animation when
+// switching between views. Because some of the data will be populated by
+// the asyncData function and some by mapping the state of a store it could look
+// a bit strange for the user when switching between views because not all data
+// renders at the same time. That is why we show this loading animation. Store
+// changes are always rendered right away.
 const tableLoading = computed(() => $store.state.table.loading)
 const views = computed(() => $store.state.view.items)
 
@@ -199,7 +209,9 @@ useHead(() => ({
 }))
 
 /**
- * Lifecycle
+ * The beforeCreate hook is called right after the asyncData finishes and when the
+ * page has been rendered for the first time. The perfect moment to stop the table
+ * loading animation.
  */
 onMounted(() => {
   if (table.value) {
@@ -215,15 +227,22 @@ onBeforeUnmount(() => {
 })
 
 /**
- * beforeRouteLeave()
- *
- * Unselect when leaving page.
+ * When the user leaves to another page we want to unselect the selected table. This
+ * way it will not be highlighted the left sidebar.
  */
 onBeforeRouteLeave((to, from) => {
   $store.dispatch('view/unselect')
   $store.dispatch('table/unselect')
 })
 
+/**
+ * If a `rowId` is provided in the route params, we want to immediately open
+ * the row modal in the table page and show the `database-table-row` URL in
+ * the browser. This function parses the params and fetches the data needed to
+ * render the page correctly, redirecting to the table page if the row is not
+ * found. If the row is found in the store or in the backend, calling `next()`
+ * will open the row modal and will update the URL in the browser correctly.
+ */
 onBeforeRouteUpdate(async (to, from, next) => {
   const currentRowId = parseIntOrNull(to.params?.rowId)
   const currentTableId = parseIntOrNull(to.params.tableId)
@@ -237,18 +256,26 @@ onBeforeRouteUpdate(async (to, from, next) => {
     to.params.viewId === from.params.viewId &&
     to.params.rowId !== from.params.rowId
 
+  console.log('route update', from, to)
+
   if (currentRowId == null) {
+    // If the rowId is null, we want to close the row modal and show the table
+    // page, so clear the store accordingly.
     await $store.dispatch('rowModalNavigation/clearRow')
   } else if (
     failed &&
     parseIntOrNull(failed?.rowId) === currentRowId &&
     parseIntOrNull(failed?.tableId) === currentTableId
   ) {
+    // Show the table page if the row failed to fetch.
     return next({
       name: 'database-table',
       params: { ...to.params, rowId: null },
     })
   } else if (storeRow?.id !== currentRowId || prevTableId !== currentTableId) {
+    // Fetch the row if it's not already in the store. If the row is not found,
+    // the store will be updated with the failedToFetchTableRowId and the table
+    // page will be shown.
     const row = await $store.dispatch('rowModalNavigation/fetchRow', {
       tableId: currentTableId,
       rowId: currentRowId,
@@ -287,6 +314,8 @@ async function navigateToRowModal(row) {
   }
 
   if (row) {
+    // Prevent the row from being fetched again from the backend
+    // when the route is updated
     await $store.dispatch('rowModalNavigation/setRow', row)
   }
 
@@ -307,6 +336,9 @@ async function setAdjacentRow(previous, row = null, term = null) {
   if (row) {
     await navigateToRowModal(row)
   } else {
+    // If the row isn't provided then the row is
+    // probably not visible to the user at the moment
+    // and needs to be fetched
     await fetchAdjacentRow(previous, term)
   }
 }
