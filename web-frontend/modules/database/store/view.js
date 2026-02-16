@@ -573,7 +573,7 @@ export const actions = {
         } else if (route.params.viewId) {
           // If there isn't a next view and the user was already viewing a view, we
           // need to redirect to the empty table page.
-          router.replace({ params: { viewId: null } })
+          router.replace({ params: { viewId: '' } })
         } else {
           // If there isn't a next view and the user wasn't looking at a view, we need
           // to refresh to show an empty table page. Changing the view id to 0,
