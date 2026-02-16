@@ -25,10 +25,10 @@
             "userFieldNames": "Nomi campo utente",
             "events": "Quali eventi devono attivare questo webhook?",
             "headers": "Header aggiuntivi",
-            "example": "Esempio di carico utile"
+            "example": "Esempio di payload"
         },
         "errors": {
-            "urlField": "Deve essere un URL valido che inizia con 'http://' o 'https://'.",
+            "urlField": "Deve essere un URL valido che inizia con 'https://' o 'http://'.",
             "invalidHeaders": "Uno degli header non è valido."
         },
         "checkbox": {
@@ -38,9 +38,9 @@
             "allEvents": "Mandami tutto",
             "customEvents": "Lasciami selezionare eventi individuali"
         },
-        "triggerButton": "Attiva test webhook",
+        "triggerButton": "Attiva webhook di test",
         "deactivated": {
-            "title": "Webhook disattivato",
+            "title": "Il Webhook è disattivato",
             "content": "Questo webhook è stato disattivato a causa di troppi fallimenti consecutivi. Controlla il registro delle chiamate per maggiori dettagli. Clicca sul pulsante qui sotto per attivarlo di nuovo. Non dimenticare di salvare il webhook dopo averlo attivato.",
             "activate": "Attiva"
         },
@@ -49,8 +49,8 @@
             "title": "Tipo di evento deprecato",
             "description": "Questo webhook non viene richiamato se più righe vengono modificate contemporaneamente tramite chiamata batch. Per favore, utilizza l'evento di tipo batch opportuno. Questo tipo di evento utilizza un formato adatto per inviare righe multiple nel corpo del messaggio."
         },
-        "helpTriggerWhenFieldsHaveChanged": "Verrà attivato solamente se uno dei campi cambia.",
-        "triggerWhenFieldsHaveChanged": "Attivato quando un campo cambia"
+        "helpTriggerWhenFieldsHaveChanged": "Verrà attivato solo se il valore della cella dei campi scelti cambia.",
+        "triggerWhenFieldsHaveChanged": "Attivato alla modifica dei campi"
     },
     "webhook": {
         "details": "dettagli",
@@ -60,11 +60,11 @@
         "triggerDescription": "Attivazione su ogni evento | Attivazione su {count} eventi | Attivazione su {count} eventi"
     },
     "createWebhook": {
-        "errorTableWebhookMaxLimitExceededTitle": "Massimo di webhook superato",
+        "errorTableWebhookMaxLimitExceededTitle": "Limite massimo di webhook superato",
         "errorTableWebhookMaxLimitExceededDescription": "Impossibile creare il webhook perché è stato superato il numero massimo di webhook per tabella."
     },
     "sidebar": {
-        "viewAPI": "Vedi documenti API",
+        "viewAPI": "Vedi documentazione API",
         "createTable": "Crea tabella"
     },
     "sidebarItem": {
@@ -72,7 +72,8 @@
         "webhooks": "Webhooks",
         "notSynced": "Non sincronizzato",
         "lastSynced": "Ultima sincronizzazione",
-        "sync": "Sincronizza tabella"
+        "sync": "Sincronizza tabella",
+        "updateSyncConfig": "Aggiorna la configurazione di sincronizzazione"
     },
     "apiToken": {
         "create": "crea",
@@ -207,7 +208,8 @@
         "placeholder": "Testo predefinito"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opzioni"
+        "optionsLabel": "Opzioni",
+        "defaultOptionLabel": "Opzione predefinita"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Opzione non trovata"
@@ -232,7 +234,8 @@
         "selectTableLabel": "Seleziona una tabella a cui collegarsi",
         "hasRelatedFieldLabel": "Crea relazione nella tabella collegata",
         "limitToView": "Limita la selezione ad una vista",
-        "limitToViewDescription": "Nota che questo è solo visuale. E' ancora possibile creare relazioni al di fuori della vista tramite API."
+        "limitToViewDescription": "Nota che questo è solo visuale. E' ancora possibile creare relazioni al di fuori della vista tramite API.",
+        "allowMultipleRelations": "Consenti relazioni multiple"
     },
     "fieldSelectOptions": {
         "add": "Aggiungi un'opzione"
@@ -242,7 +245,18 @@
         "integer": "Intero",
         "decimal": "Decimale",
         "decimalPlacesLabel": "Posizioni decimali",
-        "allowNegative": "Consenti negativi"
+        "allowNegative": "Consenti negativi",
+        "separatorLabel": "Separatore delle migliaia e dei decimali",
+        "prefixPlaceholder": "Prefisso",
+        "suffixPlaceholder": "Suffisso",
+        "prefixAndSuffixLabel": "Prefisso / suffisso",
+        "spaceComma": "Spazio, virgola (1 000 000,00)",
+        "spacePeriod": "Spazio, punto (1 000 000.00)",
+        "commaPeriod": "Virgola, punto (1,000,000.00)",
+        "periodComma": "Punto, virgola (1.000.000,00)",
+        "noFormatting": "Nessuna formattazione",
+        "defaultValueLabel": "Valore predefinito",
+        "defaultValuePlaceholder": "Inserisci un valore predefinito"
     },
     "fieldContext": {
         "editField": "Modifica campo",
@@ -257,7 +271,10 @@
         "nameNotAllowed": "Il nome di questo campo non è consentito.",
         "nameTooLong": "Il nome di questo campo è troppo lungo.",
         "description": "Descrizione",
-        "addDescription": "Aggiungi descrizione"
+        "addDescription": "Aggiungi descrizione",
+        "dbIndex": "Indice",
+        "dbIndexError": "Questo tipo di campo non può avere un indice. Per favore rimuovilo prima di salvare oppure modifica il tipo di campo.",
+        "dbIndexDescription": "L'indicizzazione può migliorare in modo significativo le prestazioni del filtro, ma rallenta le operazioni di creazione, aggiornamento e cancellazione."
     },
     "fieldLookupSubForm": {
         "noTable": "Serve almeno un campo riga di collegamento per creare un campo di ricerca.",
@@ -788,7 +805,8 @@
     },
     "duplicateTableJobType": {
         "duplicatedTitle": "Tabella duplicata",
-        "duplicating": "Duplicando"
+        "duplicating": "Duplicando",
+        "name": "Duplica tabella"
     },
     "apiDocsUploadFile": {
         "description": "Carica un file su Baserow. Deve essere carico come `file multipart`. La risposta può essere per [caricare un file in una riga] ({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
@@ -1008,5 +1026,23 @@
         "primaryFieldLabel": "Campo primario",
         "title": "Cambia il campo primario",
         "existingPrimary": "\"{name}\" è ora usato come campo primario."
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "Autenticazione {name}",
+        "description": "Verifica se la password fornita e la riga corrispondono a quanto memorizzato nella cella.",
+        "fieldId": "L'ID del campo in cui verificare la password.",
+        "rowId": "L'ID della riga in cui verificare la password.",
+        "password": "La password che deve essere verificata se corretto."
+    },
+    "apiDocsListTables": {
+        "listTables": "Elenca tutte le tabelle",
+        "listTablesDescription": "Questo endpoint funziona solo in combinazione al token di autenticazione. Elenca tutte le tabelle alle quali il token ha creato, letto, aggiornato o eliminato l'accesso."
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Opzioni",
+        "defaultOptionsLabel": "Opzioni predefinite"
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Predefinito"
     }
 }
