@@ -179,8 +179,10 @@ if (error.value) {
 }
 
 if (data.value?.redirect) {
-  // We have a redirect, we can apply it now
-  await navigateTo(data.value.redirect.href)
+  // We have a redirect, we can apply it now. Using `replace` so the intermediate
+  // URL (without viewId) doesn't stay in the browser history — otherwise the back
+  // button would land on it and immediately redirect forward again.
+  await navigateTo(data.value.redirect.href, { replace: true })
 }
 
 /**
