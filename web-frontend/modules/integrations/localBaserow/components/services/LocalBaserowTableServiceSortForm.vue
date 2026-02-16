@@ -1,6 +1,6 @@
 <template>
-  <div v-if="value">
-    <div v-if="value.length === 0" class="sortings__none">
+  <div v-if="modelValue">
+    <div v-if="modelValue.length === 0" class="sortings__none">
       <div class="sortings__none-title">
         {{ $t('localBaserowTableServiceSortForm.noSortTitle') }}
       </div>
@@ -8,18 +8,11 @@
         {{ $t('localBaserowTableServiceSortForm.noSortText') }}
       </div>
     </div>
-    <div v-if="value.length > 0" v-auto-overflow-scroll class="sortings__items">
+    <div v-if="modelValue.length > 0" v-auto-overflow-scroll class="sortings__items">
       <div
-        v-for="(sort, index) in value"
-        :key="sort.id"
-        class="sortings__item"
-        :set="field = getField(sort.field)"
-      >
-        <a
-          v-if="!disableSort"
-          class="sortings__remove"
-          @click.stop="deleteSort(sort)"
-        >
+v-for="(sort, index) in modelValue" :key="sort.id" class="sortings__item"
+        :set="field = getField(sort.field)">
+        <a v-if="!disableSort" class="sortings__remove" @click.stop="deleteSort(sort)">
           <i class="iconoir-cancel"></i>
         </a>
 
@@ -33,115 +26,71 @@
 
         <template v-else>
           <div class="sortings__description">
-            <template v-if="index === 0">{{
-              $t('localBaserowTableServiceSortForm.sortBy')
-            }}</template>
-            <template v-if="index > 0">{{
-              $t('localBaserowTableServiceSortForm.thenBy')
-            }}</template>
+            <template v-if="index === 0">
+              {{ $t('localBaserowTableServiceSortForm.sortBy') }}
+            </template>
+            <template v-if="index > 0">
+              {{ $t('localBaserowTableServiceSortForm.thenBy') }}
+            </template>
           </div>
           <div class="sortings__field">
             <Dropdown
-              :value="sort.field"
-              :disabled="disableSort"
-              :fixed-items="true"
-              class="dropdown--floating"
-              @input="updateSort(sort, { field: $event })"
-            >
+:value="sort.field" :disabled="disableSort" :fixed-items="true" class="dropdown--floating"
+              @input="updateSort(sort, { field: $event })">
               <DropdownItem
-                v-for="field in fields"
-                :key="'sort-field-' + sort.id + '-' + field.id"
-                :name="field.name"
-                :value="field.id"
-                :disabled="sort.field !== field.id && !isFieldAvailable(field)"
-              ></DropdownItem>
+v-for="field in fields" :key="'sort-field-' + sort.id + '-' + field.id" :name="field.name"
+                :value="field.id" :disabled="sort.field !== field.id && !isFieldAvailable(field)"></DropdownItem>
             </Dropdown>
           </div>
-          <div
-            class="sortings__order"
-            :class="{ 'sortings__order--disabled': disableSort }"
-          >
+          <div class="sortings__order" :class="{ 'sortings__order--disabled': disableSort }">
             <a
-              class="sortings__order-item"
-              :class="{ active: sort.order_by === 'ASC' }"
-              @click="updateSort(sort, { order_by: 'ASC' })"
-            >
+class="sortings__order-item" :class="{ active: sort.order_by === 'ASC' }"
+              @click="updateSort(sort, { order_by: 'ASC' })">
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 1)
-              }}</template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 1)"
-              ></i>
+                }}</template>
+              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 1)"></i>
 
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 2)
-              }}</template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 2)"
-              ></i>
+                }}</template>
+              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 2)"></i>
             </a>
             <a
-              class="sortings__order-item"
-              :class="{ active: sort.order_by === 'DESC' }"
-              @click="updateSort(sort, { order_by: 'DESC' })"
-            >
+class="sortings__order-item" :class="{ active: sort.order_by === 'DESC' }"
+              @click="updateSort(sort, { order_by: 'DESC' })">
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 2)
-              }}</template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 2)"
-              ></i>
+                }}</template>
+              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 2)"></i>
 
               <i class="iconoir-arrow-right"></i>
 
               <template v-if="getSortIndicator(field, 0) === 'text'">{{
                 getSortIndicator(field, 1)
-              }}</template>
-              <i
-                v-if="getSortIndicator(field, 0) === 'icon'"
-                :class="getSortIndicator(field, 1)"
-              ></i>
+                }}</template>
+              <i v-if="getSortIndicator(field, 0) === 'icon'" :class="getSortIndicator(field, 1)"></i>
             </a>
           </div>
         </template>
       </div>
     </div>
-    <template v-if="value.length < availableFieldsLength && !disableSort">
+    <template v-if="modelValue.length < availableFieldsLength && !disableSort">
       <div ref="addContextToggle">
         <ButtonText
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
-          @click="
-            $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
-          "
-        >
+type="secondary" size="small" icon="iconoir-plus" @click="
+          $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
+          ">
           {{ $t('localBaserowTableServiceSortForm.addSort') }}
         </ButtonText>
       </div>
-      <Context
-        ref="context"
-        class="sortings__add-context"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
+      <Context ref="context" class="sortings__add-context" overflow-scroll max-height-if-outside-viewport>
         <ul ref="items" class="context__menu">
-          <li
-            v-for="field in fields"
-            v-show="isFieldAvailable(field)"
-            :key="field.id"
-            class="context__menu-item"
-          >
+          <li v-for="field in fields" v-show="isFieldAvailable(field)" :key="field.id" class="context__menu-item">
             <a class="context__menu-item-link" @click="addSort(field)">
-              <i
-                class="context__menu-icon"
-                :class="getFieldType(field).iconClass"
-              ></i>
+              <i class="context__menu-icon" :class="getFieldType(field).iconClass"></i>
               {{ field.name }}
             </a>
           </li>
@@ -158,7 +107,7 @@ export default {
   name: 'LocalBaserowTableServiceSortForm',
   mixins: [context],
   props: {
-    value: {
+    modelValue: {
       type: Array,
       required: true,
     },
@@ -172,7 +121,7 @@ export default {
       default: false,
     },
   },
-  emits: ['input'],
+  emits: ['update:modelValue'],
   computed: {
     /**
      * Calculates the total amount of available fields.
@@ -210,32 +159,32 @@ export default {
       return undefined
     },
     isFieldAvailable(field) {
-      const allFieldIds = this.value.map((sort) => sort.field)
+      const allFieldIds = this.modelValue.map((sort) => sort.field)
       return this.getCanSortInView(field) && !allFieldIds.includes(field.id)
     },
     addSort(field) {
       this.$refs.context.hide()
-      const newSortings = [...this.value]
+      const newSortings = [...this.modelValue]
       newSortings.push({
         field: field.id,
         order_by: 'ASC',
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     deleteSort(sort) {
-      const newSortings = this.value.filter(({ field }) => {
+      const newSortings = this.modelValue.filter(({ field }) => {
         return field !== sort.field
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     updateSort(sort, values) {
-      const newSortings = this.value.map((sortConf) => {
+      const newSortings = this.modelValue.map((sortConf) => {
         if (sortConf.field === sort.field) {
           return { ...sortConf, ...values }
         }
         return sortConf
       })
-      this.$emit('input', newSortings)
+      this.$emit('update:modelValue', newSortings)
     },
     getSortIndicator(field, index) {
       return this.getFieldType(field).getSortIndicator(field)[index]
