@@ -6,7 +6,9 @@
         "doneEditing": "Редагування завершено"
     },
     "emptyDashboard": {
-        "addWidget": "Додати віджет"
+        "addWidget": "Додати віджет",
+        "title": "На цій панелі керування немає віджетів",
+        "subtitle": "Почніть, додавши один."
     },
     "dashboardHeaderMenuItems": {
         "editMode": "Режим редагування"
