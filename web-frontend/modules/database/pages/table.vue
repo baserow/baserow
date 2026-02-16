@@ -139,7 +139,6 @@ const { data, error, pending, status, refresh } = await useAsyncData(
 
         if (type.isDeactivated(currentDatabase.workspace.id)) {
           result.error = { statusCode: 400, message: type.getDeactivatedText() }
-          $store.dispatch('table/setLoading', false)
           return result
         }
 
@@ -154,7 +153,6 @@ const { data, error, pending, status, refresh } = await useAsyncData(
         if (e.response === undefined && !(e instanceof StoreItemLookupError))
           throw e
         result.error = normalizeError(e)
-        $store.dispatch('table/setLoading', false)
         return result
       }
     }
@@ -166,8 +164,6 @@ const { data, error, pending, status, refresh } = await useAsyncData(
         rowId: currentParams.rowId,
       })
     }
-
-    $store.dispatch('table/setLoading', false)
 
     return result
   }
@@ -190,7 +186,7 @@ if (data.value?.redirect) {
  */
 const database = computed(() => data.value?.database)
 const table = computed(() => data.value?.table)
-const view = computed(() => data.value?.view || {})
+const view = computed(() => data.value?.view)
 const fields = computed(() => data.value?.fields)
 const dataError = computed(() => data.value?.error)
 
@@ -210,6 +206,7 @@ onMounted(() => {
   if (table.value) {
     $realtime.subscribe('table', { table_id: table.value.id })
   }
+  $store.dispatch('table/setLoading', false)
 })
 
 onBeforeUnmount(() => {
