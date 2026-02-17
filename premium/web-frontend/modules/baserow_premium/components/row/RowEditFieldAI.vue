@@ -5,6 +5,7 @@
       ref="field"
       v-bind="$props"
       :read-only="generating || readOnly"
+      @update="$emit('update', $event)"
     ></component>
     <div v-if="!readOnly" class="margin-top-2">
       <Button
@@ -19,7 +20,7 @@
         v-else-if="rowIsCreated"
         type="secondary"
         :loading="generating"
-        @click="generate()"
+        @click.prevent.stop="generate()"
         >{{ $t('rowEditFieldAI.generate') }}</Button
       >
       <div v-else>{{ $t('rowEditFieldAI.createRowBefore') }}</div>
@@ -42,6 +43,7 @@ import fieldAI from '@baserow_premium/mixins/fieldAI'
 export default {
   name: 'RowEditFieldAI',
   mixins: [rowEditField, fieldAI],
+  emits: ['update'],
   computed: {
     fieldName() {
       return this.$registry.get('field', this.field.type).getName()

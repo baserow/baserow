@@ -15,6 +15,7 @@ import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   extractChangedFields,
   getRowMetadata,
+  mergeRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -195,8 +196,31 @@ export const mutations = {
       }
     })
   },
-  UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
+  UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
     updateRowMetadataType(row, rowMetadataType, updateFunction)
+  },
+  /**
+   * Updates row metadata in the kanban stacks.
+   * Deep merges new metadata with existing metadata, removing keys with null values.
+   */
+  UPDATE_ROW_METADATA(state, { row, metadata }) {
+    for (const stack of Object.values(state.stacks)) {
+      const index = stack.results.findIndex(
+        (item) => item && item.id === row.id
+      )
+      if (index !== -1) {
+        const existingRowState = stack.results[index]
+        const existingMetadata = existingRowState._?.metadata || {}
+        const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+        if (!existingRowState._) {
+          existingRowState._ = { metadata: mergedMetadata }
+        } else {
+          existingRowState._.metadata = mergedMetadata
+        }
+        break
+      }
+    }
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
@@ -1092,8 +1116,26 @@ export const actions = {
     const target = getters.findStackIdAndIndex(rowId)
     if (target !== undefined) {
       const row = target[2]
-      commit('UPDATE_ROW_METADATA', { row, rowMetadataType, updateFunction })
+      commit('UPDATE_ROW_METADATA_TYPE', {
+        row,
+        rowMetadataType,
+        updateFunction,
+      })
     }
+  },
+  /**
+   * Updates row metadata for specific rows without changing row values.
+   * Called when a rows_metadata_updated websocket event is received.
+   */
+  updateRowsMetadata({ commit, getters }, { rowIds, metadata }) {
+    rowIds.forEach((rowId) => {
+      const target = getters.findStackIdAndIndex(rowId)
+      if (target !== undefined) {
+        const row = target[2]
+        const rowMetadata = metadata[rowId] || {}
+        commit('UPDATE_ROW_METADATA', { row, metadata: rowMetadata })
+      }
+    })
   },
 }
 

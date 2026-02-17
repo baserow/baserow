@@ -137,6 +137,33 @@ def rows_ai_values_generation_error(
     )
 
 
+@receiver(row_signals.rows_metadata_updated)
+def rows_metadata_updated(sender, table, row_ids, user, **kwargs):
+    """
+    Handler for rows_metadata_updated signal.
+
+    Broadcasts metadata changes to all connected clients viewing the table.
+    This is used for real-time updates when row metadata changes without
+    the row values themselves changing (e.g., AI generation status updates).
+    """
+
+    table_page_type = page_registry.get("table")
+    ignore_web_socket_id = getattr(user, "web_socket_id", None)
+    transaction.on_commit(
+        lambda: table_page_type.broadcast(
+            RealtimeRowMessages.rows_metadata_updated(
+                table_id=table.id,
+                row_ids=row_ids,
+                metadata=row_metadata_registry.generate_and_merge_metadata_for_rows(
+                    user, table, row_ids
+                ),
+            ),
+            ignore_web_socket_id,
+            table_id=table.id,
+        )
+    )
+
+
 @receiver(row_signals.before_rows_delete)
 def before_rows_delete(sender, rows, user, table, model, **kwargs):
     return get_row_serializer_class(model, RowSerializer, is_response=True)(
@@ -258,6 +285,19 @@ class RealtimeRowMessages:
             "rows": serialized_rows,
             "metadata": metadata,
             "updated_field_ids": updated_field_ids,
+        }
+
+    @staticmethod
+    def rows_metadata_updated(
+        table_id: int,
+        row_ids: List[int],
+        metadata: Dict[int, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        return {
+            "type": "rows_metadata_updated",
+            "table_id": table_id,
+            "row_ids": row_ids,
+            "metadata": metadata,
         }
 
     @staticmethod

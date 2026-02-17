@@ -172,6 +172,7 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('rows_created', (context, data) => {
     const { app, store } = context
+
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
@@ -190,31 +191,58 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('rows_updated', async (context, data) => {
     const { app, store } = context
-    for (const viewType of Object.values(app.$registry.getAll('view'))) {
-      for (let i = 0; i < data.rows.length; i++) {
-        const row = data.rows[i]
 
-        // A row may be updated by the backend, while it wasn't requested by the user,
-        // causing rows before update and rows updated sets asymmetry. In that case,
-        // we just want a skeleton of a row.
-        const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
+    if (!data.metadata) {
+      data.metadata = {}
+    }
 
+    const fields = store.getters['field/getAll']
+    const viewTypes = Object.values(app.$registry.getAll('view'))
+
+    for (let i = 0; i < data.rows.length; i++) {
+      const row = data.rows[i]
+      const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
+      const rowMetadata = data.metadata[row.id] || {}
+
+      if (data.updated_field_ids && data.updated_field_ids.length > 0) {
+        data.updated_field_ids.forEach((fieldId) => {
+          const field = store.getters['field/get'](fieldId)
+          if (field) {
+            const fieldType = app.$registry.get('field', field.type)
+            fieldType.onRowRealtimeUpdate(
+              context,
+              field,
+              rowBeforeUpdate,
+              row,
+              rowMetadata
+            )
+          }
+        })
+      }
+
+      for (const viewType of viewTypes) {
         await viewType.rowUpdated(
           context,
           data.table_id,
-          store.getters['field/getAll'],
+          fields,
           rowBeforeUpdate,
           row,
-          data.metadata[row.id],
+          rowMetadata,
           data.updated_field_ids,
           'page/'
         )
       }
-    }
-    for (let i = 0; i < data.rows.length; i++) {
+
       store.dispatch('rowModal/updated', {
         tableId: data.table_id,
-        values: data.rows[i],
+        values: row,
+      })
+
+      // For rows_updated events, metadata represents the complete current state.
+      // We always replace the row modal's metadata (even with {} to clear it).
+      store.dispatch('rowModal/replaceRowMetadata', {
+        rowId: row.id,
+        metadata: rowMetadata,
       })
     }
   })
@@ -239,6 +267,7 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('rows_deleted', (context, data) => {
     const { app, store } = context
+
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
@@ -249,6 +278,31 @@ export const registerRealtimeEvents = (realtime) => {
           row,
           'page/'
         )
+      }
+    }
+  })
+
+  realtime.registerEvent('rows_metadata_updated', (context, data) => {
+    const { app, store } = context
+
+    // Update row objects in views with the new metadata
+    for (const viewType of Object.values(app.$registry.getAll('view'))) {
+      viewType.metadataUpdated(
+        context,
+        data.table_id,
+        data.row_ids,
+        data.metadata,
+        'page/'
+      )
+    }
+
+    // Also update row modal if open for any of these rows
+    for (const rowId of data.row_ids) {
+      if (data.metadata[rowId]) {
+        store.dispatch('rowModal/updateRowMetadata', {
+          rowId,
+          metadata: data.metadata[rowId],
+        })
       }
     }
   })

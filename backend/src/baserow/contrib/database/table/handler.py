@@ -38,6 +38,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.handler import CoreHandler
+from baserow.core.psycopg import errors as psycopg_errors
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
@@ -47,6 +48,7 @@ from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name,
 
 from .constants import (
     CREATED_BY_COLUMN_NAME,
+    FIELD_METADATA_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
     TABLE_CREATION,
 )
@@ -910,3 +912,62 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         table.save(
             update_fields=["created_by_column_added", "last_modified_by_column_added"]
         )
+
+    def create_field_metadata_column(self, table: Table):
+        """
+        Creates the field_metadata JSONB column for the provided table if it
+        has not yet been created. Also creates a GIN index on the column for
+        efficient metadata queries.
+
+        This column stores metadata for all fields in a row using a JSON structure
+        where field IDs are keys. This allows any field type to store status,
+        error information, timestamps, or other metadata about their values.
+
+        :param table: Table that should have field_metadata column.
+        """
+
+        if table.field_metadata_column_added:
+            return
+
+        table.field_metadata_column_added = True
+        model = table.get_model(use_cache=False, field_ids=[])
+
+        try:
+            with safe_django_schema_editor(atomic=False) as schema_editor:
+                field_metadata_field = model._meta.get_field(FIELD_METADATA_COLUMN_NAME)
+                schema_editor.add_field(model, field_metadata_field)
+        except DatabaseError as e:
+            if not isinstance(e.__cause__, psycopg_errors.DuplicateColumn):
+                raise
+
+        self._create_field_metadata_gin_index(table)
+
+        table.save(update_fields=["field_metadata_column_added"])
+
+    def _create_field_metadata_gin_index(self, table: Table):
+        """
+        Creates a GIN index on the field_metadata column for efficient
+        JSONB containment and existence queries.
+
+        :param table: Table to create the index for.
+        """
+
+        from django.contrib.postgres.indexes import GinIndex
+
+        model = table.get_model(use_cache=False, field_ids=[])
+        index_name = f"tbl_{table.id}_field_metadata_gin_idx"
+
+        gin_index = GinIndex(
+            fields=[FIELD_METADATA_COLUMN_NAME],
+            name=index_name,
+        )
+
+        try:
+            with safe_django_schema_editor(atomic=False) as schema_editor:
+                schema_editor.add_index(model, gin_index)
+        except DatabaseError as e:
+            if not isinstance(
+                e.__cause__,
+                (psycopg_errors.DuplicateTable, psycopg_errors.DuplicateObject),
+            ):
+                raise

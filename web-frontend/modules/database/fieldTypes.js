@@ -472,6 +472,22 @@ export class FieldType extends Registerable {
     return false
   }
 
+  /**
+   * Called when a row is updated via websocket to handle field-specific cleanup.
+   * For example, clearing pending operations when an async field operation completes.
+   *
+   * @param {Object} context - The realtime context (app, store)
+   * @param {Object} field - The field object
+   * @param {Object} rowBefore - The row before update
+   * @param {Object} rowAfter - The row after update
+   * @param {Object} metadata - The metadata for this row (can be empty)
+   * @returns {void}
+   */
+  onRowRealtimeUpdate(context, field, rowBefore, rowAfter, metadata) {
+    // Default implementation does nothing
+    // Field types can override this to handle cleanup
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()

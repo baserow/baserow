@@ -288,6 +288,12 @@ export class ViewType extends Registerable {
   ) {}
 
   /**
+   * Event that is called when row metadata is updated from an outside source,
+   * via a real time event. This is used to update metadata without changing row values.
+   */
+  metadataUpdated(context, tableId, rowIds, metadata, storePrefix) {}
+
+  /**
    * Event that is called when something went wrong while generating AI values
    * for a field. This can be used to show an error message to the user.
    */
@@ -806,6 +812,15 @@ export class GridViewType extends ViewType {
     }
   }
 
+  metadataUpdated({ store }, tableId, rowIds, metadata, storePrefix = '') {
+    if (this.isCurrentView(store, tableId)) {
+      store.dispatch(storePrefix + 'view/grid/updateRowMetadata', {
+        rowIds,
+        metadata,
+      })
+    }
+  }
+
   async rowDeleted({ store }, tableId, fields, row, storePrefix = '') {
     if (this.isCurrentView(store, tableId)) {
       await store.dispatch(storePrefix + 'view/grid/deletedExistingRow', {
@@ -1076,6 +1091,7 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
             fields,
             row,
             values,
+            metadata,
           }
         )
       }
@@ -1187,6 +1203,15 @@ export class GalleryViewType extends BaseBufferedRowViewTypeMixin(ViewType) {
         root: true,
       }
     )
+  }
+
+  metadataUpdated({ store }, tableId, rowIds, metadata, storePrefix = '') {
+    if (this.isCurrentView(store, tableId)) {
+      store.dispatch(storePrefix + 'view/gallery/updateRowMetadata', {
+        rowIds,
+        metadata,
+      })
+    }
   }
 }
 

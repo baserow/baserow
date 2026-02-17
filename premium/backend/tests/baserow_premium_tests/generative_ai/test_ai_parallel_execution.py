@@ -62,6 +62,15 @@ def test_ai_parallel_execution(premium_data_fixture):
 
 @pytest.mark.django_db
 def test_ai_parallel_execution_with_error(premium_data_fixture):
+    """
+    Test that AI generation handles errors correctly.
+
+    When using test_generative_ai_prompt_error, all rows will fail. The
+    implementation waits for all submitted rows to complete before raising
+    the error. With the default batch settings, all rows are scheduled upfront,
+    so all will be processed (and fail) before the exception is raised.
+    """
+
     storage = get_default_storage()
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user()
@@ -116,6 +125,8 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
         gen.process(rows.order_by("id"))
 
     assert len(rows) == 30
-    assert gen.finished == 5
-    assert gen.error_msg is not None
-    assert on_progress_mock.called
+    # All rows are scheduled and processed before the error is raised
+    # because they're all batched together (< BATCH_ROWS_SIZE_LIMIT)
+    assert gen.finished == 30
+    assert gen.has_errors
+    assert progress.progress == 30

@@ -23,7 +23,10 @@ from baserow.contrib.database.search.handler import (
     SearchHandler,
     SearchMode,
 )
-from baserow.contrib.database.table.constants import LAST_MODIFIED_BY_COLUMN_NAME
+from baserow.contrib.database.table.constants import (
+    FIELD_METADATA_COLUMN_NAME,
+    LAST_MODIFIED_BY_COLUMN_NAME,
+)
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.exceptions import (
     ViewFilterTypeDoesNotExist,
@@ -54,6 +57,7 @@ def test_get_table_model(data_fixture):
         "order",
         "created_by",
         "last_modified_by",
+        FIELD_METADATA_COLUMN_NAME,
     ]
     default_model_fields_count = len(base_fields)
 
@@ -191,6 +195,7 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
         "order",
         "created_by",
         "last_modified_by",
+        FIELD_METADATA_COLUMN_NAME,
     ]
     added_fields = [
         text_field.db_column,
@@ -954,7 +959,7 @@ def test_table_model_fields_requiring_refresh_on_insert(data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     data_fixture.create_text_field(table=table, name="Color", text_default="white")
     model = table.get_model()
-    assert model.fields_requiring_refresh_after_insert() == []
+    assert model.fields_requiring_refresh_after_insert() == [FIELD_METADATA_COLUMN_NAME]
 
     formula_text = data_fixture.create_formula_field(
         table=table, name="Formula", formula="'a'", formula_type="text"
@@ -963,7 +968,9 @@ def test_table_model_fields_requiring_refresh_on_insert(data_fixture):
     fields_from_normal_formula_model = (
         model_with_normal_formula_field.fields_requiring_refresh_after_insert()
     )
-    assert fields_from_normal_formula_model == [formula_text.db_column]
+    assert fields_from_normal_formula_model == unordered(
+        formula_text.db_column, FIELD_METADATA_COLUMN_NAME
+    )
 
     formula_row_id = data_fixture.create_formula_field(
         table=table,
@@ -977,7 +984,7 @@ def test_table_model_fields_requiring_refresh_on_insert(data_fixture):
         model_with_normal_formula_field.fields_requiring_refresh_after_insert()
     )
     assert fields_from_model_with_row_id_formula == unordered(
-        formula_row_id.db_column, formula_text.db_column
+        formula_row_id.db_column, formula_text.db_column, "field_metadata"
     )
 
 

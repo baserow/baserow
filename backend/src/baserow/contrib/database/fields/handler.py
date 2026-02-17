@@ -39,6 +39,7 @@ from baserow.contrib.database.fields.constants import (
 from baserow.contrib.database.fields.field_converters import (
     MultipleSelectConversionConfig,
 )
+from baserow.contrib.database.fields.metadata_handler import FieldMetadataHandler
 from baserow.contrib.database.fields.models import TextField
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
@@ -797,6 +798,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 using=DEFAULT_DB_ALIAS
             )
 
+        FieldMetadataHandler.on_field_updated(field, baserow_field_type_changed)
+
         to_field_type.after_update(
             old_field,
             field,
@@ -1042,9 +1045,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         FieldDependencyHandler.break_dependencies_delete_dependants(field)
 
         if delete_strategy == DeleteFieldStrategyEnum.PERMANENTLY_DELETE:
+            # Clean up field metadata only for permanent deletions
+            # For TRASH strategy, metadata is preserved to allow restoration
             from baserow.contrib.database.trash.trash_types import (
                 FieldTrashableItemType,
             )
+
+            FieldMetadataHandler.on_field_deleted(field)
 
             trash_item_type_registry.get(
                 FieldTrashableItemType.type

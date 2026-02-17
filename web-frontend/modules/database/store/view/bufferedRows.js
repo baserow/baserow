@@ -247,6 +247,15 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     UPDATE_ROW_VALUES(state, { row, values }) {
       Object.assign(row, values)
     },
+    /**
+     * Replaces the row's metadata with the provided metadata.
+     * Used when rows_updated event provides the complete current metadata state.
+     */
+    REPLACE_ROW_METADATA(state, { row, metadata }) {
+      if (row._) {
+        row._.metadata = metadata
+      }
+    },
     ADD_FIELD_TO_ALL_ROWS(state, { field, value }) {
       const name = `field_${field.id}`
       // We have to replace all the rows by using the map function to make it
@@ -288,7 +297,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       })
       row._.matchSearch = matchSearch
     },
-    UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
+    UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
       updateRowMetadataType(row, rowMetadataType, updateFunction)
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
@@ -948,13 +957,23 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * can't be 100% sure, the row will be updated as `null`.
      */
     async afterExistingRowUpdated(
-      { dispatch, commit },
-      { view, fields, row, values }
+      { dispatch, commit, getters },
+      { view, fields, row, values, metadata = null }
     ) {
       const oldRow = clone(row)
       let newRow = Object.assign(clone(row), values)
       populateRow(oldRow)
       populateRow(newRow)
+
+      // If metadata is provided (even if empty {}), update the row's metadata.
+      // For rows_updated events, metadata represents the complete current state,
+      // so we replace rather than merge.
+      if (metadata !== null) {
+        const existingRow = getters.getRow(row.id)
+        if (existingRow && existingRow._) {
+          commit('REPLACE_ROW_METADATA', { row: existingRow, metadata })
+        }
+      }
 
       const oldMatchesFilters = await dispatch('rowMatchesFilters', {
         view,
@@ -1232,13 +1251,17 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * Updates a single row's row._.metadata based on the provided rowMetadataType and
      * updateFunction.
      */
-    updateRowMetadata(
+    updateRowMetadataType(
       { commit, getters },
       { rowId, rowMetadataType, updateFunction }
     ) {
       const row = getters.getRow(rowId)
       if (row) {
-        commit('UPDATE_ROW_METADATA', { row, rowMetadataType, updateFunction })
+        commit('UPDATE_ROW_METADATA_TYPE', {
+          row,
+          rowMetadataType,
+          updateFunction,
+        })
       }
     },
   }

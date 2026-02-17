@@ -1,4 +1,7 @@
-import { updateRowMetadataType } from '@baserow/modules/database/utils/row'
+import {
+  mergeRowMetadata,
+  updateRowMetadataType,
+} from '@baserow/modules/database/utils/row'
 
 /**
  * This store exists to always keep a copy of the row that's being edited via the
@@ -55,12 +58,53 @@ export const mutations = {
   UPDATE_ROW(state, { componentId, row }) {
     Object.assign(state.rows[componentId].row, row)
   },
-  UPDATE_ROW_METADATA(state, { rowId, rowMetadataType, updateFunction }) {
+  UPDATE_ROW_METADATA_TYPE(state, { rowId, rowMetadataType, updateFunction }) {
     Object.values(state.rows)
       .filter((data) => data.row.id === rowId)
       .forEach((data) =>
         updateRowMetadataType(data.row, rowMetadataType, updateFunction)
       )
+  },
+  /**
+   * Updates row metadata in the row modal.
+   * Deep merges new metadata with existing metadata, removing keys with null values.
+   */
+  UPDATE_ROW_METADATA(state, { rowId, metadata }) {
+    Object.keys(state.rows).forEach((componentId) => {
+      const data = state.rows[componentId]
+      if (data.row.id === rowId) {
+        const existingMetadata = data.row._?.metadata || {}
+        const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+        if (!data.row._) {
+          data.row._ = { metadata: mergedMetadata }
+        } else {
+          data.row._ = {
+            ...data.row._,
+            metadata: mergedMetadata,
+          }
+        }
+      }
+    })
+  },
+  /**
+   * Replaces row metadata in the row modal with the provided metadata.
+   * Used when rows_updated event provides the complete current metadata state.
+   */
+  REPLACE_ROW_METADATA(state, { rowId, metadata }) {
+    Object.keys(state.rows).forEach((componentId) => {
+      const data = state.rows[componentId]
+      if (data.row.id === rowId) {
+        if (!data.row._) {
+          data.row._ = { metadata }
+        } else {
+          data.row._ = {
+            ...data.row._,
+            metadata,
+          }
+        }
+      }
+    })
   },
 }
 
@@ -91,11 +135,9 @@ export const actions = {
     commit('REPLACE_ROW', { componentId, row })
   },
   /**
-   * Called when we receive a real time row update event. It loops over all the rows
-   * we have in memory here and checks if the updated row exists and if it's not
-   * managed by the `rows` prop in the row edit modal. If so, it will make the
-   * update. If the row is managed by the `rows` prop we don't have to do the update
-   * because it will be done via `rows` property.
+   * Called when we receive a real time row update event. Only updates rows that
+   * don't exist in the buffer (exists=false), since buffer rows are managed by
+   * the parent component and share the same object reference with the store.
    */
   updated({ commit, getters }, { tableId, values }) {
     const rows = getters.getRows
@@ -116,8 +158,31 @@ export const actions = {
    * manually update the metadata of the row. This is used for example to update the
    * notification_mode setting of a row.
    */
-  updateRowMetadata({ commit }, { rowId, rowMetadataType, updateFunction }) {
-    commit('UPDATE_ROW_METADATA', { rowId, rowMetadataType, updateFunction })
+  updateRowMetadataType(
+    { commit },
+    { rowId, rowMetadataType, updateFunction }
+  ) {
+    commit('UPDATE_ROW_METADATA_TYPE', {
+      rowId,
+      rowMetadataType,
+      updateFunction,
+    })
+  },
+  /**
+   * Updates row metadata for a specific row without changing row values.
+   * Called when a rows_metadata_updated websocket event is received.
+   * Deep merges new metadata with existing metadata.
+   */
+  updateRowMetadata({ commit }, { rowId, metadata }) {
+    commit('UPDATE_ROW_METADATA', { rowId, metadata })
+  },
+  /**
+   * Replaces row metadata for a specific row with the provided metadata.
+   * Called when a rows_updated websocket event is received, where metadata
+   * represents the complete current state (not a delta).
+   */
+  replaceRowMetadata({ commit }, { rowId, metadata }) {
+    commit('REPLACE_ROW_METADATA', { rowId, metadata })
   },
 }
 

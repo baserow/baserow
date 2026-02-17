@@ -1,10 +1,6 @@
 <template>
-  <div>
-    <div
-      v-if="(!value || generating) && !readOnly"
-      ref="cell"
-      class="grid-view__cell active"
-    >
+  <div class="grid-field-ai-wrapper">
+    <div v-if="!value && !readOnly" ref="cell" class="grid-view__cell active">
       <div class="grid-field-button">
         <Button
           type="secondary"
@@ -36,8 +32,14 @@
       @select-below="(...args) => $emit('selectBelow', ...args)"
       @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
-      <template v-if="!readOnly && editing" #default>
-        <div style="background-color: #fff; padding: 8px">
+      <template v-if="!readOnly && editing" #default="{ editing }">
+        <div style="background-color: #fff; padding: 8px; position: relative">
+          <i
+            v-if="metadataStatusIndicator"
+            :class="metadataStatusIndicator.icon"
+            class="grid-field-ai-wrapper__status-indicator"
+            :style="{ color: metadataStatusIndicator.color }"
+          ></i>
           <ButtonText
             v-if="!isDeactivated"
             icon="iconoir-magic-wand"
@@ -122,6 +124,23 @@ export default {
     },
     beforeUnSelect() {
       document.body.removeEventListener('keydown', this.keydownEventListener)
+    },
+    save() {
+      this.opened = false
+      this.editing = false
+
+      if (this.$refs.cell && this.$refs.cell.copy !== undefined) {
+        const newValue = this.$refs.cell.beforeSave
+          ? this.$refs.cell.beforeSave(this.$refs.cell.copy)
+          : this.$refs.cell.copy
+        const oldValue = this.value
+
+        if (newValue !== oldValue) {
+          this.$emit('update', newValue, oldValue)
+        }
+      }
+
+      this.afterSave()
     },
     canKeyDown() {
       if (this.$refs.cell && typeof this.$refs.cell.canKeyDown === 'function') {

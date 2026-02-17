@@ -1,16 +1,18 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import FieldService from '@baserow_premium/services/field'
+import { AI_FIELD_STATUS } from '@baserow_premium/constants'
 
 export default {
-  data() {
-    return {
-      generating: false,
-    }
-  },
   computed: {
     workspace() {
       return this.$store.getters['workspace/get'](this.workspaceId)
+    },
+    generating() {
+      const metadata = this.row?._?.metadata
+      return (
+        metadata?.ai_field?.[this.field.id]?.status === AI_FIELD_STATUS.GENERATING
+      )
     },
     modelAvailable() {
       const aIModels =
@@ -35,21 +37,42 @@ export default {
         .getDeactivatedClickModal(this.workspaceId)
     },
   },
-  watch: {
-    value() {
-      this.generating = false
-    },
-  },
   methods: {
     async generate() {
-      this.generating = true
+      if (this.isDeactivated) {
+        this.$refs.clickModal.show()
+        return
+      }
+
+      const rowId = this.row.id
+      const previousMetadata =
+        this.row?._?.metadata?.ai_field?.[this.field.id] || null
+
+      // Optimistic update to store
+      this.$store.commit('rowModal/UPDATE_ROW_METADATA', {
+        rowId,
+        metadata: {
+          ai_field: {
+            [this.field.id]: { status: AI_FIELD_STATUS.GENERATING },
+          },
+        },
+      })
+
       try {
         await FieldService(this.$client).generateAIFieldValues(this.field.id, [
-          this.$parent.row.id,
+          rowId,
         ])
       } catch (error) {
         notifyIf(error, 'field')
-        this.generating = false
+        // Rollback on error
+        this.$store.commit('rowModal/UPDATE_ROW_METADATA', {
+          rowId,
+          metadata: {
+            ai_field: {
+              [this.field.id]: previousMetadata,
+            },
+          },
+        })
       }
     },
   },

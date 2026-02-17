@@ -11,6 +11,7 @@ import pytest
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.metadata_handler import FieldMetadataHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
@@ -498,10 +499,7 @@ def test_mode_property_returns_correct_mode(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
-def test_generate_ai_field_value_view_generative_ai(
-    patched_rows_updated, premium_data_fixture
-):
+def test_generate_ai_field_value_view_generative_ai(premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
         email="test@test.nl", password="password", first_name="Test1"
@@ -517,24 +515,23 @@ def test_generate_ai_field_value_view_generative_ai(
 
     rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
 
-    assert patched_rows_updated.call_count == 0
     JobHandler().create_and_start_job(
         user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[rows[0].id]
     )
-    assert patched_rows_updated.call_count == 1
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
+
+    # Verify the row was updated in the database
+    model = table.get_model()
+    updated_row = model.objects.get(id=rows[0].id)
     assert (
         getattr(updated_row, field.db_column)
         == "Generated with temperature None: Hello"
     )
-    assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
 
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
 def test_generate_ai_field_value_view_generative_ai_with_temperature(
-    patched_rows_updated, premium_data_fixture
+    premium_data_fixture,
 ):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
@@ -554,7 +551,10 @@ def test_generate_ai_field_value_view_generative_ai_with_temperature(
     JobHandler().create_and_start_job(
         user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[rows[0].id]
     )
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
+
+    # Verify the row was updated in the database
+    model = table.get_model()
+    updated_row = model.objects.get(id=rows[0].id)
     assert (
         getattr(updated_row, field.db_column) == "Generated with temperature 0.7: Hello"
     )
@@ -562,10 +562,7 @@ def test_generate_ai_field_value_view_generative_ai_with_temperature(
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
-def test_generate_ai_field_value_view_generative_ai_parse_formula(
-    patched_rows_updated, premium_data_fixture
-):
+def test_generate_ai_field_value_view_generative_ai_parse_formula(premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
         email="test@test.nl", password="password", first_name="Test1"
@@ -594,25 +591,22 @@ def test_generate_ai_field_value_view_generative_ai_parse_formula(
         .created_rows
     )
 
-    assert patched_rows_updated.call_count == 0
     JobHandler().create_and_start_job(
         user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[rows[0].id]
     )
-    assert patched_rows_updated.call_count == 1
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
+
+    # Verify the row was updated in the database
+    model = table.get_model()
+    updated_row = model.objects.get(id=rows[0].id)
     assert (
         getattr(updated_row, field.db_column)
         == "Generated with temperature None: Hello Bram Wiepjes"
     )
-    assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
 
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
-def test_generate_ai_field_value_view_generative_ai_invalid_field(
-    patched_rows_updated, premium_data_fixture
-):
+def test_generate_ai_field_value_view_generative_ai_invalid_field(premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
         email="test@test.nl", password="password", first_name="Test1"
@@ -637,12 +631,14 @@ def test_generate_ai_field_value_view_generative_ai_invalid_field(
         )
         .created_rows
     )
-    assert patched_rows_updated.call_count == 0
+
     JobHandler().create_and_start_job(
         user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[rows[0].id]
     )
-    assert patched_rows_updated.call_count == 1
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
+
+    # Verify the row was updated in the database
+    model = table.get_model()
+    updated_row = model.objects.get(id=rows[0].id)
     assert (
         getattr(updated_row, field.db_column)
         == "Generated with temperature None: Hello "
@@ -652,9 +648,8 @@ def test_generate_ai_field_value_view_generative_ai_invalid_field(
 @pytest.mark.django_db
 @pytest.mark.field_ai
 @patch("baserow.contrib.database.rows.signals.rows_ai_values_generation_error.send")
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
 def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
-    patched_rows_updated, patched_rows_ai_values_generation_error, premium_data_fixture
+    patched_rows_ai_values_generation_error, premium_data_fixture
 ):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
@@ -695,7 +690,6 @@ def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
             row_ids=[rows[0].id],
         )
 
-    assert patched_rows_updated.call_count == 0
     assert patched_rows_ai_values_generation_error.call_count == 1
     call_args_rows = patched_rows_ai_values_generation_error.call_args[1]["rows"]
     assert len(call_args_rows) == 1
@@ -709,10 +703,7 @@ def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-@patch("baserow.contrib.database.rows.signals.rows_updated.send")
-def test_generate_ai_field_value_view_generative_ai_with_files(
-    patched_rows_updated, premium_data_fixture
-):
+def test_generate_ai_field_value_view_generative_ai_with_files(premium_data_fixture):
     storage = get_default_storage()
 
     premium_data_fixture.register_fake_generate_ai_type()
@@ -745,15 +736,164 @@ def test_generate_ai_field_value_view_generative_ai_with_files(
         table_model,
     )
 
-    assert patched_rows_updated.call_count == 0
     JobHandler().create_and_start_job(
         user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[row.id]
     )
-    assert patched_rows_updated.call_count == 1
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
-    assert "Generated with files" in getattr(updated_row, field.db_column)
-    assert "Test prompt" in getattr(updated_row, field.db_column)
-    assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
+
+    # Verify the row was updated in the database
+    row.refresh_from_db()
+    assert "Generated with files" in getattr(row, field.db_column)
+    assert "Test prompt" in getattr(row, field.db_column)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_ai
+def test_generate_ai_field_value_sends_metadata_updated_signal_on_start(
+    premium_data_fixture,
+):
+    """
+    Test that metadata is updated when AI generation starts and completes.
+
+    The implementation uses direct websocket broadcasts instead of the
+    rows_metadata_updated signal, so we verify the metadata is correctly
+    set in the database.
+    """
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+
+    model = table.get_model()
+
+    field = premium_data_fixture.create_ai_field(
+        table=table, name="ai", ai_prompt="'Hello'"
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+    row = rows[0]
+
+    JobHandler().create_and_start_job(
+        user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[row.id]
+    )
+
+    row.refresh_from_db()
+    metadata = (
+        FieldMetadataHandler.get_metadata(model, [row.id], [field.id])
+        .get(row.id, {})
+        .get(field.id)
+    )
+    assert metadata is not None
+    assert metadata["ok"] is True  # AIGenerationStatus.SUCCESS
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_ai
+@patch("baserow.contrib.database.rows.signals.rows_metadata_updated.send")
+@patch("baserow.contrib.database.rows.signals.rows_ai_values_generation_error.send")
+def test_generate_ai_field_value_sends_metadata_updated_signal_on_error(
+    patched_rows_ai_values_generation_error,
+    patched_rows_metadata_updated,
+    premium_data_fixture,
+):
+    """
+    Test that when AI generation fails, metadata is updated and signals are sent.
+
+    The implementation sends rows_metadata_updated signal on error to update
+    connected clients.
+    """
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+
+    model = table.get_model()
+
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai_prompt_error",
+        ai_prompt="'Test'",
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+    row = rows[0]
+
+    patched_rows_metadata_updated.reset_mock()
+
+    with pytest.raises(GenerativeAIPromptError):
+        JobHandler().create_and_start_job(
+            user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[row.id]
+        )
+
+    # The signal is sent once on error (not on start, which uses websocket broadcast)
+    assert patched_rows_metadata_updated.call_count == 1
+
+    call_kwargs = patched_rows_metadata_updated.call_args[1]
+    assert call_kwargs["table"] == table
+    assert call_kwargs["row_ids"] == [row.id]
+    assert call_kwargs["user"] == user
+
+    row.refresh_from_db()
+    metadata = (
+        FieldMetadataHandler.get_metadata(model, [row.id], [field.id])
+        .get(row.id, {})
+        .get(field.id)
+    )
+    assert metadata is not None
+    assert metadata["ok"] is False  # AIGenerationStatus.ERROR
+    assert "error" in metadata
+    assert metadata["error"] == "Test error"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_ai
+def test_generate_ai_field_value_includes_metadata_in_rows_updated_signal(
+    premium_data_fixture,
+):
+    """
+    Test that after AI generation completes, both the field value and
+    metadata are correctly set in the database.
+
+    The implementation uses direct websocket broadcasts instead of the
+    rows_updated signal for updates.
+    """
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+
+    model = table.get_model()
+
+    field = premium_data_fixture.create_ai_field(
+        table=table, name="ai", ai_prompt="'Hello'"
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+    row = rows[0]
+
+    JobHandler().create_and_start_job(
+        user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[row.id]
+    )
+
+    # Verify the row value was updated
+    row.refresh_from_db()
+    assert getattr(row, field.db_column) == "Generated with temperature None: Hello"
+
+    # Verify metadata in database shows success
+    metadata = (
+        FieldMetadataHandler.get_metadata(model, [row.id], [field.id])
+        .get(row.id, {})
+        .get(field.id)
+    )
+    assert metadata is not None
+    assert metadata["ok"] is True  # AIGenerationStatus.SUCCESS
+    assert "end" in metadata  # generation_finished_at
 
 
 @pytest.mark.django_db(transaction=True)

@@ -20,6 +20,10 @@ from baserow.contrib.database.fields.exceptions import (
     MaxFieldNameLengthExceeded,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.metadata_handler import (
+    FieldMetadataHandler,
+    MetadataUpdate,
+)
 from baserow.contrib.database.fields.models import (
     BooleanField,
     LinkRowField,
@@ -1135,3 +1139,66 @@ def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
     )
 
     assert workspace.row_count == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.row_metadata
+def test_duplicate_table_does_not_copy_metadata(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(name="Original", database=database)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+
+    model = table.get_model()
+    row1 = model.objects.create(**{f"field_{text_field.id}": "Row 1"})
+    row2 = model.objects.create(**{f"field_{text_field.id}": "Row 2"})
+
+    FieldMetadataHandler.set_metadata(
+        model,
+        [
+            MetadataUpdate(
+                row_id=row1.id,
+                field_id=text_field.id,
+                metadata={"status": "generating"},
+            ),
+            MetadataUpdate(
+                row_id=row2.id,
+                field_id=text_field.id,
+                metadata={"status": "error", "error": "Some error"},
+            ),
+        ],
+    )
+
+    row1.refresh_from_db()
+    row2.refresh_from_db()
+    assert FieldMetadataHandler.get_metadata(model, [row1.id], [text_field.id]).get(
+        row1.id, {}
+    ).get(text_field.id) == {"status": "generating"}
+    assert FieldMetadataHandler.get_metadata(model, [row2.id], [text_field.id]).get(
+        row2.id, {}
+    ).get(text_field.id) == {
+        "status": "error",
+        "error": "Some error",
+    }
+
+    table_handler = TableHandler()
+    duplicated_table = table_handler.duplicate_table(user, table)
+
+    duplicated_model = duplicated_table.get_model()
+    duplicated_rows = list(duplicated_model.objects.all().order_by("id"))
+
+    assert len(duplicated_rows) == 2
+
+    duplicated_text_field = duplicated_table.field_set.get(name="Name")
+
+    for dup_row in duplicated_rows:
+        metadata = (
+            FieldMetadataHandler.get_metadata(
+                model, [dup_row.id], [duplicated_text_field.id]
+            )
+            .get(dup_row.id, {})
+            .get(duplicated_text_field.id)
+        )
+        assert metadata is None, (
+            f"Duplicated row {dup_row.id} should not have metadata, but has: {metadata}"
+        )

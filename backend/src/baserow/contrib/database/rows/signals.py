@@ -11,6 +11,7 @@ rows_created = Signal()
 rows_updated = Signal()
 rows_deleted = Signal()
 rows_ai_values_generation_error = Signal()
+rows_metadata_updated = Signal()
 
 row_orders_recalculated = Signal()
 

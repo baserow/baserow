@@ -146,6 +146,15 @@ def setup_m2m_field_indexes_if_not_exist(self, table_id: int):
         table.save(update_fields=["missing_m2m_indexes_added"])
 
 
+@app.task(bind=True, queue="export")
+def setup_field_metadata_column(self, table_id: int):
+    from baserow.contrib.database.table.handler import TableHandler
+
+    with transaction.atomic():
+        table = TableHandler().get_table_for_update(table_id)
+        TableHandler().create_field_metadata_column(table)
+
+
 @app.task(bind=True)
 def update_table_usage(self, table_id: int, row_count: int = 0):
     from baserow.contrib.database.table.handler import TableUsageHandler

@@ -26,10 +26,12 @@ import {
   updateRowMetadataType,
   getRowMetadata,
   extractChangedFields,
+  mergeRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 import {
+  GRID_VIEW_BUFFER_REQUEST_SIZE,
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   LINKED_ITEMS_LOAD_ALL,
@@ -191,7 +193,7 @@ export const state = () => ({
   // The amount of rows that must be visible above and under the middle row.
   rowPadding: 16,
   // The amount of rows that will be requested per request.
-  bufferRequestSize: 40,
+  bufferRequestSize: GRID_VIEW_BUFFER_REQUEST_SIZE,
   // The start index of the buffer in the whole table.
   bufferStartIndex: 0,
   // The limit of the buffer measured from the start index in the whole table.
@@ -521,6 +523,9 @@ export const mutations = {
     const index = state.rows.findIndex((item) => item.id === row.id)
     if (index !== -1) {
       const existingRowState = state.rows[index]
+      if (!existingRowState._) {
+        populateRow(existingRowState, {}, false)
+      }
       existingRowState._.fetching = value
       existingRowState._.fullyLoaded = !value
     }
@@ -531,7 +536,35 @@ export const mutations = {
       const existingRowState = state.rows[index]
       Object.assign(existingRowState, values)
       if (metadata) {
-        existingRowState._.metadata = metadata
+        if (!existingRowState._) {
+          populateRow(existingRowState, metadata, false)
+        } else {
+          existingRowState._.metadata = metadata
+        }
+      }
+    }
+  },
+  /**
+   * Updates row metadata in the grid buffer.
+   *
+   * Note: Metadata is stored on row._.metadata and exists only while rows are
+   * in the buffer. When rows leave and re-enter the buffer, fresh metadata is
+   * fetched from the API along with the row data.
+   */
+  UPDATE_ROW_METADATA(state, { row, metadata }) {
+    const index = state.rows.findIndex((item) => item.id === row.id)
+    if (index !== -1) {
+      const existingRowState = state.rows[index]
+      const existingMetadata = existingRowState._?.metadata || {}
+      const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+      if (!existingRowState._) {
+        populateRow(existingRowState, mergedMetadata, false)
+      } else {
+        existingRowState._ = {
+          ...existingRowState._,
+          metadata: mergedMetadata,
+        }
       }
     }
   },
@@ -541,7 +574,7 @@ export const mutations = {
   UPDATE_ROW_FIELD_VALUE(state, { row, field, value }) {
     row[`field_${field.id}`] = value
   },
-  UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
+  UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
     updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   FINALIZE_ROWS_IN_BUFFER(state, { oldRows, newRows, fields }) {
@@ -937,6 +970,7 @@ export const actions = {
             const metadata = extractRowMetadata(data, row.id)
             populateRow(row, metadata, false)
           })
+
           commit('ADD_ROWS', {
             rows: data.results,
             prependToRows: prependToBuffer,
@@ -1108,10 +1142,12 @@ export const actions = {
     if (gridId !== getters.getLastGridId) {
       return
     }
+
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
       populateRow(row, metadata, false)
     })
+
     commit('CLEAR_ROWS')
     commit('ADD_ROWS', {
       rows: data.results,
@@ -1207,6 +1243,7 @@ export const actions = {
           const metadata = extractRowMetadata(data, row.id)
           populateRow(row, metadata, false)
         })
+
         commit('ADD_ROWS', {
           rows: data.results,
           prependToRows: -getters.getBufferLimit,
@@ -2485,7 +2522,7 @@ export const actions = {
    * experience for the user.
    */
   async updateRowValue(
-    { commit, dispatch, getters },
+    { commit, dispatch, getters, rootGetters },
     {
       table,
       view,
@@ -2600,6 +2637,8 @@ export const actions = {
         const updatedFieldIds =
           batchResponse.data.metadata?.updated_field_ids || []
 
+        const rowsMetadata = batchResponse.data.metadata?.rows || {}
+
         const otherFieldsChangedInBackend = !_.isEqual(updatedFieldIds, [
           field.id,
         ])
@@ -2621,8 +2660,39 @@ export const actions = {
           if (existing === undefined) {
             continue
           }
+
+          const rowMetadata = rowsMetadata[updatedRowData.id] || {}
+
+          if (Object.keys(rowMetadata).length > 0) {
+            commit('REPLACE_ROW_METADATA', {
+              row: existing,
+              metadata: rowMetadata,
+            })
+          }
+
+          updatedFieldIds.forEach((fieldId) => {
+            const updatedField = rootGetters['field/get'](fieldId)
+            if (updatedField) {
+              const fieldType = this.$registry.get('field', updatedField.type)
+              fieldType.onRowRealtimeUpdate(
+                { store: this, commit, getters, dispatch },
+                updatedField,
+                existing,
+                { ...existing, ...rowData },
+                rowMetadata
+              )
+            }
+          })
+
           // Update the remaining values like formula, which depend on the backend.
           await updateValues(existing, rowData, true)
+
+          // Update row modal metadata
+          dispatch(
+            'rowModal/replaceRowMetadata',
+            { rowId: updatedRowData.id, metadata: rowMetadata },
+            { root: true }
+          )
 
           // If we can't optimistically update the row, refresh it to stop the loading
           // state, show proper messages, and update its position and state. Also, if the
@@ -2956,14 +3026,32 @@ export const actions = {
    * that is will be deleted or created depending if was already in the view.
    */
   async updatedExistingRow(
-    { commit, getters, dispatch },
-    { view, fields, row, values, metadata, updatedFieldIds = [] }
+    { commit, getters, dispatch, rootGetters },
+    { view, fields, row, values, metadata = {}, updatedFieldIds = [] }
   ) {
     const { $registry, $client, $i18n, $config } = this
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)
+
+    // Delegate to field types to handle their specific realtime update logic
+    // This allows each field type to decide what to do when metadata changes
+    // Note: metadata is already the row-specific metadata (not keyed by row.id)
+    // as it's passed from viewTypes.rowUpdated which receives data.metadata[row.id]
+    updatedFieldIds.forEach((fieldId) => {
+      const field = rootGetters['field/get'](fieldId)
+      if (field) {
+        const fieldType = this.app.$registry.get('field', field.type)
+        fieldType.onRowRealtimeUpdate(
+          { store: this, commit, getters, dispatch },
+          field,
+          oldRow,
+          newRow,
+          metadata || {}
+        )
+      }
+    })
 
     await dispatch('updateMatchFilters', { view, row: oldRow, fields })
     await dispatch('updateSearchMatchesForRow', { row: oldRow, fields })
@@ -3034,7 +3122,12 @@ export const actions = {
 
       if (oldRowInBuffer) {
         // If the old row is inside the buffer at a known position.
-        commit('UPDATE_ROW_IN_BUFFER', { row, values, metadata })
+        // Note: metadata is already the row-specific metadata (not keyed by row.id)
+        commit('UPDATE_ROW_IN_BUFFER', {
+          row,
+          values,
+          metadata,
+        })
         commit('SET_BUFFER_LIMIT', getters.getBufferLimit - 1)
       } else if (oldIsFirst) {
         // If the old row exists in the buffer, but is at the before position.
@@ -3128,6 +3221,21 @@ export const actions = {
       }
       await dispatch('correctMultiSelect')
     }
+  },
+  /**
+   * Updates row metadata for specific rows without changing row values.
+   * This is called when a rows_metadata_updated websocket event is received.
+   */
+  updateRowMetadata({ commit, getters }, { rowIds, metadata }) {
+    const allRows = getters.getAllRows
+    rowIds.forEach((rowId) => {
+      const rowIndex = allRows.findIndex((r) => r.id === rowId)
+      if (rowIndex > -1) {
+        const row = allRows[rowIndex]
+        const rowMetadata = metadata[rowId] || {}
+        commit('UPDATE_ROW_METADATA', { row, metadata: rowMetadata })
+      }
+    })
   },
   /**
    * Called when the user wants to delete an existing row in the table.
@@ -3448,14 +3556,18 @@ export const actions = {
       })
     }
   },
-  updateRowMetadata(
-    { commit, getters, dispatch },
-    { tableId, rowId, rowMetadataType, updateFunction }
+  updateRowMetadataType(
+    { commit, getters },
+    { rowId, rowMetadataType, updateFunction }
   ) {
     const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row) {
-      commit('UPDATE_ROW_METADATA', { row, rowMetadataType, updateFunction })
+      commit('UPDATE_ROW_METADATA_TYPE', {
+        row,
+        rowMetadataType,
+        updateFunction,
+      })
     }
   },
   /**

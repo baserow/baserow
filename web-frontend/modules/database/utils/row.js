@@ -1,4 +1,3 @@
-//import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
 
 /**
@@ -129,20 +128,51 @@ export function extractChangedFields(
 }
 
 /**
+ * Deep merges new metadata with existing metadata.
+ * Removes keys with null values to support clearing metadata.
+ *
+ * @param {Object} existingMetadata - The current metadata object
+ * @param {Object} newMetadata - The new metadata to merge in
+ * @returns {Object} The merged metadata object
+ */
+export function mergeRowMetadata(existingMetadata, newMetadata) {
+  const merged = { ...existingMetadata }
+
+  Object.keys(newMetadata).forEach((metadataType) => {
+    if (!merged[metadataType]) {
+      merged[metadataType] = {}
+    }
+    // Deep merge field-level metadata, removing fields with null values
+    const newTypeMetadata = { ...merged[metadataType] }
+    Object.entries(newMetadata[metadataType]).forEach(([key, value]) => {
+      if (value === null) {
+        delete newTypeMetadata[key]
+      } else {
+        newTypeMetadata[key] = value
+      }
+    })
+    merged[metadataType] = newTypeMetadata
+  })
+
+  return merged
+}
+
+/**
  * Call the given updateFunction with the current value of the row metadata type and
  * set the new value. If the row metadata type does not exist yet, it will be
  * created.
  */
 export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
-  const currentValue = row._.metadata[rowMetadataType]
+  const currentValue = row._?.metadata?.[rowMetadataType]
   const newValue = updateFunction(currentValue)
 
-  if (!Object.prototype.hasOwnProperty.call(row._.metadata, rowMetadataType)) {
-    const metaDataCopy = clone(row._.metadata)
-    metaDataCopy[rowMetadataType] = newValue
-    row._['metadata'] = metaDataCopy
-  } else {
-    row._.metadata[rowMetadataType] = newValue
+  const existingMetadata = row._?.metadata || {}
+  row._ = {
+    ...row._,
+    metadata: {
+      ...existingMetadata,
+      [rowMetadataType]: newValue,
+    },
   }
 }
 

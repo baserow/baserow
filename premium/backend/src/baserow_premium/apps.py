@@ -14,6 +14,7 @@ class BaserowPremiumConfig(AppConfig):
         from baserow_premium.builder.application_types import (
             PremiumBuilderApplicationType,
         )
+        from baserow_premium.fields.row_metadata_types import AIFieldMetadataType
         from baserow_premium.row_comments.row_metadata_types import (
             RowCommentCountMetadataType,
             RowCommentsNotificationModeMetadataType,
@@ -92,6 +93,7 @@ class BaserowPremiumConfig(AppConfig):
         table_exporter_registry.register(ExcelTableExporter())
         table_exporter_registry.register(FileTableExporter())
 
+        row_metadata_registry.register(AIFieldMetadataType())
         row_metadata_registry.register(RowCommentCountMetadataType())
         row_metadata_registry.register(RowCommentsNotificationModeMetadataType())
 

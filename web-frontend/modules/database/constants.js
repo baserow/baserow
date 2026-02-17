@@ -12,6 +12,9 @@ export const GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING = {
 
 export const GRID_VIEW_MIN_FIELD_WIDTH = 78
 
+// The amount of rows that will be requested per request in grid view
+export const GRID_VIEW_BUFFER_REQUEST_SIZE = 40
+
 export const GRID_VIEW_MULTI_SELECT_AREA = 'area'
 export const GRID_VIEW_MULTI_SELECT_CHECKBOX = 'checkbox'
 
@@ -25,3 +28,12 @@ export const FIELD_CONSTRAINT_ERROR_CODES = [
   'ERROR_INVALID_FIELD_CONSTRAINT',
   'ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE',
 ]
+
+/**
+ * AI field generation status values.
+ * These values match the API response format for field metadata.
+ */
+export const AI_FIELD_STATUS = {
+  GENERATING: 'generating',
+  ERROR: 'error',
+}

@@ -20,3 +20,4 @@ TSV_FIELD_PREFIX = "tsv_field"
 
 LAST_MODIFIED_BY_COLUMN_NAME = "last_modified_by"
 CREATED_BY_COLUMN_NAME = "created_by"
+FIELD_METADATA_COLUMN_NAME = "field_metadata"
