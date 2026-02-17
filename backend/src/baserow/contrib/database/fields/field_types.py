@@ -620,20 +620,8 @@ class NumberFieldType(FieldType):
             return value
 
         if isinstance(value, str):
-            if instance.number_prefix is not None:
-                value = value.lstrip(instance.number_prefix)
-            if instance.number_suffix is not None:
-                value = value.rstrip(instance.number_suffix)
-
-            thousand_sep, decimal_sep = get_thousand_and_decimal_separator(
-                instance.number_separator
-            )
-
-            value = value.replace(thousand_sep, "").replace(decimal_sep, ".").strip()
-
-            if value in ["", "NaN"]:
+            if value == "":
                 return None
-
         try:
             value = Decimal(value)
         except (InvalidOperation, ValueError, TypeError):

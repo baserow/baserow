@@ -1,5 +1,6 @@
 import json
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import NamedTuple
 
 from django.conf import settings
@@ -1714,3 +1715,57 @@ def test_run_file_import_task_with_upsert_and_none_skipped_fields(
 
     assert getattr(charlie, age_field.db_column) == 28
     assert getattr(charlie, email_field.db_column) == "charlie@example.com"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_file_import_task_number_field(data_fixture, patch_filefield_storage):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database, user=user)
+    primary_field = data_fixture.create_text_field(
+        table=table, order=1, name="Item", primary=True
+    )
+    number_field = data_fixture.create_number_field(
+        table=table,
+        order=2,
+        name="Number",
+        number_negative=True,
+        number_decimal_places=2,
+        # number_separator should not affect the import as
+        # the data coming in are processed in the frontend
+        number_separator="PERIOD_COMMA",
+        # number_prefix should not affect the import
+        number_prefix="$",
+        # number_suffix should not affect the import
+        number_suffix="X",
+    )
+    data = [
+        ["Item", "Number"],
+        ["A", "127.30"],
+        ["B", "-30.00"],
+        ["C", "500"],
+        ["D", "1 000 000.1"],  # will be skipped due to spaces
+        ["E", "-3,33"],  # will be skipped due to comma
+        ["F", "$-3.33"],  # will be skipped due to prefix
+        ["G", "-3.33X"],  # will be skipped due to suffix
+        ["I", ""],
+        ["J", "NaN"],  # will be skipped, not a number
+    ]
+    job = data_fixture.create_file_import_job(
+        data={"data": data},
+        table=table,
+        user=user,
+        first_row_header=True,
+    )
+    run_async_job(job.id)
+    job.refresh_from_db()
+    assert job.state == JOB_FINISHED
+
+    model = table.get_model()
+    assert model.objects.count() == 4
+
+    rows = model.objects.all()
+    assert getattr(rows[0], number_field.db_column) == Decimal("127.30")
+    assert getattr(rows[1], number_field.db_column) == Decimal("-30.00")
+    assert getattr(rows[2], number_field.db_column) == Decimal("500")
+    assert getattr(rows[3], number_field.db_column) is None
