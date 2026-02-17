@@ -201,6 +201,15 @@
             "warningTitle": "Andere gebruikers kunnen toegang erven!",
             "warningMessage": "Andere gebruikers kunnen toegang erven via hun respectieve rollen in de bovenliggende database of werkruimte.",
             "everyoneHasAccess": "Iedereen in {name} werkruimte heeft toegang tot deze tabel."
+        },
+        "view": {
+            "title": "Weergave {name}",
+            "selectMembers": "Leden selecteren",
+            "everyoneHasAccess": "Iedereen in de workspace {name} kan deze weergave openen.",
+            "onlyYouHaveAccess": "Alleen jij kunt deze weergave openen.",
+            "warningTitle": "Andere gebruikers kunnen toegang overerven!",
+            "warningMessage": "Andere gebruikers kunnen toegang overerven via hun rollen op de bovenliggende tabel, database of workspace.",
+            "headerTooltip": "Rollen voor weergaven hebben voorrang op rollen voor workspace, database en tabel."
         }
     },
     "memberRolesMembersList": {
@@ -307,7 +316,8 @@
             "description": "Er is een fout opgetreden bij het ophalen van de ledengegevens.",
             "title": "Kon geen gegevens ophalen"
         },
-        "memberRolesTableTabTitle": "Huidige tabel"
+        "memberRolesTableTabTitle": "Huidige tabel",
+        "memberRolesViewTabTitle": "Weergave"
     },
     "memberRolesShareToggle": {
         "subLabel": "{totalUserAmount} werkruimte leden",
@@ -685,7 +695,9 @@
         "advancedSettingsLabel": "Geavanceerde instellingen",
         "includeWeekendsLabel": "Houd rekening met weekenden bij het berekenen van looptijden",
         "dependencyFieldForReaderTooltip": "Dit veld is opgenomen in de regel voor datumafhankelijke velden",
-        "fieldInvalidTitle": "Fout in datumafhankelijkheidsveld"
+        "fieldInvalidTitle": "Fout in datumafhankelijkheidsveld",
+        "addNewField": "Nieuw veld toevoegen",
+        "linkRowFieldTitle": "Bovenliggend"
     },
     "assistant": {
         "statusThinking": "Denken...",
@@ -716,5 +728,33 @@
     },
     "assistantMessageList": {
         "disclaimer": "Kuma kan fouten maken, controleer antwoorden dubbel"
+    },
+    "viewOwnershipType": {
+        "restricted": "Beperkt",
+        "restrictedDescription": "Editors en lager kunnen alleen de gefilterde data en zichtbare velden zien. Je kunt de leden beheren."
+    },
+    "databaseStep": {
+        "ai": "Kuma AI"
+    },
+    "aiDatabaseOnboardingForm": {
+        "label": "Beschrijf je database",
+        "placeholder": "bijv. Maak een projectmanagementoplossing",
+        "description": "Beschrijf wat je wilt bijhouden. Kuma maakt de tabellen en velden voor je.",
+        "exampleProjectTrackerName": "Projecttracker",
+        "exampleProjectTrackerPrompt": "Maak een projecttracker met Projecten, Taken, Toegewezen aan, Status, Prioriteit, Einddatums en afhankelijkheden.",
+        "exampleProductRoadmapName": "Productroadmap",
+        "exampleProductRoadmapPrompt": "Maak een productroadmap met Initiatieven, Features, Eigenaren, Status, Prioriteit, Doelkwartaal en releasenotes.",
+        "exampleCompanyAssetTrackerName": "Bedrijfsmiddelentracker",
+        "exampleCompanyAssetTrackerPrompt": "Maak een middelentracker met Middelen, Categorieën, Serienummers, Aankoopdatum, Toegewezen aan, Locatie en vervaldatum van de garantie.",
+        "exampleTeamCheckInsName": "Team check-ins",
+        "exampleTeamCheckInsPrompt": "Maak een wekelijkse team check-in tracker met Teamleden, Datum, Successen, Blokkers, Stemming, Prioriteiten en opvolging.",
+        "exampleBugTrackerName": "Bugtracker",
+        "exampleBugTrackerPrompt": "Maak een bugtracker met Bugs, Ernst, Status, Stappen om te reproduceren, Omgeving, Melder, Toegewezen aan en fixversie."
+    },
+    "aiDatabaseOnboardingStepType": {
+        "prompt": "Maak een database met tabellen, velden, voorbeeldrijen en voorbeeldweergaven die passen bij deze beschrijving: {prompt}"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Kuma krijgt de instructie om je database te maken."
     }
 }
