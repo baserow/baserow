@@ -1097,7 +1097,8 @@
             "tables": "Tabellen",
             "fields": "Velden",
             "rows": "Rijen"
-        }
+        },
+        "empty": "(leeg)"
     },
     "action": {
         "cancel": "Annuleren",
@@ -1204,5 +1205,8 @@
     "twoFactorAuthField": {
         "enabled": "Ingeschakeld",
         "disabled": "Uitgeschakeld"
+    },
+    "emailSettings": {
+        "title": "Verander e-mailadres"
     }
 }
