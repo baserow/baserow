@@ -1,1 +1,12 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Workflow"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "Welkom bij Baserow Automations!",
+        "content": "Laten we een snelle rondleiding nemen. Je zult zien hoe je de activering moet opzetten, acties toevoegen, je workflow testen, en het publiceren, geen code vereist."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Beheers je workflow hier"
+    }
+}
