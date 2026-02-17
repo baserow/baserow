@@ -40,7 +40,9 @@
         "viewFieldLabel": "Weergave",
         "tableFieldLabel": "Tabel",
         "chooseNoView": "Niet geselecteerd",
-        "dataSyncedTableDescription": "Gesynchroniseerde tabel"
+        "dataSyncedTableDescription": "Gesynchroniseerde tabel",
+        "oneWayDataSyncedTableDescription": "Eenrichtings gesynchroniseerd",
+        "twoWayDataSyncedTableDescription": "Tweerichtings gesynchroniseerd"
     },
     "integrationType": {
         "localBaserow": "Lokaal Baserow",
@@ -318,5 +320,21 @@
         "messageLabel": "Bericht",
         "messagePlaceholder": "Voer een bericht in...",
         "channelNoPrefix": "Verwijder de '#' voor de kanaalnaam."
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Integratie",
+        "rowIdLabel": "Rij-ID",
+        "rowIdPlaceholder": "Kies één rij-ID"
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderArray": "Kies een arraywaarde, bijv. [42]",
+        "fieldMappingPlaceholderString": "Kies een stringwaarde, bijv. \\'baserow\\'",
+        "fieldMappingPlaceholderNumber": "Kies een getalwaarde, bijv. 42",
+        "fieldMappingPlaceholderBoolean": "Kies een booleaanse waarde, bijv. true",
+        "fieldMappingPlaceholderDate": "Kies een datumwaarde, bijv. 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Kies een decimale waarde, bijv. 3.14",
+        "fieldMappingPlaceholderDuration": "Kies een tijdsduurwaarde, bijv. 1:23:40",
+        "noTableSelectedMessage": "Kies een tabel om te beginnen met het configureren van je velden.",
+        "noWritableFields": "Deze tabel bevat geen beschrijfbare velden."
     }
 }
