@@ -192,11 +192,12 @@
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "Base de données",
-        "memberRolesTableTabTitle": "Table actuelle",
+        "memberRolesTableTabTitle": "Table",
         "error": {
             "title": "Impossible de récupérer les données",
             "description": "Une erreur s’est produite lors de la récupération des données des membres."
-        }
+        },
+        "memberRolesViewTabTitle": "Vue"
     },
     "memberRolesTab": {
         "database": {
@@ -216,6 +217,15 @@
             "onlyYouHaveAccess": "Vous seul pouvez accéder à cette table.",
             "warningTitle": "D'autres utilisateurs peuvent avoir hérité de l'accès !",
             "headerTooltip": "Les rôles de table sont prioritaires sur les rôles de projet et de base de données."
+        },
+        "view": {
+            "title": "Vue {name}",
+            "selectMembers": "Sélectionnez les membres",
+            "everyoneHasAccess": "Tout les membres du projet {name} peuvent accéder à cette vue.",
+            "onlyYouHaveAccess": "Seulement vous pouvez accéder à cette vue.",
+            "warningTitle": "D'autres utilisateurs pourraient hériter de l'accès !",
+            "warningMessage": "D'autres utilisateurs peuvent hériter de l'accès par leurs rôles respectifs sur la table parente, la base de données ou le projet.",
+            "headerTooltip": "Les rôles de Vue remplacent les rôles du projet, de la base de données et de la table."
         }
     },
     "memberRolesShareToggle": {
@@ -685,7 +695,9 @@
         "advancedSettingsLabel": "Paramètres avancés",
         "includeWeekendsLabel": "Inclure les week-ends dans le calcul des durées",
         "dependencyFieldForReaderTooltip": "Ce champ est inclus dans la règle de dépendance de date",
-        "fieldInvalidTitle": "Erreur dans la dépendance de date"
+        "fieldInvalidTitle": "Erreur dans la dépendance de date",
+        "addNewField": "Ajouter une nouvelle colonne",
+        "linkRowFieldTitle": "Parents"
     },
     "assistant": {
         "statusThinking": "Réflexions...",
@@ -717,5 +729,33 @@
     },
     "assistantMessageList": {
         "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
+    },
+    "viewOwnershipType": {
+        "restricted": "Accès restreint",
+        "restrictedDescription": "Les Éditeurs ou en dessous peuvent seulement voir les données filtrées et les colonnes visibles. Il est possible de choisir les membres."
+    },
+    "databaseStep": {
+        "ai": "Kuma IA"
+    },
+    "aiDatabaseOnboardingForm": {
+        "label": "Décrivez votre base de données",
+        "placeholder": "ex. Créer une solution de gestion de projet",
+        "description": "Décrivez ce que vous voulez suivre. Kuma va créer les tables et les colonnes.",
+        "exampleProjectTrackerName": "Suivi de Projet",
+        "exampleProjectTrackerPrompt": "Créer un suivi de projet avec les tables Projets, Tâches, Assignations, Statut, Priorité, Dates et dépendances.",
+        "exampleProductRoadmapName": "Feuille de route",
+        "exampleProductRoadmapPrompt": "Créer une feuille de route de produit avec les tables Initiatives, Caractéristiques, Propriétaires, Statut, Priorité, Cible trimestrielle, et les notes de version.",
+        "exampleCompanyAssetTrackerName": "Gestion des actifs de l’entreprise",
+        "exampleCompanyAssetTrackerPrompt": "Créer un gestionnaire des actifs de l’entreprise avec les tables Catégories, Numéros de série, Date d'achat, Affecté à, Emplacement et expiration de garantie.",
+        "exampleTeamCheckInsName": "Suivi d’équipe",
+        "exampleTeamCheckInsPrompt": "Créer un Suivi hebdomadaire d’équipe avec les Membres de l'équipe, Date, Succés, Obstacles, Ambiance, Priorités et suivis.",
+        "exampleBugTrackerName": "Suivi de défauts",
+        "exampleBugTrackerPrompt": "Créez un suivi de défauts avec Défaut, Sévérité, Status, Étapes de reproduction, Environnement, Créateur, Affectation et Version de correction."
+    },
+    "aiDatabaseOnboardingStepType": {
+        "prompt": "Créer une base de données comprenant des tables, des colonnes, des lignes et des vues d'exemple correspondant à cette description : {prompt}"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Demander à Kuma de créer votre base de données."
     }
 }
