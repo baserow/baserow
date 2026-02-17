@@ -193,7 +193,8 @@
         "errorUniquePathParams": "Pad parameters moeten uniek zijn.",
         "errorStartingSlash": "Een pad moet beginnen met een '/'",
         "errorNameNotUnique": "Een pagina met deze naam bestaat al",
-        "errorUniqueValidQueryParams": "Query parameternamen moeten uniek en geldig zijn."
+        "errorUniqueValidQueryParams": "Query parameternamen moeten uniek en geldig zijn.",
+        "errorNameNotUniqueDescription": "Voer een unieke naam in voor de pagina"
     },
     "pageActionTypes": {
         "preview": "Voorbeeld",
@@ -709,7 +710,8 @@
         "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
         "visibilityCondition": "Zichtbaarheid voorwaarde",
         "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
-        "visibilityConditionPlaceholder": "Voorwaarde..."
+        "visibilityConditionPlaceholder": "Voorwaarde...",
+        "documentationLink": "documentatie"
     },
     "imageInput": {
         "labelButton": "Uploaden",
@@ -853,7 +855,8 @@
     },
     "customStyle": {
         "themeOverrides": "Thema overschrijvingen",
-        "configureThemeOverrides": "Thema-overschrijvingen voor dit element configureren"
+        "configureThemeOverrides": "Thema-overschrijvingen voor dit element configureren",
+        "backToElement": "Terug naar element configuratie"
     },
     "colorThemeConfigBlock": {
         "errorColor": "Fout",
@@ -967,7 +970,8 @@
         "label": "Gegevensbron",
         "shared": "gedeeld",
         "pageOnly": "deze pagina",
-        "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar"
+        "noSharedDataSources": "Geen gedeelde gegevensbronnen beschikbaar",
+        "addNew": "Voeg nieuwe data bron toe"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Records selecteren uit",
@@ -1035,7 +1039,8 @@
         "description": "Wie kan deze pagina zien"
     },
     "pageEditor": {
-        "pageNotFound": "Pagina niet gevonden"
+        "pageNotFound": "Pagina niet gevonden",
+        "title": "Applicatie bouwer"
     },
     "builderLoginPageForm": {
         "pageDropdownDescription": "Selecteer de aanmeldpagina waar niet-ingelogde gebruikers naar moeten worden omgeleid als ze een pagina met verboden proberen te openen.",
