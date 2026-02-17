@@ -154,7 +154,8 @@
         "viewId": "Standaard worden geen filters en sorteringen toegepast die buiten de query parameters zijn gedefinieerd. U kunt de filters en sorteringen van een view toevoegen door zijn `id` in de `view_id` GET parameter op te geven. Bijvoorbeeld, als u de volgende GET parameter `view_id=1` opgeeft, dan zullen de filters en sorteringen die zijn gedefinieerd in de view met id `1` worden toegepast. U kunt de `view_id` vinden in het context menu van een gegeven view. Het is het getal tussen haakjes achter de view naam. \n\n #### Met `filter__{field}__{filter}` \n\n Zowel het filter dat in de query parameter is opgegeven als de filters die in de view zijn gedefinieerd zullen worden toegepast.\n\n #### Met `order_by` \n\n Als `order_by` wordt meegegeven dan zal de sortering gedefinieerd in de view worden genegeerd.",
         "filtersBuilder": "Open filters parameter bouwer",
         "filters": "Rijen kunnen optioneel worden gefilterd met dezelfde weergavefilters die beschikbaar zijn voor de weergaven. Deze parameter accepteert een JSON geserialiseerde string met de filterboom die moet worden toegepast op deze weergave. De filterboom is een geneste structuur die de filters bevat die moeten worden toegepast. \\n\\n#### Met `user_field_names`:\\n\\nEen voorbeeld van een geldige filterboom is de volgende: `{'{'}\"filter_type\":\"AND\",\"filters\": [{'{'}\"veld\":\"Naam\",\"type\":\"gelijk\",\"waarde\":\"test\"{'}'}]{'}'}.\\n\\n#### Zonder `user_field_names`:\\n\\nAls je bijvoorbeeld optioneel de volgende GET-parameter opgeeft: `{'{'}{'{'}'filter_type': 'AND', 'filters': [{'{'}{'{'}'veld': 1, 'type': 'equal', 'value': 'test'{'}'}{'}'}{'}'}]{'}'}{'}'}`\\n\\nHoud er rekening mee dat als deze parameter wordt opgegeven, alle andere `filter__{field}__{filter}` worden genegeerd, evenals de filter_type parameter.",
-        "join": "Maakt het mogelijk om een lookup aan te vragen van veldwaarden uit een doeltabel via bestaande linkrijvelden. De parameternaam moet de naam zijn van een bestaand veld in een linkrij, gevolgd door __join. De waarde moet een lijst met veldnamen zijn waarvoor we extra waarden willen opzoeken. Je kunt één of meerdere doelvelden opgeven. Het is niet mogelijk om een waarde van een veld in een linkrij in de doeltabel op te zoeken.\n\n #### Met `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van veldnamen die in de resultaten moeten worden opgenomen. Bijvoorbeeld: Als je de volgende GET-parameter `LinkRowField__join=MyField,MyField2` opgeeft, dan worden de waarden van `MyField` en `My Field2` in de door `LinkRowField` gekoppelde tabel opgenomen in de respons .\n\n#### Zonder `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door het id van het veld dat in de resultaten moet worden opgenomen. Bijvoorbeeld: Als u de volgende GET-parameter `field_1__join=field_2,field_3` opgeeft, dan worden de waarden van `field_2` en `field_3` in de tabel die is gekoppeld door `field_1` opgenomen in de respons."
+        "join": "Maakt het mogelijk om een lookup aan te vragen van veldwaarden uit een doeltabel via bestaande linkrijvelden. De parameternaam moet de naam zijn van een bestaand veld in een linkrij, gevolgd door __join. De waarde moet een lijst met veldnamen zijn waarvoor we extra waarden willen opzoeken. Je kunt één of meerdere doelvelden opgeven. Het is niet mogelijk om een waarde van een veld in een linkrij in de doeltabel op te zoeken.\n\n #### Met `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van veldnamen die in de resultaten moeten worden opgenomen. Bijvoorbeeld: Als je de volgende GET-parameter `LinkRowField__join=MyField,MyField2` opgeeft, dan worden de waarden van `MyField` en `My Field2` in de door `LinkRowField` gekoppelde tabel opgenomen in de respons .\n\n#### Zonder `user_field_names`:\n\n `join` moet een door komma's gescheiden lijst zijn van `field_` gevolgd door het id van het veld dat in de resultaten moet worden opgenomen. Bijvoorbeeld: Als u de volgende GET-parameter `field_1__join=field_2,field_3` opgeeft, dan worden de waarden van `field_2` en `field_3` in de tabel die is gekoppeld door `field_1` opgenomen in de respons.",
+        "test": "`{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}"
     },
     "apiDocsIntro": {
         "intro": "De {name} database biedt een gemakkelijke manier om de gegevens te integreren met elk extern systeem. De API volgt REST semantiek, gebruikt JSON om objecten te coderen, en is gebaseerd op standaard HTTP codes, machineleesbare en door mensen leesbare fouten om operatie-uitkomsten te signaleren.",
@@ -864,7 +865,8 @@
     },
     "viewOwnershipType": {
         "collaborative": "Samenwerkend",
-        "personal": "Persoonlijk"
+        "personal": "Persoonlijk",
+        "collaborativeDescription": "Iedereen kan alle data zien en de eigenschappen veranderen als ze toestemming hebben."
     },
     "gridViewRowsAddContext": {
         "title": "Maak meerdere rijen",
@@ -980,12 +982,15 @@
         "description": "Laat ons weten waar je aan werkt.",
         "databaseNameLabel": "Database naam",
         "scratch": "Uit het niets",
-        "template": "Template"
+        "template": "Template",
+        "databaseNamePrefill": "{name}'s database",
+        "workspaceName": "{name}'s werkruimte"
     },
     "databaseImportStep": {
         "description": "Verplaats je gegevens naar Baserow, in slechts een paar klikken.",
         "tableNameLabel": "Tabel naam",
-        "title": "Importeer je gegevens"
+        "title": "Importeer je gegevens",
+        "tableNamePrefill": "{name}'s tabel"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migreren naar meerstaps datumfilter",
