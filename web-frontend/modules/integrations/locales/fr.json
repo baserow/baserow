@@ -73,7 +73,7 @@
     "localBaserowGetRowForm": {
         "rowFieldLabel": "ID de ligne",
         "invalidFormula": "La formule est invalide",
-        "rowFieldPlaceHolder": "Saisir l'ID d'une ligne",
+        "rowFieldPlaceHolder": "Choisir l'ID d'une ligne",
         "searchFieldPlaceHolder": "Saisissez un terme de recherche...",
         "noTableChosenForFiltering": "Sélectionnez une table pour commencer à utiliser les filtres de source de données.",
         "filterTabTitle": "Filtres",
@@ -124,7 +124,9 @@
         "tableFieldLabel": "Table",
         "chooseNoView": "Non sélectionnée",
         "databaseFieldLabel": "Base de données",
-        "dataSyncedTableDescription": "Table synchronisée"
+        "dataSyncedTableDescription": "Table synchronisée",
+        "oneWayDataSyncedTableDescription": "Synchronisation à sens unique",
+        "twoWayDataSyncedTableDescription": "Synchronisation bidirectionnelle"
     },
     "userSourceType": {
         "localBaserow": "Authentification par table Baserow"
@@ -197,7 +199,7 @@
         "fromEmail": "Adresse email d'émission",
         "fromEmailPlaceholder": "expediteur{'@'}exemple.com",
         "fromName": "Nom d'émission",
-        "fromNamePlaceholder": "Nom",
+        "fromNamePlaceholder": "Votre nom",
         "toEmails": "Adresse mails d'envoi",
         "toEmailsPlaceholder": "destinataire1{'@'}exemple.com,destinataire2{'@'}exemple.com",
         "ccEmails": "Adresses mail CC",
@@ -220,7 +222,7 @@
         "branchesDescription": "Le routeur vous permet de n'exécuter des nœuds que lorsqu'une condition est remplie. Les branches sont exécutées de gauche à droite jusqu'à ce qu'une condition soit remplie, sinon la branche par défaut est exécutée. ",
         "branchLabel": "Libéllé",
         "branchConditionLabel": "Condition",
-        "branchConditionPlaceholder": "Saisir la condition...",
+        "branchConditionPlaceholder": "Si vrai, suivre cette branche.",
         "addEdge": "Ajouter une branche",
         "edgeDefaultName": "Branche",
         "noLabel": "Pas d'étiquette",
@@ -318,5 +320,21 @@
         "messageLabel": "Message",
         "messagePlaceholder": "Saisissez un message...",
         "channelNoPrefix": "Retirer le '#' avant le nom du canal."
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Intégration",
+        "rowIdLabel": "ID de ligne",
+        "rowIdPlaceholder": "Choisissez l'ID d'une ligne"
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderArray": "Choisissez une liste de valeurs, par exemple [42]",
+        "fieldMappingPlaceholderString": "Choisissez une valeur textuelle, par exemple \\\"baserow\\\"",
+        "fieldMappingPlaceholderNumber": "Choisissez une valeur numérique, par exemple 42",
+        "fieldMappingPlaceholderBoolean": "Choisissez une valeur booléenne, par exemple : true",
+        "fieldMappingPlaceholderDate": "Choisissez une date, par exemple 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Choisissez une valeur décimale, par exemple 3.14",
+        "fieldMappingPlaceholderDuration": "Choisissez une durée, par exemple 1:23:40",
+        "noTableSelectedMessage": "Choisissez une table pour commencer à configurer vos champs.",
+        "noWritableFields": "Cette table ne contient pas de champs modifiables."
     }
 }
