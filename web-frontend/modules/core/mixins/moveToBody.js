@@ -23,19 +23,15 @@ export default {
     // to prevent closing when clicking in a child. We also check which parent
     // is first so can correctly move the element.
     while (parent) {
-      if (Object.prototype.hasOwnProperty.call(parent, 'moveToBody')) {
+      if (parent?.$data?.moveToBody) {
         parent.registerMoveToBodyChild(this)
-        if (first === null) {
-          first = parent
-        }
+        if (first === null) first = parent
       }
       // There could be components that need to know which child element have
-      // been moved to the body, but haven't moved to the body themself. If they
+      // been moved to the body, but haven't moved to the body themselves. If they
       // only have a `registerMoveToBodyChild` method, we register this
       // component a there.
-      else if (
-        Object.prototype.hasOwnProperty.call(parent, 'registerMoveToBodyChild')
-      ) {
+      else if (parent && typeof parent.registerMoveToBodyChild === 'function') {
         parent.registerMoveToBodyChild(this)
       }
       parent = parent.$parent
