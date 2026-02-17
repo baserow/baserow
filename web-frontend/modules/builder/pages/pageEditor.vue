@@ -59,12 +59,7 @@ useHead(() => ({
 }))
 
 // Load page data
-const {
-  data: pageData,
-  error: pageError,
-  pending: pagePending,
-  refresh: refreshPage,
-} = await useAsyncData(
+const { data: pageData, error: pageError } = await useAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     // The objects are selected by the middleware
@@ -103,10 +98,14 @@ const {
         mode,
       })
 
+      const sharedPage =
+        await $store.getters['page/getSharedPage'](loadedBuilder)
+
       return {
         workspace: loadedWorkspace,
         builder: loadedBuilder,
         page,
+        sharedPage,
       }
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
@@ -121,21 +120,24 @@ const {
   }
 )
 
+if (pageError.value) {
+  // If we have an error we want to display it.
+  throw pageError.value
+}
+
 const workspace = computed(() => pageData.value?.workspace ?? null)
 const builder = computed(() => pageData.value?.builder ?? null)
 const currentPage = computed(() => pageData.value?.page ?? null)
+const sharedPage = computed(() => pageData.value?.sharedPage ?? null)
 
 // Computed properties
 const dataSources = computed(() => {
+  if (!currentPage.value) return []
   return $store.getters['dataSource/getPageDataSources'](currentPage.value)
 })
 
-const sharedPage = computed(() => {
-  if (!builder.value) return null
-  return $store.getters['page/getSharedPage'](builder.value)
-})
-
 const sharedDataSources = computed(() => {
+  if (!sharedPage.value) return []
   return $store.getters['dataSource/getPageDataSources'](sharedPage.value)
 })
 
