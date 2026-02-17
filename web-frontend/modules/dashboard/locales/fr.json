@@ -1,1 +1,47 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Description"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Edition terminée"
+    },
+    "emptyDashboard": {
+        "title": "Ce tableau de bord n'a aucun widget",
+        "subtitle": "Commencez par en ajouter un.",
+        "addWidget": "Ajouter un widget"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Mode édition"
+    },
+    "createWidgetModal": {
+        "title": "Ajouter un nouveau widget"
+    },
+    "widget": {
+        "fixConfiguration": "Corriger la configuration"
+    },
+    "summaryWidget": {
+        "name": "Résumé"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Aucun élément sélectionné",
+        "message": "Cliquez sur l'un des éléments pour voir les détails."
+    },
+    "widgetSettings": {
+        "title": "Titre",
+        "description": "Description"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Données",
+        "sourceFieldLabel": "Source",
+        "viewFieldLabel": "Vue",
+        "notSelected": "Non sélectionné",
+        "aggregationFieldLabel": "Colonne",
+        "aggregationTypeLabel": "Résumé"
+    },
+    "widgetContext": {
+        "delete": "Supprimer"
+    },
+    "trashType": {
+        "widget": "widget"
+    }
+}
