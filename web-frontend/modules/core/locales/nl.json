@@ -814,7 +814,18 @@
         "share": "Ik wil dit graag delen met het Baserow team",
         "title": "Vertel ons wat meer",
         "roleOrJob": "Rol of functie...",
-        "country": "Land"
+        "country": "Land",
+        "how": "Hoe heb je over ons gehoord?",
+        "howSearchEngine": "Zoekmachine (Google/Bing)",
+        "howSocialMedia": "Social media",
+        "howOnlineAds": "Online advertenties",
+        "howContent": "Content (blog/nieuwsbrief/video)",
+        "howReviewSite": "Reviewsite / marktplaats",
+        "howFriend": "Via een vriend",
+        "howColleague": "Via een collega",
+        "howEvent": "Evenement of webinar",
+        "howSales": "Benadering door sales",
+        "howOther": "Anders"
     },
     "dashboardVerifyEmail": {
         "title": "Controleer je mailbox en klik op de link om je e-mail te verifiëren.",
@@ -1163,7 +1174,9 @@
         "useRegularInput": "Gebruik regelmatige invoer",
         "useAdvancedInput": "Geavanceerde invoer gebruiken",
         "useAdvancedInputModalTitle": "Geavanceerde invoer gebruiken voor dit veld?",
-        "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen."
+        "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen.",
+        "useSimpleInput": "Schakel over naar basismodus",
+        "useSimpleInputModalTitle": "Overstappen naar basismodus?"
     },
     "coreHTTPTriggerServiceForm": {
         "title": "Webhook URL",
@@ -1207,6 +1220,38 @@
         "disabled": "Uitgeschakeld"
     },
     "emailSettings": {
-        "title": "Verander e-mailadres"
+        "title": "Verander e-mailadres",
+        "successTitle": "Bevestigingsmail verstuurd",
+        "successDescription": "We hebben een bevestigingsmail naar je nieuwe adres gestuurd. Check je inbox en klik op de link om de e-mailwijziging af te ronden.",
+        "currentEmailLabel": "Huidig e-mailadres",
+        "newEmailLabel": "Nieuw e-mailadres",
+        "passwordLabel": "Huidig wachtwoord",
+        "submitButton": "Bevestigingsmail versturen",
+        "errorInvalidPasswordTitle": "Ongeldig wachtwoord",
+        "errorInvalidPasswordMessage": "We konden de e-mailwijziging niet aanvragen omdat je wachtwoord onjuist is.",
+        "errorEmailExistsTitle": "E-mailadres bestaat al",
+        "errorEmailExistsMessage": "We konden de e-mailwijziging niet aanvragen omdat er al een account met dit e-mailadres bestaat.",
+        "errorNotAllowedTitle": "E-mailwijziging niet toegestaan",
+        "errorNotAllowedMessage": "Je kunt je e-mailadres niet wijzigen omdat je account single sign-on (SSO) gebruikt."
+    },
+    "changeEmail": {
+        "title": "Bevestig e-mailwijziging",
+        "submit": "Bevestig e-mailwijziging",
+        "changed": "E-mailadres gewijzigd",
+        "message": "Je e-mailadres is succesvol gewijzigd. Je kunt nu inloggen op Baserow met je nieuwe e-mailadres.",
+        "errorInvalidLinkTitle": "Ongeldige link",
+        "errorInvalidLinkMessage": "We konden het e-mailadres niet wijzigen omdat de link ongeldig is.",
+        "errorLinkExpiredTitle": "Link verlopen",
+        "errorLinkExpiredMessage": "De link om je e-mailadres te wijzigen is verlopen. Vraag in je accountinstellingen een nieuwe aan.",
+        "errorEmailExistsTitle": "E-mailadres bestaat al",
+        "errorEmailExistsMessage": "We konden het e-mailadres niet wijzigen omdat er al een account met dit e-mailadres bestaat.",
+        "errorEmailAlreadyChangedTitle": "E-mailadres al gewijzigd",
+        "errorEmailAlreadyChangedMessage": "Het e-mailadres is al gewijzigd naar het aangevraagde adres."
+    },
+    "adminUsers": {
+        "title": "Gebruikers"
+    },
+    "adminWorkspaces": {
+        "title": "Werkruimtes"
     }
 }
