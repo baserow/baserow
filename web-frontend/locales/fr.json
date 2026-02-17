@@ -97,7 +97,8 @@
         "deleteAccount": "Supprimer le compte",
         "emailNotifications": "Notifications par courriel",
         "mcpEndpoint": "Serveur MCP",
-        "twoFactorAuth": "Autorisation à deux facteurs"
+        "twoFactorAuth": "Autorisation à deux facteurs",
+        "email": "Changer courriel"
     },
     "userFileUploadType": {
         "file": "de mon appareil",
@@ -509,7 +510,7 @@
         "yyyy-mm-dd": "aaaa-mm-jj"
     },
     "formulaFunctions": {
-        "upperDescription": "Retourne l'argument en MAJUSCULES.",
+        "upperDescription": "Retourne l'argument en majuscules.",
         "lowerDescription": "Retourne l'argument en minuscules.",
         "concatDescription": "Retourne ses arguments concaténés ensemble en une seule chaîne.",
         "addDescription": "Retourne le résultat de l'addition de ses deux arguments.",
@@ -588,7 +589,7 @@
         "isNullDescription": "Retourne true si l'argument est null, false sinon.",
         "wheNanDescription": "Renvoie le premier argument s'il n'est pas 'NaN'. Renvoie le deuxième argument si le premier argument est 'NaN'",
         "isNanDescription": "Retourne true si l'argument est 'NaN', retourne false sinon.",
-        "nowDescription": "Renvoie la date et l’heure actuelles en UTC.",
+        "nowDescription": "Renvoie la date et l’heure actuelle en UTC.",
         "todayDescription": "Retourne la date actuelle en UTC.",
         "toDateTzDescription": "Renvoie le premier argument converti en date à partir de la chaîne de caractères représentant le format de cette date en deuxième argument et du fuseau horaire fourni en troisième argument.",
         "whenNanDescription": "Renvoie le premier argument s'il n'est pas 'NaN'. Renvoie le second argument si le premier argument est 'NaN'",
@@ -690,7 +691,19 @@
         "categoryNumber": "Nombre",
         "categoryBoolean": "Booléen",
         "categoryDate": "Date",
-        "categoryCondition": "Condition"
+        "categoryCondition": "Condition",
+        "replaceDescription": "Compte tenu du premier argument, remplace toutes les occurrences du deuxième argument par le troisième argument.",
+        "lengthDescription": "Renvoie la longueur de l'argument : le nombre d'éléments dans un tableau, le nombre de caractères dans une chaîne, ou le nombre de clefs dans un objet.",
+        "containsDescription": "Renvoie vrai si le premier argument contient le deuxième argument.",
+        "reverseDescription": "Inverse l'argument. Si l'argument est une chaîne, la chaîne est inversée. Si c'est une liste, l'ordre de liste est inversé.",
+        "joinDescription": "Joins le premier argument en utilisant le deuxième argument optionnel comme séparateur. Si le deuxième argument n'est pas fourni, utilise ',' comme séparateur.",
+        "splitDescription": "Découpe le premier argument en utilisant le deuxième argument optionnel comme séparateur. Si le deuxième argument n'est pas fourni, utilise ' ' comme séparateur.",
+        "isEmptyDescription": "Retourne vrai si l'argument est vide, sinon retourne faux",
+        "stripDescription": "Supprime tout espace finale ou initiale de l'argument",
+        "sumDescription": "Calcule la somme des nombres en argument.",
+        "avgDescription": "Calcule la moyenne des nombres en argument.",
+        "atDescription": "Retourne l'élément du premier argument à l'index spécifié par le deuxième argument.",
+        "toArrayDescription": "Convertit une chaîne délimitée par virgule en une liste de valeurs."
     },
     "formulaInputContext": {
         "useRegularInput": "Utiliser une formule simple",
