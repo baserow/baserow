@@ -393,7 +393,19 @@
         "false": "faux"
     },
     "generateAIValuesModal": {
-        "title": "Générer toutes les valeurs IA"
+        "title": "Générer toutes les valeurs IA",
+        "noPreviousJobs": "Aucune tâche",
+        "started": "Démarré",
+        "finished": "Terminé",
+        "running": "En cours",
+        "failed": "Échec",
+        "cancelled": "Annulé",
+        "pending": "En attente",
+        "view": "Vue : {name}",
+        "table": "Table : toutes les lignes",
+        "deletedView": "Vue : ID {viewId} (supprimé)",
+        "rows": "Lignes : {count} lignes",
+        "autoUpdate": "Mise à jour automatique : modification des champs référencés"
     },
     "generateAIValuesForm": {
         "scopeLabel": "Champ d ' application",
@@ -408,5 +420,9 @@
     },
     "jobType": {
         "generateAIValues": "Régénérer les valeurs du champ"
+    },
+    "viewOwnershipType": {
+        "personal": "Personnelle",
+        "personalDescription": "Vous êtes le seul à voir cette Vue."
     }
 }
