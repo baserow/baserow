@@ -1,6 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
-import { useRouter, useRuntimeConfig } from '#imports'
+import { useRuntimeConfig } from '#imports'
 
 export class RealTimeHandler {
   constructor(context) {

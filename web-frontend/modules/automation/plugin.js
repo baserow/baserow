@@ -45,6 +45,7 @@ import {
 } from '@baserow/modules/automation/dataProviderTypes'
 
 export default defineNuxtPlugin({
+  name: 'automation',
   dependsOn: ['core', 'store'],
   setup(nuxtApp) {
     const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
