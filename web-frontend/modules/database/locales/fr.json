@@ -28,7 +28,7 @@
             "example": "Example de requête"
         },
         "errors": {
-            "urlField": "Doit être une URL commençant par « https:// » ou « http:// ».",
+            "urlField": "Doit être une URL valide commençant par « https:// » ou « http:// ».",
             "invalidHeaders": "Un des entête est invalide."
         },
         "checkbox": {
@@ -151,10 +151,11 @@
         "filterType": "- `AND` : indique que les lignes doivent satisfaire tous les filtres définis.\n- `OR` : indique que les lignes doivent satisfaire au moins l'un des filtres définis pour être retournées.\n\n Cela fonctionne uniquement quand au moins 2 filtres sont définis.",
         "include": "Par défaut, tous les champs de la table sont retournés. Vous pouvez définir le sous ensemble des champs qui seront dans les résultats en fournissant une valeur pour ce paramètre.\n\n#### Avec `user_field_names` :\n\n`include` doit être une liste des noms définis par l'utilisateur des champs que vous souhaitez conserver, séparés par une virgule. Par exemple, si vous fournissez la valeur suivante `include=Mon champ,-Mon champ 2` alors seul ces champs seront retournés dans les résultats (sauf si vous les avez explicitement exclus avec le paramètre suivant).\n\nLe nom des champs contenant des virgules doit être entouré par des guillemets : `\"Nom ,\"`. Si le nom des champs contient des guillemets, ceux-ci doivent être protégés en utilisant le caractère `\\`. Ex : `Nom \\\"`.\n\n#### Sans `user_field_names` :\n\n`include` doit être une liste de `field_` suivis par l'identifiant d'un champ à inclure dans le résultat, séparé par des virgules. Par exemple, si vous fournissez la valeur suivante `include=field_1,field_2` alors les champs d'identifiant `1` et `2` seront les champs présents dans le résultat (sauf si vous les avez explicitement exclus avec le paramètre suivant).",
         "exclude": "Par défaut, tous les champs de la table sont retournés dans les résultats. Vous pouvez choisir un sous ensemble de champs qui seront exclus des résultats en définissant une valeur pour ce paramètre.\n\n#### Avec `user_field_names` :\n\n`exclude` doit être une liste des noms définis par l'utilisateur des champs que vous souhaitez exclure, séparés par une virgule. Par exemple, si vous fournissez la valeur suivante : `exclude=Mon champ,-Mon champ 2` alors ces deux champs seront exclus des résultats.\n\nLe nom des champs contenant des virgules doit être entouré par des guillemets : `\"Nom ,\"`. Si le nom des champs contient des guillemets, ceux-ci doivent être protégés en utilisant le caractère `\\`. Ex : `Nom \\\"`.\n\n#### Sans `user_field_names` :\n\n`exclude` doit être une liste de `field_` suivis par l'identifiant d'un champ à exclure du résultat, séparé par des virgules. Par exemple, si vous fournissez la valeur suivante : `exclude=field_1,field_2` alors les champs avec l'identifiant `1` et `2` seront exclus.",
-        "viewId": "Par défaut, aucun des filtres et tris autres que ceux définis dans les paramètres de la requête ne sont appliqués. Vous pouvez définir les filtres et les tris d'une vue en fournissant son `id` dans le paramètre GET `view_id`. Par exemple, si vous fournissez le paramètre GET suivant `view_id=1`, les filtres et les tris définis dans la vue avec l'id `1` seront appliqués. Vous pouvez trouver le `view_id` dans le menu contextuel d'une vue donnée. Il s'agit du nombre entre parenthèses derrière le nom de la vue. \n\n #### Avec `filter__{field}__{filter}` \n\n Le filtre fourni dans le paramètre de la requête et les filtres définis dans la vue seront appliqués.\n\n #### Avec `order_by` \n\n Si `order_by` est fourni, le tri défini dans la vue sera ignoré.",
+        "viewId": "Par défaut, aucun des filtres et tris autres que ceux définis dans les paramètres de la requête ne sont appliqués. Vous pouvez définir les filtres et les tris d'une vue en fournissant son `id` dans le paramètre GET `view_id`. Par exemple, si vous fournissez le paramètre GET suivant `view_id=1`, les filtres et les tris définis dans la vue avec l'id `1` seront appliqués. Vous pouvez trouver le `view_id` dans le menu contextuel d'une vue donnée. Il s'agit du nombre entre parenthèses derrière le nom de la vue. \n\n #### Avec `filter__{'{'}field{'}'}__{'{'}filter{'}'}` \n\n Le filtre fourni dans le paramètre de la requête et les filtres définis dans la vue seront appliqués.\n\n #### Avec `order_by` \n\n Si `order_by` est fourni, le tri défini dans la vue sera ignoré.",
         "filtersBuilder": "Ouvrir le générateur de filtres",
-        "filters": "Les lignes peuvent être filtrées en utilisant les mêmes filtres que ceux disponibles pour les vues. Ce paramètre accepte une chaîne sérialisée en JSON contenant l'arbre de filtre à appliquer pour cette vue. L'arbre de filtre est une structure imbriquée contenant les filtres qui doivent être appliqués.\\n\\n#### Avec `user_field_names` :\\n\\nUn exemple d'arbre de filtre valide est le suivant : `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\\n\\n#### Sans `user_field_names` :\\n\\nPar exemple, si vous fournissez le paramètre GET suivant : `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\\n\\nVeuillez noter que si ce paramètre est fourni, tous les autres `filter__{'{'}field{'}'}__{'{'}filter{'}'}` seront ignorés, ainsi que le paramètre `filter_type`.",
-        "join": "Permet de consulter les valeurs des champs d'une table liée par l'intermédiaire des champs de lien de la table courante. Le nom du paramètre doit être le nom d'un champ de lien existant, suivi de `__join`. La valeur doit être une liste de noms de champs pour lesquels vous souhaiter inclure les valeurs. Vous pouvez fournir un ou plusieurs champs cibles. Il n'est pas possible de rechercher la valeur d'un champ de lien dans la table liée.\n\n #### Avec `user_field_names` :\n\n `join` doit être une liste de noms de champs séparés par des virgules à inclure dans les résultats. Par exemple, si vous fournissez le paramètre GET suivant `LinkRowField__join=MyField,MyField2`, les valeurs de `MyField` et `My Field2` dans la table liée par `LinkRowField` seront incluses dans la réponse.\n\n#### Sans `user_field_names` :\n\n `join` doit être une liste de `field_` séparés par des virgules, suivi de l'identifiant du champ à inclure dans les résultats. Par exemple, si vous fournissez le paramètre GET suivant `field_1__join=field_2,field_3` alors les valeurs de `field_2` et `field_3` dans la table liée par `field_1` seront incluses dans la réponse."
+        "filters": "Les lignes peuvent être filtrées en utilisant les mêmes filtres que ceux disponibles pour les vues. Ce paramètre accepte une chaîne sérialisée en JSON contenant l'arbre de filtre à appliquer pour cette vue. L'arbre de filtre est une structure imbriquée contenant les filtres qui doivent être appliqués.\n\n#### Avec `user_field_names` :\n\nUn exemple d'arbre de filtre valide est le suivant : `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": \\\"Name\\\", \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`.\n\n#### Sans `user_field_names` :\\n\\nPar exemple, si vous fournissez le paramètre GET suivant : `{'{'}\\\"filter_type\\\": \\\"AND\\\", \\\"filters\\\": [{'{'}\\\"field\\\": 1, \\\"type\\\": \\\"equal\\\", \\\"value\\\": \\\"test\\\"{'}'}]{'}'}`\n\nVeuillez noter que si ce paramètre est fourni, tous les autres `filter__{'{'}field{'}'}__{'{'}filter{'}'}` seront ignorés, ainsi que le paramètre `filter_type`.",
+        "join": "Permet de consulter les valeurs des champs d'une table liée par l'intermédiaire des champs de lien de la table courante. Le nom du paramètre doit être le nom d'un champ de lien existant, suivi de `__join`. La valeur doit être une liste de noms de champs pour lesquels vous souhaiter inclure les valeurs. Vous pouvez fournir un ou plusieurs champs cibles. Il n'est pas possible de rechercher la valeur d'un champ de lien dans la table liée.\n\n #### Avec `user_field_names` :\n\n `join` doit être une liste de noms de champs séparés par des virgules à inclure dans les résultats. Par exemple, si vous fournissez le paramètre GET suivant `LinkRowField__join=MyField,MyField2`, les valeurs de `MyField` et `My Field2` dans la table liée par `LinkRowField` seront incluses dans la réponse.\n\n#### Sans `user_field_names` :\n\n `join` doit être une liste de `field_` séparés par des virgules, suivi de l'identifiant du champ à inclure dans les résultats. Par exemple, si vous fournissez le paramètre GET suivant `field_1__join=field_2,field_3` alors les valeurs de `field_2` et `field_3` dans la table liée par `field_1` seront incluses dans la réponse.",
+        "test": "`{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}"
     },
     "apiDocsIntro": {
         "intro": "L'API de la base {name} offre un moyen simple d'intégrer des données provenant d'un système externe. L'API suit les principes d'architecture REST, utilise le format JSON pour encoder les données, s'appuie sur les codes HTTP standards et propose des messages d'erreurs à la fois techniques mais également lisibles par les humains pour signaler les dysfonctionnements.",
@@ -517,7 +518,7 @@
     },
     "viewForm": {
         "name": "Nom",
-        "whoCanEdit": "Qui peut modifier"
+        "whoCanEdit": "Qui peut modifier cette vue ?"
     },
     "galleryViewHeader": {
         "customizeCards": "Configurer les cartes"
@@ -868,7 +869,8 @@
     },
     "viewOwnershipType": {
         "collaborative": "Collaboratif",
-        "personal": "Personnel"
+        "personal": "Personnel",
+        "collaborativeDescription": "Tout le monde peut voir toutes les données et changer les colonnes si elles ou ils en ont les permissions."
     },
     "fieldRollupSubForm": {
         "label": "Fonction de cumul",
@@ -976,7 +978,8 @@
     "databaseImportStep": {
         "title": "Importez vos données",
         "description": "Transférez vos données vers Baserow en quelques clics.",
-        "tableNameLabel": "Nom de la table"
+        "tableNameLabel": "Nom de la table",
+        "tableNamePrefill": "Table de {name}"
     },
     "databaseStep": {
         "title": "Créez votre première base de données",
@@ -985,7 +988,9 @@
         "databaseNameLabel": "Nom de la base de données",
         "import": "À partir d'un fichier",
         "airtable": "À partir d'Airtable",
-        "template": "À partir d'un modèle"
+        "template": "À partir d'un modèle",
+        "databaseNamePrefill": "Base de données de {name}",
+        "workspaceName": "Projet de {name}"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrer vers un filtre de date riche",
