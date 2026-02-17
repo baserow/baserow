@@ -1,0 +1,113 @@
+.workflow-history__divider {
+  height: 1px;
+  width: 100%;
+  background-color: $palette-neutral-200;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.workflow-history__header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  color: $palette-neutral-600;
+  user-select: none;
+}
+
+.workflow-history__header-title {
+  color: $color-neutral-900;
+  font-size: 12px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.workflow-history__header-date {
+  font-size: 11px;
+}
+
+.workflow-history__node-histories {
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-history__node-history {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  align-items: start;
+  margin-top: 12px;
+  margin-left: 24px;
+}
+
+.workflow-history__node-history-icon {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  padding-top: 3px;
+}
+
+.workflow-history__node-history-info {
+  display: flex;
+  align-items: start;
+  flex-direction: column;
+  flex: 1;
+}
+
+.workflow-history__node-history-info-type {
+  display: flex;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+
+  &-error {
+    color: $palette-red-800;
+  }
+}
+
+.workflow-history__node-history-badge {
+  text-align: right;
+  font-weight: 500;
+  color: $palette-neutral-900;
+}
+
+.workflow-history__node-history-error {
+  display: flex;
+  flex-direction: column;
+  margin-left: 48px;
+}
+
+.workflow-history__node-history-error-info {
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.workflow-history__node-history-error-expand {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 6px;
+
+  &-label {
+    font-weight: 500;
+    font-size: 10px;
+    line-height: 12px;
+    color: $palette-neutral-1200;
+  }
+}
+
+.workflow-history__node-history-error-expanded {
+  margin-top: 5px;
+  border-radius: 6px;
+  padding: 10px;
+  background: $palette-neutral-50;
+  font-size: 11px;
+  line-height: 16px;
+  color: $palette-neutral-900;
+}

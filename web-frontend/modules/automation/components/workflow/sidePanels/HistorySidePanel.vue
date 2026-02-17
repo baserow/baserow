@@ -21,7 +21,29 @@
         <Icon icon="iconoir-cancel" type="secondary" />
       </a>
     </div>
-    <HistorySection
+
+    <div class="history-side-panel__divider"></div>
+
+    <div class="history-side-panel__counts">
+      <div class="history-side-panel__counts-runs">
+        <div class="history-side-panel__counts-runs-label">
+          {{ $t('historySidePanel.successfulRuns') }}
+        </div>
+        <div class="history-side-panel__counts-runs-total">
+          {{ history.success_count }}
+        </div>
+      </div>
+      <div class="history-side-panel__counts-runs">
+        <div class="history-side-panel__counts-runs-label">
+          {{ $t('historySidePanel.failedRuns') }}
+        </div>
+        <div class="history-side-panel__counts-runs-total">
+          {{ history.fail_count }}
+        </div>
+      </div>
+    </div>
+
+    <WorkflowHistory
       v-for="item in workflowHistoryItems"
       :key="item.id"
       :item="item"
@@ -31,14 +53,16 @@
 
 <script setup>
 import { useStore } from 'vuex'
-import HistorySection from '@baserow/modules/automation/components/workflow/sidePanels/HistorySection'
+import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory'
 const store = useStore()
 
 const workflow = inject('workflow')
+const history = computed(() => {
+  return store.getters['automationHistory/getWorkflowHistory']()
+})
 
 const workflowHistoryItems = computed(() => {
-  const history = store.getters['automationHistory/getWorkflowHistory']()
-  return history?.results || []
+  return history.value?.results || []
 })
 
 const refreshData = () => {

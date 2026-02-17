@@ -106,11 +106,18 @@
     "statusStarted": "In progress...",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
+    "statusSuccessBadge": "Completed",
+    "statusErrorBadge": "Failed",
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
     "running": "Running for {at}s",
-    "testRun": "Test"
+    "successfulRuns": "Successful runs",
+    "failedRuns": "Failed runs",
+    "errorHideDetails": "Hide details",
+    "errorShowDetails": "Show details",
+    "runNumber": "Run {n}",
+    "runCount": "{n} runs"
   },
   "nodeType": {
     "triggerDeletionError": "Triggers cannot be deleted, only replaced.",

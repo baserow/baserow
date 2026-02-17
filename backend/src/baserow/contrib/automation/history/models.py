@@ -59,6 +59,7 @@ class AutomationWorkflowHistory(AutomationHistory):
 
 
 class AutomationNodeHistory(AutomationHistory):
+    # TODO: Should this be a 1-1 relation?
     workflow_history = models.ForeignKey(
         "automation.AutomationWorkflowHistory",
         on_delete=models.CASCADE,
@@ -71,6 +72,7 @@ class AutomationNodeHistory(AutomationHistory):
     )
 
     class Meta(AutomationHistory.Meta):
+        ordering = ("started_on",)
         indexes = [
             models.Index(fields=["workflow_history", "node"]),
         ]
