@@ -1,1 +1,205 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Scénario"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "Bienvenue sur les Automatisations de Baserow !",
+        "content": "Faisons une découverte rapide. Vous allez voir comment configurer des déclencheurs, ajouter des actions, tester votre scénario et le publier, sans avoir besoin de coder."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Gérez votre scénario dans cette zone",
+        "content": "Créez ici un déclencheur et des actions pour définir ce que le scénario doit faire. Sélectionnez un déclencheur ou une action pour la configurer dans le panneau latéral."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Testez votre scénario",
+        "content": "Quand vous êtes prêt, déclenchez un test pour voir votre scénario en action. Le déclencheur va fonctionner une seule fois pour simuler une exécution complète."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Voir l'historique du scénario",
+        "content": "Utilisez le volet d'historique pour examiner les tests passés et les exécutions publiées. C'est une bonne façon de déboguer ou de confirmer le bon fonctionnement."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Publiez votre scénario",
+        "content": "Une fois que vous avez testé et affiné votre configuration, publiez votre scénario pour le rendre actif. Son déclencheur va maintenant se déclencher dès que les conditions le pemettrons."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "État du scénario",
+        "content": "Avec ce bouton, vous pouvez choisir de mettre en pause ou redémarrer votre scénario à tout moment."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Explorer la documentation",
+        "content": "Si vous vous voulez en savoir plus, cliquez sur ce bouton pour consulter les guides détaillés et les FAQs sur les Automatisations dans Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Nouveau scénario"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Créer un scénario",
+        "submit": "Ajouter un scénario"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Scénario",
+        "nameTitle": "Nom",
+        "nameSubtitle": "Nom unique du scénario",
+        "namePlaceholder": "Saisir un nom..."
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Dupliquer le scénario",
+        "duplicating": "Duplication en cours",
+        "duplicatedTitle": "Scénario dupliqué"
+    },
+    "automationWorkflowErrors": {
+        "errorNameNotUnique": "Un scénario avec ce nom existe déjà",
+        "errorNameNotUniqueDescription": "Veuillez saisir un nom unique pour le scénario"
+    },
+    "trashType": {
+        "workflow": "scénario",
+        "automation": "automatisation"
+    },
+    "generalSettings": {
+        "titleOverview": "Général",
+        "nameLabel": "Nom de l'automatisation",
+        "notificationLabel": "Notifications",
+        "notificationCheckboxLabel": "Être notifié quand ces automatisations échouent",
+        "cantUpdateAutomationTitle": "Impossible de mettre à jour l'automatisation",
+        "cantUpdateAutomationDescription": "Désolé, la mise à jour de l'automatisation a échouée."
+    },
+    "integrationSettings": {
+        "title": "Intégrations",
+        "noIntegrationMessage": "Vous n'avez pas encore créé d'intégrations. Elles peuvent être créés lors de l'ajout d'une source de données, d'une action ou d'une authentification utilisateur.",
+        "integrationMessage": "Vous pouvez créer de nouvelles intégrations en ajoutant une source de données, une action ou une authentification utilisateur."
+    },
+    "automationHeader": {
+        "startTestRun": "Lancer un test",
+        "stopTestRun": "Annuler le test",
+        "publishBtn": "Publier",
+        "settingsBtn": "Paramètres",
+        "historyBtn": "Historique",
+        "docsBtn": "Docs",
+        "switchLabelDraft": "Brouillon",
+        "switchLabelDisabled": "Désactivé",
+        "switchLabelPaused": "En pause",
+        "switchLabelLive": "Actif",
+        "lastPublished": "Dernière publication"
+    },
+    "dataProviderType": {
+        "currentIteration": "Itération actuelle",
+        "item": "Ligne",
+        "previousNode": "Noeud précédent"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Libéllé"
+    },
+    "historySidePanel": {
+        "title": "Historique",
+        "noRunsTitle": "Aucune exécution",
+        "noRunsDescription": "Lorsque ce scénario s'exécutera, les résultats seront affichés ici.",
+        "statusSuccess": "Terminé avec succès",
+        "statusError": "Échec de l’exécution",
+        "statusDisabled": "Désactivé par Baserow",
+        "completedInSeconds": "Complété en {s} secondes.",
+        "completedInLessThanSecond": "Complété en moins d'une seconde.",
+        "testRun": "Essai"
+    },
+    "nodeType": {
+        "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
+        "localBaserowRowsCreatedLabel": "Des lignes sont créées dans {tableName}",
+        "localBaserowRowsUpdatedLabel": "Des lignes sont mises à jour dans {tableName}",
+        "localBaserowRowsDeletedLabel": "Des lignes sont supprimées dans {tableName}",
+        "localBaserowCreateRowLabel": "Créer une ligne dans {tableName}",
+        "localBaserowUpdateRowLabel": "Modifier une ligne dans {tableName}",
+        "localBaserowDeleteRowLabel": "Supprimer une ligne dans {tableName}",
+        "localBaserowGetRowLabel": "Lire une ligne dans {tableName}",
+        "localBaserowListRowsLabel": "Lister les lignes de {tableName}",
+        "localBaserowAggregateRowsLabel": "Résumer les lignes dans {tableName}",
+        "httpRequestLabel": "Envoyer une requête HTTP",
+        "smtpEmailLabel": "Envoyer un courriel",
+        "routerLabel": "Suivre 1 des {edgeCount} branches",
+        "iterationLabel": "Itérer sur les lignes",
+        "routerDefaultEdgeLabelFallback": "Par défaut",
+        "routerWithOutputNodesDeleteError": "Ne peut être supprimé que si ses {outputCount} nœuds de sortie sont supprimés.",
+        "routerWithOutputNodesReplaceError": "Ne peut être remplacé quequand ses {outputCount} nœuds de sortie sont supprimés.",
+        "iteratorWithChildrenNodesDeleteError": "Ne peut être supprimé qui si ses noeuds enfants sont supprimés.",
+        "iteratorWithChildrenNodesReplaceError": "Ne peut être remplacé que si ses nœuds enfants sont supprimés.",
+        "periodicTriggerLabel": "Déclencheur périodique",
+        "aiAgent": "Prompt IA",
+        "slackWriteMessageName": "Envoyer un message Slack",
+        "slackWriteMessageLabel": "Envoyer un message à #{channel}"
+    },
+    "workflowNode": {
+        "actionDelete": "Supprimer",
+        "actionReplace": "Remplacer",
+        "actionDuplicate": "Dupliquer",
+        "actionConfigure": "Configurer",
+        "beforeLabelTrigger": "S’exécute quand",
+        "beforeLabelAction": "Ensuite",
+        "beforeLabelCondition": "Si la condition est satisfaite",
+        "beforeLabelConditionDefault": "Si aucune condition n'est satisfaite",
+        "beforeLabelRepeat": "Pour chaque ligne",
+        "moreEdit": "Modifier",
+        "moreReplace": "Remplacer",
+        "nodeOptions": "Options du nœud",
+        "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "Dupliquer"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Créer un nœud de scénario"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Cherchez un déclencheur...",
+        "searchPlaceholderActions": "Rechercher une action...",
+        "noResults": "Aucun résultat"
+    },
+    "serviceType": {
+        "periodicTrigger": "Déclencheur périodique",
+        "periodicTriggerDescription": "Déclenche le scénario à des intervalles déterminés",
+        "periodicTriggerTriggeredAt": "Déclenché à",
+        "errorIntervalMissing": "Un intervalle est requis.",
+        "coreHTTPTrigger": "Déclencheur HTTP",
+        "coreHTTPTriggerDescription": "Déclenche un scénario quand une requête HTTP est reçue"
+    },
+    "periodicTriggerServiceForm": {
+        "intervalLabel": "Intervale",
+        "intervalHelper": "Choisissez la fréquence d'exécution du scénario",
+        "everyMinute": "Toutes les minutes",
+        "everyHour": "Toutes les heures",
+        "everyDay": "Tous les jours",
+        "everyWeek": "Toutes les semaines",
+        "everyMonth": "Tous les mois",
+        "hour": "Heure",
+        "minute": "Minute",
+        "dayOfWeek": "Jour de la semaine",
+        "dayOfMonth": "Jour du mois",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Ce scénario s'exécutera toutes les minutes",
+        "hourHelper": "Ce scénario s’exécutera toutes les heures à la minute spécifiée dans votre fuseau horaire local ({timezone})",
+        "dayHelper": "Ce scénario s’exécutera tous les jours à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
+        "weekHelper": "Ce scénario s’exécutera toutes les semaines au jour et à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
+        "monthHelper": "Ce scénario s’exécutera tous les mois au jour et à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
+        "deactivatedTitle": "Déclencheur périodique désactivé",
+        "deactivatedText": "Ce déclencheur périodique a été automatiquement désactivé en raison de défaillances consécutives."
+    },
+    "workflowEditor": {
+        "chooseEvent": "Choisissez un déclencheur..."
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "Résultat",
+        "triggerNodeAwaitingEvent": "Le nœud attend. Veuillez déclencher manuellement l'événement pour terminer le test.",
+        "simulationInProgress": "Test du nœud en cours...",
+        "errorNodeNotConfigured": "Le nœud doit être configuré avant qu'il puisse être testé.",
+        "errorPreviousNodeNotConfigured": "Le nœud précédent « {node} » doit être configuré.",
+        "errorPreviousNodesNotTested": "Le nœud précédent « {node} » doit être testé préallablement.",
+        "buttonLabelTest": "Tester le déclencheur",
+        "buttonLabelTestAgain": "Tester à nouveau",
+        "testNodeDescription": "Tester ce déclencheur pour confirmer que la configuration est correcte. Les données de ce test peuvent être utilisées par les nœuds suivants.",
+        "buttonLabelShowPayload": "Voir le résultat",
+        "buttonLabelShowError": "Voir l'erreur",
+        "sampleDataModalTitle": "Résultat de {nodeLabel}",
+        "sampleDataModalSubTitle": "Résultat JSON",
+        "sampleDataCopy": "Copier",
+        "errorOccurred": "Une erreur s'est produite...",
+        "sampleDataCopied": "Résultat copié"
+    }
+}
