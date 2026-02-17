@@ -393,7 +393,19 @@
         "false": "onwaar"
     },
     "generateAIValuesModal": {
-        "title": "Genereer alle AI-waarden"
+        "title": "Genereer alle AI-waarden",
+        "noPreviousJobs": "Geen eerdere taken",
+        "started": "Gestart",
+        "finished": "Voltooid",
+        "running": "Bezig",
+        "failed": "Mislukt",
+        "cancelled": "Geannuleerd",
+        "pending": "In afwachting",
+        "view": "Weergave: {name}",
+        "table": "Tabel: Alle rijen",
+        "deletedView": "Weergave: ID {viewId} (verwijderd)",
+        "rows": "Rijen: {count} rijen",
+        "autoUpdate": "Automatisch bijwerken: verwezen velden gewijzigd"
     },
     "generateAIValuesForm": {
         "scopeLabel": "Scope",
@@ -408,5 +420,9 @@
     },
     "jobType": {
         "generateAIValues": "AI-veldwaarden opnieuw genereren"
+    },
+    "viewOwnershipType": {
+        "personal": "Persoonlijk",
+        "personalDescription": "Alleen jij kunt de weergave zien."
     }
 }
