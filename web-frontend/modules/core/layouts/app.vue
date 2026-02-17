@@ -142,7 +142,7 @@ function keyDown(event) {
 
     if (!avoid) {
       const actionName = event.shiftKey ? 'undoRedo/redo' : 'undoRedo/undo'
-      store.dispatch(actionName, { showLoadingToast: false }).catch(notifyIf)
+      store.dispatch(actionName, { showLoadingToast: true }).catch(notifyIf)
       event.preventDefault()
     }
   }
