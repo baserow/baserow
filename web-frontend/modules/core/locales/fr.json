@@ -602,11 +602,11 @@
     },
     "connectingToast": {
         "title": "Reconnexion",
-        "content": "Reconnexion au serveur."
+        "content": "Rétablissement de la connexion instantanée..."
     },
     "failedConnectingToast": {
         "title": "Échec",
-        "content": "La connexion avec le serveur a été interrompue. Merci de rafraîchir la page.",
+        "content": "La connexion instantanée avec le serveur a été interrompue. Merci de rafraîchir la page pour continuer.",
         "action": "Actualiser la page"
     },
     "authorizationErrorToast": {
@@ -816,7 +816,18 @@
         "roleOrJob": "Rôle ou titre du poste...",
         "people": "Combien de personnes composent votre équipe ?",
         "share": "Je suis d'accord pour partager ceci avec l'équipe de Baserow",
-        "country": "Pays"
+        "country": "Pays",
+        "how": "Comment avez-vous entendu parler de nous ?",
+        "howSearchEngine": "Moteur de recherche (Google/Bing)",
+        "howSocialMedia": "Médias sociaux",
+        "howOnlineAds": "Annonces en ligne",
+        "howContent": "Contenu (blog/newsletter/video)",
+        "howReviewSite": "Site spécialisé / marketplace",
+        "howFriend": "D'un ami",
+        "howColleague": "D'un collègue",
+        "howEvent": "Événement ou webinaire",
+        "howSales": "Lors d'une promotion",
+        "howOther": "Autre"
     },
     "teamStep": {
         "marketingTeam": "Marketing",
@@ -1096,7 +1107,8 @@
             "rows": "Lignes"
         },
         "noResults": "Aucun résultat trouvé",
-        "noResultsSubtitle": "Aucun résultat correspondant à \"{searchTerm}\""
+        "noResultsSubtitle": "Aucun résultat correspondant à \"{searchTerm}\"",
+        "empty": "(vide)"
     },
     "action": {
         "cancel": "Annuler",
@@ -1155,9 +1167,11 @@
         "search": "Recherche",
         "useRegularInputModalTitle": "Utiliser une formule simple ?",
         "useRegularInput": "Utiliser une formule simple",
-        "useAdvancedInput": "Utiliser la saisie avancée",
-        "useAdvancedInputModalTitle": "Utiliser la saisie avancée pour ce champ ?",
-        "modalMessage": "Le contenu de votre champ sera effacé et il ne sera pas possible de le récupérer."
+        "useAdvancedInput": "Utiliser le mode expert",
+        "useAdvancedInputModalTitle": "Utiliser le mode expert ?",
+        "modalMessage": "Le passage à un mode différent supprimera la formule actuelle. Êtes-vous sûr­·e de vouloir continuer ?",
+        "useSimpleInput": "Retourner en Mode basique",
+        "useSimpleInputModalTitle": "Retourner en mode basique ?"
     },
     "twoFactorAuthSettings": {
         "title": "Authentification à deux facteurs",
@@ -1203,5 +1217,40 @@
     "twoFactorAuthField": {
         "enabled": "Activé",
         "disabled": "Désactivé"
+    },
+    "emailSettings": {
+        "title": "Modifier l'adresse courriel",
+        "successTitle": "Courriel de confirmation envoyé",
+        "successDescription": "Nous avons envoyé un courriel de confirmation à votre nouvelle adresse. Veuillez vérifier votre boîte de réception et cliquer sur le lien pour compléter le changement d'adresse.",
+        "currentEmailLabel": "Adresse courriel actuelle",
+        "newEmailLabel": "Nouvelle adresse courriel",
+        "passwordLabel": "Mot de passe actuel",
+        "submitButton": "Envoyer le courriel de confirmation",
+        "errorInvalidPasswordTitle": "Mot de passe invalide",
+        "errorInvalidPasswordMessage": "Vous ne pouvez pas demander de changement d'adresse courriel car votre mot de passe est incorrect.",
+        "errorEmailExistsTitle": "Courriel existant",
+        "errorEmailExistsMessage": "Il n'est pas possible de demander le changement d'adresse courriel parce qu'un compte avec cette adresse existe déjà.",
+        "errorNotAllowedTitle": "Changement de courriel non autorisé",
+        "errorNotAllowedMessage": "Vous ne pouvez pas modifier votre adresse courriel car votre compte utilise une authentification unique (SSO)."
+    },
+    "changeEmail": {
+        "title": "Confirmer le changement de courriel",
+        "submit": "Confirmer le changement",
+        "changed": "Adresse courriel modifiée",
+        "message": "Votre adresse courriel a été modifiée avec succès. Vous pouvez maintenant vous connecter à Baserow en utilisant votre nouvelle adresse.",
+        "errorInvalidLinkTitle": "Lien invalide",
+        "errorInvalidLinkMessage": "Impossible de changer l'adresse courriel car le lien est invalide.",
+        "errorLinkExpiredTitle": "Lien expiré",
+        "errorLinkExpiredMessage": "Le lien de changement de courriel a expiré. Veuillez en générer un nouveau dans les paramètres de votre compte.",
+        "errorEmailExistsTitle": "Le courriel existe déjà",
+        "errorEmailExistsMessage": "Impossible de changer l'adresse courriel car un compte avec cette adresse existe déjâ.",
+        "errorEmailAlreadyChangedTitle": "Courriel déjà changé",
+        "errorEmailAlreadyChangedMessage": "L'adresse courriel a déjà été remplacée par l'adresse demandée."
+    },
+    "adminUsers": {
+        "title": "Utilisateurs"
+    },
+    "adminWorkspaces": {
+        "title": "Projets"
     }
 }
