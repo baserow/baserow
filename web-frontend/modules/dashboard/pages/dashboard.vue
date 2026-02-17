@@ -35,24 +35,11 @@ const {
 } = await useAsyncData(
   `dashboard-data-${route.params.dashboardId}`,
   async () => {
-    const dashboardId = parseInt(route.params.dashboardId)
-
-    try {
-      const dashboard = await store.dispatch(
-        'application/selectById',
-        dashboardId
-      )
-      const workspace = await store.dispatch(
-        'workspace/selectById',
-        dashboard.workspace.id
-      )
-
-      return {
-        workspace,
-        dashboard,
-      }
-    } catch (e) {
-      throw createError({ statusCode: 404, message: 'Dashboard not found.' })
+    const dashboard = store.getters['application/getSelected']
+    const workspace = store.getters['workspace/getSelected']
+    return {
+      workspace,
+      dashboard,
     }
   }
 )
