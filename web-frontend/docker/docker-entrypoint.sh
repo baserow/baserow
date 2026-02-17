@@ -104,6 +104,12 @@ case "$1" in
       yarn storybook &
       attachable_exec_retry yarn dev
     ;;
+    storybook-dev)
+      startup_plugin_setup
+      setup_additional_modules
+      # Retry the command over and over to work around heap crash.
+      attachable_exec_retry yarn storybook
+    ;;
     lint)
       exec yarn lint
     ;;
