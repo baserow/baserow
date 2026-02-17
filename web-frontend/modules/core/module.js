@@ -19,7 +19,6 @@ import { locales } from '../../config/locales.js'
 
 const require = createRequire(import.meta.url)
 
-const langDir = '../../locales'
 export default defineNuxtModule({
   meta: {
     // Usually the npm package name of your module
