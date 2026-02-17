@@ -97,7 +97,8 @@
         "deleteAccount": "Account verwijderen",
         "emailNotifications": "E-mail notificaties",
         "mcpEndpoint": "MCP server",
-        "twoFactorAuth": "Tweefactorauth"
+        "twoFactorAuth": "Tweefactorauth",
+        "email": "E-mailadres wijzigen"
     },
     "userFileUploadType": {
         "file": "mijn apparaat",
@@ -690,7 +691,19 @@
         "categoryNumber": "Nummer",
         "categoryBoolean": "Boolean",
         "categoryDate": "Datum",
-        "categoryCondition": "Voorwaarde"
+        "categoryCondition": "Voorwaarde",
+        "replaceDescription": "Met het eerste argument vervangt dit alle voorkomens van het tweede argument door het derde argument.",
+        "lengthDescription": "Geeft de lengte van het argument terug: het aantal items in een array, het aantal tekens in een string, of het aantal sleutels in een object.",
+        "containsDescription": "Geeft true terug als het eerste argument het tweede argument bevat.",
+        "reverseDescription": "Keert het argument om. Als het argument een string is, wordt de string omgekeerd. Als het een lijst is, wordt de volgorde van de lijst omgekeerd.",
+        "joinDescription": "Voegt het eerste argument samen met het optionele tweede argument als scheidingsteken. Als het tweede argument niet is opgegeven, wordt ',' als scheidingsteken gebruikt.",
+        "splitDescription": "Splitst het eerste argument met het optionele tweede argument als scheidingsteken. Als het tweede argument niet is opgegeven, wordt ' ' als scheidingsteken gebruikt.",
+        "isEmptyDescription": "Geeft true terug als het argument leeg is, anders false.",
+        "stripDescription": "Verwijdert witruimte aan het begin en einde van het argument.",
+        "sumDescription": "Telt de getallen in het argument op.",
+        "avgDescription": "Berekent het gemiddelde van de getallen in het argument.",
+        "atDescription": "Geeft het item in het eerste argument terug op de index die is opgegeven door het tweede argument.",
+        "toArrayDescription": "Zet een door komma's gescheiden string om naar een array."
     },
     "formulaInputContext": {
         "useRegularInput": "Gebruik regelmatige invoer",
