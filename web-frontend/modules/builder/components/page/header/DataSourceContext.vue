@@ -144,7 +144,6 @@ export default {
       state: 'loaded',
       creationInProgress: false,
       currentDataSourceId: null,
-      editModalVisible: false,
     }
   },
   computed: {
@@ -197,7 +196,6 @@ export default {
     },
     async onHide() {
       await this.$nextTick()
-      //this.editModalVisible = false
       this.currentDataSourceId = null
     },
     orderDS(shared) {
@@ -215,7 +213,6 @@ export default {
     },
     async createDataSource() {
       this.currentDataSourceId = null
-      //this.editModalVisible = true
       await this.$nextTick()
       this.$refs.dataSourceCreateEditModal.show()
     },
@@ -244,7 +241,6 @@ export default {
     },
     async editDataSource(dataSource) {
       this.currentDataSourceId = dataSource.id
-      //this.editModalVisible = true
       await this.$nextTick()
       this.$refs.dataSourceCreateEditModal.show()
     },
