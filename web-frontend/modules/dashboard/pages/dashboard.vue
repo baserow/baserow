@@ -9,7 +9,7 @@
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { useNuxtApp, useAsyncData, createError } from '#app'
+import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
 
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
@@ -50,6 +50,10 @@ if (fetchError.value) {
 
 const dashboard = computed(() => data.value?.dashboard)
 const workspace = computed(() => data.value?.workspace)
+
+useHead(() => ({
+  title: dashboard.value?.name || '',
+}))
 
 // Mounted logic
 onMounted(() => {
