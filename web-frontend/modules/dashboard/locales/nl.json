@@ -6,6 +6,42 @@
         "doneEditing": "Klaar met aanpassen"
     },
     "emptyDashboard": {
-        "title": "Dit dashboard heeft geen widgets"
+        "title": "Dit dashboard heeft geen widgets",
+        "subtitle": "Ga aan de slag door er één toe te voegen.",
+        "addWidget": "Widget toevoegen"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Bewerkmodus"
+    },
+    "createWidgetModal": {
+        "title": "Nieuwe widget toevoegen"
+    },
+    "widget": {
+        "fixConfiguration": "Configuratie oplossen"
+    },
+    "summaryWidget": {
+        "name": "Samenvatting"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Geen element geselecteerd",
+        "message": "Klik op één van de elementen om details te zien."
+    },
+    "widgetSettings": {
+        "title": "Titel",
+        "description": "Beschrijving"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Gegevens",
+        "sourceFieldLabel": "Bron",
+        "viewFieldLabel": "Weergave",
+        "notSelected": "Niet geselecteerd",
+        "aggregationFieldLabel": "Veld",
+        "aggregationTypeLabel": "Samenvatting"
+    },
+    "widgetContext": {
+        "delete": "Verwijderen"
+    },
+    "trashType": {
+        "widget": "widget"
     }
 }
