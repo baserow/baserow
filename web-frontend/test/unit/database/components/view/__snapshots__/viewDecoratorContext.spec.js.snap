@@ -123,12 +123,6 @@ exports[`GridViewRows component with decoration > Should show cant add decorator
     </div>
   </div>
   <div
-    data-v-app=""
-    id="__nuxt"
-  >
-    <!---->
-  </div>
-  <div
     class="context"
     style="top: auto; right: auto; bottom: auto; left: auto;"
   >
@@ -237,6 +231,12 @@ exports[`GridViewRows component with decoration > Should show cant add decorator
   </div>
   <!--v-if-->
   <!--v-if-->
+  <div
+    data-v-app=""
+    id="__nuxt"
+  >
+    <!---->
+  </div>
 </body>
 `;
 
@@ -251,12 +251,6 @@ exports[`GridViewRows component with decoration > Should show unavailable decora
     >
       viewDecoratorType.onlyForPremium
     </div>
-  </div>
-  <div
-    data-v-app=""
-    id="__nuxt"
-  >
-    <!---->
   </div>
   <div
     class="context"
@@ -373,6 +367,12 @@ exports[`GridViewRows component with decoration > Should show unavailable decora
   </div>
   <!--v-if-->
   <!--v-if-->
+  <div
+    data-v-app=""
+    id="__nuxt"
+  >
+    <!---->
+  </div>
 </body>
 `;
 
