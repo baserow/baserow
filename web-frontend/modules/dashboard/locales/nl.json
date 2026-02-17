@@ -1,1 +1,11 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Beschrijving"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Klaar met aanpassen"
+    },
+    "emptyDashboard": {
+        "title": "Dit dashboard heeft geen widgets"
+    }
+}
