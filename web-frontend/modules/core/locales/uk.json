@@ -506,62 +506,67 @@
         "search": "Пошук"
     },
     "membersSettings": {
-        "membersTabTitle": "",
-        "invitesTabTitle": "",
+        "membersTabTitle": "Учасники",
+        "invitesTabTitle": "Запрошення",
         "membersTable": {
-            "title": "",
-            "inviteMember": "",
+            "title": "{userAmount} учасників у {workspaceName}",
+            "inviteMember": "Запросити учасника",
             "columns": {
-                "name": "",
-                "email": "",
-                "role": "",
-                "teams": ""
+                "name": "Назва",
+                "email": "Електронна пошта",
+                "role": "Роль за замовчуванням",
+                "teams": "Команди",
+                "highestRole": "Найвища роль",
+                "highestRoleHelpText": "Найвища роль, призначена цьому користувачу безпосередньо або через команду для будь-якого об’єкта в цьому робочому просторі",
+                "highestRoleInstanceHelpText": "Найвища роль, яку цей користувач має в інстансі",
+                "2fa": "Двофакторна автентифікація (2FA)"
             },
             "actions": {
-                "copyEmail": "",
-                "remove": ""
+                "copyEmail": "Скопіювати електронну пошту",
+                "remove": "Видалити з робочого простору"
             }
         },
         "invitesTable": {
-            "title": "",
+            "title": "{invitesAmount} запрошень очікують у {workspaceName}",
             "columns": {
-                "email": "",
-                "message": "",
-                "role": ""
+                "email": "Електронна пошта",
+                "message": "Повідомлення",
+                "role": "Роль за замовчуванням"
             },
             "actions": {
-                "copyEmail": "",
-                "remove": ""
+                "copyEmail": "Скопіювати електронну пошту",
+                "remove": "Скасувати запрошення"
             }
         },
         "membersInviteModal": {
-            "title": "",
-            "submit": "",
-            "helpIconText": "",
+            "title": "Запросити учасників робочого простору",
+            "submit": "Надіслати запрошення",
+            "helpIconText": "Вибрана роль буде роллю користувача за замовчуванням у цьому робочому просторі.",
             "errors": {
                 "userAlreadyInWorkspace": {
-                    "title": "",
-                    "text": ""
+                    "title": "Користувач уже є в цьому робочому просторі.",
+                    "text": "Неможливо надіслати запрошення, якщо користувач уже є учасником робочого простору."
                 }
             }
         }
     },
     "memberSelectionList": {
-        "searchPlaceholder": "",
-        "selectedAmountLabel": ""
+        "searchPlaceholder": "Знайти…",
+        "selectedAmountLabel": "{count} вибрано"
     },
     "memberAssignmentModalFooter": {
-        "invite": "",
-        "deselectAll": "",
-        "selectAll": ""
+        "invite": "Запросити {count}",
+        "deselectAll": "Зняти вибір з усіх",
+        "selectAll": "Вибрати все"
     },
     "removeFromWorkspaceModal": {
-        "title": "",
-        "confirmation": "",
-        "remove": ""
+        "title": "Підтвердити видалення з робочого простору",
+        "confirmation": "Ви впевнені, що хочете видалити {name} з {workspaceName}? Цю дію неможливо скасувати.",
+        "remove": "Вилучити"
     },
     "editRoleContext": {
-        "billableRolesLink": ""
+        "billableRolesLink": "Документація щодо платних ролей",
+        "additionalRoles": "Додаткові ролі"
     },
     "workspaceSearch": {
         "title": "Пошук",
@@ -651,7 +656,16 @@
     },
     "formulaInputContext": {
         "useRegularInput": "Використовувати звичайний ввід",
-        "useAdvancedInput": "Використовувати розширений ввід"
+        "useAdvancedInput": "Перейти до експертного режиму",
+        "variables": "Змінні",
+        "functions": "Функції",
+        "operators": "Оператори",
+        "search": "Пошук",
+        "useRegularInputModalTitle": "Використовувати звичайне поле введення для цього поля?",
+        "useSimpleInput": "Перейти до базового режиму",
+        "useSimpleInputModalTitle": "Перейти до базового режиму?",
+        "useAdvancedInputModalTitle": "Перейти до експертного режиму?",
+        "modalMessage": "Перехід до іншого режиму очистить поточну формулу. Ви впевнені, що хочете продовжити?"
     },
     "importWorkspaceModal": {
         "title": "Імпортувати дані Baserow",
@@ -871,5 +885,342 @@
         "errorEmailExistsMessage": "Не вдалося змінити електронну адресу, оскільки обліковий запис із цією адресою вже існує.",
         "errorEmailAlreadyChangedTitle": "Електронну адресу вже змінено",
         "errorEmailAlreadyChangedMessage": "Електронну адресу вже змінено на запитану адресу."
+    },
+    "highestPaidRoleField": {
+        "billable": "Платний"
+    },
+    "integrationCreateEditModal": {
+        "createTitle": "Нова інтеграція",
+        "editTitle": "Редагувати інтеграцію",
+        "warningTitle": "Попередження"
+    },
+    "integrationEditForm": {
+        "name": "Назва",
+        "namePlaceholder": "Введіть назву інтеграції…"
+    },
+    "integrationDropdown": {
+        "addIntegration": "Додати нову інтеграцію",
+        "noIntegrations": "Інтеграцій не знайдено.",
+        "selectTypeFirst": "Спочатку оберіть тип",
+        "integrationPlaceholder": "Виберіть інтеграцію"
+    },
+    "dropdown": {
+        "empty": "Немає доступних елементів"
+    },
+    "richTextEditorMentionsList": {
+        "notFound": "Користувачів не знайдено"
+    },
+    "workspaceInvitationAcceptedNotification": {
+        "title": "{sender} прийняв ваше запрошення приєднатися до {workspaceName}",
+        "deletedUser": "Видалений користувач"
+    },
+    "workspaceInvitationRejectedNotification": {
+        "title": "{sender} відхилив ваше запрошення приєднатися до {workspaceName}",
+        "deletedUser": "Видалений користувач"
+    },
+    "workspaceInvitationCreatedNotification": {
+        "title": "{sender} запросив вас приєднатися до {workspaceName}",
+        "deletedUser": "Видалений користувач"
+    },
+    "versionUpgradeNotification": {
+        "title": "{version} вже тут! Дізнайтеся, що нового."
+    },
+    "emailNotifications": {
+        "title": "Сповіщення електронною поштою",
+        "label": "Згадки, коментарі та інші сповіщення",
+        "description": "Налаштуйте частоту надсилання електронних листів до вашої скриньки.",
+        "instant": "Миттєво",
+        "daily": "Щоденно",
+        "weekly": "Щотижнево",
+        "never": "Ніколи",
+        "submitButton": "Частота оновлень"
+    },
+    "formulaInputField": {
+        "errorInvalidFormula": "Формула недійсна.",
+        "advancedFormulaMode": "Розширений режим формул"
+    },
+    "dataExplorer": {
+        "noMatchingNodesText": "Збігів не знайдено.",
+        "noProvidersText": "Постачальників даних не знайдено. Щоб розпочати, ви можете, наприклад, додати джерело даних або параметр сторінки."
+    },
+    "dataExplorerNode": {
+        "showMore": "Показати більше повторень",
+        "selectNode": "Вибрати"
+    },
+    "richTextEditorBubbleMenu": {
+        "bold": "Жирний",
+        "italic": "Курсив",
+        "underline": "Підкреслення",
+        "strikethrough": "Закреслений текст",
+        "link": "Посилання",
+        "linkEditPlaceholder": "Адреса посилання…",
+        "linkEditDone": "Готово"
+    },
+    "richTextEditorFloatingMenu": {
+        "hierarchy": "Ієрархія",
+        "lists": "Списки",
+        "paragraph": "Абзац",
+        "heading1": "Заголовок 1",
+        "heading2": "Заголовок 2",
+        "heading3": "Заголовок 3",
+        "orderedList": "Нумерований список",
+        "unorderedList": "Маркований список",
+        "code": "Код",
+        "taskList": "Список завдань"
+    },
+    "selectAIModelForm": {
+        "AIType": "Тип ШІ",
+        "AIModel": "Модель ШІ",
+        "fileField": "Поле файлу",
+        "temperatureLabel": "Температура",
+        "temperatureDescription": "Температура LLM — це параметр у діапазоні від 0 до {max}, який визначає випадковість відповідей: нижчі значення дають більш зосереджені відповіді, а вищі підвищують креативність."
+    },
+    "onboarding": {
+        "title": "Ознайомлення",
+        "creating": "Створення вашого першого робочого простору",
+        "continue": "Продовжити",
+        "skip": "Пропустити наразі",
+        "cancel": "Я не хочу допомоги з налаштуванням",
+        "failedTitle": "Щось пішло не так",
+        "failedDescription": "Процес ознайомлення не було повністю завершено, хоча деякі його частини могли бути виконані.",
+        "failedTryAgain": "Спробувати ще раз",
+        "failedSkip": "Пропустити ознайомлення"
+    },
+    "moreStep": {
+        "title": "Розкажіть нам трохи більше",
+        "how": "Як ви дізналися про нас?",
+        "howSearchEngine": "Пошукова система (Google/Bing)",
+        "howSocialMedia": "Соціальні мережі",
+        "howOnlineAds": "Онлайн-реклама",
+        "howContent": "Контент (блог/розсилка/відео)",
+        "howReviewSite": "Сайт з відгуками / маркетплейс",
+        "howFriend": "Від друга",
+        "howColleague": "Від колеги",
+        "howEvent": "Подія або вебінар",
+        "howSales": "Звернення від відділу продажів",
+        "howOther": "Інше",
+        "country": "Країна",
+        "share": "Я не заперечую проти надання цієї інформації команді Baserow"
+    },
+    "teamStep": {
+        "description": "У якій команді ви працюєте?",
+        "marketingTeam": "Маркетинг",
+        "productAndDesignTeam": "Продукт і дизайн",
+        "engineeringTeam": "Відділ розробки",
+        "operationsTeam": "Операційна діяльність",
+        "itAndSupportTeam": "ІТ та підтримка",
+        "hrAndLegalTeam": "HR та юридичний відділ",
+        "financeTeam": "Фінансовий відділ",
+        "creativeProductionTeam": "Креативне виробництво",
+        "salesAndAccountManagementTeam": "Продажі та управління акаунтами",
+        "customerServiceTeam": "Служба підтримки клієнтів",
+        "manufacturingTeam": "Виробництво",
+        "otherPersonalTeam": "Інше / Особисте"
+    },
+    "colorInput": {
+        "default": "За замовчуванням"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "Або виберіть попередньо визначений колір"
+    },
+    "imageInput": {
+        "labelDescription": "Виберіть зображення для завантаження…",
+        "labelButton": "Завантажити"
+    },
+    "user": {
+        "isStaff": "Є співробітником",
+        "isWorkspaceAdmin": "Є адміністратором робочого простору",
+        "active": "Активний",
+        "deactivated": "Деактивовано"
+    },
+    "adminType": {
+        "dashboard": "Панель керування",
+        "users": "Користувачі",
+        "workspaces": "Робочі простори"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Усі робочі простори",
+        "id": "Ідентифікатор",
+        "name": "Назва",
+        "members": "Учасники",
+        "applications": "Застосунки",
+        "created": "Створено",
+        "rowCount": "Кількість рядків",
+        "freeUsers": "Безкоштовні користувачі",
+        "seatsTaken": "Зайняті місця",
+        "storageUsage": "Використано пам’яті (МБ)",
+        "usageHelpText": "Обчислюється щовечора, коли увімкнено відстеження використання робочого простору"
+    },
+    "editWorkspaceContext": {
+        "delete": "Видалити назавжди"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Видалити {name}",
+        "confirmation": "Ви впевнені, що хочете видалити робочий простір: {name}?",
+        "comment": "Робочий простір буде видалено назавжди, разом із усіма пов’язаними додатками. Скасувати цю дію неможливо.",
+        "delete": "Видалити робочий простір {name}"
+    },
+    "activeUsers": {
+        "newUsers": "Нові користувачі",
+        "activeUsers": "Активні користувачі"
+    },
+    "usersAdminTable": {
+        "allUsers": "Усі користувачі",
+        "username": "Ім’я користувача",
+        "name": "Ім’я",
+        "workspaces": "Робочі простори",
+        "lastLogin": "Останній вхід",
+        "dateJoined": "Зареєстрований",
+        "active": "Активний"
+    },
+    "editUserContext": {
+        "changePassword": "Змінити пароль",
+        "delete": "Видалити назавжди",
+        "impersonate": "Увійти від імені"
+    },
+    "changePasswordForm": {
+        "newPassword": "Новий пароль",
+        "repeatPassword": "Повторіть пароль",
+        "changePassword": "Змінити пароль",
+        "error": {
+            "doesntMatch": "Це поле має відповідати вашому полю пароля."
+        }
+    },
+    "userForm": {
+        "fullName": "Повне ім’я",
+        "email": "Електронна пошта",
+        "isActive": "Активний",
+        "warning": {
+            "changeEmail": "Зміна адреси електронної пошти цього користувача означає, що під час входу він повинен використовувати нову адресу електронної пошти. Про це необхідно повідомити цього користувача.",
+            "inactiveUser": "Коли користувача позначено як неактивного, йому заборонено входити в систему.",
+            "userStaff": "Надання користувачу статусу співробітника надає йому адміністративний доступ до всіх користувачів, усіх робочих просторів і можливість відкликати власні права співробітника."
+        },
+        "error": {
+            "invalidName": "Будь ласка, введіть коректне повне ім’я: воно має містити більше ніж 2 символи і менше ніж 150.",
+            "invalidEmail": "Будь ласка, введіть дійсну адресу електронної пошти."
+        }
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Змінити пароль для {username}"
+    },
+    "deleteUserModal": {
+        "title": "Видалити {username}",
+        "confirmation": "Ви впевнені, що хочете видалити користувача: {name}?",
+        "comment1": "Обліковий запис користувача буде видалено, однак робочі простори, учасником яких є цей користувач, продовжать існувати. Робочий простір користувача не буде видалено, навіть якщо цей користувач є останнім користувачем у робочому просторі. Видалення останнього користувача в робочому просторі унеможливлює доступ до цього робочого простору для будь-кого.",
+        "comment2": "Після видалення користувача новий користувач зможе знову зареєструватися, використовуючи адресу електронної пошти видаленого користувача. Щоб запобігти повторній реєстрації, замість видалення деактивуйте користувача.",
+        "delete": "Видалити користувача {username}"
+    },
+    "editUserModal": {
+        "delete": "Видалити користувача",
+        "edit": "Редагувати { username }"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Увімкнено",
+        "disabled": "Вимкнено"
+    },
+    "adminDashboard": {
+        "title": "Панель керування",
+        "totals": "Підсумки",
+        "totalUsers": "Усього користувачів",
+        "totalWorkspaces": "Усього робочих просторів",
+        "totalApplications": "Усього застосунків",
+        "newUsers": "Нові користувачі",
+        "newUsers24h": "Нові користувачі за останні 24 години",
+        "newUsers7days": "Нові користувачі за останні 7 днів",
+        "newUsers30days": "Нові користувачі за останні 30 днів",
+        "activeUsers": "Активні користувачі",
+        "activeUsers24h": "Активні користувачі за останні 24 години",
+        "activeUsers7days": "Активні користувачі за останні 7 днів",
+        "activeUsers30days": "Активні користувачі за останні 30 днів",
+        "viewAll": "Переглянути всі"
+    },
+    "formGroup": {
+        "protectedField": "Це поле захищене. Натисніть, щоб змінити.",
+        "cancelProtectedField": "Скасувати зміну"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} користувачів ({lastUpdated})"
+    },
+    "guidedTourStep": {
+        "step": "Крок {step} із {totalSteps}",
+        "gotIt": "Зрозуміло",
+        "next": "Далі",
+        "back": "Назад"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Ласкаво просимо до Baserow",
+        "content": "Давайте здійснимо коротку екскурсію, щоб ознайомити вас з основами. Усього за кілька кліків ви навчитеся легко організовувати та візуалізувати свої дані",
+        "buttonText": "Розпочати екскурсію"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Ваш центр керування Baserow",
+        "content": "Ліва бічна панель допомагає керувати вашим робочим простором:\n\n- Головна — доступ до вашої основної панелі керування.\n- Сповіщення — будьте в курсі змін і згадок.\n- Запросити учасників — співпрацюйте, додаючи членів команди.\n- Кошик — перегляд і відновлення всіх видалених елементів."
+    },
+    "createNewGuidedTourStep": {
+        "title": "Створити нову базу даних або застосунок",
+        "content": "Натисніть «Додати нове…», щоб створити нову базу даних, застосунок або панель керування для вашого проєкту, відділу чи команди."
+    },
+    "mcpEndpointSettings": {
+        "title": "Сервер MCP",
+        "createEndpoint": "Створити кінцеву точку",
+        "createNewTitle": "Створити кінцеву точку сервера MCP",
+        "backToOverview": "Назад",
+        "noEndpointsMessage": "Жодних кінцевих точок сервера MCP (Model Context Protocol) не додано. Їх можна використовувати для прямої інтеграції з LLM, наприклад Claude, щоб модель могла виконувати дії безпосередньо в Baserow. Створіть кінцеву точку сервера, щоб розпочати."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "Назва",
+        "workspaceLabel": "Робочий простір"
+    },
+    "mcpEndpoint": {
+        "detailLabel": "Детальніше",
+        "endpointURLIntro": "URL сервера MCP (Model Context Protocol) можна додати до будь-якого клієнта, що підтримує сервери MCP. Це унікальна кінцева точка, яка надає LLM прямий доступ для виконання дій у робочому просторі від вашого імені.",
+        "reveal": "Показати повний URL",
+        "warning": "Ставтеся до свого URL MCP як до пароля, оскільки він дає можливість змінювати дані в Baserow.",
+        "claudeInstructions": "Три прості кроки, щоб розпочати роботу з Claude Desktop і Baserow MCP.\n\n1. Відкрийте налаштування Claude Desktop через панель навігації. (⌘+,)\n2. Перейдіть на вкладку «Розробка» і натисніть «Редагувати конфігурацію».\n3. Додайте наступну JSON-конфігурацію до файлу `claude_desktop_config.json`.",
+        "cursorInstructions": "Три прості кроки, щоб розпочати роботу з Cursor і Baserow MCP.\n\n1. Відкрийте налаштування Cursor (⇧+⌘+J)\n2. Перейдіть на вкладку «MCP» і натисніть «Додати MCP-сервер»\n3. Додайте наступну JSON-конфігурацію.",
+        "windsurfInstructions": "Два прості кроки, щоб налаштувати MCP з Cascade у Windsurf.\n\n1. Перейдіть до Windsurf → Settings → Advanced Settings або відкрийте Command Palette → Open Windsurf settings page.\n2. Прокрутіть до розділу Cascade — там ви знайдете можливість додати новий сервер, переглянути наявні сервери та кнопку для перегляду сирого JSON-файлу конфігурації mcp_config.json. Додайте до нього таке:"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "Посилання вебхука",
+        "urlVersion": "Версія",
+        "urlVersionPublished": "Опубліковано",
+        "urlVersionTest": "Тест",
+        "copyUrl": "Скопіювати посилання вебхука",
+        "urlCopied": "Посилання вебхука скопійовано в буфер обміну",
+        "description": "Цей вебхук отримуватиме HTTP-запити та запускатиме робочий процес, передаючи дані запиту як корисне навантаження (payload).",
+        "methodsOptionLabel": "Дозволені HTTP-методи",
+        "methodsOptionDescription": "Визначає, які HTTP-методи дозволені для цього вебхука. Виключення методу GET зменшує ймовірність випадкового спрацювання вебхука.",
+        "methodsOptionAll": "Всі",
+        "methodsOptionExcludeGet": "Виключити GET"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Ви ще не ввімкнули двофакторну автентифікацію (2FA)",
+        "description": "Додайте додатковий рівень безпеки до свого облікового запису.",
+        "enable": "Увімкнути 2FA",
+        "notAllowedTitle": "2FA не ввімкнено",
+        "notAllowedDescription": "Додавання 2FA можливе лише для облікових записів із входом за паролем."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Приклад",
+        "result": "Результат: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "Скануйте QR-код",
+        "scanQRCodeDescription": "Відскануйте код за допомогою такого застосунку, як Google Authenticator, Authy або Microsoft Authenticator.",
+        "clickToCopy": "Або натисніть тут, щоб скопіювати код.",
+        "secretCopiedTitle": "Секретний ключ скопійовано",
+        "secretCopiedMessage": "Секрет TOTP скопійовано в буфер обміну.",
+        "enterCode": "Введіть показаний код",
+        "enterCodeDescription": "Введіть 6-значний код, показаний у застосунку, щоб підтвердити, що ви налаштували його правильно.",
+        "verificationFailed": "Помилка перевірки",
+        "verificationFailedDescription": "Введений код недійсний.",
+        "provisioningFailed": "Помилка налаштування",
+        "checkSuccess": "Двофакторну автентифікацію успішно ввімкнено"
+    },
+    "adminUsers": {
+        "title": "Користувачі"
+    },
+    "adminWorkspaces": {
+        "title": "Робочі простори"
     }
 }
