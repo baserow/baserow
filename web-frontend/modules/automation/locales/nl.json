@@ -3,10 +3,203 @@
         "title": "Workflow"
     },
     "automationWelcomeGuidedTourStep": {
-        "title": "Welkom bij Baserow Automations!",
-        "content": "Laten we een snelle rondleiding nemen. Je zult zien hoe je de activering moet opzetten, acties toevoegen, je workflow testen, en het publiceren, geen code vereist."
+        "title": "Welkom bij Baserow Automatiseringen!",
+        "content": "Laten we een korte rondleiding doen. Je ziet hoe je activeringen instelt, acties toevoegt, je workflow test en publiceert — zonder code."
     },
     "automationGraphGuidedTourStep": {
-        "title": "Beheers je workflow hier"
+        "title": "Beheer je workflow-grafiek hier",
+        "content": "Maak hier een activering en acties om te bepalen wat de workflow moet doen. Selecteer een activering of actie om die in het zijpaneel te configureren."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Test je workflow",
+        "content": "Als je er klaar voor bent, start je een testrun om je workflow in actie te zien. De activering draait één keer om een volledige uitvoering te simuleren."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Bekijk workflowgeschiedenis",
+        "content": "Gebruik het geschiedenispaneel om eerdere testruns en gepubliceerde uitvoeringen te bekijken. Handig om te debuggen of resultaten te bevestigen."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Publiceer je workflow",
+        "content": "Als je je setup hebt getest en verfijnd, publiceer je workflow om hem live te zetten. De activering draait daarna automatisch volgens het schema."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "Beheer de workflowstatus",
+        "content": "Vanaf hier kun je je workflow op elk moment pauzeren of hervatten. Jij bepaalt altijd of hij actief is of uit staat."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Bekijk de documentatie",
+        "content": "Loop je vast of wil je meer leren? Klik op de gemarkeerde knop voor uitgebreide handleidingen en veelgestelde vragen over het bouwen van automatiseringen in Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Nieuwe workflow"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Workflow maken",
+        "submit": "Workflow toevoegen"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Workflow",
+        "nameTitle": "Naam",
+        "nameSubtitle": "Unieke naam van de workflow",
+        "namePlaceholder": "Voer een naam in..."
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Workflow dupliceren",
+        "duplicating": "Bezig met dupliceren",
+        "duplicatedTitle": "Workflow gedupliceerd"
+    },
+    "automationWorkflowErrors": {
+        "errorNameNotUnique": "Er bestaat al een workflow met deze naam",
+        "errorNameNotUniqueDescription": "Voer een unieke naam voor de workflow in"
+    },
+    "trashType": {
+        "workflow": "workflow",
+        "automation": "automatisering"
+    },
+    "generalSettings": {
+        "titleOverview": "Algemeen",
+        "nameLabel": "Naam van automatisering",
+        "notificationLabel": "Meldingen",
+        "notificationCheckboxLabel": "Krijg een melding als deze automatisering faalt",
+        "cantUpdateAutomationTitle": "Automatisering kon niet worden bijgewerkt",
+        "cantUpdateAutomationDescription": "Sorry, de automatisering kon niet worden bijgewerkt."
+    },
+    "integrationSettings": {
+        "title": "Integraties",
+        "noIntegrationMessage": "Je hebt nog geen integraties gemaakt. Je kunt ze maken door een databron, actie of gebruikersauthenticatie toe te voegen.",
+        "integrationMessage": "Je kunt nieuwe integraties maken door een databron, actie of gebruikersauthenticatie toe te voegen."
+    },
+    "automationHeader": {
+        "startTestRun": "Testrun starten",
+        "stopTestRun": "Testrun stoppen",
+        "publishBtn": "Publiceren",
+        "settingsBtn": "Instellingen",
+        "historyBtn": "Geschiedenis",
+        "docsBtn": "Documentatie",
+        "switchLabelDraft": "Concept",
+        "switchLabelDisabled": "Uitgeschakeld",
+        "switchLabelPaused": "Gepauzeerd",
+        "switchLabelLive": "Live",
+        "lastPublished": "Laatst gepubliceerd"
+    },
+    "dataProviderType": {
+        "currentIteration": "Huidige iteratie",
+        "item": "Item",
+        "previousNode": "Vorige node"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Label"
+    },
+    "historySidePanel": {
+        "title": "Geschiedenis",
+        "noRunsTitle": "Nog geen runs",
+        "noRunsDescription": "Als deze workflow heeft gedraaid, zie je de resultaten hier.",
+        "statusSuccess": "Succesvol uitgevoerd",
+        "statusError": "Uitvoering mislukt",
+        "statusDisabled": "Uitgeschakeld door Baserow",
+        "completedInSeconds": "Afgerond in {s} seconden.",
+        "completedInLessThanSecond": "Afgerond in minder dan 1 seconde.",
+        "testRun": "Test"
+    },
+    "nodeType": {
+        "triggerDeletionError": "Activeringen kunnen niet worden verwijderd, alleen vervangen.",
+        "localBaserowRowsCreatedLabel": "Rijen zijn aangemaakt in {tableName}",
+        "localBaserowRowsUpdatedLabel": "Rijen zijn bijgewerkt in {tableName}",
+        "localBaserowRowsDeletedLabel": "Rijen zijn verwijderd in {tableName}",
+        "localBaserowCreateRowLabel": "Maak een rij aan in {tableName}",
+        "localBaserowUpdateRowLabel": "Werk een rij bij in {tableName}",
+        "localBaserowDeleteRowLabel": "Verwijder een rij in {tableName}",
+        "localBaserowGetRowLabel": "Lees een rij in {tableName}",
+        "localBaserowListRowsLabel": "Toon rijen in {tableName}",
+        "localBaserowAggregateRowsLabel": "Vat rijen samen in {tableName}",
+        "httpRequestLabel": "Stuur een HTTP-verzoek",
+        "smtpEmailLabel": "Stuur een e-mail",
+        "routerLabel": "Volg 1 van {edgeCount} takken",
+        "iterationLabel": "Doorloop items",
+        "routerDefaultEdgeLabelFallback": "Standaard",
+        "routerWithOutputNodesDeleteError": "Kan niet worden verwijderd totdat de {outputCount} output-nodes zijn verwijderd.",
+        "routerWithOutputNodesReplaceError": "Kan niet worden vervangen totdat de {outputCount} output-nodes zijn verwijderd.",
+        "iteratorWithChildrenNodesDeleteError": "Kan niet worden verwijderd totdat de child-nodes zijn verwijderd.",
+        "iteratorWithChildrenNodesReplaceError": "Kan niet worden vervangen totdat de child-nodes zijn verwijderd.",
+        "periodicTriggerLabel": "Periodieke activering",
+        "aiAgent": "AI-prompt",
+        "slackWriteMessageName": "Stuur een Slack-bericht",
+        "slackWriteMessageLabel": "Stuur een bericht naar #{channel}"
+    },
+    "workflowNode": {
+        "actionDelete": "Verwijderen",
+        "actionReplace": "Vervangen",
+        "actionDuplicate": "Dupliceren",
+        "actionConfigure": "Configureren",
+        "beforeLabelTrigger": "Start wanneer",
+        "beforeLabelAction": "Dan",
+        "beforeLabelCondition": "Als aan de voorwaarde wordt voldaan",
+        "beforeLabelConditionDefault": "Als aan geen voorwaarde wordt voldaan",
+        "beforeLabelRepeat": "Voor elk item",
+        "moreEdit": "Bewerken",
+        "moreReplace": "Vervangen",
+        "nodeOptions": "Node-opties",
+        "displayLabelDebug": "ID: {id} | Vorige: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "Dupliceren"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Automatiseringsnode maken"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Zoek een activering...",
+        "searchPlaceholderActions": "Zoek acties...",
+        "noResults": "Geen resultaten gevonden"
+    },
+    "serviceType": {
+        "periodicTrigger": "Periodieke activering",
+        "periodicTriggerDescription": "Activeert de workflow periodiek op opgegeven intervallen",
+        "periodicTriggerTriggeredAt": "Geactiveerd om",
+        "errorIntervalMissing": "Er is een interval nodig.",
+        "coreHTTPTrigger": "HTTP-activering",
+        "coreHTTPTriggerDescription": "Ontvang HTTP-verzoeken om workflows te activeren"
+    },
+    "periodicTriggerServiceForm": {
+        "intervalLabel": "Interval",
+        "intervalHelper": "Kies hoe vaak je deze workflow wilt laten draaien",
+        "everyMinute": "Elke minuut",
+        "everyHour": "Elk uur",
+        "everyDay": "Elke dag",
+        "everyWeek": "Elke week",
+        "everyMonth": "Elke maand",
+        "hour": "Uur",
+        "minute": "Minuut",
+        "dayOfWeek": "Dag van de week",
+        "dayOfMonth": "Dag van de maand",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Deze workflow draait elke minuut",
+        "hourHelper": "Deze workflow draait elk uur op de opgegeven minuut in je lokale tijdzone ({timezone})",
+        "dayHelper": "Deze workflow draait elke dag op de opgegeven tijd in je lokale tijdzone ({timezone})",
+        "weekHelper": "Deze workflow draait elke week op de opgegeven dag en tijd in je lokale tijdzone ({timezone})",
+        "monthHelper": "Deze workflow draait elke maand op de opgegeven dag en tijd in je lokale tijdzone ({timezone})",
+        "deactivatedTitle": "Periodieke activering gedeactiveerd",
+        "deactivatedText": "Deze periodieke activering is automatisch gedeactiveerd door opeenvolgende fouten."
+    },
+    "workflowEditor": {
+        "chooseEvent": "Kies een event..."
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "Output",
+        "triggerNodeAwaitingEvent": "De node wacht. Activeer het event handmatig om de payload te vullen en de test af te ronden.",
+        "simulationInProgress": "Node-test is bezig...",
+        "errorNodeNotConfigured": "De node moet worden geconfigureerd voordat je hem kunt testen.",
+        "errorPreviousNodeNotConfigured": "De vorige node \"{node}\" moet worden geconfigureerd.",
+        "errorPreviousNodesNotTested": "De vorige node \"{node}\" moet eerst worden getest.",
+        "buttonLabelTest": "Event testen",
+        "buttonLabelTestAgain": "Event opnieuw testen",
+        "testNodeDescription": "Test dit event om te bevestigen dat de configuratie klopt. Data uit deze test kun je in latere stappen gebruiken.",
+        "buttonLabelShowPayload": "Payload tonen",
+        "buttonLabelShowError": "Fout tonen",
+        "sampleDataModalTitle": "Payload voor {nodeLabel}",
+        "sampleDataModalSubTitle": "JSON-payload",
+        "sampleDataCopy": "Kopiëren",
+        "errorOccurred": "Er is een fout opgetreden...",
+        "sampleDataCopied": "Payload gekopieerd naar klembord"
     }
 }
