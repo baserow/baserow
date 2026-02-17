@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -650,3 +652,114 @@ def test_field_duplication_does_not_copy_metadata(data_fixture):
     )
     assert original_metadata_after[row1.id][field.id] == {"status": "success"}
     assert original_metadata_after[row2.id][field.id] == {"status": "error"}
+
+
+@pytest.mark.row_metadata
+@pytest.mark.django_db
+def test_on_field_deleted_clears_metadata(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field1 = data_fixture.create_text_field(table=table)
+    field2 = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    row = model.objects.create()
+
+    FieldMetadataHandler.set_metadata(
+        model,
+        [
+            MetadataUpdate(row_id=row.id, field_id=field1.id, metadata={"a": 1}),
+            MetadataUpdate(row_id=row.id, field_id=field2.id, metadata={"b": 2}),
+        ],
+    )
+
+    FieldMetadataHandler.on_field_deleted(field1)
+
+    row.refresh_from_db()
+    result = FieldMetadataHandler.get_metadata(model, [row.id])
+    assert result.get(row.id, {}).get(field1.id) is None
+    assert result[row.id][field2.id] == {"b": 2}
+
+
+@pytest.mark.row_metadata
+@pytest.mark.django_db
+def test_on_field_updated_clears_metadata_on_type_change(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    row = model.objects.create()
+
+    FieldMetadataHandler.set_metadata(
+        model,
+        [MetadataUpdate(row_id=row.id, field_id=field.id, metadata={"status": "ok"})],
+    )
+
+    FieldMetadataHandler.on_field_updated(field, field_type_changed=True)
+
+    row.refresh_from_db()
+    result = FieldMetadataHandler.get_metadata(model, [row.id], [field.id])
+    assert result.get(row.id, {}).get(field.id) is None
+
+
+@pytest.mark.row_metadata
+@pytest.mark.django_db
+def test_on_field_updated_preserves_metadata_when_type_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    row = model.objects.create()
+
+    FieldMetadataHandler.set_metadata(
+        model,
+        [MetadataUpdate(row_id=row.id, field_id=field.id, metadata={"status": "ok"})],
+    )
+
+    FieldMetadataHandler.on_field_updated(field, field_type_changed=False)
+
+    row.refresh_from_db()
+    result = FieldMetadataHandler.get_metadata(model, [row.id], [field.id])
+    assert result[row.id][field.id] == {"status": "ok"}
+
+
+@pytest.mark.row_metadata
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_merge_updates_different_fields_preserve_both(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field1 = data_fixture.create_text_field(table=table)
+    field2 = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    row = model.objects.create()
+
+    barrier = threading.Barrier(2, timeout=5)
+    errors = []
+
+    def update_field(field_id, value):
+        try:
+            barrier.wait()
+            FieldMetadataHandler.set_metadata(
+                model,
+                [MetadataUpdate(row_id=row.id, field_id=field_id, metadata=value)],
+                merge=True,
+            )
+        except Exception as e:
+            errors.append(e)
+
+    t1 = threading.Thread(target=update_field, args=(field1.id, {"x": 1}))
+    t2 = threading.Thread(target=update_field, args=(field2.id, {"y": 2}))
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    assert not errors, f"Threads raised errors: {errors}"
+
+    row.refresh_from_db()
+    result = FieldMetadataHandler.get_metadata(model, [row.id])
+    assert result[row.id][field1.id] == {"x": 1}
+    assert result[row.id][field2.id] == {"y": 2}

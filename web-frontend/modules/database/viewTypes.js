@@ -322,7 +322,7 @@ export class ViewType extends Registerable {
   ) {
     if (this.isCurrentView(store, tableId)) {
       await store.dispatch(
-        storePrefix + 'view/' + this.getType() + '/updateRowMetadata',
+        storePrefix + 'view/' + this.getType() + '/updateRowMetadataType',
         {
           tableId,
           rowId,
@@ -814,7 +814,7 @@ export class GridViewType extends ViewType {
 
   metadataUpdated({ store }, tableId, rowIds, metadata, storePrefix = '') {
     if (this.isCurrentView(store, tableId)) {
-      store.dispatch(storePrefix + 'view/grid/updateRowMetadata', {
+      store.dispatch(storePrefix + 'view/grid/updateRowsMetadata', {
         rowIds,
         metadata,
       })
@@ -1207,10 +1207,32 @@ export class GalleryViewType extends BaseBufferedRowViewTypeMixin(ViewType) {
 
   metadataUpdated({ store }, tableId, rowIds, metadata, storePrefix = '') {
     if (this.isCurrentView(store, tableId)) {
-      store.dispatch(storePrefix + 'view/gallery/updateRowMetadata', {
+      store.dispatch(storePrefix + 'view/gallery/updateRowsMetadata', {
         rowIds,
         metadata,
       })
+    }
+  }
+
+  AIValuesGenerationError(
+    context,
+    tableId,
+    fieldId,
+    rowIds,
+    error,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(context.store, tableId)) {
+      context.store.dispatch(
+        'toast/error',
+        {
+          title: context.app.i18n.t('gridView.AIValuesGenerationErrorTitle'),
+          message: context.app.i18n.t(
+            'gridView.AIValuesGenerationErrorMessage'
+          ),
+        },
+        { root: true }
+      )
     }
   }
 }

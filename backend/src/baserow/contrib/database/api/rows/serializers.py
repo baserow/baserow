@@ -65,6 +65,14 @@ class BatchOperationMetadataSerializer(serializers.Serializer):
             "operation."
         ),
     )
+    rows = serializers.DictField(
+        required=False,
+        read_only=True,
+        help_text=(
+            "Per-row metadata keyed by row ID. Contains metadata from all "
+            "registered row metadata types (e.g., AI field generation status)."
+        ),
+    )
 
 
 class BatchUpdateRowsSerializer(serializers.Serializer):

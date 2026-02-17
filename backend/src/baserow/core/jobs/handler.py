@@ -35,8 +35,15 @@ class JobHandler:
         elif job.ended:
             raise JobNotCancellable()
 
+        previous_state = job.state
+
         job.set_state_cancelled()
         job.save()
+
+        specific_job = job.specific
+        job_type = job_type_registry.get_by_model(specific_job)
+        job_type.on_cancelled(specific_job, previous_state=previous_state)
+
         return job
 
     @classmethod

@@ -1,7 +1,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
-import FieldService from '@baserow_premium/services/field'
 import { AI_FIELD_STATUS } from '@baserow_premium/constants'
+import { getAIFieldStatus } from '@baserow_premium/utils/ai'
+import FieldService from '@baserow_premium/services/field'
 
 export default {
   computed: {
@@ -9,10 +10,17 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     generating() {
-      const metadata = this.row?._?.metadata
       return (
-        metadata?.ai_field?.[this.field.id]?.status === AI_FIELD_STATUS.GENERATING
+        getAIFieldStatus(this.row, this.field.id) === AI_FIELD_STATUS.GENERATING
       )
+    },
+    generationError() {
+      if (getAIFieldStatus(this.row, this.field.id) === AI_FIELD_STATUS.ERROR) {
+        return {
+          message: this.$t('rowEditFieldAI.generationFailed'),
+        }
+      }
+      return null
     },
     modelAvailable() {
       const aIModels =
@@ -44,35 +52,16 @@ export default {
         return
       }
 
-      const rowId = this.row.id
-      const previousMetadata =
-        this.row?._?.metadata?.ai_field?.[this.field.id] || null
-
-      // Optimistic update to store
-      this.$store.commit('rowModal/UPDATE_ROW_METADATA', {
-        rowId,
-        metadata: {
-          ai_field: {
-            [this.field.id]: { status: AI_FIELD_STATUS.GENERATING },
-          },
-        },
-      })
-
       try {
-        await FieldService(this.$client).generateAIFieldValues(this.field.id, [
-          rowId,
-        ])
+        await this.$store.dispatch('rowModal/generateAIFieldValue', {
+          fieldId: this.field.id,
+          rowId: this.row.id,
+          row: this.row,
+          generateFn: (fId, rId) =>
+            FieldService(this.$client).generateAIFieldValues(fId, [rId]),
+        })
       } catch (error) {
         notifyIf(error, 'field')
-        // Rollback on error
-        this.$store.commit('rowModal/UPDATE_ROW_METADATA', {
-          rowId,
-          metadata: {
-            ai_field: {
-              [this.field.id]: previousMetadata,
-            },
-          },
-        })
       }
     },
   },

@@ -41,10 +41,10 @@ from baserow.core.generative_ai.exceptions import (
     ModelDoesNotBelongToType,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
 from baserow_premium.fields.exceptions import AiFieldOutputParserException
+from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
 from baserow_premium.license.features import PREMIUM
@@ -129,11 +129,8 @@ class AsyncGenerateAIFieldValuesView(APIView):
             context=ai_field.table,
         )
 
-        job = JobHandler().create_and_start_job(
-            request.user,
-            GenerateAIValuesJobType.type,
-            field_id=field_id,
-            row_ids=data["row_ids"],
+        job = AIFieldHandler.start_ai_field_generation(
+            ai_field, data["row_ids"], request.user
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

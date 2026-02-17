@@ -31,6 +31,7 @@ import {
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 import {
+  AI_FIELD_STATUS,
   GRID_VIEW_BUFFER_REQUEST_SIZE,
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
@@ -146,10 +147,6 @@ const updatePositionFn = {
   },
 }
 
-function getPendingOperationKey(fieldId, rowId) {
-  return `${fieldId}-${rowId}`
-}
-
 export const state = () => ({
   // Indicates if multiple cell selection is active
   multiSelectActive: false,
@@ -217,10 +214,6 @@ export const state = () => ({
   fieldAggregationData: {},
   activeGroupBys: [],
   groupByMetadata: {},
-  // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
-  // in the array, then that cell is a loading state. This is for example used for
-  // fields that use a background worker to compute the value like the AI field.
-  pendingFieldOps: {},
   checkboxSelectedRows: [], // Array of row IDs selected by checkboxes
 })
 
@@ -238,7 +231,6 @@ export const mutations = {
     state.addRowHover = false
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
-    state.pendingFieldOps = {}
     state.checkboxSelectedRows = []
     state.selectionType = null
   },
@@ -545,25 +537,54 @@ export const mutations = {
     }
   },
   /**
-   * Updates row metadata in the grid buffer.
+   * Merges row metadata in the grid buffer.
    *
    * Note: Metadata is stored on row._.metadata and exists only while rows are
    * in the buffer. When rows leave and re-enter the buffer, fresh metadata is
    * fetched from the API along with the row data.
    */
-  UPDATE_ROW_METADATA(state, { row, metadata }) {
+  MERGE_ROW_METADATA(
+    state,
+    { row, metadata, rowMetadataType, updateFunction }
+  ) {
     const index = state.rows.findIndex((item) => item.id === row.id)
     if (index !== -1) {
       const existingRowState = state.rows[index]
-      const existingMetadata = existingRowState._?.metadata || {}
-      const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
 
+      if (updateFunction) {
+        // Type-specific update using updateFunction
+        updateRowMetadataType(existingRowState, rowMetadataType, updateFunction)
+      } else {
+        // Direct merge of metadata
+        const existingMetadata = existingRowState._?.metadata || {}
+        const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+        if (!existingRowState._) {
+          populateRow(existingRowState, mergedMetadata, false)
+        } else {
+          existingRowState._ = {
+            ...existingRowState._,
+            metadata: mergedMetadata,
+          }
+        }
+      }
+    }
+  },
+  /**
+   * Replaces row metadata in the grid buffer with the provided metadata.
+   * Used when rows_metadata_updated websocket event provides the complete
+   * current metadata state (from all registry types), not a partial delta.
+   */
+  REPLACE_ROW_METADATA(state, { row, metadata }) {
+    const index = state.rows.findIndex((item) => item.id === row.id)
+    if (index !== -1) {
+      const existingRowState = state.rows[index]
       if (!existingRowState._) {
-        populateRow(existingRowState, mergedMetadata, false)
+        populateRow(existingRowState, metadata, false)
       } else {
         existingRowState._ = {
           ...existingRowState._,
-          metadata: mergedMetadata,
+          metadata,
         }
       }
     }
@@ -573,9 +594,6 @@ export const mutations = {
   },
   UPDATE_ROW_FIELD_VALUE(state, { row, field, value }) {
     row[`field_${field.id}`] = value
-  },
-  UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
-    updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   FINALIZE_ROWS_IN_BUFFER(state, { oldRows, newRows, fields }) {
     const stateRowsCopy = { ...state.rows }
@@ -749,33 +767,6 @@ export const mutations = {
         })
         existingMetadata[`field_${groupBy.field}`].push(newEntry)
       }
-    })
-  },
-  SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
-    const addKey = (fieldId, rowId) => {
-      const key = getPendingOperationKey(fieldId, rowId)
-      state.pendingFieldOps[key] = [fieldId, rowId]
-    }
-    const deleteKey = (fieldId, rowId) => {
-      const key = getPendingOperationKey(fieldId, rowId)
-      delete state.pendingFieldOps[key]
-    }
-    const operation = value ? addKey : deleteKey
-
-    rowIds.forEach((rowId) => operation(fieldId, rowId))
-  },
-  CLEAR_PENDING_FIELD_OPERATIONS(state, { fieldIds, rowId }) {
-    fieldIds.forEach((fieldId) => {
-      const key = getPendingOperationKey(fieldId, rowId)
-      delete state.pendingFieldOps[key]
-    })
-  },
-  CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD(state, { fieldId }) {
-    const keysToDelete = Object.keys(state.pendingFieldOps).filter(
-      (key) => state.pendingFieldOps[key][0] === fieldId
-    )
-    keysToDelete.forEach((key) => {
-      delete state.pendingFieldOps[key]
     })
   },
   UPDATE_ROW_HEIGHT(state, value) {
@@ -2522,7 +2513,7 @@ export const actions = {
    * experience for the user.
    */
   async updateRowValue(
-    { commit, dispatch, getters, rootGetters },
+    { commit, dispatch, getters },
     {
       table,
       view,
@@ -2670,29 +2661,8 @@ export const actions = {
             })
           }
 
-          updatedFieldIds.forEach((fieldId) => {
-            const updatedField = rootGetters['field/get'](fieldId)
-            if (updatedField) {
-              const fieldType = this.$registry.get('field', updatedField.type)
-              fieldType.onRowRealtimeUpdate(
-                { store: this, commit, getters, dispatch },
-                updatedField,
-                existing,
-                { ...existing, ...rowData },
-                rowMetadata
-              )
-            }
-          })
-
           // Update the remaining values like formula, which depend on the backend.
           await updateValues(existing, rowData, true)
-
-          // Update row modal metadata
-          dispatch(
-            'rowModal/replaceRowMetadata',
-            { rowId: updatedRowData.id, metadata: rowMetadata },
-            { root: true }
-          )
 
           // If we can't optimistically update the row, refresh it to stop the loading
           // state, show proper messages, and update its position and state. Also, if the
@@ -3026,7 +2996,7 @@ export const actions = {
    * that is will be deleted or created depending if was already in the view.
    */
   async updatedExistingRow(
-    { commit, getters, dispatch, rootGetters },
+    { commit, getters, dispatch },
     { view, fields, row, values, metadata = {}, updatedFieldIds = [] }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -3034,24 +3004,6 @@ export const actions = {
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)
-
-    // Delegate to field types to handle their specific realtime update logic
-    // This allows each field type to decide what to do when metadata changes
-    // Note: metadata is already the row-specific metadata (not keyed by row.id)
-    // as it's passed from viewTypes.rowUpdated which receives data.metadata[row.id]
-    updatedFieldIds.forEach((fieldId) => {
-      const field = rootGetters['field/get'](fieldId)
-      if (field) {
-        const fieldType = this.app.$registry.get('field', field.type)
-        fieldType.onRowRealtimeUpdate(
-          { store: this, commit, getters, dispatch },
-          field,
-          oldRow,
-          newRow,
-          metadata || {}
-        )
-      }
-    })
 
     await dispatch('updateMatchFilters', { view, row: oldRow, fields })
     await dispatch('updateSearchMatchesForRow', { row: oldRow, fields })
@@ -3191,28 +3143,6 @@ export const actions = {
         commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
       }
 
-      // Remove every pending AI field if a value is provided for it. This will make
-      // sure the loading state will stop if the value is updated. This is done even
-      // if the row is not found in the buffer because it could have been removed from
-      // the buffer when scrolling outside the buffer range.
-      const getFieldId = (key) => parseInt(key.split('_')[1])
-      const fieldIdsToClearPendingOperationsFor = Object.entries(values)
-        .filter(
-          ([key, value]) =>
-            key.startsWith('field_') &&
-            // Either the value has changed.
-            (_.isEqual(value, oldRow[key]) ||
-              // Or the backend has just recalculated the value, even if it hasn't
-              // actually changed.
-              updatedFieldIds.includes(getFieldId(key)))
-        )
-        .map(([key, value]) => getFieldId(key))
-
-      commit('CLEAR_PENDING_FIELD_OPERATIONS', {
-        fieldIds: fieldIdsToClearPendingOperationsFor,
-        rowId: row.id,
-      })
-
       // If the row as in the old buffer, but ended up at the first/before or
       // last/after position. This means that we can't know for sure the row should
       // be in the buffer, so it is removed from it.
@@ -3223,17 +3153,19 @@ export const actions = {
     }
   },
   /**
-   * Updates row metadata for specific rows without changing row values.
+   * Replaces row metadata for specific rows without changing row values.
    * This is called when a rows_metadata_updated websocket event is received.
+   * Uses replace (not merge) semantics because the backend regenerates
+   * complete metadata from all registry types for the affected rows.
    */
-  updateRowMetadata({ commit, getters }, { rowIds, metadata }) {
+  updateRowsMetadata({ commit, getters }, { rowIds, metadata }) {
     const allRows = getters.getAllRows
     rowIds.forEach((rowId) => {
       const rowIndex = allRows.findIndex((r) => r.id === rowId)
       if (rowIndex > -1) {
         const row = allRows[rowIndex]
         const rowMetadata = metadata[rowId] || {}
-        commit('UPDATE_ROW_METADATA', { row, metadata: rowMetadata })
+        commit('REPLACE_ROW_METADATA', { row, metadata: rowMetadata })
       }
     })
   },
@@ -3563,11 +3495,85 @@ export const actions = {
     const { $registry, $client, $i18n, $config } = this
     const row = getters.getRow(rowId)
     if (row) {
-      commit('UPDATE_ROW_METADATA_TYPE', {
+      commit('MERGE_ROW_METADATA', {
         row,
         rowMetadataType,
         updateFunction,
       })
+    }
+  },
+  /**
+   * Generates an AI field value for a single row with optimistic update and
+   * rollback. Sets the row to "generating" state, calls the API, and rolls
+   * back metadata on error.
+   */
+  async generateAIFieldValue(
+    { commit, getters },
+    { fieldId, rowId, generateFn }
+  ) {
+    const row = getters.getRow(rowId)
+    if (!row) return
+
+    const previousMetadata = row?._?.metadata?.ai_field?.[fieldId] || null
+
+    commit('MERGE_ROW_METADATA', {
+      row,
+      metadata: {
+        ai_field: { [fieldId]: { status: AI_FIELD_STATUS.GENERATING } },
+      },
+    })
+
+    try {
+      await generateFn(fieldId, rowId)
+    } catch (error) {
+      commit('MERGE_ROW_METADATA', {
+        row,
+        metadata: {
+          ai_field: { [fieldId]: previousMetadata },
+        },
+      })
+      throw error
+    }
+  },
+  /**
+   * Generates AI field values for multiple rows with optimistic update and
+   * rollback. Sets all rows to "generating" state, calls the API with all
+   * row IDs, and rolls back metadata for every row on error.
+   */
+  async generateAIFieldValues(
+    { commit, getters },
+    { fieldId, rowIds, generateFn }
+  ) {
+    const rows = rowIds.map((id) => getters.getRow(id)).filter(Boolean)
+    if (rows.length === 0) return
+
+    const previousMetadataByRowId = {}
+    for (const row of rows) {
+      previousMetadataByRowId[row.id] =
+        row?._?.metadata?.ai_field?.[fieldId] || null
+    }
+
+    for (const row of rows) {
+      commit('MERGE_ROW_METADATA', {
+        row,
+        metadata: {
+          ai_field: { [fieldId]: { status: AI_FIELD_STATUS.GENERATING } },
+        },
+      })
+    }
+
+    try {
+      await generateFn(fieldId, rowIds)
+    } catch (error) {
+      for (const row of rows) {
+        commit('MERGE_ROW_METADATA', {
+          row,
+          metadata: {
+            ai_field: { [fieldId]: previousMetadataByRowId[row.id] },
+          },
+        })
+      }
+      throw error
     }
   },
   /**
@@ -3611,23 +3617,8 @@ export const actions = {
       fieldIndex: minFieldIndex,
     })
   },
-  /**
-   * Add the fieldId to the list of pending field operations for the given rowIds.
-   * This is used to show a loading spinner when a field is being updated. For example,
-   * the AI field type uses this to show a spinner when the AI values are being
-   * generated in a background task.
-   */
-  setPendingFieldOperations({ commit }, { fieldId, rowIds, value = true }) {
-    commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value })
-  },
-  AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds }) {
-    const { $registry, $client, $i18n, $config } = this
-    // If rowIds is empty, clear ALL pending operations for this field.
-    if (rowIds.length === 0) {
-      commit('CLEAR_ALL_PENDING_FIELD_OPERATIONS_FOR_FIELD', { fieldId })
-    } else {
-      commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value: false })
-    }
+  AIValuesGenerationError({ dispatch }) {
+    const { $i18n } = this
     dispatch(
       'toast/error',
       {
@@ -3953,10 +3944,6 @@ export const getters = {
   },
   getAdhocSorting(state) {
     return state.adhocSorting
-  },
-  hasPendingFieldOps: (state) => (fieldId, rowId) => {
-    const key = getPendingOperationKey(fieldId, rowId)
-    return state.pendingFieldOps[key] !== undefined
   },
   getCheckboxSelectedRows: (state) => {
     return state.rows.filter((row) =>

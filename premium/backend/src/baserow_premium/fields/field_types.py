@@ -29,7 +29,6 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
-from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -448,11 +447,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        if not table.field_metadata_column_added:
-            table_to_update = TableHandler().get_table_for_update(table.id)
-            TableHandler().create_field_metadata_column(table_to_update)
-            table.field_metadata_column_added = True
-
         ai_output_type = field_kwargs.get(
             "ai_output_type", AIField._meta.get_field("ai_output_type").default
         )

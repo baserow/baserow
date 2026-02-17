@@ -217,6 +217,7 @@ export class KanbanViewType extends PremiumViewType {
         fields,
         row,
         values,
+        metadata,
       })
     }
   }
@@ -282,6 +283,28 @@ export class KanbanViewType extends PremiumViewType {
         rowIds,
         metadata,
       })
+    }
+  }
+
+  AIValuesGenerationError(
+    context,
+    tableId,
+    fieldId,
+    rowIds,
+    error,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(context.store, tableId)) {
+      context.store.dispatch(
+        'toast/error',
+        {
+          title: context.app.i18n.t('gridView.AIValuesGenerationErrorTitle'),
+          message: context.app.i18n.t(
+            'gridView.AIValuesGenerationErrorMessage'
+          ),
+        },
+        { root: true }
+      )
     }
   }
 }
@@ -453,6 +476,7 @@ export class CalendarViewType extends PremiumViewType {
         fields,
         row,
         values,
+        metadata,
       })
     }
   }
@@ -576,6 +600,28 @@ export class CalendarViewType extends PremiumViewType {
       })
     }
   }
+
+  AIValuesGenerationError(
+    context,
+    tableId,
+    fieldId,
+    rowIds,
+    error,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(context.store, tableId)) {
+      context.store.dispatch(
+        'toast/error',
+        {
+          title: context.app.i18n.t('gridView.AIValuesGenerationErrorTitle'),
+          message: context.app.i18n.t(
+            'gridView.AIValuesGenerationErrorMessage'
+          ),
+        },
+        { root: true }
+      )
+    }
+  }
 }
 
 export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
@@ -643,10 +689,32 @@ export class TimelineViewType extends BaseBufferedRowViewTypeMixin(
 
   metadataUpdated({ store }, tableId, rowIds, metadata, storePrefix = '') {
     if (this.isCurrentView(store, tableId)) {
-      store.dispatch(storePrefix + 'view/timeline/updateRowMetadata', {
+      store.dispatch(storePrefix + 'view/timeline/updateRowsMetadata', {
         rowIds,
         metadata,
       })
+    }
+  }
+
+  AIValuesGenerationError(
+    context,
+    tableId,
+    fieldId,
+    rowIds,
+    error,
+    storePrefix = ''
+  ) {
+    if (this.isCurrentView(context.store, tableId)) {
+      context.store.dispatch(
+        'toast/error',
+        {
+          title: context.app.i18n.t('gridView.AIValuesGenerationErrorTitle'),
+          message: context.app.i18n.t(
+            'gridView.AIValuesGenerationErrorMessage'
+          ),
+        },
+        { root: true }
+      )
     }
   }
 }

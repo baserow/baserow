@@ -297,7 +297,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       })
       row._.matchSearch = matchSearch
     },
-    UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
+    MERGE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
       updateRowMetadataType(row, rowMetadataType, updateFunction)
     },
     SET_ADHOC_FILTERING(state, adhocFiltering) {
@@ -1257,7 +1257,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     ) {
       const row = getters.getRow(rowId)
       if (row) {
-        commit('UPDATE_ROW_METADATA_TYPE', {
+        commit('MERGE_ROW_METADATA', {
           row,
           rowMetadataType,
           updateFunction,

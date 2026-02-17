@@ -204,22 +204,6 @@ export const registerRealtimeEvents = (realtime) => {
       const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
       const rowMetadata = data.metadata[row.id] || {}
 
-      if (data.updated_field_ids && data.updated_field_ids.length > 0) {
-        data.updated_field_ids.forEach((fieldId) => {
-          const field = store.getters['field/get'](fieldId)
-          if (field) {
-            const fieldType = app.$registry.get('field', field.type)
-            fieldType.onRowRealtimeUpdate(
-              context,
-              field,
-              rowBeforeUpdate,
-              row,
-              rowMetadata
-            )
-          }
-        })
-      }
-
       for (const viewType of viewTypes) {
         await viewType.rowUpdated(
           context,
@@ -296,14 +280,14 @@ export const registerRealtimeEvents = (realtime) => {
       )
     }
 
-    // Also update row modal if open for any of these rows
+    // Also update row modal if open for any of these rows.
+    // Uses replaceRowMetadata (not merge) because the backend regenerates
+    // complete metadata from all registry types for the affected rows.
     for (const rowId of data.row_ids) {
-      if (data.metadata[rowId]) {
-        store.dispatch('rowModal/updateRowMetadata', {
-          rowId,
-          metadata: data.metadata[rowId],
-        })
-      }
+      store.dispatch('rowModal/replaceRowMetadata', {
+        rowId,
+        metadata: data.metadata[rowId] || {},
+      })
     }
   })
 

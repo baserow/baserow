@@ -293,13 +293,14 @@ def test_batch_create_rows(api_client, data_fixture, include_metadata):
     }
     if include_metadata:
         expected_response_body["metadata"] = {
+            "rows": {},
             "updated_field_ids": [
                 text_field.id,
                 number_field.id,
                 number_field_2.id,
                 boolean_field.id,
                 boolean_field_2.id,
-            ]
+            ],
         }
         url = f"{url}?include_metadata=true"
 
@@ -357,13 +358,14 @@ def test_batch_create_rows(api_client, data_fixture, include_metadata):
 
     if include_metadata:
         expected_response_body_empty["metadata"] = {
+            "rows": {},
             "updated_field_ids": [
                 text_field.id,
                 number_field.id,
                 number_field_2.id,
                 boolean_field.id,
                 boolean_field_2.id,
-            ]
+            ],
         }
 
     response = api_client.post(
@@ -1357,6 +1359,7 @@ def test_batch_update_rows(api_client, data_fixture, include_metadata):
     if include_metadata:
         expected_response_body["metadata"] = {
             "cascade_update": {"field_ids": [], "rows": []},
+            "rows": {},
             "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
             ),
@@ -1435,6 +1438,7 @@ def test_batch_update_rows_with_different_fields(
     if include_metadata:
         expected_response_body["metadata"] = {
             "cascade_update": {"field_ids": [], "rows": []},
+            "rows": {},
             "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
             ),

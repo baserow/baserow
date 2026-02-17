@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
@@ -18,7 +19,7 @@ from baserow_premium.prompts import get_generate_formula_prompt
 from .pydantic_models import BaserowFormulaModel
 
 if TYPE_CHECKING:
-    from .models import AIField
+    from .models import AIField, GenerateAIValuesJob
 
 
 class AIFieldHandler:
@@ -28,20 +29,20 @@ class AIFieldHandler:
         ai_field: "AIField",
         row_ids: list[int],
         user: AbstractUser,
-    ):
+    ) -> "GenerateAIValuesJob":
         """
         Start AI field value generation for the specified rows.
 
         This method handles the complete flow:
         1. Validates rows exist
         2. Validates AI model is available
-        3. Sets metadata to "generating" (within transaction)
-        4. Broadcasts websocket update (after transaction commits)
-        5. Dispatches async generation task
+        3. Sets metadata to "generating" and broadcasts to connected clients
+        4. Creates and starts the async generation job
 
         :param ai_field: The AI field to generate values for
         :param row_ids: List of row IDs to generate values for
         :param user: The user requesting the generation
+        :return: The created job
         :raises RowDoesNotExist: if any of the specified rows don't exist
         :raises ModelDoesNotBelongToType: if the AI model is not available
         """
@@ -63,14 +64,16 @@ class AIFieldHandler:
         if ai_field.ai_generative_ai_model not in ai_models:
             raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
 
+        TableHandler().ensure_field_metadata_column_exists(table)
         AIFieldMetadataHandler.set_generating_and_broadcast(ai_field, row_ids, user)
 
-        JobHandler().create_and_start_job(
+        job = JobHandler().create_and_start_job(
             user,
             "generate_ai_values",
             field_id=ai_field.id,
             row_ids=row_ids,
         )
+        return job
 
     @classmethod
     def generate_formula_with_ai(

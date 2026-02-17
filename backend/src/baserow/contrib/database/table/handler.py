@@ -913,11 +913,11 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             update_fields=["created_by_column_added", "last_modified_by_column_added"]
         )
 
-    def create_field_metadata_column(self, table: Table):
+    def ensure_field_metadata_column_exists(self, table: Table):
         """
-        Creates the field_metadata JSONB column for the provided table if it
-        has not yet been created. Also creates a GIN index on the column for
-        efficient metadata queries.
+        Ensures the field_metadata JSONB column exists for the provided table,
+        creating it if necessary. Also creates a GIN index on the column for
+        efficient metadata queries. This method is idempotent.
 
         This column stores metadata for all fields in a row using a JSON structure
         where field IDs are keys. This allows any field type to store status,

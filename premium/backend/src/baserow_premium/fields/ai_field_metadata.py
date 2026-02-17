@@ -1,7 +1,9 @@
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Union
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils import timezone
 
 from baserow.contrib.database.fields.metadata_handler import (
@@ -32,6 +34,9 @@ class AIGenerationStatus(Enum):
 
         Returns None if no metadata (row was never processed - this is normal state).
 
+        If a row has been generating for longer than BASEROW_JOB_SOFT_TIME_LIMIT,
+        it is considered timed out and returns None (to clear stuck UI states).
+
         :param metadata: The metadata dictionary for a field
         :return: AIGenerationStatus or None if no metadata
         """
@@ -39,8 +44,15 @@ class AIGenerationStatus(Enum):
         if not metadata:
             return None
 
-        # Has start but no end = currently generating
+        # Has start but no end = currently generating (unless timed out)
         if AIMetadataKeys.START in metadata and AIMetadataKeys.END not in metadata:
+            start_time = metadata.get(AIMetadataKeys.START)
+            if start_time:
+                timeout = settings.BASEROW_JOB_SOFT_TIME_LIMIT
+                elapsed = timezone.now().timestamp() - start_time
+                if elapsed > timeout:
+                    # Generation has exceeded job time limit - treat as timed out
+                    return None
             return cls.GENERATING
 
         # Has end with ok=True = success
@@ -260,13 +272,23 @@ class AIFieldMetadataHandler:
             user, table, row_ids
         )
 
-        table_page_type.broadcast(
-            {
-                "type": "rows_metadata_updated",
-                "table_id": table.id,
-                "row_ids": row_ids,
-                "metadata": metadata,
-            },
-            getattr(user, "web_socket_id", None),
-            table_id=table.id,
+        payload = {
+            "type": "rows_metadata_updated",
+            "table_id": table.id,
+            "row_ids": row_ids,
+            "metadata": metadata,
+        }
+
+        # Use on_commit to ensure the broadcast only fires after the DB
+        # transaction commits. When called inside @transaction.atomic (e.g.,
+        # from the API view), this prevents sending WS messages for changes
+        # that might be rolled back. When called outside a transaction (e.g.,
+        # during job execution with _empty_transaction_context), on_commit
+        # fires immediately.
+        transaction.on_commit(
+            lambda: table_page_type.broadcast(
+                payload,
+                None,
+                table_id=table.id,
+            )
         )

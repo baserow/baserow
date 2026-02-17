@@ -72,7 +72,7 @@ export default {
       }
 
       this.loading = true
-      let rows = []
+      let rows
 
       try {
         rows = await this.getRows()
@@ -84,19 +84,17 @@ export default {
       const rowIds = rows.map((row) => row.id)
       this.loading = false
 
-      const fieldId = this.field.id
-      this.$store.dispatch(
-        this.storePrefix + 'view/grid/setPendingFieldOperations',
-        { fieldId, rowIds, value: true }
-      )
-
       try {
-        await FieldService(this.$client).generateAIFieldValues(fieldId, rowIds)
-      } catch (error) {
-        this.$store.dispatch(
-          this.storePrefix + 'view/grid/setPendingFieldOperations',
-          { fieldId, rowIds, value: false }
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/generateAIFieldValues',
+          {
+            fieldId: this.field.id,
+            rowIds,
+            generateFn: (fId, rIds) =>
+              FieldService(this.$client).generateAIFieldValues(fId, rIds),
+          }
         )
+      } catch (error) {
         notifyIf(error, 'field')
       }
       this.$emit('click', $event)

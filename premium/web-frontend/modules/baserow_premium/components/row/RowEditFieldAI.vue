@@ -32,6 +32,13 @@
         name="ai-field"
         v-bind="deactivatedClickComponent[1]"
       ></component>
+      <div v-if="generationError" class="margin-top-1">
+        <i
+          class="iconoir-warning-triangle"
+          style="color: var(--color-warning)"
+        ></i>
+        {{ generationError.message }}
+      </div>
     </div>
   </div>
 </template>

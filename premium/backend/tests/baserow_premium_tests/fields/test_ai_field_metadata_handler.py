@@ -1,4 +1,10 @@
+from datetime import datetime
+
+from django.conf import settings
+from django.utils import timezone
+
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.database.fields.metadata_handler import FieldMetadataHandler
 from baserow_premium.fields.ai_field_metadata import (
@@ -161,6 +167,9 @@ def test_ai_field_metadata_handler_clear_metadata(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+# Freeze time close to the test timestamps so the timeout check doesn't expire.
+# we freeze at +10s to stay within the limit.
+@freeze_time(datetime.utcfromtimestamp(1234567900))
 def test_ai_generation_status_from_metadata(premium_data_fixture):
     assert AIGenerationStatus.from_metadata(None) is None
     assert AIGenerationStatus.from_metadata({}) is None
@@ -365,3 +374,22 @@ def test_ai_field_metadata_handler_set_generating_clears_success_state(
     assert AIMetadataKeys.START in metadata
     assert AIMetadataKeys.END not in metadata
     assert AIMetadataKeys.OK not in metadata
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_generation_status_timeout_returns_none():
+    timeout = settings.BASEROW_JOB_SOFT_TIME_LIMIT
+    expired_start = timezone.now().timestamp() - timeout - 1
+
+    metadata = {AIMetadataKeys.START: expired_start}
+    assert AIGenerationStatus.from_metadata(metadata) is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_generation_status_not_timed_out():
+    recent_start = timezone.now().timestamp() - 10
+
+    metadata = {AIMetadataKeys.START: recent_start}
+    assert AIGenerationStatus.from_metadata(metadata) == AIGenerationStatus.GENERATING

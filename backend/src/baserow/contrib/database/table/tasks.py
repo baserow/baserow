@@ -152,7 +152,7 @@ def setup_field_metadata_column(self, table_id: int):
 
     with transaction.atomic():
         table = TableHandler().get_table_for_update(table_id)
-        TableHandler().create_field_metadata_column(table)
+        TableHandler().ensure_field_metadata_column_exists(table)
 
 
 @app.task(bind=True)

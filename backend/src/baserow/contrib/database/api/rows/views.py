@@ -164,8 +164,6 @@ def build_response_with_metadata(
     serializer_class,
     updated_field_ids: list | None = None,
     cascade_update: CascadeUpdatedRows | None = None,
-    user=None,
-    table: Table | None = None,
 ) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
@@ -182,8 +180,6 @@ def build_response_with_metadata(
     :param serializer_class: Serializer for the response
     :param updated_field_ids: List of field IDs that were updated
     :param cascade_update: Cascade update information
-    :param user: The user making the request (needed for row metadata)
-    :param table: The table (needed for row metadata)
     """
 
     data = {"items": rows}
@@ -199,15 +195,14 @@ def build_response_with_metadata(
                 "field_ids": cascade_update.field_ids,
             }
 
-        if user and table:
-            row_ids = [row["id"] if isinstance(row, dict) else row.id for row in rows]
-            if cascade_update:
-                row_ids.extend(r["id"] for r in cascade_update.updated_rows)
-            data["metadata"]["rows"] = (
-                row_metadata_registry.generate_and_merge_metadata_for_rows(
-                    user, table, row_ids
-                )
+        row_ids = [row["id"] if isinstance(row, dict) else row.id for row in rows]
+        if cascade_update:
+            row_ids.extend(r["id"] for r in cascade_update.updated_rows)
+        data["metadata"]["rows"] = (
+            row_metadata_registry.generate_and_merge_metadata_for_rows(
+                request.user, model.baserow_table, row_ids
             )
+        )
 
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
@@ -1405,8 +1400,6 @@ class BatchRowsView(APIView):
             request=request,
             model=model,
             serializer_class=response_serializer_class,
-            user=request.user,
-            table=table,
         )
 
     @extend_schema(
@@ -1561,8 +1554,6 @@ class BatchRowsView(APIView):
             serializer_class=response_serializer_class,
             updated_field_ids=updated_data.updated_field_ids,
             cascade_update=updated_data.cascade_update,
-            user=request.user,
-            table=table,
         )
 
 

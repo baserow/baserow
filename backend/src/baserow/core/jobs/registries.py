@@ -136,6 +136,18 @@ class JobType(
         :param error: the exception raised.
         """
 
+    def on_cancelled(self, job: AnyJob, previous_state: str = ""):
+        """
+        Called after a job has been marked as cancelled. This gives the job type
+        the opportunity to perform cleanup, such as clearing pre-set metadata
+        that would otherwise remain stuck.
+
+        :param job: the specific instance of the cancelled job.
+        :param previous_state: the job's state before cancellation (e.g.,
+            'pending', 'started'). Useful for deciding whether cleanup is needed
+            — a job that was already running may handle its own cleanup.
+        """
+
     @property
     def request_serializer_class(self):
         """

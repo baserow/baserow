@@ -1,6 +1,10 @@
 <template>
   <div class="grid-field-ai-wrapper">
-    <div v-if="!value && !readOnly" ref="cell" class="grid-view__cell active">
+    <div
+      v-if="generating || (!value && !readOnly)"
+      ref="cell"
+      class="grid-view__cell active"
+    >
       <div class="grid-field-button">
         <Button
           type="secondary"
@@ -32,7 +36,7 @@
       @select-below="(...args) => $emit('selectBelow', ...args)"
       @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
-      <template v-if="!readOnly && editing" #default="{ editing }">
+      <template v-if="!readOnly && editing" #default>
         <div style="background-color: #fff; padding: 8px; position: relative">
           <i
             v-if="metadataStatusIndicator"

@@ -346,7 +346,7 @@ export const actions = {
     // Let's also make sure the local copy of the row edit modal is updated in case the
     // row is not in any view buffer.
     dispatch(
-      'rowModal/updateRowMetadata',
+      'rowModal/updateRowMetadataType',
       { rowId, rowMetadataType, updateFunction },
       { root: true }
     )

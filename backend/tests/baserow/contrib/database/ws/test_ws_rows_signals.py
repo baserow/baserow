@@ -544,7 +544,7 @@ def test_rows_metadata_updated_uses_transaction_on_commit(
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
-def test_rows_metadata_updated_respects_user_web_socket_id(
+def test_rows_metadata_updated_broadcasts_to_all_clients_including_sender(
     mock_broadcast_to_channel_group, data_fixture
 ):
     user = data_fixture.create_user()
@@ -565,4 +565,4 @@ def test_rows_metadata_updated_respects_user_web_socket_id(
 
     mock_broadcast_to_channel_group.delay.assert_called_once()
     args = mock_broadcast_to_channel_group.delay.call_args
-    assert args[0][2] == "test-socket-123"
+    assert args[0][2] is None

@@ -196,27 +196,53 @@ export const mutations = {
       }
     })
   },
-  UPDATE_ROW_METADATA_TYPE(state, { row, rowMetadataType, updateFunction }) {
-    updateRowMetadataType(row, rowMetadataType, updateFunction)
+  /**
+   * Merges row metadata in the kanban stacks.
+   * Supports two modes:
+   * 1. Type-specific: pass rowMetadataType + updateFunction to transform one key
+   * 2. Direct merge: pass metadata to deep merge with existing metadata
+   */
+  MERGE_ROW_METADATA(
+    state,
+    { row, metadata, rowMetadataType, updateFunction }
+  ) {
+    if (updateFunction) {
+      updateRowMetadataType(row, rowMetadataType, updateFunction)
+    } else {
+      for (const stack of Object.values(state.stacks)) {
+        const index = stack.results.findIndex(
+          (item) => item && item.id === row.id
+        )
+        if (index !== -1) {
+          const existingRowState = stack.results[index]
+          const existingMetadata = existingRowState._?.metadata || {}
+          const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+          if (!existingRowState._) {
+            existingRowState._ = { metadata: mergedMetadata }
+          } else {
+            existingRowState._.metadata = mergedMetadata
+          }
+          break
+        }
+      }
+    }
   },
   /**
-   * Updates row metadata in the kanban stacks.
-   * Deep merges new metadata with existing metadata, removing keys with null values.
+   * Replaces row metadata in the kanban stacks with the provided metadata.
+   * Used when rows_metadata_updated provides complete metadata state.
    */
-  UPDATE_ROW_METADATA(state, { row, metadata }) {
+  REPLACE_ROW_METADATA(state, { row, metadata }) {
     for (const stack of Object.values(state.stacks)) {
       const index = stack.results.findIndex(
         (item) => item && item.id === row.id
       )
       if (index !== -1) {
         const existingRowState = stack.results[index]
-        const existingMetadata = existingRowState._?.metadata || {}
-        const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
-
         if (!existingRowState._) {
-          existingRowState._ = { metadata: mergedMetadata }
+          existingRowState._ = { metadata }
         } else {
-          existingRowState._.metadata = mergedMetadata
+          existingRowState._.metadata = metadata
         }
         break
       }
@@ -609,7 +635,7 @@ export const actions = {
    */
   async updatedExistingRow(
     { dispatch, getters, commit },
-    { view, row, values, fields }
+    { view, row, values, fields, metadata = null }
   ) {
     const { $registry } = this
     const singleSelectFieldId = getters.getSingleSelectFieldId
@@ -659,6 +685,14 @@ export const actions = {
       newRowMatchesFilters
 
     commit('UPDATE_ROW', { row, values })
+
+    if (metadata !== null) {
+      const target = getters.findStackIdAndIndex(row.id)
+      if (target !== undefined) {
+        const existingRow = target[2]
+        commit('REPLACE_ROW_METADATA', { row: existingRow, metadata })
+      }
+    }
 
     if (oldExists && newExists) {
       commit('MOVE_ROW', {
@@ -1109,14 +1143,14 @@ export const actions = {
    * Updates a single row's row._.metadata based on the provided rowMetadataType and
    * updateFunction.
    */
-  updateRowMetadata(
+  updateRowMetadataType(
     { commit, getters },
     { rowId, rowMetadataType, updateFunction }
   ) {
     const target = getters.findStackIdAndIndex(rowId)
     if (target !== undefined) {
       const row = target[2]
-      commit('UPDATE_ROW_METADATA_TYPE', {
+      commit('MERGE_ROW_METADATA', {
         row,
         rowMetadataType,
         updateFunction,
@@ -1124,8 +1158,10 @@ export const actions = {
     }
   },
   /**
-   * Updates row metadata for specific rows without changing row values.
+   * Replaces row metadata for specific rows without changing row values.
    * Called when a rows_metadata_updated websocket event is received.
+   * Uses replace (not merge) semantics because the backend regenerates
+   * complete metadata from all registry types for the affected rows.
    */
   updateRowsMetadata({ commit, getters }, { rowIds, metadata }) {
     rowIds.forEach((rowId) => {
@@ -1133,7 +1169,7 @@ export const actions = {
       if (target !== undefined) {
         const row = target[2]
         const rowMetadata = metadata[rowId] || {}
-        commit('UPDATE_ROW_METADATA', { row, metadata: rowMetadata })
+        commit('REPLACE_ROW_METADATA', { row, metadata: rowMetadata })
       }
     })
   },

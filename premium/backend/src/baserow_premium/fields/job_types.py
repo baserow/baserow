@@ -28,6 +28,7 @@ from baserow.contrib.database.rows.signals import (
     rows_ai_values_generation_error,
     rows_metadata_updated,
 )
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
@@ -44,7 +45,8 @@ from baserow.core.generative_ai.registries import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
-from baserow.core.jobs.exceptions import MaxJobCountExceeded
+from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING
+from baserow.core.jobs.exceptions import JobCancelled, MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 from baserow_premium.generative_ai.managers import AIFileManager
@@ -80,6 +82,32 @@ def get_valid_generative_ai_model_type_or_raise(ai_field: AIField):
     if ai_field.ai_generative_ai_model not in ai_models:
         raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
     return generative_ai_model_type
+
+
+def _cleanup_pre_set_metadata(ai_field, row_ids, user, table):
+    """
+    Clean up "generating" metadata that was pre-set before the job started.
+
+    This is needed when the job fails during prepare() (e.g., AI model became
+    unavailable) and the generator's own cleanup never runs because the
+    constructor raised an exception.
+
+    :param ai_field: The AI field
+    :param row_ids: List of row IDs that had metadata pre-set
+    :param user: The user who triggered the generation
+    :param table: The table containing the rows
+    """
+
+    model = ai_field.table.get_model()
+    if FieldMetadataHandler.is_metadata_available(model):
+        with transaction.atomic():
+            AIFieldMetadataHandler.clear_metadata(ai_field, list(row_ids))
+        rows_metadata_updated.send(
+            sender=None,
+            table=table,
+            row_ids=list(row_ids),
+            user=user,
+        )
 
 
 class GenerateAIValuesJobType(JobType):
@@ -165,6 +193,39 @@ class GenerateAIValuesJobType(JobType):
                     f"You can only launch 1 {self.type} job(s) at "
                     "the same time for the same field."
                 )
+
+    def on_cancelled(self, job: GenerateAIValuesJob, previous_state: str = ""):
+        """
+        Clean up pre-set GENERATING metadata when a ROWS-mode job is cancelled
+        before the Celery task starts.
+
+        In ROWS mode, metadata is set to "generating" before the Celery task starts
+        (in start_ai_field_generation). If the job is cancelled before the task runs,
+        run_async_job returns early and the generator's cleanup never executes,
+        leaving rows stuck with a spinner. This hook ensures metadata is always
+        cleared.
+
+        If the job was already running (started), the generator handles its own
+        cleanup via update_progress() and _cleanup_unprocessed_rows(), so this
+        hook is a no-op to avoid redundant WS traffic and metadata races.
+        """
+
+        if job.mode != GenerateAIValuesJob.MODES.ROWS or not job.row_ids:
+            return
+
+        # Only clean up if the job was still pending. If it was already running,
+        # the generator's own cleanup handles metadata correctly.
+        if previous_state and previous_state != JOB_PENDING:
+            return
+
+        try:
+            ai_field = self._get_field(job.field_id)
+        except FieldDoesNotExist:
+            # Field was deleted between job creation and cancellation.
+            # Metadata cleanup is irrelevant since the field no longer exists.
+            return
+
+        _cleanup_pre_set_metadata(ai_field, job.row_ids, job.user, ai_field.table)
 
     def transaction_atomic_context(self, job: GenerateAIValuesJob):
         # We want to commit a row at a time to provide faster feedback to the user.
@@ -279,6 +340,9 @@ class GenerateAIValuesJobType(JobType):
         ai_field = self._get_field(job.field_id)
         table = ai_field.table
         workspace = table.database.workspace
+
+        TableHandler().ensure_field_metadata_column_exists(table)
+
         model = table.get_model()
         row_handler = RowHandler()
         CoreHandler().check_permissions(
@@ -314,13 +378,87 @@ class GenerateAIValuesJobType(JobType):
         )
 
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
-        generator = AIValueGenerator(user, ai_field, self, rows_progress)
+
+        def on_progress(value_update: AIValueUpdate):
+            """
+            Called when a row has been processed, and a result from AI model has been
+            retrieved.
+
+            This is called from AIValueGenerator, to inform that a row has been
+            processed, and there's a specific result of that processing. If the value
+            is an exception, that means the processing ended with an error.
+
+            :param result: AIValueResult object with the row, result and timing
+            information.
+            """
+
+            from baserow_premium.fields.tasks import (
+                _schedule_generate_ai_value_generation,
+            )
+
+            rows_progress.increment()
+            row = value_update.row
+            start_at = value_update.start_at
+
+            if isinstance(value_update.result, Exception):
+                rows_ai_values_generation_error.send(
+                    self,
+                    user=user,
+                    rows=[row],
+                    field=ai_field,
+                    table=table,
+                    error_message=str(value_update.result),
+                )
+                return
+
+            if job.is_auto_update:
+                deleted_count, _ = AIFieldScheduledUpdate.objects.filter(
+                    field_id=ai_field.id, row_id=row.id, updated_on__lte=start_at
+                ).delete()
+                # The scheduled update was removed or updated after the job
+                # started, so we skip updating this row with an already outdated
+                # value, and we renschedule generation for it.
+                if deleted_count == 0:
+                    _schedule_generate_ai_value_generation(field_id=ai_field.id)
+                    return
+
+            try:
+                row_handler.update_row_by_id(
+                    user,
+                    table,
+                    row.id,
+                    {ai_field.db_column: value_update.result},
+                    model=model,
+                    values_already_prepared=True,
+                )
+            except RowDoesNotExist:
+                # The row was trahsed during the generation and we cannot update
+                # it, so we skip it.
+                return
+
         try:
-            generator.process(rows.order_by("id"))
-        finally:
-            # Ensure cleanup runs even on cancellation (JobCancelled exception).
-            # This clears "generating" spinners for rows that were never processed.
-            generator._cleanup_unprocessed_rows()
+            generator = AIValueGenerator(user, ai_field, job, on_progress)
+
+            # In ROWS mode, metadata was pre-set by start_ai_field_generation()
+            # before the job started. Seed the generator's tracking list so
+            # cleanup covers ALL pre-set rows (not just those fetched during
+            # processing). Also skip redundant metadata set during processing.
+            if job.mode == GenerateAIValuesJob.MODES.ROWS and job.row_ids:
+                generator.all_row_ids_with_generating_status = list(job.row_ids)
+                generator.skip_metadata_broadcast = True
+
+            try:
+                generator.process(rows.order_by("id"))
+            finally:
+                # Ensure cleanup runs even on cancellation (JobCancelled exception).
+                # This clears "generating" spinners for rows that were never
+                # processed.
+                generator._cleanup_unprocessed_rows()
+        except ModelDoesNotBelongToType:
+            # prepare() failed — clean up pre-set metadata for ROWS mode
+            if job.mode == GenerateAIValuesJob.MODES.ROWS and job.row_ids:
+                _cleanup_pre_set_metadata(ai_field, job.row_ids, user, table)
+            raise
 
 
 class AIValueGenerator:
@@ -343,7 +481,7 @@ class AIValueGenerator:
         self,
         user: AbstractUser,
         ai_field: AIField,
-        signal_sender: GenerateAIValuesJob | Any | None = None,
+        job: GenerateAIValuesJob | None = None,
         on_progress: Callable[[AIValueUpdate], None] | None = None,
     ):
         self.user = user
@@ -351,7 +489,7 @@ class AIValueGenerator:
         self.ai_field = ai_field
         self.table = table = ai_field.table
         self.model = table.get_model()
-        self.signal_sender = signal_sender
+        self.job = job
         self.workspace = table.database.workspace
         self.max_concurrency = self.ai_field.ai_max_concurrent_generations
 
@@ -389,6 +527,15 @@ class AIValueGenerator:
         # Chunk size for batching WS messages (aligned with DB iterator chunk_size)
         self.chunk_size = settings.BATCH_ROWS_SIZE_LIMIT
 
+        # When True, skip setting metadata and broadcasting in
+        # _flush_pending_rows_buffer(). Used when metadata was already pre-set
+        # before the job started (ROWS mode via dedicated endpoint).
+        self.skip_metadata_broadcast = False
+
+        # Set to True when job cancellation is detected. Used to skip value
+        # writes and clear metadata instead of treating cancellation as an error.
+        self._cancelled = False
+
         self.prepare()
 
     def prepare(self):
@@ -409,7 +556,7 @@ class AIValueGenerator:
             # fail. We therefore want to handle the error gracefully.
             # Note: rows might be a generator, so we can't pass it directly
             rows_ai_values_generation_error.send(
-                self.signal_sender,
+                self.job,
                 user=self.user,
                 rows=[],
                 field=self.ai_field,
@@ -485,6 +632,7 @@ class AIValueGenerator:
         message = ai_output_type.format_prompt(message, ai_field)
 
         if self.use_file_fields:
+            file_ids = []
             try:
                 file_ids = AIFileManager.upload_files_from_file_field(
                     ai_field, row, generative_ai_model_type
@@ -513,15 +661,16 @@ class AIValueGenerator:
         value = ai_output_type.parse_output(value, ai_field)
         return value
 
-    def handle_error(self, error_message: str):
+    def handle_error(self, row: GeneratedTableModel, error_message: str):
         """
         Error handling routine, if an error occurred during getting AI model response
         for a row.
 
-        If an error occurs, this will stop processing any pending rows and will notify
-        the frontend on a first occurrence of an error.
+        If an error occurs, this will stop processing any pending rows and will set
+        error metadata on the row if metadata is available.
 
-        :param error_message: The exception message to log and send with the signal.
+        :param row: The row on which the error occurred.
+        :param error_message: The exception message to log.
         """
 
         self.stop_scheduling_rows()
@@ -532,7 +681,7 @@ class AIValueGenerator:
                     self.model,
                     row.id,
                     self.ai_field.id,
-                    str(exc),
+                    error_message,
                 )
                 rows_metadata_updated.send(
                     sender=self,
@@ -541,43 +690,30 @@ class AIValueGenerator:
                     user=self.user,
                 )
 
-        if not self.has_errors:
-            rows_ai_values_generation_error.send(
-                self,
-                user=self.user,
-                rows=[row],
-                field=self.ai_field,
-                table=self.table,
-                error_message=str(exc),
-            )
-
-        self.has_errors = True
+        self.error_msg = error_message
 
     def update_value(self, row: GeneratedTableModel, value: Any):
         """
-        Updates AI field value for the row with the value returned from the AI model.
+        Updates AI field metadata for the row on success.
+
+        The actual row value update is handled by the on_progress callback.
         """
 
         if self.has_metadata_column:
             AIFieldMetadataHandler.set_success(self.model, row.id, self.ai_field.id)
 
-        self.row_handler.update_row_by_id(
-            self.user,
-            self.table,
-            row.id,
-            {self.ai_field.db_column: value},
-            model=self.model,
-            values_already_prepared=True,
-        )
-
     def raise_if_error(self):
         """
         Checks if there was any error during the processing of rows with the AI model,
-        and raises GenerativeAIPromptError exception..
+        and raises GenerativeAIPromptError exception.
 
         This should be called at the end of processing, to inform the caller that
-        there was an error.
+        there was an error. If the job was cancelled, raises JobCancelled so the
+        job framework correctly sets the final state to CANCELLED.
         """
+
+        if self._cancelled:
+            raise JobCancelled()
 
         if self.error_msg:
             raise GenerativeAIPromptError(
@@ -639,10 +775,6 @@ class AIValueGenerator:
                 if self.is_finished():
                     break
 
-        # Clear "generating" metadata for rows that were set but never scheduled
-        # (due to error or cancellation).
-        self._cleanup_unprocessed_rows()
-
         self.raise_if_error()
 
     def stop_scheduling_rows(self):
@@ -654,10 +786,13 @@ class AIValueGenerator:
 
     def can_schedule_next(self) -> bool:
         """
-        Returns True, if there's a free slot to process.
+        Returns True, if there's a free slot to process and no errors have occurred.
         """
 
-        return self.generate_more_rows and len(self.in_process) < self.max_concurrency
+        if self._cancelled or self.error_msg is not None:
+            return False
+        total_pending = len(self.in_process) + len(self.pending_rows_buffer)
+        return self.generate_more_rows and total_pending < self.max_concurrency
 
     def is_finished(self) -> bool:
         """
@@ -672,38 +807,90 @@ class AIValueGenerator:
         error or a correct result, so, depending on its type, it will be handled
         differently.
 
-        This will update a local state and pass the result to a callback, so the caller
-        can decide how to handle the result.
+        A correct value will be stored for the row.
 
-        :param result: An AIValueResult object with the result.
+        The error will be stored and a signal may be emitted, so the frontend will
+        know about the error. This will also stop processing new rows.
+
+        If the job has been cancelled, processing is skipped entirely — metadata
+        cleanup is handled by update_progress().
+
+        In any case, we want to update internal progress state.
+
+        :param result: The AIValueUpdate with row, result, and timing information.
         """
 
-        if isinstance(result.result, Exception):
-            exc = result.result
-            self.handle_error(str(exc))
+        try:
+            if self._cancelled:
+                pass  # Skip — metadata will be cleared in update_progress
+            elif isinstance(result.result, Exception):
+                exc = result.result
+                self.handle_error(result.row, str(exc))
+            else:
+                self.update_value(result.row, result.result)
+        finally:
+            self.update_progress(result)
+
+    def update_progress(self, result: AIValueUpdate):
+        """
+        Update internal progress state.
+
+        Checks for job cancellation before incrementing progress. If cancelled,
+        clears the row's "generating" metadata and skips calling on_progress
+        (which would write the cell value and trigger a JobCancelled exception
+        that would be misinterpreted as a processing error).
+
+        :param result: The AIValueUpdate with row and result information.
+        """
+
+        if self.job is not None:
+            self.job.refresh_from_db()
+            if self.job.state == JOB_CANCELLED:
+                self._cancelled = True
+                self.stop_scheduling_rows()
 
         self.finished += 1
         self.in_process.remove(result.row.id)
+
+        if self._cancelled:
+            # Job was cancelled. Clear the "generating" metadata for this row
+            # and broadcast to frontend so the spinner disappears.
+            if self.has_metadata_column:
+                with transaction.atomic():
+                    AIFieldMetadataHandler.clear_metadata(
+                        self.ai_field, [result.row.id]
+                    )
+                    rows_metadata_updated.send(
+                        sender=self.job,
+                        table=self.table,
+                        row_ids=[result.row.id],
+                        user=self.user,
+                    )
+            return
+
         if self.on_progress:
             try:
                 self.on_progress(result)
             except Exception as exc:
-                self.handle_error(str(exc))
+                self.handle_error(result.row, str(exc))
 
     def schedule_next_row(self, rows_iter: Iterator, executor: Executor):
         """
         Prepares and adds the next row to the work queue.
 
         Rows are buffered and metadata is set/broadcast in chunks to avoid
-        sending large WS messages. When the buffer reaches chunk_size,
-        metadata is set for all buffered rows, they are scheduled, and the
-        buffer is cleared.
+        sending large WS messages. When the buffer reaches chunk_size or
+        max_concurrency (whichever is smaller), metadata is set for all
+        buffered rows, they are scheduled, and the buffer is cleared.
         """
 
         row = next(rows_iter)
         self.pending_rows_buffer.append(row)
 
-        if len(self.pending_rows_buffer) >= self.chunk_size:
+        # Flush when buffer reaches chunk_size OR max_concurrency to prevent
+        # infinite loop when can_schedule_next() stops scheduling due to
+        # pending_rows_buffer being full but buffer never getting flushed.
+        if len(self.pending_rows_buffer) >= min(self.chunk_size, self.max_concurrency):
             self._flush_pending_rows_buffer(executor)
 
     def _flush_pending_rows_buffer(self, executor: Executor):
@@ -715,14 +902,29 @@ class AIValueGenerator:
         if not self.pending_rows_buffer:
             return
 
+        # Check for cancellation before broadcasting GENERATING metadata.
+        # Without this, a chunk could be broadcast as "generating" after the
+        # user already cancelled the job, causing stale spinners.
+        if self.job is not None:
+            self.job.refresh_from_db()
+            if self.job.state == JOB_CANCELLED:
+                self._cancelled = True
+                self.stop_scheduling_rows()
+                self.pending_rows_buffer = []
+                return
+
         row_ids = [row.id for row in self.pending_rows_buffer]
 
-        # Set "generating" metadata and broadcast for this chunk
+        # Set "generating" metadata and broadcast for this chunk.
+        # When skip_metadata_broadcast is True (ROWS mode), metadata was already
+        # pre-set before the job started, so we only track the row IDs for cleanup
+        # purposes without redundant DB writes and WS broadcasts.
         if self.has_metadata_column:
             self.all_row_ids_with_generating_status.extend(row_ids)
-            AIFieldMetadataHandler.set_generating_and_broadcast(
-                self.ai_field, row_ids, self.user
-            )
+            if not self.skip_metadata_broadcast:
+                AIFieldMetadataHandler.set_generating_and_broadcast(
+                    self.ai_field, row_ids, self.user
+                )
 
         # Schedule all buffered rows for processing
         for row in self.pending_rows_buffer:
@@ -734,27 +936,25 @@ class AIValueGenerator:
 
     def _cleanup_unprocessed_rows(self):
         """
-        Clear 'generating' metadata for rows that were set but never scheduled.
-        Called on error, cancellation, or any abnormal exit.
+        Clear 'generating' metadata for rows that were marked as generating but
+        never scheduled (due to early error or cancellation before flush).
         """
 
         if not self.has_metadata_column:
             return
 
-        unprocessed_row_ids = [
+        rows_to_clear = [
             row_id
             for row_id in self.all_row_ids_with_generating_status
             if row_id not in self.scheduled_row_ids
         ]
 
-        if unprocessed_row_ids:
+        if rows_to_clear:
             with transaction.atomic():
-                AIFieldMetadataHandler.clear_metadata(
-                    self.ai_field, unprocessed_row_ids
-                )
+                AIFieldMetadataHandler.clear_metadata(self.ai_field, rows_to_clear)
                 rows_metadata_updated.send(
-                    sender=self.signal_sender,
+                    sender=self.job,
                     table=self.table,
-                    row_ids=unprocessed_row_ids,
+                    row_ids=rows_to_clear,
                     user=self.user,
                 )

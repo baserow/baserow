@@ -2,6 +2,7 @@ import {
   mergeRowMetadata,
   updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
+import { AI_FIELD_STATUS } from '@baserow/modules/database/constants'
 
 /**
  * This store exists to always keep a copy of the row that's being edited via the
@@ -58,30 +59,36 @@ export const mutations = {
   UPDATE_ROW(state, { componentId, row }) {
     Object.assign(state.rows[componentId].row, row)
   },
-  UPDATE_ROW_METADATA_TYPE(state, { rowId, rowMetadataType, updateFunction }) {
-    Object.values(state.rows)
-      .filter((data) => data.row.id === rowId)
-      .forEach((data) =>
-        updateRowMetadataType(data.row, rowMetadataType, updateFunction)
-      )
-  },
   /**
-   * Updates row metadata in the row modal.
-   * Deep merges new metadata with existing metadata, removing keys with null values.
+   * Merges row metadata in the row modal.
+   *
+   * Supports two modes:
+   * 1. Direct merge: pass `metadata` to merge with existing metadata
+   * 2. Type-specific update: pass `rowMetadataType` and `updateFunction` to
+   *    transform a specific metadata type using the function
    */
-  UPDATE_ROW_METADATA(state, { rowId, metadata }) {
+  MERGE_ROW_METADATA(
+    state,
+    { rowId, metadata, rowMetadataType, updateFunction }
+  ) {
     Object.keys(state.rows).forEach((componentId) => {
       const data = state.rows[componentId]
       if (data.row.id === rowId) {
-        const existingMetadata = data.row._?.metadata || {}
-        const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
-
-        if (!data.row._) {
-          data.row._ = { metadata: mergedMetadata }
+        if (updateFunction) {
+          // Type-specific update using updateFunction
+          updateRowMetadataType(data.row, rowMetadataType, updateFunction)
         } else {
-          data.row._ = {
-            ...data.row._,
-            metadata: mergedMetadata,
+          // Direct merge of metadata
+          const existingMetadata = data.row._?.metadata || {}
+          const mergedMetadata = mergeRowMetadata(existingMetadata, metadata)
+
+          if (!data.row._) {
+            data.row._ = { metadata: mergedMetadata }
+          } else {
+            data.row._ = {
+              ...data.row._,
+              metadata: mergedMetadata,
+            }
           }
         }
       }
@@ -162,7 +169,7 @@ export const actions = {
     { commit },
     { rowId, rowMetadataType, updateFunction }
   ) {
-    commit('UPDATE_ROW_METADATA_TYPE', {
+    commit('MERGE_ROW_METADATA', {
       rowId,
       rowMetadataType,
       updateFunction,
@@ -174,7 +181,7 @@ export const actions = {
    * Deep merges new metadata with existing metadata.
    */
   updateRowMetadata({ commit }, { rowId, metadata }) {
-    commit('UPDATE_ROW_METADATA', { rowId, metadata })
+    commit('MERGE_ROW_METADATA', { rowId, metadata })
   },
   /**
    * Replaces row metadata for a specific row with the provided metadata.
@@ -183,6 +190,44 @@ export const actions = {
    */
   replaceRowMetadata({ commit }, { rowId, metadata }) {
     commit('REPLACE_ROW_METADATA', { rowId, metadata })
+  },
+  /**
+   * Generates AI field value for a single row with optimistic update and rollback.
+   * This action handles the UI state (showing generating spinner), API call, and
+   * rolling back on error.
+   *
+   * @param {number} fieldId - The AI field ID
+   * @param {number} rowId - The row ID to generate value for
+   * @param {object} row - The row object containing current metadata
+   * @param {function} generateFn - Async function that calls the API (receives fieldId, rowId)
+   */
+  async generateAIFieldValue({ commit }, { fieldId, rowId, row, generateFn }) {
+    const previousMetadata = row?._?.metadata?.ai_field?.[fieldId] || null
+
+    // Optimistic update to show generating state
+    commit('MERGE_ROW_METADATA', {
+      rowId,
+      metadata: {
+        ai_field: {
+          [fieldId]: { status: AI_FIELD_STATUS.GENERATING },
+        },
+      },
+    })
+
+    try {
+      await generateFn(fieldId, rowId)
+    } catch (error) {
+      // Rollback on error
+      commit('MERGE_ROW_METADATA', {
+        rowId,
+        metadata: {
+          ai_field: {
+            [fieldId]: previousMetadata,
+          },
+        },
+      })
+      throw error
+    }
   },
 }
 

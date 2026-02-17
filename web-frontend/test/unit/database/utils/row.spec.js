@@ -2,6 +2,8 @@ import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
   extractRowReadOnlyValues,
+  mergeRowMetadata,
+  updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -211,5 +213,96 @@ describe('Row utilities', () => {
       id: 1,
       field_2: '2024-01-04T15:15:59.163126Z',
     })
+  })
+})
+
+describe('mergeRowMetadata', () => {
+  test('merges new type into empty existing metadata', () => {
+    const result = mergeRowMetadata(
+      {},
+      { ai_field: { 1: { status: 'generating' } } }
+    )
+    expect(result).toEqual({ ai_field: { 1: { status: 'generating' } } })
+  })
+
+  test('deep merges field keys within a metadata type', () => {
+    const existing = { ai_field: { 1: { status: 'error' } } }
+    const result = mergeRowMetadata(existing, {
+      ai_field: { 2: { status: 'generating' } },
+    })
+    expect(result.ai_field[1]).toEqual({ status: 'error' })
+    expect(result.ai_field[2]).toEqual({ status: 'generating' })
+  })
+
+  test('overwrites existing field key with new value', () => {
+    const existing = { ai_field: { 1: { status: 'error' } } }
+    const result = mergeRowMetadata(existing, {
+      ai_field: { 1: { status: 'generating' } },
+    })
+    expect(result.ai_field[1]).toEqual({ status: 'generating' })
+  })
+
+  test('removes field keys set to null', () => {
+    const existing = {
+      ai_field: { 1: { status: 'error' }, 2: { status: 'ok' } },
+    }
+    const result = mergeRowMetadata(existing, { ai_field: { 1: null } })
+    expect(result.ai_field[1]).toBeUndefined()
+    expect(result.ai_field[2]).toEqual({ status: 'ok' })
+  })
+
+  test('preserves unrelated metadata types', () => {
+    const existing = { row_comment_count: { count: 5 } }
+    const result = mergeRowMetadata(existing, {
+      ai_field: { 1: { status: 'generating' } },
+    })
+    expect(result.row_comment_count).toEqual({ count: 5 })
+    expect(result.ai_field[1]).toEqual({ status: 'generating' })
+  })
+
+  test('returns new object without mutating inputs', () => {
+    const existing = { ai_field: { 1: { status: 'error' } } }
+    const result = mergeRowMetadata(existing, {
+      ai_field: { 1: { status: 'generating' } },
+    })
+    expect(result).not.toBe(existing)
+    expect(existing.ai_field[1]).toEqual({ status: 'error' })
+  })
+})
+
+describe('updateRowMetadataType', () => {
+  test('updates specific metadata type via callback', () => {
+    const row = {
+      _: { metadata: { ai_field: { 1: { status: 'error' } } } },
+    }
+    updateRowMetadataType(row, 'ai_field', () => ({
+      1: { status: 'generating' },
+    }))
+    expect(row._.metadata.ai_field).toEqual({ 1: { status: 'generating' } })
+  })
+
+  test('passes current value to callback', () => {
+    const row = {
+      _: { metadata: { ai_field: { 1: { status: 'error' } } } },
+    }
+    updateRowMetadataType(row, 'ai_field', (current) => {
+      expect(current).toEqual({ 1: { status: 'error' } })
+      return { 1: { status: 'generating' } }
+    })
+  })
+
+  test('creates row._ structure if missing', () => {
+    const row = {}
+    updateRowMetadataType(row, 'ai_field', () => ({ 1: { status: 'ok' } }))
+    expect(row._.metadata.ai_field).toEqual({ 1: { status: 'ok' } })
+  })
+
+  test('preserves other metadata types', () => {
+    const row = {
+      _: { metadata: { row_comment_count: 5, ai_field: { old: true } } },
+    }
+    updateRowMetadataType(row, 'ai_field', () => ({ new: true }))
+    expect(row._.metadata.row_comment_count).toBe(5)
+    expect(row._.metadata.ai_field).toEqual({ new: true })
   })
 })
