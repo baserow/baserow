@@ -21,8 +21,6 @@ export default defineNuxtPlugin({
       frontendHostname === requestHostname ||
       extraPublicHostnames.includes(requestHostname)
 
-    console.log('we got ', isWebFrontendHostname)
-
     return { provide: { isWebFrontendHostname } }
   },
 })
