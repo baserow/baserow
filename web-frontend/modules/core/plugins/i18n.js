@@ -7,17 +7,23 @@ export default defineNuxtPlugin({
 
     moment.locale($i18n.locale.value)
 
-    $i18n.onLanguageSwitched = (oldLocale, newLocale) => {
-      moment.locale(newLocale)
-    }
-
-    if ($i18n.locale.value !== 'en') {
-      try {
-        $i18n.fallbackLocale.value = 'en'
-        await $i18n.loadLocaleMessages('en')
-      } catch (error) {
-        console.warn('Failed to load fallback locale messages:', error)
+    const loadFallbackIfNeeded = async (locale) => {
+      if (locale !== 'en') {
+        try {
+          $i18n.fallbackLocale.value = 'en'
+          await $i18n.loadLocaleMessages('en')
+        } catch (error) {
+          console.warn('Failed to load fallback locale messages:', error)
+        }
       }
     }
+
+    // Use watch to react to client side locale switch
+    watch($i18n.locale, async (newLocale, oldLocale) => {
+      moment.locale(newLocale)
+      await loadFallbackIfNeeded(newLocale)
+    })
+
+    await loadFallbackIfNeeded($i18n.locale.value)
   },
 })
