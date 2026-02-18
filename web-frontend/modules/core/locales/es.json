@@ -490,7 +490,7 @@
         "minutesAgo": "Hace 0 minutos | Hace 1 minuto | Hace {n} minutos",
         "hoursAgo": "Hace 0 horas | Hace 1 hora | Hace {n} horas",
         "secondsAgo": "Ahora mismo | Hace 1 segundo | Hace {n} segundos",
-        "lessThanMinuteAgo": "Hace menos de un minuto",
+        "lessThanMinuteAgo": "hace menos de un minuto",
         "justNow": "ahora mismo"
     },
     "InstallTemplateJobType": {
@@ -581,7 +581,7 @@
     },
     "failedConnectingToast": {
         "title": "Fallido",
-        "content": "La conexión con el servidor ha fallado. Por favor, actualiza la página.",
+        "content": "No se pudieron restablecer las actualizaciones en tiempo real. Por favor, actualiza para continuar.",
         "action": "Refrescar página"
     },
     "userSessionExpiredToast": {
@@ -670,7 +670,7 @@
         "errorWrongFileTypeMessage": "No se puede cargar un archivo de tipo {tipo}"
     },
     "connectingToast": {
-        "content": "Reconectando con el servidor.",
+        "content": "Intentando restablecer actualizaciones en tiempo real.",
         "title": "Reconectando"
     },
     "copyingToast": {
@@ -769,7 +769,7 @@
         "openRouterModelsLabel": "Modelos habilitados",
         "openRouterModelsDescription": "Proporciona una lista de [OpenRouter models](https://openrouter.ai/models) separados por comas que pueden ser utilizados en Baserow. (por ejemplo, `openai/gpt-4o,anthropic/claude-3-haiku`)",
         "openaiBaseUrl": "URL base",
-        "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://<your‑resource‑name>.openai.azure.com, o cualquier otra API compatible con OpenAI."
+        "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, o cualquier otra API compatible con OpenAI."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
@@ -854,7 +854,18 @@
         "roleOrJob": "Función o puesto...",
         "people": "¿Cuántas personas hay en tu equipo?",
         "country": "País",
-        "share": "Estoy de acuerdo en compartir esto con el equipo de Baserow"
+        "share": "Estoy de acuerdo en compartir esto con el equipo de Baserow",
+        "how": "¿Cómo te enteraste de nosotros?",
+        "howReviewSite": "Sitio de reseñas / mercado",
+        "howSearchEngine": "Motor de búsqueda (Google/Bing)",
+        "howFriend": "De un amigo",
+        "howColleague": "De un colega",
+        "howEvent": "Evento o seminario web",
+        "howOther": "Otro",
+        "howSocialMedia": "Redes sociales",
+        "howOnlineAds": "Anuncios en línea",
+        "howContent": "Contenido (blog/boletín/video)",
+        "howSales": "Prospección de ventas"
     },
     "colorInput": {
         "default": "Por defecto"
@@ -1051,7 +1062,8 @@
             "tables": "Tablas",
             "fields": "Campos",
             "rows": "Filas"
-        }
+        },
+        "empty": "(vacío)"
     },
     "formulaInputContext": {
         "search": "Buscar",
@@ -1060,9 +1072,11 @@
         "operators": "Operadores",
         "useRegularInputModalTitle": "¿Usas entrada regular para este campo?",
         "useRegularInput": "Usa entrada regular",
-        "useAdvancedInput": "Usa entrada avanzada",
-        "useAdvancedInputModalTitle": "¿Usas una entrada avanzada para este campo?",
-        "modalMessage": "El contenido de tu campo será borrado y no será posible recuperarlo."
+        "useAdvancedInput": "Cambiar al modo experto",
+        "useAdvancedInputModalTitle": "¿Cambiar al modo experto?",
+        "modalMessage": "Cambiar a otro modo borrará la fórmula actual. ¿Estás seguro de que quieres continuar?",
+        "useSimpleInput": "Cambiar al modo básico",
+        "useSimpleInputModalTitle": "¿Cambiar al modo básico?"
     },
     "action": {
         "cancel": "Cancelar",
@@ -1073,15 +1087,15 @@
         "continue": "Continuar"
     },
     "twoFactorAuthSettings": {
-        "title": "Autenticación de dos factores (2FA)",
-        "loadingError": "No se pudo cargar la configuración de autenticación de dos factores (2FA)."
+        "title": "Autenticación de dos factores",
+        "loadingError": "No se pudo cargar la configuración de autenticación de dos factores."
     },
     "disableTwoFactorAuth": {
-        "title": "¿Estás seguro de que quieres desactivar la autenticación de dos factores (2FA)?",
+        "title": "¿Estás seguro de que quieres desactivar la autenticación de dos factores?",
         "description": "Tu cuenta perderá una capa adicional de seguridad. Si alguien conoce tu contraseña, tendría la posibilidad de entrar en tu cuenta.",
         "cancel": "Déjalo encendido",
         "disable": "Desactiva",
-        "successTitle": "Se ha desactivado la autenticación de dos factores (2FA)",
+        "successTitle": "Se ha desactivado la autenticación de dos factores",
         "errorWrongPasswordTitle": "Contraseña incorrecta",
         "errorWrongPasswordMessage": "La contraseña introducida no coincide con tu contraseña."
     },
@@ -1095,20 +1109,20 @@
     },
     "totpAuthType": {
         "name": "Aplicación de autenticación",
-        "description": "Usa una aplicación para obtener códigos de autenticación de dos factores (2FA). Recomendamos usar aplicaciones como Google Authenticator, Authy y Microsoft Authenticator.",
-        "enabledDescription": "Recibirás los códigos de verificación a través de una aplicación de autenticación. Para configurar otra aplicación o método diferente, simplemente desactiva la autenticación en dos factores (2FA) y configúralo de nuevo.",
+        "description": "Usa una aplicación para obtener códigos de autenticación de dos factores. Recomendamos usar aplicaciones como Google Authenticator, Authy y Microsoft Authenticator.",
+        "enabledDescription": "Recibirás los códigos de verificación a través de una aplicación de autenticación. Para configurar otra aplicación o método diferente, simplemente desactiva la autenticación de dos factores y configúralo de nuevo.",
         "sideLabel": "Recomendado"
     },
     "twoFactorEnabled": {
         "enabled": "Activado",
-        "disable": "Deshabilita la autenticación de dos factores (2FA)"
+        "disable": "Deshabilita la autenticación de dos factores"
     },
     "totpLogin": {
         "backupCodesTitle": "Ingresa el código de respaldo",
         "backupCodesDescription": "Inicia sesión con tu código de respaldo de un solo uso.",
         "authenticate": "Autenticar",
         "goBack": "Regresar",
-        "totpTitle": "Autenticación de dos factores (2FA)",
+        "totpTitle": "Autenticación de dos factores",
         "totpDescription": "Introduce el código de tu aplicación de autenticación.",
         "verify": "Verifica",
         "useBackupCode": "Usa el código de respaldo",
@@ -1181,11 +1195,11 @@
         "methodsOptionExcludeGet": "Excluir GET"
     },
     "twoFactorAuthEmpty": {
-        "title": "Aún no has activado 2FA",
+        "title": "Aún no has activado la autenticación de dos factores",
         "description": "Añade una capa extra de seguridad a tu cuenta.",
-        "enable": "Activar 2FA",
-        "notAllowedTitle": "2FA no activado",
-        "notAllowedDescription": "Añadir 2FA solo es posible en cuentas basadas en contraseña."
+        "enable": "Activar la autenticación de dos factores",
+        "notAllowedTitle": "Autenticación de dos factores no activada",
+        "notAllowedDescription": "Añadir la autenticación de dos factores sólo es posible en cuentas basadas en contraseña."
     },
     "nodeHelpTooltip": {
         "exampleLabel": "Ejemplo",
@@ -1203,5 +1217,40 @@
         "verificationFailedDescription": "El código ingresado no es válido.",
         "provisioningFailed": "El aprovisionamiento falló",
         "checkSuccess": "Se habilitó correctamente la autenticación de dos factores"
+    },
+    "emailSettings": {
+        "successDescription": "Hemos enviado un correo de confirmación a tu nueva dirección. Por favor, revisa tu bandeja de entrada y haz clic en el enlace para completar el cambio de correo.",
+        "errorEmailExistsMessage": "No se pudo solicitar el cambio de correo electrónico porque ya existe una cuenta con esta dirección de correo electrónico.",
+        "errorNotAllowedMessage": "No puedes cambiar tu dirección de correo electrónico porque tu cuenta usa autenticación de inicio de sesión único (SSO).",
+        "errorInvalidPasswordMessage": "No se pudo solicitar el cambio de correo electrónico porque tu contraseña es incorrecta.",
+        "errorNotAllowedTitle": "Cambio de correo no permitido",
+        "title": "Cambiar dirección de correo electrónico",
+        "successTitle": "Correo electrónico de confirmación enviado",
+        "currentEmailLabel": "Dirección de correo electrónico actual",
+        "newEmailLabel": "Nueva dirección de correo electrónico",
+        "submitButton": "Enviar correo electrónico de confirmación",
+        "errorEmailExistsTitle": "El correo electrónico ya existe",
+        "passwordLabel": "Contraseña actual",
+        "errorInvalidPasswordTitle": "Contraseña inválida"
+    },
+    "changeEmail": {
+        "message": "Tu dirección de correo electrónico ha sido cambiada con éxito. Ahora puedes iniciar sesión en Baserow usando tu nueva dirección de correo electrónico.",
+        "errorLinkExpiredMessage": "El enlace de cambio de correo ha expirado. Por favor, solicita uno nuevo desde la configuración de tu cuenta.",
+        "errorEmailExistsMessage": "No se pudo cambiar la dirección de correo porque ya existe una cuenta con esa dirección de correo.",
+        "errorInvalidLinkMessage": "No se pudo cambiar la dirección de correo electrónico porque el enlace es inválido.",
+        "errorEmailAlreadyChangedMessage": "La dirección de correo electrónico ya ha sido cambiada a la dirección solicitada.",
+        "title": "Confirmar cambio de correo electrónico",
+        "submit": "Confirmar cambio de correo electrónico",
+        "changed": "Dirección de correo electrónico cambiada",
+        "errorEmailExistsTitle": "El correo electrónico ya existe",
+        "errorEmailAlreadyChangedTitle": "El correo electrónico ya ha sido cambiado",
+        "errorInvalidLinkTitle": "Enlace inválido",
+        "errorLinkExpiredTitle": "Enlace expirado"
+    },
+    "adminUsers": {
+        "title": "Usuarios"
+    },
+    "adminWorkspaces": {
+        "title": "Espacios de trabajo"
     }
 }
