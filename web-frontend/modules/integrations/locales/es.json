@@ -4,7 +4,7 @@
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
         "rowFieldLabel": "ID de fila",
         "invalidFormula": "La fórmula no es válida",
-        "rowFieldPlaceHolder": "Seleccionar una ID para la fila",
+        "rowFieldPlaceHolder": "Elige un ID de fila único",
         "searchFieldPlaceHolder": "Introduce un término de búsqueda...",
         "noTableChosenForFiltering": "Elige una tabla para empezar a utilizar los filtros de fuentes de datos.",
         "searchTabTitle": "Búsqueda",
@@ -53,7 +53,9 @@
         "viewFieldLabel": "Vista",
         "tableFieldLabel": "Tabla",
         "databaseFieldLabel": "Base de datos",
-        "dataSyncedTableDescription": "Tabla sincronizada de dato"
+        "dataSyncedTableDescription": "Tabla sincronizada de dato",
+        "oneWayDataSyncedTableDescription": "Sincronizado unidireccionalmente",
+        "twoWayDataSyncedTableDescription": "Sincronizado bidireccionalmente"
     },
     "integrationType": {
         "localBaserow": "Baserow local",
@@ -82,11 +84,11 @@
         "localBaserowRowsUpdatedDescription": "Se activa cuando se actualizan filas en una tabla de Baserow.",
         "localBaserowRowsDeleted": "Se eliminan filas",
         "localBaserowRowsDeletedDescription": "Se activa cuando se eliminan filas en una tabla de Baserow.",
-        "coreHTTPTrigger": "Recibe una solicitud HTTP",
-        "coreHTTPTriggerDescription": "Se activa cuando se recibe una solicitud HTTP.",
+        "coreHTTPTrigger": "Recibir una solicitud HTTP",
+        "coreHTTPTriggerDescription": "Se dispara cuando se recibe una solicitud HTTP.",
         "coreHTTPRequest": "Envía una solicitud HTTP",
         "coreHTTPRequestDescription": "Envía una solicitud HTTP a un punto final especificado.",
-        "coreSMTPEmail": "Envía un correo electrónico",
+        "coreSMTPEmail": "Enviar correo electrónico",
         "coreRouter": "Enrutador",
         "coreRouterEdgesRequired": "Se requiere al menos un borde",
         "coreRouterEdgeLabelRequired": "Se requiere una etiqueta de rama.",
@@ -201,10 +203,10 @@
         "supportSetupHeading": "1. Configuración de la aplicación",
         "supportSetupStep1": "Navega a la &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;página de aplicaciones&lt;/a&gt; de tu espacio de trabajo.",
         "supportSetupStep2": "Crea una nueva aplicación, elige «Desde cero» e ingresa un nombre. Selecciona el espacio de trabajo en el que tu aplicación debe operar y haz clic en «Crear».",
-        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth y Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
+        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth &amp; Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
         "supportSetupStep4": "Para permitir que tu aplicación publique mensajes, añade el alcance &lt;pre&gt;chat:write&lt;/pre&gt;.",
         "supportPairingHeading": "2. Conexión de tu aplicación Slack",
-        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
+        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» &gt; «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
         "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con &lt;pre&gt;/invite {'@'}nombreDeTuApp nombreDeTuCanal&lt;/pre&gt;"
     },
@@ -282,7 +284,7 @@
         "branchesDescription": "Las ramas te permiten ejecutar nodos solo cuando se cumple una condición. Las ramas se ejecutan de izquierda a derecha hasta que se cumpla una condición; de lo contrario, se ejecutará la rama predeterminada. ",
         "branchLabel": "Etiqueta",
         "branchConditionLabel": "Condición",
-        "branchConditionPlaceholder": "Introduce una condición…",
+        "branchConditionPlaceholder": "Si es «verdadero», seguimos esta rama.",
         "addEdge": "Añadir rama",
         "edgeDefaultName": "Rama",
         "noLabel": "Sin etiqueta",
@@ -313,10 +315,26 @@
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Este flujo de trabajo se ejecutará cada minutos especificados",
         "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado en tu zona horaria local ({timezone})",
-        "dayHelper": "Este flujo de trabajo se ejecutará todos los días a la hora especificada en tu zona horaria local ({timezone})",
+        "dayHelper": "Este flujo de trabajo se ejecutará cada día a la hora especificada en tu zona horaria local ({timezone})",
         "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados en tu zona horaria local ({timezone})",
         "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y la hora especificados en tu zona horaria local ({timezone})",
         "deactivatedTitle": "Disparador periódico desactivado",
         "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos."
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "noTableSelectedMessage": "Elige una tabla para comenzar a configurar tus campos.",
+        "noWritableFields": "Esta tabla no contiene campos editables.",
+        "fieldMappingPlaceholderArray": "Elige un valor de `array`, por ejemplo: [42]",
+        "fieldMappingPlaceholderString": "Elige un valor de cadena, por ejemplo: \\'baserow\\'",
+        "fieldMappingPlaceholderNumber": "Elige un valor numérico, por ejemplo: 42",
+        "fieldMappingPlaceholderBoolean": "Elige un valor booleano, por ejemplo: «verdadero»",
+        "fieldMappingPlaceholderDate": "Elige un valor de fecha, por ejemplo: 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Elige un valor decimal, por ejemplo: 3.14",
+        "fieldMappingPlaceholderDuration": "Elige un valor de duración, por ejemplo: 1:23:40"
+    },
+    "localBaserowServiceForm": {
+        "rowIdPlaceholder": "Elige un ID de fila único",
+        "rowIdLabel": "ID de fila",
+        "integrationDropdownLabel": "Integración"
     }
 }
