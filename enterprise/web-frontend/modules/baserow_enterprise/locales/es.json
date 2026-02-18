@@ -189,11 +189,12 @@
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "Base de datos",
-        "memberRolesTableTabTitle": "Tabla actual",
+        "memberRolesTableTabTitle": "Tabla",
         "error": {
             "title": "No se han podido obtener los datos",
             "description": "Se ha producido un error al obtener los datos de los miembros."
-        }
+        },
+        "memberRolesViewTabTitle": "Vista"
     },
     "memberRolesTab": {
         "database": {
@@ -213,6 +214,15 @@
             "everyoneHasAccess": "Todos en el espacio de trabajo {nombre} pueden acceder a esta tabla.",
             "warningTitle": "¡Otros usuarios podrían heredar el acceso!",
             "headerTooltip": "Los roles de tabla prevalecerán sobre los roles de espacio de trabajo y base de datos."
+        },
+        "view": {
+            "warningMessage": "Otros usuarios podrían heredar acceso a través de sus respectivos roles en la tabla padre, la base de datos o el espacio de trabajo.",
+            "headerTooltip": "Los roles de vista sobrescribirán los roles del espacio de trabajo, la base de datos y la tabla.",
+            "everyoneHasAccess": "Cualquiera en el flujo de trabajo {name} puede acceder a esta vista.",
+            "onlyYouHaveAccess": "Solo tú puedes acceder a esta vista.",
+            "warningTitle": "¡Otros usuarios podrían heredar el acceso!",
+            "title": "Vista {name}",
+            "selectMembers": "Seleccionar miembros"
         }
     },
     "memberRolesShareToggle": {
@@ -610,7 +620,7 @@
     "fileInputElementForm": {
         "defaultNameTitle": "Nombre de archivo inicial|Nombres de archivo iniciales",
         "defaultNamePlaceholder": "Introduce un nombre de archivo...|Introduce los nombres de archivo...",
-        "defaultNameHelp": "El número de nombres debe coincidir con el número de URLs.",
+        "defaultNameHelp": "El número de nombres debe coincidir con el número de URLs.",
         "defaultUrlTitle": "URL de archivo inicial|URLs de archivos iniciales",
         "defaultUrlPlaceholder": "Introduce una URL predeterminada...|Introduce URLs predeterminadas...",
         "helpTextTitle": "Texto de ayuda",
@@ -700,7 +710,9 @@
         "advancedSettingsLabel": "Configuración avanzada",
         "includeWeekendsLabel": "Incluye los fines de semana al calcular duraciones",
         "dependencyFieldForReaderTooltip": "Este campo está incluido en la regla de campo de dependencia de fecha",
-        "fieldInvalidTitle": "Error de campo en la dependencia de fecha"
+        "fieldInvalidTitle": "Error de campo en la dependencia de fecha",
+        "addNewField": "Añadir nuevo campo",
+        "linkRowFieldTitle": "Padres"
     },
     "dateDependency": {
         "invalidChildRow": "La fila sucesora es inválida",
@@ -712,5 +724,33 @@
         "invalidDurationValue": "El valor de duración no es válido",
         "invalidDurationEmpty": "La duración está vacía",
         "invalidDurationMismatch": "Desajuste de valor de duración"
+    },
+    "viewOwnershipType": {
+        "restrictedDescription": "Los editores y los usuarios de nivel inferior sólo pueden ver los datos filtrados y los campos visibles. Es posible gestionar los miembros.",
+        "restricted": "Restringido"
+    },
+    "aiDatabaseOnboardingForm": {
+        "exampleCompanyAssetTrackerPrompt": "Crea un rastreador de activos con: Activos, Categorías, Números de serie, Fecha de compra, Asignado a, Ubicación y vencimiento de garantía.",
+        "exampleBugTrackerPrompt": "Crea un gestor de errores con: Errores, Severidad, Estado, Pasos para reproducir, Entorno, Reportero, Responsable y versión de corrección.",
+        "exampleTeamCheckInsPrompt": "Crea un gestor semanal de seguimiento de equipo con: Miembros del equipo, Fecha, Logros, Obstáculos, Estado de ánimo, Prioridades y seguimientos.",
+        "exampleProductRoadmapPrompt": "Crea una hoja de ruta de producto con: Iniciativas, Funcionalidades, Responsables, Estado, Prioridad, Trimestre objetivo y Notas de lanzamiento.",
+        "exampleProjectTrackerPrompt": "Crea un gestor de proyectos con: Proyectos, Tareas, Asignados, Estado, Prioridad, Fechas de vencimiento y Dependencias.",
+        "description": "Describe lo que quieres rastrear. Kuma creará las tablas y los campos.",
+        "placeholder": "Por ejemplo: Crear solución de gestión de proyectos",
+        "label": "Describe tu base de datos",
+        "exampleCompanyAssetTrackerName": "Rastreador de activos de la empresa",
+        "exampleProjectTrackerName": "Gestor de proyectos",
+        "exampleProductRoadmapName": "Hoja de ruta del producto",
+        "exampleTeamCheckInsName": "Gestor de seguimiento de equipo",
+        "exampleBugTrackerName": "Gestor de errores"
+    },
+    "aiDatabaseOnboardingStepType": {
+        "prompt": "Crea una base de datos que incluya: tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Instruyendo a Kuma para crear tu base de datos."
+    },
+    "databaseStep": {
+        "ai": "Kuma IA"
     }
 }
