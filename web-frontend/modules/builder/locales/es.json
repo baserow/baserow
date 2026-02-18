@@ -355,8 +355,8 @@
         "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar."
     },
     "integrationSettings": {
-        "integrationMessage": "Se pueden crear nuevas integraciones añadiendo fuente de datos, acción o autenticación de usuario.",
-        "noIntegrationMessage": "Aún no has creado ninguna conexión. Se pueden crear añadiendo fuente de datos, acción o autenticación de usuario.",
+        "integrationMessage": "Puedes crear nuevas integraciones añadiendo una fuente de datos, una acción o una autenticación de usuario.",
+        "noIntegrationMessage": "Aún no has creado ninguna integración. Se pueden crear añadiendo una fuente de datos, una acción o una autenticación de usuario.",
         "title": "Integraciones"
     },
     "upsertRowWorkflowActionForm": {
@@ -506,7 +506,8 @@
         "errorPathNotUnique": "Ya existe una ruta con este nombre",
         "errorValidPathCharacters": "La ruta contiene caracteres inválidos",
         "errorNameNotUnique": "Ya existe una página con este nombre",
-        "errorUniqueValidQueryParams": "Los nombres de los parámetros de consulta deben ser únicos y válidos."
+        "errorUniqueValidQueryParams": "Los nombres de los parámetros de consulta deben ser únicos y válidos.",
+        "errorNameNotUniqueDescription": "Por favor, introduce un nombre único para la página"
     },
     "addElementButton": {
         "label": "Elemento"
@@ -691,7 +692,8 @@
         "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario.",
         "visibilityCondition": "Condición de visibilidad",
         "visibilityConditionHelper": "Si el resultado de esta fórmula es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
-        "visibilityConditionPlaceholder": "Condición…"
+        "visibilityConditionPlaceholder": "Condición…",
+        "documentationLink": "documentación"
     },
     "generalSettings": {
         "titleOverview": "General",
@@ -872,7 +874,8 @@
     },
     "customStyle": {
         "themeOverrides": "Anulación de temas",
-        "configureThemeOverrides": "Configurar las modificaciones del tema para este elemento"
+        "configureThemeOverrides": "Configurar las modificaciones del tema para este elemento",
+        "backToElement": "Volver a la configuración del elemento"
     },
     "resetButton": {
         "reset": "Restablecer el valor predeterminado del tema"
@@ -895,7 +898,7 @@
         "backgroundColor": "Color de fondo",
         "textColor": "Color del texto",
         "padding": "Acolchado",
-        "fontFamily": "Fuente",
+        "fontFamily": "Fuente tipográfica",
         "size": "Tamaño",
         "fontSize": "Tamaño de letra",
         "table": "Tabla",
@@ -949,7 +952,8 @@
         "noDataSources": "Sin origen para los datos disponibles",
         "shared": "compartido",
         "pageOnly": "esta página",
-        "noSharedDataSources": "No hay fuentes de datos compartidas"
+        "noSharedDataSources": "No hay fuentes de datos compartidas",
+        "addNew": "Añadir nueva fuente de datos"
     },
     "recordSelectorElementForm": {
         "selectRecordsFrom": "Seleccionar registros de",
@@ -1034,7 +1038,8 @@
         "except": "Excluir páginas seleccionadas"
     },
     "pageEditor": {
-        "pageNotFound": "Página no encontrada"
+        "pageNotFound": "Página no encontrada",
+        "title": "Constructor de aplicaciones"
     },
     "builderToast": {
         "details": "Detalles",
