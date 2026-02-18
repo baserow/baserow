@@ -614,11 +614,7 @@ export default {
           notifyIf(error)
         }
       }
-      if (
-        Object.prototype.hasOwnProperty.call(this.$refs, 'view') &&
-        // TODO crash here can't convert undefined to object
-        Object.prototype.hasOwnProperty.call(this.$refs.view, 'refresh')
-      ) {
+      if (typeof this.$refs.view?.refresh === 'function') {
         await this.$refs.view.refresh()
       }
       // Before the callback is called, mark the table as not refreshing anymore, so
