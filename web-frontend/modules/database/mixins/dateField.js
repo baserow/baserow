@@ -208,7 +208,9 @@ export default {
      * hidden.
      */
     blur(context, event) {
-      context.hide()
+      // The ?. prevents an exception when the context was removed from the DOM then
+      // the blur event is triggered
+      context?.hide()
     },
   },
 }
