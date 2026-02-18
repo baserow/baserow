@@ -139,7 +139,11 @@ const { data, error } = await useAsyncData(
 )
 
 if (error.value) {
-  throw error.value
+  if (error.value.statusCode === 404) {
+    showError(error.value)
+  } else {
+    throw error.value
+  }
 }
 
 if (data.value?.redirect) {
