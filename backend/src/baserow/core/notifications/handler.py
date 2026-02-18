@@ -702,9 +702,9 @@ class NotificationHandler:
 
         notifications_to_send_by_email_prefetch = Prefetch(
             "notifications",
-            queryset=Notification.objects.filter(
-                id__in=unsent_notification_subquery
-            ).distinct(),
+            queryset=Notification.objects.filter(id__in=unsent_notification_subquery)
+            .distinct()
+            .select_related("sender"),
             to_attr="unsent_email_notifications",
         )
 

@@ -576,11 +576,11 @@ alias mk := makemigrations
 
 # Open Django shell with shell_plus and SQL logging. Pass --print-sql to enable SQL query logging.
 [group('2 - development')]
-shell_plus: _check-dev
+shell_plus *args: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow shell_plus
+    {{ uv_run }} baserow shell_plus {{ args }}
 
 alias sp := shell_plus
 

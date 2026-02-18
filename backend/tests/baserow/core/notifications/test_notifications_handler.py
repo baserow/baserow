@@ -1,8 +1,10 @@
 from unittest.mock import MagicMock, call, patch
 
 from django.conf import settings
+from django.db import connection
 from django.db.models import Q
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -14,6 +16,11 @@ from baserow.core.notifications.handler import (
     UserNotificationsGrouper,
 )
 from baserow.core.notifications.models import Notification, NotificationRecipient
+from baserow.core.notifications.registries import (
+    EmailNotificationTypeMixin,
+    NotificationType,
+    notification_type_registry,
+)
 from baserow.core.user.handler import UserHandler
 
 from .utils import custom_notification_types_registered
@@ -813,3 +820,87 @@ def test_email_notifications_are_not_sent_if_already_cleared_by_user(
         assert res.remaining_users_to_notify_count == 0
 
         mock_get_mail_connection.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.notifications.handler.get_mail_connection")
+def test_email_notifications_queries_are_limited(
+    mock_get_mail_connection,
+    data_fixture,
+    mutable_notification_type_registry,
+):
+    """
+    The query count for sending notification emails must not scale with the
+    number of notifications or the number of users.  In particular the
+    prefetch must include select_related("sender") so that accessing
+    notification.sender during email rendering doesn't cause one query per
+    notification.
+    """
+
+    mock_connection = MagicMock()
+    mock_get_mail_connection.return_value = mock_connection
+
+    class SenderAccessingNotification(EmailNotificationTypeMixin, NotificationType):
+        type = "test_sender_accessing_notification"
+
+        @classmethod
+        def get_notification_title_for_email(cls, notification, context):
+            return f"Notification from {notification.sender.first_name}"
+
+        @classmethod
+        def get_notification_description_for_email(cls, notification, context):
+            return None
+
+    notification_type_registry.register(SenderAccessingNotification())
+    try:
+        sender = data_fixture.create_user(first_name="Sender")
+
+        # --- Warm-up run to prime internal caches (license cache, etc.) ---
+        warmup_user = data_fixture.create_user()
+        data_fixture.create_notification_for_users(
+            recipients=[warmup_user],
+            sender=sender,
+            notification_type=SenderAccessingNotification.type,
+        )
+        NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+            Q(pk=warmup_user.pk)
+        )
+        mock_get_mail_connection.reset_mock()
+        mock_connection.reset_mock()
+
+        # --- Run 1: 1 user, 1 notification ---
+        user_a = data_fixture.create_user()
+        data_fixture.create_notification_for_users(
+            recipients=[user_a],
+            sender=sender,
+            notification_type=SenderAccessingNotification.type,
+        )
+
+        with CaptureQueriesContext(connection) as ctx_small:
+            NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+                Q(pk=user_a.pk)
+            )
+        assert len(ctx_small)  # sanity
+
+        # --- Run 2: 2 users, 5 notifications each ---
+        mock_get_mail_connection.reset_mock()
+        mock_connection.reset_mock()
+
+        user_b = data_fixture.create_user()
+        user_c = data_fixture.create_user()
+        for _ in range(5):
+            data_fixture.create_notification_for_users(
+                recipients=[user_b, user_c],
+                sender=sender,
+                notification_type=SenderAccessingNotification.type,
+            )
+
+        with CaptureQueriesContext(connection) as ctx_large:
+            NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+                Q(pk__in=[user_b.pk, user_c.pk])
+            )
+
+        # Query count must be identical: no N+1 on sender, users, or notifications.
+        assert len(ctx_large) == len(ctx_small)
+    finally:
+        notification_type_registry.unregister(SenderAccessingNotification.type)
