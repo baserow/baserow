@@ -28,7 +28,7 @@
       </li>
     </ul>
     <span v-if="!readOnly" ref="dropdownLink">
-      <ButtonText icon="iconoir-plus" @click.prevent="toggleDropdown()">
+      <ButtonText icon="iconoir-plus" tag="a" @click.prevent="toggleDropdown()">
         {{ $t('rowEditFieldMultipleCollaborators.addCollaborator') }}
       </ButtonText></span
     >

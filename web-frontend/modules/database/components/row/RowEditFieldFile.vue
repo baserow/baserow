@@ -36,6 +36,7 @@
     <ButtonText
       v-if="!readOnly"
       icon="iconoir-plus"
+      tag="a"
       @click.prevent="showModal()"
     >
       {{ $t('rowEditFieldFile.addFile') }}
