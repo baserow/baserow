@@ -209,7 +209,6 @@ export default {
           await pageFinished()
           await nextTick()
         }
-        this.hide()
       } catch (error) {
         notifyIf(error, 'application')
       }
