@@ -1,1 +1,205 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Flujo de trabajo"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "¡Bienvenido a las Automatizaciones de Baserow!",
+        "content": "Vamos a hacer un recorrido rápido. Verás cómo configurar disparadores, añadir acciones, probar tu flujo de trabajo y publicarlo — no se requiere codificación."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Gestiona aquí tu gráfico de flujo de trabajo",
+        "content": "Crea un disparador y acciones aquí para definir lo que el flujo de trabajo debe hacer. Selecciona un disparador o acción para configurarlo en el panel lateral."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Prueba tu flujo de trabajo",
+        "content": "Cuando estés listo, inicia una ejecución de prueba para ver tu flujo de trabajo en acción. El disparador se ejecutará una vez para simular una ejecución completa."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Ver historial del flujo de trabajo",
+        "content": "Usa el panel de historial para revisar ejecuciones de prueba pasadas y ejecuciones publicadas. Es una excelente manera de depurar o confirmar los resultados."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Publica tu flujo de trabajo",
+        "content": "Una vez que hayas probado y ajustado tu configuración, publica tu flujo de trabajo para ponerlo en funcionamiento. Ahora, el disparador se ejecutará automáticamente según el horario."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "Controlar el estado del flujo de trabajo",
+        "content": "Desde aquí, puedes pausar o reanudar tu flujo de trabajo en cualquier momento. Siempre tienes el control sobre si está activo o deshabilitado."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Explora la documentación",
+        "content": "Si alguna vez te quedas atascado o quieres aprender más, haz clic en el botón resaltado para obtener guías detalladas y respuestas a preguntas frecuentes sobre cómo crear automatizaciones en Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Nuevo flujo de trabajo"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Crear flujo de trabajo",
+        "submit": "Añadir flujo de trabajo"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Flujo de trabajo",
+        "nameTitle": "Nombre",
+        "nameSubtitle": "Nombre único del flujo de trabajo",
+        "namePlaceholder": "Escribe un nombre…"
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Duplicar el flujo de trabajo de automatización",
+        "duplicating": "Duplicando",
+        "duplicatedTitle": "Flujo de trabajo duplicado"
+    },
+    "automationWorkflowErrors": {
+        "errorNameNotUnique": "Ya existe un flujo de trabajo con este nombre",
+        "errorNameNotUniqueDescription": "Por favor, introduce un nombre único para el flujo de trabajo"
+    },
+    "trashType": {
+        "workflow": "flujo de trabajo",
+        "automation": "automatización"
+    },
+    "generalSettings": {
+        "titleOverview": "General",
+        "nameLabel": "Nombre de la automatización",
+        "notificationLabel": "Notificaciones",
+        "notificationCheckboxLabel": "Recibe una notificación cuando esta automatización falle",
+        "cantUpdateAutomationTitle": "No se pudo actualizar la automatización",
+        "cantUpdateAutomationDescription": "Lo siento, no se pudo actualizar la automatización."
+    },
+    "integrationSettings": {
+        "title": "Integraciones",
+        "noIntegrationMessage": "Aún no has creado ninguna integración. Se pueden crear añadiendo una fuente de datos, una acción o una autenticación de usuario.",
+        "integrationMessage": "Puedes crear nuevas integraciones añadiendo una fuente de datos, una acción o una autenticación de usuario."
+    },
+    "automationHeader": {
+        "startTestRun": "Iniciar ejecución de prueba",
+        "stopTestRun": "Detener ejecución de prueba",
+        "publishBtn": "Publicar",
+        "settingsBtn": "Configuración",
+        "historyBtn": "Historial",
+        "docsBtn": "Documentación",
+        "switchLabelDraft": "Borrador",
+        "switchLabelDisabled": "Deshabilitado",
+        "switchLabelPaused": "Pausado",
+        "switchLabelLive": "En vivo",
+        "lastPublished": "Última publicación"
+    },
+    "dataProviderType": {
+        "currentIteration": "Iteración actual",
+        "item": "Ítem",
+        "previousNode": "Nodo anterior"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Etiqueta"
+    },
+    "historySidePanel": {
+        "title": "Historial",
+        "noRunsTitle": "Aún no hay ejecuciones",
+        "noRunsDescription": "Cuando este flujo de trabajo se haya ejecutado, los resultados se mostrarán aquí.",
+        "statusSuccess": "Ejecutado con éxito",
+        "statusError": "Fallo al ejecutar",
+        "statusDisabled": "Deshabilitado por Baserow",
+        "completedInSeconds": "Completado en {s} segundos.",
+        "completedInLessThanSecond": "Completado en menos de 1 segundo.",
+        "testRun": "Prueba"
+    },
+    "nodeType": {
+        "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
+        "localBaserowRowsCreatedLabel": "Filas creadas en {tableName}",
+        "localBaserowRowsUpdatedLabel": "Filas actualizadas en {tableName}",
+        "localBaserowRowsDeletedLabel": "Filas eliminadas en {tableName}",
+        "localBaserowCreateRowLabel": "Crear una fila en {tableName}",
+        "localBaserowUpdateRowLabel": "Actualizar una fila en {tableName}",
+        "localBaserowDeleteRowLabel": "Eliminar una fila en {tableName}",
+        "localBaserowGetRowLabel": "Leer una fila en {tableName}",
+        "localBaserowListRowsLabel": "Listar filas en {tableName}",
+        "localBaserowAggregateRowsLabel": "Resumir filas en {tableName}",
+        "httpRequestLabel": "Enviar una solicitud HTTP",
+        "smtpEmailLabel": "Enviar un correo electrónico",
+        "iterationLabel": "Itera sobre los elementos",
+        "routerLabel": "Sigue 1 de {edgeCount} ramas",
+        "routerDefaultEdgeLabelFallback": "Predeterminado",
+        "routerWithOutputNodesDeleteError": "No se puede eliminar hasta que se eliminen sus {outputCount} nodos de salida.",
+        "routerWithOutputNodesReplaceError": "No se puede reemplazar hasta que se eliminen sus {outputCount} nodos de salida.",
+        "iteratorWithChildrenNodesDeleteError": "No se puede eliminar hasta que se eliminen sus nodos hijos.",
+        "iteratorWithChildrenNodesReplaceError": "No se puede reemplazar hasta que se eliminen sus nodos hijos.",
+        "slackWriteMessageLabel": "Envía un mensaje a #{channel}",
+        "slackWriteMessageName": "Enviar un mensaje de Slack",
+        "periodicTriggerLabel": "Disparador periódico",
+        "aiAgent": "Prompt de IA"
+    },
+    "simulateDispatch": {
+        "testNodeDescription": "Prueba este evento para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
+        "triggerNodeAwaitingEvent": "El nodo está esperando. Por favor, dispara manualmente el evento para rellenar la carga útil y completar la prueba.",
+        "errorNodeNotConfigured": "El nodo debe configurarse antes de que pueda probarse.",
+        "errorPreviousNodesNotTested": "El nodo anterior «{node}» debe probarse primero.",
+        "errorPreviousNodeNotConfigured": "El nodo anterior «{node}» debe configurarse.",
+        "simulationInProgress": "La prueba del nodo está en curso...",
+        "sampleDataCopied": "Carga útil copiada al portapapeles",
+        "buttonLabelTestAgain": "Probar evento nuevamente",
+        "sampleDataModalTitle": "Carga útil para {nodeLabel}",
+        "errorOccurred": "Ocurrió un error…",
+        "sampleDataLabel": "Salida",
+        "sampleDataCopy": "Copiar",
+        "buttonLabelTest": "Probar evento",
+        "buttonLabelShowPayload": "Mostrar carga útil",
+        "buttonLabelShowError": "Mostrar error",
+        "sampleDataModalSubTitle": "Carga útil JSON"
+    },
+    "periodicTriggerServiceForm": {
+        "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y hora especificados en tu zona horaria local ({timezone})",
+        "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados en tu zona horaria local ({timezone})",
+        "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado en tu zona horaria local ({timezone})",
+        "dayHelper": "Este flujo de trabajo se ejecutará cada día a la hora especificada en tu zona horaria local ({timezone})",
+        "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos.",
+        "intervalHelper": "Elige con qué frecuencia quieres que este flujo de trabajo se ejecute",
+        "minuteHelper": "Este flujo de trabajo se ejecutará cada minuto",
+        "dayOfWeek": "Día de la semana",
+        "dayOfMonth": "Día del mes",
+        "deactivatedTitle": "Disparador periódico desactivado",
+        "everyMinute": "Cada minuto",
+        "everyHour": "Cada hora",
+        "everyDay": "Cada día",
+        "everyWeek": "Cada semana",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "intervalLabel": "Intervalo",
+        "hour": "Hora",
+        "minute": "Minuto",
+        "everyMonth": "Cada mes"
+    },
+    "serviceType": {
+        "periodicTriggerDescription": "Dispara el flujo de trabajo de forma periódica en intervalos especificados",
+        "coreHTTPTriggerDescription": "Recibe solicitudes HTTP para disparar flujos de trabajo",
+        "errorIntervalMissing": "Se requiere un intervalo.",
+        "periodicTrigger": "Disparador periódico",
+        "periodicTriggerTriggeredAt": "Disparado a las",
+        "coreHTTPTrigger": "Disparador HTTP"
+    },
+    "workflowNode": {
+        "displayLabelDebug": "ID: {id} | ID Previo: {previousNodeId} | {outputUid}",
+        "beforeLabelConditionDefault": "Si no se cumple(n) ninguna condición",
+        "beforeLabelCondition": "Si se cumple la condición",
+        "beforeLabelRepeat": "Para cada ítem",
+        "beforeLabelTrigger": "Comienza cuando",
+        "nodeOptions": "Opciones de nodo",
+        "actionDelete": "Eliminar",
+        "actionReplace": "Reemplazar",
+        "actionDuplicate": "Duplicar",
+        "actionConfigure": "Configurar",
+        "beforeLabelAction": "Luego",
+        "moreEdit": "Editar",
+        "moreReplace": "Reemplazar",
+        "moreDuplicate": "Duplicar"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Buscar un disparador…",
+        "searchPlaceholderActions": "Buscar acciones…",
+        "noResults": "No se encontraron resultados"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Crear nodo de automatización"
+    },
+    "workflowEditor": {
+        "chooseEvent": "Elige un evento…"
+    }
+}
