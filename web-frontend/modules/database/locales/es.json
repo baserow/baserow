@@ -28,7 +28,7 @@
             "example": "Ejemplo de carga útil"
         },
         "errors": {
-            "urlField": "Este campo es obligatorio y debe ser una URL válida.",
+            "urlField": "Debe ser una URL válida que empiece con 'https://' o 'http://'.",
             "invalidHeaders": "Uno de los encabezados no es válido."
         },
         "checkbox": {
@@ -151,10 +151,11 @@
         "filterType": "- `Y`: Indica que las filas deben coincidir con todos los filtros proporcionados.\n- `OR`: Indica que las filas solo tienen que coincidir con uno de los filtros.\n\n Esto funciona solo si se proporcionan dos o más filtros.",
         "include": "Todos los campos se incluyen en la respuesta de forma predeterminada. Puede seleccionar un subconjunto de campos para incluir proporcionando el parámetro de consulta de inclusión.\n\n #### Con `user_field_names`:\n\n `include` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo, si proporciona el siguiente parámetro GET: `include=My Field,-My Field 2`, solo se incluirán esos campos (a menos que se excluyan explícitamente).\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n #### Sin `user_field_names`:\n\n `include` debe ser una lista separada por comas de `field_` seguida de la identificación del campo para incluir en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `exclude=field_1,field_2`, los campos con id `1` e id `2` solo se incluirán esos campos (a menos que se excluyan explícitamente).",
         "exclude": "Todos los campos se incluyen en la respuesta de forma predeterminada. Puede seleccionar un subconjunto de campos para excluir proporcionando el parámetro de consulta de exclusión.\n\n #### Con `user_field_names`:\n\n `excluir` debe ser una lista separada por comas de nombres de campos que se excluirán de los resultados. Por ejemplo, si proporciona el siguiente parámetro GET: `exclude=My Field,-My Field 2`, esos campos se excluirán.\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n #### Sin `user_field_names`:\n\n `exclude` debe ser una lista separada por comas de `field_` seguida de la identificación del campo para excluir de los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `exclude=field_1,field_2`, los campos con id `1` e id `2` se excluirán.",
-        "viewId": "Por defecto, no se aplica ningún filtro ni ordenación fuera de los definidos en los parámetros. Puedes añadir los filtros y ordenaciones de una vista proporcionando su `id` en el parámetro GET `view_id`. Por ejemplo, si proporcionas el siguiente parámetro GET `view_id=1`, se aplicarán los filtros y ordenaciones definidos en la vista con id `1`. Puede encontrar el `view_id` en el menú contextual de cualquier vista. Es el número entre paréntesis detrás del nombre de la vista. \n\n#### Con `filtro__{campo}__{filtro}`\n\nSe aplicará tanto el filtro proporcionado en el parámetro de consulta como los filtros definidos en la vista.\n\n#### Con `order_by`\n\nSi se proporciona `order_by` se ignorará la ordenación definida en la vista.",
+        "viewId": "Por defecto, no se aplica ningún filtro ni ordenación fuera de los definidos en los parámetros. Puedes añadir los filtros y ordenaciones de una vista proporcionando su `id` en el parámetro GET `view_id`. Por ejemplo, si proporcionas el siguiente parámetro GET `view_id=1`, se aplicarán los filtros y ordenaciones definidos en la vista con id `1`. Puede encontrar el `view_id` en el menú contextual de cualquier vista. Es el número entre paréntesis detrás del nombre de la vista. \n\n#### Con `filter__{'{'}field{'}'}__{'{'}filter{'}'}`\n\nSe aplicará tanto el filtro proporcionado en el parámetro de consulta como los filtros definidos en la vista.\n\n#### Con `order_by`\n\nSi se proporciona `order_by` se ignorará la ordenación definida en la vista.",
         "filtersBuilder": "Abrir el creador de parámetros de filtros",
         "filters": "Las filas se pueden filtrar opcionalmente utilizando los mismos filtros de vista que están disponibles para las vistas. Este parámetro acepta una cadena serializada JSON que contiene el árbol de filtros a aplicar a esta vista. El árbol de filtros es una estructura anidada que contiene los filtros que deben aplicarse. \n\n#### Con `nombres_campo_usuario`:\n\nUn ejemplo de árbol de filtros válido es el siguiente: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`.\n\n#### Sin `nombres_campo_usuario`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": 1, \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`.\n\nTen en cuenta que si proporcionas este parámetro, se ignorarán todos los demás `filter__{'{'}field{'}'}__{'{'}filter{'}'}`, así como el parámetro tipo_filtro.",
-        "join": "Permite solicitar una búsqueda de valores de campo de una tabla de destino a través de campos de fila de vínculo existentes. El nombre del parámetro debe ser el nombre de un campo de fila de vínculo existente, seguido de __join. El valor debe ser una lista de nombres de campos para los que deseamos buscar valores adicionales. Puede proporcionar uno o varios campos de destino. No es posible buscar un valor de un campo de fila de vínculo en la tabla de destino.\n\n #### Con `user_field_names`:\n\n `join` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `LinkRowField__join=MyField,MyField2`, los valores de `MyField` y `My Field2` en la tabla vinculada por `LinkRowField` se incluirán en la respuesta.\n\n#### Sin `user_field_names`:\n\n `join` debe ser una lista separada por comas de `field_` seguida del id del campo que se incluirá en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `field_1__join=field_2,field_3`, los valores de `field_2` y `field_3` en la tabla vinculada por `field_1` se incluirán en la respuesta."
+        "join": "Permite solicitar una búsqueda de valores de campo de una tabla de destino a través de campos de fila de vínculo existentes. El nombre del parámetro debe ser el nombre de un campo de fila de vínculo existente, seguido de __join. El valor debe ser una lista de nombres de campos para los que deseamos buscar valores adicionales. Puede proporcionar uno o varios campos de destino. No es posible buscar un valor de un campo de fila de vínculo en la tabla de destino.\n\n #### Con `user_field_names`:\n\n `join` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `LinkRowField__join=MyField,MyField2`, los valores de `MyField` y `My Field2` en la tabla vinculada por `LinkRowField` se incluirán en la respuesta.\n\n#### Sin `user_field_names`:\n\n `join` debe ser una lista separada por comas de `field_` seguida del id del campo que se incluirá en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `field_1__join=field_2,field_3`, los valores de `field_2` y `field_3` en la tabla vinculada por `field_1` se incluirán en la respuesta.",
+        "test": "`{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Nombre\", \"type\": \"equal\", \"value\": \"prueba\"{'}'}]{'}'}"
     },
     "apiDocsIntro": {
         "intro": "La base de datos {name} proporciona una manera fácil de integrar los datos con cualquier sistema externo. La API sigue la semántica REST, utiliza JSON para codificar objetos y se basa en códigos HTTP estándar, errores de lectura humana y mecánica para señalar los resultados de las operaciones.",
@@ -517,7 +518,7 @@
     },
     "viewForm": {
         "name": "Nombre",
-        "whoCanEdit": "Quién puede editarlo"
+        "whoCanEdit": "¿Quién puede editar esta vista?"
     },
     "galleryViewHeader": {
         "customizeCards": "Personalizar tarjetas"
@@ -864,7 +865,8 @@
     },
     "viewOwnershipType": {
         "collaborative": "Colabora",
-        "personal": "Personal"
+        "personal": "Personal",
+        "collaborativeDescription": "Todos pueden ver todos los datos y cambiar las propiedades si tienen los permisos."
     },
     "gridViewRowsAddContext": {
         "title": "Crear varias filas",
@@ -952,7 +954,8 @@
     "databaseImportStep": {
         "tableNameLabel": "Nombre de la tabla",
         "title": "Importa tus datos",
-        "description": "Mueve tus datos a Baserow, en sólo unos clics."
+        "description": "Mueve tus datos a Baserow, en sólo unos clics.",
+        "tableNamePrefill": "Tabla de {name}"
     },
     "databaseScratchTrackStep": {
         "title": "¿Qué te gustaría seguir?",
@@ -985,7 +988,9 @@
         "scratch": "Esbozo",
         "import": "Archivo",
         "airtable": "Airtable",
-        "template": "Plantilla"
+        "template": "Plantilla",
+        "databaseNamePrefill": "Base de datos de {name}",
+        "workspaceName": "Espacio de trabajo de {name}"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrar al filtro de fecha de varios pasos",
