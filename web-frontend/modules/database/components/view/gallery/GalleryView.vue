@@ -374,7 +374,7 @@ export default {
   },
   beforeUnmount() {
     if (this.resizeObserver !== null) {
-      this.resizeObserver.unobserve(this.$el)
+      this.resizeObserver.disconnect()
     }
     if (this.$refs.scroll) {
       this.$refs.scroll.removeEventListener('scroll', this.scrollEvent)

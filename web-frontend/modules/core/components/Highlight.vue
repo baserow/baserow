@@ -58,7 +58,7 @@ export default {
     if (!this.resizeObserver) {
       return
     }
-    this.resizeObserver.unobserve(parent)
+    this.resizeObserver.disconnect()
     this.clearScrollEvents()
   },
   methods: {

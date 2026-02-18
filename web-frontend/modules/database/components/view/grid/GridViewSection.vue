@@ -594,7 +594,7 @@ export default {
   beforeUnmount() {
     const sectionElement = this.$refs.section
     if (this.resizeObserver !== null) {
-      this.resizeObserver.unobserve(sectionElement)
+      this.resizeObserver.disconnect()
     }
     if (this.horizontalScrollEvent !== null) {
       sectionElement.removeEventListener('scroll', this.horizontalScrollEvent)

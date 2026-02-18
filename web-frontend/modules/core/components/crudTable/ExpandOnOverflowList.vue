@@ -88,7 +88,7 @@ export default {
     this.$el.resizeObserver.observe(this.$el)
   },
   beforeUnmount() {
-    this.$el.resizeObserver.unobserve(this.$el)
+    this.$el.resizeObserver.disconnect()
   },
   created() {
     this.recalculateHiddenRecords()

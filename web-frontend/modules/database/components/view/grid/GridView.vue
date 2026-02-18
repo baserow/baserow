@@ -671,7 +671,7 @@ export default {
   },
   beforeUnmount() {
     if (this.resizeObserver !== null) {
-      this.resizeObserver.unobserve(this.$el)
+      this.resizeObserver.disconnect()
     }
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)

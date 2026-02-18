@@ -51,7 +51,7 @@ export default {
     el.autoOverflowScrollHeightObserverBinded = true
   },
   removeListeners(el) {
-    el.autoOverflowScrollHeightObserver?.unobserve(el)
+    el.autoOverflowScrollHeightObserver?.disconnect()
     el.autoOverflowScrollHeightObserverBinded = false
   },
 }
