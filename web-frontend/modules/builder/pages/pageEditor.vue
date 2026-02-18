@@ -1,33 +1,21 @@
 <template>
-  <!-- TODO MIG add a skeleton loader while the page is loading. -->
-  <div v-if="builder && currentPage && sharedPage" class="page-editor">
-    <PageHeader />
-    <div class="layout__col-2-2 page-editor__content">
-      <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
-        <PagePreview />
-      </div>
-      <div
-        class="page-editor__side-panel"
-        :style="{ width: `${panelWidth}px` }"
-      >
-        <PageSidePanels />
-      </div>
-    </div>
-  </div>
+  <PageEditorContent
+    v-if="!pending"
+    :workspace="workspace"
+    :builder="builder"
+    :page="currentPage"
+  />
 </template>
 
 <script setup>
 import { useHead, useAsyncData } from '#imports'
-import { ref, computed, watch, provide } from 'vue'
+import { computed } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
-import PageHeader from '@baserow/modules/builder/components/page/header/PageHeader'
-import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
-import PageSidePanels from '@baserow/modules/builder/components/page/PageSidePanels'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
-import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
+import PageEditorContent from '@baserow/modules/builder/components/PageEditorContent.vue'
 
 definePageMeta({
   layout: 'app',
@@ -45,21 +33,16 @@ const route = useRoute()
 const { t } = useI18n()
 const { $store, $registry, $i18n } = useNuxtApp()
 
-const panelWidth = ref(360)
-
-// Provide values for child components
-const applicationContext = computed(() => ({
-  workspace: workspace.value,
-  builder: builder.value,
-  mode,
-}))
-
 useHead(() => ({
   title: t('pageEditor.title'),
 }))
 
 // Load page data
-const { data: pageData, error: pageError } = await useAsyncData(
+const {
+  data: pageData,
+  error: pageError,
+  pending,
+} = await useAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     // The objects are selected by the middleware
@@ -122,98 +105,16 @@ const { data: pageData, error: pageError } = await useAsyncData(
 
 if (pageError.value) {
   // If we have an error we want to display it.
-  throw pageError.value
+  if (pageError.value.statusCode === 404) {
+    showError(pageError.value)
+  } else {
+    throw pageError.value
+  }
 }
 
-const workspace = computed(() => pageData.value?.workspace ?? null)
-const builder = computed(() => pageData.value?.builder ?? null)
-const currentPage = computed(() => pageData.value?.page ?? null)
-const sharedPage = computed(() => pageData.value?.sharedPage ?? null)
-
-// Computed properties
-const dataSources = computed(() => {
-  if (!currentPage.value) return []
-  return $store.getters['dataSource/getPageDataSources'](currentPage.value)
-})
-
-const sharedDataSources = computed(() => {
-  if (!sharedPage.value) return []
-  return $store.getters['dataSource/getPageDataSources'](sharedPage.value)
-})
-
-const dispatchContext = computed(() => {
-  if (!currentPage.value || !applicationContext.value) return {}
-  return DataProviderType.getAllDataSourceDispatchContext(
-    $registry.getAll('builderDataProvider'),
-    { ...applicationContext.value, page: currentPage.value }
-  )
-})
-
-const applicationDispatchContext = computed(() => {
-  if (!builder.value) return {}
-  return DataProviderType.getAllDataSourceDispatchContext(
-    $registry.getAll('builderDataProvider'),
-    { builder: builder.value, mode }
-  )
-})
-
-provide('workspace', workspace)
-provide('builder', builder)
-provide('currentPage', currentPage)
-provide('mode', mode)
-provide('formulaComponent', ApplicationBuilderFormulaInput)
-provide('applicationContext', applicationContext)
-
-// Watchers
-watch(
-  dataSources,
-  () => {
-    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-      page: currentPage.value,
-      data: dispatchContext.value,
-      mode,
-    })
-  },
-  { deep: true }
-)
-
-watch(
-  sharedDataSources,
-  () => {
-    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-      page: sharedPage.value,
-      data: dispatchContext.value,
-    })
-  },
-  { deep: true }
-)
-
-watch(
-  dispatchContext,
-  (newDispatchContext, oldDispatchContext) => {
-    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
-      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-        page: currentPage.value,
-        data: newDispatchContext,
-        mode,
-      })
-    }
-  },
-  { deep: true }
-)
-
-watch(
-  applicationDispatchContext,
-  (newDispatchContext, oldDispatchContext) => {
-    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
-      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-        page: sharedPage.value,
-        data: newDispatchContext,
-      })
-    }
-  },
-  { deep: true }
-)
+const workspace = computed(() => pageData.value.workspace)
+const builder = computed(() => pageData.value.builder)
+const currentPage = computed(() => pageData.value.page)
 
 // Navigation guards
 onBeforeRouteUpdate((to, from) => {
