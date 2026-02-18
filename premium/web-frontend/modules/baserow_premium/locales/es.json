@@ -394,7 +394,19 @@
         "other": "Otro"
     },
     "generateAIValuesModal": {
-        "title": "Generar todos los valores de IA"
+        "title": "Generar todos los valores de IA",
+        "autoUpdate": "Actualización automática: los campos referenciados cambiaron",
+        "deletedView": "Vista: ID {viewId} (eliminada)",
+        "noPreviousJobs": "No hay trabajos previos",
+        "table": "Tabla: Todas las filas",
+        "rows": "Filas: {count} filas",
+        "view": "Vista: {name}",
+        "started": "Iniciado",
+        "finished": "Completado",
+        "running": "Ejecutándose",
+        "failed": "Falló",
+        "cancelled": "Cancelado",
+        "pending": "Pendiente"
     },
     "generateAIValuesForm": {
         "scopeLabel": "Alcance",
@@ -409,5 +421,9 @@
     },
     "jobType": {
         "generateAIValues": "Regenerar los valores del campo IA"
+    },
+    "viewOwnershipType": {
+        "personalDescription": "Solo tú puedes ver la vista.",
+        "personal": "Personal"
     }
 }
