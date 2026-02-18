@@ -113,7 +113,8 @@ def beat_send_instant_notifications_summary_by_email(self):
     bind=True,
     queue="export",
     raise_on_duplicate=True,
-    lock_expiry=60 * 5,
+    lock_expiry=settings.CELERY_TASK_TIME_LIMIT * 2,
+    time_limit=settings.CELERY_TASK_TIME_LIMIT * 2,
 )
 def singleton_send_instant_notifications_summary_by_email(self):
     send_instant_notifications_email_to_users()
