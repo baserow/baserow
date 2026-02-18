@@ -7,7 +7,7 @@
     ></component>
     <template v-if="showAdmin">
       <div class="sidebar__head">
-        <a href="#" class="sidebar__back" @click="setShowAdmin(false)">
+        <a class="sidebar__back" @click="setShowAdmin(false)">
           <i class="sidebar__back-icon iconoir-nav-arrow-left"></i>
         </a>
         <div v-show="!collapsed" class="sidebar__title">
