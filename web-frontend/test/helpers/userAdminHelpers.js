@@ -2,9 +2,11 @@ import EditUserContext from '@baserow/modules/core/components/admin/users/contex
 import ChangeUserPasswordModal from '@baserow/modules/core/components/admin/users/modals/ChangeUserPasswordModal'
 import ChangePasswordForm from '@baserow/modules/core/components/admin/users/forms/ChangePasswordForm'
 import EditUserModal from '@baserow/modules/core/components/admin/users/modals/EditUserModal'
+import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
 import { expect } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 
 export default class UserAdminUserHelpers {
   constructor(userAdminComponent) {
@@ -73,24 +75,27 @@ export default class UserAdminUserHelpers {
     return this.c.findComponent(EditUserContext)
   }
 
-  clickDeleteUser(editUserContext) {
-    return editUserContext.find('.iconoir-bin').trigger('click')
+  async clickDeleteUser(editUserContext) {
+    editUserContext.vm.$refs.deleteUserModal.show()
+    await flushPromises()
   }
 
-  clickDeactivateUser(editUserContext) {
-    return editUserContext.find('.iconoir-cancel').trigger('click')
+  async clickDeactivateUser(editUserContext) {
+    await editUserContext.find('.iconoir-cancel').trigger('click')
   }
 
-  clickActivateUser(editUserContext) {
-    return editUserContext.find('.iconoir-check').trigger('click')
+  async clickActivateUser(editUserContext) {
+    await editUserContext.find('.iconoir-check').trigger('click')
   }
 
-  clickEditUser(editUserContext) {
-    return editUserContext.find('.iconoir-edit-pencil').trigger('click')
+  async clickEditUser(editUserContext) {
+    editUserContext.vm.$refs.editUserModal.show()
+    await flushPromises()
   }
 
-  clickChangeUserPassword(editUserContext) {
-    return editUserContext.find('.iconoir-key-alt').trigger('click')
+  async clickChangeUserPassword(editUserContext) {
+    editUserContext.vm.$refs.changePasswordModal.show()
+    await flushPromises()
   }
 
   async attemptToChangePasswordReturningModalError(password, repeatPassword) {
@@ -115,6 +120,7 @@ export default class UserAdminUserHelpers {
     const editUserContext = await this.openFirstUserActionsMenu()
 
     await this.clickChangeUserPassword(editUserContext)
+    await flushPromises()
 
     const changePasswordModal = this.c.findComponent(ChangeUserPasswordModal)
 
@@ -125,7 +131,7 @@ export default class UserAdminUserHelpers {
     passwordInputs.at(1).element.value = repeatPassword
     await passwordInputs.at(1).trigger('input')
 
-    await changePasswordModal.find('button').trigger('click')
+    await changePasswordModal.find('form').trigger('submit')
 
     return changePasswordModal
   }
@@ -157,6 +163,7 @@ export default class UserAdminUserHelpers {
     const editUserContext = await this.openFirstUserActionsMenu()
 
     await this.clickEditUser(editUserContext)
+    await flushPromises()
 
     const editUserModal = this.c.findComponent(EditUserModal)
 
@@ -166,7 +173,7 @@ export default class UserAdminUserHelpers {
     await userEditInputs.at(inputIndex).trigger('input')
 
     if (clickSave) {
-      await editUserModal.find('button').trigger('click')
+      await editUserModal.find('form').trigger('submit')
     }
 
     if (exit) {
@@ -180,13 +187,18 @@ export default class UserAdminUserHelpers {
     const editUserContext = await this.openFirstUserActionsMenu()
 
     await this.clickEditUser(editUserContext)
+    await flushPromises()
 
     const editUserModal = this.c.findComponent(EditUserModal)
-    const checkboxes = editUserModal.findAll('.checkbox')
+    const userForm = editUserModal.findComponent(UserForm)
+    const checkboxInputs = userForm.findAll('input[type="checkbox"]')
 
-    checkboxes.at(checkboxIndex).trigger('click')
+    const input = checkboxInputs[checkboxIndex]
+    input.element.checked = !input.element.checked
+    await input.trigger('change')
+    await flushPromises()
 
-    await editUserModal.find('button').trigger('click')
+    await editUserModal.find('form').trigger('submit')
 
     return editUserModal
   }
@@ -235,9 +247,9 @@ export default class UserAdminUserHelpers {
   }
 
   async clickConfirmDeleteUserInModal() {
-    await this.c
-      .findComponent(DeleteUserModal)
-      .find('.button--danger')
-      .trigger('click')
+    await flushPromises()
+    const deleteModal = this.c.findComponent(DeleteUserModal)
+    await deleteModal.vm.deleteUser()
+    await flushPromises()
   }
 }

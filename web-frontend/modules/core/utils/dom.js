@@ -7,7 +7,7 @@ import { Comment, Fragment } from 'vue'
  * @returns boolean
  */
 export const isElement = (element, target) => {
-  return element !== null && (element === target || element.contains(target))
+  return element != null && (element === target || element.contains(target))
 }
 
 /**
@@ -73,20 +73,60 @@ export const findScrollableParent = (element) => {
 }
 
 /**
+ * @typedef {Object} OnClickOutsideOptions
+ * @property {Array<HTMLElement|null|undefined>|(() => Array<HTMLElement|null|undefined>)} [ignoreElements]
+ *   Extra elements (e.g. opener button, teleported child menus) that count as “inside” for
+ *   closing. Pass a function to resolve element on each event so late-mounted nodes work.
+ *   Mousedown is snapshotted when the target is not under `el` so optimistic unmounts
+ *   before `click` still count as inside.
+ */
+
+/**
+ * Resolves ignoreElements option to a list of DOM elements.
+ *
+ * @param {OnClickOutsideOptions|undefined} options
+ * @returns {HTMLElement[]}
+ */
+const resolveIgnoreElements = (options) => {
+  if (!options || !options.ignoreElements) {
+    return []
+  }
+  const raw =
+    typeof options.ignoreElements === 'function'
+      ? options.ignoreElements()
+      : options.ignoreElements
+  const list = Array.isArray(raw) ? raw : []
+  return list.filter((node) => node != null)
+}
+
+/**
+ * @param {HTMLElement[]} elements
+ * @param {EventTarget|null} target
+ * @returns {boolean}
+ */
+const isTargetInsideAnyElement = (elements, target) => {
+  return elements.some((element) => isElement(element, target))
+}
+
+/**
  * Detects clicks outside el element and call callback
  *
  * Returns a callback to unregister click handlers after successful outside click
- * @param el
- * @param callback
- * @returns {(function(): void)|*}
+ * @param {HTMLElement} el
+ * @param {(target: EventTarget, event: MouseEvent) => void} callback
+ * @param {OnClickOutsideOptions} [options]
+ * @returns {() => void}
  */
-export const onClickOutside = (el, callback) => {
+export const onClickOutside = (el, callback, options) => {
   const insideEvent = new Set()
 
   // Firefox and Chrome both can both have a different `target` element on `click`
   // when you release the mouse at different coordinates. Therefore we expect this
   // variable to be set on mousedown to be consistent.
   let downElement = null
+
+  /** True if mousedown started inside an ignore element (while not under `el`); see snapshot comment below. */
+  let mousedownInsideIgnored = false
 
   // Add the event to the `insideEvent` map. This allow to be sure a click event has
   // been triggered from an element inside this context, even if the element has
@@ -98,6 +138,15 @@ export const onClickOutside = (el, callback) => {
 
   const clickOutsideMouseDownEvent = (event) => {
     downElement = event.target
+    const elements = resolveIgnoreElements(options)
+    // Only snapshot when not on `el`; clicks on `el` are handled via insideEvent.
+    // When ignore elements are teleported outside `el`, we must record mousedown here so
+    // optimistic updates that unmount before `click` still count as inside.
+    if (!isElement(el, event.target) && elements.length > 0) {
+      mousedownInsideIgnored = isTargetInsideAnyElement(elements, event.target)
+    } else {
+      mousedownInsideIgnored = false
+    }
   }
   document.body.addEventListener('mousedown', clickOutsideMouseDownEvent)
 
@@ -112,9 +161,16 @@ export const onClickOutside = (el, callback) => {
       insideEvent.delete(event)
     }
 
+    const elements = resolveIgnoreElements(options)
+    const insideIgnoredElement =
+      mousedownInsideIgnored ||
+      (elements.length > 0 &&
+        isTargetInsideAnyElement(elements, downElement || event.target))
+    mousedownInsideIgnored = false
+
     // If the click was outside the context element because we want to ignore
     // clicks inside it or any child of this element
-    if (!isElement(el, target) && !insideContext) {
+    if (!isElement(el, target) && !insideContext && !insideIgnoredElement) {
       callback(target, event)
     }
   }
@@ -239,4 +295,56 @@ export const getElementFromRef = (ref) => {
 
   // component ref -> root DOM element
   if (target?.$el instanceof Element) return target.$el
+}
+
+// Teleported overlay root resolved from `$refs[key]` (via `getElementFromRef`), or null if not an HTMLElement.
+export const getTeleportedElementFromRef = (refs, refKey) => {
+  if (!refs || !refKey) {
+    return null
+  }
+  const el = getElementFromRef(refs[refKey])
+  return el instanceof HTMLElement ? el : null
+}
+
+// Wrapper for `modalEl` (Modal / baseModal teleported DOM root).
+export const getModalTeleportedElement = (refs) =>
+  getTeleportedElementFromRef(refs, 'modalEl')
+
+// All teleported overlay roots under `component` (and `children`) to treat as inside for outside-click handling.
+export const collectTeleportRootsForOutsideClick = (component) => {
+  const elements = []
+  if (!component) {
+    return elements
+  }
+  if (typeof component.getTeleportedElement === 'function') {
+    const el = component.getTeleportedElement()
+    if (el instanceof HTMLElement) {
+      elements.push(el)
+    }
+  }
+
+  // Resolve the component that owns `children`.
+  // Wrapper components (modal/context mixins) delegate to an inner Modal/Context
+  // via getRootModal()/getRootContext(). The real `children` array lives on that
+  // inner component, not on the wrapper itself.
+  let inner = component
+  if (typeof component.getRootModal === 'function') {
+    inner = component.getRootModal() ?? component
+  } else if (typeof component.getRootContext === 'function') {
+    inner = component.getRootContext() ?? component
+  }
+  for (const nested of inner.children || []) {
+    elements.push(...collectTeleportRootsForOutsideClick(nested))
+  }
+  return elements
+}
+
+/**
+ * Returns true if `event.target` is inside any teleported root of the given
+ * component ref (including nested children).
+ */
+export const isInsideTeleportedElement = (componentRef, event) => {
+  if (!componentRef) return false
+  const roots = collectTeleportRootsForOutsideClick(componentRef)
+  return roots.some((el) => isElement(el, event.target))
 }

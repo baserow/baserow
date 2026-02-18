@@ -24,7 +24,7 @@
 <script>
 import FunctionalGridViewFieldArray from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldArray'
 import gridField from '@baserow/modules/database/mixins/gridField'
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
 
 export default {
@@ -66,12 +66,10 @@ export default {
       return !this.needsModal || !this.$refs.modal.open
     },
     canUnselectByClickingOutside(event) {
-      return (
-        !this.needsModal ||
-        ((!this.$refs.modal ||
-          !isElement(this.$refs.modal.$el, event.target)) &&
-          !isElement(this.$refs.modal.$el, event.target))
-      )
+      if (!this.needsModal) {
+        return true
+      }
+      return !isInsideTeleportedElement(this.$refs.modal, event)
     },
   },
 }

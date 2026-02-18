@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Replace custom moveToBody mixin with Vue 3 built-in Teleport component.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-04-08"
+}

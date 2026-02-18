@@ -77,7 +77,7 @@
 
 <script>
 import TimeSelectContext from '@baserow/modules/core/components/TimeSelectContext'
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
@@ -132,11 +132,14 @@ export default {
         return false
       }
 
+      if (!this.editing) {
+        return true
+      }
+
       return (
-        !this.editing ||
-        (!isElement(this.$refs.dateContext.$el, event.target) &&
-          (!this.field.date_include_time ||
-            !isElement(this.$refs.timeContext.$el, event.target)))
+        !isInsideTeleportedElement(this.$refs.dateContext, event) &&
+        !(this.field.date_include_time &&
+          isInsideTeleportedElement(this.$refs.timeContext, event))
       )
     },
     /**

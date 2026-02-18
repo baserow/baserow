@@ -1,4 +1,10 @@
 import { beforeEach, vi, expect } from 'vitest'
+import { config } from '@vue/test-utils'
+
+config.global.stubs = {
+  ...config.global.stubs,
+  Teleport: true,
+}
 
 const tMock = (key: string, data: any) =>
   data?.count !== undefined ? `${key} - ${data.count}` : key

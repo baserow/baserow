@@ -69,7 +69,7 @@
 </template>
 
 <script>
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldAI from '@baserow_premium/mixins/gridFieldAI'
 
@@ -142,10 +142,10 @@ export default {
       return true
     },
     canUnselectByClickingOutside(event) {
-      if (this.isDeactivated && this.workspace) {
-        return !isElement(this.$refs.clickModal.$el, event.target)
+      if (!this.isDeactivated || !this.workspace) {
+        return true
       }
-      return true
+      return !isInsideTeleportedElement(this.$refs.clickModal, event)
     },
     canSelectNext(event) {
       if (

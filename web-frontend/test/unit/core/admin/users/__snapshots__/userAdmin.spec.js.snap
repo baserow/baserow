@@ -109,6 +109,11 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
                   <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">users's workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><span class="expand-overflow-list__item" style="order: 1;">other_workspace </span><a class="expand-overflow-list__expand" style="order: 1; display: none;">+0</a>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -144,6 +149,11 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
       <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
     </div>
   </div>
+  <teleport-stub to="body">
+    <div class="context visibility-hidden context--overflow-scroll">
+      <!--v-if-->
+    </div>
+  </teleport-stub>
 </div>"
 `;
 
@@ -256,6 +266,11 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
                   <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -305,6 +320,11 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
                   <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -354,6 +374,11 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
                   <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -389,5 +414,10 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
       <div class="paginator__content"><span>paginator.page</span><input type="text" class="paginator__content-input" required="" size="1" value="1"><span>paginator.of</span></div><a class="paginator__button paginator__button--disabled"><i class="iconoir-nav-arrow-right"></i></a>
     </div>
   </div>
+  <teleport-stub to="body">
+    <div class="context visibility-hidden context--overflow-scroll">
+      <!--v-if-->
+    </div>
+  </teleport-stub>
 </div>"
 `;

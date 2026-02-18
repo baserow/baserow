@@ -173,9 +173,11 @@ import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'WorkspaceSearchModal',
+  mixins: [modal],
 
   data() {
     return {
@@ -273,15 +275,10 @@ export default {
     },
     attachScrollListener() {
       try {
-        const modalElement = this.$refs.modal?.$el
-
-        if (modalElement && typeof modalElement.querySelector === 'function') {
-          const modalContent = modalElement.querySelector('.modal__box-content')
-
-          if (modalContent) {
-            modalContent.addEventListener('scroll', this.handleScroll)
-          }
-        }
+        const modalContent = this.getTeleportedElement()?.querySelector(
+          '.modal__box-content'
+        )
+        modalContent?.addEventListener('scroll', this.handleScroll)
       } catch (error) {
         console.error('Error attaching scroll listener:', error)
       }
@@ -289,24 +286,13 @@ export default {
 
     removeScrollListener() {
       try {
-        const modalElement = this.$refs.modal?.$el
-        if (modalElement && typeof modalElement.querySelector === 'function') {
-          const modalContent = modalElement.querySelector('.modal__box-content')
-          if (modalContent) {
-            modalContent.removeEventListener('scroll', this.handleScroll)
-          }
-        }
+        const modalContent = this.getTeleportedElement()?.querySelector(
+          '.modal__box-content'
+        )
+        modalContent?.removeEventListener('scroll', this.handleScroll)
       } catch (error) {
         console.error('Error removing scroll listener:', error)
       }
-    },
-
-    show() {
-      this.$refs.modal.show()
-    },
-
-    hide() {
-      this.$refs.modal.hide()
     },
 
     onShow() {

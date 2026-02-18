@@ -104,7 +104,7 @@ export default {
       this.clearInput()
       modal.methods.show.bind(this)()
       this.$nextTick(() => {
-        this.$el.querySelector('input')?.focus()
+        this.getTeleportedElement()?.querySelector('input')?.focus()
       })
     },
     async setPassword() {
