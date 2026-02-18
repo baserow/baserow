@@ -90,7 +90,7 @@ def test_hostname_blacklist_rules():
     assert exec_info.value.code == "invalid_url"
 
     # This request should still go through
-    url_validator("https://www.otherdomain.com")
+    url_validator("https://www.cloudflare.com")
 
 
 @override_settings(
