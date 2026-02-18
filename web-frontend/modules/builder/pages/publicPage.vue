@@ -296,10 +296,10 @@ if (error.value) {
   }
 }
 
-const workspace = computed(() => asyncDataResult.value.workspace)
-const builder = computed(() => asyncDataResult.value.builder)
-const currentPage = computed(() => asyncDataResult.value.currentPage)
-const path = computed(() => asyncDataResult.value.path)
-const params = computed(() => asyncDataResult.value.params)
-const mode = computed(() => asyncDataResult.value.mode)
+const workspace = computed(() => asyncDataResult.value?.workspace)
+const builder = computed(() => asyncDataResult.value?.builder)
+const currentPage = computed(() => asyncDataResult.value?.currentPage)
+const path = computed(() => asyncDataResult.value?.path)
+const params = computed(() => asyncDataResult.value?.params)
+const mode = computed(() => asyncDataResult.value?.mode)
 </script>
