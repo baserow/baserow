@@ -303,7 +303,11 @@ const { data: asyncDataResult, error } = await useAsyncData(
 
 if (error.value) {
   // If we have an error we want to display it.
-  throw error.value
+  if (error.value.statusCode === 404) {
+    showError(error.value)
+  } else {
+    throw error.value
+  }
 }
 
 const workspace = computed(() => asyncDataResult.value.workspace)
