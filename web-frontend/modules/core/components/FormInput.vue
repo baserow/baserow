@@ -134,6 +134,12 @@ function onInput(e) {
 }
 
 function onBlur(e) {
+  if (!input.value) {
+    // The FormInput element was unmounted in the meantime. It happens in the login
+    // form for instance if you hit enter after filling the form.
+    return
+  }
+
   const raw = input.value.value
 
   if (!raw && props.defaultValueWhenEmpty !== null) {
