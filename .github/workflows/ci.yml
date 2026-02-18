@@ -1374,6 +1374,41 @@ jobs:
           git add baserow
           echo "✅ Submodule updated."
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Cache uv Python installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/uv/python
+          key: trigger-saas-uv-python-3.14
+
+      - name: Cache yarn packages and node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            .yarn-cache
+            saas/node_modules
+          key: trigger-saas-yarn-${{ hashFiles('saas/yarn.lock') }}
+          restore-keys: trigger-saas-yarn-
+
+      - name: Install just and yarn
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+          npm install -g yarn@1.22.22
+
+      - name: Sync dependencies from updated submodule
+        working-directory: saas
+        run: |
+          uv python install 3.14
+          UV_NO_SYNC=true just sync-deps
+          yarn install --ignore-scripts --no-bin-links --cache-folder ${{ github.workspace }}/.yarn-cache
+
       - name: Commit and push changes to GitLab
         working-directory: saas
         run: |
@@ -1381,6 +1416,8 @@ jobs:
 
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"
+
+          git add baserow pyproject.toml uv.lock package.json yarn.lock
 
           if git diff-index --quiet HEAD --; then
             echo "No changes detected — skipping commit."
