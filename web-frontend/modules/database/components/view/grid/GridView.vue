@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="gridViewRef"
     v-scroll="scroll"
     class="grid-view"
     :class="[
@@ -413,7 +414,6 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
@@ -648,17 +648,16 @@ export default {
     this.$bus.$on('field-deleted', this.fieldDeleted)
   },
   mounted() {
+    const el = this.$refs.gridViewRef
     this.resizeObserver = new ResizeObserver(this.onWindowResize)
-    this.resizeObserver.observe(this.$el)
+    if (el) {
+      this.resizeObserver.observe(el)
+    }
     window.addEventListener('keydown', this.keyDownEvent)
     window.addEventListener('copy', this.copySelection)
     window.addEventListener('paste', this.pasteFromMultipleCellSelection)
     window.addEventListener('click', this.cancelMultiSelectIfActive)
     window.addEventListener('mouseup', this.multiSelectStop)
-    this.$refs.left.$el.addEventListener(
-      'scroll',
-      this.$el.horizontalScrollEvent
-    )
     this.$store.dispatch(
       this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
       { view: this.view }
@@ -1387,7 +1386,7 @@ export default {
           this.storePrefix + 'view/grid/isMultiSelectActive'
         ] &&
         !event.shiftKey &&
-        (!isElement(this.$el, event.target) ||
+        (!isElement(this.$refs.gridViewRef, event.target) ||
           !['grid-view__row', 'grid-view__rows', 'grid-view'].includes(
             event.target.classList[0]
           ))
@@ -1681,7 +1680,7 @@ export default {
     checkCanFitInTwoColumns() {
       // In some cases this method is called when the component hasn't fully been
       // loaded. This will make sure we don't change the state before that initial load.
-      if (!this.$el) {
+      if (!this.$refs.gridViewRef) {
         return
       }
 
@@ -1693,7 +1692,7 @@ export default {
         (primary ? this.getFieldWidth(primary) : 0) +
         300
 
-      this.canFitInTwoColumns = this.$el.clientWidth > maxWidth
+      this.canFitInTwoColumns = this.$refs.gridViewRef.clientWidth > maxWidth
     },
     /**
      * Event called when the grid view element window resizes.

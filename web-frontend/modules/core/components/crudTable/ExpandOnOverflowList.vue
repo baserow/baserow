@@ -35,7 +35,6 @@
 </template>
 
 <script>
-import ResizeObserver from 'resize-observer-polyfill'
 import ExpandOnOverflowHiddenContext from '@baserow/modules/core/components/crudTable/ExpandOnOverflowHiddenContext'
 
 /**

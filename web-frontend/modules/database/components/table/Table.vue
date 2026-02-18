@@ -236,7 +236,6 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { notifyIf } from '@baserow/modules/core/utils/error'

@@ -188,7 +188,6 @@
 
 <script>
 import debounce from 'lodash/debounce'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import GridViewHead from '@baserow/modules/database/components/view/grid/GridViewHead'
 import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/GridViewPlaceholder'

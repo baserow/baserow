@@ -1,5 +1,3 @@
-import ResizeObserver from 'resize-observer-polyfill'
-
 /**
  * This directive does the same as `overflow: auto;`, so it will make sure that the
  * scrollbars are visible when the content does not fit inside the element. It

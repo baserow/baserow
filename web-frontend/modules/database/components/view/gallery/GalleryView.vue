@@ -156,7 +156,6 @@
 <script>
 import debounce from 'lodash/debounce'
 import { mapGetters } from 'vuex'
-import ResizeObserver from 'resize-observer-polyfill'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getCardHeight } from '@baserow/modules/database/utils/card'

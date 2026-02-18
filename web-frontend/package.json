@@ -105,7 +105,6 @@
     "papaparse": "5.4.1",
     "path-to-regexp": "8.2.0",
     "posthog-js": "^1.232.4",
-    "resize-observer-polyfill": "^1.5.1",
     "sass": "~1.70.0",
     "thenby": "^1.3.4",
     "tippy.js": "^6.3.7",

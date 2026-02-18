@@ -203,7 +203,6 @@ import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import ResizeObserver from 'resize-observer-polyfill'
 import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 
 const timescales = {
