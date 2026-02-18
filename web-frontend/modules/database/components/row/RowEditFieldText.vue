@@ -6,7 +6,7 @@
       size="large"
       :error="touched && !valid"
       :disabled="readOnly"
-      @keyup.enter="$refs.input.blur()"
+      @keyup.enter="$refs.input?.$el?.blur()"
       @focus="select()"
       @blur="unselect()"
     />

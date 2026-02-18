@@ -8,7 +8,7 @@
         :error="touched && !valid"
         :disabled="readOnly"
         :text-invisible="!editing"
-        @keyup.enter="$refs.input.blur()"
+        @keyup.enter="$refs.input?.$el?.blur()"
         @focus="select()"
         @blur="unselect()"
       />

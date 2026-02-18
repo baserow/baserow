@@ -9,7 +9,7 @@
       :disabled="readOnly"
       class="field-duration"
       @keypress="onKeyPress(field, $event)"
-      @keyup.enter="$refs.input.blur()"
+      @keyup.enter="$refs.input?.$el?.blur()"
       @keyup="updateCopy(field, $event.target.value)"
       @focus="select()"
       @blur="unselect()"
