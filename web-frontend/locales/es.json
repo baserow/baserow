@@ -97,7 +97,8 @@
         "deleteAccount": "Borrar cuenta",
         "emailNotifications": "Notificaciones por correo electrónico",
         "mcpEndpoint": "Servidor MCP",
-        "twoFactorAuth": "Autenticación de dos factores (2FA)"
+        "twoFactorAuth": "Autenticación de dos factores",
+        "email": "Cambiar correo electrónico"
     },
     "userFileUploadType": {
         "file": "mi dispositivo",
@@ -690,7 +691,19 @@
         "categoryNumber": "Número",
         "categoryBoolean": "Booleano",
         "categoryDate": "Fecha",
-        "categoryCondition": "Condición"
+        "categoryCondition": "Condición",
+        "lengthDescription": "Devuelve la longitud del argumento: el número de elementos en un `array`, el número de caracteres en una cadena, o el número de claves en un objeto.",
+        "splitDescription": "Divide el primer argumento usando el segundo argumento opcional como separador. Si no se proporciona el segundo argumento, usa ' ' como separador.",
+        "joinDescription": "Une el primer argumento usando el segundo argumento opcional como separador. Si no se proporciona el segundo argumento, usa ',' como separador.",
+        "reverseDescription": "Si el argumento es una cadena, la cadena se invierte. Si es una lista, el orden de la lista se invierte.",
+        "replaceDescription": "Con el primer argumento dado, reemplaza todas las apariciones del segundo argumento por el tercer argumento.",
+        "atDescription": "Devuelve el elemento del primer argumento en el índice especificado por el segundo argumento.",
+        "containsDescription": "Devuelve «verdadero» si el primer argumento contiene el segundo argumento.",
+        "isEmptyDescription": "Devuelve «verdadero» si el argumento está vacío; de lo contrario devuelve «falso»",
+        "stripDescription": "Elimina cualquier espacio en blanco al principio y al final del argumento",
+        "toArrayDescription": "Convierte una cadena delimitada por comas en un `array`.",
+        "sumDescription": "Suma los números dentro del argumento.",
+        "avgDescription": "Calcula el promedio de los números dentro del argumento."
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
