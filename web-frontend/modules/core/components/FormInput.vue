@@ -154,8 +154,12 @@ function focus() {
   input.value?.focus()
 }
 
+function blur() {
+  input.value?.blur()
+}
+
 const slots = useSlots()
 const hasSuffixSlot = computed(() => !!slots.suffix)
 
-defineExpose({ focus })
+defineExpose({ focus, blur })
 </script>
