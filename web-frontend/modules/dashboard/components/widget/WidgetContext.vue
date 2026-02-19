@@ -58,7 +58,9 @@ export default {
         notifyIf(error, 'dashboard')
       }
       this.isDeleteInProgress = false
-      this.hide()
+      if (this.$refs.context) {
+        this.hide()
+      }
     },
   },
 }
