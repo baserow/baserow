@@ -127,8 +127,6 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/featureFlags.js'))
     addPlugin(resolve('plugins/papa.js'))
     addPlugin(resolve('plugins/ensureRender.js'))
-    addPlugin(resolve('plugins/sentry.client.js'))
-    addPlugin(resolve('plugins/sentry.server.js'))
     addPlugin(resolve('plugins/version.js'))
     addPlugin(resolve('plugins/posthog.js'))
     addPlugin(resolve('plugins/vueDatepicker.js'))

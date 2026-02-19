@@ -1,27 +1,18 @@
-export default defineNuxtPlugin(async (nuxtApp) => {
-  // Only run on client side
-  if (import.meta.server) {
-    return
-  }
+import { useRuntimeConfig, useAppConfig, useRouter } from '#imports'
+import * as Sentry from '@sentry/nuxt'
 
-  const config = useRuntimeConfig()
-  const appConfig = useAppConfig()
-  const dsn = config.public.sentryDsn
+const config = useRuntimeConfig()
+const appConfig = useAppConfig()
+const dsn = config.public.sentryDsn
 
-  if (!dsn || dsn === '') {
-    return
-  }
-
-  const Sentry = await import('@sentry/vue')
-
+if (dsn && dsn !== '') {
   const defaultConfig = {
-    app: nuxtApp.vueApp,
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
     integrations: [
       Sentry.browserTracingIntegration({
-        router: nuxtApp.$router,
+        router: useRouter(),
       }),
       Sentry.replayIntegration({
         maskAllText: true,
@@ -33,8 +24,8 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     replaysOnErrorSampleRate: 1.0,
   }
 
-  // Merge with user-provided configuration from app config appConfig.sentry.config
-  // can be used to extend or override defaults
+  // Merge with user-provided configuration from app config
+  // appConfig.sentry.config can be used to extend or override defaults
   const userConfig = appConfig.sentry?.config || {}
   let finalIntegrations = defaultConfig.integrations
   if (userConfig.integrations) {
@@ -52,4 +43,4 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
 
   Sentry.init(finalConfig)
-})
+}
