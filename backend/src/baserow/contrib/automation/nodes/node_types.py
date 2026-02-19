@@ -277,12 +277,12 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         :return: The prepared values for the router node.
         """
 
-        if instance:
-            service = instance.service.specific
-
+        service_values = values.get("service", {})
+        if instance and "edges" in service_values:
             prepared_uids = [
-                str(edge["uid"]) for edge in values["service"].get("edges", [])
+                str(edge["uid"]) for edge in service_values.get("edges", [])
             ]
+            service = instance.service.specific
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
 
