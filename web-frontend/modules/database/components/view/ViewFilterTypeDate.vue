@@ -67,7 +67,7 @@ export default {
     },
     chooseDate(value) {
       const timezone = this.getTimezone()
-      const pickerDate = moment.utc(value)
+      const pickerDate = moment(value)
       if (!pickerDate.isValid()) {
         return
       } else if (timezone !== null) {

@@ -65,7 +65,6 @@ export default {
       }
       pickerDate.tz(moment.tz.guess(), true)
 
-      console.log('pickerDate', pickerDate.format(), this.momentDate.format())
       this.pickerDate = pickerDate.toDate()
       this.date = this.momentDate.format(this.fieldDateFormat)
     },
@@ -150,14 +149,14 @@ export default {
      */
     chooseDate(field, value) {
       const timezone = getFieldTimezone(field) || 'UTC'
-      console.log(this.momentDate?.format(), value, timezone)
       const momentDate = this.momentDate || moment.utc()
-      const pickerDate = moment(value).set({
-        hour: momentDate.hour(),
-        minute: momentDate.minute(),
-        second: momentDate.second(),
-      }).tz(timezone, true)
-      console.log('chooseDate', pickerDate.format(), this.momentDate ? this.momentDate.format() : null)
+      const pickerDate = moment(value)
+        .set({
+          hour: momentDate.hour(),
+          minute: momentDate.minute(),
+          second: momentDate.second(),
+        })
+        .tz(timezone, true)
       this.updateCopy(field, pickerDate)
       this.updateFormattedDateValue()
     },

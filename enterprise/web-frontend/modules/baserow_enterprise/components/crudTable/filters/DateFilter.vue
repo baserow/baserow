@@ -107,7 +107,7 @@ export default {
         return
       }
 
-      const newDate = moment.utc(value)
+      const newDate = moment(value)
 
       if (newDate.isValid()) {
         this.copy = newDate.format('YYYY-MM-DD')
