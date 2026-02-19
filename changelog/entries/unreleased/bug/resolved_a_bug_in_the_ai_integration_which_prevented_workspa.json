@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug in the AI integration which prevented workspaces from being exported and then imported correctly.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-02-19"
+}

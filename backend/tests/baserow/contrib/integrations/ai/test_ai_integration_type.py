@@ -221,17 +221,34 @@ def test_ai_integration_export_serialized_exclude_sensitive(data_fixture):
 def test_ai_integration_import_serialized(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-
     integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings={
+            "openai": {
+                "api_key": "sk-secret123",
+                "models": ["gpt-4"],
+            }
+        },
+    )
 
-    serialized_data = {
-        "id": 1,
-        "type": "ai",
-        "ai_settings": {},  # Empty on import (will inherit from workspace)
-    }
+    serialized = json.loads(
+        json.dumps(
+            integration_type.export_serialized(
+                integration,
+                import_export_config=ImportExportConfig(
+                    include_permission_data=False,
+                    reduce_disk_space_usage=False,
+                    exclude_sensitive_data=True,
+                ),
+            )
+        )
+    )
 
     imported_integration = integration_type.import_serialized(
-        application, serialized_data, {}, lambda x, d: x
+        application, serialized, {}, lambda x, d: x
     )
 
     assert imported_integration.ai_settings == {}

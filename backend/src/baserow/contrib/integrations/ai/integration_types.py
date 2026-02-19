@@ -9,6 +9,7 @@ from baserow.api.workspaces.serializers import get_generative_ai_settings_serial
 from baserow.contrib.integrations.ai.models import AIIntegration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
+from baserow.core.models import Application
 
 
 class AIIntegrationType(IntegrationType):
@@ -97,6 +98,30 @@ class AIIntegrationType(IntegrationType):
         """
 
         return provider_type in integration.ai_settings
+
+    def import_serialized(
+        self,
+        application: Application,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ) -> AIIntegration:
+        if cache is None:
+            cache = {}
+
+        # AI settings are sensitive data, the serialized data will set it `None`.
+        serialized_values["ai_settings"] = serialized_values["ai_settings"] or {}
+
+        return super().import_serialized(
+            application,
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+        )
 
     def export_serialized(
         self,
