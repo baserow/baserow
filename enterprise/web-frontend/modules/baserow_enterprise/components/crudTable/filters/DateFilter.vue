@@ -29,7 +29,7 @@
           :monday-first="true"
           :use-utc="true"
           :model-value="dateObject"
-          :language="$i18n.locale"
+          :language="datePickerLanguage"
           :disabled-dates="disableDates"
           class="datepicker"
           @update:model-value="
@@ -52,8 +52,7 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-// TODO MIG
-//import { en, fr } from 'vuejs3-datepicker'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 
 export default {
   name: 'DateFilter',
@@ -77,7 +76,7 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return { v$: useVuelidate({ $lazy: true }), ...useDatePickerLanguage() }
   },
   data() {
     return {
