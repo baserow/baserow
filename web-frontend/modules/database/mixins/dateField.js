@@ -52,7 +52,21 @@ export default {
   },
   methods: {
     updateFormattedDateValue() {
-      this.pickerDate = this.momentDate.format(DATE_PICKER_FORMAT)
+      const pickerDate = this.momentDate.clone()
+
+      // Because of some bugs with parsing and localizing correctly dates in the
+      // vuejs3-datepicker component passed both as string and dates, we need to
+      // localize the date correctly and replace the timezone with the browser
+      // timezone. This is needed to be able to show the correct date in the
+      // datepicker.
+      const timezone = getFieldTimezone(this.field)
+      if (timezone !== null) {
+        pickerDate.tz(timezone)
+      }
+      pickerDate.tz(moment.tz.guess(), true)
+
+      console.log('pickerDate', pickerDate.format(), this.momentDate.format())
+      this.pickerDate = pickerDate.toDate()
       this.date = this.momentDate.format(this.fieldDateFormat)
     },
     updateFormattedTimeValue() {
@@ -135,7 +149,17 @@ export default {
      * date data and the copy so that the correct date is visible for the user.
      */
     chooseDate(field, value) {
-      this.updateDate(field, moment.utc(value).format(DATE_PICKER_FORMAT))
+      const timezone = getFieldTimezone(field) || 'UTC'
+      console.log(this.momentDate?.format(), value, timezone)
+      const momentDate = this.momentDate || moment.utc()
+      const pickerDate = moment(value).set({
+        hour: momentDate.hour(),
+        minute: momentDate.minute(),
+        second: momentDate.second(),
+      }).tz(timezone, true)
+      console.log('chooseDate', pickerDate.format(), this.momentDate ? this.momentDate.format() : null)
+      this.updateCopy(field, pickerDate)
+      this.updateFormattedDateValue()
     },
     /**
      * When the user uses the time context to choose a time, we also need to update

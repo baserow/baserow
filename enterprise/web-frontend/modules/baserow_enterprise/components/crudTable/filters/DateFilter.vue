@@ -113,7 +113,15 @@ export default {
         this.copy = newDate.format('YYYY-MM-DD')
 
         if (sender !== 'dateObject') {
-          this.dateObject = newDate.toDate()
+          // Because of some bugs with parsing and localizing correctly dates in
+          // the vuejs3-datepicker component passed both as string and dates, we
+          // need to localize the date correctly and replace the timezone with
+          // the browser timezone. This is needed to be able to show the correct
+          // date in the datepicker.
+          const newPickerDate = newDate.clone()
+          newPickerDate.tz(moment.tz.guess(), true)
+
+          this.dateObject = newPickerDate.toDate()
         }
 
         if (sender !== 'dateString') {
