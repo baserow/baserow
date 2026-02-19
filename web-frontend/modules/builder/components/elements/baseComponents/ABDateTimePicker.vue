@@ -35,6 +35,7 @@
       <client-only>
         <date-picker
           v-model="calendarValue"
+          :open-date="calendarValue"
           :inline="true"
           :monday-first="true"
           class="ab-datetime-picker__calendar"

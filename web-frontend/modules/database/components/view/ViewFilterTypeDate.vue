@@ -24,6 +24,7 @@
             :use-utc="true"
             :model-value="dateObject"
             :language="datePickerLanguage"
+            :open-date="dateObject"
             class="datepicker"
             @updated:model-value="chooseDate($event)"
           ></date-picker>
