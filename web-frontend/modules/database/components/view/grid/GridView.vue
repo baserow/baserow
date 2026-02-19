@@ -1,6 +1,6 @@
 <template>
   <div
-    ref="gridViewRef"
+    ref="gridView"
     v-scroll="scroll"
     class="grid-view"
     :class="[
@@ -648,11 +648,8 @@ export default {
     this.$bus.$on('field-deleted', this.fieldDeleted)
   },
   mounted() {
-    const el = this.$refs.gridViewRef
     this.resizeObserver = new ResizeObserver(this.onWindowResize)
-    if (el) {
-      this.resizeObserver.observe(el)
-    }
+    this.resizeObserver.observe(this.$refs.gridView)
     window.addEventListener('keydown', this.keyDownEvent)
     window.addEventListener('copy', this.copySelection)
     window.addEventListener('paste', this.pasteFromMultipleCellSelection)
@@ -671,6 +668,7 @@ export default {
   beforeUnmount() {
     if (this.resizeObserver !== null) {
       this.resizeObserver.disconnect()
+      this.resizeObserver = null
     }
     window.removeEventListener('keydown', this.keyDownEvent)
     window.removeEventListener('copy', this.copySelection)
@@ -1386,7 +1384,7 @@ export default {
           this.storePrefix + 'view/grid/isMultiSelectActive'
         ] &&
         !event.shiftKey &&
-        (!isElement(this.$refs.gridViewRef, event.target) ||
+        (!isElement(this.$refs.gridView, event.target) ||
           !['grid-view__row', 'grid-view__rows', 'grid-view'].includes(
             event.target.classList[0]
           ))
@@ -1680,7 +1678,7 @@ export default {
     checkCanFitInTwoColumns() {
       // In some cases this method is called when the component hasn't fully been
       // loaded. This will make sure we don't change the state before that initial load.
-      if (!this.$refs.gridViewRef) {
+      if (!this.$refs.gridView) {
         return
       }
 
@@ -1692,7 +1690,7 @@ export default {
         (primary ? this.getFieldWidth(primary) : 0) +
         300
 
-      this.canFitInTwoColumns = this.$refs.gridViewRef.clientWidth > maxWidth
+      this.canFitInTwoColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
      * Event called when the grid view element window resizes.
