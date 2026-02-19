@@ -63,7 +63,7 @@
             :monday-first="true"
             :use-utc="true"
             :model-value="dateObject"
-            :language="$i18n.locale"
+            :language="datePickerLanguage"
             class="datepicker"
             @update:model-value="chooseDate($event)"
           ></date-picker>
@@ -82,11 +82,17 @@ import {
 } from '@baserow/modules/database/utils/date'
 // TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filterTypeMultiStepDateInput'
+import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
 
 export default {
   name: 'ViewFilterTypeMultiStepDate',
   mixins: [filterTypeMultiStepDateInput],
-  setup: filterTypeMultiStepDateInput.setup,
+  setup(...args) {
+    return {
+      ...(filterTypeMultiStepDateInput.setup?.(...args) ?? {}),
+      ...useDatePickerLanguage(),
+    }
+  },
   data() {
     return {
       value: '',

@@ -27,7 +27,7 @@
             :monday-first="true"
             :use-utc="true"
             :model-value="pickerDate"
-            :language="$i18n.locale"
+            :language="datePickerLanguage"
             class="datepicker"
             @update:model-value="chooseDate(field, $event)"
           />
@@ -80,10 +80,14 @@ import TimeSelectContext from '@baserow/modules/core/components/TimeSelectContex
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
+import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
 
 export default {
   components: { TimeSelectContext },
   mixins: [rowEditField, rowEditFieldInput, dateField],
+  setup() {
+    return useDatePickerLanguage()
+  },
   methods: {
     focus(...args) {
       this.select()

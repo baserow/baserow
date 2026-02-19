@@ -39,7 +39,7 @@
               :monday-first="true"
               :use-utc="true"
               :model-value="pickerDate"
-              :language="$i18n.locale"
+              :language="datePickerLanguage"
               class="datepicker"
               @update:model-value="chooseDate(field, $event)"
               @selected="preventNextUnselect = true"
@@ -80,11 +80,15 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
+import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
 // TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 
 export default {
   components: { TimeSelectContext },
   mixins: [gridField, gridFieldInput, dateField],
+  setup() {
+    return useDatePickerLanguage()
+  },
   data() {
     return {
       preventNextUnselect: false,

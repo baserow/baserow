@@ -23,7 +23,7 @@
             :monday-first="true"
             :use-utc="true"
             :model-value="dateObject"
-            :language="$i18n.locale"
+            :language="datePickerLanguage"
             class="datepicker"
             @updated:model-value="chooseDate($event)"
           ></date-picker>
@@ -42,22 +42,18 @@ import {
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
 
 export default {
   name: 'ViewFilterTypeDate',
   mixins: [filterTypeDateInput],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return { v$: useVuelidate({ $lazy: true }), ...useDatePickerLanguage() }
   },
   data() {
     return {
       dateString: '',
       dateObject: '',
-      datePickerLang: {
-        en,
-        fr,
-      },
     }
   },
   mounted() {
