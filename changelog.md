@@ -1,5 +1,47 @@
 # Changelog
 
+## Released 2.1.0
+
+### New features
+* [Core] Add Kuma to onboarding and reorganize the steps.
+* [Core] Add Ukrainian languauge.
+* [Core] Allow pasting in 6 digit auth code input.
+* [Core] Introduced management command to permanently delete user files uploaded by user.
+* [Core] List all application types in left sidebar, even if there are no items in there.
+
+### Bug fixes
+* [Database] Fixed FileSizeTooLargeError when importing Airtable database with files. [#3635](https://github.com/baserow/baserow/-/issues/3635)
+* [Database] Fixed a bug preventing Collaborator field from being upserted by user ID. [#3954](https://github.com/baserow/baserow/-/issues/3954)
+* [Integration] Fixed a bug where the collaborators field couldn't be updated via upsert actions. [#3954](https://github.com/baserow/baserow/-/issues/3954)
+* [Database] Improve UX for search items that don't have anything to navigate to [#4182](https://github.com/baserow/baserow/-/issues/4182)
+* [Core] Resolved a bug where unsubscribing from a Baserow page's realtime events wouldn't work correctly. [#4520](https://github.com/baserow/baserow/-/issues/4520)
+* [Database] Do not show trashed rows in search results [#4525](https://github.com/baserow/baserow/-/issues/4525)
+* [Database] Fix Generate all AI values doesn't work when the output field is Single Select and Generate only values for empty cells is checked [#4596](https://github.com/baserow/baserow/-/issues/4596)
+* [Database] Fix importing a database with an AI field associated with an ai_auto_update_user [#4601](https://github.com/baserow/baserow/-/issues/4601)
+* [Automation] Fixed a bug where a previously tested node's sample data would disappear in the UI after adding a new node.
+* [Database] Fix AI field keyboard shortcuts [#4499](https://github.com/baserow/baserow/-/issues/4499)
+* [Core] Fixed Celery time limits to use the correct config names.
+* [Core] Improve docs search accuracy for the AI Assistant
+* [Integration] Improved error handling in the Local Baserow single table row action.
+* [Core] Improved the `token_auth` endpoint's response labels so that developers can differentiate between 2fa enabled and 2fa disabled responses.
+* [Database] Handle KeyError exception when generating formulas with AI.
+* [Core] Fix missing front-end job types are not handled properly [#4544](https://github.com/baserow/baserow/-/issues/4544)
+* [Database] Fix field mapping when importing CSV [#3259](https://github.com/baserow/baserow/-/issues/3259)
+* [Core] Resolved a bug in the AI integration which prevented workspaces from being exported and then imported correctly.
+* [Core] Resolved a bug in the Baserow formula parser which prevented the OR operator (`||`) from being applied correctly.
+* [Builder] Resolved a validation bug in the data input element which considered '0' an invalid number.
+* [Database] Fix Create row modal inside linked row field fails if the primary field is of type formula array [#4547](https://github.com/baserow/baserow/-/issues/4547)
+
+### Refactors
+* [Database] Debounce AI field value generation, that has been triggered from auto update. [#4317](https://github.com/baserow/baserow/-/issues/4317)
+* [Automation] Improved workflow rate limiter performance by checking limits before queuing tasks. [#4582](https://github.com/baserow/baserow/-/issues/4582)
+* [Core] Lazy import libraries to reduce initial memory footprint
+* [Core] refactor $children
+* [Core] Replace dev.sh and makefile with justfiles. Use uv to manage python in the backend.
+* [Core] Replace Python linting and formatting toolchain (autopep8, black, flake8, isort, bandit) with ruff
+* [Core] Update from Nuxt 2 to Nuxt 3 [#854](https://github.com/baserow/baserow/-/issues/854)
+
+
 ## Released 2.0.6
 
 ### New features
