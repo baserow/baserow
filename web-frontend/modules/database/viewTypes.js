@@ -1274,6 +1274,7 @@ export class FormViewType extends ViewType {
           condition_type: 'AND',
           conditions: [],
           field_component: 'default',
+          allowed_select_options: [],
         },
       },
       { root: true }
