@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "APP_ENV=dev nuxt prepare",
     "dev": "APP_ENV=dev node --import ./env-remap.mjs ./node_modules/.bin/nuxt dev",
-    "build": "APP_ENV=production nuxt build",
+    "build": "APP_ENV=production NODE_OPTIONS=--max-old-space-size=8192 nuxt build",
     "preview": "node --import ./env-remap.mjs ./node_modules/.bin/nuxt preview",
     "prod": "node --import ./env-remap.mjs .output/server/index.mjs",
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
