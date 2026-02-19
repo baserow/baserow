@@ -64,7 +64,7 @@
             :use-utc="true"
             :model-value="dateObject"
             :language="datePickerLanguage"
-            :open-date="dateObject"
+            :open-date="dateObject || new Date()"
             class="datepicker"
             @update:model-value="chooseDate($event)"
           ></date-picker>

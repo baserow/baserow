@@ -30,7 +30,7 @@
           :use-utc="true"
           :model-value="dateObject"
           :language="datePickerLanguage"
-          :open-date="dateObject"
+          :open-date="dateObject || new Date()"
           :disabled-dates="disableDates"
           class="datepicker"
           @update:model-value="

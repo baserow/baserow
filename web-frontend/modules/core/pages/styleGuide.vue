@@ -498,7 +498,7 @@
               <client-only>
                 <date-picker
                   v-model="date"
-                  :open-date="date"
+                  :open-date="date || new Date()"
                   :inline="true"
                   :monday-first="true"
                   class="datepicker"
@@ -1050,7 +1050,7 @@
             <client-only>
               <date-picker
                 v-model="date"
-                :open-date="date"
+                :open-date="date || new Date()"
                 :inline="true"
                 :monday-first="true"
                 class="datepicker"
