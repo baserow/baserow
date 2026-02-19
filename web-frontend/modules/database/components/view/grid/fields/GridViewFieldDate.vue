@@ -80,7 +80,7 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 // TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 
 export default {

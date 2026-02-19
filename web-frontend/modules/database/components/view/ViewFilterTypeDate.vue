@@ -42,7 +42,7 @@ import {
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
-import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 
 export default {
   name: 'ViewFilterTypeDate',

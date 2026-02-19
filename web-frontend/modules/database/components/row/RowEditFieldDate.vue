@@ -80,7 +80,7 @@ import TimeSelectContext from '@baserow/modules/core/components/TimeSelectContex
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-import { useDatePickerLanguage } from '@baserow/modules/database/composables/useDatePickerLanguage'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 
 export default {
   components: { TimeSelectContext },
