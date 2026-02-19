@@ -83,7 +83,7 @@ export default {
       this.reload()
     },
     async reload() {
-      if (this.values.content === '') {
+      if (!this.values.content) {
         this.resetImporterState()
         return
       }
