@@ -198,5 +198,8 @@
         "sampleDataCopy": "복사",
         "errorOccurred": "오류가 발생했습니다...",
         "sampleDataCopied": "페이로드가 클립보드에 복사되었습니다"
+    },
+    "automationWorkflow": {
+        "title": "워크플로"
     }
 }
