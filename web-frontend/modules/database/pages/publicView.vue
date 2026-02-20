@@ -19,7 +19,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAsyncData, useNuxtApp } from '#app'
+import { useAsyncData, useNuxtApp, useState } from '#app'
 import { useHead } from '#imports'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -37,9 +37,11 @@ const route = useRoute()
 const nuxtApp = useNuxtApp()
 const { $store, $realtime, $priorityBus, $config, $i18n } = nuxtApp
 
-const originalLanguageBeforeDetect = ref(null)
-originalLanguageBeforeDetect.value = $i18n.locale
-$i18n.locale = $i18n.getBrowserLocale()
+const originalLanguageBeforeDetect = ref($i18n.locale.value)
+const detectedLocale = useState('public-view-detected-locale', () => {
+  return $i18n.getBrowserLocale() || $i18n.defaultLocale
+})
+$i18n.locale.value = detectedLocale.value
 
 const { data, error } = await useAsyncData(
   `database-public-view-${route.params.slug}`,
@@ -179,7 +181,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  $i18n.locale = originalLanguageBeforeDetect.value
+  $i18n.locale.value = originalLanguageBeforeDetect.value
 
   document.body.removeEventListener('keydown', keydownEvent)
 
