@@ -730,5 +730,29 @@
     "viewOwnershipType": {
         "restricted": "제한된",
         "restrictedDescription": "편집자 이하 권한자는 필터링된 데이터와 표시된 필드만 볼 수 있습니다. 멤버 관리도 가능합니다."
+    },
+    "databaseStep": {
+        "ai": "쿠마 AI"
+    },
+    "aiDatabaseOnboardingForm": {
+        "label": "데이터베이스에 대해 설명해 주세요",
+        "placeholder": "예: 프로젝트 관리 솔루션 생성",
+        "description": "추적하고 싶은 항목을 설명해 주세요. Kuma가 테이블과 필드를 생성해 드립니다.",
+        "exampleProjectTrackerName": "프로젝트 추적기",
+        "exampleProjectTrackerPrompt": "프로젝트, 작업, 담당자, 상태, 우선순위, 마감일 및 종속성을 포함하는 프로젝트 추적기를 만드세요.",
+        "exampleProductRoadmapName": "제품 로드맵",
+        "exampleProductRoadmapPrompt": "이니셔티브, 기능, 담당자, 상태, 우선순위, 목표 분기 및 릴리스 노트를 포함하는 제품 로드맵을 작성하세요.",
+        "exampleCompanyAssetTrackerName": "회사 자산 추적기",
+        "exampleCompanyAssetTrackerPrompt": "자산, 범주, 일련 번호, 구매 날짜, 담당자, 위치 및 보증 만료일을 포함하는 자산 추적기를 만드세요.",
+        "exampleTeamCheckInsName": "팀 점검",
+        "exampleTeamCheckInsPrompt": "팀 구성원, 날짜, 성과, 장애 요인, 분위기, 우선순위 및 후속 조치를 포함하는 주간 팀 진행 상황 추적기를 만드세요.",
+        "exampleBugTrackerName": "버그 추적기",
+        "exampleBugTrackerPrompt": "버그, 심각도, 상태, 재현 단계, 환경, 보고자, 담당자 및 수정 버전을 포함하는 버그 추적 시스템을 만드세요."
+    },
+    "aiDatabaseOnboardingStepType": {
+        "prompt": "다음 설명과 일치하는 테이블, 필드, 예제 행 및 예제 뷰를 포함하는 데이터베이스를 생성하세요: {prompt}"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "쿠마에게 데이터베이스를 생성하도록 지시합니다."
     }
 }
