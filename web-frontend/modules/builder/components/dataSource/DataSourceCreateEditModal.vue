@@ -41,7 +41,7 @@
         <Button
           size="large"
           :loading="loading"
-          :disabled="loading || !changed || $refs.dataSourceForm.v$.$anyError"
+          :disabled="submitIsDisabled"
           @click.prevent="$refs.dataSourceForm.submit()"
         >
           {{ create ? $t('action.create') : $t('action.save') }}
@@ -86,6 +86,11 @@ export default {
     }
   },
   computed: {
+    submitIsDisabled() {
+      return (
+        this.loading || !this.changed || this.$refs.dataSourceForm.v$.$anyError
+      )
+    },
     dataSources() {
       return this.$store.getters['dataSource/getPageDataSources'](
         this.currentPage
