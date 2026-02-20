@@ -795,7 +795,18 @@
         "roleOrJob": "역할 또는 직함...",
         "people": "팀에 몇 명이 있습니까?",
         "country": "국가",
-        "share": "Baserow 팀과 이 정보를 공유하는 데 동의합니다"
+        "share": "Baserow 팀과 이 정보를 공유하는 데 동의합니다",
+        "how": "저희에 대해 어떻게 알게 되셨나요?",
+        "howSearchEngine": "검색 엔진(구글/빙)",
+        "howSocialMedia": "소셜 미디어",
+        "howOnlineAds": "온라인 광고",
+        "howContent": "콘텐츠 (블로그/뉴스레터/영상)",
+        "howReviewSite": "리뷰 사이트 / 마켓플레이스",
+        "howFriend": "친구의 추천",
+        "howColleague": "동료의 추천",
+        "howEvent": "이벤트 또는 웨비나",
+        "howSales": "영업 활동",
+        "howOther": "기타"
     },
     "teamStep": {
         "title": "함께 첫 작업공간을 만들어봅시다!",
