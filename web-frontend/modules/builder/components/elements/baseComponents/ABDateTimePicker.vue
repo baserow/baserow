@@ -38,6 +38,7 @@
           :open-date="calendarValue || new Date()"
           :inline="true"
           :monday-first="true"
+          :language="datePickerLanguage"
           class="ab-datetime-picker__calendar"
           @update:model-value="updateDate"
         />
@@ -67,6 +68,7 @@
 
 <script>
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
+import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 import {
   generateTimePickerTimes,
   parseDateForCalendar,
@@ -135,6 +137,9 @@ export default {
       },
       immediate: true,
     },
+  },
+  setup() {
+    return useDatePickerLanguage()
   },
   methods: {
     refreshDate(value) {
