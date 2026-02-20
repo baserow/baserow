@@ -316,7 +316,7 @@ export default {
      * Reload the preview without re-parsing the raw data.
      */
     reloadPreview() {
-      if (!this.parsedData || this.parsedData.length === 0) {
+      if (!Array.isArray(this.parsedData) || this.parsedData.length === 0) {
         return
       }
 
