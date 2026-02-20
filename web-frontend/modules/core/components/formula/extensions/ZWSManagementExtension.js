@@ -40,10 +40,9 @@ export const ZWSManagementExtension = Extension.create({
               }
             }
           })
-          for (let i = zwsReplacements.length - 1; i >= 0; i--) {
-            const { cleanedText, pos, end } = zwsReplacements[i]
+          let modified = Boolean(zwsReplacements.length)
+          for (const { cleanedText, pos, end } of zwsReplacements.reverse()) {
             tr.insertText(cleanedText, pos, end)
-            modified = true
           }
 
           // Apply cleanup changes before checking for missing ZWS
