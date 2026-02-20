@@ -26,7 +26,7 @@
             :language="datePickerLanguage"
             :open-date="dateObject || new Date()"
             class="datepicker"
-            @updated:model-value="chooseDate($event)"
+            @update:model-value="chooseDate($event)"
           ></date-picker>
         </client-only>
       </Context>
@@ -134,7 +134,6 @@ export default {
 
       if (newDate.isValid()) {
         this.setCopy(newDate.format('YYYY-MM-DD'), sender)
-        this.setDateObject(newDate)
         this.delayedUpdate(this.copy, true)
       } else {
         this.copy = value
@@ -155,7 +154,7 @@ export default {
       dateString: {
         isValidDate(value) {
           const dateFormat = getDateMomentFormat(this.field.date_format)
-          return value === '' || moment.utc(value, dateFormat).isValid()
+          return value === '' || moment(value, dateFormat, true).isValid()
         },
       },
     }
