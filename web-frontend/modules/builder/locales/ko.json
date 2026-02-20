@@ -851,7 +851,7 @@
         "loggedInVisitors": "로그인한 방문자",
         "notLoggedInVisitors": "로그아웃한 방문자",
         "warningTitle": "이것은 보안 기능입니다",
-        "warningMessage": "&lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'&gt;문서&lt;/a&gt;를 확인하여 데이터를 보호하는 방법에 대해 자세히 알아보세요.",
+        "warningMessage": "데이터 보안 방법에 대한 자세한 내용은 {link}를 확인하세요.",
         "excludedRolesLabel": "모든 역할 제외",
         "switchAllowLabel": "허용",
         "switchDisallowLabel": "허용 안 함",
@@ -953,7 +953,7 @@
     },
     "pageEditor": {
         "pageNotFound": "페이지를 찾을 수 없습니다",
-        "title": "베이스로우 | 애플리케이션 빌더"
+        "title": "애플리케이션 빌더"
     },
     "builderLoginPageForm": {
         "pageDropdownLabel": "로그인 페이지",
