@@ -1587,7 +1587,11 @@ class BatchDeleteRowsView(APIView):
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_TABLE_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -1603,6 +1607,7 @@ class BatchDeleteRowsView(APIView):
             CannotDeleteRowsInTable: ERROR_CANNOT_DELETE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         }
     )
     @atomic_with_retry_on_deadlock()
