@@ -16,7 +16,6 @@ export const ZWSManagementExtension = Extension.create({
         key: new PluginKey('zwsManagement'),
         appendTransaction(transactions, oldState, newState) {
           const tr = newState.tr
-          let modified = false
 
           // Phase 1: Clean up consecutive ZWS.
           // Collect replacements first, then apply in reverse order to avoid
