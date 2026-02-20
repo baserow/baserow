@@ -613,7 +613,7 @@ export default {
             grid: this.view,
             fields: this.fields,
             rowId: prevRowId,
-            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+            getScrollTop: this.getScrollTop,
           })
         }
       },
@@ -913,6 +913,18 @@ export default {
       return this.$refs.right.$refs.body
     },
     /**
+     * Returns the current vertical scroll position. This function tries to find the
+     * vertically scrollable element and returns the scrollTop value. If the component
+     * has already been destroyed (e.g., during page changes), it falls back to the
+     * last scroll top value stored in the grid view store.
+     */
+    getScrollTop() {
+      if (this.$refs.left?.$refs?.body) {
+        return this.$refs.left.$refs.body.scrollTop
+      }
+      return this.$store.getters[this.storePrefix + 'view/grid/getScrollTop']
+    },
+    /**
      * Called when a user scrolls without using the scrollbar.
      */
     scroll(pixelY, pixelX) {
@@ -1032,9 +1044,6 @@ export default {
     async deleteRow(row) {
       try {
         this.$refs.rowContext.hide()
-        // We need a small helper function that calculates the current scrollTop because
-        // the delete action will recalculate the visible scroll range and buffer.
-        const getScrollTop = () => this.$refs.left.$refs.body.scrollTop
         await this.$store.dispatch(
           this.storePrefix + 'view/grid/deleteExistingRow',
           {
@@ -1042,7 +1051,7 @@ export default {
             view: this.view,
             fields: this.fields,
             row,
-            getScrollTop,
+            getScrollTop: this.getScrollTop,
           }
         )
         await this.$store.dispatch('toast/restore', {
@@ -1094,7 +1103,7 @@ export default {
             row,
             field: this.fields[0],
             fields: this.fields,
-            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+            getScrollTop: this.getScrollTop,
           }
         )
       }
@@ -1130,7 +1139,7 @@ export default {
         grid: this.view,
         fields: this.fields,
         rowId: row.id,
-        getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+        getScrollTop: this.getScrollTop,
       })
     },
     /**
@@ -1200,19 +1209,6 @@ export default {
       // cell within a row is selected, we want to wait for that selected state tot
       // change. This will make sure that the row is stays selected.
       this.$nextTick(() => {
-        // The getScrollTop function tries to find the vertically scrollable element
-        // and returns the scrollTop value. The unselectCell method could in some cases
-        // be called when the grid view component has already been destroyed. For
-        // example when a cell is selected in the template modal and the user presses
-        // the escape key which destroys the modal. We need to make sure, the lookup
-        // doesn't fail hard when that happens, so we can return the last scroll top
-        // value stored in the grid view store.
-        let getScrollTop = () => this.$refs.left.$refs.body.scrollTop
-        if (!this.$refs.left) {
-          getScrollTop = () =>
-            this.$store.getters[this.storePrefix + 'view/grid/getScrollTop']
-        }
-
         this.$store.dispatch(
           this.storePrefix + 'view/grid/removeRowSelectedBy',
           {
@@ -1220,7 +1216,7 @@ export default {
             fields: this.fields,
             row,
             field,
-            getScrollTop,
+            getScrollTop: this.getScrollTop,
             isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
@@ -1608,7 +1604,7 @@ export default {
             view: this.view,
             allVisibleFields: this.allVisibleFields,
             allFieldsInTable: this.fields,
-            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+            getScrollTop: this.getScrollTop,
             textData,
             jsonData,
             rowIndex,
@@ -1636,7 +1632,7 @@ export default {
             table: this.table,
             view: this.view,
             fields: this.allVisibleFields,
-            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+            getScrollTop: this.getScrollTop,
           }
         )
         this.$refs.rowContext.hide()
@@ -1661,7 +1657,7 @@ export default {
             view: this.view,
             allVisibleFields: this.allVisibleFields,
             allFieldsInTable: this.fields,
-            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+            getScrollTop: this.getScrollTop,
           }
         )
       } catch (error) {
