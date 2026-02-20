@@ -959,7 +959,8 @@
     "databaseImportStep": {
         "title": "데이터 가져오기",
         "description": "몇 번의 클릭만으로 데이터를 Baserow로 이동하세요.",
-        "tableNameLabel": "테이블 이름"
+        "tableNameLabel": "테이블 이름",
+        "tableNamePrefill": "{name}의 테이블"
     },
     "databaseScratchTrackFieldsStep": {
         "title": "각 행에 대한 필드 선택",
@@ -1037,7 +1038,9 @@
         "scratch": "처음부터",
         "import": "파일",
         "airtable": "에어테이블",
-        "template": "템플릿"
+        "template": "템플릿",
+        "databaseNamePrefill": "{name}의 데이터베이스",
+        "workspaceName": "{name}의 작업공간"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "다중 단계 날짜 필터로 마이그레이션",
