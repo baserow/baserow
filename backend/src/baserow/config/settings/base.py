@@ -453,7 +453,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.1.0",
+    "VERSION": "2.1.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
