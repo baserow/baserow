@@ -15,7 +15,6 @@
 <script>
 export default {
   name: 'SelectSearch',
-  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: String,
@@ -31,15 +30,16 @@ export default {
       default: '',
     },
   },
+  emits: ['input', 'update:modelValue'],
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+  },
   methods: {
     emitChange(newValue) {
       this.$emit('input', newValue)
       this.$emit('update:modelValue', newValue)
-    }
-  },
-  computed: {
-    currentValue() {
-      return this.modelValue !== undefined ? this.modelValue : this.value
     },
   },
 }
