@@ -24,7 +24,7 @@ coverage==7.5.1
 pytest-split==0.8.2
 bandit==1.7.8
 pip-tools==7.4.1
-autopep8==2.1.1
+autopep8==2.1.0
 pytest-unordered==0.6.0
 debugpy==1.8.1
 backports.cached-property==1.0.2

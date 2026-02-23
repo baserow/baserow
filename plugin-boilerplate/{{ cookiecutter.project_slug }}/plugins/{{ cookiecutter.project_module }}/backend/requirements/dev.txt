@@ -49,7 +49,7 @@ autobahn==23.6.2
     # via daphne
 automat==22.10.0
     # via twisted
-autopep8==2.1.1
+autopep8==2.1.0
     # via
     #   -r dev.in
     #   django-silk
