@@ -43,7 +43,7 @@ class AutomationDispatchContext(DispatchContext):
             self.current_iterations = current_iterations
 
         if history_id:
-            self._update_previous_results(history_id)
+            self._load_previous_results(history_id)
 
         services = (
             [self.simulate_until_node.service.specific]
@@ -70,7 +70,7 @@ class AutomationDispatchContext(DispatchContext):
         new_context.current_iterations = {**self.current_iterations}
         return new_context
 
-    def _update_previous_results(self, history_id: int):
+    def _load_previous_results(self, history_id: int):
         """
         Updates the previous_nodes_results using data from the node
         history related to the history_id.
