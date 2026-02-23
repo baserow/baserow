@@ -108,7 +108,7 @@ const automationApplicationType = $registry.get(
   AutomationApplicationType.getType()
 )
 
-const { data: pageData } = await useAsyncData(
+const { data: pageData, error } = await useAsyncData(
   () => `automation-workflow-${automationId.value}-${workflowId.value}`,
   async () => {
     try {
