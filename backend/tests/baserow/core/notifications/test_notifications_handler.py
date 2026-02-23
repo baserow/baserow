@@ -904,3 +904,82 @@ def test_email_notifications_queries_are_limited(
         assert len(ctx_large) == len(ctx_small)
     finally:
         notification_type_registry.unregister(SenderAccessingNotification.type)
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.notifications.handler.get_mail_connection")
+@override_settings(MAX_NOTIFICATIONS_LISTED_PER_EMAIL=3)
+def test_email_notifications_per_user_limit_with_multiple_users(
+    mock_get_mail_connection, data_fixture, mutable_notification_type_registry
+):
+    """
+    When multiple users each have more unsent notifications than the per-user
+    limit, every user must receive their own top N notifications (not a global
+    top-N) and their own correct total_unsent_count.
+    """
+
+    mock_connection = MagicMock()
+    mock_get_mail_connection.return_value = mock_connection
+    limit = settings.MAX_NOTIFICATIONS_LISTED_PER_EMAIL  # 3
+
+    with custom_notification_types_registered() as (TestNotification, _):
+        user_1 = data_fixture.create_user()
+        user_2 = data_fixture.create_user()
+
+        # Create 5 notifications for user_1 (each is a separate Notification)
+        user_1_notifications = []
+        for _ in range(5):
+            n = data_fixture.create_notification_for_users(
+                recipients=[user_1], notification_type=TestNotification.type
+            )
+            user_1_notifications.append(n)
+
+        # Create 4 notifications for user_2
+        user_2_notifications = []
+        for _ in range(4):
+            n = data_fixture.create_notification_for_users(
+                recipients=[user_2], notification_type=TestNotification.type
+            )
+            user_2_notifications.append(n)
+
+        res = NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+            Q(pk__in=[user_1.pk, user_2.pk])
+        )
+
+        # Both users must appear in the result.
+        result_by_user = {u.id: u for u in res.users_with_notifications}
+        assert set(result_by_user.keys()) == {user_1.id, user_2.id}
+
+        # --- user_1: 5 total, top 3 shown ---
+        u1 = result_by_user[user_1.id]
+        assert len(u1.unsent_email_notifications) == limit
+        assert u1.total_unsent_count == 5
+        # The 3 most recent notifications for user_1 (highest id = most recent)
+        expected_u1_ids = {n.id for n in user_1_notifications[-limit:]}
+        actual_u1_ids = {n.id for n in u1.unsent_email_notifications}
+        assert actual_u1_ids == expected_u1_ids
+
+        # --- user_2: 4 total, top 3 shown ---
+        u2 = result_by_user[user_2.id]
+        assert len(u2.unsent_email_notifications) == limit
+        assert u2.total_unsent_count == 4
+        expected_u2_ids = {n.id for n in user_2_notifications[-limit:]}
+        actual_u2_ids = {n.id for n in u2.unsent_email_notifications}
+        assert actual_u2_ids == expected_u2_ids
+
+        # Verify two separate emails were sent, one per user.
+        mock_get_mail_connection.assert_called_once_with(fail_silently=False)
+        summary_emails = mock_connection.send_messages.call_args[0][0]
+        assert len(summary_emails) == 2
+
+        email_by_recipient = {e.to[0]: e for e in summary_emails}
+
+        u1_email = email_by_recipient[user_1.email]
+        assert u1_email.get_subject() == "You have 5 new notifications - Baserow"
+        assert u1_email.get_context()["new_notifications_count"] == 5
+        assert u1_email.get_context()["unlisted_notifications_count"] == 2
+
+        u2_email = email_by_recipient[user_2.email]
+        assert u2_email.get_subject() == "You have 4 new notifications - Baserow"
+        assert u2_email.get_context()["new_notifications_count"] == 4
+        assert u2_email.get_context()["unlisted_notifications_count"] == 1

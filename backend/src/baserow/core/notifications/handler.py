@@ -701,7 +701,7 @@ class NotificationHandler:
             )
             .distinct()
             .select_related("sender")
-            .order_by("-created_on")[:limit_notifications_per_user],
+            .order_by("-created_on", "-id")[:limit_notifications_per_user],
             to_attr="unsent_email_notifications",
         )
 
