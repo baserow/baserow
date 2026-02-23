@@ -456,9 +456,9 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Find current iteration using current_iterations.
         iteration_index = 0
-        if current_iterations:
-            # To handle nested iterators, always pick the last one
-            iteration_index = list(current_iterations.values())[-1]
+        parent_nodes = node.get_parent_nodes()
+        if parent_nodes:
+            iteration_index = current_iterations[parent_nodes[-1].id]
 
         history_handler.create_node_result(
             node_history=node_history,
