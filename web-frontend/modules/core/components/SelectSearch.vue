@@ -2,12 +2,12 @@
   <div class="select__search">
     <i class="select__search-icon iconoir-search"></i>
     <input
-      :value="value"
+      :value="currentValue"
       type="text"
       class="select__search-input"
       v-bind="$attrs"
       :placeholder="placeholder || $t('action.search')"
-      @input="$emit('input', $event.target.value)"
+      @input="emitChange($event.target.value)"
     />
   </div>
 </template>
@@ -15,11 +15,15 @@
 <script>
 export default {
   name: 'SelectSearch',
+  emits: ['input', 'update:modelValue'],
   props: {
     value: {
       type: String,
-      required: false,
-      default: null,
+      default: undefined,
+    },
+    modelValue: {
+      type: String,
+      default: undefined,
     },
     placeholder: {
       type: String,
@@ -27,6 +31,16 @@ export default {
       default: '',
     },
   },
-  emits: ['input'],
+  methods: {
+    emitChange(newValue) {
+      this.$emit('input', newValue)
+      this.$emit('update:modelValue', newValue)
+    }
+  },
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+  },
 }
 </script>
