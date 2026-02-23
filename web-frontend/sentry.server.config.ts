@@ -11,7 +11,7 @@ if (dsn && dsn !== '') {
     environment: config.public.sentryEnvironment || 'production',
     tracesSampleRate: 1.0,
     beforeSend(event, hint) {
-      const err = hint?.originalException as any
+      const err = hint?.originalException
       if (err?.fatal === false) return null
       return event
     },

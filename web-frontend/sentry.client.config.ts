@@ -23,7 +23,7 @@ if (dsn && dsn !== '') {
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     beforeSend(event, hint) {
-      const err = hint?.originalException as any
+      const err = hint?.originalException
       if (err?.fatal === false) return null
       return event
     },
