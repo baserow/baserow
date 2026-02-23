@@ -68,7 +68,7 @@ def test_create_workflow_history(data_fixture):
 @pytest.mark.django_db
 def test_get_workflow_history_excludes_simulation_histories(data_fixture):
     """
-    Simulation histories are deleted by the dispatch_node_async() once the final
+    Simulation histories are deleted by the dispatch_node() once the final
     node is dispatched. However, we want to ensure they're excluded so that
     a user doesn't accidentally see them while the simulation is running.
     """

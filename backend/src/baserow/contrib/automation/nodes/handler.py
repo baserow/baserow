@@ -357,7 +357,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         return node_instance
 
-    def dispatch_node_async(
+    def dispatch_node(
         self,
         node_id: int,
         history_id: int,
@@ -488,7 +488,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     node.id: index,
                 }
                 for child in children:
-                    simulation_completed = self.dispatch_node_async(
+                    simulation_completed = self.dispatch_node(
                         child.id,
                         history_id,
                         current_iterations=child_iterations,
@@ -510,7 +510,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         for next_node in next_nodes:
             if current_iterations:
-                simulation_completed = self.dispatch_node_async(
+                simulation_completed = self.dispatch_node(
                     next_node.id,
                     history_id,
                     current_iterations=current_iterations,

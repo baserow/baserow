@@ -135,7 +135,7 @@ def create_workflow_history(data_fixture, workflow, trigger_table_fields):
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_service_error(mock_dispatch_task, data_fixture):
+def test_dispatch_node_service_error(mock_dispatch_task, data_fixture):
     user = data_fixture.create_user()
     trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         user=user
@@ -151,7 +151,7 @@ def test_dispatch_node_async_service_error(mock_dispatch_task, data_fixture):
         workflow=original_workflow
     )
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -171,7 +171,7 @@ def test_dispatch_node_async_service_error(mock_dispatch_task, data_fixture):
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 @patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
 @patch(f"{NODE_HANDLER_PATH}.logger")
-def test_dispatch_node_async_unexpected_error(
+def test_dispatch_node_unexpected_error(
     mock_logger, mock_dispatch, mock_dispatch_task, data_fixture
 ):
     mock_dispatch.side_effect = ValueError("Unexpected error!")
@@ -180,7 +180,7 @@ def test_dispatch_node_async_unexpected_error(
     trigger_node = data["trigger_node"]
     workflow_history = data["workflow_history"]
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -202,13 +202,13 @@ def test_dispatch_node_async_unexpected_error(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_trigger(mock_dispatch_task, data_fixture):
+def test_dispatch_node_dispatches_trigger(mock_dispatch_task, data_fixture):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]
     action_node = data["action_node"]
     workflow_history = data["workflow_history"]
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -234,9 +234,7 @@ def test_dispatch_node_async_dispatches_trigger(mock_dispatch_task, data_fixture
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_action_create_row(
-    mock_dispatch_task, data_fixture
-):
+def test_dispatch_node_dispatches_action_create_row(mock_dispatch_task, data_fixture):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]
     action_node = data["action_node"]
@@ -245,7 +243,7 @@ def test_dispatch_node_async_dispatches_action_create_row(
     action_table_field = data["action_table_field"]
 
     # First dispatch the trigger
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -259,7 +257,7 @@ def test_dispatch_node_async_dispatches_action_create_row(
 
     # Next dispatch the action
     mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         action_node.id,
         history_id=workflow_history.id,
     )
@@ -296,9 +294,7 @@ def test_dispatch_node_async_dispatches_action_create_row(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_iterator_children(
-    mock_dispatch_task, data_fixture
-):
+def test_dispatch_node_dispatches_iterator_children(mock_dispatch_task, data_fixture):
     data = data_fixture.iterator_graph_fixture()
     trigger_node = data["trigger_node"]
     trigger_table_fields = data["trigger_table_fields"]
@@ -317,7 +313,7 @@ def test_dispatch_node_async_dispatches_iterator_children(
     )
 
     # First dispatch the trigger
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -331,7 +327,7 @@ def test_dispatch_node_async_dispatches_iterator_children(
 
     # Next dispatch the iterator node
     mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         iterator_node.id,
         history_id=workflow_history.id,
     )
@@ -377,7 +373,7 @@ def test_dispatch_node_async_dispatches_iterator_children(
 
     # Dispatch the after iteration node
     mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         after_iteration_node.id,
         history_id=workflow_history.id,
     )
@@ -394,7 +390,7 @@ def test_dispatch_node_async_dispatches_iterator_children(
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
-def test_dispatch_node_async_dispatches_trigger_simulation(
+def test_dispatch_node_dispatches_trigger_simulation(
     mock_automation_node_updated,
     mock_dispatch_task,
     data_fixture,
@@ -410,7 +406,7 @@ def test_dispatch_node_async_dispatches_trigger_simulation(
 
     assert trigger_node.service.specific.sample_data is None
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -457,7 +453,7 @@ def test_dispatch_node_async_dispatches_trigger_simulation(
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
-def test_dispatch_node_async_dispatches_action_simulation(
+def test_dispatch_node_dispatches_action_simulation(
     mock_automation_node_updated,
     mock_dispatch_task,
     data_fixture,
@@ -477,7 +473,7 @@ def test_dispatch_node_async_dispatches_action_simulation(
 
     # Simulate the trigger first so that the dispatch context can populate
     # previous_node_results from the database.
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -509,7 +505,7 @@ def test_dispatch_node_async_dispatches_action_simulation(
 
     # Now simulate the action
     mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         action_node.id,
         history_id=workflow_history.id,
     )
@@ -544,7 +540,7 @@ def test_dispatch_node_async_dispatches_action_simulation(
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
-def test_dispatch_node_async_dispatches_iterator_simulation(
+def test_dispatch_node_dispatches_iterator_simulation(
     mock_automation_node_updated,
     mock_dispatch_task,
     data_fixture,
@@ -571,7 +567,7 @@ def test_dispatch_node_async_dispatches_iterator_simulation(
     # previous_node_results from the database.
     for node in [trigger_node, iterator_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )
@@ -605,7 +601,7 @@ def test_dispatch_node_async_dispatches_iterator_simulation(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_test_run(
+def test_dispatch_node_dispatches_test_run(
     mock_dispatch_task,
     data_fixture,
 ):
@@ -625,7 +621,7 @@ def test_dispatch_node_async_dispatches_test_run(
 
     for node in [trigger_node, iterator_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )
@@ -670,7 +666,7 @@ def test_dispatch_node_async_dispatches_test_run(
 
     # Dispatch the after iteration node
     mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         after_iteration_node.id,
         history_id=workflow_history.id,
     )
@@ -685,9 +681,7 @@ def test_dispatch_node_async_dispatches_test_run(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_action_update_row(
-    mock_dispatch_task, data_fixture
-):
+def test_dispatch_node_dispatches_action_update_row(mock_dispatch_task, data_fixture):
     data = create_workflow(
         data_fixture,
         action_node_type="update_row",
@@ -707,7 +701,7 @@ def test_dispatch_node_async_dispatches_action_update_row(
 
     for node in [trigger_node, action_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )
@@ -744,9 +738,7 @@ def test_dispatch_node_async_dispatches_action_update_row(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_action_delete_row(
-    mock_dispatch_task, data_fixture
-):
+def test_dispatch_node_dispatches_action_delete_row(mock_dispatch_task, data_fixture):
     data = create_workflow(
         data_fixture,
         action_node_type="delete_row",
@@ -761,7 +753,7 @@ def test_dispatch_node_async_dispatches_action_delete_row(
 
     for node in [trigger_node, action_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )
@@ -790,7 +782,7 @@ def test_dispatch_node_async_dispatches_action_delete_row(
 
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_fixture):
+def test_dispatch_node_dispatches_action_router(mock_dispatch_task, data_fixture):
     data = create_workflow(
         data_fixture,
         action_node_type="update_row",
@@ -844,7 +836,7 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
 
     for node in [trigger_node, action_node, router_node, edge_2_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )
@@ -879,7 +871,7 @@ def test_dispatch_node_async_dispatches_action_router(mock_dispatch_task, data_f
 
 
 @pytest.mark.django_db(transaction=True)
-def test_dispatch_node_async_with_advanced_formulas(data_fixture):
+def test_dispatch_node_with_advanced_formulas(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     integration = data_fixture.create_local_baserow_integration(user=user)
@@ -950,7 +942,7 @@ def test_dispatch_node_async_with_advanced_formulas(data_fixture):
         },
     )
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         trigger.id,
         history_id=workflow_history.id,
     )
@@ -962,7 +954,7 @@ def test_dispatch_node_async_with_advanced_formulas(data_fixture):
 @pytest.mark.django_db
 @patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
 @patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
-def test_dispatch_node_async_dispatches_router_edge_simulation(
+def test_dispatch_node_dispatches_router_edge_simulation(
     mock_automation_node_updated,
     mock_dispatch_task,
     data_fixture,
@@ -1067,7 +1059,7 @@ def test_dispatch_node_async_dispatches_router_edge_simulation(
 
     for node in [trigger_node, router_a, router_b, action_node]:
         mock_dispatch_task.reset_mock()
-        AutomationNodeHandler().dispatch_node_async(
+        AutomationNodeHandler().dispatch_node(
             node.id,
             history_id=workflow_history.id,
         )

@@ -14,7 +14,7 @@ def dispatch_node_celery_task(
 ):
     from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-    AutomationNodeHandler().dispatch_node_async(
+    AutomationNodeHandler().dispatch_node(
         node_id,
         history_id,
         current_iterations=current_iterations,
