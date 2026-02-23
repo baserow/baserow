@@ -112,9 +112,9 @@
       </div>
     </template>
     <DataSourceCreateEditModal
-      :key="currentDataSourceId"
       ref="dataSourceCreateEditModal"
       :data-source-id="currentDataSourceId"
+      @data-source-created="currentDataSourceId = $event.id"
       @hidden="onHide"
     />
   </Context>

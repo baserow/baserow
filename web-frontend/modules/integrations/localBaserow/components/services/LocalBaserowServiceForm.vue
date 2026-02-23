@@ -146,7 +146,7 @@ export default {
       )
     },
     databases() {
-      return this.selectedIntegration?.context_data.databases || []
+      return this.selectedIntegration?.context_data?.databases || []
     },
   },
   watch: {

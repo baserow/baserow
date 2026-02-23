@@ -58,7 +58,8 @@
     "download": "Download",
     "copyToClipboard": "Copy to clipboard",
     "reset": "Reset",
-    "hide": "Hide"
+    "hide": "Hide",
+    "next": "Next"
   },
   "adminType": {
     "settings": "Settings",

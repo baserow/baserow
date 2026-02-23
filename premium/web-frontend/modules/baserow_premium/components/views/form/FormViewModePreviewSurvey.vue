@@ -55,8 +55,9 @@
                   type="primary"
                   size="large"
                   @click="next()"
-                  >Next</Button
                 >
+                  {{ $t('action.next') }}
+                </Button>
                 <template v-else-if="index >= fields.length - 1">
                   <Editable
                     ref="submitText"
