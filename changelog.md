@@ -1,5 +1,20 @@
 # Changelog
 
+## Released 2.1.1
+
+### Bug fixes
+* [Database] Fixed Importing rows with 'period, comma' separated Number fields doesn't import numbers correctly. [#4786](https://github.com/baserow/baserow/-/issues/4786)
+* [Builder] Set correct locale in application builder date picker.
+* [Core] Fixed deleting multiple rows with active filters and hidden filtered field.
+* [Core] Fixed prevent moving forward in scratch onboarding step validation bug.
+* [Database] Fix table reorder bug with realtime event.
+* [Builder] Fix re-opening new data source modal bug.
+* [Core] Fix slow query fetching notifications to send.
+* [Core] Fix wrong date selection in the datepicker when editing values directly in the text input.
+* [Database] Handle missing parsedData in reloadPreview().
+* [Database] Return 404 when view doesn't exist in batch delete rows endpoint.
+
+
 ## Released 2.1.0
 
 ### New features
