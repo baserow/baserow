@@ -42,7 +42,7 @@ const store = nuxtApp.$store
 const { $i18n } = nuxtApp
 
 /* asyncData → useAsyncData */
-const { data: workspace } = await useAsyncData('workspace', async () => {
+const { data: workspace, error } = await useAsyncData('workspace', async () => {
   try {
     return await store.dispatch(
       'workspace/selectById',
@@ -52,6 +52,10 @@ const { data: workspace } = await useAsyncData('workspace', async () => {
     throw createError({ statusCode: 404, message: 'Workspace not found.' })
   }
 })
+
+if (error.value) {
+  throw error.value
+}
 
 /* Registry access */
 const registry = nuxtApp.$registry

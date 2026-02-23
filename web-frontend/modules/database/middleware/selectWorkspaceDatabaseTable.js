@@ -25,7 +25,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     throw createError({
       statusCode: e.response?.status || 404,
       message: normalizeError(e).message,
-      fatal: false,
     })
   }
 

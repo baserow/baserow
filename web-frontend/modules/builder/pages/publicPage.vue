@@ -97,7 +97,7 @@ const {
       } catch (e) {
         throw createError({
           statusCode: 404,
-          statusMessage: $i18n.t('publicPage.siteNotFound'),
+          message: $i18n.t('publicPage.siteNotFound'),
         })
       }
 
@@ -173,7 +173,7 @@ const {
         if (authError) {
           throw createError({
             statusCode: authError.code,
-            statusMessage: authError.message,
+            message: authError.message,
           })
         }
       }
@@ -190,7 +190,7 @@ const {
     if (!found) {
       throw createError({
         statusCode: 404,
-        statusMessage: $i18n.t('publicPage.pageNotFound'),
+        message: $i18n.t('publicPage.pageNotFound'),
       })
     }
 
@@ -199,7 +199,7 @@ const {
     if (pageFound.shared) {
       throw createError({
         statusCode: 404,
-        statusMessage: $i18n.t('publicPage.pageNotFound'),
+        message: $i18n.t('publicPage.pageNotFound'),
       })
     }
 
@@ -288,12 +288,7 @@ const {
 )
 
 if (error.value) {
-  // If we have an error we want to display it.
-  if (error.value.statusCode === 404) {
-    showError(error.value)
-  } else {
-    throw error.value
-  }
+  throw error.value
 }
 
 const workspace = computed(() => asyncDataResult.value?.workspace)

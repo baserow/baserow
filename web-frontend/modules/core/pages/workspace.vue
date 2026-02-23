@@ -320,7 +320,7 @@ const {
     } catch (e) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'Workspace not found.',
+        message: 'Workspace not found.',
       })
     }
 
@@ -330,11 +330,16 @@ const {
     } catch {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Error loading dashboard.',
+        message: 'Error loading dashboard.',
+        fatal: true,
       })
     }
   }
 )
+
+if (error.value) {
+  throw error.value
+}
 
 /**
  * Hydrate local refs from the async data.

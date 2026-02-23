@@ -104,12 +104,7 @@ const {
 )
 
 if (pageError.value) {
-  // If we have an error we want to display it.
-  if (pageError.value.statusCode === 404) {
-    showError(pageError.value)
-  } else {
-    throw pageError.value
-  }
+  throw pageError.value
 }
 
 const workspace = computed(() => pageData.value.workspace)

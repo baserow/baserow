@@ -184,11 +184,7 @@ const { data, error } = await useAsyncData(
 )
 
 if (error.value) {
-  if (error.value.statusCode === 404) {
-    createError({ statusCode: 404, message: 'Form not found.', fatal: true })
-  } else {
-    throw error.value
-  }
+  throw error.value
 }
 
 if (data.value?.redirect) {

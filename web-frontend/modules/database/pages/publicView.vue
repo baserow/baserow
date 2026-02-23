@@ -132,6 +132,7 @@ const { data, error } = await useAsyncData(
         throw createError({
           statusCode: 500,
           message: e.message || 'Error loading view.',
+          fatal: true,
         })
       }
     }
@@ -139,11 +140,7 @@ const { data, error } = await useAsyncData(
 )
 
 if (error.value) {
-  if (error.value.statusCode === 404) {
-    showError(error.value)
-  } else {
-    throw error.value
-  }
+  throw error.value
 }
 
 if (data.value?.redirect) {

@@ -22,6 +22,11 @@ if (dsn && dsn !== '') {
     tracesSampleRate: 1.0,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
+    beforeSend(event, hint) {
+      const err = hint?.originalException as any
+      if (err?.fatal === false) return null
+      return event
+    },
   }
 
   // Merge with user-provided configuration from app config

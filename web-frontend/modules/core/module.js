@@ -112,6 +112,7 @@ export default defineNuxtModule({
     )
 
     addPlugin(resolve('plugins/store.js'))
+    addPlugin(resolve('plugins/errorHandler.js'))
     addPlugin(resolve('plugins/filters.js'))
     addPlugin(resolve('plugins/vuexState.js'))
     addPlugin(resolve('plugin.js'))

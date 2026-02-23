@@ -15,19 +15,23 @@ const notificationId = route.params.notificationId
 const { data: notification, error: loadError } = await useAsyncData(
   () => `notification:${workspaceId}:${notificationId}`,
   async () => {
-    const { data } = await notificationService(nuxtApp.$client).markAsRead(
-      workspaceId,
-      notificationId
-    )
-    return data
+    try {
+      const { data } = await notificationService(nuxtApp.$client).markAsRead(
+        workspaceId,
+        notificationId
+      )
+      return data
+    } catch {
+      throw createError({
+        statusCode: 404,
+        message: 'Notification not found.',
+      })
+    }
   }
 )
 
 if (loadError.value || !notification.value) {
-  throw createError({
-    statusCode: 404,
-    statusMessage: 'Notification not found.',
-  })
+  throw loadError.value
 }
 
 const notificationType = nuxtApp.$registry.get(
@@ -39,7 +43,7 @@ const redirectParams = notificationType.getRoute(notification.value.data)
 if (!redirectParams) {
   throw createError({
     statusCode: 404,
-    statusMessage: 'Notification has no route.',
+    message: 'Notification has no route.',
   })
 }
 

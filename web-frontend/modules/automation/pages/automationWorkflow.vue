@@ -151,6 +151,10 @@ const { data: pageData } = await useAsyncData(
   }
 )
 
+if (error.value) {
+  throw error.value
+}
+
 // Computed properties from async data
 const automation = computed(() => pageData.value?.automation ?? null)
 const workspace = computed(() => pageData.value?.workspace ?? null)

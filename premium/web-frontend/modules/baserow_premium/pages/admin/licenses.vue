@@ -183,7 +183,8 @@ const { data } = await useAsyncData('licensesPage', async () => {
   } catch (e) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Something went wrong while fetching the licenses.',
+      message: 'Something went wrong while fetching the licenses.',
+      fatal: true,
     })
   }
 })
