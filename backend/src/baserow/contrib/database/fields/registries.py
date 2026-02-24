@@ -221,6 +221,11 @@ class FieldType(
     allows to update existing rows with imported data instead of adding them.
     """
 
+    can_have_view_default_value = False
+    """
+    If is makes sense for the field to have a view-specific default value.
+    """
+
     def get_default_options_field_name(self):
         """
         Returns the name of the field that stores the default value for the field type.
@@ -976,6 +981,17 @@ class FieldType(
 
         return self.serialize_to_input_value(field, value)
 
+    def prepare_default_value(self, field, value) -> any:
+        """
+        Prepares stored default value to be used for creating new rows.
+
+        :param field: The field instance for which the provided value is
+            intended.
+        :param value: The stored default value.
+        """
+
+        return value
+
     def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
         """
         Serializes the allowed fields of the field to a serialized dict.
@@ -1244,6 +1260,18 @@ class FieldType(
         """
 
         return value
+
+    def deserialize_json_value(self, json_value: Any) -> Any:
+        """
+        If the field type value has been serialized to be stored as JSON,
+        this method will deserialize it back into Python value.
+
+        :param json_value: The value that is stored in JSON.
+        :return: The deserialized Python object or value for the stored
+            value.
+        """
+
+        return json_value
 
     def get_human_readable_value(self, value: Any, field_object: "FieldObject") -> str:
         """

@@ -83,6 +83,7 @@ from baserow.contrib.database.views.actions import (
     RotateViewSlugActionType,
     UpdateDecorationActionType,
     UpdateViewActionType,
+    UpdateViewDefaultValuesActionType,
     UpdateViewFieldOptionsActionType,
     UpdateViewFilterActionType,
     UpdateViewFilterGroupActionType,
@@ -167,6 +168,7 @@ from .serializers import (
     CreateViewFilterSerializer,
     CreateViewSerializer,
     CreateViewSortSerializer,
+    DefaultValuesSerializer,
     ListQueryParamatersSerializer,
     OrderViewsSerializer,
     PublicViewAuthRequestSerializer,
@@ -1818,6 +1820,106 @@ class ViewFieldOptionsView(APIView):
             )
 
         serializer = serializer_class(view)
+        return Response(serializer.data)
+
+
+class ViewDefaultValuesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Responds with default values related to the provided "
+                "view.",
+            )
+        ],
+        tags=["Database table views"],
+        operation_id="get_database_table_view_default_values",
+        description="Responds with default values of the provided view",
+        responses={
+            200: view_field_options_mapping_serializer,  # FIXME:
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                ]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, view_id):
+        """Returns the default values of the view."""
+
+        view = ViewHandler().get_view(view_id).specific
+        existing_default_values = ViewHandler().get_default_values(view, request.user)
+
+        return Response(
+            DefaultValuesSerializer(
+                existing_default_values, context={"view": view}
+            ).data
+        )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the default values for the view.",
+            ),
+        ],
+        tags=["Database table views"],
+        operation_id="update_database_table_view_default_values",
+        description="Updates the default values for the view. The default values differ "
+        "per field type.",
+        request=view_field_options_mapping_serializer,  # FIXME:
+        responses={
+            200: view_field_options_mapping_serializer,  # FIXME:
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                ]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            UnrelatedFieldError: ERROR_UNRELATED_FIELD,
+            FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE,
+        }
+    )
+    def patch(self, request: Request, view_id: int) -> Response:
+        """Updates the default values of the view."""
+
+        handler = ViewHandler()
+        view = handler.get_view(view_id).specific
+
+        default_values_serializer = DefaultValuesSerializer(
+            data=request.data, context={"view": view}
+        )
+        default_values_serializer.is_valid(raise_exception=True)
+
+        updated_default_values = action_type_registry.get_by_type(
+            UpdateViewDefaultValuesActionType
+        ).do(
+            request.user, view, default_values=default_values_serializer.validated_data
+        )
+
+        serializer = DefaultValuesSerializer(
+            updated_default_values, context={"view": view}
+        )
         return Response(serializer.data)
 
 

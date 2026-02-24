@@ -83,6 +83,13 @@ export class ViewType extends Registerable {
     return false
   }
 
+  /**
+   * Indicates whether the view supports setting default row values.
+   */
+  canDefaultRowValues() {
+    return false
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -544,6 +551,10 @@ export class GridViewType extends ViewType {
 
   getPublicRoute() {
     return 'database-public-grid-view'
+  }
+
+  canDefaultRowValues() {
+    return true
   }
 
   async fetch({ store }, database, view, fields, storePrefix = '') {

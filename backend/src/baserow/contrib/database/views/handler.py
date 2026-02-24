@@ -62,6 +62,7 @@ from baserow.contrib.database.views.operations import (
     OrderViewsOperationType,
     ReadAggregationsViewOperationType,
     ReadViewDecorationOperationType,
+    ReadViewDefaultValuesOperationType,
     ReadViewFieldOptionsOperationType,
     ReadViewFilterGroupOperationType,
     ReadViewFilterOperationType,
@@ -70,6 +71,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     UpdateViewDecorationOperationType,
+    UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
@@ -131,6 +133,7 @@ from .models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -174,7 +177,7 @@ from .utils import AnnotatedAggregation, DistributionAggregation
 from .validators import value_is_empty_for_required_form_field
 
 FieldOptionsDict = Dict[int, Dict[str, Any]]
-
+DefaultValuesDict = dict[int, dict]
 
 ending_number_regex = re.compile(r"(.+) (\d+)$")
 
@@ -1215,6 +1218,136 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         TrashHandler().trash(user, workspace, view.table.database, view)
 
         view_deleted.send(self, view_id=view_id, view=view, user=user)
+
+    def get_default_values(
+        self,
+        view: View,
+        user: AbstractUser,
+    ) -> QuerySet[ViewDefaultValue]:
+        """
+        Returns stored view default values for the provided view.
+
+        :param view: The view that we want to fetch default values for.
+        :param user: Optionally the user on whose behalf the request is made.
+        :return: The stored view default values.
+        """
+
+        workspace = view.table.database.workspace
+
+        CoreHandler().check_permissions(
+            user,
+            ReadViewDefaultValuesOperationType.type,
+            workspace=workspace,
+            context=view,
+        )
+
+        return ViewDefaultValue.objects.filter(view=view)
+
+    def update_default_values(
+        self,
+        view: View,
+        default_values: DefaultValuesDict,
+        user: AbstractUser,
+    ) -> QuerySet[ViewDefaultValue]:
+        """
+        Updates the default values for fields for the view. If a default value
+        doesn't exist for a field, it creates a new one. Otherwise, it updates
+        the existing value.
+
+        :param view: The view for which the default values need to be updated.
+        :param default_values: A dict with the field ids as the key and
+            the value that needs to be set.
+        :param user: Optionally the user on whose behalf the request is made.
+        :raises UnrelatedFieldError: When the provided field id is not related to
+            the provided view's table.
+        :return: The updated view default values.
+        """
+
+        workspace = view.table.database.workspace
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateViewDefaultValuesOperationType.type,
+            workspace=workspace,
+            context=view,
+        )
+
+        fields = Field.objects.filter(table=view.table)
+
+        fields_by_id = {field.id: field for field in fields}
+        allowed_field_ids = set(fields_by_id.keys())
+
+        valid_field_ids = []
+        for field_id in default_values.keys():
+            if int(field_id) not in allowed_field_ids:
+                raise UnrelatedFieldError(
+                    f"The field id {field_id} is not related to the view."
+                )
+            valid_field_ids.append(int(field_id))
+
+        # TODO: dict not necessary
+        existing_default_values = {
+            dv.field_id: dv
+            for dv in ViewDefaultValue.objects.filter(
+                view=view, field_id__in=valid_field_ids
+            ).select_for_update(of=("self",))
+        }
+
+        default_values_to_create = []
+        default_values_to_update = []
+        field_ids_to_remove = []
+        result = {}
+        field_ids = []
+
+        for field_id, default_value in default_values.items():
+            field_id_int = int(field_id)
+            field_ids.append(field_id_int)
+            field = fields_by_id[field_id_int]
+            field_type = field_type_registry.get_by_model(field.specific_class)
+
+            enabled = default_value.get("enabled")
+            if not enabled:
+                field_ids_to_remove.append(field_id)
+                continue
+            value = default_value.get("value")
+
+            if field_id_int in existing_default_values:
+                # Update existing default value
+                default_value_obj = existing_default_values[field_id_int]
+                default_value_obj.value = value
+                default_value_obj.field_type = field_type.type
+                default_values_to_update.append(default_value_obj)
+            else:
+                # Create new default value
+                default_value_obj = ViewDefaultValue(
+                    view=view,
+                    field_id=field_id_int,
+                    field_type=field_type.type,
+                    value=value,
+                )
+                default_values_to_create.append(default_value_obj)
+
+            result[field_id_int] = {
+                "field_type": field_type.type,
+                "value": value,
+            }
+
+        if default_values_to_create:
+            ViewDefaultValue.objects.bulk_create(default_values_to_create)
+
+        if default_values_to_update:
+            ViewDefaultValue.objects.bulk_update(
+                default_values_to_update, ["value", "field_type"]
+            )
+        if field_ids_to_remove:
+            ViewDefaultValue.objects.filter(
+                view=view, field_id__in=field_ids_to_remove
+            ).delete()
+
+        updated_default_values = ViewDefaultValue.objects.filter(
+            view_id=view.id, field__id__in=field_ids
+        )
+        return updated_default_values
 
     def get_field_options_as_user(self, user: AbstractUser, view: View):
         """

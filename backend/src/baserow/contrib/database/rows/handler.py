@@ -1548,6 +1548,35 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         self._check_write_fields_values_permissions(user, model, rows_values)
 
+        if view:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            default_values = ViewHandler().get_default_values(view, user)
+
+            def set_default_view_values_for_row(row_values):
+                for default_value in default_values:
+                    if default_value.value is not None:
+                        if not row_values.get(f"field_{default_value.field_id}"):
+                            stored_value = default_value.value
+                            field_type_str = default_value.field_type
+                            field_type = field_type_registry.get(field_type_str)
+                            field_object = model.get_field_object_by_id(
+                                default_value.field_id
+                            )
+
+                            if field_type.type != field_object["type"].type:
+                                # skip if the field is already of a different type
+                                continue
+
+                            stored_value = field_type.prepare_default_value(
+                                field_object["field"], stored_value
+                            )
+
+                            row_values[f"field_{default_value.field_id}"] = stored_value
+
+            for row_values in rows_values:
+                set_default_view_values_for_row(row_values)
+
         return self.force_create_rows(
             user,
             table,

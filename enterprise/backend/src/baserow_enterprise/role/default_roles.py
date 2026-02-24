@@ -172,6 +172,7 @@ from baserow.contrib.database.views.operations import (
     OrderViewsOperationType,
     ReadAggregationsViewOperationType,
     ReadViewDecorationOperationType,
+    ReadViewDefaultValuesOperationType,
     ReadViewFieldOptionsOperationType,
     ReadViewFilterGroupOperationType,
     ReadViewFilterOperationType,
@@ -182,6 +183,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewSortOperationType,
     RestoreViewOperationType,
     UpdateViewDecorationOperationType,
+    UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
@@ -562,6 +564,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
         SetFieldRuleOperationType,
+        ReadViewDefaultValuesOperationType,
+        UpdateViewDefaultValuesOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

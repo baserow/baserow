@@ -14,6 +14,22 @@
       />
       <li
         v-if="
+          viewType.canDefaultRowValues() &&
+          $hasPermission(
+            'database.table.view.update_default_values',
+            view,
+            database.workspace.id
+          )
+        "
+        class="context__menu-item"
+      >
+        <a class="context__menu-item-link" @click="openDefaultRowValuesModal()">
+          <i class="context__menu-item-icon iconoir-settings"></i>
+          {{ $t('viewContext.defaultRowValues') }}
+        </a>
+      </li>
+      <li
+        v-if="
           hasValidExporter &&
           $hasPermission(
             'database.table.run_export',
@@ -137,6 +153,14 @@
       :fields="fields"
     />
     <WebhookModal ref="webhookModal" :database="database" :table="table" />
+    <DefaultRowValuesModal
+      ref="defaultRowValuesModal"
+      :database="database"
+      :table="table"
+      :view="view"
+      :all-fields-in-table="fields"
+      :read-only="false"
+    ></DefaultRowValuesModal>
   </Context>
 </template>
 
@@ -147,6 +171,7 @@ import viewTypeHasExporterTypes from '@baserow/modules/database/utils/viewTypeHa
 import ImportFileModal from '@baserow/modules/database/components/table/ImportFileModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
+import DefaultRowValuesModal from '@baserow/modules/database/components/view/DefaultRowValuesModal'
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal.vue'
 
 export default {
@@ -155,6 +180,7 @@ export default {
     ExportTableModal,
     WebhookModal,
     ImportFileModal,
+    DefaultRowValuesModal,
   },
   mixins: [context],
   props: {
@@ -185,6 +211,9 @@ export default {
     ...mapGetters({
       fields: 'field/getAll',
     }),
+    viewType() {
+      return this.$registry.get('view', this.view.type)
+    },
     changeViewOwnershipTypeMenuItems() {
       const activeOwnershipTypes = Object.values(
         this.$registry.getAll('viewOwnershipType')
@@ -262,6 +291,10 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
+    },
+    openDefaultRowValuesModal() {
+      this.$refs.context.hide()
+      this.$refs.defaultRowValuesModal.show()
     },
   },
 }

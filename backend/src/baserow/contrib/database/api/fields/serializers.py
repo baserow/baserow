@@ -290,7 +290,10 @@ class IntegerOrStringField(serializers.Field):
         )
 
     def to_internal_value(self, data):
-        if isinstance(data, int) or data is None:
+        if data is None and self.allow_null:
+            return None
+
+        if isinstance(data, int):
             return self._integer_field.to_internal_value(data)
         elif isinstance(data, str):
             return self._char_field.to_internal_value(data)
@@ -570,6 +573,8 @@ class DurationFieldSerializer(serializers.Field):
             # DEPRECATED: durations were stored as the number of seconds in formula
             # land, so just return the value in that case.
             return value
+        elif value is None:
+            return None
         else:
             raise ValueError("Invalid duration value.")
 

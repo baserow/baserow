@@ -108,6 +108,8 @@ export default {
      * Adds a new relation to the value. This typically happens via the modal.
      */
     addValue(value, { row, primary }) {
+      value = value || []
+
       // Check if the relation already exists.
       for (let i = 0; i < value.length; i++) {
         if (value[i].id === row.id) {

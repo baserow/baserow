@@ -95,9 +95,6 @@ export default {
     beforeSave(copy) {
       return this.parseNumberValue(this.field, copy)
     },
-    afterSave(value) {
-      this.updateFormattedValue(this.field, this.prepareCopy(value))
-    },
     getStartEditIndex(field, value) {
       if (value == null || value === '') {
         return 0

@@ -1,6 +1,6 @@
 import json
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.utils.functional import lazy
 
@@ -22,6 +22,7 @@ from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -127,6 +128,80 @@ class FieldOptionsField(serializers.Field):
             }
         else:
             return value
+
+
+class DefaultValuesSerializer(serializers.Serializer):
+    """
+    Serializer for handling view default values for multiple fields.
+
+    Handles a dictionary where keys are field IDs and values are
+    in the form {"field_type": "type_name", "value": field_specific_value}.
+    """
+
+    def _get_field(self, field_id: int):
+        # FIXME: optimize
+        return Field.objects.get(pk=field_id).specific
+
+    def _get_field_type_serializer(self, field_type, field_instance):
+        return field_type.get_serializer_field(instance=field_instance, required=False)
+
+    def to_representation(self, data: Iterable[ViewDefaultValue]) -> dict:
+        result = {}
+
+        for default_value in data:
+            field = default_value.field.specific
+            field_type = field.get_type()
+            serializer_field = self._get_field_type_serializer(field_type, field)
+            raw_value = field_type.deserialize_json_value(default_value.value)
+            serialized_value = serializer_field.to_representation(raw_value)
+            result[field.id] = {
+                "field_type": field_type.type,
+                "value": serialized_value,
+            }
+        return result
+
+    def to_internal_value(self, data: dict | None):
+        if data is None or not isinstance(data, dict):
+            raise serializers.ValidationError(
+                "Expected a dictionary of field default values."
+            )
+
+        result = {}
+        errors = {}
+        for field_id, value in data.items():
+            if not (
+                isinstance(field_id, int)
+                or (isinstance(field_id, str) and field_id.isnumeric())
+            ):
+                errors[field_id] = "Field ID must be numeric."
+                continue
+
+            if not value.get("enabled", False):
+                result[str(field_id)] = {"enabled": False}
+                continue
+
+            if not isinstance(value, dict) or "value" not in value:
+                errors[str(field_id)] = "Expected a dictionary with 'value' key."
+                continue
+
+            try:
+                field = self._get_field(int(field_id))
+                field_type = field.get_type()
+                if not field_type.can_have_view_default_value:
+                    errors[str(field_id)] = "Unsupported field type"
+                serializer_field = self._get_field_type_serializer(field_type, field)
+                raw_value = value.get("value")
+                internal_value = serializer_field.run_validation(raw_value)
+                result[str(field_id)] = {**value, "value": internal_value}
+            except serializers.ValidationError as e:
+                errors[field_id] = e.detail
+            except Exception as e:
+                errors[field_id] = {"value": str(e)}
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return result
 
 
 class ViewFilterSerializer(serializers.ModelSerializer):

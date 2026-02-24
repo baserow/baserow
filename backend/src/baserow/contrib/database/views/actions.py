@@ -32,7 +32,11 @@ from baserow.contrib.database.rows.types import (
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist, ViewNotInTable
-from baserow.contrib.database.views.handler import FieldOptionsDict, ViewHandler
+from baserow.contrib.database.views.handler import (
+    DefaultValuesDict,
+    FieldOptionsDict,
+    ViewHandler,
+)
 from baserow.contrib.database.views.models import (
     FormView,
     View,
@@ -1253,6 +1257,76 @@ class UpdateViewFieldOptionsActionType(UndoableActionType):
         view_handler.update_field_options(
             user=user, view=view, field_options=params.field_options
         )
+
+
+class UpdateViewDefaultValuesActionType(ActionType):
+    type = "update_view_default_values"
+    description = ActionTypeDescription(
+        _("Update view default values"),
+        _('View "%(view_name)s" (%(view_id)s) default values updated'),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+        "default_values",
+        "original_default_values",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        default_values: DefaultValuesDict
+        original_default_values: DefaultValuesDict
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        view: View,
+        default_values: DefaultValuesDict,
+    ) -> DefaultValuesDict:
+        """
+        Updates the default field values for the view.
+
+        :param user: The user setting default view values.
+        :param view: The view where default values should be updated.
+        :param default_values: The default values to set.
+        """
+
+        original_default_values = {}  # TODO:
+
+        new_default_values = ViewHandler().update_default_values(
+            user=user, view=view, default_values=default_values
+        )  # TODO:
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                view.id,
+                view.name,
+                view.table.id,
+                view.table.name,
+                view.table.database.id,
+                view.table.database.name,
+                dict(default_values),
+                dict(original_default_values),
+            ),
+            scope=cls.scope(view.id),
+            workspace=view.table.database.workspace,
+        )
+
+        return new_default_values
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
 
 
 class RotateViewSlugActionType(UndoableActionType):

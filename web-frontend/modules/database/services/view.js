@@ -168,5 +168,14 @@ export default (client) => {
       }
       return client.get(`/database/views/${viewSlug}/row/${rowId}/`, config)
     },
+    fetchDefaultValues(viewId) {
+      return client.get(`/database/views/${viewId}/default-values/`)
+    },
+    updateDefaultValues(viewId, defaultValues) {
+      return client.patch(
+        `/database/views/${viewId}/default-values/`,
+        defaultValues
+      )
+    },
   }
 }

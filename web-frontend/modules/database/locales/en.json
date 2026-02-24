@@ -636,7 +636,12 @@
     "toCollaborative": "To collaborative",
     "webhooks": "Webhooks",
     "importFile": "Import file",
-    "deleteView": "Delete view"
+    "deleteView": "Delete view",
+    "defaultRowValues": "Default row values"
+  },
+  "defaultRowValuesModal": {
+    "title": "Default row values",
+    "saveChanges": "Save changes"
   },
   "deleteViewModal": {
     "title": "Delete {name}",

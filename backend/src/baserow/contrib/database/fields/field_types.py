@@ -51,6 +51,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
 
+import isodate
 from dateutil import parser
 from dateutil.parser import ParserError
 from loguru import logger
@@ -322,7 +323,7 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
         required = kwargs.get("required", False)
         validators = kwargs.pop("validators", None) or []
         validators.append(self.validator)
-        return serializers.CharField(
+        return NullableCharField(
             **{
                 "required": required,
                 "allow_null": not required,
@@ -418,6 +419,13 @@ class ManyToManyFieldTypeSerializeToInputValueMixin:
         return value
 
 
+class NullableCharField(serializers.CharField):
+    def to_representation(self, value):
+        if value is None:
+            return None
+        return str(value)
+
+
 class TextFieldType(CollationSortMixin, FieldType):
     type = "text"
     model_class = TextField
@@ -427,10 +435,11 @@ class TextFieldType(CollationSortMixin, FieldType):
     _can_have_db_index = True
 
     can_upsert = True
+    can_have_view_default_value = True
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
-        return serializers.CharField(
+        return NullableCharField(
             **{
                 "required": required,
                 "allow_null": not required,
@@ -478,6 +487,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     serializer_field_names = ["long_text_enable_rich_text"]
     _can_have_db_index = True
     can_upsert = True
+    can_have_view_default_value = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         return not field.long_text_enable_rich_text
@@ -493,7 +503,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
-        return serializers.CharField(
+        return NullableCharField(
             **{
                 "required": required,
                 "allow_null": not required,
@@ -546,6 +556,7 @@ class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
     model_class = URLField
     _can_group_by = True
     can_upsert = True
+    can_have_view_default_value = True
 
     @property
     def regex(self):
@@ -599,6 +610,7 @@ class NumberFieldType(FieldType):
     _db_column_fields = ["number_decimal_places"]
     _can_have_db_index = True
     can_upsert = True
+    can_have_view_default_value = True
 
     def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
         serialized = {}
@@ -879,6 +891,7 @@ class RatingFieldType(FieldType):
     _db_column_fields = []
     _can_have_db_index = True
     can_upsert = True
+    can_have_view_default_value = True
 
     def prepare_value_for_db(self, instance, value):
         if not value:
@@ -1015,6 +1028,7 @@ class BooleanFieldType(FieldType):
     _can_group_by = True
     _can_have_db_index = True
     can_upsert = True
+    can_have_view_default_value = True
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
         """
@@ -2071,6 +2085,7 @@ class DurationFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = []
     can_upsert = True
+    can_have_view_default_value = True
 
     def get_model_field(self, instance: DurationField, **kwargs):
         return DurationModelField(instance.duration_format, null=True, **kwargs)
@@ -2129,6 +2144,11 @@ class DurationFieldType(FieldType):
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return value.total_seconds()
+
+    def deserialize_json_value(self, json_value: str | None):
+        if json_value is None:
+            return None
+        return isodate.parse_duration(json_value)
 
     def format_duration(
         self, value: Optional[timedelta], duration_format: str
@@ -2347,6 +2367,7 @@ class LinkRowFieldType(
     can_get_unique_values = False
     is_many_to_many_field = True
     can_be_target_of_adhoc_lookup = False
+    can_have_view_default_value = True
 
     def _get_related_table_primary_field(
         self, field: Field, table_model: Optional["GeneratedTableModel"] = None
@@ -3689,6 +3710,7 @@ class EmailFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     type = "email"
     model_class = EmailField
     can_upsert = True
+    can_have_view_default_value = True
 
     @property
     def regex(self):
@@ -4236,6 +4258,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     allowed_fields = ["select_options", "single_select_default"]
     serializer_field_names = ["select_options", "single_select_default"]
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
+    can_have_view_default_value = True
 
     serializer_field_overrides = {
         "select_options": SelectOptionSerializer(many=True, required=False),
@@ -4725,6 +4748,7 @@ class MultipleSelectFieldType(
     can_get_unique_values = False
     is_many_to_many_field = True
     _can_group_by = True
+    can_have_view_default_value = True
     allowed_fields = ["select_options", "multiple_select_default"]
     serializer_field_names = ["select_options", "multiple_select_default"]
 
@@ -5303,6 +5327,7 @@ class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     type = "phone_number"
     model_class = PhoneNumberField
     can_upsert = True
+    can_have_view_default_value = True
 
     MAX_PHONE_NUMBER_LENGTH = 100
 
@@ -6727,6 +6752,7 @@ class MultipleCollaboratorsFieldType(
     }
     is_many_to_many_field = True
     _can_group_by = True
+    can_have_view_default_value = True
 
     def can_represent_collaborators(self, field):
         return True

@@ -175,6 +175,7 @@ def validate_data(
     many: bool = False,
     return_validated: bool = False,
     instance=None,
+    context: dict | None = None,
 ) -> Dict[str, Any]:
     """
     Validates the provided data via the provided serializer class. If the data doesn't
@@ -189,10 +190,13 @@ def validate_data(
     :param many: Indicates whether the serializer should be constructed as a list.
     :param return_validated: Returns validated_data from DRF serializer
     :param instance: The instance that is being updated.
+    :param context: Serializer context.
     :return: The data after being validated by the serializer.
     """
 
-    serializer = serializer_class(instance, data=data, partial=partial, many=many)
+    serializer = serializer_class(
+        instance, data=data, partial=partial, many=many, context=context or {}
+    )
     if not serializer.is_valid():
         detail = serialize_validation_errors_recursive(serializer.errors)
         raise exception_to_raise(detail)

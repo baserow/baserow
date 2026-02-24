@@ -362,6 +362,10 @@ export class FieldType extends Registerable {
     return null
   }
 
+  convertViewDefaultValue(field, storedValue) {
+    return storedValue
+  }
+
   /**
    * Should return true if the provided value is empty.
    */
@@ -469,6 +473,10 @@ export class FieldType extends Registerable {
    * to supply a list of files.
    */
   canRepresentFiles(field) {
+    return false
+  }
+
+  canSetDefaultViewRowValue() {
     return false
   }
 
@@ -637,6 +645,13 @@ export class FieldType extends Registerable {
    * the value such that it fits the requirements of the API endpoint.
    */
   prepareValueForUpdate(field, value) {
+    return value
+  }
+
+  /**
+   * Prepares value to be stored as default value for the field.
+   */
+  prepareDefaultValue(field, value) {
     return value
   }
 
@@ -1165,6 +1180,10 @@ export class TextFieldType extends FieldType {
   canHaveDbIndex(fieldValues) {
     return true
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
 }
 
 export class LongTextFieldType extends FieldType {
@@ -1285,6 +1304,10 @@ export class LongTextFieldType extends FieldType {
   canHaveDbIndex(fieldValues) {
     return true
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
 }
 
 export class LinkRowFieldType extends FieldType {
@@ -1355,6 +1378,15 @@ export class LinkRowFieldType extends FieldType {
 
   getEmptyValue(field) {
     return []
+  }
+
+  convertViewDefaultValue(field, storedValue) {
+    if (!storedValue) {
+      return []
+    }
+    return storedValue.map((id) => {
+      return { id }
+    })
   }
 
   getCanGroupByInView(field) {
@@ -1518,6 +1550,10 @@ export class LinkRowFieldType extends FieldType {
     }
   }
 
+  prepareDefaultValue(field, value) {
+    return value.map((item) => item.id)
+  }
+
   checkRichValueIsCompatible(value) {
     return (
       value === null ||
@@ -1677,6 +1713,10 @@ export class LinkRowFieldType extends FieldType {
         !row._?.fullyLoaded
       )
     })
+  }
+
+  canSetDefaultViewRowValue() {
+    return true
   }
 }
 
@@ -1912,6 +1952,10 @@ export class NumberFieldType extends FieldType {
   canHaveDbIndex(fieldValues) {
     return true
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
 }
 
 BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
@@ -2066,6 +2110,10 @@ export class RatingFieldType extends FieldType {
   }
 
   canHaveDbIndex(fieldValues) {
+    return true
+  }
+
+  canSetDefaultViewRowValue() {
     return true
   }
 }
@@ -2230,6 +2278,10 @@ export class BooleanFieldType extends FieldType {
   }
 
   canHaveDbIndex(fieldValues) {
+    return true
+  }
+
+  canSetDefaultViewRowValue() {
     return true
   }
 }
@@ -3074,6 +3126,10 @@ export class DurationFieldType extends FieldType {
   getCanGroupByInView(field) {
     return true
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
 }
 
 export class URLFieldType extends FieldType {
@@ -3175,6 +3231,10 @@ export class URLFieldType extends FieldType {
   }
 
   getCanImport() {
+    return true
+  }
+
+  canSetDefaultViewRowValue() {
     return true
   }
 }
@@ -3281,6 +3341,10 @@ export class EmailFieldType extends FieldType {
   }
 
   getCanGroupByInView(field) {
+    return true
+  }
+
+  canSetDefaultViewRowValue() {
     return true
   }
 }
@@ -3588,6 +3652,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value ? { value } : null
   }
 
+  prepareDefaultValue(field, value) {
+    return value?.id || null
+  }
+
   prepareValueForUpdate(field, value) {
     if (value === undefined || value === null) {
       return null
@@ -3763,6 +3831,17 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     }
     return this.getEmptyValue(field)
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
+
+  convertViewDefaultValue(field, storedValue) {
+    if (!storedValue) {
+      return { id: null }
+    }
+    return { id: storedValue }
+  }
 }
 
 export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
@@ -3861,6 +3940,10 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       return []
     }
     return value
+  }
+
+  prepareDefaultValue(field, value) {
+    return value.map((item) => item.id)
   }
 
   checkRichValueIsCompatible(value) {
@@ -4067,6 +4150,22 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
 
     return _.isEqual(value1Ids, value2Ids)
   }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
+
+  convertViewDefaultValue(field, storedValue) {
+    if (!storedValue) {
+      return []
+    }
+    const getSelectOption = (id) => {
+      return field.select_options.find((option) => option.id === id)
+    }
+    return storedValue.map((value) => {
+      return getSelectOption(value)
+    })
+  }
 }
 
 export class PhoneNumberFieldType extends FieldType {
@@ -4172,6 +4271,10 @@ export class PhoneNumberFieldType extends FieldType {
   }
 
   getCanGroupByInView(field) {
+    return true
+  }
+
+  canSetDefaultViewRowValue() {
     return true
   }
 }
@@ -4547,6 +4650,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
+  getEmptyValue(field) {
+    return []
+  }
+
   getDefaultValue(field, flat) {
     return []
   }
@@ -4726,6 +4833,19 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     const value2Ids = value2.map((v) => v.id)
 
     return _.isEqual(value1Ids, value2Ids)
+  }
+
+  canSetDefaultViewRowValue() {
+    return true
+  }
+
+  convertViewDefaultValue(field, storedValue) {
+    if (!storedValue) {
+      return []
+    }
+    return storedValue.map((id) => {
+      return { id, name: 'Placeholder' }
+    })
   }
 }
 

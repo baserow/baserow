@@ -7,6 +7,7 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import Prefetch
@@ -567,6 +568,36 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
 
     class Meta:
         ordering = ("id",)
+
+
+class ViewDefaultValue(HierarchicalModelMixin, models.Model):
+    view = models.ForeignKey(
+        View,
+        on_delete=models.CASCADE,
+        help_text="The view to which the default value apply. Each view can have his own "
+        "default values.",
+    )
+    field = models.ForeignKey(
+        "database.Field",
+        on_delete=models.CASCADE,
+        help_text="The field to which the default value apply.",
+    )
+    field_type = models.CharField(
+        max_length=255, help_text="Field type that the value is for."
+    )
+    value = models.JSONField(
+        null=True,
+        encoder=DjangoJSONEncoder,
+        help_text="Depends on field type.",
+    )
+
+    def __repr__(self):
+        return str(self.value)
+
+    def get_parent(self):
+        return self.view
+
+    # TODO: indexes
 
 
 class GridView(View):
