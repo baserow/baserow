@@ -342,5 +342,12 @@
         "hour": "Ora",
         "year": "Anno",
         "quarter": "Trimestre"
+    },
+    "aiOutputType": {
+        "text": "Testo",
+        "choice": "Scelta"
+    },
+    "publicViewExport": {
+        "export": "Esporta"
     }
 }
