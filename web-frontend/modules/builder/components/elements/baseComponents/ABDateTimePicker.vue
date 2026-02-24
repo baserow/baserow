@@ -111,6 +111,9 @@ export default {
     },
   },
   emits: ['update:modelValue'],
+  setup() {
+    return useDatePickerLanguage()
+  },
   data() {
     return {
       dateInputValue: '',
@@ -137,9 +140,6 @@ export default {
       },
       immediate: true,
     },
-  },
-  setup() {
-    return useDatePickerLanguage()
   },
   methods: {
     refreshDate(value) {

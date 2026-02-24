@@ -88,7 +88,7 @@ export default {
   computed: {
     submitIsDisabled() {
       return (
-        this.loading || !this.changed || this.$refs.dataSourceForm.v$.$anyError
+        this.loading || !this.changed || this.$refs.dataSourceForm?.v$.$anyError
       )
     },
     dataSources() {
