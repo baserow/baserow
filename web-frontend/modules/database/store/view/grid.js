@@ -680,6 +680,9 @@ export const mutations = {
         .map((groupBy) => {
           return fields.find((f) => f.id === groupBy.field)
         })
+      if (groupByFields.some((field) => field === undefined)) {
+        return
+      }
       const fieldName = `field_${groupBy.field}`
       if (!Object.prototype.hasOwnProperty.call(existingMetadata, fieldName)) {
         existingMetadata[`field_${groupBy.field}`] = []
