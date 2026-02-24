@@ -105,7 +105,9 @@
         "domainAlreadyExists": "Un provider SAML per questo dominio esiste giá",
         "acsUrl": "Single Sign On URL",
         "samlResponseSettings": "Attributi risposta SAML",
-        "defaultAttrs": "Default"
+        "defaultAttrs": "Default",
+        "customAttrs": "Personalizzato",
+        "emailAttrKey": "Email"
     },
     "createSettingsAuthProviderModal": {
         "title": "Aggiungi un nuovo {type}"
@@ -243,7 +245,7 @@
             "title": "Non è stato possibile ottenere i dati",
             "description": "Un errore imprevisto ha impedito di ottenere i dati."
         },
-        "memberRolesTableTabTitle": "Tabella corrente"
+        "memberRolesTableTabTitle": "Tabella"
     },
     "memberRolesTableContexItem": {
         "label": "Gestisci membri",
@@ -347,9 +349,32 @@
         "table": "Tabella",
         "authorizing": "Stai abilitando il tuo account per prelevare i dati dalla tabella sorgente.",
         "workspace": "Workspace",
-        "database": "Database"
+        "database": "Database",
+        "view": "Vista"
     },
     "assistantMessageSources": {
         "sources": "{count} sorgente | {count} sorgenti"
+    },
+    "advanced": {
+        "license": "Avanzato"
+    },
+    "githubIssuesDataSync": {
+        "owner": "Proprietario",
+        "repo": "Repository"
+    },
+    "commonOidcSettingForm": {
+        "preview": "Anteprima"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "saved": "Salvato"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "Intervallo",
+        "manual": "Manuale",
+        "daily": "Giornaliero",
+        "hourly": "Orario",
+        "hour": "Ora",
+        "minute": "Minuto",
+        "second": "Secondo"
     }
 }
