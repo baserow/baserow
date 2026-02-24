@@ -1,1 +1,8 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Flusso di lavoro"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "Benvenuto in Baserow Automations!"
+    }
+}
