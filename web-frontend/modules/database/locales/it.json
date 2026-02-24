@@ -593,7 +593,7 @@
         "back": "Torna alla dashboard"
     },
     "viewAggregationType": {
-        "emptyCount": "Vuoto",
+        "emptyCount": "(Vuoto)",
         "notEmptyCount": "Non vuoto",
         "emptyPercentage": "Percentuale vuota",
         "notEmptyPercentage": "Percentuale non vuoti",
@@ -614,7 +614,9 @@
         "stdDev": "Deviazione standard",
         "stdDevShort": "Dev std",
         "variance": "Variazione",
-        "count": "Conteggio"
+        "count": "Conteggio",
+        "distribution": "Distribuzione",
+        "othersCount": "Altri"
     },
     "databaseForm": {
         "importLabel": "Vuoi importare i dati esistenti?",
@@ -929,9 +931,9 @@
         "title": "Crea il tuo primo database",
         "description": "Raccontaci su cosa stai lavorando.",
         "databaseNameLabel": "Nome database",
-        "scratch": "Dall'inizio",
-        "airtable": "Da Airtable",
-        "import": "Da file"
+        "scratch": "Da zero",
+        "airtable": "Airtable",
+        "import": "File"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Usa i nuovi filtri per le date",
@@ -1044,5 +1046,14 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "Predefinito"
+    },
+    "postgreSQLDataSync": {
+        "host": "Host",
+        "username": "Nome utente",
+        "password": "Password",
+        "database": "Database",
+        "schema": "Schema",
+        "table": "Tabella",
+        "port": "Porta"
     }
 }
