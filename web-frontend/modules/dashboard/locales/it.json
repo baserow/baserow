@@ -1,1 +1,8 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Descrizione"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Fatto la modifica"
+    }
+}
