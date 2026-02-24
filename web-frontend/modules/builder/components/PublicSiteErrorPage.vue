@@ -3,8 +3,8 @@
     <div class="placeholder__logo">
       <nuxt-link
         :to="{
-          name: 'application-builder-page',
-          params: { pathMatch: '/' },
+          name: routeName,
+          params: { pathMatch: '' },
         }"
         custom
       >
@@ -52,22 +52,28 @@ export default {
     content() {
       return this.error.content || this.$t('errorLayout.error')
     },
+    routeName() {
+      return this.$route.name
+    },
   },
   methods: {
     onHome() {
       if (
-        this.$route.name === 'application-builder-page' &&
-        this.$route.params.pathMatch === '/'
+        ['application-builder-page', 'application-builder-preview'].includes(
+          this.routeName
+        )
       ) {
-        // Reload the current page
-        this.$router.go(0)
-      } else {
-        // Navigate to the home route
-        this.$router.push({
-          name: 'application-builder-page',
-          params: { pathMatch: '/' },
-          query: null, // Remove query parameters
-        })
+        if (this.$route.params.pathMatch === '/') {
+          // Reload the current page
+          this.$router.go(0)
+        } else {
+          // Navigate to the home route
+          this.$router.push({
+            name: this.routeName,
+            params: { pathMatch: '' },
+            query: null, // Remove query parameters
+          })
+        }
       }
     },
   },
