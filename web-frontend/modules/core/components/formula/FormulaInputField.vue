@@ -65,9 +65,7 @@ import {
 } from '@baserow/modules/core/components/formula/extensions/FormulaNodes'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
-import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
-import { GroupDetectionExtension } from '@baserow/modules/core/components/formula/extensions/GroupDetectionExtension'
-import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
+import { InputDetectionExtension } from '@baserow/modules/core/components/formula/extensions/InputDetectionExtension'
 import {
   createClipboardTextSerializer,
   createPasteHandler,
@@ -333,16 +331,10 @@ export default {
           })
         )
         extensions.push(
-          FunctionDetectionExtension.configure({
+          InputDetectionExtension.configure({
             functionNames: this.functionNames,
             functionDefinitions: this.functionDefinitions,
-          }),
-          GroupDetectionExtension.configure({
-            functionNames: this.functionNames,
-          }),
-          OperatorDetectionExtension.configure({
             operators: this.operators,
-            vueComponent: this,
           })
         )
       }
