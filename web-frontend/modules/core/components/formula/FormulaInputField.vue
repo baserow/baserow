@@ -217,69 +217,27 @@ export default {
         },
       })
     },
-    functionNames() {
+    formulaRegistry() {
+      const names = []
+      const definitions = {}
+      const operators = []
+
       const extract = (nodes) => {
-        let names = []
-        if (!nodes) {
-          return names
-        }
+        if (!nodes) return
         for (const node of nodes) {
           if (node.type === 'function' && node.signature) {
             names.push(node.name)
-          }
-          const children = node.nodes
-          if (children) {
-            names = names.concat(extract(children))
-          }
-        }
-
-        return names
-      }
-
-      return extract(this.nodesHierarchy)
-    },
-    functionDefinitions() {
-      const definitions = {}
-      const extract = (nodes) => {
-        if (!nodes) {
-          return
-        }
-        for (const node of nodes) {
-          if (node.type === 'function' && node.signature) {
             definitions[node.name.toLowerCase()] = node
           }
-          const children = node.nodes
-          if (children) {
-            extract(children)
+          if (node.type === 'operator' && node.signature?.operator) {
+            operators.push(node.signature.operator)
           }
+          if (node.nodes) extract(node.nodes)
         }
       }
 
       extract(this.nodesHierarchy)
-      return definitions
-    },
-    operators() {
-      const extract = (nodes) => {
-        let operators = []
-        if (!nodes) {
-          return operators
-        }
-        for (const node of nodes) {
-          if (
-            node.type === 'operator' &&
-            node.signature &&
-            node.signature.operator
-          ) {
-            operators.push(node.signature.operator)
-          }
-          const children = node.nodes
-          if (children) {
-            operators = operators.concat(extract(children))
-          }
-        }
-        return operators
-      }
-      return extract(this.nodesHierarchy)
+      return { names, definitions, operators }
     },
     extensions() {
       const DocumentNode = Document.extend()
@@ -309,7 +267,7 @@ export default {
         }),
         FunctionHelpTooltipExtension.configure({
           vueComponent: this,
-          functionDefinitions: this.functionDefinitions,
+          functionDefinitions: this.formulaRegistry.definitions,
         }),
         ...this.formulaComponents,
       ]
@@ -332,9 +290,9 @@ export default {
         )
         extensions.push(
           InputDetectionExtension.configure({
-            functionNames: this.functionNames,
-            functionDefinitions: this.functionDefinitions,
-            operators: this.operators,
+            functionNames: this.formulaRegistry.names,
+            functionDefinitions: this.formulaRegistry.definitions,
+            operators: this.formulaRegistry.operators,
           })
         )
       }
