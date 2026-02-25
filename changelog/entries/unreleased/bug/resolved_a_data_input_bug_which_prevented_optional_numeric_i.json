@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a data input bug which prevented optional numeric inputs from being accepted.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-02-25"
+}

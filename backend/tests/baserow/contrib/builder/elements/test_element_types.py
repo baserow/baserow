@@ -524,6 +524,7 @@ def test_choice_element_import_export_formula(data_fixture):
         (True, "integer", "42", 42),
         (True, "integer", "horse", TypeError),
         (False, "integer", "", ""),
+        (False, "integer", None, None),
         (True, "email", "", ValueError),
         (True, "email", "foo@bar.com", "foo@bar.com"),
         (True, "email", "foobar.com", ValueError),

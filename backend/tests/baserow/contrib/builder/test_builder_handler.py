@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from django.contrib.auth import get_user_model
 
 import pytest
+from faker import Faker
 
 from baserow.contrib.builder.handler import (
     USED_PROPERTIES_CACHE_KEY_PREFIX,
@@ -11,7 +12,16 @@ from baserow.contrib.builder.handler import (
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
+fake = Faker()
 User = get_user_model()
+
+
+def fake_user_source_user(role: str = "") -> UserSourceUser:
+    user_source = MagicMock()
+    original_user = MagicMock()
+    return UserSourceUser(
+        user_source, original_user, 123, fake.name(), fake.email(), role=role
+    )
 
 
 @pytest.mark.django_db
@@ -44,48 +54,37 @@ def test_get_builder_select_related_theme_config(
 
 
 @pytest.mark.parametrize(
-    "is_anonymous,user_role,expected_cache_key",
+    "user,expected_cache_key",
     [
+        # An anonymous User.
         (
-            True,
-            "",
+            MagicMock(is_anonymous=True, spec=["is_anonymous"]),
             f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
         ),
+        # An authenticated User
         (
-            True,
-            "foo_role",
+            MagicMock(is_anonymous=False, spec=["is_anonymous"]),
             f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
         ),
+        # A UserSourceUser, with no role.
         (
-            False,
-            "foo_role",
-            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_foo_role",
+            fake_user_source_user(role=""),
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_",
+        ),
+        # A UserSourceUser, with a role.
+        (
+            fake_user_source_user(role="admin"),
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_admin",
         ),
     ],
 )
 def test_get_builder_used_properties_cache_key_returned_expected_cache_key(
-    is_anonymous, user_role, expected_cache_key
+    user, expected_cache_key
 ):
-    """
-    Test the BuilderHandler::get_builder_used_properties_cache_key() method.
-
-    Ensure the expected cache key is returned.
-    """
-
-    user_source_user = MagicMock()
-    user_source_user.is_anonymous = is_anonymous
-    user_source_user.role = user_role
-
-    mock_builder = MagicMock()
-    mock_builder.id = 100
-
-    handler = BuilderHandler()
-
-    cache_key = handler.get_builder_used_properties_cache_key(
-        user_source_user, mock_builder
+    assert (
+        BuilderHandler().get_builder_used_properties_cache_key(user, MagicMock(id=100))
+        == expected_cache_key
     )
-
-    assert cache_key == expected_cache_key
 
 
 @pytest.mark.django_db
