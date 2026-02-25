@@ -6,6 +6,7 @@ import {
   getTextBeforeCursor,
   findNextNonZWSNode,
 } from '@baserow/modules/core/components/formula/extensions/helpers'
+import { zwsTextNode } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 /**
  * Unified input detection extension that handles function calls,
@@ -108,7 +109,7 @@ export const InputDetectionExtension = Extension.create({
       const tr = state.tr
 
       const nodesToInsert = []
-      nodesToInsert.push(state.schema.text('\u200B'))
+      nodesToInsert.push(zwsTextNode(state.schema))
 
       nodesToInsert.push(
         state.schema.nodes['function-formula-component'].create({
@@ -118,12 +119,12 @@ export const InputDetectionExtension = Extension.create({
       )
 
       if (minArgs > 0) {
-        nodesToInsert.push(state.schema.text('\u200B'))
+        nodesToInsert.push(zwsTextNode(state.schema))
         for (let i = 1; i < minArgs; i++) {
           nodesToInsert.push(
             state.schema.nodes['function-argument-comma'].create()
           )
-          nodesToInsert.push(state.schema.text('\u200B'))
+          nodesToInsert.push(zwsTextNode(state.schema))
         }
       }
 
@@ -132,7 +133,7 @@ export const InputDetectionExtension = Extension.create({
           noArgs: minArgs === 0,
         })
       )
-      nodesToInsert.push(state.schema.text('\u200B'))
+      nodesToInsert.push(zwsTextNode(state.schema))
 
       tr.replaceWith(functionStart, to, Fragment.from(nodesToInsert))
 
@@ -149,9 +150,9 @@ export const InputDetectionExtension = Extension.create({
       const tr = state.tr
 
       const nodesToInsert = [
-        state.schema.text('\u200B'),
+        zwsTextNode(state.schema),
         state.schema.nodes['group-opening-paren'].create(),
-        state.schema.text('\u200B'),
+        zwsTextNode(state.schema),
       ]
 
       tr.replaceWith(from, to, Fragment.from(nodesToInsert))
@@ -227,7 +228,7 @@ export const InputDetectionExtension = Extension.create({
       const tr = state.tr
       const nodesToInsert = [
         state.schema.nodes['function-argument-comma'].create(),
-        state.schema.text('\u200B'),
+        zwsTextNode(state.schema),
       ]
 
       tr.replaceWith(from, to, Fragment.from(nodesToInsert))
@@ -263,7 +264,7 @@ export const InputDetectionExtension = Extension.create({
           operatorSymbol: '-',
         }),
         schema.text(' '),
-        schema.text('\u200B'),
+        zwsTextNode(schema),
       ]
 
       tr.replaceWith(minusStartPos, from, Fragment.from(nodesToInsert))
@@ -320,7 +321,7 @@ export const InputDetectionExtension = Extension.create({
       tr.replaceWith(
         startPos,
         endPos,
-        Fragment.from([operatorNode, schema.text('\u200B')])
+        Fragment.from([operatorNode, zwsTextNode(schema)])
       )
 
       const cursorPos = startPos + 1

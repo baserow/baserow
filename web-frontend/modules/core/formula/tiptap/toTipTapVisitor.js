@@ -1,6 +1,7 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
 import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
 import _ from 'lodash'
+import { ZWS, zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 export class ToTipTapVisitor extends BaserowFormulaVisitor {
   constructor(functions, mode = 'simple') {
@@ -75,9 +76,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     if (
       !firstNode ||
       firstNode.type !== 'text' ||
-      firstNode.text !== '\u200B'
+      firstNode.text !== ZWS
     ) {
-      content.unshift({ type: 'text', text: '\u200B' })
+      content.unshift(zwsTextJSON())
     }
   }
 
@@ -140,7 +141,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           return { type: 'text', text: processedString }
         } else {
           // Empty strings are represented as a special marker that won't be confused with line breaks
-          return { type: 'text', text: '\u200B' } // Zero-width space for empty strings
+          return zwsTextJSON() // Zero-width space for empty strings
         }
       }
     }
@@ -163,9 +164,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       const content = []
 
       // Add opening group parenthesis
-      content.push({ type: 'text', text: '\u200B' })
+      content.push(zwsTextJSON())
       content.push({ type: 'group-opening-paren' })
-      content.push({ type: 'text', text: '\u200B' })
+      content.push(zwsTextJSON())
 
       // Add the inner content
       if (Array.isArray(innerContent)) {
@@ -175,9 +176,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       }
 
       // Add closing group parenthesis
-      content.push({ type: 'text', text: '\u200B' })
+      content.push(zwsTextJSON())
       content.push({ type: 'group-closing-paren' })
-      content.push({ type: 'text', text: '\u200B' })
+      content.push(zwsTextJSON())
 
       return content
     }
@@ -275,7 +276,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
    */
   buildFunctionContentAdvanced(functionName, args) {
     const result = [
-      { type: 'text', text: '\u200B' },
+      zwsTextJSON(),
       {
         type: 'function-formula-component',
         attrs: {
@@ -299,7 +300,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       attrs: { noArgs: args.length === 0 },
     })
 
-    result.push({ type: 'text', text: '\u200B' })
+    result.push(zwsTextJSON())
 
     return result
   }
@@ -341,9 +342,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       node?.type === 'function-formula-component'
     ) {
       return [
-        { type: 'text', text: '\u200B' },
+        zwsTextJSON(),
         node,
-        { type: 'text', text: '\u200B' },
+        zwsTextJSON(),
       ]
     }
 

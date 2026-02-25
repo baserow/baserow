@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core'
+import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 /**
  * Extension that provides smart deletion behavior for atomic nodes.
@@ -50,11 +51,7 @@ export const SmartDeletionExtension = Extension.create({
 
             const deleteFrom = posOtherSideSpace - nodeOtherSideSpace.nodeSize
             const deleteTo =
-              nodeAfterSpace &&
-              nodeAfterSpace.isText &&
-              nodeAfterSpace.text === '\u200B'
-                ? from + nodeAfterSpace.nodeSize
-                : from
+              isZWSNode(nodeAfterSpace) ? from + nodeAfterSpace.nodeSize : from
 
             return { from: deleteFrom, to: deleteTo }
           }
@@ -102,11 +99,7 @@ export const SmartDeletionExtension = Extension.create({
       const adjacentNode = isBackward ? $pos.nodeBefore : $pos.nodeAfter
 
       // Check if the adjacent node is a ZWS
-      if (
-        adjacentNode &&
-        adjacentNode.isText &&
-        adjacentNode.text === '\u200B'
-      ) {
+      if (adjacentNode && isZWSNode(adjacentNode)) {
         // Get the position on the other side of the ZWS
         const posOtherSideZWS = isBackward
           ? from - adjacentNode.nodeSize

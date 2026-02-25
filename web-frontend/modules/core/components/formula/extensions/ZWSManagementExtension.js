@@ -1,5 +1,11 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import {
+  ZWS,
+  CONSECUTIVE_ZWS_REGEX,
+  isZWSNode,
+  zwsTextNode,
+} from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 /**
  * Extension that manages Zero-Width Spaces (ZWS) in the formula editor.
@@ -15,20 +21,19 @@ export const ZWSManagementExtension = Extension.create({
       new Plugin({
         key: new PluginKey('zwsManagement'),
         appendTransaction(transactions, oldState, newState) {
+          if (!transactions.some((t) => t.docChanged)) return null
+
           const tr = newState.tr
 
           // Phase 1: Clean up consecutive ZWS.
           // Collect replacements first, then apply in reverse order to avoid
-          // position drift: each insertText changes the document length, so
-          // positions calculated during iteration become invalid after the first
-          // modification. Applying in reverse (highest pos first) keeps earlier
-          // positions valid for subsequent operations.
+          // position drift.
           const zwsReplacements = []
           newState.doc.descendants((node, pos) => {
             if (node.isText && node.text) {
               const text = node.text
-              if (text.includes('\u200B\u200B')) {
-                const cleanedText = text.replace(/\u200B+/g, '\u200B')
+              if (text.includes(ZWS + ZWS)) {
+                const cleanedText = text.replace(CONSECUTIVE_ZWS_REGEX, ZWS)
                 if (cleanedText !== text) {
                   zwsReplacements.push({
                     cleanedText,
@@ -47,67 +52,70 @@ export const ZWSManagementExtension = Extension.create({
           // Apply cleanup changes before checking for missing ZWS
           const docAfterCleanup = modified ? tr.doc : newState.doc
 
-          // Phase 2: Ensure ZWS in empty argument slots
+          // Phase 2: Ensure ZWS in empty argument slots.
+          // Collect insertions and apply in reverse to avoid position drift.
           const argumentStartNodes = [
             'function-formula-component',
             'function-argument-comma',
             'operator-formula-component',
+            'group-opening-paren',
           ]
 
           const argumentEndNodes = [
             'function-argument-comma',
             'function-closing-paren',
+            'group-closing-paren',
           ]
 
           const needZWSBeforeNodes = [
             'operator-formula-component',
             'function-argument-comma',
             'function-closing-paren',
+            'group-closing-paren',
           ]
 
+          const insertions = []
+
           docAfterCleanup.descendants((node, pos) => {
-            // Check for ZWS after argument start nodes
             if (argumentStartNodes.includes(node.type.name)) {
               const afterNodePos = pos + node.nodeSize
               const $afterNode = docAfterCleanup.resolve(afterNodePos)
               const nextNode = $afterNode.nodeAfter
 
-              // Check if the next node is an argument end node (empty argument)
               if (nextNode && argumentEndNodes.includes(nextNode.type.name)) {
-                // Empty argument slot! Insert a ZWS
-                tr.insert(afterNodePos, newState.schema.text('\u200B'))
-                modified = true
+                insertions.push(afterNodePos)
               } else if (!nextNode) {
-                // End of document after argument start node
-                tr.insert(afterNodePos, newState.schema.text('\u200B'))
-                modified = true
+                insertions.push(afterNodePos)
               }
             }
 
-            // Check for ZWS before nodes that need it
             if (needZWSBeforeNodes.includes(node.type.name)) {
               const $beforeNode = docAfterCleanup.resolve(pos)
               const prevNode = $beforeNode.nodeBefore
 
-              // If the previous node is NOT a ZWS, we need to add one
-              if (
-                !prevNode ||
-                !(prevNode.isText && prevNode.text === '\u200B')
-              ) {
-                // Check if previous node is an atomic node that marks argument boundary
+              if (!prevNode || !isZWSNode(prevNode)) {
                 if (
                   !prevNode ||
                   prevNode.type.name === 'function-formula-component' ||
                   prevNode.type.name === 'function-argument-comma' ||
-                  prevNode.type.name === 'operator-formula-component'
+                  prevNode.type.name === 'operator-formula-component' ||
+                  prevNode.type.name === 'group-opening-paren'
                 ) {
-                  // Empty left argument! Insert a ZWS
-                  tr.insert(pos, newState.schema.text('\u200B'))
-                  modified = true
+                  insertions.push(pos)
                 }
               }
             }
           })
+
+          if (insertions.length > 0) {
+            modified = true
+            const uniquePositions = [...new Set(insertions)].sort(
+              (a, b) => b - a
+            )
+            for (const insertPos of uniquePositions) {
+              tr.insert(insertPos, zwsTextNode(newState.schema))
+            }
+          }
 
           return modified ? tr : null
         },

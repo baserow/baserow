@@ -1,3 +1,5 @@
+import { ZWS, ZWS_REGEX } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+
 const ZWS_MARKER = Symbol('zws_marker')
 
 export class FromTipTapVisitor {
@@ -171,11 +173,11 @@ export class FromTipTapVisitor {
   }
 
   visitText(node) {
-    if (node.text === '\u200B') {
+    if (node.text === ZWS) {
       return ZWS_MARKER
     }
     // Remove zero-width spaces used for cursor positioning
-    const cleanText = node.text.replace(/\u200B/g, '')
+    const cleanText = node.text.replace(ZWS_REGEX, '')
 
     if (this.mode === 'simple') {
       return `'${cleanText.replace(/'/g, "\\'")}'`

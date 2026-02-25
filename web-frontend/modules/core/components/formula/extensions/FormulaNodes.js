@@ -3,6 +3,7 @@ import { VueNodeViewRenderer } from '@tiptap/vue-3'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import FunctionFormulaComponent from '@baserow/modules/core/components/formula/FunctionFormulaComponent'
 import OperatorFormulaComponent from '@baserow/modules/core/components/formula/OperatorFormulaComponent'
+import { zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 export const GetFormulaComponentNode = Node.create({
   name: 'get-formula-component',
@@ -258,18 +259,12 @@ export const FormulaInsertionExtension = Extension.create({
         (path) =>
         ({ editor, commands }) => {
           commands.insertContent([
-            {
-              type: 'text',
-              text: '\u200B',
-            },
+            zwsTextJSON(),
             {
               type: 'get-formula-component',
               attrs: { path },
             },
-            {
-              type: 'text',
-              text: '\u200B',
-            },
+            zwsTextJSON(),
           ])
 
           commands.focus()
@@ -289,7 +284,7 @@ export const FormulaInsertionExtension = Extension.create({
           const contentToInsert = []
 
           // Add ZWS before the function component
-          contentToInsert.push({ type: 'text', text: '\u200B' })
+          contentToInsert.push(zwsTextJSON())
 
           // Add function component
           contentToInsert.push({
@@ -302,10 +297,10 @@ export const FormulaInsertionExtension = Extension.create({
 
           // Add argument placeholders if needed
           if (minArgs > 0) {
-            contentToInsert.push({ type: 'text', text: '\u200B' }) // First argument
+            contentToInsert.push(zwsTextJSON()) // First argument
             for (let i = 1; i < minArgs; i++) {
               contentToInsert.push({ type: 'function-argument-comma' })
-              contentToInsert.push({ type: 'text', text: '\u200B' }) // Subsequent arguments
+              contentToInsert.push(zwsTextJSON()) // Subsequent arguments
             }
           }
 
@@ -319,7 +314,7 @@ export const FormulaInsertionExtension = Extension.create({
 
           // Always add a ZWS after the whole function call
           // CleanupZWSExtension will remove any consecutive ZWS automatically
-          contentToInsert.push({ type: 'text', text: '\u200B' })
+          contentToInsert.push(zwsTextJSON())
 
           // Insert all content at once
           commands.insertContent(contentToInsert)
@@ -353,7 +348,7 @@ export const FormulaInsertionExtension = Extension.create({
 
           // Build content to insert
           const contentToInsert = [
-            { type: 'text', text: '\u200B' },
+            zwsTextJSON(),
             {
               type: 'operator-formula-component',
               attrs: {
@@ -367,7 +362,7 @@ export const FormulaInsertionExtension = Extension.create({
             contentToInsert.push({ type: 'text', text: ' ' })
           }
 
-          contentToInsert.push({ type: 'text', text: '\u200B' })
+          contentToInsert.push(zwsTextJSON())
 
           commands.insertContent(contentToInsert)
 
