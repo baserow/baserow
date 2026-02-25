@@ -1,6 +1,11 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Fragment } from '@tiptap/pm/model'
+import {
+  buildParenStack,
+  getTextBeforeCursor,
+  findNextNonZWSNode,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export const GroupDetectionExtension = Extension.create({
   name: 'groupDetection',
@@ -18,21 +23,15 @@ export const GroupDetectionExtension = Extension.create({
       const { state } = view
       const { doc } = state
 
-      // Check if we should create a group parenthesis
-      // A group parenthesis is created when:
-      // - The previous text does NOT match a known function name
+      const textBefore = getTextBeforeCursor(doc, from)
 
-      const textBefore = doc.textBetween(Math.max(0, from - 50), from, ',')
-
-      // If we have function names, check if the text ends with one
-      if (functionNames.length > 0) {
+      if (functionNames.length > 0 && textBefore) {
         const functionPattern = new RegExp(
           `(^|[^a-zA-Z0-9_])(${functionNames.join('|')})(\\s*)$`,
           'i'
         )
 
         if (functionPattern.test(textBefore)) {
-          // This is a function call, let FunctionDetectionExtension handle it
           return false
         }
       }
@@ -62,22 +61,28 @@ export const GroupDetectionExtension = Extension.create({
       const { state } = view
       const { doc } = state
 
-      // Check if we're closing a group by counting parentheses
+      // Overtype: if the next non-ZWS node is an existing group-closing-paren,
+      // move past it instead of inserting a duplicate.
+      const next = findNextNonZWSNode(doc, from)
+      if (next && next.node.type.name === 'group-closing-paren') {
+        const tr = state.tr
+        const cursorPos = next.pos + next.node.nodeSize
+        tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+        view.dispatch(tr)
+        return true
+      }
+
       if (!isClosingGroup(doc, from)) {
-        // Let other extensions handle function closing
         return false
       }
 
-      // This is closing a group
       const tr = state.tr
 
-      // Create the group closing paren node
       const closingParenNode =
         state.schema.nodes['group-closing-paren'].create()
 
       tr.replaceWith(from, to, closingParenNode)
 
-      // Position cursor after the closing paren
       const cursorPos = from + 1
       tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
 
@@ -86,11 +91,6 @@ export const GroupDetectionExtension = Extension.create({
     }
 
     function isClosingGroup(doc, pos) {
-      // Count parentheses to determine if we're closing a group
-      let parenCount = 0
-      let foundGroupOpening = false
-
-      // Find the start of the wrapper
       const $pos = doc.resolve(pos)
       let wrapperStart = 0
       for (let d = $pos.depth; d > 0; d--) {
@@ -100,27 +100,8 @@ export const GroupDetectionExtension = Extension.create({
         }
       }
 
-      // Traverse from wrapper start to current position
-      doc.nodesBetween(wrapperStart, pos, (node, nodePos) => {
-        if (nodePos >= pos) return false
-
-        if (node.type.name === 'function-formula-component') {
-          parenCount = 1
-        } else if (node.type.name === 'group-opening-paren') {
-          foundGroupOpening = true
-          parenCount++
-        } else if (node.type.name === 'group-closing-paren') {
-          parenCount--
-          if (parenCount === 0) {
-            foundGroupOpening = false
-          }
-        } else if (node.type.name === 'function-closing-paren') {
-          parenCount--
-        }
-      })
-
-      // We're closing a group if we have an open group paren
-      return foundGroupOpening && parenCount > 0
+      const stack = buildParenStack(doc, wrapperStart, pos)
+      return stack.length > 0 && stack[stack.length - 1] === 'group'
     }
 
     return [

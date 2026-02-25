@@ -1,6 +1,11 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Fragment } from '@tiptap/pm/model'
+import {
+  buildParenStack,
+  getTextBeforeCursor,
+  findNextNonZWSNode,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export const FunctionDetectionExtension = Extension.create({
   name: 'functionDetection',
@@ -20,11 +25,8 @@ export const FunctionDetectionExtension = Extension.create({
       const { state } = view
       const { doc } = state
 
-      // Get the text before the cursor, use comma as separator for nodes
-      const textBefore = doc.textBetween(Math.max(0, from - 50), from, ',')
+      const textBefore = getTextBeforeCursor(doc, from)
 
-      // Check if the text before ends with a function name
-      // Look for function names that are either at the start or preceded by non-letter characters (including comma)
       const functionPattern = new RegExp(
         `(^|[^a-zA-Z])(${functionNames.join('|')})(\\s*)$`,
         'i'
@@ -150,50 +152,20 @@ export const FunctionDetectionExtension = Extension.create({
     }
 
     function isInsideFunction(doc, pos) {
-      // Get the resolved position
       const $pos = doc.resolve(pos)
 
-      // Find the parent wrapper node
-      let $wrapper = null
+      let wrapperStart = null
       for (let d = $pos.depth; d > 0; d--) {
         if ($pos.node(d).type.name === 'wrapper') {
-          $wrapper = $pos.start(d)
+          wrapperStart = $pos.start(d)
           break
         }
       }
 
-      if ($wrapper === null) return false
+      if (wrapperStart === null) return false
 
-      // Look for a function component before the cursor position
-      let foundFunction = false
-      let parenCount = 0
-
-      doc.nodesBetween($wrapper, pos, (node, nodePos) => {
-        if (nodePos >= pos) return false // Stop when we reach cursor position
-
-        if (node.type.name === 'function-formula-component') {
-          foundFunction = true
-          parenCount = 1 // Function component includes opening paren
-        } else if (node.type.name === 'text' && foundFunction) {
-          // Count parentheses in text nodes
-          const text = node.text
-          for (let i = 0; i < text.length; i++) {
-            // Only count characters before cursor position
-            if (nodePos + i >= pos) break
-
-            if (text[i] === '(') {
-              parenCount++
-            } else if (text[i] === ')') {
-              parenCount--
-              if (parenCount === 0) {
-                foundFunction = false // We've closed the function
-              }
-            }
-          }
-        }
-      })
-
-      return foundFunction && parenCount > 0
+      const stack = buildParenStack(doc, wrapperStart, pos)
+      return stack.length > 0 && stack[stack.length - 1] === 'function'
     }
 
     function isInsideStringLiteral(doc, pos) {
@@ -231,25 +203,32 @@ export const FunctionDetectionExtension = Extension.create({
       const { state } = view
       const { doc } = state
 
-      // Check if we're closing a function
+      // Overtype: if the next non-ZWS node is an existing function-closing-paren
+      // (auto-generated when the function was created), skip past it instead of
+      // inserting a duplicate that would corrupt the paren stack.
+      const next = findNextNonZWSNode(doc, from)
+      if (next && next.node.type.name === 'function-closing-paren') {
+        const tr = state.tr
+        const cursorPos = next.pos + next.node.nodeSize
+        tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+        view.dispatch(tr)
+        return true
+      }
+
       if (!isClosingFunction(doc, from)) {
         return false
       }
 
-      // Check if we're inside a string literal
       if (isInsideStringLiteral(doc, from)) {
         return false
       }
 
-      // Replace the closing parenthesis with an atomic node
       const tr = state.tr
       const closingParenNode =
         state.schema.nodes['function-closing-paren'].create()
 
-      // Replace the typed closing paren with the atomic node
       tr.replaceWith(from, to, closingParenNode)
 
-      // Position cursor after the closing paren
       const cursorPos = from + 1
       tr.setSelection(
         state.selection.constructor.near(tr.doc.resolve(cursorPos))
@@ -260,46 +239,20 @@ export const FunctionDetectionExtension = Extension.create({
     }
 
     function isClosingFunction(doc, pos) {
-      // Get the resolved position
       const $pos = doc.resolve(pos)
 
-      // Find the parent wrapper node
-      let $wrapper = null
+      let wrapperStart = null
       for (let d = $pos.depth; d > 0; d--) {
         if ($pos.node(d).type.name === 'wrapper') {
-          $wrapper = $pos.start(d)
+          wrapperStart = $pos.start(d)
           break
         }
       }
 
-      if ($wrapper === null) return false
+      if (wrapperStart === null) return false
 
-      // Count parentheses to see if we're closing a function
-      let parenCount = 0
-      let foundFunction = false
-
-      doc.nodesBetween($wrapper, pos, (node, nodePos) => {
-        if (nodePos >= pos) return false
-
-        if (node.type.name === 'function-formula-component') {
-          foundFunction = true
-          parenCount = 1 // Opening paren is part of the component
-        } else if (node.type.name === 'text') {
-          const text = node.text
-          for (let i = 0; i < text.length; i++) {
-            if (nodePos + i >= pos) break
-
-            if (text[i] === '(') {
-              parenCount++
-            } else if (text[i] === ')') {
-              parenCount--
-            }
-          }
-        }
-      })
-
-      // We're closing a function if we found one and have exactly 1 open paren
-      return foundFunction && parenCount === 1
+      const stack = buildParenStack(doc, wrapperStart, pos)
+      return stack.length > 0 && stack[stack.length - 1] === 'function'
     }
 
     return [
