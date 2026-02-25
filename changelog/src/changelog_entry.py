@@ -44,8 +44,10 @@ class ChangelogEntry(abc.ABC):
         string = f"* {message}"
 
         if issue_number is not None:
-            url_prefix = GITLAB_URL if issue_origin == "gitlab" else GITHUB_URL
-            string += f" [#{issue_number}]({url_prefix}/-/issues/{issue_number})"
+            if issue_origin == "github":
+                string += f" [#{issue_number}]({GITHUB_URL}/issues/{issue_number})"
+            elif issue_origin == "gitlab":
+                string += f" [#{issue_number}]({GITLAB_URL}/-/issues/{issue_number})"
 
         return string
 
