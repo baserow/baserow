@@ -5,7 +5,7 @@ from django.core.files.storage import Storage
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from celery.canvas import Signature, chain, chord, group
+from celery.canvas import Signature, chain, group
 from loguru import logger
 from opentelemetry import trace
 
@@ -33,7 +33,6 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
-    handle_node_dispatch_done,
 )
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.cache import local_cache
@@ -383,22 +382,16 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_id: int,
         history_id: int,
         current_iterations: Optional[Dict[int, int]] = None,
-    ) -> Signature | bool | None:
+    ) -> Signature | None:
         """
-        Dispatch one node and recursively dispatch the next nodes asynchronously.
-
-        The exception are Iterator node children, which are dispatched sync.
+        Dispatch a single node and return a canvas for the next nodes.
 
         :param node_id: The node to dispatch.
         :param history_id: The AutomationNodeHistory ID from which the
             workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
-        :return result: A bool of True is returned if the workflow simulation
-            has finished.
-
-            For normal workflow dispatches, if there is a next node to
-            dispatch, a signature is returned. Otherwise, returns None
-            to indicate the workflow dispatch is complete.
+        :return result: A signature is returned if there is a next node to
+            dispatch, otherwise returns None.
         """
 
         from baserow.contrib.automation.workflows.handler import (
@@ -424,7 +417,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         if allowed_nodes is not None and node not in allowed_nodes:
             # Return early as the node is not in the path leading to
             # the simulated node.
-            return False
+            return None
 
         history_handler = AutomationHistoryHandler()
 
@@ -449,7 +442,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, error)
-            return False
+            return None
         except Exception as e:
             original_workflow = AutomationWorkflowHandler().get_original_workflow(
                 node.workflow
@@ -460,9 +453,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             )
             logger.exception(error)
             self._handle_workflow_error(node_history, error)
-            return False
+            return None
 
-        # Find current iteration using current_iterations.
         iteration_index = 0
         parent_nodes = node.get_parent_nodes()
         if parent_nodes:
@@ -475,96 +467,43 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             iteration=iteration_index,
         )
 
-        # Return early if this is a simulation and we've reached the
+        # Return early if this is a simulation as we've reached the
         # simulated node.
         if until_node := simulate_until_node:
             if until_node.id == node.id:
                 until_node.service.specific.refresh_from_db(fields=["sample_data"])
                 automation_node_updated.send(self, user=None, node=until_node)
-                workflow_history.delete()
-                return True
+                return None
 
+        to_chain = []
         if children := node.get_children():
             node_data = dispatch_result.data["results"]
 
-            # Simulations should always be sync. We only dispatch the first
-            # iteration of the children.
+            # For simulations, we only need the first iteration.
             if simulate_until_node:
-                child_iterations = {
-                    **dispatch_context.current_iterations,
-                    node.id: 0,
-                }
-                for child in children:
-                    simulation_completed = self.dispatch_node(
-                        child.id,
-                        history_id,
-                        current_iterations=child_iterations,
-                    )
-                    if simulation_completed:
-                        return True
+                iterations = [0]
             else:
                 iterations = range(len(node_data))
-                # Build a chord per iteration and chain them sequentially.
-                iteration_chords = []
-                for index in iterations:
-                    child_iterations = {
-                        **dispatch_context.current_iterations,
-                        node.id: index,
-                    }
-                    iteration_chords.append(
-                        chord(
-                            # A group() runs the children in parallel.
-                            # We currently don't have parallel branch execution
-                            # so there is only one task in the group.
-                            group(
-                                # si() is an immutable signature that defines
-                                # a task to be scheduled later.
-                                [
-                                    dispatch_node_celery_task.si(
-                                        c.id, history_id, child_iterations
-                                    )
-                                    for c in children
-                                ]
-                            ),
-                            # No-op callback that is required by chord. When
-                            # it fires, the next link in the chain is scheduled
-                            # (i.e. the next iteration's chord).
-                            handle_node_dispatch_done.si(),
-                        )
-                    )
 
-                # chain() ensures that all the iterations are executed
-                # sequentially, i.e iteration 2 only starts after
-                # iteration 1 has completed.
-                canvas = chain(*iteration_chords)
+            groups_to_chain = []
+            for index in iterations:
+                child_iterations = {
+                    **dispatch_context.current_iterations,
+                    node.id: index,
+                }
+                groups_to_chain.append(
+                    group(
+                        [
+                            dispatch_node_celery_task.si(
+                                c.id, history_id, child_iterations
+                            )
+                            for c in children
+                        ]
+                    ),
+                )
 
-                # Add the next node after the iteration as the last group
-                # in the chain.
-                next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-                if next_nodes:
-                    canvas = chain(
-                        canvas,
-                        group(
-                            [
-                                dispatch_node_celery_task.si(n.id, history_id)
-                                for n in next_nodes
-                            ]
-                        ),
-                    )
-                else:
-                    # When there are no next nodes, we signal that the workflow
-                    # is complete and let the callback update the workflow state.
-                    canvas = chain(
-                        canvas,
-                        handle_node_dispatch_done.si(history_id=history_id),
-                    )
-
-                now = timezone.now()
-                node_history.completed_on = now
-                node_history.status = HistoryStatusChoices.SUCCESS
-                node_history.save()
-
-                return canvas
+            canvas = chain(*groups_to_chain)
+            to_chain.append(canvas)
 
         now = timezone.now()
         node_history.completed_on = now
@@ -573,35 +512,17 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Handle non-iterator nodes, including iterator children.
         next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-        if not next_nodes:
-            if not current_iterations:
-                workflow_history.completed_on = now
-                workflow_history.status = HistoryStatusChoices.SUCCESS
-                workflow_history.save()
-            # Return None so that the task completes, which will signal to the
-            # chord that this slot is done. When all slots in the group are
-            # done the callback will fire.
-            return None
+        if next_nodes:
+            to_chain.append(
+                group(
+                    [
+                        dispatch_node_celery_task.si(
+                            n.id, history_id, current_iterations
+                        )
+                        for n in next_nodes
+                    ]
+                ),
+            )
 
-        # Handle next nodes for simulation, which should happen sync.
-        if simulate_until_node:
-            for next_node in next_nodes:
-                result = self.dispatch_node(
-                    next_node.id,
-                    history_id,
-                    current_iterations=current_iterations,
-                )
-                if result is True:
-                    return True
-            # This is a defensive check as it should never be reached.
-            return None
-
-        return chord(
-            group(
-                [
-                    dispatch_node_celery_task.si(n.id, history_id, current_iterations)
-                    for n in next_nodes
-                ]
-            ),
-            handle_node_dispatch_done.si(),
-        )
+        if to_chain:
+            return chain(*to_chain)

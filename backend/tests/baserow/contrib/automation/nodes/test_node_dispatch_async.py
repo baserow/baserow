@@ -229,7 +229,7 @@ def test_dispatch_node_dispatches_trigger(data_fixture):
     assert len(result.tasks) == 1
     assert result.tasks[0].args[0] == action_node.id
     assert result.tasks[0].args[1] == workflow_history.id
-    assert result.tasks[0].args[2] == None
+    assert result.tasks[0].args[2] is None
 
 
 @pytest.mark.django_db
@@ -250,7 +250,7 @@ def test_dispatch_node_dispatches_action_create_row(data_fixture):
     assert len(result.tasks) == 1
     assert result.tasks[0].args[0] == action_node.id
     assert result.tasks[0].args[1] == workflow_history.id
-    assert result.tasks[0].args[2] == None
+    assert result.tasks[0].args[2] is None
 
     assert action_table.get_model().objects.all().count() == 0
 
@@ -316,7 +316,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
     assert len(result.tasks) == 1
     assert result.tasks[0].args[0] == iterator_node.id
     assert result.tasks[0].args[1] == workflow_history.id
-    assert result.tasks[0].args[2] == None
+    assert result.tasks[0].args[2] is None
 
     assert iterator_child_1_table.get_model().objects.all().count() == 0
 

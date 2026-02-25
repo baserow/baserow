@@ -1,12 +1,8 @@
 from typing import Dict, Optional
 
-from django.utils import timezone
-
 from celery.canvas import Signature
 
 from baserow.config.celery import app
-from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.core.db import atomic_with_retry_on_deadlock
 
 
@@ -41,20 +37,3 @@ def dispatch_node_celery_task(
     # tells Celery to replace the current task.
     if isinstance(result, Signature):
         raise self.replace(result)
-
-
-@app.task
-def handle_node_dispatch_done(*args, history_id: Optional[int] = None, **kwargs):
-    """
-    Callback that gets called when all tasks in a chord group has completed.
-
-    Chords require a callback at a minimum, which can just be a no-op. But
-    we use this as a post-chord completion hook to update the workflow history
-    when it is the last node in the workflow.
-    """
-
-    if history_id:
-        AutomationWorkflowHistory.objects.filter(id=history_id).update(
-            status=HistoryStatusChoices.SUCCESS,
-            completed_on=timezone.now(),
-        )

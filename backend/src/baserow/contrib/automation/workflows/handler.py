@@ -10,6 +10,7 @@ from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from celery.canvas import chain
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -43,7 +44,10 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
-from baserow.contrib.automation.workflows.tasks import start_workflow_celery_task
+from baserow.contrib.automation.workflows.tasks import (
+    handle_workflow_dispatch_done,
+    start_workflow_celery_task,
+)
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
@@ -1009,7 +1013,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             history.save()
             return
 
-        dispatch_node_celery_task.delay(
-            workflow.get_trigger().id,
-            history.id,
-        )
+        chain(
+            dispatch_node_celery_task.si(
+                workflow.get_trigger().id,
+                history.id,
+            ),
+            handle_workflow_dispatch_done.si(
+                history_id=history.id if not simulate_until_node_id else None,
+                simulate_until_node_id=simulate_until_node_id,
+            ),
+        )()
