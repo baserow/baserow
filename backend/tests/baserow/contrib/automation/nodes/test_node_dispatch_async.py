@@ -1,6 +1,7 @@
 from unittest.mock import ANY, patch
 
 import pytest
+from celery.canvas import Signature, chord
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import (
@@ -201,14 +202,13 @@ def test_dispatch_node_unexpected_error(
 
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_dispatches_trigger(mock_dispatch_task, data_fixture):
+def test_dispatch_node_dispatches_trigger(data_fixture):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]
     action_node = data["action_node"]
     workflow_history = data["workflow_history"]
 
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
@@ -225,16 +225,15 @@ def test_dispatch_node_dispatches_trigger(mock_dispatch_task, data_fixture):
     assert node_result.iteration == 0
     assert node_result.result == workflow_history.event_payload
 
-    mock_dispatch_task.delay.assert_called_once_with(
-        action_node.id,
-        workflow_history.id,
-        current_iterations=None,
-    )
+    assert isinstance(result, chord)
+    assert len(result.tasks) == 1
+    assert result.tasks[0].args[0] == action_node.id
+    assert result.tasks[0].args[1] == workflow_history.id
+    assert result.tasks[0].args[2] == None
 
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_dispatches_action_create_row(mock_dispatch_task, data_fixture):
+def test_dispatch_node_dispatches_action_create_row(data_fixture):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]
     action_node = data["action_node"]
@@ -243,30 +242,30 @@ def test_dispatch_node_dispatches_action_create_row(mock_dispatch_task, data_fix
     action_table_field = data["action_table_field"]
 
     # First dispatch the trigger
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
-    mock_dispatch_task.delay.assert_called_once_with(
-        action_node.id,
-        workflow_history.id,
-        current_iterations=None,
-    )
+    assert isinstance(result, chord)
+    assert len(result.tasks) == 1
+    assert result.tasks[0].args[0] == action_node.id
+    assert result.tasks[0].args[1] == workflow_history.id
+    assert result.tasks[0].args[2] == None
 
     assert action_table.get_model().objects.all().count() == 0
 
     # Next dispatch the action
-    mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         action_node.id,
         history_id=workflow_history.id,
     )
+    assert result is None
 
     # Make sure the action dispatched correctly
-    result = getattr(
+    value = getattr(
         action_table.get_model().objects.all()[0], action_table_field.db_column
     )
-    assert result == "Apple"
+    assert value == "Apple"
 
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
@@ -288,13 +287,9 @@ def test_dispatch_node_dispatches_action_create_row(mock_dispatch_task, data_fix
         "order": AnyStr(),
     }
 
-    # There are no next nodes
-    mock_dispatch_task.delay.assert_not_called()
-
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.dispatch_node_celery_task")
-def test_dispatch_node_dispatches_iterator_children(mock_dispatch_task, data_fixture):
+def test_dispatch_node_dispatches_iterator_children(data_fixture):
     data = data_fixture.iterator_graph_fixture()
     trigger_node = data["trigger_node"]
     trigger_table_fields = data["trigger_table_fields"]
@@ -313,78 +308,75 @@ def test_dispatch_node_dispatches_iterator_children(mock_dispatch_task, data_fix
     )
 
     # First dispatch the trigger
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         trigger_node.id,
         history_id=workflow_history.id,
     )
-    mock_dispatch_task.delay.assert_called_once_with(
-        iterator_node.id,
-        workflow_history.id,
-        current_iterations=None,
-    )
+    assert isinstance(result, chord)
+    assert len(result.tasks) == 1
+    assert result.tasks[0].args[0] == iterator_node.id
+    assert result.tasks[0].args[1] == workflow_history.id
+    assert result.tasks[0].args[2] == None
 
     assert iterator_child_1_table.get_model().objects.all().count() == 0
 
     # Next dispatch the iterator node
-    mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         iterator_node.id,
         history_id=workflow_history.id,
     )
+    # result is a chain of chords
+    assert isinstance(result, Signature)
 
     # Make sure the iterator children's node history and results are persisted.
     # There are two rows in the payload, so we expect two histories.
-    test_cases = [
-        (iterator_child_1_node, iterator_child_1_table_fields, ["Apple", "Banana"]),
-        (iterator_child_2_node, iterator_child_2_table_fields, ["Red", "Yellow"]),
-    ]
-    for node, table_fields, expected_values in test_cases:
-        node_histories = AutomationNodeHistory.objects.filter(
-            node=node, status=HistoryStatusChoices.SUCCESS
-        ).order_by("id")
-        assert len(node_histories) == 2
+    assert AutomationNodeHistory.objects.filter(node=iterator_child_1_node).count() == 0
 
-        for index, (node_history, expected_value) in enumerate(
-            zip(node_histories, expected_values)
-        ):
-            assert node_history.message == ""
-            assert node_history.status == HistoryStatusChoices.SUCCESS
+    result = AutomationNodeHandler().dispatch_node(
+        iterator_child_1_node.id,
+        history_id=workflow_history.id,
+        current_iterations={iterator_node.id: 0},
+    )
+    assert isinstance(result, chord)
+    assert len(result.tasks) == 1
+    assert result.tasks[0].args[0] == iterator_child_2_node.id
+    assert result.tasks[0].args[1] == workflow_history.id
+    assert result.tasks[0].args[2] == {iterator_node.id: 0}
 
-            node_result = AutomationNodeResult.objects.get(node_history=node_history)
-            assert node_result.iteration == index
-            assert node_result.result == {
-                table_fields[0].name: expected_value,
-                "id": AnyInt(),
-                "order": AnyStr(),
-            }
+    # Manually dispatch child 1 for iteration 1
+    result = AutomationNodeHandler().dispatch_node(
+        iterator_child_1_node.id,
+        history_id=workflow_history.id,
+        current_iterations={iterator_node.id: 1},
+    )
+    assert isinstance(result, chord)
+    assert len(result.tasks) == 1
+    assert result.tasks[0].args[0] == iterator_child_2_node.id
+    assert result.tasks[0].args[1] == workflow_history.id
+    assert result.tasks[0].args[2] == {iterator_node.id: 1}
+
+    node_histories = AutomationNodeHistory.objects.filter(
+        node=iterator_child_1_node, status=HistoryStatusChoices.SUCCESS
+    ).order_by("id")
+    assert len(node_histories) == 2
 
     # workflow history should still be "started", since the final node
     # hasn't been dispatched yet.
     workflow_history.refresh_from_db()
     assert workflow_history.status == HistoryStatusChoices.STARTED
 
-    # After the iterator nodes are dispatched sync, the after_iteration_node
-    # should have been dispatched async.
-    mock_dispatch_task.delay.assert_called_once_with(
-        after_iteration_node.id,
-        workflow_history.id,
-        current_iterations=None,
-    )
-
     # Dispatch the after iteration node
-    mock_dispatch_task.reset_mock()
-    AutomationNodeHandler().dispatch_node(
+    result = AutomationNodeHandler().dispatch_node(
         after_iteration_node.id,
         history_id=workflow_history.id,
     )
+    # There are no next nodes
+    assert result is None
 
     # workflow history should be finally be updated as success
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
-
-    # There are no next nodes
-    mock_dispatch_task.delay.assert_not_called()
 
 
 @pytest.mark.django_db
