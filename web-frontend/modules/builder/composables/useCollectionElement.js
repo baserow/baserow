@@ -28,7 +28,7 @@ export function useCollectionElement(props) {
   const adhocFilters = ref()
   const adhocSortings = ref()
   const adhocSearch = ref()
-  const currentOffset = ref(0)
+  const currentOffset = useState(`element-offset-${unref(element).id}`, () => 0)
   const errorNotified = ref(false)
   const resetTimeout = ref(null)
   const contentFetchEnabled = ref(true)

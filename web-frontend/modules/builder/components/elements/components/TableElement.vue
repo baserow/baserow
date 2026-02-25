@@ -83,7 +83,7 @@ export default {
      * @property {Object} fields - The fields of the data source.
      * @property {int} items_per_page - The number of items per page.
      * @property {string} button_color - The color of the button.
-     * @property {string} orientation - The orientation for eaceh device.
+     * @property {string} orientation - The orientation for each device.
      */
     element: {
       type: Object,
