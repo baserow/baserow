@@ -905,7 +905,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         updated.
 
         :param workflow: The workflow we want to trigger the test run for.
-        :param simulated_until_node: If we want to simulate until a particular node.
+        :param simulate_until_node: If we want to simulate until a particular node.
         """
 
         if workflow.simulate_until_node is not None or workflow.allow_test_run_until:

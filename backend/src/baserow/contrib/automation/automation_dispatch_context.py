@@ -55,6 +55,7 @@ class AutomationDispatchContext(DispatchContext):
             use_sample_data=bool(self.simulate_until_node),
             force_outputs=force_outputs,
             event_payload=event_payload,
+            serialize_dispatch_result=True,
         )
 
     def clone(self, **kwargs):

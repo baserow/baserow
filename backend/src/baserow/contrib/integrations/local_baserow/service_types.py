@@ -1326,7 +1326,7 @@ class LocalBaserowAggregateRowsUserServiceType(
 
         :param values: The values defining the
             aggregate rows service type.
-        :param user: The user on whos behalf the aggregation is
+        :param user: The user on whose behalf the aggregation is
             requested.
         :param instance: The service instance.
         """
@@ -1495,6 +1495,17 @@ class LocalBaserowAggregateRowsUserServiceType(
             )
             agg_type = field_aggregation_registry.get(service.aggregation_type)
             result = agg_type.aggregate(queryset, model_field, field)
+
+            # If the dispatch context states that the dispatch result should be
+            # serialized, we use the field type to serialize the result. In a few
+            # cases, the aggregation result will be a `Decimal`, which can't be JSON
+            # serialized if this dispatch is happening asynchronously.
+            if dispatch_context.serialize_dispatch_result:
+                result = (
+                    field.get_type()
+                    .get_serializer_field(field.specific)
+                    .to_representation(result)
+                )
 
             return {
                 "data": {"result": result},

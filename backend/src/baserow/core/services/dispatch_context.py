@@ -14,6 +14,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "use_sample_data",
         "force_outputs",
         "event_payload",
+        "serialize_dispatch_result",
     ]
 
     """
@@ -30,6 +31,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         update_sample_data_for: Optional[List[Service]] = None,
         use_sample_data: bool = False,
         force_outputs: Dict[int, str] = None,
+        serialize_dispatch_result: Optional[bool] = False,
     ):
         """
         This abstract base class provides context needed by specific
@@ -42,6 +44,10 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         :param use_sample_data: Whether to use or update the sample_data.
         :param force_outputs: Mapping of service IDs and previous service
             outputs. Can be used to force a specific service to be dispatched.
+        :param serialize_dispatch_result: Whether the service should serialize its
+            dispatch data. If the service dispatch is happening asynchronously, then
+            it's a good idea to set this to `True`. Some services, such as aggregating
+            rows, can return objects which aren't JSON-serializable.
         """
 
         self.cache = {}  # can be used by data providers to save queries
@@ -50,6 +56,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.use_sample_data = use_sample_data
         self.force_outputs = force_outputs
         self.event_payload = event_payload
+        self.serialize_dispatch_result = serialize_dispatch_result
         super().__init__()
 
     @abstractmethod

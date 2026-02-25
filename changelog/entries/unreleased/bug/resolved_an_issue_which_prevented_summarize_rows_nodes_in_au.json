@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved an issue which prevented summarize rows nodes in automation workflows from working correctly.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-02-25"
+}
