@@ -40,7 +40,9 @@ class AutomationDispatchContext(DispatchContext):
         self.current_iterations: Dict[int, int] = {}
 
         if current_iterations:
-            self.current_iterations = current_iterations
+            # The keys are strings due to JSON serialization by Celery. We need
+            # to convert them back to ints.
+            self.current_iterations = {int(k): v for k, v in current_iterations.items()}
 
         if history_id:
             self._load_previous_results(history_id)

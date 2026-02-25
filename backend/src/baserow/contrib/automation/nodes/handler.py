@@ -5,6 +5,7 @@ from django.core.files.storage import Storage
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from celery.canvas import Signature, chain, chord, group
 from loguru import logger
 from opentelemetry import trace
 
@@ -16,6 +17,7 @@ from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
@@ -29,7 +31,10 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import automation_node_updated
-from baserow.contrib.automation.nodes.tasks import dispatch_node_celery_task
+from baserow.contrib.automation.nodes.tasks import (
+    dispatch_node_celery_task,
+    handle_node_dispatch_done,
+)
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
@@ -357,12 +362,28 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         return node_instance
 
+    def _handle_workflow_error(
+        self,
+        node_history: AutomationNodeHistory,
+        error: str,
+    ) -> None:
+        now = timezone.now()
+        node_history.workflow_history.completed_on = now
+        node_history.workflow_history.message = error
+        node_history.workflow_history.status = HistoryStatusChoices.ERROR
+        node_history.workflow_history.save()
+
+        node_history.completed_on = now
+        node_history.message = error
+        node_history.status = HistoryStatusChoices.ERROR
+        node_history.save()
+
     def dispatch_node(
         self,
         node_id: int,
         history_id: int,
         current_iterations: Optional[Dict[int, int]] = None,
-    ) -> bool:
+    ) -> Signature | bool | None:
         """
         Dispatch one node and recursively dispatch the next nodes asynchronously.
 
@@ -372,7 +393,12 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         :param history_id: The AutomationNodeHistory ID from which the
             workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
-        :return bool: True if the simulation completed, False otherwise.
+        :return result: A bool of True is returned if the workflow simulation
+            has finished.
+
+            For normal workflow dispatches, if there is a next node to
+            dispatch, a signature is returned. Otherwise, returns None
+            to indicate the workflow dispatch is complete.
         """
 
         from baserow.contrib.automation.workflows.handler import (
@@ -396,7 +422,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             }
 
         if allowed_nodes is not None and node not in allowed_nodes:
-            # Return early as the node is not on the path until the simulated node
+            # Return early as the node is not in the path leading to
+            # the simulated node.
             return False
 
         history_handler = AutomationHistoryHandler()
@@ -420,17 +447,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
-            now = timezone.now()
             error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
-            workflow_history.completed_on = now
-            workflow_history.message = error
-            workflow_history.status = HistoryStatusChoices.ERROR
-            workflow_history.save()
-
-            node_history.completed_on = now
-            node_history.message = error
-            node_history.status = HistoryStatusChoices.ERROR
-            node_history.save()
+            self._handle_workflow_error(node_history, error)
             return False
         except Exception as e:
             original_workflow = AutomationWorkflowHandler().get_original_workflow(
@@ -441,24 +459,15 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 f"Error: {str(e)}"
             )
             logger.exception(error)
-
-            now = timezone.now()
-            workflow_history.completed_on = now
-            workflow_history.message = error
-            workflow_history.status = HistoryStatusChoices.ERROR
-            workflow_history.save()
-
-            node_history.completed_on = now
-            node_history.message = error
-            node_history.status = HistoryStatusChoices.ERROR
-            node_history.save()
+            self._handle_workflow_error(node_history, error)
             return False
 
         # Find current iteration using current_iterations.
         iteration_index = 0
         parent_nodes = node.get_parent_nodes()
         if parent_nodes:
-            iteration_index = current_iterations[parent_nodes[-1].id]
+            # Use the normalized iteration index from the context.
+            iteration_index = dispatch_context.current_iterations[parent_nodes[-1].id]
 
         history_handler.create_node_result(
             node_history=node_history,
@@ -466,7 +475,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             iteration=iteration_index,
         )
 
-        # Return early if this is a simulated dispatch
+        # Return early if this is a simulation and we've reached the
+        # simulated node.
         if until_node := simulate_until_node:
             if until_node.id == node.id:
                 until_node.service.specific.refresh_from_db(fields=["sample_data"])
@@ -477,15 +487,12 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         if children := node.get_children():
             node_data = dispatch_result.data["results"]
 
+            # Simulations should always be sync. We only dispatch the first
+            # iteration of the children.
             if simulate_until_node:
-                iterations = [0]
-            else:
-                iterations = range(len(node_data))
-
-            for index in iterations:
                 child_iterations = {
                     **dispatch_context.current_iterations,
-                    node.id: index,
+                    node.id: 0,
                 }
                 for child in children:
                     simulation_completed = self.dispatch_node(
@@ -495,33 +502,106 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     )
                     if simulation_completed:
                         return True
+            else:
+                iterations = range(len(node_data))
+                # Build a chord per iteration and chain them sequentially.
+                iteration_chords = []
+                for index in iterations:
+                    child_iterations = {
+                        **dispatch_context.current_iterations,
+                        node.id: index,
+                    }
+                    iteration_chords.append(
+                        chord(
+                            # A group() runs the children in parallel.
+                            # We currently don't have parallel branch execution
+                            # so there is only one task in the group.
+                            group(
+                                # si() is an immutable signature that defines
+                                # a task to be scheduled later.
+                                [
+                                    dispatch_node_celery_task.si(
+                                        c.id, history_id, child_iterations
+                                    )
+                                    for c in children
+                                ]
+                            ),
+                            # No-op callback that is required by chord. When
+                            # it fires, the next link in the chain is scheduled
+                            # (i.e. the next iteration's chord).
+                            handle_node_dispatch_done.si(),
+                        )
+                    )
+
+                # chain() ensures that all the iterations are executed
+                # sequentially, i.e iteration 2 only starts after
+                # iteration 1 has completed.
+                canvas = chain(*iteration_chords)
+
+                # Add the next node after the iteration as the last group
+                # in the chain.
+                next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+                if next_nodes:
+                    canvas = chain(
+                        canvas,
+                        group(
+                            [
+                                dispatch_node_celery_task.si(n.id, history_id)
+                                for n in next_nodes
+                            ]
+                        ),
+                    )
+                else:
+                    # When there are no next nodes, we signal that the workflow
+                    # is complete and let the callback update the workflow state.
+                    canvas = chain(
+                        canvas,
+                        handle_node_dispatch_done.si(history_id=history_id),
+                    )
+
+                now = timezone.now()
+                node_history.completed_on = now
+                node_history.status = HistoryStatusChoices.SUCCESS
+                node_history.save()
+
+                return canvas
 
         now = timezone.now()
         node_history.completed_on = now
         node_history.status = HistoryStatusChoices.SUCCESS
         node_history.save()
 
+        # Handle non-iterator nodes, including iterator children.
         next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-        if not next_nodes and not current_iterations:
-            workflow_history.completed_on = now
-            workflow_history.status = HistoryStatusChoices.SUCCESS
-            workflow_history.save()
-            return False
+        if not next_nodes:
+            if not current_iterations:
+                workflow_history.completed_on = now
+                workflow_history.status = HistoryStatusChoices.SUCCESS
+                workflow_history.save()
+            # Return None so that the task completes, which will signal to the
+            # chord that this slot is done. When all slots in the group are
+            # done the callback will fire.
+            return None
 
-        for next_node in next_nodes:
-            if current_iterations:
-                simulation_completed = self.dispatch_node(
+        # Handle next nodes for simulation, which should happen sync.
+        if simulate_until_node:
+            for next_node in next_nodes:
+                result = self.dispatch_node(
                     next_node.id,
                     history_id,
                     current_iterations=current_iterations,
                 )
-                if simulation_completed:
+                if result is True:
                     return True
-            else:
-                dispatch_node_celery_task.delay(
-                    next_node.id,
-                    history_id,
-                    current_iterations=current_iterations,
-                )
+            # This is a defensive check as it should never be reached.
+            return None
 
-        return False
+        return chord(
+            group(
+                [
+                    dispatch_node_celery_task.si(n.id, history_id, current_iterations)
+                    for n in next_nodes
+                ]
+            ),
+            handle_node_dispatch_done.si(),
+        )

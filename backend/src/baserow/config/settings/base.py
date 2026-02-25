@@ -208,6 +208,12 @@ CELERY_REDBEAT_LOCK_TIMEOUT = os.getenv(
     "CELERY_REDBEAT_LOCK_TIMEOUT", CELERY_BEAT_MAX_LOOP_INTERVAL + 60
 )
 
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_RESULT_EXPIRES = int(
+    # default 1 hour
+    os.getenv("CELERY_RESULT_EXPIRES") or 3600
+)
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
