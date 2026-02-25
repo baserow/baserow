@@ -14,7 +14,8 @@ export const NodeSelectionExtension = Extension.create({
 
   addOptions() {
     return {
-      vueComponent: null,
+      onNodeSelected: null,
+      onNodeUnselected: null,
     }
   },
 
@@ -35,13 +36,10 @@ export const NodeSelectionExtension = Extension.create({
             this.storage.selectedNode = node
             this.storage.selectedNode.attrs.isSelected = true
 
-            const { vueComponent } = this.options
-            if (vueComponent) {
-              vueComponent.$emit('node-selected', {
-                node: this.storage.selectedNode,
-                path: this.storage.selectedNode.attrs?.path || null,
-              })
-            }
+            this.options.onNodeSelected?.({
+              node: this.storage.selectedNode,
+              path: this.storage.selectedNode.attrs?.path || null,
+            })
           }
 
           return true
@@ -52,12 +50,9 @@ export const NodeSelectionExtension = Extension.create({
           if (this.storage.selectedNode) {
             this.storage.selectedNode.attrs.isSelected = false
 
-            const { vueComponent } = this.options
-            if (vueComponent) {
-              vueComponent.$emit('node-unselected', {
-                node: this.storage.selectedNode,
-              })
-            }
+            this.options.onNodeUnselected?.({
+              node: this.storage.selectedNode,
+            })
 
             this.storage.selectedNode = null
           }

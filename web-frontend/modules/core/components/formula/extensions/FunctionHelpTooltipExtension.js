@@ -8,21 +8,23 @@ export const FunctionHelpTooltipExtension = Extension.create({
 
   addOptions() {
     return {
-      vueComponent: null,
       functionDefinitions: {},
       selector: '.function-name-highlight',
       showDelay: 120,
       hideDelay: 60,
+      onShowTooltip: null,
+      onHideTooltip: null,
     }
   },
 
   addProseMirrorPlugins() {
     const {
-      vueComponent,
       functionDefinitions,
       selector,
       showDelay,
       hideDelay,
+      onShowTooltip,
+      onHideTooltip,
     } = this.options
     let lastEl = null
     let lastName = null
@@ -40,8 +42,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
       showTimer = setTimeout(() => {
         const node = findFunctionNodeByName(fname)
         if (!node) return
-        vueComponent.hoveredFunctionNode = node
-        vueComponent.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
+        onShowTooltip?.(el, node)
         lastEl = el
         lastName = fname
       }, showDelay)
@@ -51,8 +52,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
       clearTimeout(showTimer)
       clearTimeout(hideTimer)
       hideTimer = setTimeout(() => {
-        vueComponent.$refs.nodeHelpTooltip?.hide()
-        vueComponent.hoveredFunctionNode = null
+        onHideTooltip?.()
         lastEl = null
         lastName = null
       }, hideDelay)

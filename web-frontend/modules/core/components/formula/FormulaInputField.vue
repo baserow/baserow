@@ -253,21 +253,39 @@ export default {
         History.configure({
           depth: 100,
         }),
-        FormulaInsertionExtension.configure({
-          vueComponent: this,
-        }),
-        NodeSelectionExtension.configure({
-          vueComponent: this,
-        }),
+        FormulaInsertionExtension,
+        NodeSelectionExtension,
         ContextManagementExtension.configure({
-          vueComponent: this,
-          contextPosition: this.contextPosition,
-          disabled: this.disabled,
-          readOnly: this.readOnly,
+          getState: () => ({
+            isFocused: this.isFocused,
+            disabled: this.disabled,
+            readOnly: this.readOnly,
+          }),
+          setFocused: (val) => {
+            this.isFocused = val
+          },
+          getRootEl: () => this.$el,
+          getContextEl: () => this.$refs.formulaInputContext?.$el,
+          showContextMenu: () => {
+            this.$nextTick(() => {
+              if (!this.isFocused) return
+              this.positionAndShowContext()
+            })
+          },
+          hideContextMenu: () => {
+            this.$refs.formulaInputContext?.hide()
+          },
         }),
         FunctionHelpTooltipExtension.configure({
-          vueComponent: this,
           functionDefinitions: this.formulaRegistry.definitions,
+          onShowTooltip: (el, node) => {
+            this.hoveredFunctionNode = node
+            this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
+          },
+          onHideTooltip: () => {
+            this.$refs.nodeHelpTooltip?.hide()
+            this.hoveredFunctionNode = null
+          },
         }),
         ...this.formulaComponents,
       ]
@@ -472,6 +490,62 @@ export default {
     },
     onContextMouseDown() {
       this.editor?.commands.handleContextMouseDown()
+    },
+    positionAndShowContext() {
+      let config
+      switch (this.contextPosition) {
+        case 'left':
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            needsDynamicOffset: true,
+          }
+          break
+        case 'right':
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            needsDynamicOffset: true,
+          }
+          break
+        case 'bottom':
+        default:
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            verticalOffset: 10,
+            horizontalOffset: 0,
+          }
+          break
+      }
+
+      const { vertical, horizontal } = config
+      let { verticalOffset = 0, horizontalOffset = 0 } = config
+
+      if (config.needsDynamicOffset) {
+        const inputRect = this.$el?.getBoundingClientRect()
+        const contextRect =
+          this.$refs.formulaInputContext?.$el?.getBoundingClientRect()
+
+        switch (this.contextPosition) {
+          case 'left':
+            verticalOffset = -inputRect?.height || 0
+            horizontalOffset = -(contextRect?.width || 0) - 10
+            break
+          case 'right':
+            verticalOffset = -inputRect?.height || 0
+            horizontalOffset = (inputRect?.width || 0) + 10
+            break
+        }
+      }
+
+      this.$refs.formulaInputContext?.show(
+        this.$refs.editor.$el,
+        vertical,
+        horizontal,
+        verticalOffset,
+        horizontalOffset
+      )
     },
     /**
      * The ANTLR lexer's INTEGER_LITERAL / NUMERIC_LITERAL rules include an
