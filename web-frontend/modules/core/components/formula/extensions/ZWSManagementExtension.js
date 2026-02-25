@@ -5,7 +5,7 @@ import {
   CONSECUTIVE_ZWS_REGEX,
   isZWSNode,
   zwsTextNode,
-} from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+} from '@baserow/modules/core/components/formula/extensions/helpers'
 
 /**
  * Extension that manages Zero-Width Spaces (ZWS) in the formula editor.

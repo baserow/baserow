@@ -1,7 +1,7 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
 import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
 import _ from 'lodash'
-import { ZWS, zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+import { ZWS, zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export class ToTipTapVisitor extends BaserowFormulaVisitor {
   constructor(functions, mode = 'simple') {

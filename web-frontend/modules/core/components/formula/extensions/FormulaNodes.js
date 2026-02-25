@@ -3,7 +3,7 @@ import { VueNodeViewRenderer } from '@tiptap/vue-3'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import FunctionFormulaComponent from '@baserow/modules/core/components/formula/FunctionFormulaComponent'
 import OperatorFormulaComponent from '@baserow/modules/core/components/formula/OperatorFormulaComponent'
-import { zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+import { zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export const GetFormulaComponentNode = Node.create({
   name: 'get-formula-component',

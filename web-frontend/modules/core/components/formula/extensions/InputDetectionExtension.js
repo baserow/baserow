@@ -5,8 +5,8 @@ import {
   buildParenStack,
   getTextBeforeCursor,
   findNextNonZWSNode,
+  zwsTextNode,
 } from '@baserow/modules/core/components/formula/extensions/helpers'
-import { zwsTextNode } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
 
 /**
  * Unified input detection extension that handles function calls,

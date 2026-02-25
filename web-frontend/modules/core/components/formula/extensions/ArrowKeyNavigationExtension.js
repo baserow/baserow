@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { TextSelection } from 'prosemirror-state'
-import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export const ArrowKeyNavigationExtension = Extension.create({
   name: 'arrowKeyNavigation',

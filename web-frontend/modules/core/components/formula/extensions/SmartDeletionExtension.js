@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core'
-import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/zwsHelpers'
+import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 /**
  * Extension that provides smart deletion behavior for atomic nodes.
