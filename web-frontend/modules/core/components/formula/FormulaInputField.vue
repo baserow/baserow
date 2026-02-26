@@ -9,7 +9,6 @@
         :class="classes"
         :editor="editor"
         :style="{ '--formula-placeholder': `'${placeholder}'` }"
-        @data-node-clicked="dataNodeClicked"
       />
     </div>
 
@@ -167,7 +166,7 @@ export default {
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'data-node-clicked'],
+  emits: ['input', 'update:mode'],
   data() {
     return {
       editor: null,
@@ -428,6 +427,8 @@ export default {
         },
       })
       this.isEditorInitialized = true
+
+      this.editor.on('data-node-clicked', this.dataNodeClicked)
     },
     recreateEditor(formula = null) {
       const currentFormula =
