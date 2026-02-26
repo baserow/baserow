@@ -53,6 +53,7 @@ import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/fo
 import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
 import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
+import { ParenMatchHighlightExtension } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
@@ -362,6 +363,7 @@ export default {
             operators: this.formulaRegistry.operators,
           })
         )
+        extensions.push(ParenMatchHighlightExtension)
       }
 
       return extensions

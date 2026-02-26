@@ -49,6 +49,20 @@ export const InputDetectionExtension = Extension.create({
       return stack.length > 0 ? stack[stack.length - 1] : null
     }
 
+    function areParensBalanced(doc, type) {
+      let openers = 0
+      let closers = 0
+      const openerName =
+        type === 'function' ? 'function-formula-component' : 'group-opening-paren'
+      const closerName =
+        type === 'function' ? 'function-closing-paren' : 'group-closing-paren'
+      doc.descendants((node) => {
+        if (node.type.name === openerName) openers++
+        else if (node.type.name === closerName) closers++
+      })
+      return openers <= closers
+    }
+
     function isInsideStringLiteral(doc, pos) {
       const contextStart = Math.max(0, pos - 200)
       const textBefore = doc.textBetween(contextStart, pos, ' ')
@@ -169,24 +183,35 @@ export const InputDetectionExtension = Extension.create({
       const { state } = view
       const { doc } = state
 
-      // Overtype: skip past an existing closing paren instead of
-      // inserting a duplicate that would corrupt the paren stack.
-      const next = findNextNonZWSNode(doc, from)
-      if (
-        next &&
-        (next.node.type.name === 'function-closing-paren' ||
-          next.node.type.name === 'group-closing-paren')
-      ) {
-        const tr = state.tr
-        const cursorPos = next.pos + next.node.nodeSize
-        tr.setSelection(TextSelection.create(tr.doc, cursorPos))
-        view.dispatch(tr)
-        return true
-      }
-
       if (isInsideStringLiteral(doc, from)) return false
 
       const stackTop = getParenStackTop(doc, from)
+
+      // Overtype: skip past an existing closing paren instead of inserting
+      // a duplicate. Three conditions must all be met:
+      //  1. The next non-ZWS node is a closing paren
+      //  2. Its type matches the stack top (function↔function, group↔group)
+      //  3. Parens of that type are balanced in the document (no missing closer)
+      const next = findNextNonZWSNode(doc, from)
+      if (next) {
+        const isMatchingFunction =
+          stackTop === 'function' &&
+          next.node.type.name === 'function-closing-paren'
+        const isMatchingGroup =
+          stackTop === 'group' &&
+          next.node.type.name === 'group-closing-paren'
+
+        if (
+          (isMatchingFunction || isMatchingGroup) &&
+          areParensBalanced(doc, stackTop)
+        ) {
+          const tr = state.tr
+          const cursorPos = next.pos + next.node.nodeSize
+          tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+          view.dispatch(tr)
+          return true
+        }
+      }
 
       if (stackTop === 'function') {
         const tr = state.tr
