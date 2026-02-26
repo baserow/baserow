@@ -44,7 +44,7 @@ dependencies = [
     "regex==2025.11.3",
     "antlr4-python3-runtime==4.9.3",
     "tqdm==4.67.1",
-    "boto3==1.42.21",
+    "boto3==1.42.57",
     "django-storages==1.14.6",
     "django-storages[azure]==1.14.6",
     "django-storages[google]==1.14.6",
