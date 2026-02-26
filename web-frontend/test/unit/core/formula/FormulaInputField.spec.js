@@ -79,10 +79,9 @@ describe('Advanced mode formula roundtrip', () => {
       functionCollection,
       'advanced'
     ).visit(tree)
-    const result = new FromTipTapVisitor(
-      functionCollection,
-      'advanced'
-    ).visit(tipTapContent)
+    const result = new FromTipTapVisitor(functionCollection, 'advanced').visit(
+      tipTapContent
+    )
     return result
   }
 

@@ -1,4 +1,7 @@
-import { ZWS, ZWS_REGEX } from '@baserow/modules/core/components/formula/extensions/helpers'
+import {
+  ZWS,
+  ZWS_REGEX,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
 
 const ZWS_MARKER = Symbol('zws_marker')
 

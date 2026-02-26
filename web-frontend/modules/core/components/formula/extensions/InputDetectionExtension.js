@@ -137,8 +137,7 @@ export const InputDetectionExtension = Extension.create({
 
       tr.replaceWith(functionStart, to, Fragment.from(nodesToInsert))
 
-      const cursorPos =
-        minArgs === 0 ? functionStart + 3 : functionStart + 2
+      const cursorPos = minArgs === 0 ? functionStart + 3 : functionStart + 2
       tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
       view.dispatch(tr)
@@ -204,8 +203,7 @@ export const InputDetectionExtension = Extension.create({
 
       if (stackTop === 'group') {
         const tr = state.tr
-        const closingNode =
-          state.schema.nodes['group-closing-paren'].create()
+        const closingNode = state.schema.nodes['group-closing-paren'].create()
         tr.replaceWith(from, to, closingNode)
         const cursorPos = from + 1
         tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
@@ -289,10 +287,7 @@ export const InputDetectionExtension = Extension.create({
       const $pos = doc.resolve(from)
       const nodeBefore = $pos.nodeBefore
 
-      if (
-        nodeBefore &&
-        nodeBefore.type.name === 'operator-formula-component'
-      ) {
+      if (nodeBefore && nodeBefore.type.name === 'operator-formula-component') {
         const potential = nodeBefore.attrs.operatorSymbol + typedText
         if (operators.includes(potential)) {
           operatorText = potential

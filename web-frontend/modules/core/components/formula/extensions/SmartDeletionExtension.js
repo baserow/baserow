@@ -50,8 +50,9 @@ export const SmartDeletionExtension = Extension.create({
             const nodeAfterSpace = $afterSpace.nodeAfter
 
             const deleteFrom = posOtherSideSpace - nodeOtherSideSpace.nodeSize
-            const deleteTo =
-              isZWSNode(nodeAfterSpace) ? from + nodeAfterSpace.nodeSize : from
+            const deleteTo = isZWSNode(nodeAfterSpace)
+              ? from + nodeAfterSpace.nodeSize
+              : from
 
             return { from: deleteFrom, to: deleteTo }
           }

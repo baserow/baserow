@@ -1,7 +1,10 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
 import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
 import _ from 'lodash'
-import { ZWS, zwsTextJSON } from '@baserow/modules/core/components/formula/extensions/helpers'
+import {
+  ZWS,
+  zwsTextJSON,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export class ToTipTapVisitor extends BaserowFormulaVisitor {
   constructor(functions, mode = 'simple') {
@@ -73,11 +76,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
    */
   _ensureStartsWithZWS(content) {
     const firstNode = content[0]
-    if (
-      !firstNode ||
-      firstNode.type !== 'text' ||
-      firstNode.text !== ZWS
-    ) {
+    if (!firstNode || firstNode.type !== 'text' || firstNode.text !== ZWS) {
       content.unshift(zwsTextJSON())
     }
   }
@@ -341,11 +340,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       node?.type === 'get-formula-component' ||
       node?.type === 'function-formula-component'
     ) {
-      return [
-        zwsTextJSON(),
-        node,
-        zwsTextJSON(),
-      ]
+      return [zwsTextJSON(), node, zwsTextJSON()]
     }
 
     // Early return: if it's already an array (e.g., concat with newlines)
