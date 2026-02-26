@@ -1,8 +1,7 @@
-import { Editor } from '@tiptap/core'
+import { Editor, Node } from '@tiptap/core'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { Paragraph } from '@tiptap/extension-paragraph'
-import { Node } from '@tiptap/core'
 import {
   ZWS,
   isZWSNode,
