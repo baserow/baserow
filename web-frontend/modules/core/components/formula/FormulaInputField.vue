@@ -586,7 +586,7 @@ export default {
           i + 1 < formula.length &&
           /\d/.test(formula[i + 1]) &&
           i > 0 &&
-          /[\)\d\w]/.test(formula[i - 1])
+          /[)\d\w]/.test(formula[i - 1])
         ) {
           result += ' - '
           continue
