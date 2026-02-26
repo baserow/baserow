@@ -42,6 +42,7 @@ const detectedLocale = useState('public-view-detected-locale', () => {
   return $i18n.getBrowserLocale() || $i18n.defaultLocale
 })
 $i18n.locale.value = detectedLocale.value
+await $i18n.loadLocaleMessages(detectedLocale.value)
 
 const { data, error } = await useAsyncData(
   `database-public-view-${route.params.slug}`,

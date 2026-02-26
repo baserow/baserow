@@ -66,6 +66,7 @@ const detectedLocale = useState('public-view-login-detected-locale', () => {
   return $i18n.getBrowserLocale() || $i18n.defaultLocale
 })
 $i18n.locale.value = detectedLocale.value
+await $i18n.loadLocaleMessages(detectedLocale.value)
 
 // Page title
 useHead({
