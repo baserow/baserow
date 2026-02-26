@@ -61,6 +61,7 @@ import GridViewFieldUUID from '@baserow/modules/database/components/view/grid/fi
 import GridViewFieldAutonumber from '@baserow/modules/database/components/view/grid/fields/GridViewFieldAutonumber'
 import GridViewFieldLastModifiedBy from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLastModifiedBy'
 import GridViewFieldPassword from '@baserow/modules/database/components/view/grid/fields/GridViewFieldPassword'
+import GridViewFieldFormViewEditRow from '@baserow/modules/database/components/view/grid/fields/GridViewFieldFormViewEditRow'
 
 import FunctionalGridViewFieldText from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldText'
 import FunctionalGridViewFieldDuration from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldDuration'
@@ -81,6 +82,7 @@ import FunctionalGridViewFieldUUID from '@baserow/modules/database/components/vi
 import FunctionalGridViewFieldAutonumber from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldAutonumber'
 import FunctionalGridViewFieldLastModifiedBy from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldLastModifiedBy'
 import FunctionalGridVIewFieldPassword from '@baserow/modules/database/components/view/grid/fields/FunctionalGridVIewFieldPassword.vue'
+import FunctionalGridViewFieldFormViewEditRow from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldFormViewEditRow'
 
 import RowEditFieldText from '@baserow/modules/database/components/row/RowEditFieldText'
 import RowEditFieldLongText from '@baserow/modules/database/components/row/RowEditFieldLongText'
@@ -103,6 +105,7 @@ import RowEditFieldUUID from '@baserow/modules/database/components/row/RowEditFi
 import RowEditFieldAutonumber from '@baserow/modules/database/components/row/RowEditFieldAutonumber'
 import RowEditFieldLastModifiedBy from '@baserow/modules/database/components/row/RowEditFieldLastModifiedBy'
 import RowEditFieldPassword from '@baserow/modules/database/components/row/RowEditFieldPassword'
+import RowEditFieldFormViewEditRow from '@baserow/modules/database/components/row/RowEditFieldFormViewEditRow'
 
 import RowCardFieldBoolean from '@baserow/modules/database/components/card/RowCardFieldBoolean'
 import RowCardFieldDate from '@baserow/modules/database/components/card/RowCardFieldDate'
@@ -124,6 +127,7 @@ import RowCardFieldUUID from '@baserow/modules/database/components/card/RowCardF
 import RowCardFieldAutonumber from '@baserow/modules/database/components/card/RowCardFieldAutonumber'
 import RowCardFieldLastModifiedBy from '@baserow/modules/database/components/card/RowCardFieldLastModifiedBy'
 import RowCardFieldPassword from '@baserow/modules/database/components/card/RowCardFieldPassword'
+import RowCardFieldFormViewEditRow from '@baserow/modules/database/components/card/RowCardFieldFormViewEditRow'
 
 import RowHistoryFieldText from '@baserow/modules/database/components/row/RowHistoryFieldText'
 import RowHistoryFieldRichText from '@baserow/modules/database/components/row/RowHistoryFieldRichText'
@@ -174,6 +178,7 @@ import { trueValues } from '@baserow/modules/core/utils/constants'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
+import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
 
 export class FieldType extends Registerable {
   /**
@@ -5002,5 +5007,92 @@ export class PasswordFieldType extends FieldType {
 
   getRowHistoryEntryComponent() {
     return RowHistoryFieldPassword
+  }
+}
+
+export class FormViewEditRowFieldType extends FieldType {
+  static getType() {
+    return 'form_view_edit_row'
+  }
+
+  static getIconClass() {
+    return 'iconoir-page-edit'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('fieldType.formViewEditRow')
+  }
+
+  getFormComponent() {
+    return FieldFormViewEditRowSubForm
+  }
+
+  getGridViewFieldComponent() {
+    return GridViewFieldFormViewEditRow
+  }
+
+  getFunctionalGridViewFieldComponent() {
+    return FunctionalGridViewFieldFormViewEditRow
+  }
+
+  getRowEditFieldComponent() {
+    return RowEditFieldFormViewEditRow
+  }
+
+  getCardComponent() {
+    return RowCardFieldFormViewEditRow
+  }
+
+  isReadOnlyField() {
+    return true
+  }
+
+  getDefaultValue() {
+    return null
+  }
+
+  getCanSortInView() {
+    return false
+  }
+
+  getCanGroupByInView() {
+    return false
+  }
+
+  getCanFilterInView() {
+    return false
+  }
+
+  getCanBePrimaryField() {
+    return false
+  }
+
+  canBeInFormView() {
+    return false
+  }
+
+  getDocsDataType() {
+    return 'string'
+  }
+
+  getDocsDescription() {
+    return this.app.$i18n.t('fieldDocs.formViewEditRow')
+  }
+
+  getDocsRequestExample() {
+    return 'https://baserow.io/form/slug/?edit_token=...'
+  }
+
+  toHumanReadableString(field, value) {
+    return value || ''
+  }
+
+  prepareValueForCopy(field, value) {
+    return value || ''
+  }
+
+  shouldFetchDataWhenAdded() {
+    return true
   }
 }

@@ -961,6 +961,17 @@ class PasswordField(Field):
     )
 
 
+class FormViewEditRowField(Field):
+    form_view = models.ForeignKey(
+        "database.FormView",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="edit_row_fields",
+        help_text="The form view that will be used to edit rows via this field.",
+    )
+
+
 class DuplicateFieldJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):

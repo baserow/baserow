@@ -9,7 +9,10 @@ from django.db.models.fields.related_descriptors import (
 )
 from django.utils.functional import cached_property
 
+from rest_framework import serializers
+
 from baserow.contrib.database.fields.utils.duration import duration_value_to_timedelta
+from baserow.contrib.database.fields.utils.row_edit import build_row_edit_url
 from baserow.contrib.database.formula import BaserowExpression
 from baserow.core.fields import SyncedDateTimeField
 
@@ -374,3 +377,41 @@ class SyncedUserForeignKeyField(IgnoreMissingForeignKey):
             kwargs.pop("editable", None)
             kwargs.pop("blank", None)
         return name, path, args, kwargs
+
+
+class FormViewEditRowURLSerializerField(serializers.Field):
+    """
+    A custom serializer field that computes a unique, secure edit URL for a
+    row. Instead of reading a stored column value, it uses the row's primary
+    key (``source='id'``) to generate the URL on the fly using signed tokens.
+    """
+
+    def __init__(self, field_instance, *args, **kwargs):
+        self.field_instance = field_instance
+        kwargs.setdefault("read_only", True)
+        kwargs["source"] = "id"
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, row_id: int) -> Optional[str]:
+        """
+        Convert the row PK into a full edit URL.
+
+        :param row_id: The primary key of the row.
+        :return: The edit URL, or ``None`` if no form view is configured.
+        """
+
+        if not self.field_instance.form_view_id:
+            return None
+        try:
+            form_view = self.field_instance.form_view
+        except Exception:
+            # The form view may have been deleted while the model cache still
+            # holds the old field instance (form_view_id is non-null but FK
+            # target is gone).
+            return None
+        if form_view is None:
+            return None
+        return build_row_edit_url(row_id, form_view, self.field_instance.id)
+
+    def to_internal_value(self, data):
+        raise serializers.ValidationError("This field is read-only.")

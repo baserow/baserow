@@ -14,6 +14,7 @@ def construct_all_possible_field_kwargs(
     decimal_link_table,
     file_link_table,
     multiple_collaborator_link_table,
+    form_view,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Some baserow field types have multiple different 'modes' which result in
@@ -299,6 +300,9 @@ def construct_all_possible_field_kwargs(
         "uuid": [{"name": "uuid"}],
         "autonumber": [{"name": "autonumber"}],
         "password": [{"name": "password"}],
+        "form_view_edit_row": [
+            {"name": "form_view_edit_row", "form_view_id": form_view.id}
+        ],
         "ai": [
             {
                 "name": "ai",

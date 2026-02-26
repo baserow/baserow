@@ -74,7 +74,7 @@ const form = ref(null)
 
 // Replaces asyncData from Nuxt2
 const { data, error } = await useAsyncData(
-  `database-public-form-${route.params.slug}`,
+  `database-public-form-${route.params.slug}-${route.query.edit_token || ''}`,
   async () => {
     const slug = route.params.slug
 
@@ -156,6 +156,22 @@ const { data, error } = await useAsyncData(
 
     await Promise.all(promises)
 
+    // If an edit token is present, prefill form with the existing row values so that
+    // the visit can update them.
+    const editToken = route.query.edit_token || null
+    if (editToken) {
+      try {
+        const { data: rowData } = await FormService($client).getEditRow(
+          slug,
+          editToken,
+          publicAuthToken
+        )
+        Object.assign(values, rowData)
+      } catch (e) {
+        throw createError({ statusCode: 404, message: 'Invalid edit token.' })
+      }
+    }
+
     // Sort fields immediately (SSR order)
     responseData.fields = responseData.fields.sort((a, b) => {
       if (a.order > b.order) return 1
@@ -177,6 +193,7 @@ const { data, error } = await useAsyncData(
       showLogo: responseData.show_logo,
       values,
       publicAuthToken,
+      editToken,
     }
   },
   // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
@@ -201,6 +218,8 @@ const fields = computed(() => data.value.fields || [])
 const mode = computed(() => data.value.mode)
 const showLogo = computed(() => data.value.showLogo)
 const publicAuthToken = computed(() => data.value.publicAuthToken)
+const editToken = computed(() => data.value.editToken || null)
+const isEditMode = computed(() => !!editToken.value)
 const values = ref(data.value.values)
 
 useHead(() => {
@@ -326,11 +345,24 @@ async function submit() {
 
   try {
     const slug = route.params.slug
-    const { data: submitResponse } = await FormService($client).submit(
-      slug,
-      submitValues,
-      publicAuthToken.value
-    )
+    let submitResponse = {}
+
+    if (isEditMode.value) {
+      const { data } = await FormService($client).submitEditRow(
+        slug,
+        editToken.value,
+        submitValues,
+        publicAuthToken.value
+      )
+      submitResponse = data
+    } else {
+      const { data } = await FormService($client).submit(
+        slug,
+        submitValues,
+        publicAuthToken.value
+      )
+      submitResponse = data
+    }
 
     submitted.value = true
     submitAction.value = submitResponse.submit_action

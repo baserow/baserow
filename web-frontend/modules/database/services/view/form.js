@@ -18,6 +18,19 @@ export default (client) => {
       const config = prepareRequestConfig({ publicAuthToken })
       return client.post(`/database/views/form/${slug}/submit/`, values, config)
     },
+    getEditRow(slug, editToken, publicAuthToken = null) {
+      const config = prepareRequestConfig({ publicAuthToken })
+      config.params = { edit_token: editToken }
+      return client.get(`/database/views/form/${slug}/edit-row/`, config)
+    },
+    submitEditRow(slug, editToken, values, publicAuthToken = null) {
+      const config = prepareRequestConfig({ publicAuthToken })
+      return client.patch(
+        `/database/views/form/${slug}/edit-row/`,
+        { edit_token: editToken, ...values },
+        config
+      )
+    },
     uploadFile(
       file,
       onUploadProgress = function () {},

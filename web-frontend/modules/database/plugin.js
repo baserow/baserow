@@ -39,6 +39,7 @@ import {
   UUIDFieldType,
   AutonumberFieldType,
   PasswordFieldType,
+  FormViewEditRowFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import {
   EqualViewFilterType,
@@ -691,6 +692,7 @@ export default defineNuxtPlugin({
     $registry.register('field', new UUIDFieldType(context))
     $registry.register('field', new AutonumberFieldType(context))
     $registry.register('field', new PasswordFieldType(context))
+    $registry.register('field', new FormViewEditRowFieldType(context))
 
     $registry.register(
       'fieldConstraint',

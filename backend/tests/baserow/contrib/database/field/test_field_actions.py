@@ -1403,6 +1403,10 @@ def test_can_undo_redo_duplicate_fields_of_interesting_table(api_client, data_fi
     assert table.field_set.count() == len(original_field_set) * 2
     for row in response_json["results"]:
         for field in original_field_set:
+            # The form_view_edit_row field embeds the field_id in its token,
+            # so the duplicated field will always produce a different URL.
+            if field.get_type().type == "form_view_edit_row":
+                continue
             row_1_value = extract_serialized_field_value(row[field.db_column])
             duplicated_field = duplicated_fields[field.id]
             row_2_value = extract_serialized_field_value(

@@ -164,6 +164,7 @@
     "singleSelectRadios": "Radios",
     "autonumber": "Autonumber",
     "password": "Password",
+    "formViewEditRow": "Edit row link",
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
     "multipleCollaboratorsCheckboxes": "Checkboxes"
@@ -213,7 +214,8 @@
     "multipleCollaborators": "Accepts an array of objects where each object contains a user's id.",
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
-    "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
+    "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
+    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
   },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"

@@ -235,6 +235,16 @@ const mockedFields = {
       ],
     ],
   },
+  form_view_edit_row: {
+    id: 27,
+    name: 'form_view_edit_row',
+    order: 15,
+    primary: false,
+    table_id: 42,
+    type: 'form_view_edit_row',
+    form_view_id: 1,
+    testing_row_data: [null, 'https://baserow.io/form/slug/?edit_token=abc'],
+  },
   formula: {
     id: 15,
     name: 'formula',

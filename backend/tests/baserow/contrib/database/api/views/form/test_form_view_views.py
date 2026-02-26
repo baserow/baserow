@@ -20,6 +20,8 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.utils.row_edit import generate_row_edit_token
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import (
     FormView,
@@ -3826,3 +3828,366 @@ def test_can_use_link_row_field_to_table_with_formula_as_primary_key_in_form_vie
     assert response.json()["row_id"] == 1
     assert response.json()["submit_action"] == "MESSAGE"
     assert response.json()["submit_action_message"] == ""
+
+
+@pytest.mark.django_db
+def test_edit_row_get_valid_token(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form_view, text_field, enabled=True, required=False
+    )
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={f"field_{text_field.id}": "Test value"},
+    )
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.get(url, {"edit_token": token})
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data[f"field_{text_field.id}"] == "Test value"
+
+
+@pytest.mark.django_db
+def test_edit_row_get_invalid_token(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    RowHandler().create_row(user=user, table=table, values={})
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.get(url, {"edit_token": "invalid-token"})
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_get_missing_row(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.get(url, {"edit_token": token})
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_updates_row(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form_view, text_field, enabled=True, required=False
+    )
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={f"field_{text_field.id}": "Original"},
+    )
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.patch(
+        url,
+        {"edit_token": token, f"field_{text_field.id}": "Updated"},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert "row_id" in data
+    assert data["row_id"] == row.id
+
+    model = table.get_model()
+    updated_row = model.objects.get(id=row.id)
+    assert getattr(updated_row, f"field_{text_field.id}") == "Updated"
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_invalid_token(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    RowHandler().create_row(user=user, table=table, values={})
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.patch(
+        url,
+        {"edit_token": "bad-token"},
+        format="json",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_missing_row(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.patch(
+        url,
+        {"edit_token": token},
+        format="json",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_only_visible_form_fields_are_writable(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    visible_field = data_fixture.create_text_field(
+        table=table, name="Visible", primary=True
+    )
+    hidden_field = data_fixture.create_text_field(table=table, name="Hidden")
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form_view, visible_field, enabled=True, required=False
+    )
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{visible_field.id}": "Original visible",
+            f"field_{hidden_field.id}": "Original hidden",
+        },
+    )
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.patch(
+        url,
+        {
+            "edit_token": token,
+            f"field_{visible_field.id}": "Updated visible",
+            f"field_{hidden_field.id}": "Attempt to change hidden",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    model = table.get_model()
+    updated = model.objects.get(id=row.id)
+    assert getattr(updated, f"field_{visible_field.id}") == "Updated visible"
+    assert getattr(updated, f"field_{hidden_field.id}") == "Original hidden"
+
+
+@pytest.mark.django_db
+def test_edit_row_get_token_for_wrong_view(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    other_form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    # Token is signed for form_view, but request targets other_form_view.
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    url = reverse(
+        "api:database:views:form:edit_row", kwargs={"slug": other_form_view.slug}
+    )
+    response = api_client.get(url, {"edit_token": token})
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_token_for_wrong_view(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+    other_form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    url = reverse(
+        "api:database:views:form:edit_row", kwargs={"slug": other_form_view.slug}
+    )
+    response = api_client.patch(url, {"edit_token": token}, format="json")
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_get_deleted_edit_field(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+
+    # Delete the field after generating the token.
+    FieldHandler().delete_field(user=user, field=edit_field_obj)
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.get(url, {"edit_token": token})
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_deleted_edit_field(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+
+    FieldHandler().delete_field(user=user, field=edit_field_obj)
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    response = api_client.patch(url, {"edit_token": token}, format="json")
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_edit_row_get_deleted_form_view(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    slug = form_view.slug
+
+    # Delete the form view after generating the token.
+    form_view.delete()
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": slug})
+    response = api_client.get(url, {"edit_token": token})
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_edit_row_patch_deleted_form_view(data_fixture, api_client):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field_obj = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    row = RowHandler().create_row(user=user, table=table, values={})
+
+    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    slug = form_view.slug
+
+    form_view.delete()
+
+    url = reverse("api:database:views:form:edit_row", kwargs={"slug": slug})
+    response = api_client.patch(url, {"edit_token": token}, format="json")
+    assert response.status_code == HTTP_404_NOT_FOUND
