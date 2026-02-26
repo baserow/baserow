@@ -340,7 +340,7 @@ requires-dist = [
     { name = "django-celery-beat", specifier = "==2.8.1" },
     { name = "django-celery-email-reboot", specifier = "==4.2.0" },
     { name = "django-cors-headers", specifier = "==4.9.0" },
-    { name = "django-cte", specifier = "==1.3.3" },
+    { name = "django-cte", specifier = "==3.0.0" },
     { name = "django-health-check", specifier = "==3.20.8" },
     { name = "django-redis", specifier = "==6.0.0" },
     { name = "django-storages", specifier = "==1.14.6" },
@@ -977,11 +977,14 @@ wheels = [
 
 [[package]]
 name = "django-cte"
-version = "1.3.3"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a0/56/951f6e176c83bf5e500ef7108c9e8de38785e249b62fa29be12b4c71c4eb/django-cte-1.3.3.tar.gz", hash = "sha256:0c1aeef067278a22886151c1d27f6f665a303952d058900e5ca82a24cde40697", size = 10931, upload-time = "2024-06-07T12:51:06.089Z" }
+dependencies = [
+    { name = "django", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/c0/64cda7c7b3e5641160a4c9dd1030b3a567592ba2b6c64f5303678a780084/django_cte-3.0.0.tar.gz", hash = "sha256:888710bb7109559621a34ab890f0f87d54188c9678f874e61e82112b59bbccb4", size = 11422, upload-time = "2026-02-05T13:08:53.427Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/02/a9d12e8c1cb767b2541bf7d759fbe713f84238f1c2bd22ed2ef3bed14606/django_cte-1.3.3-py2.py3-none-any.whl", hash = "sha256:85bbc3efb30c2f8c9ae3080ca6f0b9570e43d2cb4b6be10846c8ef9f046873fa", size = 11989, upload-time = "2024-06-07T12:51:04.827Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/8a/5fdf282b8496e485b007d48ac211a0e2b203b8623e67c32ed2cf65faedc4/django_cte-3.0.0-py3-none-any.whl", hash = "sha256:3eabb89b68d328a6a97c695a21f45ed6ee7a6602193670db74e70c2e17bf2cd5", size = 13211, upload-time = "2026-02-05T13:08:51.908Z" },
 ]
 
 [[package]]
