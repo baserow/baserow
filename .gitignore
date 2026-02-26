@@ -136,6 +136,7 @@ out/
 
 # Claude Code local settings
 .claude/settings.local.md
+.claude/worktrees/
 
 # Personal justfile recipes (not tracked)
 local.just

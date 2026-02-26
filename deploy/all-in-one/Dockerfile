@@ -3,7 +3,7 @@ ARG GID="9999"
 
 ARG BACKEND_IMAGE=baserow/backend
 ARG WEBFRONTEND_IMAGE=baserow/web-frontend
-ARG CADDY_VERSION=2.10.2
+ARG CADDY_VERSION=2.11.1
 # hadolint ignore=DL3006
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
