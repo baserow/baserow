@@ -1,8 +1,0 @@
-[tool.black]
-exclude = '''
-/(
-  | migrations
-  | generated
-)/
-
-'''

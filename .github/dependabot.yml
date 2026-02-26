@@ -6,7 +6,7 @@ updates:
   # Note: We only monitor directories with actual dependencies declared.
   # /enterprise/web-frontend and /premium/web-frontend are excluded because
   # they currently have no dependencies in their package.json files.
-  # /integrations/zapier and /plugin-boilerplate are excluded intentionally.
+  # /integrations/zapier is excluded intentionally.
 
   - package-ecosystem: "npm"
     directory: "/web-frontend"
