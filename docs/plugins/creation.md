@@ -16,10 +16,8 @@ that the boilerplate is outdated and only compatible with version 2.0.6 and lowe
 To instantiate the template, execute the following commands:
 
 ```sh
-$ git clone https://github.com/baserow/plugin-boilerplate.git
-$ cd plugin-boilerplate
 $ pip install cookiecutter
-$ cookiecutter gl:baserow/baserow --directory plugin-boilerplate
+$ $ cookiecutter https://github.com/baserow/plugin-boilerplate.git
 ```
 
 ## Get inspiration from our examples
