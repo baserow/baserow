@@ -41,7 +41,9 @@ def handle_workflow_dispatch_done(
     """
 
     if simulate_until_node_id:
-        AutomationWorkflowHistory.objects.filter(id=simulate_until_node_id).delete()
+        AutomationWorkflowHistory.objects.filter(
+            simulate_until_node_id=simulate_until_node_id
+        ).delete()
 
     if history_id:
         AutomationWorkflowHistory.objects.filter(id=history_id).update(
