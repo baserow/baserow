@@ -117,7 +117,7 @@ class BaseGraphHandler(ABC):
         return self.graph[str(point_id)]
 
     @abstractmethod
-    def _get_point_map(self) -> Dict[int, GraphPoint]:
+    def get_point_map(self) -> Dict[int, GraphPoint]:
         """
         Must be implemented by child classes. This method should return an object
         mapping, where the key is the graph point's ID, and the value is the model
@@ -133,10 +133,10 @@ class BaseGraphHandler(ABC):
         :return: The model instance corresponding to the given graph point ID.
         """
 
-        if int(point_id) not in self._get_point_map():
+        if int(point_id) not in self.get_point_map():
             raise self.does_not_exist_exception(point_id)
 
-        return self._get_point_map()[int(point_id)]
+        return self.get_point_map()[int(point_id)]
 
     def get_point_at_position(
         self,
