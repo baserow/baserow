@@ -102,14 +102,6 @@ Unlike proprietary tools like Airtable, Baserow gives you **full data ownership*
 **infinite scalability**, and **no vendor lock-in** — all while keeping the simplicity
 of a spreadsheet interface.
 
-## Plugin development
-
-Because of the modular architecture of Baserow it is possible to create plugins. Make
-your own fields, views, applications, pages, or endpoints. We also have a plugin
-boilerplate to get you started right away. More information can be found in the
-[plugin introduction](./docs/plugins/introduction.md) and in the
-[plugin boilerplate docs](./docs/plugins/boilerplate.md).
-
 ## Meta
 
 Created by Baserow B.V. - bram@baserow.io.

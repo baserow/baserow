@@ -1,9 +1,6 @@
 ## Testing
 
-Our Heroku image builds directly from our all-in-one image in Dockerhub. If you want
-to customize your Baserow Heroku install we recommend you make a Baserow plugin using
-the boilerplate guide in our docs. Then to install it change heroku.Dockerfile and
-add the install_plugin command as described in the plugins introduction doc.
+Our Heroku image builds directly from our all-in-one image in Dockerhub.
 
 In order to test your changes, you need to have the Heroku command line installed on
 your local machine. Next, you can use the Heroku command line to create an app,
