@@ -49,7 +49,7 @@ dependencies = [
     "django-storages[azure]==1.14.6",
     "django-storages[google]==1.14.6",
     "django-health-check==3.20.8",
-    "psutil==7.2.1",
+    "psutil==7.2.2",
     "dj-database-url==3.1.0",
     "redis==6.4.0",
     "pgvector==0.4.2",
