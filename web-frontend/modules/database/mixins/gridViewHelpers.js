@@ -45,20 +45,23 @@ export default {
       return this.$store.getters['page/view/public/getIsPublic']
     },
     activeGroupBys() {
-      const groupBys =
-        this.$store.getters[this.storePrefix + 'view/grid/getActiveGroupBys']
-      // Exclude hidden fields that are used for groupBy and are not
-      // available on public views
-      const allFields = this.$props.allFieldsInTable
-      if (allFields) {
-        return groupBys.filter((groupBy) =>
-          allFields.some((f) => f.id === groupBy.field)
-        )
-      }
-      return groupBys
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getActiveGroupBys'
+      ]
     },
   },
   methods: {
+    /**
+     * Resolves the field object for a group_by. Falls back to embedded metadata
+     * from the group_by object when the field is hidden in public views.
+     */
+    getGroupByField(groupBy) {
+      const field = this.$store.getters['field/getAll'].find(
+        (f) => f.id === groupBy.field
+      )
+      if (field) return field
+      return groupBy.field_object
+    },
     getFieldWidth(field) {
       const fieldId = field?.id
       const hasFieldOptions =

@@ -20,7 +20,7 @@
       >
         <GridViewGroup
           :group-by="groupBy"
-          :all-fields-in-table="allFieldsInTable"
+          :field="getGroupByField(groupBy)"
           :value="groupSpan.value"
           :count="groupSpan.count"
         ></GridViewGroup>

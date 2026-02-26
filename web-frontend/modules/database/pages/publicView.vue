@@ -9,6 +9,7 @@
         :fields="fields"
         :view="view"
         :read-only="true"
+        :disable-group-by="true"
         :table-loading="false"
         :store-prefix="'page/'"
       ></Table>

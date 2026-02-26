@@ -19,8 +19,8 @@ export default {
       type: Object,
       required: true,
     },
-    allFieldsInTable: {
-      type: Array,
+    field: {
+      type: Object,
       required: true,
     },
     value: {
@@ -33,21 +33,9 @@ export default {
     },
   },
   computed: {
-    field() {
-      return this.getField(this.allFieldsInTable, this.groupBy)
-    },
     groupByComponent() {
-      return this.getGroupByComponent(this.field, this)
-    },
-  },
-  methods: {
-    getField(allFieldsInTable, groupBy) {
-      const field = allFieldsInTable.find((f) => f.id === groupBy.field)
-      return field
-    },
-    getGroupByComponent(field, parent) {
-      const fieldType = parent.$registry.get('field', field.type)
-      return fieldType.getGroupByComponent(field)
+      const fieldType = this.$registry.get('field', this.field.type)
+      return fieldType.getGroupByComponent(this.field)
     },
   },
 }

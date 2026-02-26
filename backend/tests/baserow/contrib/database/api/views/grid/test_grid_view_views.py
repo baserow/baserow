@@ -3242,8 +3242,11 @@ def test_get_public_grid_view(api_client, data_fixture):
         view=grid_view, field=public_field, order="DESC"
     )
 
-    # This group by shouldn't be exposed as it is for a hidden field
-    data_fixture.create_view_group_by(view=grid_view, field=hidden_field, order="ASC")
+    # Group bys should be exposed even for hidden fields, because hiding a field
+    # should not remove its group by in the public view.
+    hidden_group_by = data_fixture.create_view_group_by(
+        view=grid_view, field=hidden_field, order="ASC"
+    )
     visible_group_by = data_fixture.create_view_group_by(
         view=grid_view, field=public_field, order="DESC"
     )
@@ -3290,7 +3293,6 @@ def test_get_public_grid_view(api_client, data_fixture):
             "public": True,
             "slug": grid_view.slug,
             "sortings": [
-                # Note the sorting for the hidden field is not returned
                 {
                     "field": visible_sort.field.id,
                     "id": visible_sort.id,
@@ -3300,7 +3302,35 @@ def test_get_public_grid_view(api_client, data_fixture):
                 }
             ],
             "group_bys": [
-                # Note the group by for the hidden field is not returned
+                # Group bys for hidden fields ARE returned with field
+                # metadata so public views can still render group headers.
+                {
+                    "field": hidden_group_by.field.id,
+                    "id": hidden_group_by.id,
+                    "order": "ASC",
+                    "view": grid_view.slug,
+                    "width": 200,
+                    "type": "default",
+                    "field_type": "text",
+                    "field_name": "hidden",
+                    "field_object": {
+                        "id": hidden_field.id,
+                        "table_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "name": "hidden",
+                        "order": 0,
+                        "primary": False,
+                        "text_default": "",
+                        "type": "text",
+                        "read_only": False,
+                        "description": None,
+                        "immutable_properties": False,
+                        "immutable_type": False,
+                        "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "db_index": False,
+                        "field_constraints": [],
+                    },
+                },
                 {
                     "field": visible_group_by.field.id,
                     "id": visible_group_by.id,
@@ -3308,7 +3338,26 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
-                }
+                    "field_type": "text",
+                    "field_name": "public",
+                    "field_object": {
+                        "id": public_field.id,
+                        "table_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "name": "public",
+                        "order": 0,
+                        "primary": False,
+                        "text_default": "",
+                        "type": "text",
+                        "read_only": False,
+                        "description": None,
+                        "immutable_properties": False,
+                        "immutable_type": False,
+                        "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                        "db_index": False,
+                        "field_constraints": [],
+                    },
+                },
             ],
             "table": {
                 "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
@@ -3873,6 +3922,73 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+
+
+@pytest.mark.django_db
+def test_list_rows_public_with_query_param_group_by_hidden_field_with_stored_group_by(
+    api_client, data_fixture
+):
+    """
+    When a hidden field has a stored ViewGroupBy, grouping by that field via
+    query param should succeed. The group_by should work even when the field
+    column is hidden.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    public_field = data_fixture.create_text_field(table=table, name="public")
+    hidden_field = data_fixture.create_text_field(table=table, name="hidden")
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
+
+    # Create a stored group_by on the hidden field
+    data_fixture.create_view_group_by(view=grid_view, field=hidden_field, order="ASC")
+
+    first_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "a", "hidden": "y"},
+        user_field_names=True,
+    )
+    second_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "b", "hidden": "x"},
+        user_field_names=True,
+    )
+    third_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "c", "hidden": "y"},
+        user_field_names=True,
+    )
+
+    url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
+    )
+    response = api_client.get(
+        f"{url}?group_by=field_{hidden_field.id}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json["results"]) == 3
+    # Rows should be sorted by hidden field: "x" first, then "y", "y"
+    assert response_json["results"][0]["id"] == second_row.id
+    assert response_json["results"][1]["id"] == first_row.id
+    assert response_json["results"][2]["id"] == third_row.id
+    assert response_json["group_by_metadata"] == {
+        f"field_{hidden_field.id}": unordered(
+            [
+                {"count": 1, f"field_{hidden_field.id}": "x"},
+                {"count": 2, f"field_{hidden_field.id}": "y"},
+            ]
+        )
+    }
+    # The hidden field values should be included in the row data for grouping
+    assert f"field_{hidden_field.id}" in response_json["results"][0]
 
 
 @pytest.mark.django_db

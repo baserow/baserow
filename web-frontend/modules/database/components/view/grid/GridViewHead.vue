@@ -153,12 +153,10 @@ export default {
   computed: {
     activeGroupBysWithFields() {
       if (!this.includeGroupBy) return []
-      return this.activeGroupBys
-        .map((groupBy) => ({
-          groupBy,
-          field: this.allFieldsInTable.find((f) => f.id === groupBy.field),
-        }))
-        .filter(({ field }) => field !== undefined)
+      return this.activeGroupBys.map((groupBy) => ({
+        groupBy,
+        field: this.getGroupByField(groupBy),
+      }))
     },
   },
   methods: {
