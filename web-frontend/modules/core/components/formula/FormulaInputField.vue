@@ -81,6 +81,56 @@ import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
+/**
+ * The ANTLR lexer's INTEGER_LITERAL / NUMERIC_LITERAL rules include an
+ * optional leading '-', so the lexer greedily tokenizes e.g. ")-200" as
+ * CLOSE_PAREN INTEGER_LITERAL(-200) instead of CLOSE_PAREN MINUS
+ * INTEGER_LITERAL(200). This inserts a space before '-' when it acts as a
+ * binary operator (preceded by a character that ends an expression) so the
+ * lexer produces a separate MINUS token.
+ */
+export function disambiguateMinusOperator(formula) {
+  let result = ''
+  let inString = false
+  let quoteChar = null
+
+  for (let i = 0; i < formula.length; i++) {
+    const ch = formula[i]
+
+    if (inString) {
+      result += ch
+      if (ch === '\\' && i + 1 < formula.length) {
+        result += formula[++i]
+      } else if (ch === quoteChar) {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === "'" || ch === '"') {
+      inString = true
+      quoteChar = ch
+      result += ch
+      continue
+    }
+
+    if (
+      ch === '-' &&
+      i + 1 < formula.length &&
+      /\d/.test(formula[i + 1]) &&
+      i > 0 &&
+      /[)\d\w]/.test(formula[i - 1])
+    ) {
+      result += ' - '
+      continue
+    }
+
+    result += ch
+  }
+
+  return result
+}
+
 export default {
   name: 'FormulaInputField',
   components: {
@@ -548,55 +598,6 @@ export default {
         horizontalOffset
       )
     },
-    /**
-     * The ANTLR lexer's INTEGER_LITERAL / NUMERIC_LITERAL rules include an
-     * optional leading '-', so the lexer greedily tokenizes e.g. ")-200" as
-     * CLOSE_PAREN INTEGER_LITERAL(-200) instead of CLOSE_PAREN MINUS
-     * INTEGER_LITERAL(200). This inserts a space before '-' when it acts as a
-     * binary operator (preceded by a character that ends an expression) so the
-     * lexer produces a separate MINUS token.
-     */
-    disambiguateMinusOperator(formula) {
-      let result = ''
-      let inString = false
-      let quoteChar = null
-
-      for (let i = 0; i < formula.length; i++) {
-        const ch = formula[i]
-
-        if (inString) {
-          result += ch
-          if (ch === '\\' && i + 1 < formula.length) {
-            result += formula[++i]
-          } else if (ch === quoteChar) {
-            inString = false
-          }
-          continue
-        }
-
-        if (ch === "'" || ch === '"') {
-          inString = true
-          quoteChar = ch
-          result += ch
-          continue
-        }
-
-        if (
-          ch === '-' &&
-          i + 1 < formula.length &&
-          /\d/.test(formula[i + 1]) &&
-          i > 0 &&
-          /[)\d\w]/.test(formula[i - 1])
-        ) {
-          result += ' - '
-          continue
-        }
-
-        result += ch
-      }
-
-      return result
-    },
     toContent(formula) {
       if (!formula) {
         return {
@@ -612,7 +613,7 @@ export default {
 
       try {
         const tree = parseBaserowFormula(
-          this.disambiguateMinusOperator(formula)
+          disambiguateMinusOperator(formula)
         )
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
