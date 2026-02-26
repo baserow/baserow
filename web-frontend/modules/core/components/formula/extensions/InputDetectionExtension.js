@@ -53,7 +53,9 @@ export const InputDetectionExtension = Extension.create({
       let openers = 0
       let closers = 0
       const openerName =
-        type === 'function' ? 'function-formula-component' : 'group-opening-paren'
+        type === 'function'
+          ? 'function-formula-component'
+          : 'group-opening-paren'
       const closerName =
         type === 'function' ? 'function-closing-paren' : 'group-closing-paren'
       doc.descendants((node) => {
@@ -198,8 +200,7 @@ export const InputDetectionExtension = Extension.create({
           stackTop === 'function' &&
           next.node.type.name === 'function-closing-paren'
         const isMatchingGroup =
-          stackTop === 'group' &&
-          next.node.type.name === 'group-closing-paren'
+          stackTop === 'group' && next.node.type.name === 'group-closing-paren'
 
         if (
           (isMatchingFunction || isMatchingGroup) &&

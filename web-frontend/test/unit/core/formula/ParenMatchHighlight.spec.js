@@ -217,7 +217,15 @@ describe('collectDOMParenPairs', () => {
     // if's closer is missing
     const g2c = createGroupCloser()
     const g1c = createGroupCloser()
-    const root = createContainer(g1, g2, ifOpen, todayOpen, todayClose, g2c, g1c)
+    const root = createContainer(
+      g1,
+      g2,
+      ifOpen,
+      todayOpen,
+      todayClose,
+      g2c,
+      g1c
+    )
 
     const pairs = collectDOMParenPairs(root)
     // today() should be paired
