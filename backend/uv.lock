@@ -459,12 +459,12 @@ dev = [
 
 [[package]]
 name = "baserow-enterprise"
-version = "2.1.1"
+version = "2.1.2"
 source = { editable = "../enterprise/backend" }
 
 [[package]]
 name = "baserow-premium"
-version = "2.1.1"
+version = "2.1.2"
 source = { editable = "../premium/backend" }
 
 [[package]]
