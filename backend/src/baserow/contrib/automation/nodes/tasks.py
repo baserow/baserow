@@ -16,8 +16,8 @@ def dispatch_node_celery_task(
     from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
     # The atomic context should only wrap the dispatch_node() call. If
-    # it wraps `raise self.replace()`, the `raise` will cause a rollback,
-    # which would cause the node result to not be persisted.
+    # it also wraps `self.replace()`, which internally raises `Ignore`,
+    # the rollback will cause the node result to not be persisted.
     @atomic_with_retry_on_deadlock()
     def _dispatch():
         return AutomationNodeHandler().dispatch_node(
@@ -31,9 +31,9 @@ def dispatch_node_celery_task(
     # When result is a Signature (chord, group, etc), it represents the next
     # node that needs to be dispatched as an async task.
     #
-    # We call `self.replace()` which internally calls `.delay()` on the
-    # signature; this schedules the signature (next node) to be picked up
-    # by a worker (which again calls dispatch_node_celery_task). The `raise`
-    # tells Celery to replace the current task.
+    # We call `self.replace()` which internally calls `.delay()` then
+    # raises `Ignore` to signal to Celery that the current task should be
+    # replaced. This results in the signature (next node) to be picked up
+    # by a worker (which again calls dispatch_node_celery_task).
     if isinstance(result, Signature):
-        raise self.replace(result)
+        return self.replace(result)
