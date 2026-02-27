@@ -1,28 +1,28 @@
 dependencies:
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: baserow
   repository: file://charts/baserow-common
-  version: 1.0.45
+  version: 1.0.46
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 19.5.5
