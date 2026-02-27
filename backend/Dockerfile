@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.4
+ARG PYTHON_BASE_IMAGE="python:3.14.3-slim-trixie"
 ARG UID="9999"
 ARG GID="9999"
 
@@ -28,7 +29,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # Production base builder stage: builds runtime dependencies only
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS builder-prod-base
+FROM ${PYTHON_BASE_IMAGE} AS builder-prod-base
 ARG UID
 ARG GID
 
@@ -174,7 +175,7 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
 # =============================================================================
 # CI Target - lightweight image for pytest and E2E tests
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS ci
+FROM ${PYTHON_BASE_IMAGE} AS ci
 ARG UID
 ARG GID
 
@@ -221,7 +222,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-
 # Only works mounting the source code as a bind mount. See docker-compose.dev.yml for usage.
 # =============================================================================
 
-FROM python:3.14.3-slim-trixie AS dev
+FROM ${PYTHON_BASE_IMAGE} AS dev
 ARG UID="9999"
 ARG GID="9999"
 
@@ -320,7 +321,7 @@ CMD ["django-dev"]
 # =============================================================================
 # Production target
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS local
+FROM ${PYTHON_BASE_IMAGE} AS local
 ARG UID
 ARG GID
 
