@@ -1,5 +1,17 @@
 # Changelog
 
+## Released 2.1.3
+
+### Bug fixes
+* [Core] Install tzdata-legacy in all-in-one image for timezones removed after the upgrade to trixie.
+
+### Refactors
+* [Core] Upgrade redis-server in all-in-one image to resolve CVEs
+
+### Breaking API changes
+* [Core] Remove outdated plugin boilerplate.
+
+
 ## Released 2.1.2
 
 ### Bug fixes
