@@ -43,6 +43,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     xmlsec1 \
     gettext \
     tini \
+    tzdata-legacy \
     && \
     # Setup user and group with fixed UID/GID for volume permission consistency
     getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}" && \
