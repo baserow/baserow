@@ -10,9 +10,8 @@ from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.core.db import atomic_with_retry_on_deadlock
 
 
-@app.task(bind=True, queue="automation_workflow")
+@app.task(queue="automation_workflow")
 def start_workflow_celery_task(
-    self,
     workflow_id: int,
     event_payload: Optional[Union[Dict, List[Dict]]],
     simulate_until_node_id: Optional[int] = None,
@@ -31,7 +30,10 @@ def start_workflow_celery_task(
     result = _start()
 
     if isinstance(result, Signature):
-        return self.replace(result)
+        # Schedule the workflow to be executed. We use delay() here instead of
+        # replace() because replace internally calls `result.get()` which isn't
+        # allowed in eager mode (which is used by tests).
+        result.delay()
 
 
 @app.task
