@@ -1013,7 +1013,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             history.save()
             return
 
-        chain(
+        return chain(
             dispatch_node_celery_task.si(
                 workflow.get_trigger().id,
                 history.id,
@@ -1022,4 +1022,4 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 history_id=history.id if not simulate_until_node_id else None,
                 simulate_until_node_id=simulate_until_node_id,
             ),
-        )()
+        )
