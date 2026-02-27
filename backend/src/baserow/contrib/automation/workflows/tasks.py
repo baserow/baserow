@@ -46,7 +46,13 @@ def handle_workflow_dispatch_done(
         ).delete()
 
     if history_id:
-        AutomationWorkflowHistory.objects.filter(id=history_id).update(
+        # Only update the history if it's still started.
+        # If the workflow history was marked as failed by a specific node, we
+        # don't want to overwrite it.
+        AutomationWorkflowHistory.objects.filter(
+            id=history_id,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
             status=HistoryStatusChoices.SUCCESS,
             completed_on=timezone.now(),
         )

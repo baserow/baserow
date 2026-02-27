@@ -1092,3 +1092,40 @@ def test_dispatch_node_dispatches_router_edge_simulation(
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is False
     )
+
+
+@pytest.mark.django_db
+def test_dispatch_node_sets_workflow_history_error(data_fixture):
+    """
+    Ensure that when a node raises an error, the workflow history status
+    is correctly set to ERROR.
+    """
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+
+    # Trigger dispatches successfully
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert isinstance(result, Signature)
+
+    # Cause the action node to fail by unsetting its table
+    action_node.service.specific.table = None
+    action_node.service.specific.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        action_node.id,
+        history_id=workflow_history.id,
+    )
+    assert result is None
+
+    # chord callback shouldn't overwrite ERROR with SUCCESS
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert "No table selected" in workflow_history.message
