@@ -107,9 +107,8 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Upgrade OS packages to patch CVEs in base image
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get upgrade -y --no-install-recommends
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV DOCKER_USER=baserow_docker_user \
     APP_ENV=test \
@@ -261,9 +260,8 @@ COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
 
 # Upgrade OS packages to patch CVEs in base image
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get upgrade -y --no-install-recommends 
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Remove npm (not needed at runtime) to eliminate CVEs in its bundled deps (minimatch, glob, etc.)
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx

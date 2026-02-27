@@ -178,13 +178,12 @@ FROM python:3.14.3-slim-trixie AS ci
 ARG UID
 ARG GID
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && \
+RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     gettext \
-    xmlsec1
+    xmlsec1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="backend" \
@@ -321,9 +320,11 @@ CMD ["django-dev"]
 # =============================================================================
 # Production target
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS local 
+FROM python:3.14.3-slim-trixie AS local
 ARG UID
 ARG GID
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV POSTGRES_VERSION=15 \
     DOCKER_USER=baserow_docker_user \
@@ -334,10 +335,8 @@ ENV POSTGRES_VERSION=15 \
     PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src" \
     DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 
-# Runtime dependencies only - this layer is always cached
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && \
+# Runtime dependencies only
+RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends curl ca-certificates gnupg \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg \
@@ -346,7 +345,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     xmlsec1 \
     gettext \
-    postgresql-client-${POSTGRES_VERSION}
+    postgresql-client-${POSTGRES_VERSION} \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
       useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
