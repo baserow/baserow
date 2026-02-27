@@ -110,12 +110,13 @@
   margin-left: 4px;
 }
 
-// Spacing between closing parentheses and operators
-.formula-input-field__parenthesis[data-formula-closing-paren='true'],
-.formula-input-field__group-parenthesis[data-group-closing-paren='true'] {
-  &:has(+ .operator-formula-component) {
-    margin-right: 4px;
-  }
+// Spacing between closing parens and operators, and between operators and functions
+:is(
+  .formula-input-field__parenthesis[data-formula-closing-paren='true'],
+  .formula-input-field__group-parenthesis[data-group-closing-paren='true']
+):has(+ .operator-formula-component),
+.operator-formula-component:has(+ .function-formula-component) {
+  margin-right: 4px;
 }
 
 // Remove right padding for function components with no arguments
