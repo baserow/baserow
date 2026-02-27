@@ -183,7 +183,7 @@ class AutomationNodeFixtures:
             **kwargs,
         )
 
-    def iterator_graph_fixture(self):
+    def iterator_graph_fixture(self, create_after_iteration_node: bool = True):
         """
         Fixture that creates the following graph:
         - trigger_node
@@ -293,18 +293,24 @@ class AutomationNodeFixtures:
             value=f'get("current_iteration.{iterator_node.id}.item.{trigger_table_fields[1].name}")',
         )
 
-        after_iteration_node = self.create_local_baserow_create_row_action_node(
-            workflow=workflow,
-            reference_node=iterator_node,
-            position="south",
-            output="",
-            label="After iterator",
-            service_kwargs={"table": after_iteration_table, "integration": integration},
-        )
-        after_iteration_node.service.specific.field_mappings.create(
-            field=after_iteration_table_fields[0],
-            value=f'get("previous_node.{iterator_node.id}.*.{trigger_table_fields[0].name}")',
-        )
+        if create_after_iteration_node:
+            after_iteration_node = self.create_local_baserow_create_row_action_node(
+                workflow=workflow,
+                reference_node=iterator_node,
+                position="south",
+                output="",
+                label="After iterator",
+                service_kwargs={
+                    "table": after_iteration_table,
+                    "integration": integration,
+                },
+            )
+            after_iteration_node.service.specific.field_mappings.create(
+                field=after_iteration_table_fields[0],
+                value=f'get("previous_node.{iterator_node.id}.*.{trigger_table_fields[0].name}")',
+            )
+        else:
+            after_iteration_node = None
 
         return {
             "workflow": workflow,

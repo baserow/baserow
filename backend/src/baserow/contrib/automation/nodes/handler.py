@@ -502,8 +502,9 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                     ),
                 )
 
-            canvas = chain(*groups_to_chain)
-            to_chain.append(canvas)
+            if groups_to_chain:
+                canvas = chain(*groups_to_chain)
+                to_chain.append(canvas)
 
         now = timezone.now()
         node_history.completed_on = now

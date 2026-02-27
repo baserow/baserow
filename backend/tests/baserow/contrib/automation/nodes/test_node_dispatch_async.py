@@ -1129,3 +1129,47 @@ def test_dispatch_node_sets_workflow_history_error(data_fixture):
     workflow_history.refresh_from_db()
     assert workflow_history.status == HistoryStatusChoices.ERROR
     assert "No table selected" in workflow_history.message
+
+
+@pytest.mark.django_db
+def test_dispatch_node_iterator_with_no_rows(data_fixture):
+    """
+    This test ensures that when the iterator node receives no nodes,
+    an empty chain is not created (which would cause a crash).
+    """
+
+    # We want an Iterator node with no next-nodes. This is to ensure that when
+    # an iterator receives no rows, it doesn't create an empty chain.
+    data = data_fixture.iterator_graph_fixture(create_after_iteration_node=False)
+    trigger_node = data["trigger_node"]
+    trigger_table_fields = data["trigger_table_fields"]
+    iterator_node = data["iterator_node"]
+    iterator_child_1_node = data["iterator_child_1_node"]
+
+    # Create workflow history with 0 rows in the event payload.
+    original_workflow = AutomationWorkflowHandler().get_original_workflow(
+        trigger_node.workflow
+    )
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        event_payload={
+            "results": [],
+            "has_next_page": False,
+        },
+    )
+
+    # Dispatch the trigger.
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert_dispatches_next_node(result, (iterator_node, workflow_history, None))
+
+    # Dispatch the iterator.
+    result = AutomationNodeHandler().dispatch_node(
+        iterator_node.id,
+        history_id=workflow_history.id,
+    )
+    # Ensure we never return an empty chain, which would cause
+    # self.replace() to crash with an error.
+    assert result is None
