@@ -221,8 +221,26 @@ class JiraIssuesDataSyncType(DataSyncType):
         except ValueError:
             raise SyncError(f"The date {value} could not be parsed.")
 
+    def _get_issue_count(self, instance, jql, headers, kwargs):
+        """Get approximate issue count for progress tracking."""
+
+        url = f"{instance.jira_url}/rest/api/2/search/approximate-count"
+        try:
+            response = advocate.post(
+                url,
+                headers={**headers, "Content-Type": "application/json"},
+                json={"jql": jql},
+                timeout=10,
+                **kwargs,
+            )
+            if response.ok:
+                return response.json().get("count", 0)
+        except (RequestException, UnacceptableAddressException, ConnectionError):
+            pass
+        return 0
+
     def _fetch_issues(self, instance, progress_builder: ChildProgressBuilder):
-        headers = {"Content-Type": "application/json"}
+        headers = {"Accept": "application/json"}
         kwargs = {}
 
         if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN:
@@ -234,21 +252,35 @@ class JiraIssuesDataSyncType(DataSyncType):
             )
 
         issues = []
-        start_at = 0
         max_results = 50
-        progress = None
+        next_page_token = None
+
+        if instance.jira_project_key:
+            jql = f"project={instance.jira_project_key} ORDER BY created DESC"
+        else:
+            jql = "created IS NOT EMPTY ORDER BY created DESC"
+
+        issue_count = self._get_issue_count(instance, jql, headers, kwargs)
+        page_count = math.ceil(issue_count / max_results) if issue_count > 0 else 0
+        progress = ChildProgressBuilder.build(
+            progress_builder, child_total=page_count + 1
+        )
+        progress.increment(by=1)
+
         try:
             while True:
-                url = (
-                    f"{instance.jira_url}"
-                    + f"/rest/api/2/search"
-                    + f"?startAt={start_at}"
-                    + f"&maxResults={max_results}"
-                )
-                if instance.jira_project_key:
-                    url += f"&jql=project={instance.jira_project_key}"
+                url = f"{instance.jira_url}/rest/api/2/search/jql"
+                params = {
+                    "jql": jql,
+                    "maxResults": max_results,
+                    "fields": "*all",
+                }
+                if next_page_token:
+                    params["nextPageToken"] = next_page_token
 
-                response = advocate.get(url, headers=headers, timeout=10, **kwargs)
+                response = advocate.get(
+                    url, headers=headers, params=params, timeout=10, **kwargs
+                )
                 if not response.ok:
                     try:
                         json = response.json()
@@ -262,25 +294,18 @@ class JiraIssuesDataSyncType(DataSyncType):
 
                 data = response.json()
 
-                # The response of any request gives us the total, allowing us to
-                # properly construct a progress bar.
-                if data["total"] and progress is None:
-                    progress = ChildProgressBuilder.build(
-                        progress_builder,
-                        child_total=math.ceil(data["total"] / max_results),
-                    )
-                if progress:
-                    progress.increment(by=1)
+                progress.increment(by=1)
 
-                if len(data["issues"]) == 0 and start_at == 0:
+                if len(data["issues"]) == 0 and next_page_token is None:
                     raise SyncError(
                         "No issues found. This is usually because the authentication "
                         "details are wrong."
                     )
 
                 issues.extend(data["issues"])
-                start_at += max_results
-                if data["total"] <= start_at:
+
+                next_page_token = data.get("nextPageToken")
+                if not next_page_token:
                     break
         except (RequestException, UnacceptableAddressException, ConnectionError) as e:
             raise SyncError(f"Error connecting to Jira: {str(e)}")
