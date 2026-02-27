@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Upgrade sentry to resolve a CVE in minimatch",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-02-27"
+}
