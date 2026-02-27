@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.4
+ARG NODE_BASE_IMAGE="node:24.14.0-trixie-slim"
 ARG UID="9999"
 ARG GID="9999"
 
@@ -27,7 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # CI builder stage
 # =============================================================================
-FROM node:24.13.0-trixie-slim AS builder-ci
+FROM ${NODE_BASE_IMAGE} AS builder-ci
 ARG UID
 ARG GID
 
@@ -51,7 +52,7 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
 # =============================================================================
 # Production builder stage
 # =============================================================================
-FROM node:24.13.0-trixie-slim AS builder-prod
+FROM ${NODE_BASE_IMAGE} AS builder-prod
 ARG UID
 ARG GID
 
@@ -99,11 +100,16 @@ FROM busybox:musl AS busybox-helper
 # =============================================================================
 # CI target - used in CI pipelines
 # =============================================================================
-FROM node:24.13.0-trixie-slim AS ci
+FROM ${NODE_BASE_IMAGE} AS ci
 ARG UID
 ARG GID
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Upgrade OS packages to patch CVEs in base image
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get upgrade -y --no-install-recommends
 
 ENV DOCKER_USER=baserow_docker_user \
     APP_ENV=test \
@@ -150,7 +156,7 @@ CMD ["nuxt-prod"]
 # =============================================================================
 # Development target - used for local development with live reload
 # =============================================================================
-FROM node:24.13.0-trixie-slim AS dev
+FROM ${NODE_BASE_IMAGE} AS dev
 ARG UID
 ARG GID
 
@@ -238,7 +244,7 @@ CMD ["nuxt-dev"]
 # =============================================================================
 # Production target - minimal image with only runtime requirements
 # =============================================================================
-FROM node:24.13.0-trixie-slim AS local
+FROM ${NODE_BASE_IMAGE} AS local
 ARG UID
 ARG GID
 
@@ -254,8 +260,13 @@ COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=busybox-helper /bin/wget /usr/local/bin/wget
 
-# Update npm to patch CVEs in its bundled deps (glob, tar, @isaacs/brace-expansion)
-RUN npm install -g npm@latest
+# Upgrade OS packages to patch CVEs in base image
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get upgrade -y --no-install-recommends 
+
+# Remove npm (not needed at runtime) to eliminate CVEs in its bundled deps (minimatch, glob, etc.)
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
