@@ -2,7 +2,7 @@ name: Update Database Team Project Fields
 
 env:
   PROJECT_NUMBER: '3'
-  DOMAIN_LABELS: '["domain::database", "domain::core"]'
+  DOMAIN_LABELS: '["domain::database"]'
   STATUS_FIELD_NAME: 'Status'
   STATUS_TODO: 'Todo'
 

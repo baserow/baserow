@@ -2,7 +2,7 @@ name: Database Team PR Automation
 
 env:
   PROJECT_NUMBER: '3'
-  DOMAIN_LABELS: '["domain::database", "domain::core"]'
+  DOMAIN_LABELS: '["domain::database"]'
   STATUS_FIELD_NAME: 'Status'
   REVIEW_STATUS_FIELD_NAME: 'Review Status'
   STATUS_IN_PROGRESS: 'In Progress'
