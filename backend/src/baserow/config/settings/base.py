@@ -1332,15 +1332,15 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    # Exclude the langchain integration from auto-discovery: its module-level
-    # imports are incompatible with Python 3.14 (langchain/pydantic type
-    # evaluation crash), and the import happens before disabled_integrations
-    # can take effect.
+    # Exclude integrations whose module-level imports are incompatible:
+    # - langchain: Python 3.14 type evaluation crash
+    # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
+    #   removed in pydantic-ai >= 1.x (now execute_tool_call)
 
     _sentry_integrations._AUTO_ENABLING_INTEGRATIONS[:] = [
         entry
         for entry in _sentry_integrations._AUTO_ENABLING_INTEGRATIONS
-        if "langchain" not in entry
+        if "langchain" not in entry and "pydantic_ai" not in entry
     ]
 
     SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
