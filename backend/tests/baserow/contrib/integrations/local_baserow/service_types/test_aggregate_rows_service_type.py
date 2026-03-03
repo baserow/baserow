@@ -241,7 +241,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_table(data_fixture):
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
     assert service_type.dispatch_transform(result) == DispatchResult(
-        data="20", status=200, output_uid=""
+        data={"result": "20"}, status=200, output_uid=""
     )
 
 
@@ -284,7 +284,7 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
     assert service_type.dispatch_transform(result) == DispatchResult(
-        data="20", status=200, output_uid=""
+        data={"result": "20"}, status=200, output_uid=""
     )
 
 
