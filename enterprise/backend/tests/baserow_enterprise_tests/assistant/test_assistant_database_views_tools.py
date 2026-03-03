@@ -1,91 +1,36 @@
-from unittest.mock import Mock
-
 import pytest
-from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.tools.database.tools import (
-    get_list_views_tool,
-    get_views_tool_factory,
+    create_view_filters,
+    create_views,
+    list_views,
 )
 from baserow_enterprise.assistant.tools.database.types import (
-    BooleanIsViewFilterItemCreate,
-    CalendarViewItemCreate,
-    DateAfterViewFilterItemCreate,
-    DateBeforeViewFilterItemCreate,
-    DateEqualsViewFilterItemCreate,
-    DateNotEqualsViewFilterItemCreate,
     FormFieldOption,
-    FormViewItemCreate,
-    GalleryViewItemCreate,
-    GridViewItemCreate,
-    KanbanViewItemCreate,
-    MultipleSelectIsAnyViewFilterItemCreate,
-    MultipleSelectIsNoneOfNotViewFilterItemCreate,
-    NumberEqualsViewFilterItemCreate,
-    NumberHigherThanViewFilterItemCreate,
-    NumberLowerThanViewFilterItemCreate,
-    NumberNotEqualsViewFilterItemCreate,
-    SingleSelectIsAnyViewFilterItemCreate,
-    SingleSelectIsNoneOfNotViewFilterItemCreate,
-    TextContainsViewFilterItemCreate,
-    TextEqualViewFilterItemCreate,
-    TextNotContainsViewFilterItemCreate,
-    TextNotEqualViewFilterItemCreate,
-    TimelineViewItemCreate,
+    ViewItemCreate,
 )
 from baserow_enterprise.assistant.tools.database.types.base import Date
 from baserow_enterprise.assistant.tools.database.types.view_filters import (
+    BooleanFilterConfig,
+    DateFilterConfig,
+    MultipleSelectFilterConfig,
+    NumberFilterConfig,
+    SingleSelectFilterConfig,
+    TextFilterConfig,
+    ViewFilterItemCreate,
     ViewFiltersArgs,
 )
+from baserow_enterprise.assistant.tools.database.types.views import (
+    CalendarConfig,
+    FormConfig,
+    GalleryConfig,
+    GridConfig,
+    KanbanConfig,
+    TimelineConfig,
+)
 
-from .utils import fake_tool_helpers
-
-
-def get_create_views_tool(user, workspace):
-    """Helper to get the create_views tool from the factory"""
-
-    factory = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
-
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_views_tool = next(
-        (tool for tool in added_tools if tool.name == "create_views"), None
-    )
-    assert create_views_tool is not None
-    return create_views_tool
-
-
-def get_create_view_filters_tool(user, workspace):
-    """Helper to get the create_view_filters tool from the factory"""
-
-    factory = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
-
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_filters_tool = next(
-        (tool for tool in added_tools if tool.name == "create_view_filters"), None
-    )
-    assert create_filters_tool is not None
-    return create_filters_tool
+from .utils import make_test_ctx
 
 
 @pytest.mark.django_db
@@ -96,23 +41,25 @@ def test_list_views_tool(data_fixture):
     table = data_fixture.create_database_table(database=database)
     view = data_fixture.create_grid_view(table=table, name="View 1", order=1)
 
-    tool = get_list_views_tool(user, workspace, fake_tool_helpers)
-    response = tool(table_id=table.id)
+    ctx = make_test_ctx(user, workspace)
+    response = list_views(ctx, thought="test", table_id=table.id)
 
     assert response == {
         "views": [
             {
                 "id": view.id,
                 "name": "View 1",
-                "type": "grid",
-                "row_height": "small",
                 "public": False,
+                "config": {
+                    "type": "grid",
+                    "row_height": "small",
+                },
             }
         ]
     }
 
     view_2 = data_fixture.create_grid_view(table=table, name="View 2", order=2)
-    response = tool(table_id=table.id)
+    response = list_views(ctx, thought="test", table_id=table.id)
     assert len(response["views"]) == 2
     assert response["views"][0]["name"] == "View 1"
     assert response["views"][1]["name"] == "View 2"
@@ -125,12 +72,16 @@ def test_create_grid_view(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            GridViewItemCreate(
-                type="grid", name="Grid View", public=False, row_height="medium"
+            ViewItemCreate(
+                name="Grid View",
+                public=False,
+                config=GridConfig(type="grid", row_height="medium"),
             )
         ],
     )
@@ -148,15 +99,16 @@ def test_create_kanban_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     single_select = data_fixture.create_single_select_field(table=table, name="Status")
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            KanbanViewItemCreate(
-                type="kanban",
+            ViewItemCreate(
                 name="Kanban View",
                 public=False,
-                column_field_id=single_select.id,
+                config=KanbanConfig(type="kanban", column_field_id=single_select.id),
             )
         ],
     )
@@ -174,15 +126,16 @@ def test_create_calendar_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     date_field = data_fixture.create_date_field(table=table, name="Date")
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            CalendarViewItemCreate(
-                type="calendar",
+            ViewItemCreate(
                 name="Calendar View",
                 public=False,
-                date_field_id=date_field.id,
+                config=CalendarConfig(type="calendar", date_field_id=date_field.id),
             )
         ],
     )
@@ -200,15 +153,16 @@ def test_create_gallery_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     file_field = data_fixture.create_file_field(table=table, name="Files")
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            GalleryViewItemCreate(
-                type="gallery",
+            ViewItemCreate(
                 name="Gallery View",
                 public=False,
-                cover_field_id=file_field.id,
+                config=GalleryConfig(type="gallery", cover_field_id=file_field.id),
             )
         ],
     )
@@ -227,16 +181,20 @@ def test_create_timeline_view(data_fixture):
     start_date = data_fixture.create_date_field(table=table, name="Start Date")
     end_date = data_fixture.create_date_field(table=table, name="End Date")
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            TimelineViewItemCreate(
-                type="timeline",
+            ViewItemCreate(
                 name="Timeline View",
                 public=False,
-                start_date_field_id=start_date.id,
-                end_date_field_id=end_date.id,
+                config=TimelineConfig(
+                    type="timeline",
+                    start_date_field_id=start_date.id,
+                    end_date_field_id=end_date.id,
+                ),
             )
         ],
     )
@@ -254,30 +212,34 @@ def test_create_form_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table, name="Name", primary=True)
 
-    tool = get_create_views_tool(user, workspace)
-    response = tool.func(
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
         table_id=table.id,
         views=[
-            FormViewItemCreate(
-                type="form",
+            ViewItemCreate(
                 name="Form View",
                 public=True,
-                title="Contact Form",
-                description="Fill out this form",
-                submit_button_label="Submit",
-                receive_notification_on_submit=False,
-                submit_action="MESSAGE",
-                submit_action_message="Thank you!",
-                submit_action_redirect_url="",
-                field_options=[
-                    FormFieldOption(
-                        field_id=field.id,
-                        name="Your Name",
-                        description="Enter your name",
-                        required=True,
-                        order=1,
-                    )
-                ],
+                config=FormConfig(
+                    type="form",
+                    title="Contact Form",
+                    description="Fill out this form",
+                    submit_button_label="Submit",
+                    receive_notification_on_submit=False,
+                    submit_action="MESSAGE",
+                    submit_action_message="Thank you!",
+                    submit_action_redirect_url="",
+                    field_options=[
+                        FormFieldOption(
+                            field_id=field.id,
+                            name="Your Name",
+                            description="Enter your name",
+                            required=True,
+                            order=1,
+                        )
+                    ],
+                ),
             )
         ],
     )
@@ -297,23 +259,31 @@ def test_create_text_equal_filter(data_fixture):
     field = data_fixture.create_text_field(table=table, name="Name")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    TextEqualViewFilterItemCreate(
-                        field_id=field.id, type="text", operator="equal", value="test"
+                    ViewFilterItemCreate(
+                        field_id=field.id,
+                        config=TextFilterConfig(
+                            type="text", operator="equal", value="test"
+                        ),
                     )
                 ],
             )
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
     assert len(response["created_view_filters"][0]["filters"]) == 1
-    assert response["created_view_filters"][0]["filters"][0]["operator"] == "equal"
+    assert (
+        response["created_view_filters"][0]["filters"][0]["config"]["operator"]
+        == "equal"
+    )
     assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
 
 
@@ -326,21 +296,23 @@ def test_create_text_not_equal_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    TextNotEqualViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="text",
-                        operator="not_equal",
-                        value="test",
+                        config=TextFilterConfig(
+                            type="text", operator="not_equal", value="test"
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -356,21 +328,23 @@ def test_create_text_contains_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    TextContainsViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="text",
-                        operator="contains",
-                        value="test",
+                        config=TextFilterConfig(
+                            type="text", operator="contains", value="test"
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -386,21 +360,23 @@ def test_create_text_not_contains_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    TextNotContainsViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="text",
-                        operator="contains_not",
-                        value="test",
+                        config=TextFilterConfig(
+                            type="text", operator="contains_not", value="test"
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -419,18 +395,23 @@ def test_create_number_equal_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    NumberEqualsViewFilterItemCreate(
-                        field_id=field.id, type="number", operator="equal", value=42.0
+                    ViewFilterItemCreate(
+                        field_id=field.id,
+                        config=NumberFilterConfig(
+                            type="number", operator="equal", value=42.0, or_equal=False
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -446,21 +427,26 @@ def test_create_number_not_equal_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    NumberNotEqualsViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="number",
-                        operator="not_equal",
-                        value=42.0,
+                        config=NumberFilterConfig(
+                            type="number",
+                            operator="not_equal",
+                            value=42.0,
+                            or_equal=False,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -476,18 +462,22 @@ def test_create_number_higher_than_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    NumberHigherThanViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="number",
-                        operator="higher_than",
-                        value=10.0,
-                        or_equal=False,
+                        config=NumberFilterConfig(
+                            type="number",
+                            operator="higher_than",
+                            value=10.0,
+                            or_equal=False,
+                        ),
                     )
                 ],
             )
@@ -509,22 +499,26 @@ def test_create_number_lower_than_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    NumberLowerThanViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="number",
-                        operator="lower_than",
-                        value=100.0,
-                        or_equal=False,
+                        config=NumberFilterConfig(
+                            type="number",
+                            operator="lower_than",
+                            value=100.0,
+                            or_equal=False,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -541,22 +535,27 @@ def test_create_date_equal_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    DateEqualsViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="date",
-                        operator="equal",
-                        value=Date(year=2024, month=1, day=15),
-                        mode="exact_date",
+                        config=DateFilterConfig(
+                            type="date",
+                            operator="equal",
+                            value=Date(year=2024, month=1, day=15),
+                            mode="exact_date",
+                            or_equal=False,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -572,22 +571,27 @@ def test_create_date_not_equal_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    DateNotEqualsViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="date",
-                        operator="not_equal",
-                        value=None,
-                        mode="today",
+                        config=DateFilterConfig(
+                            type="date",
+                            operator="not_equal",
+                            value=None,
+                            mode="today",
+                            or_equal=False,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -605,23 +609,27 @@ def test_create_date_after_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    DateAfterViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="date",
-                        operator="after",
-                        value=7,
-                        mode="nr_days_ago",
-                        or_equal=False,
+                        config=DateFilterConfig(
+                            type="date",
+                            operator="after",
+                            value=7,
+                            mode="nr_days_ago",
+                            or_equal=False,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -639,23 +647,27 @@ def test_create_date_before_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    DateBeforeViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="date",
-                        operator="before",
-                        value=None,
-                        mode="tomorrow",
-                        or_equal=True,
+                        config=DateFilterConfig(
+                            type="date",
+                            operator="before",
+                            value=None,
+                            mode="tomorrow",
+                            or_equal=True,
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -676,21 +688,25 @@ def test_create_single_select_is_any_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Option 2")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    SingleSelectIsAnyViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="single_select",
-                        operator="is_any_of",
-                        value=["Option 1", "Option 2"],
+                        config=SingleSelectFilterConfig(
+                            type="single_select",
+                            operator="is_any_of",
+                            value=["Option 1", "Option 2"],
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -709,21 +725,25 @@ def test_create_single_select_is_none_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Bad Option")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    SingleSelectIsNoneOfNotViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="single_select",
-                        operator="is_none_of",
-                        value=["Bad Option"],
+                        config=SingleSelectFilterConfig(
+                            type="single_select",
+                            operator="is_none_of",
+                            value=["Bad Option"],
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -742,18 +762,23 @@ def test_create_boolean_is_true_filter(data_fixture):
     field = data_fixture.create_boolean_field(table=table, name="Active")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    BooleanIsViewFilterItemCreate(
-                        field_id=field.id, type="boolean", operator="is", value=True
+                    ViewFilterItemCreate(
+                        field_id=field.id,
+                        config=BooleanFilterConfig(
+                            type="boolean", operator="is", value=True
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -769,18 +794,23 @@ def test_create_boolean_is_false_filter(data_fixture):
     field = data_fixture.create_boolean_field(table=table, name="Active")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    BooleanIsViewFilterItemCreate(
-                        field_id=field.id, type="boolean", operator="is", value=False
+                    ViewFilterItemCreate(
+                        field_id=field.id,
+                        config=BooleanFilterConfig(
+                            type="boolean", operator="is", value=False
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -799,21 +829,25 @@ def test_create_multiple_select_is_any_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Tag 2")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    MultipleSelectIsAnyViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="multiple_select",
-                        operator="is_any_of",
-                        value=["Tag 1", "Tag 2"],
+                        config=MultipleSelectFilterConfig(
+                            type="multiple_select",
+                            operator="is_any_of",
+                            value=["Tag 1", "Tag 2"],
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -832,21 +866,25 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Bad Tag")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_create_view_filters_tool(user, workspace)
-    response = tool.func(
-        [
+    ctx = make_test_ctx(user, workspace)
+    response = create_view_filters(
+        ctx,
+        thought="test",
+        view_filters=[
             ViewFiltersArgs(
                 view_id=view.id,
                 filters=[
-                    MultipleSelectIsNoneOfNotViewFilterItemCreate(
+                    ViewFilterItemCreate(
                         field_id=field.id,
-                        type="multiple_select",
-                        operator="is_none_of",
-                        value=["Bad Tag"],
+                        config=MultipleSelectFilterConfig(
+                            type="multiple_select",
+                            operator="is_none_of",
+                            value=["Bad Tag"],
+                        ),
                     )
                 ],
             ),
-        ]
+        ],
     )
     assert len(response["created_view_filters"]) == 1
     assert ViewFilter.objects.filter(
