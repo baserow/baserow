@@ -66,6 +66,24 @@ BASEROW_MAX_ROW_REPORT_ERROR_COUNT = 10  # To trigger this exception easily
 post_migrate.connect(setup_dev_e2e, dispatch_uid="setup_dev_e2e")
 
 
+# Mirror logs to a file when BASEROW_LOG_FILE is set (e.g. for AI access when
+# running locally). Truncated on each restart.
+BASEROW_LOG_FILE = os.getenv("BASEROW_LOG_FILE", "")
+if BASEROW_LOG_FILE:
+    LOGGING["handlers"]["file"] = {  # noqa: F405
+        "class": "logging.FileHandler",
+        "filename": BASEROW_LOG_FILE,
+        "formatter": "console",
+        "mode": "w",
+    }
+    LOGGING["root"]["handlers"].append("file")  # noqa: F405
+
+    # Also route loguru to the same file so modules using loguru (e.g.
+    # the assistant telemetry) appear alongside stdlib log output.
+    from loguru import logger as _loguru_logger
+
+    _loguru_logger.add(BASEROW_LOG_FILE, mode="a")
+
 try:
     from .local import *  # noqa: F403, F401
 except ImportError:
