@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
+from django.db.models import Q
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -1241,17 +1242,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
                 )
 
-        if instance:
-            # Based on the schedule we've been given, calculate
-            # when the next scheduled run will be.
-            instance.next_run_at = calculate_next_periodic_run(
-                interval=instance.interval,
-                minute=instance.minute,
-                hour=instance.hour,
-                day_of_week=instance.day_of_week,
-                day_of_month=instance.day_of_month,
-            )
-
         return super().prepare_values(values, user, instance)
 
     def can_immediately_be_tested(self, service):
@@ -1286,10 +1276,25 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         super().stop_listening()
         self._cancel_periodic_task()
 
-    def _get_payload(self, service: Service) -> Dict[str, str]:
+    def _get_dispatch_payload(self, service: CorePeriodicService) -> Dict[str, str]:
         return {
             "triggered_at": service.last_periodic_run.isoformat(),
             "next_run_at": service.next_run_at.isoformat(),
+        }
+
+    def _get_simulation_payload(self, service: CorePeriodicService) -> Dict[str, str]:
+        now = timezone.now().replace(second=0, microsecond=0)
+        next_run = calculate_next_periodic_run(
+            interval=service.interval,
+            minute=service.minute,
+            hour=service.hour,
+            day_of_week=service.day_of_week,
+            day_of_month=service.day_of_month,
+            from_time=now,
+        )
+        return {
+            "triggered_at": now.isoformat(),
+            "next_run_at": next_run.isoformat(),
         }
 
     def dispatch_data(
@@ -1311,7 +1316,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         if dispatch_context.event_payload is not None:
             return dispatch_context.event_payload
 
-        return self._get_payload(service)
+        return self._get_simulation_payload(service)
 
     def call_periodic_services_that_are_due(self):
         """
@@ -1322,9 +1327,11 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         # Truncate to minute precision for consistent comparisons
         now = timezone.now().replace(second=0, microsecond=0)
 
-        # Find all services where next_run_at <= now
+        # Find all services where next_run_at <= now OR next_run_at is NULL.
         periodic_services_due = (
-            CorePeriodicService.objects.filter(next_run_at__lte=now)
+            CorePeriodicService.objects.filter(
+                Q(next_run_at__lte=now) | Q(next_run_at__isnull=True)
+            )
             .select_for_update(
                 of=("self",),
                 skip_locked=True,
@@ -1334,7 +1341,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         )
 
         # After execution, calculate the next run time for each service
-        triggered_services = []
+        calculated_periodic_services_due = []
         for service in periodic_services_due:
             # Calculate next run from the current `next_run_at` (not from 'now').
             # This prevents drift even if the service runs late.
@@ -1348,7 +1355,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             # - The next run would technically be scheduled for 10:01:00, but that time
             #   is also in the past. So we keep advancing until we find a future time
             #  (10:06:00 in this case).
-            next_run = service.next_run_at
+            next_run = service.next_run_at or now
             while next_run <= now:
                 next_run = calculate_next_periodic_run(
                     interval=service.interval,
@@ -1361,17 +1368,34 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
             service.next_run_at = next_run
             service.last_periodic_run = now
-            triggered_services.append(service)
+            calculated_periodic_services_due.append(service)
 
-        if triggered_services:
-            CorePeriodicService.objects.bulk_update(
-                triggered_services, ["next_run_at", "last_periodic_run"]
-            )
+        print(
+            f"\n{len(calculated_periodic_services_due)} periodic services are due to run."
+        )
+
+        periodic_services_dispatched = []
+
+        def _after_service_dispatch(
+            dispatched_service: CorePeriodicService,
+        ) -> Dict[str, str]:
+            print("Dispatched periodic service with id", dispatched_service.id)
+            periodic_services_dispatched.append(dispatched_service)
+            return self._get_dispatch_payload(dispatched_service)
 
         self.on_event(
-            triggered_services,
-            lambda s: self._get_payload(s),
+            calculated_periodic_services_due,
+            _after_service_dispatch,
         )
+
+        print(
+            f"{len(periodic_services_dispatched)} periodic services were dispatched.\n"
+        )
+
+        if periodic_services_dispatched:
+            CorePeriodicService.objects.bulk_update(
+                periodic_services_dispatched, ["next_run_at", "last_periodic_run"]
+            )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"
