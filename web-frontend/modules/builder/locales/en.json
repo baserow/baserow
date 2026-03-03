@@ -192,6 +192,9 @@
     "moveRight": "Move right",
     "selectParent": "Select parent"
   },
+  "elementPreview": {
+    "dragToReorder": "Drag to reorder"
+  },
   "duplicatePageJobType": {
     "name": "Duplicate page",
     "duplicating": "Duplicating",

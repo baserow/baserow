@@ -10,8 +10,15 @@
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
     }"
+    v-sortable="sortableConfig"
     @click="onSelect"
   >
+    <div
+      v-if="mode === 'editing'"
+      class="element-preview__drag-handle"
+      data-sortable-handle
+      :title="$t('elementPreview.dragToReorder')"
+    />
     <div v-if="isSelected" class="element-preview__tags">
       <div class="element-preview__name-tag">
         {{ elementType.name }}
@@ -95,6 +102,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    sortable: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   emits: ['move'],
@@ -222,6 +234,18 @@ export default {
         this.applicationContext
       )
     },
+    sortableConfig() {
+      return {
+        id: this.element.id,
+        handle: '[data-sortable-handle]',
+        update: this.onSortableUpdate,
+        enabled:
+          this.mode === 'editing' && this.canUpdate && this.isSortableContext,
+      }
+    },
+    isSortableContext() {
+      return this.sortable !== false
+    },
   },
   watch: {
     /**
@@ -277,6 +301,7 @@ export default {
       actionDuplicateElement: 'element/duplicate',
       actionDeleteElement: 'element/delete',
       actionSelectElement: 'element/select',
+      actionMoveElement: 'element/move',
     }),
     setupIntersectionObserver() {
       if (this.observer) {
@@ -303,6 +328,35 @@ export default {
       this.$nextTick(() => {
         this.observer.observe(this.$el)
       })
+    },
+    async onSortableUpdate(newOrder, oldOrder, draggedId, beforeId) {
+      const element = this.$store.getters['element/getElementById'](
+        this.elementPage,
+        draggedId
+      )
+      if (
+        !element ||
+        !this.$hasPermission(
+          'builder.page.element.update',
+          element,
+          this.workspace.id
+        )
+      ) {
+        return
+      }
+
+      try {
+        await this.actionMoveElement({
+          builder: this.builder,
+          page: this.elementPage,
+          elementId: draggedId,
+          beforeElementId: beforeId,
+          parentElementId: element.parent_element_id,
+          placeInContainer: element.place_in_container,
+        })
+      } catch (error) {
+        notifyIf(error)
+      }
     },
     onMove(direction) {
       this.$emit('move', { element: this.element, direction })

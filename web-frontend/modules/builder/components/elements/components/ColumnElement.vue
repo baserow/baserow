@@ -17,10 +17,14 @@
           v-for="childCurrent in childrenInColumn"
           :key="childCurrent.id"
           class="column-element__element"
+          v-sortable="
+            getColumnSortableConfig(columnIndex, childCurrent)
+          "
         >
           <ElementPreview
             v-if="mode === 'editing'"
             :element="childCurrent"
+            :sortable="false"
             :application-context-additions="applicationContextAdditions"
             @move="$emit('move', $event)"
           ></ElementPreview>
@@ -52,6 +56,7 @@
 <script>
 import _ from 'lodash'
 
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
@@ -141,6 +146,61 @@ export default {
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
+    },
+    getColumnSortableConfig(columnIndex, child) {
+      const canUpdate = this.$hasPermission(
+        'builder.page.element.update',
+        child,
+        this.workspace.id
+      )
+      return {
+        id: child.id,
+        handle: '[data-sortable-handle]',
+        update: (newOrder, oldOrder, draggedId, beforeId) =>
+          this.onColumnSortableUpdate(
+            columnIndex,
+            newOrder,
+            oldOrder,
+            draggedId,
+            beforeId
+          ),
+        enabled: this.mode === 'editing' && canUpdate,
+      }
+    },
+    async onColumnSortableUpdate(
+      columnIndex,
+      newOrder,
+      oldOrder,
+      draggedId,
+      beforeId
+    ) {
+      const element = this.$store.getters['element/getElementById'](
+        this.elementPage,
+        draggedId
+      )
+      if (
+        !element ||
+        !this.$hasPermission(
+          'builder.page.element.update',
+          element,
+          this.workspace.id
+        )
+      ) {
+        return
+      }
+
+      try {
+        await this.$store.dispatch('element/move', {
+          builder: this.builder,
+          page: this.elementPage,
+          elementId: draggedId,
+          beforeElementId: beforeId,
+          parentElementId: element.parent_element_id,
+          placeInContainer: `${columnIndex}`,
+        })
+      } catch (error) {
+        notifyIf(error)
+      }
     },
   },
 }

@@ -109,6 +109,37 @@
   }
 }
 
+.element-preview__drag-handle {
+  @include absolute(4px, auto, auto, 4px);
+
+  width: 10px;
+  height: calc(100% - 8px);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+  background-image: radial-gradient($palette-neutral-400 40%, transparent 40%);
+  background-size: 5px 5px;
+  background-repeat: repeat;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:hover {
+    background-image: radial-gradient($palette-blue-500 40%, transparent 40%);
+  }
+
+  .element-preview:hover &,
+  .element-preview--active & {
+    opacity: 1;
+  }
+
+  .element-preview--active &:active {
+    background-image: radial-gradient($palette-blue-500 40%, transparent 40%);
+  }
+}
+
 .element-preview__tags {
   display: flex;
   gap: 8px;
