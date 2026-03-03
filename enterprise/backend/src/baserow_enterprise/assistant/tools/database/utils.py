@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Literal, Type, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -8,9 +8,12 @@ from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.utils.translation import gettext as _
 
-import udspy
-from pydantic import ConfigDict, Field, create_model
-from udspy.utils import minimize_schema, resolve_json_schema_reference
+from pydantic import (
+    ConfigDict,
+    Field,
+    create_model,
+)
+from pydantic_ai import Tool
 
 from baserow.contrib.database.fields.actions import CreateFieldActionType
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
@@ -37,19 +40,19 @@ from baserow_enterprise.assistant.tools.database.types.table import (
     BaseTableItem,
     TableItem,
 )
+from baserow_enterprise.assistant.tools.toolset import inline_refs
 
 from .types import (
-    AnyFieldItem,
-    AnyFieldItemCreate,
     AnyViewFilterItemCreate,
     BaseModel,
     Date,
     Datetime,
-    field_item_registry,
+    FieldItem,
+    FieldItemCreate,
 )
 
 if TYPE_CHECKING:
-    from baserow_enterprise.assistant.assistant import ToolHelpers
+    from baserow_enterprise.assistant.deps import ToolHelpers
 
 NoChange = Literal["__NO_CHANGE__"]
 
@@ -87,19 +90,22 @@ def get_tables_schema(
     )
 
     table_items = []
+    tables_by_id = {table.id: table for table in tables}
     for table_id, fields_in_table in groupby(fields, lambda f: f.table_id):
         fields_in_table = list(fields_in_table)
-        table = next(t for t in tables if t.id == table_id)
-        primary_field = next(f for f in fields if f.primary)
-        primary_field_item = field_item_registry.from_django_orm(primary_field)
+        primary_field = next((f for f in fields_in_table if f.primary), None)
+        if primary_field is None:
+            raise ValueError(f"Table {table_id} has no primary field")
+        primary_field_item = FieldItem.from_django_orm(primary_field)
 
+        table = tables_by_id[table_id]
         table_items.append(
             TableItem(
-                id=table.id,
+                id=table_id,
                 name=table.name,
                 primary_field=primary_field_item,
                 fields=[
-                    field_item_registry.from_django_orm(f)
+                    FieldItem.from_django_orm(f)
                     for f in fields_in_table
                     if f.id != primary_field.id
                 ],
@@ -111,30 +117,72 @@ def get_tables_schema(
     table_items.sort(
         key=lambda t: tables.index(next(tb for tb in tables if tb.id == t.id))
     )
-
     return table_items
 
 
 def create_fields(
     user: AbstractUser,
     table: Table,
-    field_items: list[AnyFieldItemCreate],
+    field_items: list[FieldItemCreate],
     tool_helpers: "ToolHelpers",
-) -> list[AnyFieldItem]:
+    formula_fixer: Callable[[Table, str, str], str | None] | None = None,
+) -> tuple[list[FieldItem], list[str], list[dict]]:
+    from .types import InvalidFormulaFieldError
+
     created_fields = []
+    formula_errors = []
+    field_errors = []
+
+    # Known limitation: formula fields are created last so they can reference
+    # fields created earlier in the same batch. Cross-table references to
+    # tables being created in the same batch are not supported yet.
+    field_items = sorted(field_items, key=lambda f: f.config.type == "formula")
+
     for field_item in field_items:
+        tool_helpers.raise_if_cancelled()
         tool_helpers.update_status(
             _("Creating field %(field_name)s...") % {"field_name": field_item.name}
         )
 
-        new_field = CreateFieldActionType.do(
-            user,
-            table,
-            field_item.type,
-            **field_item.to_django_orm_kwargs(table),
-        )
-        created_fields.append(field_item_registry.from_django_orm(new_field))
-    return created_fields
+        try:
+            new_field = CreateFieldActionType.do(
+                user,
+                table,
+                field_item.config.type,
+                **field_item.to_django_orm_kwargs(table),
+            )
+            created_fields.append(FieldItem.from_django_orm(new_field))
+        except InvalidFormulaFieldError as e:
+            fixed = False
+            if formula_fixer:
+                try:
+                    new_formula = formula_fixer(e.table, e.field_name, e.formula)
+                    if new_formula:
+                        new_field = CreateFieldActionType.do(
+                            user,
+                            table,
+                            "formula",
+                            name=e.field_name,
+                            formula=new_formula,
+                        )
+                        created_fields.append(FieldItem.from_django_orm(new_field))
+                        fixed = True
+                except Exception:
+                    pass
+            if not fixed:
+                formula_errors.append(
+                    {
+                        "field_name": e.field_name,
+                        "formula": e.formula,
+                        "error": e.error,
+                    }
+                )
+        except Exception as e:
+            field_errors.append(
+                f"Error creating field {field_item.name} in table_{table.id}: {e}.\n"
+                f"Please retry recreating this field later, if important."
+            )
+    return created_fields, field_errors, formula_errors
 
 
 @dataclass
@@ -198,6 +246,9 @@ def _get_pydantic_field_definition(
         case "single_select":
             choices = [option.value for option in orm_field.select_options.all()]
 
+            if not choices:
+                return FieldDefinition()  # Unsupported: no options defined
+
             return FieldDefinition(
                 Literal[*choices] | None,
                 Field(
@@ -210,6 +261,9 @@ def _get_pydantic_field_definition(
             )
         case "multiple_select":
             choices = [option.value for option in orm_field.select_options.all()]
+
+            if not choices:
+                return FieldDefinition()  # Unsupported: no options defined
 
             return FieldDefinition(
                 list[Literal[*choices]],
@@ -231,13 +285,12 @@ def _get_pydantic_field_definition(
 
             # Avoid null or empty values
             linked_pk = linked_primary_key.db_column
-            linked_values = list(
+            examples = list(
                 linked_model.objects.exclude(
                     Q(**{f"{linked_pk}__isnull": True})
                     | Q(**{f"{linked_pk}__exact": ""})
-                ).values_list(linked_pk, flat=True)[:10]
+                ).values_list("id", linked_pk)[:10]
             )
-            examples = f"Examples: {', '.join([str(v) for v in linked_values])}"
 
             def to_django_orm(value):
                 if isinstance(value, str) or isinstance(value, int):
@@ -256,7 +309,7 @@ def _get_pydantic_field_definition(
                 else:
                     return values[0] if values else None
 
-            # TODO: verify this can work with every possible primary field type
+            # Known limitation: assumes the primary field is representable as str.
             if orm_field.link_row_multiple_relationships:
                 desc = "List of values (as strings) or IDs (as integers) from the linked table or empty list."
                 field_type = list[str | int] | None
@@ -264,10 +317,13 @@ def _get_pydantic_field_definition(
                 desc = "Single value (as string) or ID (as integer) from the linked table or empty list."
                 field_type = str | int | None
             if examples:
-                desc += " " + examples
+                desc += (
+                    " "
+                    + f"Examples: {', '.join([f'{{id:{v[0]}, value: `{v[1]}`}}' for v in examples])}, .."
+                )
             return FieldDefinition(
                 field_type,
-                Field(None, description=desc, title=orm_field.name),
+                Field(..., description=desc, title=orm_field.name),
                 to_django_orm,
                 from_django_orm,
             )
@@ -386,8 +442,31 @@ def get_update_row_model(table) -> BaseModel:
     return UpdateRowModel
 
 
-def get_view(user, view_id: int):
-    return ViewHandler().get_view_as_user(user, view_id)
+def get_view(user, workspace, view_id: int):
+    return ViewHandler().get_view_as_user(
+        user,
+        view_id,
+        base_queryset=View.objects.filter(table__database__workspace=workspace),
+    )
+
+
+def get_link_row_hints(row_model: type[BaseModel]) -> str:
+    """
+    Extract link_row field hints from a row model's field descriptions.
+
+    The descriptions are already populated by ``_get_pydantic_field_definition``
+    with example values — this just collects the ones that contain "Examples:".
+    """
+
+    hints: list[str] = []
+    for name, info in row_model.model_fields.items():
+        desc = info.description or ""
+        if "linked table" in desc and "Examples:" in desc:
+            hints.append(f"{name} ({info.title}): {desc}")
+
+    if not hints:
+        return ""
+    return " LINK_ROW fields: " + "; ".join(hints) + "."
 
 
 def get_table_rows_tools(
@@ -395,108 +474,95 @@ def get_table_rows_tools(
 ):
     row_model_for_create = get_create_row_model(table)
     row_model_for_update = get_update_row_model(table)
-    row_model_for_response = create_model(
-        f"ResponseTable{table.id}Row",
-        id=(int, ...),
-        __base__=row_model_for_create,
-    )
+    link_row_hints = get_link_row_hints(row_model_for_create)
 
     def _create_rows(
-        rows: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
+        rows: list[row_model_for_create],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
         """
         Create new rows in the specified table.
         """
 
-        nonlocal \
-            user, \
-            workspace, \
-            tool_helpers, \
-            row_model_for_create, \
-            row_model_for_response
-
         if not rows:
-            return []
+            return {"created_row_ids": []}
 
         tool_helpers.update_status(
             _("Creating rows in %(table_name)s ") % {"table_name": table.name}
         )
 
+        validated_rows = [row.to_django_orm() for row in rows]
+
         with transaction.atomic():
-            orm_rows = CreateRowsActionType.do(
-                user,
-                table,
-                [row_model_for_create(**row).to_django_orm() for row in rows],
-            )
+            orm_rows = CreateRowsActionType.do(user, table, validated_rows)
 
         return {"created_row_ids": [r.id for r in orm_rows]}
 
-    create_row_model_schema = minimize_schema(
-        resolve_json_schema_reference(row_model_for_create.model_json_schema())
-    )
-    create_rows_tool = udspy.Tool(
-        func=_create_rows,
+    create_rows_tool = Tool(
+        _create_rows,
         name=f"create_rows_in_table_{table.id}",
-        description=f"Creates new rows in the table {table.name} (ID: {table.id}). Max 20 rows at a time.",
-        args={
-            "rows": {
-                "items": create_row_model_schema,
-                "type": "array",
-                "maxItems": 20,
-            }
-        },
+        description=(
+            f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
+            f"WHAT: Inserts up to 20 rows with field values matching the table schema. "
+            f"RETURNS: Created row IDs. "
+            f"DO NOT USE: For other tables — each table has its own create tool. "
+            f"HOW: Fill every field and every relationship with valid data when possible."
+            f"{link_row_hints}"
+        ),
+        max_retries=2,
+    )
+    create_rows_tool.function_schema.json_schema = inline_refs(
+        create_rows_tool.function_schema.json_schema
     )
 
     def _update_rows(
-        rows: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
+        rows: list[row_model_for_update],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
         """
         Update existing rows in the specified table.
         """
 
-        nonlocal user, workspace, tool_helpers, row_model_for_update
-
         if not rows:
-            return []
+            return {"updated_row_ids": []}
 
         tool_helpers.update_status(
             _("Updating rows in %(table_name)s ") % {"table_name": table.name}
         )
 
+        validated_rows = [row.to_django_orm() for row in rows]
+
         with transaction.atomic():
-            orm_rows = UpdateRowsActionType.do(
-                user,
-                table,
-                [row_model_for_update(**row).to_django_orm() for row in rows],
-            ).updated_rows
+            orm_rows = UpdateRowsActionType.do(user, table, validated_rows).updated_rows
 
         return {"updated_row_ids": [r.id for r in orm_rows]}
 
-    update_row_model_schema = minimize_schema(
-        resolve_json_schema_reference(row_model_for_update.model_json_schema())
-    )
-    update_rows_tool = udspy.Tool(
-        func=_update_rows,
+    update_rows_tool = Tool(
+        _update_rows,
         name=f"update_rows_in_table_{table.id}",
-        description=f"Updates existing rows in the table {table.name} (ID: {table.id}), identified by their row IDs. Max 20 at a time.",
-        args={
-            "rows": {
-                "items": update_row_model_schema,
-                "type": "array",
-                "maxItems": 20,
-            }
-        },
+        description=(
+            f"WHEN: Updating existing rows in '{table.name}' (ID: {table.id}) by row ID. "
+            f"WHAT: Updates specified fields on up to 20 rows. Use '__NO_CHANGE__' to keep a field unchanged. "
+            f"RETURNS: Updated row IDs. "
+            f"DO NOT USE: For other tables — each table has its own update tool."
+            f"{link_row_hints}"
+        ),
+        max_retries=2,
+    )
+    update_rows_tool.function_schema.json_schema = inline_refs(
+        update_rows_tool.function_schema.json_schema
     )
 
-    def _delete_rows(row_ids: list[int]) -> str:
+    def _delete_rows(
+        row_ids: list[int],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
         """
         Delete rows in the specified table.
         """
 
-        nonlocal user, workspace, tool_helpers
-
         if not row_ids:
-            return
+            return {"deleted_row_ids": []}
 
         tool_helpers.update_status(
             _("Deleting rows in %(table_name)s ") % {"table_name": table.name}
@@ -507,17 +573,15 @@ def get_table_rows_tools(
 
         return {"deleted_row_ids": row_ids}
 
-    delete_rows_tool = udspy.Tool(
-        func=_delete_rows,
+    delete_rows_tool = Tool(
+        _delete_rows,
         name=f"delete_rows_in_table_{table.id}",
-        description=f"Deletes rows in the table {table.name} (ID: {table.id}). Max 20 at a time.",
-        args={
-            "row_ids": {
-                "items": {"type": "integer"},
-                "type": "array",
-                "maxItems": 20,
-            }
-        },
+        description=(
+            f"WHEN: Deleting rows from '{table.name}' (ID: {table.id}) by row ID. "
+            f"WHAT: Permanently removes up to 20 specified rows. "
+            f"RETURNS: Deleted row IDs. "
+            f"DO NOT USE: For other tables — each table has its own delete tool."
+        ),
     )
 
     return {
@@ -530,7 +594,7 @@ def get_table_rows_tools(
 def create_view_filter(
     user: AbstractUser,
     orm_view: View,
-    table_fields: list[Field],
+    table_fields: dict[int, Any],
     view_filter_item: AnyViewFilterItemCreate,
 ) -> ViewFilter:
     """
@@ -541,11 +605,11 @@ def create_view_filter(
     if field is None:
         raise ValueError("Field not found for filter")
     field_type = field_type_registry.get_by_model(field.specific_class)
-    if field_type.type != view_filter_item.type:
+    if field_type.type != view_filter_item.config.type:
         raise ValueError("Field type mismatch for filter")
 
-    filter_type = view_filter_item.get_django_orm_type(field)
-    filter_value = view_filter_item.get_django_orm_value(
+    filter_type = view_filter_item.config.get_django_orm_type(field)
+    filter_value = view_filter_item.config.get_django_orm_value(
         field, timezone=user.profile.timezone
     )
 

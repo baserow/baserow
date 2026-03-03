@@ -23,10 +23,7 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow_enterprise.assistant.assistant import (
-    check_lm_ready_or_raise,
-    set_assistant_cancellation_key,
-)
+from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
@@ -34,6 +31,7 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantModelNotSupportedError,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
+from baserow_enterprise.assistant.model_profiles import check_lm_ready_or_raise
 from baserow_enterprise.assistant.models import AssistantChatPrediction
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import (

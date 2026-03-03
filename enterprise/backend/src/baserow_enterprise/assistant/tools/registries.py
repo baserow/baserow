@@ -1,111 +1,112 @@
-from typing import TYPE_CHECKING, Any, Callable
+"""
+Baserow registry for assistant tool types.
 
-from django.contrib.auth.models import AbstractUser
+Each tool module (navigation, database, etc.) registers an
+``AssistantToolType`` instance.  The registry assembles the combined
+toolset at runtime, filtering by ``can_use(user, workspace)`` so
+individual tool groups can be gated on permissions or feature flags.
+"""
 
-from baserow.core.exceptions import (
-    InstanceTypeAlreadyRegistered,
-    InstanceTypeDoesNotExist,
-)
-from baserow.core.models import Workspace
-from baserow.core.registries import Instance, Registry
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable
+
+from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
+
+from baserow.core.registry import Instance, Registry
+
+from .toolset import InlineRefsToolset, generate_tool_manifest_compact
 
 if TYPE_CHECKING:
-    from baserow_enterprise.assistant.assistant import ToolHelpers
+    from django.contrib.auth.models import AbstractUser
+
+    from baserow.core.models import Workspace
 
 
 class AssistantToolType(Instance):
-    name: str = ""
+    """
+    Base class for assistant tool groups.
 
-    @classmethod
-    def can_use(cls, user: AbstractUser, workspace: Workspace, *args, **kwargs) -> bool:
+    Each subclass represents a logical group of tools (e.g. "database",
+    "navigation").  Override ``can_use`` to gate availability on user
+    permissions or feature flags.
+    """
+
+    type: str = ""
+
+    def can_use(self, user: "AbstractUser", workspace: "Workspace") -> bool:
         """
-        Returns whether or not the given user can use this tool in the given workspace.
+        Permission gate.  Override in subclasses for conditional availability.
 
-        :param user: The user to check if they can use this tool.
-        :param workspace: The workspace where to check if the tool can be used.
-        :return: True if the user can use this tool, False otherwise.
+        :param user: The requesting user.
+        :param workspace: The current workspace.
+        :return: ``True`` if this tool group should be included.
         """
 
         return True
 
-    @classmethod
-    def on_tool_start(
-        cls,
-        call_id: str,
-        instance: Any,
-        inputs: dict[str, Any],
-    ):
-        """
-        Called when the tool is started. It can be used to stream status messages.
+    def get_tool_functions(self) -> list[Callable]:
+        """Return the raw tool functions for manifest generation."""
 
-        :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the udspy tool being called.
-        :param inputs: The inputs provided to the tool.
-        """
+        raise NotImplementedError
 
-        pass
+    def get_toolset(self) -> AbstractToolset:
+        """Return the pydantic-ai ``FunctionToolset`` for this group."""
 
-    @classmethod
-    def on_tool_end(
-        cls,
-        call_id: str,
-        instance: Any,
-        inputs: dict[str, Any],
-        outputs: dict[str, Any] | None,
-        exception: Exception | None = None,
-    ):
-        """
-        Called when the tool has finished, either successfully or with an exception.
-
-        :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the udspy tool being called.
-        :param inputs: The inputs provided to the tool.
-        :param outputs: The outputs returned by the tool, or None if there was an
-            exception.
-        :param exception: The exception raised by the tool, or None if it was
-            successful.
-        """
-
-        pass
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        """
-        Returns the actual tool function to be called to pass to the udspy react agent.
-
-        :param user: The user that will be using the tool.
-        :param workspace: The workspace the user is currently in.
-        :param tool_helpers: A dataclass containing helper functions that can be used by
-            the tool function.
-        """
-
-        raise NotImplementedError("Subclasses must implement this method.")
-
-
-class AssistantToolDoesNotExist(InstanceTypeDoesNotExist):
-    pass
-
-
-class AssistantToolAlreadyRegistered(InstanceTypeAlreadyRegistered):
-    pass
+        raise NotImplementedError
 
 
 class AssistantToolRegistry(Registry[AssistantToolType]):
     name = "assistant_tool"
 
-    does_not_exist_exception_class = AssistantToolDoesNotExist
-    already_registered_exception_class = AssistantToolAlreadyRegistered
+    def build_toolset(
+        self,
+        user: "AbstractUser",
+        workspace: "Workspace",
+        model: str,
+    ) -> tuple[AbstractToolset, str]:
+        """
+        Assemble the combined assistant toolset, filtering by ``can_use()``.
 
-    def list_all_usable_tools(
-        self, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> list[AssistantToolType]:
-        return [
-            tool_type.get_tool(user, workspace, tool_helpers)
-            for tool_type in self.get_all()
-            if tool_type.can_use(user, workspace)
-        ]
+        :param user: The requesting user.
+        :param workspace: The current workspace.
+        :param model: The pydantic-ai model string.
+        :return: A tuple of (toolset, manifest_string).
+        """
+
+        toolsets: list[AbstractToolset] = []
+        func_lists: list[list[Callable]] = []
+
+        for tool_type in self.get_all():
+            if not tool_type.can_use(user, workspace):
+                continue
+            toolsets.append(tool_type.get_toolset())
+            func_lists.append(tool_type.get_tool_functions())
+
+        combined = CombinedToolset(toolsets)
+
+        from baserow_enterprise.assistant.prompts import TOOL_ROUTING_RULES
+
+        manifest = generate_tool_manifest_compact(
+            func_lists, routing_rules=TOOL_ROUTING_RULES
+        )
+        return InlineRefsToolset(combined, model=model), manifest
 
 
 assistant_tool_registry = AssistantToolRegistry()
+
+
+def get_shared_read_funcs() -> list[Callable]:
+    """
+    Return read-only tool functions shared across sub-agents.
+
+    Uses deferred imports to avoid circular dependencies.
+    """
+
+    from baserow_enterprise.assistant.tools.database.tools import (
+        get_tables_schema,
+        list_rows,
+        list_tables,
+    )
+
+    return [list_tables, get_tables_schema, list_rows]

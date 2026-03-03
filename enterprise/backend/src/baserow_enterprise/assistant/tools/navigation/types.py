@@ -63,7 +63,7 @@ class WorkspaceNavigationRequestType(NavigationRequestType):
         workspace: Workspace,
         request: "WorkspaceNavigationRequestType",
     ) -> WorkspaceNavigationType:
-        return WorkspaceNavigationType(type="workspace", id=workspace.id)
+        return WorkspaceNavigationType(type="workspace")
 
 
 AnyNavigationRequestType = Annotated[

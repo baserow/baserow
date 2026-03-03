@@ -4,7 +4,6 @@ from typing import Annotated, Literal, Optional
 
 from django.utils.translation import gettext as _
 
-import udspy
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
 
@@ -12,6 +11,7 @@ from pydantic import ConfigDict, Field
 class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(
         extra="forbid",
+        coerce_numbers_to_str=True,
     )
 
 
@@ -157,7 +157,7 @@ class AiMessage(AiMessageChunk):
     )
 
 
-class AiThinkingMessage(BaseModel, udspy.StreamEvent):
+class AiThinkingMessage(BaseModel):
     type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
     content: str = Field(
         default="",
@@ -245,7 +245,7 @@ AnyNavigationType = Annotated[
 ]
 
 
-class AiNavigationMessage(BaseModel, udspy.StreamEvent):
+class AiNavigationMessage(BaseModel):
     type: Literal["ai/navigation"] = "ai/navigation"
     location: AnyNavigationType
 
