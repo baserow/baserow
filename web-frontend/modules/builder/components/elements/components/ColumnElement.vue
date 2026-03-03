@@ -16,10 +16,10 @@
         <div
           v-for="childCurrent in childrenInColumn"
           :key="childCurrent.id"
-          class="column-element__element"
           v-sortable="
             getColumnSortableConfig(columnIndex, childCurrent)
           "
+          class="column-element__element"
         >
           <ElementPreview
             v-if="mode === 'editing'"

@@ -1,6 +1,7 @@
 <template>
   <div
     :key="element.id"
+    v-sortable="sortableConfig"
     class="element-preview"
     :class="{
       'element-preview--active': isSelected,
@@ -10,7 +11,6 @@
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
     }"
-    v-sortable="sortableConfig"
     @click="onSelect"
   >
     <div
