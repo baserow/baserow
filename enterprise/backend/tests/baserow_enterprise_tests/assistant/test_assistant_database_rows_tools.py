@@ -1,15 +1,12 @@
-from unittest.mock import Mock
-
 import pytest
-from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow_enterprise.assistant.tools.database.tools import (
-    get_list_rows_tool,
-    get_rows_tools_factory,
+    list_rows,
+    load_row_tools,
 )
 
-from .utils import fake_tool_helpers
+from .utils import make_test_ctx
 
 
 def _create_simple_database_with_linked_tables_and_rows(data_fixture):
@@ -134,12 +131,12 @@ def test_list_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    list_table_rows = get_list_rows_tool(user, workspace, tool_helpers)
-    assert callable(list_table_rows)
+    ctx = make_test_ctx(user, workspace)
 
-    result = list_table_rows(table_id=table.id, offset=0, limit=50)
+    result = list_rows(
+        ctx, table_id=table.id, offset=0, limit=50, field_ids=None, thought="test"
+    )
     rows = result["rows"]
     assert len(rows) == 3
     assert rows[0] == {
@@ -183,8 +180,13 @@ def test_list_rows(data_fixture):
     }
 
     # List a single field
-    result = list_table_rows(
-        table_id=table.id, offset=0, limit=50, field_ids=[table.get_primary_field().id]
+    result = list_rows(
+        ctx,
+        table_id=table.id,
+        offset=0,
+        limit=50,
+        field_ids=[table.get_primary_field().id],
+        thought="test",
     )
     rows = result["rows"]
     assert len(rows) == 3
@@ -209,24 +211,19 @@ def test_create_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = meta_tool([table.id], ["create"])
-    assert is_module_callback(tools_upgrade)
+    observation = load_row_tools(ctx, [table.id], ["create"], thought="test")
+    assert isinstance(observation, str)
+    assert f"create_rows_in_table_{table.id}" in observation
 
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
+    # Tools should be stored in ctx.deps.dynamic_tools
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
 
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"create_rows_in_table_{table.id}" in added_tools_names
+    create_tool = dynamic_tools[0]
+    assert create_tool.name == f"create_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -261,8 +258,12 @@ def test_create_rows(data_fixture):
         "Single link to B": None,
         "link": [],
     }
-    create_table_rows = added_tools[0]
-    result = create_table_rows(rows=[row_1, row_2])
+    # Validate dicts through the tool's schema (as pydantic-ai would),
+    # then call the underlying function.
+    validated_args = create_tool.function_schema.validator.validate_python(
+        {"rows": [row_1, row_2], "thought": "test"}
+    )
+    result = create_tool.function(**validated_args)
     created_row_ids = result["created_row_ids"]
     assert len(created_row_ids) == 2
     assert created_row_ids == [4, 5]
@@ -275,23 +276,17 @@ def test_update_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
-    tools_upgrade = meta_tool([table.id], ["update"])
-    assert is_module_callback(tools_upgrade)
+    ctx = make_test_ctx(user, workspace)
 
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
+    observation = load_row_tools(ctx, [table.id], ["update"], thought="test")
+    assert isinstance(observation, str)
 
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"update_rows_in_table_{table.id}" in added_tools_names
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
+
+    update_tool = dynamic_tools[0]
+    assert update_tool.name == f"update_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -325,15 +320,18 @@ def test_update_rows(data_fixture):
         "link": "__NO_CHANGE__",
     }
 
-    update_table_rows = added_tools[0]
-    result = update_table_rows(rows=[row_1_updates, row_2_updates])
+    validated_args = update_tool.function_schema.validator.validate_python(
+        {"rows": [row_1_updates, row_2_updates], "thought": "test"}
+    )
+    result = update_tool.function(**validated_args)
     updated_row_ids = result["updated_row_ids"]
     assert len(updated_row_ids) == 2
     assert updated_row_ids == [1, 2]
 
     # Verify the rows were updated correctly
-    list_table_rows = get_list_rows_tool(user, workspace, tool_helpers)
-    row_1, row_2 = list_table_rows(table_id=table.id, offset=0, limit=2)["rows"]
+    row_1, row_2 = list_rows(
+        ctx, table_id=table.id, offset=0, limit=2, field_ids=None, thought="test"
+    )["rows"]
     assert row_1 == {
         "primary": "Updated Row A1",
         "Long text field": "Long text A1",
@@ -369,29 +367,23 @@ def test_delete_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = meta_tool([table.id], ["delete"])
-    assert is_module_callback(tools_upgrade)
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"delete_rows_in_table_{table.id}" in added_tools_names
-    delete_table_rows = added_tools[0]
+    observation = load_row_tools(ctx, [table.id], ["delete"], thought="test")
+    assert isinstance(observation, str)
+
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
+
+    delete_tool = dynamic_tools[0]
+    assert delete_tool.name == f"delete_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
 
     # Delete rows with ids 1 and 3
-    result = delete_table_rows(row_ids=[1, 3])
+    result = delete_tool.function(row_ids=[1, 3], thought="test")
     assert result["deleted_row_ids"] == [1, 3]
 
     # Verify rows were deleted
