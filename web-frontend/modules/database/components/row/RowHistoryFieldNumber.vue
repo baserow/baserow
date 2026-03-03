@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import { NumberFieldType } from '@baserow/modules/database/fieldTypes'
+import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'RowHistoryFieldNumber',
@@ -36,7 +36,7 @@ export default {
   methods: {
     formattedNumber(value) {
       const metadata = this.entry.fields_metadata[this.fieldIdentifier]
-      return NumberFieldType.formatNumber(metadata, value)
+      return formatDecimalNumber(metadata, value)
     },
   },
 }
