@@ -352,13 +352,23 @@ class SlackWriteMessageActionCreate(
         return values
 
 
+class AutomationFieldValue(BaseModel):
+    """A field ID to value mapping for automation row actions."""
+
+    field_id: int = Field(..., description="The database field ID")
+    value: str = Field(
+        ...,
+        description="The value or formula for this field",
+    )
+
+
 class CreateRowActionBase(NodeBase):
     """Create row action configuration."""
 
     type: Literal["create_row"]
     table_id: int
-    values: dict[int, Any] = Field(
-        ..., description="A mapping of field IDs to values or formulas to update"
+    values: list[AutomationFieldValue] = Field(
+        ..., description="List of field value mappings"
     )
 
 
@@ -371,16 +381,18 @@ class RowActionService:
 
 class RowActionFormulaToCreate(HasFormulasToCreateMixin):
     def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
-        from baserow_enterprise.assistant.tools.automation.utils import (
-            _minimize_json_schema,
+        from baserow_enterprise.assistant.tools.shared.formula_utils import (
+            minimize_json_schema,
         )
 
         service = orm_node.service.specific
         schema = service.get_type().generate_schema(service.specific)
+        # Build a lookup from field_id to value for quick access
+        values_by_id = {fv.field_id: fv.value for fv in self.values}
         values = {"row_id": "the row ID to update"}
-        for v in _minimize_json_schema(schema).values():
+        for v in minimize_json_schema(schema).values():
             desc = v["desc"]
-            value = self.values.get(int(v["id"]))
+            value = values_by_id.get(int(v["id"]))
             if value:
                 desc += f" Value to resolve: {value}"
             else:
@@ -441,8 +453,8 @@ class UpdateRowActionBase(NodeBase):
     type: Literal["update_row"]
     table_id: int
     row_id: str = Field(..., description="The row ID or a formula to identify the row")
-    values: dict[int, Any] = Field(
-        ..., description="A mapping of field IDs to values or formulas to update"
+    values: list[AutomationFieldValue] = Field(
+        ..., description="List of field value mappings"
     )
 
 

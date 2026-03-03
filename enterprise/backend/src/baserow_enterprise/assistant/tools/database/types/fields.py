@@ -1,253 +1,17 @@
-from typing import Annotated, Literal, Type
+from typing import Any, Callable, Literal
 
 from django.db.models import Q
 
 from pydantic import Field
 
-from baserow.contrib.database.fields.models import (
-    DateField,
-    FormulaField,
-    LinkRowField,
-    LookupField,
-    MultipleSelectField,
-    NumberField,
-    RatingField,
-    SingleSelectField,
-)
 from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow_enterprise.assistant.types import BaseModel
-from baserow_enterprise.data_sync.hubspot_contacts_data_sync import LongTextField
 from baserow_premium.permission_manager import Table
 
-
-class FieldItemCreate(BaseModel):
-    """Base model for creating a new field (no ID)."""
-
-    name: str = Field(...)
-    type: str = Field(...)
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {k: v for k, v in self.model_dump().items() if k not in {"id", "type"}}
-
-
-class FieldItem(FieldItemCreate):
-    """Model for an existing field (with ID)."""
-
-    id: int = Field(...)
-
-    @classmethod
-    def from_django_orm(cls, orm_field: BaserowField) -> "FieldItem":
-        return cls(
-            id=orm_field.id,
-            name=orm_field.name,
-            type=field_type_registry.get_by_model(orm_field).type,
-        )
-
-
-# Event if type could be inferred, certain models (i.e. openai-gpt-oss-120b) requires
-# all the fields to be required and can cause issues with optional fields, so we
-# explicitly set them as required, even if seems unnecessary.
-
-
-class BaseTextFieldItem(FieldItemCreate):
-    type: Literal["text"] = Field(..., description="Single line text field.")
-
-
-class TextFieldItemCreate(BaseTextFieldItem):
-    """Model for creating a text field."""
-
-
-class TextFieldItem(BaseTextFieldItem, FieldItem):
-    """Model for an existing text field."""
-
-
-class BaseLongTextFieldItem(FieldItemCreate):
-    type: Literal["long_text"] = Field(
-        ...,
-        description="Multi-line text field. Ideal for descriptions, notes and long-form content.",
-    )
-    rich_text: bool = Field(
-        default=True,
-        description="Whether the long text field supports rich text.",
-    )
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {
-            "name": self.name,
-            "long_text_enable_rich_text": self.rich_text,
-        }
-
-
-class LongTextFieldItemCreate(BaseLongTextFieldItem):
-    """Model for creating a long text field."""
-
-
-class LongTextFieldItem(BaseLongTextFieldItem, FieldItem):
-    """Model for an existing long text field."""
-
-    @classmethod
-    def from_django_orm(cls, orm_field: LongTextField) -> "LongTextFieldItem":
-        field = orm_field.specific
-        return cls(
-            id=field.id,
-            name=field.name,
-            type="long_text",
-            rich_text=orm_field.long_text_enable_rich_text,
-        )
-
-
-class BaseNumberFieldItem(FieldItemCreate):
-    type: Literal["number"] = Field(
-        ..., description="Numeric field, with decimals and optional prefix/suffix."
-    )
-    decimal_places: int = Field(default=2, description="The number of decimal places.")
-    suffix: str = Field(
-        default="",
-        description="An optional suffix to display after the number.",
-    )
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {
-            "name": self.name,
-            "number_decimal_places": self.decimal_places,
-            "number_suffix": self.suffix,
-        }
-
-
-class NumberFieldItemCreate(BaseNumberFieldItem):
-    """Model for creating a number field."""
-
-
-class NumberFieldItem(BaseNumberFieldItem, FieldItem):
-    """Model for an existing number field."""
-
-    @classmethod
-    def from_django_orm(cls, orm_field: NumberField) -> "NumberFieldItem":
-        return cls(
-            id=orm_field.id,
-            name=orm_field.name,
-            type="number",
-            decimal_places=orm_field.number_decimal_places,
-            suffix=orm_field.number_suffix,
-        )
-
-
-class BaseRatingFieldItem(FieldItemCreate):
-    type: Literal["rating"] = Field(
-        ..., description="Rating field. Ideal for reviews or scores."
-    )
-    max_value: int = Field(
-        default=5, description="The maximum value of the rating field."
-    )
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {
-            "name": self.name,
-            "max_value": self.max_value,
-        }
-
-
-class RatingFieldItemCreate(BaseRatingFieldItem):
-    """Model for creating a rating field."""
-
-
-class RatingFieldItem(BaseRatingFieldItem, FieldItem):
-    """Model for an existing rating field."""
-
-    @classmethod
-    def from_django_orm(cls, orm_field: RatingField) -> "RatingFieldItem":
-        return cls(
-            id=orm_field.id,
-            name=orm_field.name,
-            type="rating",
-            max_value=orm_field.max_value,
-        )
-
-
-class BaseBooleanFieldItem(FieldItemCreate):
-    type: Literal["boolean"] = Field(..., description="Boolean field.")
-
-
-class BooleanFieldItemCreate(BaseBooleanFieldItem):
-    """Model for creating a boolean field."""
-
-
-class BooleanFieldItem(BaseBooleanFieldItem, FieldItem):
-    """Model for an existing boolean field."""
-
-
-class BaseDateFieldItem(FieldItemCreate):
-    type: Literal["date"] = Field(..., description="Date or datetime field.")
-    include_time: bool = Field(
-        default=False, description="Whether the date field includes time."
-    )
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {
-            "name": self.name,
-            "date_include_time": self.include_time,
-        }
-
-
-class DateFieldItemCreate(BaseDateFieldItem):
-    """Model for creating a date field."""
-
-
-class DateFieldItem(BaseDateFieldItem, FieldItem):
-    """Model for an existing date field."""
-
-    @classmethod
-    def from_django_orm(cls, orm_field: DateField) -> "DateFieldItem":
-        return cls(
-            id=orm_field.id,
-            name=orm_field.name,
-            type="date",
-            include_time=orm_field.date_include_time,
-        )
-
-
-class BaseLinkRowFieldItem(FieldItemCreate):
-    type: Literal["link_row"] = Field(
-        ..., description="Link row field. It creates relationships between tables."
-    )
-    linked_table: str | int = Field(
-        ..., description="The ID or the name of the table this field links to."
-    )
-
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        if isinstance(self.linked_table, str):
-            q = Q(name=self.linked_table, database=table.database)
-        else:
-            q = Q(id=self.linked_table, database=table.database)
-
-        try:
-            link_row_table = Table.objects.get(q)
-        except Table.DoesNotExist:
-            raise ValueError(
-                f"The linked_table '{self.linked_table}' does not exist in the database."
-                "Ensure you provide a valid table name or ID."
-            )
-
-        return {"name": self.name, "link_row_table": link_row_table}
-
-
-class LinkRowFieldItemCreate(BaseLinkRowFieldItem):
-    """Model for creating a link row field."""
-
-
-class LinkRowFieldItem(BaseLinkRowFieldItem, FieldItem):
-    """Model for an existing link row field."""
-
-    @classmethod
-    def from_django_orm(cls, orm_field: LinkRowField) -> "BaseLinkRowFieldItem":
-        return cls(
-            id=orm_field.id,
-            name=orm_field.name,
-            type="link_row",
-            linked_table=orm_field.link_row_table_id,
-        )
-
+# ---------------------------------------------------------------------------
+# Shared types
+# ---------------------------------------------------------------------------
 
 OptionColor = Literal[
     "light-blue",
@@ -301,8 +65,7 @@ class SelectOption(BaseModel):
     color: OptionColor
 
 
-# Define a subset of colors to use when creating fields, so we don't confuse the model
-# with too many options.
+# Subset of colors for creation to avoid confusing the model
 OptionColorCreate = Literal[
     "blue",
     "green",
@@ -322,21 +85,113 @@ class SelectOptionCreate(BaseModel):
     color: OptionColorCreate
 
 
-class BaseSingleSelectFieldItem(FieldItemCreate):
-    type: Literal["single_select"] = Field(
-        ...,
-        description="Single select field. Allows users to choose one option from a list.",
+class InvalidFormulaFieldError(Exception):
+    """Raised when a formula field has an invalid formula."""
+
+    def __init__(self, field_name: str, formula: str, table: Table, error: str):
+        self.field_name = field_name
+        self.formula = formula
+        self.table = table
+        self.error = error
+        super().__init__(f"Invalid formula for field '{field_name}': {error}")
+
+
+# ---------------------------------------------------------------------------
+# Type-specific config models (each has a `type` literal)
+#
+# Create configs have `to_django_orm_kwargs` for field creation.
+# Read configs extend create configs where extras are needed.
+# ---------------------------------------------------------------------------
+
+
+class TextConfig(BaseModel):
+    type: Literal["text"] = Field(..., description="Must be 'text'.")
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name}
+
+
+class LongTextConfig(BaseModel):
+    type: Literal["long_text"] = Field(..., description="Must be 'long_text'.")
+    rich_text: bool = Field(
+        ..., description="Whether the field supports rich text. Typically true."
     )
 
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name, "long_text_enable_rich_text": self.rich_text}
 
-class SingleSelectFieldItemCreate(BaseSingleSelectFieldItem):
-    options: list[SelectOptionCreate] = Field(
-        description="The list of options for the field. Use appropriate colors for each option.",
+
+class NumberConfig(BaseModel):
+    type: Literal["number"] = Field(..., description="Must be 'number'.")
+    decimal_places: int = Field(
+        ..., description="The number of decimal places (e.g. 0, 1, 2)."
+    )
+    suffix: str = Field(
+        ..., description="A suffix to display after the number, or '' for none."
     )
 
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
         return {
-            "name": self.name,
+            "name": name,
+            "number_decimal_places": self.decimal_places,
+            "number_suffix": self.suffix,
+            "number_negative": True,
+        }
+
+
+class RatingConfig(BaseModel):
+    type: Literal["rating"] = Field(..., description="Must be 'rating'.")
+    max_value: int = Field(..., description="The maximum rating value (e.g. 5).")
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name, "max_value": self.max_value}
+
+
+class BooleanConfig(BaseModel):
+    type: Literal["boolean"] = Field(..., description="Must be 'boolean'.")
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name}
+
+
+class DateConfig(BaseModel):
+    type: Literal["date"] = Field(..., description="Must be 'date'.")
+    include_time: bool = Field(..., description="Whether the date field includes time.")
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name, "date_include_time": self.include_time}
+
+
+class LinkRowConfig(BaseModel):
+    type: Literal["link_row"] = Field(..., description="Must be 'link_row'.")
+    linked_table: str | int = Field(
+        ..., description="The ID or name of the table this field links to."
+    )
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        if isinstance(self.linked_table, str):
+            q = Q(name=self.linked_table, database=table.database)
+        else:
+            q = Q(id=self.linked_table, database=table.database)
+
+        link_row_table = Table.objects.filter(q).order_by("id").first()
+        if not link_row_table:
+            raise ValueError(
+                f"The linked_table '{self.linked_table}' does not exist in the database."
+                "Ensure you provide a valid table name or ID."
+            )
+        return {"name": name, "link_row_table": link_row_table}
+
+
+class SingleSelectConfig(BaseModel):
+    type: Literal["single_select"] = Field(..., description="Must be 'single_select'.")
+    options: list[SelectOptionCreate] = Field(
+        ..., description="The list of options with colors."
+    )
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {
+            "name": name,
             "select_options": [
                 {"id": -i, "value": option.value, "color": option.color}
                 for (i, option) in enumerate(self.options, start=1)
@@ -344,40 +199,17 @@ class SingleSelectFieldItemCreate(BaseSingleSelectFieldItem):
         }
 
 
-class SingleSelectFieldItem(BaseSingleSelectFieldItem, FieldItem):
-    options: list[SelectOption] = Field(
-        description="The list of options for the field.",
-    )
-
-    @classmethod
-    def from_django_orm(
-        cls, orm_field: SingleSelectField
-    ) -> "BaseSingleSelectFieldItem":
-        field = orm_field.specific
-        return cls(
-            id=field.id,
-            name=field.name,
-            type="single_select",
-            options=[
-                SelectOption(
-                    id=opt.id,
-                    value=opt.value,
-                    color=opt.color,
-                )
-                for opt in field.select_options.all()
-            ],
-        )
-
-
-class BaseMultipleSelectFieldItem(FieldItemCreate):
+class MultipleSelectConfig(BaseModel):
     type: Literal["multiple_select"] = Field(
-        ...,
-        description="Multiple select field. Allows users to choose multiple options from a list.",
+        ..., description="Must be 'multiple_select'."
+    )
+    options: list[SelectOptionCreate] = Field(
+        ..., description="The list of options with colors."
     )
 
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
         return {
-            "name": self.name,
+            "name": name,
             "select_options": [
                 {"id": -i, "value": option.value, "color": option.color}
                 for (i, option) in enumerate(self.options, start=1)
@@ -385,94 +217,46 @@ class BaseMultipleSelectFieldItem(FieldItemCreate):
         }
 
 
-class MultipleSelectFieldItemCreate(BaseMultipleSelectFieldItem):
-    options: list[SelectOptionCreate] = Field(
-        description="The list of options for the field. Use appropriate colors for each option.",
-    )
+class FileConfig(BaseModel):
+    type: Literal["file"] = Field(..., description="Must be 'file'.")
+
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        return {"name": name}
 
 
-class MultipleSelectFieldItem(BaseMultipleSelectFieldItem, FieldItem):
-    options: list[SelectOption] = Field(
-        description="The list of options for the field.",
-    )
-
-    @classmethod
-    def from_django_orm(
-        cls, orm_field: MultipleSelectField
-    ) -> "BaseMultipleSelectFieldItem":
-        field = orm_field.specific
-        return cls(
-            id=field.id,
-            name=field.name,
-            type="multiple_select",
-            options=[
-                SelectOption(
-                    id=opt.id,
-                    value=opt.value,
-                    color=opt.color,
-                )
-                for opt in field.select_options.all()
-            ],
-        )
-
-
-class BaseFileFieldItem(FieldItemCreate):
-    type: Literal["file"] = Field(..., description="File field.")
-
-
-class FileFieldItemCreate(BaseFileFieldItem):
-    pass
-
-
-class FileFieldItem(BaseFileFieldItem, FieldItem):
-    pass
-
-
-class FormulaFieldItemCreate(FieldItemCreate):
-    type: Literal["formula"] = Field(..., description="Formula field.")
+class FormulaConfig(BaseModel):
+    type: Literal["formula"] = Field(..., description="Must be 'formula'.")
     formula: str = Field(
-        ...,
-        description="The formula to use in the field. It needs to be generated via the appropriate tool or use '' as placeholder.",
+        ..., description="The formula expression, or '' as placeholder."
     )
 
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        return {
-            "name": self.name,
-            "formula": self.formula,
-        }
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        if self.formula:
+            from baserow.contrib.database.fields.models import FormulaField
+            from baserow.core.formula.parser.exceptions import BaserowFormulaException
+
+            try:
+                tmp = FormulaField(
+                    formula=self.formula, table=table, name=name, order=0
+                )
+                tmp.recalculate_internal_fields(raise_if_invalid=True)
+            except BaserowFormulaException as e:
+                raise InvalidFormulaFieldError(name, self.formula, table, str(e))
+
+        return {"name": name, "formula": self.formula}
 
 
-class FormulaFieldItem(FormulaFieldItemCreate, FieldItem):
-    formula_type: str = Field(..., description="The type of the formula.")
-    array_formula_type: str | None = Field(
-        ...,
-        description=("If the formula type is 'array', the type of the array items."),
-    )
-
-    @classmethod
-    def from_django_orm(cls, orm_field: FormulaField) -> "FormulaFieldItem":
-        field = orm_field.specific
-        return cls(
-            id=field.id,
-            name=field.name,
-            type="formula",
-            formula=field.formula,
-            formula_type=field.formula_type,
-            array_formula_type=field.array_formula_type,
-        )
-
-
-class LookupFieldItemCreate(FieldItemCreate):
-    type: Literal["lookup"] = Field(..., description="Lookup field.")
+class LookupConfig(BaseModel):
+    type: Literal["lookup"] = Field(..., description="Must be 'lookup'.")
     through_field: int | str = Field(
-        ..., description="The ID of the link row field to lookup through."
+        ..., description="The ID or name of the link row field to look through."
     )
     target_field: int | str = Field(
-        ..., description="The ID of the field to lookup on the linked table."
+        ..., description="The ID or name of the field to look up."
     )
 
-    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
-        data = {"name": self.name}
+    def to_django_orm_kwargs(self, name: str, table: Table) -> dict[str, Any]:
+        data = {"name": name}
         if isinstance(self.through_field, str):
             data["through_field_name"] = self.through_field
         else:
@@ -482,85 +266,193 @@ class LookupFieldItemCreate(FieldItemCreate):
             data["target_field_name"] = self.target_field
         else:
             data["target_field_id"] = self.target_field
-
         return data
 
 
-class LookupFieldItem(LookupFieldItemCreate, FieldItem):
-    through_field_name: str = Field(
-        ..., description="The name of the link row field to lookup through."
-    )
-    target_field_name: str = Field(
-        ..., description="The name of the field to lookup on the linked table."
-    )
-
-    @classmethod
-    def from_django_orm(cls, orm_field: LookupField) -> "LookupFieldItem":
-        field = orm_field.specific
-        return cls(
-            id=field.id,
-            name=field.name,
-            type="lookup",
-            through_field=field.through_field_id,
-            target_field=field.target_field_id,
-            through_field_name=field.through_field_name,
-            target_field_name=field.target_field_name,
-        )
+# ---------------------------------------------------------------------------
+# Read-back config variants (extend create configs where extras are needed)
+# ---------------------------------------------------------------------------
 
 
-AnyFieldItemCreate = Annotated[
-    TextFieldItemCreate
-    | LongTextFieldItemCreate
-    | NumberFieldItemCreate
-    | RatingFieldItemCreate
-    | BooleanFieldItemCreate
-    | DateFieldItemCreate
-    | LinkRowFieldItemCreate
-    | SingleSelectFieldItemCreate
-    | MultipleSelectFieldItemCreate
-    | FileFieldItemCreate
-    | FormulaFieldItemCreate
-    | LookupFieldItemCreate,
-    Field(discriminator="type"),
-]
+class SingleSelectReadConfig(BaseModel):
+    """Read-back variant with full SelectOption (including id)."""
 
-AnyFieldItem = (
-    TextFieldItem
-    | LongTextFieldItem
-    | NumberFieldItem
-    | RatingFieldItem
-    | BooleanFieldItem
-    | DateFieldItem
-    | LinkRowFieldItem
-    | SingleSelectFieldItem
-    | MultipleSelectFieldItem
-    | FileFieldItem
-    | FormulaFieldItem
-    | LookupFieldItem
-    | FieldItem
+    type: Literal["single_select"] = "single_select"
+    options: list[SelectOption]
+
+
+class MultipleSelectReadConfig(BaseModel):
+    """Read-back variant with full SelectOption (including id)."""
+
+    type: Literal["multiple_select"] = "multiple_select"
+    options: list[SelectOption]
+
+
+class FormulaReadConfig(FormulaConfig):
+    """Read-back variant with computed formula metadata."""
+
+    formula_type: str | None = None
+    array_formula_type: str | None = None
+
+
+class LookupReadConfig(LookupConfig):
+    """Read-back variant with resolved field names."""
+
+    through_field_name: str | None = None
+    target_field_name: str | None = None
+
+
+class GenericFieldConfig(BaseModel):
+    """Fallback for field types not in our supported set."""
+
+    type: str
+
+
+# ---------------------------------------------------------------------------
+# Config type unions
+# ---------------------------------------------------------------------------
+
+# Create config union (LLM-facing) — anyOf for broader LLM compatibility
+AnyFieldConfig = (
+    TextConfig
+    | LongTextConfig
+    | NumberConfig
+    | RatingConfig
+    | BooleanConfig
+    | DateConfig
+    | LinkRowConfig
+    | SingleSelectConfig
+    | MultipleSelectConfig
+    | FileConfig
+    | FormulaConfig
+    | LookupConfig
+)
+
+# Read config union — includes read variants and a generic fallback
+AnyFieldReadConfig = (
+    TextConfig
+    | LongTextConfig
+    | NumberConfig
+    | RatingConfig
+    | BooleanConfig
+    | DateConfig
+    | LinkRowConfig
+    | SingleSelectReadConfig
+    | MultipleSelectReadConfig
+    | FileConfig
+    | FormulaReadConfig
+    | LookupReadConfig
+    | GenericFieldConfig
 )
 
 
-class FieldItemsRegistry:
-    _registry = {
-        "text": TextFieldItem,
-        "long_text": LongTextFieldItem,
-        "number": NumberFieldItem,
-        "date": DateFieldItem,
-        "boolean": BooleanFieldItem,
-        "rating": RatingFieldItem,
-        "link_row": LinkRowFieldItem,
-        "single_select": SingleSelectFieldItem,
-        "multiple_select": MultipleSelectFieldItem,
-        "file": FileFieldItem,
-        "formula": FormulaFieldItem,
-        "lookup": LookupFieldItem,
-    }
+# ---------------------------------------------------------------------------
+# Field item models (shared base, consistent structure)
+# ---------------------------------------------------------------------------
 
-    def from_django_orm(self, orm_field: Type[BaserowField]) -> FieldItem:
+
+class _FieldItemBase(BaseModel):
+    """Shared base for create and read-back field models."""
+
+    name: str = Field(..., description="The name of the field.")
+
+
+class FieldItemCreate(_FieldItemBase):
+    """Model for creating a field: name + config."""
+
+    config: AnyFieldConfig = Field(
+        ..., description="Type and configuration of the field."
+    )
+
+    def to_django_orm_kwargs(self, table: Table) -> dict[str, Any]:
+        return self.config.to_django_orm_kwargs(self.name, table)
+
+
+# ---------------------------------------------------------------------------
+# Read-back model (config-based, consistent with FieldItemCreate)
+# ---------------------------------------------------------------------------
+
+
+def _select_options_from_orm(orm_field):
+    from typing import get_args
+
+    valid_colors = set(get_args(OptionColor))
+    return [
+        SelectOption(
+            id=opt.id,
+            value=opt.value,
+            color=opt.color if opt.color in valid_colors else "blue",
+        )
+        for opt in orm_field.specific.select_options.all()
+    ]
+
+
+_CONFIG_BUILDERS: dict[str, Callable] = {
+    "text": lambda f: TextConfig(type="text"),
+    "long_text": lambda f: LongTextConfig(
+        type="long_text",
+        rich_text=f.specific.long_text_enable_rich_text,
+    ),
+    "number": lambda f: NumberConfig(
+        type="number",
+        decimal_places=f.number_decimal_places,
+        suffix=f.number_suffix,
+    ),
+    "rating": lambda f: RatingConfig(type="rating", max_value=f.max_value),
+    "boolean": lambda f: BooleanConfig(type="boolean"),
+    "date": lambda f: DateConfig(type="date", include_time=f.date_include_time),
+    "link_row": lambda f: LinkRowConfig(
+        type="link_row", linked_table=f.link_row_table_id
+    ),
+    "single_select": lambda f: SingleSelectReadConfig(
+        type="single_select",
+        options=_select_options_from_orm(f),
+    ),
+    "multiple_select": lambda f: MultipleSelectReadConfig(
+        type="multiple_select",
+        options=_select_options_from_orm(f),
+    ),
+    "file": lambda f: FileConfig(type="file"),
+    "formula": lambda f: FormulaReadConfig(
+        type="formula",
+        formula=f.specific.formula,
+        formula_type=f.specific.formula_type,
+        array_formula_type=f.specific.array_formula_type,
+    ),
+    "lookup": lambda f: LookupReadConfig(
+        type="lookup",
+        through_field=f.specific.through_field_id,
+        target_field=f.specific.target_field_id,
+        through_field_name=f.specific.through_field_name,
+        target_field_name=f.specific.target_field_name,
+    ),
+}
+
+
+def _config_from_orm(field_type: str, orm_field) -> AnyFieldReadConfig:
+    """Build the appropriate config object from a Django ORM field instance."""
+
+    builder = _CONFIG_BUILDERS.get(field_type)
+    if builder is None:
+        return GenericFieldConfig(type=field_type)
+    return builder(orm_field)
+
+
+class FieldItem(_FieldItemBase):
+    """Existing field with ID. Config-based, consistent with FieldItemCreate."""
+
+    id: int = Field(...)
+    config: AnyFieldReadConfig
+
+    def model_dump(self, **kwargs):
+        kwargs.setdefault("exclude_none", True)
+        return super().model_dump(**kwargs)
+
+    @classmethod
+    def from_django_orm(cls, orm_field: BaserowField) -> "FieldItem":
         field_type = field_type_registry.get_by_model(orm_field).type
-        field_class: FieldItem = self._registry.get(field_type, FieldItem)
-        return field_class.from_django_orm(orm_field)
+        config = _config_from_orm(field_type, orm_field)
+        return cls(id=orm_field.id, name=orm_field.name, config=config)
 
 
-field_item_registry = FieldItemsRegistry()
+AnyFieldItem = FieldItem

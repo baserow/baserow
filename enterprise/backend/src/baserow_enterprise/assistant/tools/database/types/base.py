@@ -1,13 +1,23 @@
 from datetime import date, datetime
 
+from pydantic import model_validator
+
 from baserow_enterprise.assistant.types import BaseModel
 
 
-# Somehow LLMs struggle with dates
 class Date(BaseModel):
     year: int
     month: int
     day: int
+
+    @model_validator(mode="after")
+    def _validate_date(self):
+        # Eagerly check that the combination is a real calendar date so
+        # invalid values (e.g. September 31) are caught during Pydantic
+        # validation — triggering pydantic-ai's retry — instead of
+        # crashing inside to_django_orm().
+        date(self.year, self.month, self.day)
+        return self
 
     def to_django_orm(self):
         return date(self.year, self.month, self.day).isoformat()
@@ -21,6 +31,11 @@ class Date(BaseModel):
 class Datetime(Date):
     hour: int
     minute: int
+
+    @model_validator(mode="after")
+    def _validate_datetime(self):
+        datetime(self.year, self.month, self.day, self.hour, self.minute)
+        return self
 
     def to_django_orm(self):
         return datetime(

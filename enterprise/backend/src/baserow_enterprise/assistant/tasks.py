@@ -3,7 +3,7 @@ from datetime import timedelta
 from baserow.config.celery import app
 
 from .handler import AssistantHandler
-from .tools import KnowledgeBaseHandler
+from .tools.search_user_docs.handler import KnowledgeBaseHandler
 
 
 @app.task(bind=True)
