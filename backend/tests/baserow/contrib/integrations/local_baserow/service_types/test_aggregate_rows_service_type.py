@@ -15,6 +15,8 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -238,6 +240,9 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_table(data_fixture):
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
+    assert service_type.dispatch_transform(result) == DispatchResult(
+        data="20", status=200, output_uid=""
+    )
 
 
 @pytest.mark.django_db
@@ -278,6 +283,9 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
+    assert service_type.dispatch_transform(result) == DispatchResult(
+        data="20", status=200, output_uid=""
+    )
 
 
 @pytest.mark.django_db
@@ -501,11 +509,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_deleted(data_fixture):
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
 
-    field.delete()
+    TrashHandler.trash(user, dashboard.workspace, dashboard, field)
+    service.refresh_from_db(fields=["field"])
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert exc.value.args[0] == f"The field with ID {field.id} does not exist."
+    assert exc.value.args[0] == f"The field with ID {field.id} is trashed."
 
 
 @pytest.mark.django_db
@@ -619,43 +628,3 @@ def test_create_local_baserow_aggregate_rows_service_with_unsupported_aggregatio
         match=f"The {unsupported_agg_type} aggregation type is not currently supported.",
     ):
         service_type.prepare_values({"aggregation_type": unsupported_agg_type}, user)
-
-
-@pytest.mark.django_db
-def test_local_baserow_aggregate_rows_dispatch_data_serialize_dispatch_result(
-    data_fixture,
-):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
-    field = data_fixture.create_number_field(table=table)
-    RowHandler().create_rows(
-        user,
-        table,
-        rows_values=[
-            {f"field_{field.id}": 2},
-            {f"field_{field.id}": 4},
-            {f"field_{field.id}": 6},
-            {f"field_{field.id}": 8},
-        ],
-    )
-    integration = data_fixture.create_local_baserow_integration(
-        application=dashboard, user=user
-    )
-    service_type = service_type_registry.get("local_baserow_aggregate_rows")
-    values = service_type.prepare_values(
-        {
-            "table_id": table.id,
-            "integration_id": integration.id,
-            "field_id": field.id,
-            "aggregation_type": "sum",
-        },
-        user,
-    )
-    service = ServiceHandler().create_service(service_type, **values)
-    dispatch_context = FakeDispatchContext(serialize_dispatch_result=True)
-    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert result["baserow_table_model"]
-    assert result["data"] == {"result": "20"}

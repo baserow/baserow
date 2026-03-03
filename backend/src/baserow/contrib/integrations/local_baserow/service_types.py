@@ -1487,7 +1487,7 @@ class LocalBaserowAggregateRowsUserServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {service.field.id} is trashed."
                 )
-            field = service.field
+            field = service.field.specific
             model = self.get_table_model(service)
             model_field = model._meta.get_field(field.db_column)
             queryset = self.build_queryset(
@@ -1496,20 +1496,10 @@ class LocalBaserowAggregateRowsUserServiceType(
             agg_type = field_aggregation_registry.get(service.aggregation_type)
             result = agg_type.aggregate(queryset, model_field, field)
 
-            # If the dispatch context states that the dispatch result should be
-            # serialized, we use the field type to serialize the result. In a few
-            # cases, the aggregation result will be a `Decimal`, which can't be JSON
-            # serialized if this dispatch is happening asynchronously.
-            if dispatch_context.serialize_dispatch_result:
-                result = (
-                    field.get_type()
-                    .get_serializer_field(field.specific)
-                    .to_representation(result)
-                )
-
             return {
                 "data": {"result": result},
                 "baserow_table_model": model,
+                "field": field,
             }
         except DjangoFieldDoesNotExist as ex:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -1533,7 +1523,18 @@ class LocalBaserowAggregateRowsUserServiceType(
         :return: A dictionary containing the aggregation result.
         """
 
-        return DispatchResult(data=data["data"])
+        # Use the field type's serializer field to ensure the aggregation result
+        # is serialized correctly. Some aggregations can return values which are not
+        # JSON serializable (e.g. Decimal), so we need to use the serializer field
+        # to convert them into a JSON serializable format.
+        result = (
+            data["field"]
+            .get_type()
+            .get_serializer_field(data["field"])
+            .to_representation(data["data"]["result"])
+        )
+
+        return DispatchResult(data={"result": result})
 
     def extract_properties(self, path: List[str], **kwargs) -> List[str]:
         """

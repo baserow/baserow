@@ -401,7 +401,7 @@ def test_dispatch_dashboard_data_source(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json == {"result": 60}
+    assert response_json == {"result": "60"}
 
 
 @pytest.mark.django_db

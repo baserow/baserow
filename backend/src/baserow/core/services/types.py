@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import NamedTuple, NewType, Optional, TypedDict, TypeVar
+from typing import NamedTuple, NewType, Optional, TypedDict, TypeVar, Union
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.formula.types import BaserowFormulaObject
@@ -29,7 +29,7 @@ class ServiceSortDict(TypedDict):
 
 @dataclass
 class DispatchResult:
-    data: dict = field(default_factory=dict)
+    data: Union[dict, str] = field(default_factory=dict)
     status: int = 200
     output_uid: str = ""
 
