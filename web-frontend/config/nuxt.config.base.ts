@@ -98,6 +98,14 @@ export default defineNuxtConfig({
     },
     server: {
       sourcemapIgnoreList: (sourcePath) => sourcePath.includes('node_modules'),
+      watch: {
+        ignored: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/.nuxt/**',
+          '**/.claude/**',
+        ],
+      },
     },
     optimizeDeps: {
       // Pre-bundle moment-guess to avoid missing source map warning
