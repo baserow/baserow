@@ -32,7 +32,7 @@ ALLOWED_ENV_PREFIXES = ("DATABASE_", "BASEROW_EMBEDDINGS_API_URL")
 def getenv_for_tests(key: str, default: str = "") -> str:
     """
     Get env var for tests:
-    - DATABASE_* vars: check real env first, then TEST_ENV_FILE, then default
+    - ALLOWED_ENV_PREFIXES vars: use real env var if set, else TEST_ENV_FILE, else default
     - Other vars: only use TEST_ENV_FILE or default (never real env)
     """
 

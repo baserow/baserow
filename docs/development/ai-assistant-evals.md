@@ -47,13 +47,16 @@ All configuration is via environment variables:
 
 ### API keys from a file
 
-The eval conftest loads API keys from two optional locations (first match wins):
+The eval conftest reads API keys from the same `TEST_ENV_FILE` that
+`baserow/config/settings/test.py` already parses, and exposes them via
+`os.environ` so that LLM provider SDKs can find them:
 
-1. The file pointed to by `TEST_ENV_FILE` (same resolution as
-   `baserow/config/settings/test.py`).
-2. `.vscode/env` at the repo root — handy for local development.
+```bash
+TEST_ENV_FILE=.env.testing-local just b test \
+  enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ -m eval -v -s
+```
 
-Variables already present in `os.environ` are never overwritten.
+Variables already present in `os.environ` take precedence.
 
 ### Running against multiple models
 

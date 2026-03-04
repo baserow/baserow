@@ -544,6 +544,8 @@ def create_fields(
             user, table, fields, tool_helpers, formula_fixer=formula_fixer
         )
         result = {"created_fields": [field.model_dump() for field in created_fields]}
+        if field_errors:
+            result["field_errors"] = field_errors
         if formula_errors:
             for err in formula_errors:
                 err["hint"] = (
