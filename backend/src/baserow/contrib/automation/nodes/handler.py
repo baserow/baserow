@@ -417,17 +417,15 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             else None
         )
 
-        allowed_nodes = None
         if simulate_until_node:
             allowed_nodes = {
                 *simulate_until_node.get_previous_nodes(),
                 simulate_until_node,
             }
-
-        if allowed_nodes is not None and node not in allowed_nodes:
-            # Return early as the node is not in the path leading to
-            # the simulated node.
-            return None
+            if node not in allowed_nodes:
+                # Return early as the node is not in the path leading to
+                # the simulated node.
+                return None
 
         node_history = history_handler.create_node_history(
             workflow_history=workflow_history,
