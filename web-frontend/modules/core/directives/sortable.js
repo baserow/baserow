@@ -153,12 +153,19 @@ export default {
     binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
 
-    const handleEl = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-
     el.mousedownEvent = (event) => {
       if (!el.sortableEnabled || event.button !== 0) return
+
+      const handleSelector = binding.value.handle
+      if (handleSelector) {
+        const handle = event.target.closest(handleSelector)
+        // Ensure the clicked handle belongs to this element (not a nested one)
+        if (!handle || !el.contains(handle)) {
+          return
+        }
+      }
+
+      event.stopPropagation()
 
       el.sortableMoved = false
       el.sortableStartClientX = event.clientX
@@ -197,7 +204,7 @@ export default {
       document.body.addEventListener('keydown', el.keydownEvent)
     }
 
-    handleEl.addEventListener('mousedown', el.mousedownEvent)
+    el.addEventListener('mousedown', el.mousedownEvent)
   },
 
   /**
@@ -208,10 +215,7 @@ export default {
     if (el.sortableMoved) {
       binding.dir.cancel(el)
     }
-    const handleEl = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-    handleEl.removeEventListener('mousedown', el.mousedownEvent)
+    el.removeEventListener('mousedown', el.mousedownEvent)
   },
 
   /**

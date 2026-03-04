@@ -13,12 +13,6 @@
     }"
     @click="onSelect"
   >
-    <div
-      v-if="mode === 'editing'"
-      class="element-preview__drag-handle"
-      data-sortable-handle
-      v-tooltip="$t('elementPreview.dragToReorder')"
-    />
     <div v-if="isSelected" class="element-preview__tags">
       <div class="element-preview__name-tag">
         {{ elementType.name }}

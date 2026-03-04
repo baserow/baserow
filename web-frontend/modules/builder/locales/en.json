@@ -190,7 +190,8 @@
     "moveDown": "Move down",
     "moveLeft": "Move left",
     "moveRight": "Move right",
-    "selectParent": "Select parent"
+    "selectParent": "Select parent",
+    "reorder": "Drag to reorder"
   },
   "elementPreview": {
     "dragToReorder": "Drag to reorder",

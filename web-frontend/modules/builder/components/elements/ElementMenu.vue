@@ -85,6 +85,15 @@
         {{ $t('action.delete') }} (del)
       </span>
     </a>
+    <a
+      class="element-preview__menu-item element-preview__drag-handle"
+      data-sortable-handle
+    >
+      <i class="iconoir-drag"></i>
+      <span class="element-preview__menu-item-description">
+        {{ $t('elementMenu.reorder') }}
+      </span>
+    </a>
   </div>
 </template>
 

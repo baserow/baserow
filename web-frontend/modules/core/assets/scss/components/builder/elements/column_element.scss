@@ -16,6 +16,7 @@
   &.sortable-dragging-item,
   &.sortable-active-item {
     border: 1px dashed $palette-neutral-500;
+
     @include rounded($rounded-md);
   }
 }
