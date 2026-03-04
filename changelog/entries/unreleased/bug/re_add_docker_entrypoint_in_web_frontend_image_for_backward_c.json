@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Re-add docker entrypoint in the web-frontend image for backward compatibility with custom docker-compose or Helm charts that override the container command.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-04"
+}
