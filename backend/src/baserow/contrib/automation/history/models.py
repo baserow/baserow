@@ -9,6 +9,10 @@ class AutomationHistory(models.Model):
 
     message = models.TextField()
 
+    is_test_run = models.BooleanField(
+        default=False
+    )  # TODO ZDM: Remove after next release
+
     status = models.CharField(
         choices=HistoryStatusChoices.choices,
         max_length=8,
