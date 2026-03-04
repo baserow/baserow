@@ -18,7 +18,7 @@ if (dsn && dsn !== '') {
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
-      if (err?.fatal === false) return null
+      if (err?.fatal === false || err?.response?.status === 401) return null
       if (isDev) {
         console.error('[Sentry captured error]', err)
         return null

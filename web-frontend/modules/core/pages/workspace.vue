@@ -331,7 +331,6 @@ const {
       throw createError({
         statusCode: 400,
         message: 'Error loading dashboard.',
-        fatal: true,
       })
     }
   }
