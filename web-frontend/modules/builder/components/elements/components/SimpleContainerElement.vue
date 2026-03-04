@@ -1,5 +1,19 @@
 <template>
-  <div>
+  <div
+    class="simple-container-element"
+    :style="
+      mode === 'editing' ? { position: 'relative', marginTop: '14px' } : {}
+    "
+  >
+    <div
+      v-if="mode === 'editing'"
+      v-tooltip="$t('elementPreview.dragToReorderContainer')"
+      class="column-element__drag-handle"
+      data-sortable-handle
+      tooltip-position="top"
+    >
+      <i class="iconoir-drag"></i>
+    </div>
     <template
       v-if="
         mode === 'editing' &&

@@ -195,7 +195,8 @@
   },
   "elementPreview": {
     "dragToReorder": "Drag to reorder",
-    "dragToReorderColumn": "Drag to reorder the column"
+    "dragToReorderColumn": "Drag to reorder the column",
+    "dragToReorderContainer": "Drag to reorder the container"
   },
   "duplicatePageJobType": {
     "name": "Duplicate page",

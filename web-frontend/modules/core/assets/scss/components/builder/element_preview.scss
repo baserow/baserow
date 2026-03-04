@@ -141,7 +141,8 @@
   }
 
   /* Show when hovering the column or any of its children (unlike element-preview, column handle stays visible when hovering nested elements) */
-  .column-element__column:hover & {
+  .column-element__column:hover &,
+  .simple-container-element:hover & {
     opacity: 1;
   }
 
@@ -187,6 +188,17 @@
     .page__footer & {
       background-color: $palette-purple-500;
     }
+  }
+}
+
+.sortable-dragging-item,
+.sortable-active-item {
+  & > .element,
+  & > .element--read-only,
+  & .simple-container-element {
+    border: 1px dashed $palette-neutral-500;
+
+    @include rounded($rounded-md);
   }
 }
 
