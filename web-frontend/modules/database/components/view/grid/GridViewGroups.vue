@@ -2,7 +2,7 @@
   <div
     class="grid-view__groups"
     :style="{
-      paddingTop: `${bufferStartIndex * rowHeight}px`,
+      paddingTop: `${rowsTop - rowsStartIndex * rowHeight}px`,
     }"
   >
     <div
@@ -62,6 +62,14 @@ export default {
     },
     rowHeight() {
       return this.$store.getters[`${this.storePrefix}view/grid/getRowHeight`]
+    },
+    rowsTop() {
+      return this.$store.getters[`${this.storePrefix}view/grid/getRowsTop`]
+    },
+    rowsStartIndex() {
+      return this.$store.getters[
+        `${this.storePrefix}view/grid/getRowsStartIndex`
+      ]
     },
     bufferStartIndex() {
       return this.$store.getters[

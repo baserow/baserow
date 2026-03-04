@@ -21,6 +21,7 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
+import { realToVirtualScrollTop } from '@baserow/modules/database/utils/gridScrollMapping'
 
 export default {
   name: 'GridViewRowDragging',
@@ -108,13 +109,34 @@ export default {
     this.cancel()
   },
   methods: {
-    getRowTop(rowId) {
+    /**
+     * Converts a real DOM scroll position to a virtual scroll position using the
+     * same fraction-based mapping as the store.
+     */
+    computeVirtualScrollTop(scrollTop) {
+      const placeholderHeight =
+        this.$store.getters[this.storePrefix + 'view/grid/getPlaceholderHeight']
+      const windowHeight =
+        this.$store.getters[this.storePrefix + 'view/grid/getWindowHeight']
+      const virtualHeight = this.rowsCount * this.rowHeight
+      return realToVirtualScrollTop(
+        scrollTop,
+        placeholderHeight,
+        virtualHeight,
+        windowHeight
+      )
+    },
+    /**
+     * Returns the viewport-relative top position of the row with the given id.
+     */
+    getRowTop(rowId, scrollTop) {
       const index = this.allRows.findIndex((row) => row.id === rowId)
       if (index < 0) {
         return 0
       }
-
-      return this.bufferStartIndex * this.rowHeight + index * this.rowHeight
+      const absoluteIndex = this.bufferStartIndex + index
+      const virtualScrollTop = this.computeVirtualScrollTop(scrollTop)
+      return absoluteIndex * this.rowHeight - virtualScrollTop
     },
     /**
      * Called when the row dragging must start. It will register the global mouse
@@ -125,7 +147,7 @@ export default {
       const element = this.getScrollElement()
 
       this.row = row
-      this.startRowTop = this.getRowTop(row.id) - element.scrollTop
+      this.startRowTop = this.getRowTop(row.id, element.scrollTop)
       this.targetRowId = row.id
       this.dragging = true
       this.mouseStart = event.clientY
@@ -178,12 +200,14 @@ export default {
       // dragged. We also calculate target top position which indicates at which
       // position the row is going to be placed. Note that the target effect lays over
       // the vertically scrollable rows.
-      const mouseTop = event.clientY - elementRect.top + element.scrollTop
+      const mouseViewportTop = event.clientY - elementRect.top
+      const virtualScrollTop = this.computeVirtualScrollTop(element.scrollTop)
+      const virtualMousePos = virtualScrollTop + mouseViewportTop
       const rowIndex = Math.max(
         0,
-        Math.min(Math.round(mouseTop / this.rowHeight), this.rowsCount)
+        Math.min(Math.round(virtualMousePos / this.rowHeight), this.rowsCount)
       )
-      this.targetTop = rowIndex * this.rowHeight - element.scrollTop
+      this.targetTop = rowIndex * this.rowHeight - virtualScrollTop
       const beforeRow = this.allRows[rowIndex - this.bufferStartIndex]
       this.targetRow = beforeRow === undefined ? null : beforeRow
 

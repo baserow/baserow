@@ -5,6 +5,7 @@ import {
   ContainsViewFilterType,
 } from '@baserow/modules/database/viewFilters'
 import { clone } from '@baserow/modules/core/utils/object'
+import { MAX_SAFE_SCROLL_HEIGHT } from '@baserow/modules/database/utils/gridScrollMapping'
 
 import { createStore } from 'vuex'
 
@@ -92,6 +93,85 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getRowsTop']).toBe(396)
     expect(store.getters['grid/getRowsStartIndex']).toBe(3)
     expect(store.getters['grid/getRowsEndIndex']).toBe(6)
+  })
+
+  test('visibleByScrollTop with large row count (capped placeholder height)', async () => {
+    const rowHeight = 33
+    const count = 500000
+    const virtualHeight = count * rowHeight // 16,500,000
+    const placeholderHeight = MAX_SAFE_SCROLL_HEIGHT // 10,000,000
+    const windowHeight = 600
+    const bufferSize = 100
+
+    // Create a buffer of rows near the start
+    const rows = []
+    for (let i = 0; i < bufferSize; i++) {
+      rows.push({ id: i + 1, order: `${i + 1}.00` })
+    }
+
+    const state = Object.assign(gridStore.state(), {
+      rowPadding: 16,
+      rowHeight,
+      bufferStartIndex: 0,
+      bufferLimit: bufferSize,
+      bufferRequestSize: 40,
+      rows,
+      count,
+      windowHeight,
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+
+    // Verify the placeholder height is capped
+    expect(store.getters['grid/getPlaceholderHeight']).toBe(placeholderHeight)
+
+    // scrollTop=0 → rowsStartIndex near 0
+    await store.dispatch('grid/visibleByScrollTop', 0)
+    expect(store.getters['grid/getRowsStartIndex']).toBe(0)
+
+    // scrollTop at max → should map to the end of the buffer
+    const maxRealScroll = placeholderHeight - windowHeight
+    // Move buffer to the end of the table
+    const endRows = []
+    const endBufferStart = count - bufferSize
+    for (let i = 0; i < bufferSize; i++) {
+      endRows.push({
+        id: endBufferStart + i + 1,
+        order: `${endBufferStart + i + 1}.00`,
+      })
+    }
+    store.state.grid.bufferStartIndex = endBufferStart
+    store.state.grid.rows = endRows
+
+    await store.dispatch('grid/visibleByScrollTop', maxRealScroll)
+    expect(store.getters['grid/getRowsEndIndex']).toBe(bufferSize)
+
+    // Intermediate scroll position maps proportionally.
+    // At midReal the middleRowIndex ≈ 249999 (middle of 500k rows), so
+    // place the buffer around that region so visible indices are meaningful.
+    const midReal = maxRealScroll / 2
+    const midBufferStart = 249950
+    const midRows = []
+    for (let i = 0; i < bufferSize; i++) {
+      midRows.push({
+        id: midBufferStart + i + 1,
+        order: `${midBufferStart + i + 1}.00`,
+      })
+    }
+    store.state.grid.bufferStartIndex = midBufferStart
+    store.state.grid.rows = midRows
+
+    await store.dispatch('grid/visibleByScrollTop', midReal)
+    const startIndex = store.getters['grid/getRowsStartIndex']
+    const endIndex = store.getters['grid/getRowsEndIndex']
+    // The visible window should fall within the buffer and cover
+    // 2 * rowPadding + 1 = 33 rows (the store centres on middleRowIndex
+    // and extends rowPadding rows in each direction).
+    const rowPadding = 16
+    const visibleRows = endIndex - startIndex
+    expect(visibleRows).toBe(2 * rowPadding + 1)
+    expect(startIndex).toBeGreaterThanOrEqual(0)
+    expect(endIndex).toBeLessThanOrEqual(bufferSize)
   })
 
   test('createdNewRow', async () => {

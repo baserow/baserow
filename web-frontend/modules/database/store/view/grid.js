@@ -34,6 +34,11 @@ import {
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   LINKED_ITEMS_LOAD_ALL,
 } from '@baserow/modules/database/constants'
+import {
+  MAX_SAFE_SCROLL_HEIGHT,
+  getMiddleRowIndex,
+  realToVirtualScrollTop,
+} from '@baserow/modules/database/utils/gridScrollMapping'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -220,6 +225,10 @@ export const state = () => ({
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
   checkboxSelectedRows: [], // Array of row IDs selected by checkboxes
+  // The rowId and fieldId of the single selected cell, persisted at the state
+  // level so ADD_ROWS can re-apply selection to newly fetched row objects.
+  selectedCellRowId: -1,
+  selectedCellFieldId: -1,
 })
 
 export const mutations = {
@@ -238,6 +247,8 @@ export const mutations = {
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
     state.checkboxSelectedRows = []
+    state.selectedCellRowId = -1
+    state.selectedCellFieldId = -1
     state.selectionType = null
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
@@ -322,6 +333,14 @@ export const mutations = {
         if (!row._.selectedBy.includes(0)) {
           row._.selectedBy.push(0)
         }
+      }
+      // Re-apply single-cell selection to newly fetched rows, matching the
+      // pattern used for checkbox selection above. Without this, the
+      // selection styling is lost when the buffer is refreshed because new
+      // row objects from populateRow() have _.selected = false.
+      if (row.id === state.selectedCellRowId) {
+        row._.selected = true
+        row._.selectedFieldId = state.selectedCellFieldId
       }
     })
   },
@@ -416,6 +435,8 @@ export const mutations = {
     }
   },
   SET_SELECTED_CELL(state, { rowId, fieldId }) {
+    state.selectedCellRowId = rowId
+    state.selectedCellFieldId = fieldId
     state.rows.forEach((row) => {
       if (row._.selected) {
         row._.selected = false
@@ -816,12 +837,18 @@ export const actions = {
     const view = rootGetters['view/get'](getters.getLastGridId)
 
     // Calculate what the middle row index of the visible window based on the scroll
-    // top.
-    const middle = scrollTop + windowHeight / 2
+    // top. Use fraction-based mapping to ensure the full scroll range maps to the
+    // full virtual range, so bottom rows are always reachable.
+    const placeholderHeight = getters.getPlaceholderHeight
+    const virtualHeight = getters.getCount * getters.getRowHeight
     const countIndex = getters.getCount - 1
-    const middleRowIndex = Math.min(
-      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
-      countIndex
+    const middleRowIndex = getMiddleRowIndex(
+      scrollTop,
+      placeholderHeight,
+      virtualHeight,
+      windowHeight,
+      getters.getRowHeight,
+      getters.getCount
     )
 
     // Calculate the start and end index of the rows that are visible to the user in
@@ -974,12 +1001,23 @@ export const actions = {
     }
 
     const windowHeight = getters.getWindowHeight
-    const middle = scrollTop + windowHeight / 2
-    const countIndex = getters.getCount - 1
+    const placeholderHeight = getters.getPlaceholderHeight
+    const virtualHeight = getters.getCount * getters.getRowHeight
+    const virtualScrollTop = realToVirtualScrollTop(
+      scrollTop,
+      placeholderHeight,
+      virtualHeight,
+      windowHeight
+    )
+    const maxRealScroll = Math.max(placeholderHeight - windowHeight, 1)
 
-    const middleRowIndex = Math.min(
-      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
-      countIndex
+    const middleRowIndex = getMiddleRowIndex(
+      scrollTop,
+      placeholderHeight,
+      virtualHeight,
+      windowHeight,
+      getters.getRowHeight,
+      getters.getCount
     )
 
     // Calculate the start and end index of the rows that are visible to the user in
@@ -1007,11 +1045,17 @@ export const actions = {
       ) - getters.getBufferStartIndex
 
     // Calculate the top position of the html element that contains all the rows.
-    // This element will be placed over the placeholder the correct position of
-    // those rows.
-    const top =
+    // This element will be placed over the placeholder at the correct position.
+    // We position relative to scrollTop so rows always appear correctly in the
+    // viewport, regardless of the scale factor. We cap scrollTop at maxRealScroll
+    // so that when the user scrolls past the data area (into the add-row /
+    // padding region), the rows freeze in place and don't extend past the
+    // placeholder, which would cover the add-row element.
+    const virtualTop =
       Math.min(visibleStartIndex, getters.getBufferEndIndex) *
       getters.getRowHeight
+    const top =
+      Math.min(scrollTop, maxRealScroll) + virtualTop - virtualScrollTop
 
     // If the index changes from what we already have we can commit the new indexes
     // to the state.
@@ -1033,6 +1077,11 @@ export const actions = {
    * milliseconds to prevent calling the actions who do a lot of calculating a lot.
    */
   fetchByScrollTopDelayed({ dispatch }, { scrollTop, fields }) {
+    cancelAnimationFrame(fireScrollTop.rafId)
+    fireScrollTop.rafId = requestAnimationFrame(() => {
+      dispatch('visibleByScrollTop', scrollTop)
+    })
+
     const { $registry, $client, $i18n, $config } = this
     const now = Date.now()
 
@@ -1043,7 +1092,6 @@ export const actions = {
         scrollTop,
         fields,
       })
-      dispatch('visibleByScrollTop', scrollTop)
     }
 
     const distance = Math.abs(scrollTop - fireScrollTop.distance)
@@ -3643,7 +3691,7 @@ export const getters = {
     return state.rows.length
   },
   getPlaceholderHeight(state) {
-    return state.count * state.rowHeight
+    return Math.min(state.count * state.rowHeight, MAX_SAFE_SCROLL_HEIGHT)
   },
   getRowPadding(state) {
     return state.rowPadding
