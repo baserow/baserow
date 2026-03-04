@@ -312,7 +312,7 @@ class TestCompactMessageHistory:
 class TestAssistantMessagePersistence:
     """Test that messages are persisted correctly during streaming."""
 
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_persists_human_message(
         self, mock_run_stream, enterprise_data_fixture
     ):
@@ -347,7 +347,7 @@ class TestAssistantMessagePersistence:
         ).first()
         assert saved_message.content == "Test message"
 
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_persists_ai_message(
         self, mock_run_stream, enterprise_data_fixture
     ):
@@ -377,8 +377,8 @@ class TestAssistantMessagePersistence:
         ).count()
         assert ai_messages == 1
 
-    @patch("baserow_enterprise.assistant.agent.title_agent.run")
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.title_agent.run")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_persists_chat_title(
         self,
         mock_run_stream,
@@ -416,7 +416,7 @@ class TestAssistantMessagePersistence:
 class TestAssistantStreaming:
     """Test streaming behavior of the Assistant."""
 
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_yields_answer_chunks(
         self, mock_run_stream, enterprise_data_fixture
     ):
@@ -453,8 +453,8 @@ class TestAssistantStreaming:
         ]
         assert len(chunks) >= 1
 
-    @patch("baserow_enterprise.assistant.agent.title_agent.run")
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.title_agent.run")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_yields_title_for_new_chat(
         self, mock_run_stream, mock_title_run, enterprise_data_fixture
     ):
@@ -483,7 +483,7 @@ class TestAssistantStreaming:
         assert len(title_messages) == 1
         assert title_messages[0].content == "Title"
 
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_yields_thinking_messages(
         self, mock_run_stream, enterprise_data_fixture
     ):
@@ -536,7 +536,7 @@ class TestAssistantStreaming:
         assert len(thinking_messages) == 1
         assert thinking_messages[0].content == "still thinking..."
 
-    @patch("baserow_enterprise.assistant.agent.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
     def test_astream_messages_yields_ai_started_message(
         self, mock_run_stream, enterprise_data_fixture
     ):

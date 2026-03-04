@@ -12,7 +12,6 @@ These utilities are used by multiple eval test files and provide:
 import json
 import os
 
-from pydantic_ai import Tool
 from pydantic_ai.usage import UsageLimits
 
 from baserow_enterprise.assistant.agents import main_agent
@@ -173,58 +172,15 @@ def get_eval_model() -> str:
 
 class EvalToolTracker:
     """
-    Tracks tool calls and errors for eval assertions.
+    Placeholder for future tool-call instrumentation.
 
-    With pydantic-ai, tool lifecycle hooks are handled via wrapper tools
-    rather than callbacks.
+    Currently eval assertions rely on inspecting the pydantic-ai message
+    history (``RetryPromptPart`` entries) rather than wrapping individual
+    tools, so this class is intentionally minimal.
     """
 
     def __init__(self, verbose: bool = True):
-        self.tool_errors: list[tuple[str, dict, Exception]] = []
-        self.tool_call_counts: dict[str, int] = {}
         self.verbose = verbose
-
-    def wrap_tool(self, tool: Tool) -> Tool:
-        """Wrap a tool to track calls and errors."""
-        original_func = tool.function
-        tracker = self
-
-        def tracked_func(**kwargs):
-            tool_name = tool.name
-            tracker.tool_call_counts[tool_name] = (
-                tracker.tool_call_counts.get(tool_name, 0) + 1
-            )
-
-            if tracker.verbose:
-                print(f"\n-> {tool_name}")
-                inputs_str = json.dumps(kwargs, indent=2, default=str)
-                if len(inputs_str) > 500:
-                    inputs_str = inputs_str[:500] + "..."
-                print(f"  {inputs_str}")
-
-            try:
-                result = original_func(**kwargs)
-                if tracker.verbose:
-                    outputs_str = str(result)
-                    if len(outputs_str) > 200:
-                        outputs_str = outputs_str[:200] + "..."
-                    print(f"  OK: {outputs_str}")
-                return result
-            except Exception as exc:
-                tracker.tool_errors.append((tool_name, kwargs, exc))
-                if tracker.verbose:
-                    print(f"  ERROR: {exc}")
-                raise
-
-        return Tool(
-            tracked_func,
-            name=tool.name,
-            description=tool.description,
-        )
-
-    def get_tool_call_count(self, tool_name: str) -> int:
-        """Get the number of times a tool was called."""
-        return self.tool_call_counts.get(tool_name, 0)
 
 
 def create_eval_assistant(user, workspace, max_iters=15, model=None):
@@ -269,17 +225,11 @@ def assert_no_tool_errors(tracker: EvalToolTracker, result=None):
     """
     Assert no tool errors occurred during the agent run.
 
-    Checks two things:
-    1. No exceptions were raised by tool functions (tracked by EvalToolTracker).
-    2. No RetryPromptPart messages in the history, which indicate the LLM
-       sent invalid arguments that failed pydantic validation.
+    Inspects the pydantic-ai message history for ``RetryPromptPart``
+    entries, which indicate the LLM sent invalid arguments that failed
+    pydantic validation.
     """
     from pydantic_ai.messages import ModelRequest, RetryPromptPart
-
-    assert not tracker.tool_errors, (
-        f"Tool errors occurred: "
-        f"{[(name, str(e)) for name, _, e in tracker.tool_errors]}"
-    )
 
     if result is not None:
         messages = getattr(result, "all_messages", lambda: [])() or []

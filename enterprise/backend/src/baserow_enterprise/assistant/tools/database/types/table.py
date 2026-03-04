@@ -37,12 +37,12 @@ class TableItem(BaseTableItem):
 
 
 class ListTablesFilterArg(BaseModel):
-    database_id_or_name: int | str = Field(
-        ...,
+    database_id_or_name: int | str | None = Field(
+        default=None,
         description="The ID or name of the database to filter. null to exclude this filter.",
     )
     table_ids_or_names: list[int | str] | None = Field(
-        ...,
+        default=None,
         description="A list of table ids or names to filter in an OR fashion. null to exclude this filter.",
     )
 

@@ -5,41 +5,31 @@ import os
 from django.conf import settings
 
 import pytest
-from dotenv import dotenv_values
 
-# Load API keys from TEST_ENV_FILE into os.environ BEFORE any LLM clients
-# are imported, because some providers read os.getenv() at module import time.
-_test_env_file = os.environ.get("TEST_ENV_FILE", "")
-if _test_env_file:
-    # Resolve the same way as backend/src/baserow/config/settings/test.py:
-    # BASE_DIR (= .../config) + ../../../ + TEST_ENV_FILE
-    # We replicate this by finding the baserow config package location.
-    import baserow.config.settings as _settings_pkg
+from baserow.config.settings.test import TEST_ENV_VARS
 
-    _settings_dir = os.path.dirname(os.path.abspath(_settings_pkg.__file__))
-    # _settings_dir = .../backend/src/baserow/config/settings
-    # test.py uses dirname(dirname(__file__)) = .../config, then ../../../
-    # So from _settings_dir we need ../../../../
-    _env_path = os.path.normpath(
-        os.path.join(_settings_dir, f"../../../../{_test_env_file}")
-    )
-    for _k, _v in dotenv_values(_env_path).items():
-        if _k not in os.environ and _v is not None:
-            os.environ[_k] = _v
+# Expose API keys from TEST_ENV_FILE to os.environ so that LLM provider
+# SDKs (which read os.getenv() at import/construction time) can find them.
+# test.py already parses TEST_ENV_FILE via dotenv_values but deliberately
+# does NOT inject non-allowlisted keys into os.environ.  We bridge that
+# gap here for the small set of keys the eval suite needs.
+_API_KEY_NAMES = ("GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+for _k in _API_KEY_NAMES:
+    if (_v := TEST_ENV_VARS.get(_k)) and not os.environ.get(_k):
+        os.environ[_k] = _v
 
 
-# Fallback: also try loading .vscode/env from the repo root if GROQ_API_KEY
-# is not yet set.  This makes ``pytest -m eval`` work out of the box when
-# running from the worktree without needing to set TEST_ENV_FILE.
-if "GROQ_API_KEY" not in os.environ:
-    _repo_root = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "../../../../../../..")
-    )
-    _vscode_env = os.path.join(_repo_root, ".vscode", "env")
-    if os.path.isfile(_vscode_env):
-        for _k, _v in dotenv_values(_vscode_env).items():
-            if _k not in os.environ and _v is not None:
-                os.environ[_k] = _v
+def pytest_collection_modifyitems(config, items):
+    """Skip eval tests unless ``-m eval`` was explicitly requested."""
+
+    marker_expr = config.getoption("-m", default="")
+    if "eval" in marker_expr:
+        return  # user explicitly requested evals
+
+    skip_eval = pytest.mark.skip(reason="eval tests only run with -m eval")
+    for item in items:
+        if item.get_closest_marker("eval"):
+            item.add_marker(skip_eval)
 
 
 def pytest_generate_tests(metafunc):
