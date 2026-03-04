@@ -9,7 +9,6 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterService,
     CoreSMTPEmailService,
 )
-from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
@@ -143,33 +142,6 @@ class ServiceFixtures:
         return self.create_service(CoreHTTPTriggerService, **kwargs)
 
     def create_core_periodic_service(self, **kwargs) -> CorePeriodicService:
-        """
-        Create a CorePeriodicService with proper next_run_at calculation.
-        If next_run_at is not provided, it will be automatically calculated
-        based on the interval and schedule fields.
-        """
-        from django.utils import timezone
-
-        # If next_run_at is not explicitly provided, calculate it
-        if "next_run_at" not in kwargs:
-            # Get schedule parameters with defaults
-            interval = kwargs.get("interval", "MINUTE")
-            minute = kwargs.get("minute", 0)
-            hour = kwargs.get("hour", 0)
-            day_of_week = kwargs.get("day_of_week", 0)
-            day_of_month = kwargs.get("day_of_month", 1)
-            last_periodic_run = kwargs.get("last_periodic_run")
-
-            # Calculate next_run_at
-            kwargs["next_run_at"] = calculate_next_periodic_run(
-                interval=interval,
-                minute=minute,
-                hour=hour,
-                day_of_week=day_of_week,
-                day_of_month=day_of_month,
-                from_time=last_periodic_run or timezone.now(),
-            )
-
         return self.create_service(CorePeriodicService, **kwargs)
 
     def create_service(self, model_class, **kwargs):
