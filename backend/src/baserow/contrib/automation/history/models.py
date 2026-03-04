@@ -39,7 +39,10 @@ class AutomationWorkflowHistory(AutomationHistory):
     )
 
     event_payload = models.JSONField(
-        default=dict, help_text="Event payload received by the workflow."
+        default=None,
+        null=True,
+        blank=True,
+        help_text="Event payload received by the workflow.",
     )
 
 

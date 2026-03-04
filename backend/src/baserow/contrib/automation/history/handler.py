@@ -44,7 +44,6 @@ class AutomationHistoryHandler:
     ) -> AutomationWorkflowHistory:
         """Creates a history entry for a Workflow run."""
 
-        event_payload = event_payload if event_payload else {}
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
             started_on=started_on,

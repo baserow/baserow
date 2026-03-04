@@ -1299,10 +1299,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param dispatch_context: The context in which the service is being dispatched.
         """
 
-        # Check truthy instead of `not None` because during testing the
-        # event_payload is an empty dict, in which case we want to fall
-        # through to returning the default payload.
-        if dispatch_context.event_payload:
+        if dispatch_context.event_payload is not None:
             return dispatch_context.event_payload
 
         return self._get_payload()
