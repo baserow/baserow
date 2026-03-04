@@ -1,5 +1,19 @@
 # Changelog
 
+## Released 2.1.4
+
+### Bug fixes
+* [Database] Migrate jira sync table endpoint [#4888](https://github.com/baserow/baserow/issues/4888)
+* [Database] Fix number formatting for row history entries [#4898](https://github.com/baserow/baserow/issues/4898)
+* [Core] Re-add docker entrypoint in the web-frontend image for backward compatibility with custom docker-compose or Helm charts that override the container command.
+* [Automation] Resolved an issue which prevented router nodes from being renamed once they had branches.
+* [Automation] Resolved an issue which prevented summarize rows nodes in automation workflows from working correctly.
+* [Builder] Resolved an issue which prevented the application builder table element's boolean fields from being checked correctly.
+
+### Refactors
+* [Core] Upgrade sentry to resolve a CVE in minimatch
+
+
 ## Released 2.1.3
 
 ### Bug fixes
