@@ -270,17 +270,17 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
 
 USER $UID:$GID
-RUN mkdir -p /baserow/web-frontend
+RUN mkdir -p /baserow/web-frontend/docker
 
 COPY --chown=$UID:$GID --from=builder-prod /baserow/web-frontend/.output /baserow/web-frontend/.output
 COPY --chown=$UID:$GID ./web-frontend/env-remap.mjs /baserow/web-frontend/env-remap.mjs
-COPY --chown=$UID:$GID ./web-frontend/docker/docker-entrypoint-prod.sh /baserow/docker-entrypoint.sh
-RUN chmod a+x /baserow/docker-entrypoint.sh
+COPY --chown=$UID:$GID ./web-frontend/docker/docker-entrypoint-prod.sh /baserow/web-frontend/docker/docker-entrypoint.sh
+RUN chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh
 
 HEALTHCHECK --interval=10s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 
 WORKDIR /baserow/web-frontend
-ENTRYPOINT ["/baserow/docker-entrypoint.sh"]
+ENTRYPOINT ["/baserow/web-frontend/docker/docker-entrypoint.sh"]
 
 
 FROM local AS prod
