@@ -72,6 +72,11 @@ class AutomationDispatchContext(DispatchContext):
         new_context.current_iterations = {**self.current_iterations}
         return new_context
 
+    def _get_previous_results_cache_key(self) -> Optional[str]:
+        if self.history_id:
+            return f"wa_previous_nodes_results_{self.history_id}"
+        return None
+
     def _load_previous_results(self) -> Dict[int, Any]:
         """
         Returns a dict where keys are the node IDs and values are the results
@@ -90,16 +95,22 @@ class AutomationDispatchContext(DispatchContext):
 
         return results
 
+    def invalidate_previous_results(self):
+        if cache_key := self._get_previous_results_cache_key():
+            local_cache.delete(cache_key)
+
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry
 
     @property
     def previous_nodes_results(self) -> Dict[int, Any]:
-        return local_cache.get(
-            f"wa_previous_nodes_results_{self.history_id}",
-            lambda: self._load_previous_results(),
-        )
+        if cache_key := self._get_previous_results_cache_key():
+            return local_cache.get(
+                cache_key,
+                lambda: self._load_previous_results(),
+            )
+        return {}
 
     def get_timezone_name(self) -> str:
         """

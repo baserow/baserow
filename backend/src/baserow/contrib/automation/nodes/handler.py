@@ -472,6 +472,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             result=dispatch_result.data,
             iteration=iteration_index,
         )
+        dispatch_context.invalidate_previous_results()
 
         # Return early if this is a simulation as we've reached the
         # simulated node.
