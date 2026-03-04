@@ -15,10 +15,12 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.exceptions import (
+    AutomationWorkflowHistoryDoesNotExist,
+)
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
-    AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
@@ -398,7 +400,15 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             AutomationWorkflowHandler,
         )
 
-        workflow_history = AutomationWorkflowHistory.objects.get(id=history_id)
+        history_handler = AutomationHistoryHandler()
+
+        try:
+            workflow_history = history_handler.get_workflow_history(
+                history_id=history_id
+            )
+        except AutomationWorkflowHistoryDoesNotExist as e:
+            logger.error(str(e))
+            return None
 
         node = self.get_node(node_id)
         simulate_until_node = (
@@ -418,8 +428,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             # Return early as the node is not in the path leading to
             # the simulated node.
             return None
-
-        history_handler = AutomationHistoryHandler()
 
         node_history = history_handler.create_node_history(
             workflow_history=workflow_history,

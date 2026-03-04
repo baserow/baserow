@@ -4,6 +4,9 @@ from typing import Dict, List, Optional, Union
 from django.db.models import QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.exceptions import (
+    AutomationWorkflowHistoryDoesNotExist,
+)
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationNodeResult,
@@ -14,7 +17,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
 class AutomationHistoryHandler:
-    def get_workflow_history(
+    def get_workflow_histories(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet[AutomationWorkflowHistory]:
         """
@@ -30,6 +33,29 @@ class AutomationHistoryHandler:
             workflow=workflow,
             simulate_until_node__isnull=True,
         ).prefetch_related("workflow__automation__workspace")
+
+    def get_workflow_history(
+        self, history_id: int, base_queryset: Optional[QuerySet] = None
+    ) -> AutomationWorkflowHistory:
+        """
+        Returns a AutomationWorkflowHistory by its ID.
+
+        :param history_id: The ID of the AutomationWorkflowHistory.
+        :param base_queryset: Can be provided to already filter or apply performance
+            improvements to the queryset when it's being executed.
+        :raises AutomationWorkflowHistoryDoesNotExist: If the history doesn't exist.
+        :return: The model instance of the AutomationWorkflowHistory
+        """
+
+        if base_queryset is None:
+            base_queryset = AutomationWorkflowHistory.objects.all()
+
+        try:
+            return base_queryset.select_related("workflow__automation__workspace").get(
+                id=history_id
+            )
+        except AutomationWorkflowHistory.DoesNotExist:
+            raise AutomationWorkflowHistoryDoesNotExist(history_id)
 
     def create_workflow_history(
         self,

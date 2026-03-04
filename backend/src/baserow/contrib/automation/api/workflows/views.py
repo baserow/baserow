@@ -243,7 +243,7 @@ class AutomationWorkflowHistoryView(APIView):
         }
     )
     def get(self, request, workflow_id: int):
-        queryset = AutomationHistoryService().get_workflow_history(
+        queryset = AutomationHistoryService().get_workflow_histories(
             request.user, workflow_id
         )
 
