@@ -389,7 +389,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         Dispatch a single node and return a canvas for the next nodes.
 
         :param node_id: The node to dispatch.
-        :param history_id: The AutomationNodeHistory ID from which the
+        :param history_id: The AutomationWorkflowHistory ID from which the
             workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
         :return result: A signature is returned if there is a next node to

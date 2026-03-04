@@ -6,13 +6,14 @@ from baserow.contrib.automation.data_providers.registries import (
 from baserow.contrib.automation.history.models import AutomationNodeResult
 from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.cache import local_cache
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
 from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["workflow", "event_payload"]
+    own_properties = ["workflow", "event_payload", "history_id"]
 
     def __init__(
         self,
@@ -32,10 +33,13 @@ class AutomationDispatchContext(DispatchContext):
             provided, as this is optional.
         :param simulate_until_node: Stop simulating the dispatch once this node
             is reached.
+        :param history_id: The AutomationWorkflowHistory ID from which the
+            workflow's event payload and node results are derived.
+        :param current_iterations: Used by the Iterator node's children.
         """
 
         self.workflow = workflow
-        self.previous_nodes_results: Dict[int, Any] = {}
+        self.history_id = history_id
         self.simulate_until_node = simulate_until_node
         self.current_iterations: Dict[int, int] = {}
 
@@ -43,9 +47,6 @@ class AutomationDispatchContext(DispatchContext):
             # The keys are strings due to JSON serialization by Celery. We need
             # to convert them back to ints.
             self.current_iterations = {int(k): v for k, v in current_iterations.items()}
-
-        if history_id:
-            self._load_previous_results(history_id)
 
         services = (
             [self.simulate_until_node.service.specific]
@@ -68,25 +69,37 @@ class AutomationDispatchContext(DispatchContext):
 
     def clone(self, **kwargs):
         new_context = super().clone(**kwargs)
-        new_context.previous_nodes_results = {**self.previous_nodes_results}
         new_context.current_iterations = {**self.current_iterations}
         return new_context
 
-    def _load_previous_results(self, history_id: int):
+    def _load_previous_results(self) -> Dict[int, Any]:
         """
-        Updates the previous_nodes_results using data from the node
-        history related to the history_id.
+        Returns a dict where keys are the node IDs and values are the results
+        of the previous_nodes_results.
         """
 
+        if not self.history_id:
+            return {}
+
+        results = {}
         previous_results = AutomationNodeResult.objects.filter(
-            node_history__workflow_history_id=history_id
+            node_history__workflow_history_id=self.history_id
         ).select_related("node_history__node")
         for result in previous_results:
-            self.previous_nodes_results[result.node_history.node_id] = result.result
+            results[result.node_history.node_id] = result.result
+
+        return results
 
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry
+
+    @property
+    def previous_nodes_results(self) -> Dict[int, Any]:
+        return local_cache.get(
+            f"wa_previous_nodes_results_{self.history_id}",
+            lambda: self._load_previous_results(),
+        )
 
     def get_timezone_name(self) -> str:
         """
