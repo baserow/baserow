@@ -286,6 +286,32 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
   }
 }
 
+export class DataScannerPaidFeature extends PaidFeature {
+  static getType() {
+    return 'data_scanner'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-search'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.dataScanner')
+  }
+
+  getImage() {
+    return '/img/features/data_scanner.png'
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.dataScannerContent')
+  }
+}
+
 export class DateDependencyPaidFeature extends PaidFeature {
   static getType() {
     return 'date_dependency'

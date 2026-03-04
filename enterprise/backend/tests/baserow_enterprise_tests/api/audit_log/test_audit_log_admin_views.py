@@ -52,7 +52,7 @@ def test_admins_cannot_access_audit_log_endpoints_without_an_enterprise_license(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("url_name", ["users", "workspaces", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
 @override_settings(DEBUG=True)
 def test_non_admins_cannot_access_audit_log_endpoints(
     api_client, enterprise_data_fixture, url_name
@@ -126,54 +126,6 @@ def test_audit_log_user_filter_returns_users_correctly(
         "next": None,
         "previous": None,
         "results": [{"id": admin_user.id, "value": admin_user.email}],
-    }
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_audit_log_workspace_filter_returns_workspaces_correctly(
-    api_client, enterprise_data_fixture
-):
-    (
-        admin_user,
-        admin_token,
-    ) = enterprise_data_fixture.create_enterprise_admin_user_and_token()
-    workspace_1 = enterprise_data_fixture.create_workspace(
-        name="workspace 1", user=admin_user
-    )
-    workspace_2 = enterprise_data_fixture.create_workspace(
-        name="workspace 2", user=admin_user
-    )
-
-    # no search query should return all workspaces
-    response = api_client.get(
-        reverse("api:enterprise:audit_log:workspaces"),
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 2,
-        "next": None,
-        "previous": None,
-        "results": [
-            {"id": workspace_1.id, "value": workspace_1.name},
-            {"id": workspace_2.id, "value": workspace_2.name},
-        ],
-    }
-
-    # searching by name should return only the correct workspace
-    response = api_client.get(
-        reverse("api:enterprise:audit_log:workspaces") + "?search=1",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 1,
-        "next": None,
-        "previous": None,
-        "results": [{"id": workspace_1.id, "value": workspace_1.name}],
     }
 
 

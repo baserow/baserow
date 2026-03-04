@@ -3,7 +3,7 @@ from django.utils import translation
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
@@ -23,14 +23,12 @@ from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import User, Workspace
+from baserow.core.models import User
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.audit_log.utils import (
     check_for_license_and_permissions_or_raise,
 )
-from baserow_enterprise.features import AUDIT_LOG
-from baserow_premium.license.handler import LicenseHandler
 
 from .serializers import (
     AuditLogActionTypeSerializer,
@@ -40,7 +38,6 @@ from .serializers import (
     AuditLogSerializer,
     AuditLogUserSerializer,
     AuditLogWorkspaceFilterQueryParamsSerializer,
-    AuditLogWorkspaceSerializer,
     serialize_filtered_action_types,
 )
 
@@ -241,33 +238,6 @@ class AuditLogUserFilterView(APIListingView):
     def get(self, request, query_params):
         workspace_id = query_params.get("workspace_id", None)
         check_for_license_and_permissions_or_raise(request.user, workspace_id)
-        return super().get(request)
-
-
-class AuditLogWorkspaceFilterView(APIListingView):
-    permission_classes = (IsAdminUser,)
-    serializer_class = AuditLogWorkspaceSerializer
-    search_fields = ["name"]
-    default_order_by = "name"
-
-    def get_queryset(self, request):
-        return Workspace.objects.filter(template__isnull=True)
-
-    @extend_schema(
-        tags=["Audit log"],
-        operation_id="audit_log_workspaces",
-        description=(
-            "List all distinct workspace names related to an audit log entry."
-            "\n\nThis is a **enterprise** feature."
-        ),
-        **APIListingView.get_extend_schema_parameters(
-            "workspaces", serializer_class, search_fields, {}
-        ),
-    )
-    def get(self, request):
-        LicenseHandler.raise_if_user_doesnt_have_feature_instance_wide(
-            AUDIT_LOG, request.user
-        )
         return super().get(request)
 
 

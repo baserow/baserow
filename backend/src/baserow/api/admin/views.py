@@ -46,11 +46,13 @@ class APIListingView(
 
         search = request.GET.get("search")
         sorts = request.GET.get("sorts")
+        ids_param = request.GET.get("ids")
 
         queryset = self.get_queryset(request)
         queryset = self.apply_filters(request.GET, queryset)
         queryset = self.apply_search(search, queryset)
         queryset = self.apply_sorts_or_default_sort(sorts, queryset)
+        queryset = self.apply_ids_filter(ids_param, queryset)
 
         paginator = PageNumberPagination(limit_page_size=100)
         page = paginator.paginate_queryset(queryset, request, self)
@@ -60,6 +62,14 @@ class APIListingView(
 
     def get_queryset(self, request):
         raise NotImplementedError("The get_queryset method must be set.")
+
+    def apply_ids_filter(self, ids_param, queryset):
+        if not ids_param:
+            return queryset
+        ids = [int(i) for i in ids_param.split(",") if i.strip().lstrip("-").isdigit()]
+        if ids:
+            queryset = queryset.filter(id__in=ids)
+        return queryset
 
     def get_serializer(self, request, *args, **kwargs):
         if not self.serializer_class:
@@ -133,6 +143,13 @@ class APIListingView(
                     location=OpenApiParameter.QUERY,
                     type=OpenApiTypes.INT,
                     description=f"Defines how many {name} should be returned per page.",
+                ),
+                OpenApiParameter(
+                    name="ids",
+                    location=OpenApiParameter.QUERY,
+                    type=OpenApiTypes.STR,
+                    description=f"A comma-separated list of {name} IDs to filter by. "
+                    f"When provided, only {name} with those IDs are returned.",
                 ),
                 *(extra_parameters or []),
             ],

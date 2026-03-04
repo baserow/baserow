@@ -9,3 +9,13 @@ export class AuditLogExportJobType extends JobType {
     return 'audit_log_export'
   }
 }
+
+export class DataScanResultExportJobType extends JobType {
+  static getType() {
+    return 'data_scan_result_export'
+  }
+
+  getName() {
+    return 'data_scan_result_export'
+  }
+}

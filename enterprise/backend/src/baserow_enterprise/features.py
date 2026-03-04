@@ -16,3 +16,4 @@ BUILDER_FILE_INPUT = "builder_file_input"
 BUILDER_CUSTOM_CODE = "builder_custom_code"
 
 DATE_DEPENDENCY = "date_dependency"
+DATA_SCANNER = "data_scanner"

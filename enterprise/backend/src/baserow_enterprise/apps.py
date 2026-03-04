@@ -14,8 +14,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
         )
+        from baserow_enterprise.data_scanner.job_types import (
+            DataScanResultExportJobType,
+        )
 
         job_type_registry.register(AuditLogExportJobType())
+        job_type_registry.register(DataScanResultExportJobType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (
@@ -261,11 +265,19 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.unregister(PostgreSQLDataSyncType.type)
         data_sync_type_registry.register(PostgreSQLDataSyncType())
 
+        from baserow_enterprise.data_scanner.actions import (
+            CreateDataScanActionType,
+            DeleteDataScanActionType,
+            UpdateDataScanActionType,
+        )
         from baserow_enterprise.data_sync.actions import (
             UpdatePeriodicDataSyncIntervalActionType,
         )
 
         action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
+        action_type_registry.register(CreateDataScanActionType())
+        action_type_registry.register(UpdateDataScanActionType())
+        action_type_registry.register(DeleteDataScanActionType())
 
         from baserow.contrib.database.webhooks.registries import (
             webhook_event_type_registry,
@@ -303,6 +315,9 @@ class BaserowEnterpriseConfig(AppConfig):
         connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments()
 
         from baserow.core.notifications.registries import notification_type_registry
+        from baserow_enterprise.data_scanner.notification_types import (
+            DataScanNewResultsNotificationType,
+        )
         from baserow_enterprise.data_sync.notification_types import (
             PeriodicDataSyncDeactivatedNotificationType,
             TwoWaySyncDeactivatedNotificationType,
@@ -314,6 +329,7 @@ class BaserowEnterpriseConfig(AppConfig):
         )
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
+        notification_type_registry.register(DataScanNewResultsNotificationType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,
@@ -368,6 +384,7 @@ class BaserowEnterpriseConfig(AppConfig):
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.data_scanner.tasks  # noqa: F401
         import baserow_enterprise.ws.signals  # noqa: F401
 
 
