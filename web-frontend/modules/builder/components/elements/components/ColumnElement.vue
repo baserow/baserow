@@ -9,6 +9,7 @@
     <div
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
+      v-sortable="getColumnContainerSortableConfig(columnIndex)"
       class="column-element__column"
       data-sortable-group="column-element-child"
       :data-sortable-container-id="columnIndex"
@@ -16,13 +17,12 @@
         '--column-width': `${columnWidth}%`,
         position: 'relative',
       }"
-      v-sortable="getColumnContainerSortableConfig(columnIndex)"
     >
       <div
         v-if="mode === 'editing'"
+        v-tooltip="$t('elementPreview.dragToReorderColumn')"
         class="column-element__drag-handle"
         data-column-sortable-handle
-        v-tooltip="$t('elementPreview.dragToReorderColumn')"
         tooltip-position="top"
       >
         <i class="iconoir-drag"></i>

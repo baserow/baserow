@@ -140,14 +140,14 @@
     cursor: grabbing;
   }
 
-  /* Show when hovering the column or any of its children (unlike element-preview, column handle stays visible when hovering nested elements) */
-  .column-element__column:hover &,
-  .simple-container-element:hover & {
+  &:hover {
+    background-color: $palette-blue-500;
     opacity: 1;
   }
 
-  &:hover {
-    background-color: $palette-blue-500;
+  /* Show when hovering the column or any of its children (unlike element-preview, column handle stays visible when hovering nested elements) */
+  .column-element__column:hover &,
+  .simple-container-element:hover & {
     opacity: 1;
   }
 }
