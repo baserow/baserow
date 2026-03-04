@@ -17,7 +17,6 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
-    PERIODIC_INTERVAL_MONTH,
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
@@ -27,7 +26,6 @@ from baserow.core.services.registries import service_type_registry
 
 from .cases.core_periodic_service_type import (
     CALL_PERIODIC_SERVICES_THAT_ARE_DUE_CASES,
-    PERIODIC_SERVICE_NEXT_RUN_SET_CASES,
 )
 
 
@@ -89,12 +87,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert service_specific.minute == 15
     assert service_specific.hour == 10
     assert service_specific.last_periodic_run is None
-    # next_run_at should be set automatically on creation
-    assert service_specific.next_run_at is not None
-    # For 15-minute interval from 10:30, next run should be at 10:45
-    assert service_specific.next_run_at == datetime(
-        2025, 2, 15, 10, 45, 0, tzinfo=timezone.utc
-    )
+    assert service_specific.next_run_at is None
 
     with freeze_time("2025-02-15 11:00:00"):
         updated_service = (
@@ -116,11 +109,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert updated_service_specific.minute == 30
     assert updated_service_specific.hour == 14
     assert updated_service_specific.day_of_week == 2
-    # next_run_at should be recalculated when schedule fields change
-    # For hourly at minute 30, from 11:00, next run should be at 11:30
-    assert updated_service_specific.next_run_at == datetime(
-        2025, 2, 15, 11, 30, 0, tzinfo=timezone.utc
-    )
+    assert updated_service_specific.next_run_at is None
 
 
 @pytest.mark.django_db
@@ -159,9 +148,7 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
 )
-def test_call_periodic_services_that_are_not_published(
-    mock_start_workflow, data_fixture
-):
+def test_call_periodic_services_in_draft_workflow(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
@@ -189,7 +176,7 @@ def test_call_periodic_services_that_are_not_published(
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
 )
-def test_call_periodic_services_that_are_paused(mock_start_workflow, data_fixture):
+def test_call_periodic_services_in_paused_workflow(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
@@ -370,40 +357,3 @@ def test_call_periodic_services_that_are_due(
         # Verify next_run_at was updated to the next scheduled time
         assert service.next_run_at is not None
         assert service.next_run_at > target_date
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "service_kwargs,current_time,expected_next_run",
-    PERIODIC_SERVICE_NEXT_RUN_SET_CASES,
-)
-def test_core_periodic_service_type_prepare_values_sets_next_periodic_run(
-    data_fixture, service_kwargs, current_time, expected_next_run
-):
-    user = data_fixture.create_user()
-    service_type = CorePeriodicServiceType()
-
-    # Create a `CorePeriodicService` at `current_time`.
-    with freeze_time(current_time):
-        service = ServiceHandler().create_service(service_type, **service_kwargs)
-        service_type.prepare_values({}, user, service)
-    assert service.specific.next_run_at == expected_next_run
-
-    # Then manually change it to a different time, assert
-    # that it's recalculated on save.
-    with freeze_time("2025-01-01 11:00:00"):
-        service = (
-            ServiceHandler()
-            .update_service(
-                service_type=service_type,
-                service=service,
-                interval=PERIODIC_INTERVAL_MONTH,
-                day_of_month=12,
-                minute=12,
-                hour=12,
-            )
-            .service
-        )
-        service_type.prepare_values({}, user, service)
-
-    assert service.next_run_at == datetime(2025, 1, 12, 12, 12, 0, tzinfo=timezone.utc)

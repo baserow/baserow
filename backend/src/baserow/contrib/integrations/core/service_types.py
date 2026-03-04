@@ -48,6 +48,7 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
+from baserow.contrib.integrations.core.types import CorePeriodicServiceDueResult
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
 from baserow.core.formula.types import BaserowFormulaObject
@@ -1318,10 +1319,18 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return self._get_simulation_payload(service)
 
-    def call_periodic_services_that_are_due(self):
+    def call_periodic_services_that_are_due(self) -> CorePeriodicServiceDueResult:
         """
-        Responsible for finding all periodic services that are due to run and
-        calling the `on_event` callback with them.
+        Responsible for finding all periodic services that are due. This will likely
+        result in services which are due, but not dispatchable, it is up to the parent
+        instance (e.g. automation trigger) to determine if the due service is *also*
+        dispatchable (e.g. a trigger wants to know if the workflow is published).
+
+        Only services which were dispatched will be included in the bulk-update, where
+        the two date fields are refreshed for their next run.
+
+        :returns: a `CorePeriodicServiceDueResult` containing the services which are
+            due, and the services which were dispatched.
         """
 
         # Truncate to minute precision for consistent comparisons
@@ -1370,16 +1379,20 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             service.last_periodic_run = now
             calculated_periodic_services_due.append(service)
 
-        print(
-            f"\n{len(calculated_periodic_services_due)} periodic services are due to run."
-        )
-
         periodic_services_dispatched = []
 
         def _after_service_dispatch(
             dispatched_service: CorePeriodicService,
         ) -> Dict[str, str]:
-            print("Dispatched periodic service with id", dispatched_service.id)
+            """
+            Responsible for returning this service's specific payload,
+            and also creating a list of our due services which were *also*
+            deemed to be dispatchable by the parent.
+
+            :param dispatched_service: The service which will be dispatched.
+            :return: The payload to dispatch for this service.
+            """
+
             periodic_services_dispatched.append(dispatched_service)
             return self._get_dispatch_payload(dispatched_service)
 
@@ -1388,14 +1401,15 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             _after_service_dispatch,
         )
 
-        print(
-            f"{len(periodic_services_dispatched)} periodic services were dispatched.\n"
-        )
-
         if periodic_services_dispatched:
             CorePeriodicService.objects.bulk_update(
                 periodic_services_dispatched, ["next_run_at", "last_periodic_run"]
             )
+
+        return CorePeriodicServiceDueResult(
+            services_due=periodic_services_due,
+            services_dispatched=periodic_services_dispatched,
+        )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"
