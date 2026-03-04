@@ -10,7 +10,7 @@ class AutomationHistory(models.Model):
     message = models.TextField()
 
     is_test_run = models.BooleanField(
-        default=False
+        db_default=False
     )  # TODO ZDM: Remove after next release
 
     status = models.CharField(
@@ -38,12 +38,12 @@ class AutomationWorkflowHistory(AutomationHistory):
     )
 
     is_test_run = models.BooleanField(
-        default=False,
+        db_default=False,
         help_text="True when the workflow is being simulated.",
     )
 
     event_payload = models.JSONField(
-        default=None,
+        db_default=None,
         null=True,
         blank=True,
         help_text="Event payload received by the workflow.",
@@ -76,12 +76,12 @@ class AutomationNodeResult(models.Model):
     )
 
     iteration = models.PositiveIntegerField(
-        default=0,
+        db_default=0,
         help_text="Keeps track of the current iteration of the Iterator node.",
     )
 
     result = models.JSONField(
-        default=dict,
+        db_default={},
         help_text="Contains node results.",
     )
 
