@@ -193,7 +193,8 @@
     "selectParent": "Select parent"
   },
   "elementPreview": {
-    "dragToReorder": "Drag to reorder"
+    "dragToReorder": "Drag to reorder",
+    "dragToReorderColumn": "Drag to reorder the column"
   },
   "duplicatePageJobType": {
     "name": "Duplicate page",

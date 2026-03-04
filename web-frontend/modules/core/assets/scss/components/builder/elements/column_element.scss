@@ -3,11 +3,21 @@
   width: 100%;
   justify-content: space-between;
   gap: var(--space-between-columns);
-  align-items: var(--alignment);
+  align-items: stretch;
+  margin-top: 20px;
 }
 
 .column-element__column {
   width: var(--column-width);
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--alignment);
+
+  &.sortable-dragging-item,
+  &.sortable-active-item {
+    border: 1px dashed $palette-neutral-500;
+    @include rounded($rounded-md);
+  }
 }
 
 .column-element__element {

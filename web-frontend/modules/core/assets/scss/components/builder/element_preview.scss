@@ -68,6 +68,10 @@
     background-color: $palette-red-500;
 
     @include elevation($elevation-low);
+
+    .element__inner-wrapper & {
+      left: -4px;
+    }
   }
 
   &:not(.element-preview--active) {
@@ -122,6 +126,10 @@
   background-size: 5px 5px;
   background-repeat: repeat;
 
+  .element__inner-wrapper & {
+    left: -15px;
+  }
+
   &:active {
     cursor: grabbing;
   }
@@ -130,13 +138,57 @@
     background-image: radial-gradient($palette-blue-500 40%, transparent 40%);
   }
 
-  .element-preview:hover &,
-  .element-preview--active & {
+  /* Only show when hovering directly on this element, not when hovering a nested element-preview */
+  .element-preview:hover:not(:has(.element-preview:hover)) > &,
+  .element-preview--active:hover:not(:has(.element-preview:hover)) > & {
     opacity: 1;
   }
 
-  .element-preview--active &:active {
+  .element-preview--active > &:active {
     background-image: radial-gradient($palette-blue-500 40%, transparent 40%);
+  }
+
+  /* Hide all element drag handles on the page while any element is being dragged */
+  body:has(> .sortable-ghost-element) & {
+    opacity: 0 !important;
+  }
+}
+
+.column-element__drag-handle {
+  @include absolute(-14px, auto, auto, 50%);
+  transform: translateX(-50%);
+  width: 26px;
+  height: 14px;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+  background-color: $palette-neutral-400;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $white;
+  font-size: 10px;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  /* Show when hovering the column or any of its children (unlike element-preview, column handle stays visible when hovering nested elements) */
+  &:hover,
+  .column-element__column:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background-color: $palette-blue-500;
+  }
+
+  /* Hide all column drag handles on the page while any element is being dragged */
+  body:has(> .sortable-ghost-element) & {
+    opacity: 0 !important;
   }
 }
 

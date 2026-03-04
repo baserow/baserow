@@ -5,8 +5,19 @@
 
 .sortable-position-indicator {
   position: absolute;
-  height: 3px;
-  background-color: $color-neutral-500;
+  height: 2px;
+  background-color: $palette-blue-500;
+  z-index: 999999;
+  border-radius: 1px;
 
-  @include rounded($rounded-md);
+  &--horizontal {
+    width: 2px;
+  }
+}
+
+.sortable-ghost-element {
+  position: fixed;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 999999;
 }

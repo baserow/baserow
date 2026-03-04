@@ -10,15 +10,23 @@
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
       class="column-element__column"
-      :style="{ '--column-width': `${columnWidth}%` }"
+      :style="{ '--column-width': `${columnWidth}%`, position: 'relative' }"
+      v-sortable="getColumnContainerSortableConfig(columnIndex)"
     >
+      <div
+        v-if="mode === 'editing'"
+        class="column-element__drag-handle"
+        data-column-sortable-handle
+        v-tooltip="$t('elementPreview.dragToReorderColumn')"
+        tooltip-position="top"
+      >
+        <i class="iconoir-drag"></i>
+      </div>
       <template v-if="childrenInColumn.length > 0">
         <div
           v-for="childCurrent in childrenInColumn"
           :key="childCurrent.id"
-          v-sortable="
-            getColumnSortableConfig(columnIndex, childCurrent)
-          "
+          v-sortable="getColumnSortableConfig(columnIndex, childCurrent)"
           class="column-element__element"
         >
           <ElementPreview
@@ -146,6 +154,61 @@ export default {
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
+    },
+    getColumnContainerSortableConfig(columnIndex) {
+      return {
+        id: columnIndex,
+        handle: '[data-column-sortable-handle]',
+        orientation: 'horizontal',
+        update: (newOrder, oldOrder, draggedId, beforeId) =>
+          this.onColumnOrderUpdate(newOrder, oldOrder, draggedId, beforeId),
+        enabled:
+          this.mode === 'editing' &&
+          this.$hasPermission(
+            'builder.page.element.update',
+            this.element,
+            this.workspace.id
+          ),
+      }
+    },
+    async onColumnOrderUpdate(newOrder, oldOrder) {
+      if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) {
+        return
+      }
+
+      const elementsToUpdate = []
+
+      newOrder.forEach((originalColumnIndex, newColumnIndex) => {
+        if (originalColumnIndex !== newColumnIndex) {
+          const childrenInMovedColumn =
+            this.childrenElements[originalColumnIndex]
+          childrenInMovedColumn.forEach((child) => {
+            elementsToUpdate.push({
+              child,
+              newPlaceInContainer: `${newColumnIndex}`,
+            })
+          })
+        }
+      })
+
+      if (elementsToUpdate.length === 0) {
+        return
+      }
+
+      try {
+        for (const { child, newPlaceInContainer } of elementsToUpdate) {
+          await this.$store.dispatch('element/move', {
+            builder: this.builder,
+            page: this.elementPage,
+            elementId: child.id,
+            beforeElementId: null,
+            parentElementId: child.parent_element_id,
+            placeInContainer: newPlaceInContainer,
+          })
+        }
+      } catch (error) {
+        notifyIf(error)
+      }
     },
     getColumnSortableConfig(columnIndex, child) {
       const canUpdate = this.$hasPermission(
