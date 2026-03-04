@@ -1,12 +1,15 @@
 import json
 from unittest.mock import Mock, patch
 
+from django.utils import timezone
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
@@ -138,7 +141,22 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(automation=application)
+    workflow_history = AutomationHistoryHandler().create_workflow_history(
+        workflow,
+        timezone.now(),
+        False,
+    )
+
     trigger = workflow.get_trigger()
+    trigger_node_history = AutomationHistoryHandler().create_node_history(
+        workflow_history=workflow_history,
+        node=trigger,
+        started_on=timezone.now(),
+    )
+    AutomationHistoryHandler().create_node_result(
+        node_history=trigger_node_history,
+        result={"results": [{"name": "John"}]},
+    )
 
     integration = IntegrationService().create_integration(
         user,
@@ -155,10 +173,10 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
     )
 
     service_type = service.get_type()
-    dispatch_context = AutomationDispatchContext(workflow)
-    dispatch_context.previous_nodes_results[trigger.id] = {
-        "results": [{"name": "John"}]
-    }
+    dispatch_context = AutomationDispatchContext(
+        workflow,
+        history_id=workflow_history.id,
+    )
 
     mock_response = Mock()
     mock_response.json.return_value = {
