@@ -19,12 +19,30 @@ for _k in _API_KEY_NAMES:
         os.environ[_k] = _v
 
 
-def pytest_collection_modifyitems(config, items):
-    """Skip eval tests unless ``-m eval`` was explicitly requested."""
+_EVALS_DIR = os.path.dirname(__file__)
 
+
+def _evals_explicitly_requested(config):
+    """Return True when the user intentionally targeted eval tests."""
+
+    # ``-m eval`` on the command line
     marker_expr = config.getoption("-m", default="")
     if "eval" in marker_expr:
-        return  # user explicitly requested evals
+        return True
+
+    # User pointed pytest at an eval file/directory (e.g. VSCode test runner)
+    for arg in config.args:
+        if os.path.abspath(arg).startswith(_EVALS_DIR):
+            return True
+
+    return False
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip eval tests unless explicitly requested (``-m eval`` or by path)."""
+
+    if _evals_explicitly_requested(config):
+        return
 
     skip_eval = pytest.mark.skip(reason="eval tests only run with -m eval")
     for item in items:

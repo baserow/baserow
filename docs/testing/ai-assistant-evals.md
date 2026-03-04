@@ -10,7 +10,7 @@ local test runs.
 
 ## Prerequisites
 
-1. A running PostgreSQL database (see [running-tests.md](running-tests.md)).
+1. A running PostgreSQL database (see [running-tests.md](../development/running-tests.md)).
 2. An API key for the LLM provider you want to test against.
 3. **For `test_eval_search_user_docs` only:** an embeddings server and a
    synced knowledge base (see [Search docs evals](#search-docs-evals) below).
@@ -22,16 +22,19 @@ local test runs.
 export GROQ_API_KEY=gsk_...
 
 # Run all evals with the default model (groq:openai/gpt-oss-120b)
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 
 # Run a single eval file
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
   -m eval -v -s
 ```
 
-> **Tip:** Always pass `-s` so you can see the agent's tool calls and message
-> history printed to stdout.
+> **Tip:** Pass `-s` to see the agent's tool calls and message history printed to stdout.
+
+> **Note:** Commands in this document use `just b test` and are meant to be
+> run from the **project root**. If you're already inside the `backend/`
+> directory, drop the `b` and run `just test ../enterprise/...` instead.
 
 ## Configuration
 
@@ -53,7 +56,7 @@ The eval conftest reads API keys from the same `TEST_ENV_FILE` that
 
 ```bash
 TEST_ENV_FILE=.env.testing-local just b test \
-  enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ -m eval -v -s
+  ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ -m eval -v -s
 ```
 
 Variables already present in `os.environ` take precedence.
@@ -61,8 +64,8 @@ Variables already present in `os.environ` take precedence.
 ### Running against multiple models
 
 ```bash
-export EVAL_LLM_MODELS="groq:openai/gpt-oss-120b,openai:gpt-4o"
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_LLM_MODELS="groq:openai/gpt-oss-120b,openai:gpt-4o"
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 ```
 
@@ -217,7 +220,7 @@ To force a fresh sync (e.g. after schema changes or new documentation):
 
 ```bash
 # Drop and recreate the test DB, then re-sync
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s --create-db
 ```
 
@@ -225,11 +228,11 @@ just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/te
 
 ```bash
 # Only search docs evals
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s
 
 # A single test case by parametrize ID
-just b test enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s -k "vlookup-to-link-row"
 ```
 

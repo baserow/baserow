@@ -4,6 +4,7 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
 from baserow_enterprise.assistant.tools.automation.tools import (
     create_workflows,
     list_workflows,
@@ -20,7 +21,6 @@ from baserow_enterprise.assistant.tools.automation.types.node import (
     AutomationFieldValue,
     RouterEdgeCreate,
 )
-from baserow_enterprise.assistant.tools.automation.utils import AssistantFormulaContext
 
 from .utils import make_test_ctx
 
@@ -38,7 +38,7 @@ def mock_formula_generator(monkeypatch):
         pass
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.automation.utils.update_workflow_formulas",
+        "baserow_enterprise.assistant.tools.automation.agents.update_workflow_formulas",
         mock_update_workflow_formulas,
     )
 
