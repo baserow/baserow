@@ -10,7 +10,12 @@
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
       class="column-element__column"
-      :style="{ '--column-width': `${columnWidth}%`, position: 'relative' }"
+      data-sortable-group="column-element-child"
+      :data-sortable-container-id="columnIndex"
+      :style="{
+        '--column-width': `${columnWidth}%`,
+        position: 'relative',
+      }"
       v-sortable="getColumnContainerSortableConfig(columnIndex)"
     >
       <div
@@ -219,23 +224,34 @@ export default {
       return {
         id: child.id,
         handle: '[data-sortable-handle]',
-        update: (newOrder, oldOrder, draggedId, beforeId) =>
+        group: 'column-element-child',
+        containerId: columnIndex,
+        update: (
+          newOrder,
+          oldOrder,
+          draggedId,
+          beforeId,
+          toContainerId,
+          fromContainerId
+        ) =>
           this.onColumnSortableUpdate(
-            columnIndex,
             newOrder,
             oldOrder,
             draggedId,
-            beforeId
+            beforeId,
+            toContainerId,
+            fromContainerId
           ),
         enabled: this.mode === 'editing' && canUpdate,
       }
     },
     async onColumnSortableUpdate(
-      columnIndex,
       newOrder,
       oldOrder,
       draggedId,
-      beforeId
+      beforeId,
+      toContainerId,
+      fromContainerId
     ) {
       const element = this.$store.getters['element/getElementById'](
         this.elementPage,
@@ -259,7 +275,7 @@ export default {
           elementId: draggedId,
           beforeElementId: beforeId,
           parentElementId: element.parent_element_id,
-          placeInContainer: `${columnIndex}`,
+          placeInContainer: String(toContainerId),
         })
       } catch (error) {
         notifyIf(error)

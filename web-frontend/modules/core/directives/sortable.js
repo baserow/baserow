@@ -77,6 +77,7 @@ export default {
       }
       document.body.addEventListener('keydown', el.keydownEvent)
 
+      el.sortableInitialParent = el.parentNode
       parent = el.parentNode
       scrollableParent = findScrollableParent(parent) || parent
 
@@ -117,6 +118,8 @@ export default {
     el.sortableMarginTop = binding.value.marginTop
     el.sortableMarginBottom = binding.value.marginBottom
     el.sortableOrientation = binding.value.orientation || 'vertical'
+    el.sortableGroup = binding.value.group
+    el.sortableContainerId = binding.value.containerId
   },
   /**
    * Called when the user moves the mouse when the dragging of the element has
@@ -166,8 +169,41 @@ export default {
       ghostElement.style.top = event.clientY - el.sortableGhostOffsetY + 'px'
     }
 
+    if (el.sortableGroup) {
+      indicator.style.display = 'none'
+      if (ghostElement) {
+        ghostElement.style.pointerEvents = 'none'
+      }
+      const target = document.elementFromPoint(event.clientX, event.clientY)
+      indicator.style.display = ''
+      if (ghostElement) {
+        ghostElement.style.pointerEvents = ''
+      }
+
+      if (target) {
+        const groupContainer = target.closest(
+          `[data-sortable-group="${el.sortableGroup}"]`
+        )
+        if (groupContainer && groupContainer !== parent) {
+          const oldAll = [...parent.childNodes].filter(
+            (e) => e !== indicator && e.nodeType === 1
+          )
+          oldAll.forEach((s) => s.classList.remove('sortable-sorting-item'))
+
+          parent = groupContainer
+          scrollableParent = findScrollableParent(parent) || parent
+
+          if (getComputedStyle(parent).position === 'static') {
+            parent.style.position = 'relative'
+          }
+
+          parent.insertBefore(indicator, parent.firstChild)
+        }
+      }
+    }
+
     // Set pointer events to none because that will prevent hover and click
-    // effects.
+    // effects, but ensure the parent *can* receive them if necessary.
     const all = [...parent.childNodes].filter(
       (e) => e !== indicator && e.nodeType === 1
     )
@@ -211,40 +247,63 @@ export default {
     // beforeElement. If the beforeElement is null, it means that the dragging
     // element must be moved to the end.
     const elementRect = el.getBoundingClientRect()
-    const afterRect = all[all.length - 1].getBoundingClientRect()
 
-    if (el.sortableOrientation === 'horizontal') {
-      const left =
-        (before
-          ? beforeRect.left - indicator.clientWidth / 2
-          : afterRect.left + afterRect.width) -
-        parentRect.left +
-        parent.scrollLeft +
-        (el.sortableMarginLeft || 0)
-      const top = elementRect.top - parentRect.top
-      indicator.style.left = left + 'px'
-      indicator.style.top = top + (el.sortableMarginTop || 0) + 'px'
-      indicator.style.height =
-        elementRect.height -
-        (el.sortableMarginTop || 0) -
-        (el.sortableMarginBottom || 0) +
-        'px'
+    if (all.length === 0) {
+      if (el.sortableOrientation === 'horizontal') {
+        const left = el.sortableMarginLeft || 0
+        indicator.style.left = left + 'px'
+        indicator.style.top = (el.sortableMarginTop || 0) + 'px'
+        indicator.style.height =
+          (parentRect.height || elementRect.height) -
+          (el.sortableMarginTop || 0) -
+          (el.sortableMarginBottom || 0) +
+          'px'
+      } else {
+        indicator.style.left = (el.sortableMarginLeft || 0) + 'px'
+        indicator.style.width =
+          (parentRect.width || elementRect.width) -
+          (el.sortableMarginLeft || 0) -
+          (el.sortableMarginRight || 0) +
+          'px'
+        indicator.style.top = (el.sortableMarginTop || 0) + 'px'
+      }
     } else {
-      const top =
-        (before
-          ? beforeRect.top - indicator.clientHeight / 2
-          : afterRect.top + afterRect.height) -
-        parentRect.top +
-        parent.scrollTop +
-        (el.sortableMarginTop || 0)
-      const left = elementRect.left - parentRect.left
-      indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
-      indicator.style.width =
-        elementRect.width -
-        (el.sortableMarginLeft || 0) -
-        (el.sortableMarginRight || 0) +
-        'px'
-      indicator.style.top = top + 'px'
+      const afterRect = all[all.length - 1].getBoundingClientRect()
+      const referenceBoundingRect = before ? beforeRect : afterRect
+
+      if (el.sortableOrientation === 'horizontal') {
+        const left =
+          (before
+            ? beforeRect.left - indicator.clientWidth / 2
+            : afterRect.left + afterRect.width) -
+          parentRect.left +
+          parent.scrollLeft +
+          (el.sortableMarginLeft || 0)
+        const top = referenceBoundingRect.top - parentRect.top
+        indicator.style.left = left + 'px'
+        indicator.style.top = top + (el.sortableMarginTop || 0) + 'px'
+        indicator.style.height =
+          referenceBoundingRect.height -
+          (el.sortableMarginTop || 0) -
+          (el.sortableMarginBottom || 0) +
+          'px'
+      } else {
+        const top =
+          (before
+            ? beforeRect.top - indicator.clientHeight / 2
+            : afterRect.top + afterRect.height) -
+          parentRect.top +
+          parent.scrollTop +
+          (el.sortableMarginTop || 0)
+        const left = referenceBoundingRect.left - parentRect.left
+        indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
+        indicator.style.width =
+          referenceBoundingRect.width -
+          (el.sortableMarginLeft || 0) -
+          (el.sortableMarginRight || 0) +
+          'px'
+        indicator.style.top = top + 'px'
+      }
     }
 
     // If the user is not already auto scrolling, which happens while dragging and
@@ -361,14 +420,18 @@ export default {
     newOrder.splice(targetIndex, 0, el.sortableId)
 
     if (JSON.stringify(oldOrder) === JSON.stringify(newOrder)) {
-      return
+      if (parent === el.sortableInitialParent) {
+        return
+      }
     }
 
     binding.value.update(
       newOrder,
       oldOrder,
       el.sortableId,
-      el.sortableBeforeElement?.sortableId || null
+      el.sortableBeforeElement?.sortableId || null,
+      parent.dataset.sortableContainerId,
+      el.sortableInitialParent.dataset.sortableContainerId
     )
   },
   /**
