@@ -533,3 +533,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         if to_chain:
             return chain(*to_chain)
+        else:
+            # This is the end of this branch
+            return None
