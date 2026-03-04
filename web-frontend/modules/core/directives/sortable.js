@@ -1,118 +1,225 @@
 import { findScrollableParent } from '@baserow/modules/core/utils/dom'
 
 /**
- * This directive can by used to enable vertical drag and drop sorting of an array of
- * items. When the dragging starts, it simply shows a target position and will call a
- * function when the item has been dropped. It will not actually change the order of
- * the items, but it will only show the drag and drop effect and calculates the new
- * order of the items. The actual updating has to happen in the update function.
+ * This directive can be used to enable vertical (or horizontal) drag and drop sorting
+ * of an array of items within the same container, or across containers belonging to
+ * the same `group`.
  *
- * Optionally a handle selector can be provided by doing
- * `v-sortable="{ id: item.id, update: order, handle: '.child-element' }"`.
+ * When dragging starts, a ghost clone follows the cursor and a blue indicator line
+ * shows the insertion point. The actual DOM order is not changed — only the `update`
+ * callback is called with the new order so the caller can persist it.
+ *
+ * Options:
+ *   - id        {*}        Unique identifier for this item (required)
+ *   - update    {Function} Called on drop: (newOrder, oldOrder, draggedId, beforeId, toContainerId, fromContainerId)
+ *   - handle    {string}   Optional CSS selector for the drag handle child element
+ *   - enabled   {boolean}  When false, drag is disabled (default: true)
+ *   - orientation {string} 'vertical' (default) or 'horizontal'
+ *   - group     {string}   Optional group name to allow cross-container dragging
+ *   - containerId {*}      Identifier for this element's container (used with group)
+ *   - marginTop/Bottom/Left/Right {number} Offset applied when sizing the indicator
  *
  * Example:
- *
  * ```
- * <div
- *   v-for="item in items"
- *   :key="item.id"
- *   v-sortable="{ id: item.id, update: onUpdate }"
- * ></div>
- *
- * export default {
- *   data() {
- *     return {
- *       items: [{'id': 25, order: 1}, {'id': 27, order: 2}, {'id': 30, order: 3}]
- *     }
- *   },
- *   methods: {
- *     onUpdate(itemIds) {
- *       console.log(itemIds) // [25, 27, 30]
- *     },
- *   },
- * }
+ * <div v-for="item in items" :key="item.id" v-sortable="{ id: item.id, update: onUpdate }">
+ * </div>
  * ```
  */
-let parent
-let scrollableParent
-let indicator
-let ghostElement
 
+// ---------------------------------------------------------------------------
+// Helper: position the drop indicator in vertical or horizontal orientation.
+// All coordinates are relative to `parentRect`.
+// ---------------------------------------------------------------------------
+function positionIndicator(el, indicator, all, before, beforeRect, parentRect) {
+  const mt = el.sortableMarginTop || 0
+  const mb = el.sortableMarginBottom || 0
+  const ml = el.sortableMarginLeft || 0
+  const mr = el.sortableMarginRight || 0
+
+  if (all.length === 0) {
+    // Empty container — fill the full parent area
+    if (el.sortableOrientation === 'horizontal') {
+      indicator.style.left = ml + 'px'
+      indicator.style.top = mt + 'px'
+      indicator.style.height = Math.max(0, parentRect.height - mt - mb) + 'px'
+    } else {
+      indicator.style.left = ml + 'px'
+      indicator.style.width = Math.max(0, parentRect.width - ml - mr) + 'px'
+      indicator.style.top = mt + 'px'
+    }
+    return
+  }
+
+  const afterRect = all[all.length - 1].getBoundingClientRect()
+  const refRect = before ? beforeRect : afterRect
+
+  if (el.sortableOrientation === 'horizontal') {
+    const left =
+      (before
+        ? beforeRect.left - indicator.clientWidth / 2
+        : afterRect.left + afterRect.width) -
+      parentRect.left +
+      el.sortableParent.scrollLeft +
+      ml
+    indicator.style.left = left + 'px'
+    indicator.style.top = refRect.top - parentRect.top + mt + 'px'
+    indicator.style.height = Math.max(0, refRect.height - mt - mb) + 'px'
+  } else {
+    const top =
+      (before
+        ? beforeRect.top - indicator.clientHeight / 2
+        : afterRect.top + afterRect.height) -
+      parentRect.top +
+      el.sortableParent.scrollTop +
+      mt
+    indicator.style.top = top + 'px'
+    indicator.style.left = refRect.left - parentRect.left + ml + 'px'
+    indicator.style.width = Math.max(0, refRect.width - ml - mr) + 'px'
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: auto-scroll the scrollable parent when the cursor is near its edges.
+// ---------------------------------------------------------------------------
+function autoScroll(el, binding) {
+  const isHorizontal = el.sortableOrientation === 'horizontal'
+  const scrollParent = el.sortableScrollableParent
+  const hasScroll = isHorizontal
+    ? scrollParent.scrollWidth > scrollParent.clientWidth
+    : scrollParent.scrollHeight > scrollParent.clientHeight
+
+  if (!hasScroll) return
+
+  const event = el.sortableLastMoveEvent
+  const rect = scrollParent.getBoundingClientRect()
+  const size = isHorizontal ? rect.right - rect.left : rect.bottom - rect.top
+  const side = Math.ceil((size / 100) * 10)
+  const mousePos = isHorizontal
+    ? event.clientX - rect.left
+    : event.clientY - rect.top
+  const mouseOpp = size - mousePos
+  let speed = 0
+
+  if (mousePos < side) {
+    speed = -(3 - Math.ceil((Math.max(0, mousePos) / side) * 3))
+  } else if (mouseOpp < side) {
+    speed = 3 - Math.ceil((Math.max(0, mouseOpp) / side) * 3)
+  }
+
+  if (speed !== 0) {
+    el.sortableAutoScrolling = true
+    if (isHorizontal) {
+      scrollParent.scrollLeft += speed
+    } else {
+      scrollParent.scrollTop += speed
+    }
+    el.sortableScrollTimeout = setTimeout(() => {
+      binding.dir.move(el, binding)
+    }, 10)
+  } else {
+    el.sortableAutoScrolling = false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: get all sortable sibling elements within a parent (excluding the
+// indicator element).
+// ---------------------------------------------------------------------------
+function getSiblings(parent, indicator) {
+  return [...parent.childNodes].filter(
+    (e) => e !== indicator && e.nodeType === 1
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Helper: ensure a container is relatively positioned so the absolute
+// indicator renders correctly within it.
+// ---------------------------------------------------------------------------
+function ensureRelativePosition(container) {
+  if (getComputedStyle(container).position === 'static') {
+    container.style.position = 'relative'
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Directive definition
+// ---------------------------------------------------------------------------
 export default {
   /**
-   * Called when the directive must bind to the element. It will register the
-   * mousedown event on the element, which is used to start the drag and drop
-   * process.
+   * Called when the directive must bind to the element. Registers the
+   * mousedown event that starts the drag process.
    */
   beforeMount(el, binding) {
     binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
 
-    const mousedownElement = binding.value.handle
+    const handleEl = binding.value.handle
       ? el.querySelector(binding.value.handle)
       : el
 
     el.mousedownEvent = (event) => {
-      if (!el.sortableEnabled || event.button !== 0) {
-        return
-      }
+      if (!el.sortableEnabled || event.button !== 0) return
 
       el.sortableMoved = false
       el.sortableStartClientX = event.clientX
       el.sortableStartClientY = event.clientY
-
       el.classList.add('sortable-active-item')
+
+      // Capture the originating parent for cross-container tracking
+      el.sortableInitialParent = el.parentNode
+      el.sortableParent = el.parentNode
+      el.sortableScrollableParent =
+        findScrollableParent(el.sortableParent) || el.sortableParent
+      ensureRelativePosition(el.sortableParent)
+
+      // Create the drop indicator
+      el.sortableIndicator = document.createElement('div')
+      el.sortableIndicator.classList.add('sortable-position-indicator')
+      if (el.sortableOrientation === 'horizontal') {
+        el.sortableIndicator.classList.add(
+          'sortable-position-indicator--horizontal'
+        )
+      }
+      el.sortableParent.insertBefore(
+        el.sortableIndicator,
+        el.sortableParent.firstChild
+      )
 
       el.mouseMoveEvent = (event) => binding.dir.move(el, binding, event)
       window.addEventListener('mousemove', el.mouseMoveEvent)
 
-      el.mouseUpEvent = (event) => binding.dir.up(el, binding, event)
+      el.mouseUpEvent = () => binding.dir.up(el, binding)
       window.addEventListener('mouseup', el.mouseUpEvent)
 
       el.keydownEvent = (event) => {
-        if (event.key === 'Escape') {
-          // When the user presses the escape key we want to cancel the action
-          binding.dir.cancel(el, event)
-        }
+        if (event.key === 'Escape') binding.dir.cancel(el)
       }
       document.body.addEventListener('keydown', el.keydownEvent)
-
-      el.sortableInitialParent = el.parentNode
-      parent = el.parentNode
-      scrollableParent = findScrollableParent(parent) || parent
-
-      // If the parent container is not positioned, add the position automatically.
-      if (getComputedStyle(parent).position === 'static') {
-        parent.style.position = 'relative'
-      }
-
-      indicator = document.createElement('div')
-      indicator.classList.add('sortable-position-indicator')
-      if (el.sortableOrientation === 'horizontal') {
-        indicator.classList.add('sortable-position-indicator--horizontal')
-      }
-      parent.insertBefore(indicator, parent.firstChild)
     }
-    mousedownElement.addEventListener('mousedown', el.mousedownEvent)
+
+    handleEl.addEventListener('mousedown', el.mousedownEvent)
   },
+
   /**
-   * When the directive must unbind from the element, we will remove all the events
-   * that could have been added.
+   * When the directive unmounts, remove all remaining event listeners and
+   * cancel any in-progress drag.
    */
   unmounted(el, binding) {
     if (el.sortableMoved) {
       binding.dir.cancel(el)
     }
-
-    const mousedownElement = binding.value.handle
+    const handleEl = binding.value.handle
       ? el.querySelector(binding.value.handle)
       : el
-    mousedownElement.removeEventListener('mousedown', el.mousedownEvent)
+    handleEl.removeEventListener('mousedown', el.mousedownEvent)
   },
+
+  /**
+   * Sync directive options to the element so they can be read by move/up/cancel.
+   */
   updated(el, binding) {
     el.sortableId = binding.value.id
-    el.sortableEnabled =
-      binding.value.enabled || binding.value.enabled === undefined
+    el.sortableEnabled = binding.value.enabled ?? true
     el.sortableMarginLeft = binding.value.marginLeft
     el.sortableMarginRight = binding.value.marginRight
     el.sortableMarginTop = binding.value.marginTop
@@ -121,12 +228,12 @@ export default {
     el.sortableGroup = binding.value.group
     el.sortableContainerId = binding.value.containerId
   },
+
   /**
-   * Called when the user moves the mouse when the dragging of the element has
-   * started. It will calculate the target indicator position and saves before which
-   * element it must be placed.
+   * Called on every mousemove while a drag is active. Positions the ghost clone
+   * and the drop indicator, and triggers auto-scroll when near the edges.
    */
-  move(el, binding, event = null, startAutoScroll = true) {
+  move(el, binding, event = null) {
     if (event !== null) {
       event.preventDefault()
       el.sortableLastMoveEvent = event
@@ -134,10 +241,8 @@ export default {
       event = el.sortableLastMoveEvent
     }
 
-    // Sometimes the user could accidentally drag the element one or two pixels while
-    // clicking it. Because it could be annoying that the click doesn't work because
-    // the moving state started, we check here if the user has at least dragged
-    // the element 3 pixels vertically or horizontally before starting the moved state.
+    // Guard: don't start moving until the cursor has moved at least 3px so that
+    // a small accidental movement doesn't prevent a click from registering.
     if (!el.sortableMoved) {
       if (
         Math.abs(event.clientX - el.sortableStartClientX) > 3 ||
@@ -146,314 +251,174 @@ export default {
         el.sortableMoved = true
         el.classList.add('sortable-dragging-item')
 
-        // Create the ghost element
-        ghostElement = el.cloneNode(true)
+        // Create a fixed ghost clone that follows the cursor.
+        el.sortableGhostElement = el.cloneNode(true)
         const rect = el.getBoundingClientRect()
-        ghostElement.classList.add('sortable-ghost-element')
-        ghostElement.style.width = rect.width + 'px'
-        ghostElement.style.height = rect.height + 'px'
-        // Save offsets to keep the mouse positioned identically relative to the ghost
+        el.sortableGhostElement.classList.add('sortable-ghost-element')
+        el.sortableGhostElement.style.width = rect.width + 'px'
+        el.sortableGhostElement.style.height = rect.height + 'px'
         el.sortableGhostOffsetX = event.clientX - rect.left
         el.sortableGhostOffsetY = event.clientY - rect.top
-
-        ghostElement.style.left = event.clientX - el.sortableGhostOffsetX + 'px'
-        ghostElement.style.top = event.clientY - el.sortableGhostOffsetY + 'px'
-        document.body.appendChild(ghostElement)
+        document.body.appendChild(el.sortableGhostElement)
       } else {
         return
       }
     }
 
-    if (ghostElement) {
-      ghostElement.style.left = event.clientX - el.sortableGhostOffsetX + 'px'
-      ghostElement.style.top = event.clientY - el.sortableGhostOffsetY + 'px'
+    // Move ghost with the cursor.
+    if (el.sortableGhostElement) {
+      el.sortableGhostElement.style.left =
+        event.clientX - el.sortableGhostOffsetX + 'px'
+      el.sortableGhostElement.style.top =
+        event.clientY - el.sortableGhostOffsetY + 'px'
     }
 
+    // Cross-container: detect if the cursor has moved into a different container
+    // belonging to the same sortable group and switch `sortableParent` to it.
     if (el.sortableGroup) {
-      indicator.style.display = 'none'
-      if (ghostElement) {
-        ghostElement.style.pointerEvents = 'none'
-      }
+      // Temporarily hide the indicator and ghost so elementFromPoint sees through them.
+      el.sortableIndicator.style.display = 'none'
+      if (el.sortableGhostElement)
+        el.sortableGhostElement.style.pointerEvents = 'none'
+
       const target = document.elementFromPoint(event.clientX, event.clientY)
-      indicator.style.display = ''
-      if (ghostElement) {
-        ghostElement.style.pointerEvents = ''
-      }
+
+      el.sortableIndicator.style.display = ''
+      if (el.sortableGhostElement)
+        el.sortableGhostElement.style.pointerEvents = ''
 
       if (target) {
         const groupContainer = target.closest(
           `[data-sortable-group="${el.sortableGroup}"]`
         )
-        if (groupContainer && groupContainer !== parent) {
-          const oldAll = [...parent.childNodes].filter(
-            (e) => e !== indicator && e.nodeType === 1
+        if (groupContainer && groupContainer !== el.sortableParent) {
+          // Remove sorting classes from the old parent's children.
+          getSiblings(el.sortableParent, el.sortableIndicator).forEach((s) =>
+            s.classList.remove('sortable-sorting-item')
           )
-          oldAll.forEach((s) => s.classList.remove('sortable-sorting-item'))
 
-          parent = groupContainer
-          scrollableParent = findScrollableParent(parent) || parent
-
-          if (getComputedStyle(parent).position === 'static') {
-            parent.style.position = 'relative'
-          }
-
-          parent.insertBefore(indicator, parent.firstChild)
+          el.sortableParent = groupContainer
+          el.sortableScrollableParent =
+            findScrollableParent(groupContainer) || groupContainer
+          ensureRelativePosition(groupContainer)
+          groupContainer.insertBefore(
+            el.sortableIndicator,
+            groupContainer.firstChild
+          )
         }
       }
     }
 
-    // Set pointer events to none because that will prevent hover and click
-    // effects, but ensure the parent *can* receive them if necessary.
-    const all = [...parent.childNodes].filter(
-      (e) => e !== indicator && e.nodeType === 1
-    )
+    // Disable pointer events on all siblings to get smooth hover behaviour.
+    const all = getSiblings(el.sortableParent, el.sortableIndicator)
+    all.forEach((s) => s.classList.add('sortable-sorting-item'))
 
-    // Add the `sortable-sorting-item` which disables the pointer events and user
-    // select of all the sortable items. This will give a smoother user experience
-    // as the user can't accidentally click the item and can't select the text while
-    // dragging.
-    all.forEach((s) => {
-      s.classList.add('sortable-sorting-item')
-    })
+    const parentRect = el.sortableParent.getBoundingClientRect()
 
-    const parentRect = parent.getBoundingClientRect()
-
-    // Using the mouse position and the position of the items we can calculate
-    // before which item the dragging item must be placed. If the position of the
-    // mouse is above the vertical center (or left of horizontal center) of the
-    // element, it must be placed before that item.
+    // Determine before which sibling the dragged item would be inserted.
     let before = null
     let beforeRect = {}
     for (let i = 0; i < all.length; i++) {
       beforeRect = all[i].getBoundingClientRect()
-      if (el.sortableOrientation === 'horizontal') {
-        if (event.clientX < beforeRect.left + beforeRect.width / 2) {
-          before = all[i]
-          break
-        }
-      } else {
-        if (event.clientY < beforeRect.top + beforeRect.height / 2) {
-          before = all[i]
-          break
-        }
+      const isHorizontal = el.sortableOrientation === 'horizontal'
+      const center = isHorizontal
+        ? beforeRect.left + beforeRect.width / 2
+        : beforeRect.top + beforeRect.height / 2
+      const pos = isHorizontal ? event.clientX : event.clientY
+      if (pos < center) {
+        before = all[i]
+        break
       }
     }
 
-    // Save the element where the dragging item must be placed before so that the
-    // new order can be calculated when the user releases the mouse.
     el.sortableBeforeElement = before
 
-    // Calculate the target indicator position based on the position of the
-    // beforeElement. If the beforeElement is null, it means that the dragging
-    // element must be moved to the end.
-    const elementRect = el.getBoundingClientRect()
+    // Position the blue indicator line.
+    positionIndicator(
+      el,
+      el.sortableIndicator,
+      all,
+      before,
+      beforeRect,
+      parentRect
+    )
 
-    if (all.length === 0) {
-      if (el.sortableOrientation === 'horizontal') {
-        const left = el.sortableMarginLeft || 0
-        indicator.style.left = left + 'px'
-        indicator.style.top = (el.sortableMarginTop || 0) + 'px'
-        indicator.style.height =
-          (parentRect.height || elementRect.height) -
-          (el.sortableMarginTop || 0) -
-          (el.sortableMarginBottom || 0) +
-          'px'
-      } else {
-        indicator.style.left = (el.sortableMarginLeft || 0) + 'px'
-        indicator.style.width =
-          (parentRect.width || elementRect.width) -
-          (el.sortableMarginLeft || 0) -
-          (el.sortableMarginRight || 0) +
-          'px'
-        indicator.style.top = (el.sortableMarginTop || 0) + 'px'
-      }
-    } else {
-      const afterRect = all[all.length - 1].getBoundingClientRect()
-      const referenceBoundingRect = before ? beforeRect : afterRect
-
-      if (el.sortableOrientation === 'horizontal') {
-        const left =
-          (before
-            ? beforeRect.left - indicator.clientWidth / 2
-            : afterRect.left + afterRect.width) -
-          parentRect.left +
-          parent.scrollLeft +
-          (el.sortableMarginLeft || 0)
-        const top = referenceBoundingRect.top - parentRect.top
-        indicator.style.left = left + 'px'
-        indicator.style.top = top + (el.sortableMarginTop || 0) + 'px'
-        indicator.style.height =
-          referenceBoundingRect.height -
-          (el.sortableMarginTop || 0) -
-          (el.sortableMarginBottom || 0) +
-          'px'
-      } else {
-        const top =
-          (before
-            ? beforeRect.top - indicator.clientHeight / 2
-            : afterRect.top + afterRect.height) -
-          parentRect.top +
-          parent.scrollTop +
-          (el.sortableMarginTop || 0)
-        const left = referenceBoundingRect.left - parentRect.left
-        indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
-        indicator.style.width =
-          referenceBoundingRect.width -
-          (el.sortableMarginLeft || 0) -
-          (el.sortableMarginRight || 0) +
-          'px'
-        indicator.style.top = top + 'px'
-      }
-    }
-
-    // If the user is not already auto scrolling, which happens while dragging and
-    // moving the element close to the end of the view port at the top or bottom
-    // side (or left and right for horizontal), we might need to initiate that process.
-    if (el.sortableOrientation === 'horizontal') {
-      if (
-        scrollableParent.scrollWidth > scrollableParent.clientWidth &&
-        (!el.sortableAutoScrolling || !startAutoScroll)
-      ) {
-        const scrollableParentRect = scrollableParent.getBoundingClientRect()
-        const parentWidth =
-          scrollableParentRect.right - scrollableParentRect.left
-        const side = Math.ceil((parentWidth / 100) * 10)
-        const autoScrollMouseLeft = event.clientX - scrollableParentRect.left
-        const autoScrollMouseRight = parentWidth - autoScrollMouseLeft
-        let speed = 0
-
-        if (autoScrollMouseLeft < side) {
-          speed = -(
-            3 - Math.ceil((Math.max(0, autoScrollMouseLeft) / side) * 3)
-          )
-        } else if (autoScrollMouseRight < side) {
-          speed = 3 - Math.ceil((Math.max(0, autoScrollMouseRight) / side) * 3)
-        }
-
-        if (speed !== 0) {
-          el.sortableAutoScrolling = true
-          scrollableParent.scrollLeft += speed
-          el.sortableScrollTimeout = setTimeout(() => {
-            binding.dir.move(el, binding, null, false)
-          }, 10)
-        } else {
-          el.sortableAutoScrolling = false
-        }
-      }
-    } else {
-      if (
-        scrollableParent.scrollHeight > scrollableParent.clientHeight &&
-        (!el.sortableAutoScrolling || !startAutoScroll)
-      ) {
-        const scrollableParentRect = scrollableParent.getBoundingClientRect()
-        const parentHeight =
-          scrollableParentRect.bottom - scrollableParentRect.top
-        const side = Math.ceil((parentHeight / 100) * 10)
-        const autoScrollMouseTop = event.clientY - scrollableParentRect.top
-        const autoScrollMouseBottom = parentHeight - autoScrollMouseTop
-        let speed = 0
-
-        if (autoScrollMouseTop < side) {
-          speed = -(3 - Math.ceil((Math.max(0, autoScrollMouseTop) / side) * 3))
-        } else if (autoScrollMouseBottom < side) {
-          speed = 3 - Math.ceil((Math.max(0, autoScrollMouseBottom) / side) * 3)
-        }
-
-        // If the speed is either a positive or negative, so not 0, we know that we
-        // need to start auto scrolling.
-        if (speed !== 0) {
-          el.sortableAutoScrolling = true
-          scrollableParent.scrollTop += speed
-          el.sortableScrollTimeout = setTimeout(() => {
-            binding.dir.move(el, binding, null, false)
-          }, 10)
-        } else {
-          el.sortableAutoScrolling = false
-        }
-      }
+    // Auto-scroll if the cursor is near the edge of the scrollable container.
+    if (!el.sortableAutoScrolling) {
+      autoScroll(el, binding)
     }
   },
+
   /**
-   * Called when the user releases the mouse after the dragging of the element has
-   * started. It will check calculate the new order of all items based on the last
-   * beforeElement element saved by the move method. If the item has changed
-   * position, the update function is called which needs to change the actual order
-   * of the items.
+   * Called when the user releases the mouse. Calculates the new item order and
+   * fires the `update` callback if the position changed.
    */
   up(el, binding) {
-    binding.dir.cancel(el, binding)
+    binding.dir.cancel(el)
 
-    if (!el.sortableMoved) {
-      return
-    }
-
+    if (!el.sortableMoved) return
     el.sortableMoved = false
 
-    // It could be that the element or a child element has a click handler. When the
-    // user releases the mouse pointer, that click event could also be triggered
-    // which we don't because we are dragging the element instead of clicking on it
-    // directly. This makes sure that when releasing the mouse pointer, that click
-    // event is stopped.
-    const preventOtherClickEvent = (event) => {
+    // Suppress any click event that might fire immediately after mouseup so that
+    // clicking overlapping elements after a drop doesn't trigger unexpected actions.
+    const suppressClick = (event) => {
       event.stopPropagation()
-      window.removeEventListener('click', preventOtherClickEvent, true)
+      window.removeEventListener('click', suppressClick, true)
     }
-    window.addEventListener('click', preventOtherClickEvent, true)
-    // Remove the event because it could be that the user wants to click on the
-    // element right after it has been moved.
-    setTimeout(() => {
-      window.removeEventListener('click', preventOtherClickEvent, true)
-    })
+    window.addEventListener('click', suppressClick, true)
+    setTimeout(() => window.removeEventListener('click', suppressClick, true))
 
-    const oldOrder = [...parent.childNodes]
+    const oldOrder = [...el.sortableParent.childNodes]
       .filter((e) => e.nodeType === 1)
       .map((e) => e.sortableId)
+
     const newOrder = oldOrder.filter((id) => id !== el.sortableId)
     const targetIndex = el.sortableBeforeElement
       ? newOrder.findIndex((id) => id === el.sortableBeforeElement.sortableId)
       : newOrder.length
 
-    if (targetIndex === -1) {
-      return
-    }
+    if (targetIndex === -1) return
 
     newOrder.splice(targetIndex, 0, el.sortableId)
 
-    if (JSON.stringify(oldOrder) === JSON.stringify(newOrder)) {
-      if (parent === el.sortableInitialParent) {
-        return
-      }
-    }
+    const orderUnchanged = JSON.stringify(oldOrder) === JSON.stringify(newOrder)
+    const containerUnchanged = el.sortableParent === el.sortableInitialParent
+
+    if (orderUnchanged && containerUnchanged) return
 
     binding.value.update(
       newOrder,
       oldOrder,
       el.sortableId,
       el.sortableBeforeElement?.sortableId || null,
-      parent.dataset.sortableContainerId,
+      el.sortableParent.dataset.sortableContainerId,
       el.sortableInitialParent.dataset.sortableContainerId
     )
   },
+
   /**
-   * Cancels the sorting by removing the target indicator, sorting classes and event
-   * listeners.
+   * Cancel a drag in progress: remove the indicator and ghost, clear classes,
+   * and remove all temporary event listeners.
    */
   cancel(el) {
     clearTimeout(el.sortableScrollTimeout)
+    el.sortableAutoScrolling = false
 
-    if (indicator.parentNode) {
-      indicator.parentNode.removeChild(indicator)
+    if (el.sortableIndicator?.parentNode) {
+      el.sortableIndicator.parentNode.removeChild(el.sortableIndicator)
     }
 
-    if (ghostElement && ghostElement.parentNode) {
-      ghostElement.parentNode.removeChild(ghostElement)
-      ghostElement = null
+    if (el.sortableGhostElement?.parentNode) {
+      el.sortableGhostElement.parentNode.removeChild(el.sortableGhostElement)
+      el.sortableGhostElement = null
     }
 
-    const all = [...parent.childNodes].filter((e) => e.nodeType === 1)
-    all.forEach((s) => {
-      s.classList.remove('sortable-sorting-item')
-    })
+    if (el.sortableParent) {
+      getSiblings(el.sortableParent, el.sortableIndicator).forEach((s) =>
+        s.classList.remove('sortable-sorting-item')
+      )
+    }
+
     el.classList.remove('sortable-dragging-item')
     el.classList.remove('sortable-active-item')
 
