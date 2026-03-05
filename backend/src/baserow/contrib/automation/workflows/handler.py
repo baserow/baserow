@@ -969,7 +969,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         is_test_run = original_workflow == workflow
 
         simulate_until_node = (
-            AutomationNode.objects.get(id=simulate_until_node_id)
+            workflow.get_graph().get_node(simulate_until_node_id)
             if simulate_until_node_id
             else None
         )
