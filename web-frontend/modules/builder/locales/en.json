@@ -191,12 +191,12 @@
     "moveLeft": "Move left",
     "moveRight": "Move right",
     "selectParent": "Select parent",
-    "reorder": "Drag to reorder"
+    "reorder": "Drag to reorder element"
   },
   "elementPreview": {
     "dragToReorder": "Drag to reorder",
-    "dragToReorderColumn": "Drag to reorder the column",
-    "dragToReorderContainer": "Drag to reorder the container"
+    "dragToReorderColumn": "Drag to reorder column",
+    "dragToReorderContainer": "Drag to reorder container"
   },
   "duplicatePageJobType": {
     "name": "Duplicate page",

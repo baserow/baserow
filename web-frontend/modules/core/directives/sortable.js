@@ -50,7 +50,8 @@ function positionIndicator(el, indicator, all, before, beforeRect, parentRect) {
     return
   }
 
-  const afterRect = all[all.length - 1].getBoundingClientRect()
+  // Use cached rect for the last element to avoid reflow
+  const afterRect = el.sortableCachedRects[all.length - 1]
   const refRect = before ? beforeRect : afterRect
 
   if (el.sortableOrientation === 'horizontal') {
@@ -91,7 +92,12 @@ function autoScroll(el, binding) {
   if (!hasScroll) return
 
   const event = el.sortableLastMoveEvent
-  const rect = scrollParent.getBoundingClientRect()
+
+  if (!el.sortableCachedScrollParentRect) {
+    el.sortableCachedScrollParentRect = scrollParent.getBoundingClientRect()
+  }
+  const rect = el.sortableCachedScrollParentRect
+
   const size = isHorizontal ? rect.right - rect.left : rect.bottom - rect.top
   const side = Math.ceil((size / 100) * 10)
   const mousePos = isHorizontal
@@ -152,6 +158,10 @@ export default {
   beforeMount(el, binding) {
     binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
+    el.sortableCachedRects = null
+    el.sortableCachedParentRect = null
+    el.sortableCachedScrollParentRect = null
+    el.sortableLastElementCheck = null
 
     el.mousedownEvent = (event) => {
       if (!el.sortableEnabled || event.button !== 0) return
@@ -182,6 +192,7 @@ export default {
       // Create the drop indicator
       el.sortableIndicator = document.createElement('div')
       el.sortableIndicator.classList.add('sortable-position-indicator')
+      el.sortableIndicator.style.pointerEvents = 'none'
       if (el.sortableOrientation === 'horizontal') {
         el.sortableIndicator.classList.add(
           'sortable-position-indicator--horizontal'
@@ -192,7 +203,12 @@ export default {
         el.sortableParent.firstChild
       )
 
-      el.mouseMoveEvent = (event) => binding.dir.move(el, binding, event)
+      el.mouseMoveEvent = (event) => {
+        if (el.sortableMoveRaf) cancelAnimationFrame(el.sortableMoveRaf)
+        el.sortableMoveRaf = requestAnimationFrame(() => {
+          binding.dir.move(el, binding, event)
+        })
+      }
       window.addEventListener('mousemove', el.mouseMoveEvent)
 
       el.mouseUpEvent = () => binding.dir.up(el, binding)
@@ -261,6 +277,7 @@ export default {
         el.sortableGhostElement.classList.add('sortable-ghost-element')
         el.sortableGhostElement.style.width = rect.width + 'px'
         el.sortableGhostElement.style.height = rect.height + 'px'
+        el.sortableGhostElement.style.pointerEvents = 'none'
         el.sortableGhostOffsetX = event.clientX - rect.left
         el.sortableGhostOffsetY = event.clientY - rect.top
         document.body.appendChild(el.sortableGhostElement)
@@ -280,35 +297,39 @@ export default {
     // Cross-container: detect if the cursor has moved into a different container
     // belonging to the same sortable group and switch `sortableParent` to it.
     if (el.sortableGroup) {
-      // Temporarily hide the indicator and ghost so elementFromPoint sees through them.
-      el.sortableIndicator.style.display = 'none'
-      if (el.sortableGhostElement)
-        el.sortableGhostElement.style.pointerEvents = 'none'
+      // Throttle elementFromPoint to avoid excessive layout calculations
+      const now = Date.now()
+      if (
+        !el.sortableLastElementCheck ||
+        now - el.sortableLastElementCheck > 40
+      ) {
+        el.sortableLastElementCheck = now
+        const target = document.elementFromPoint(event.clientX, event.clientY)
 
-      const target = document.elementFromPoint(event.clientX, event.clientY)
-
-      el.sortableIndicator.style.display = ''
-      if (el.sortableGhostElement)
-        el.sortableGhostElement.style.pointerEvents = ''
-
-      if (target) {
-        const groupContainer = target.closest(
-          `[data-sortable-group="${el.sortableGroup}"]`
-        )
-        if (groupContainer && groupContainer !== el.sortableParent) {
-          // Remove sorting classes from the old parent's children.
-          getSiblings(el.sortableParent, el.sortableIndicator).forEach((s) =>
-            s.classList.remove('sortable-sorting-item')
+        if (target) {
+          const groupContainer = target.closest(
+            `[data-sortable-group="${el.sortableGroup}"]`
           )
+          if (groupContainer && groupContainer !== el.sortableParent) {
+            // Remove sorting classes from the old parent's children.
+            getSiblings(el.sortableParent, el.sortableIndicator).forEach((s) =>
+              s.classList.remove('sortable-sorting-item')
+            )
 
-          el.sortableParent = groupContainer
-          el.sortableScrollableParent =
-            findScrollableParent(groupContainer) || groupContainer
-          ensureRelativePosition(groupContainer)
-          groupContainer.insertBefore(
-            el.sortableIndicator,
-            groupContainer.firstChild
-          )
+            el.sortableParent = groupContainer
+            el.sortableScrollableParent =
+              findScrollableParent(groupContainer) || groupContainer
+            ensureRelativePosition(groupContainer)
+            groupContainer.insertBefore(
+              el.sortableIndicator,
+              groupContainer.firstChild
+            )
+
+            // Clear cache since we changed containers
+            el.sortableCachedParentRect = null
+            el.sortableCachedRects = null
+            el.sortableCachedScrollParentRect = null
+          }
         }
       }
     }
@@ -317,13 +338,24 @@ export default {
     const all = getSiblings(el.sortableParent, el.sortableIndicator)
     all.forEach((s) => s.classList.add('sortable-sorting-item'))
 
-    const parentRect = el.sortableParent.getBoundingClientRect()
+    // Cache the bounding rects to avoid layout thrashing on every tick
+    if (!el.sortableCachedParentRect) {
+      el.sortableCachedParentRect = el.sortableParent.getBoundingClientRect()
+    }
+    const parentRect = el.sortableCachedParentRect
+
+    if (
+      !el.sortableCachedRects ||
+      el.sortableCachedRects.length !== all.length
+    ) {
+      el.sortableCachedRects = all.map((child) => child.getBoundingClientRect())
+    }
 
     // Determine before which sibling the dragged item would be inserted.
     let before = null
     let beforeRect = {}
     for (let i = 0; i < all.length; i++) {
-      beforeRect = all[i].getBoundingClientRect()
+      beforeRect = el.sortableCachedRects[i]
       const isHorizontal = el.sortableOrientation === 'horizontal'
       const center = isHorizontal
         ? beforeRect.left + beforeRect.width / 2
@@ -405,6 +437,7 @@ export default {
    * and remove all temporary event listeners.
    */
   cancel(el) {
+    if (el.sortableMoveRaf) cancelAnimationFrame(el.sortableMoveRaf)
     clearTimeout(el.sortableScrollTimeout)
     el.sortableAutoScrolling = false
 
@@ -425,6 +458,11 @@ export default {
 
     el.classList.remove('sortable-dragging-item')
     el.classList.remove('sortable-active-item')
+
+    el.sortableCachedParentRect = null
+    el.sortableCachedRects = null
+    el.sortableCachedScrollParentRect = null
+    el.sortableLastElementCheck = null
 
     window.removeEventListener('mouseup', el.mouseUpEvent)
     window.removeEventListener('mousemove', el.mouseMoveEvent)
