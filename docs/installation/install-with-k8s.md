@@ -44,6 +44,8 @@ stringData:
   REDIS_USER: "TODO"
   REDIS_PASSWORD: "TODO"
   REDIS_PROTOCOL: "TODO rediss or redis"
+  REDIS_SSL_CERT_REQS: "TODO required or optional or none" \
+  REDIS_SSL_CA_CERTS: "TODO"
   BASEROW_AMOUNT_OF_GUNICORN_WORKERS: "5"
   # S3 Compatible storage is recommended with K8S to get the exports and file storage working
   # See the docs for more info https://baserow.io/docs/installation%2Fconfiguration#user-file-upload-configuration

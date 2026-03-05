@@ -187,6 +187,8 @@ services:
       REDIS_PORT:
       REDIS_PROTOCOL:
       REDIS_URL:
+      REDIS_SSL_CERT_REQS:
+      REDIS_SSL_CA_CERTS:
       REDIS_USER:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
     volumes:

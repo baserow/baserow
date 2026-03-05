@@ -158,9 +158,20 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_USERNAME = os.getenv("REDIS_USER", "")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_PROTOCOL = os.getenv("REDIS_PROTOCOL", "redis")
+REDIS_SSL_CERT_REQS = os.getenv("REDIS_SSL_CERT_REQS", "required")
+REDIS_SSL_CA_CERTS = os.getenv("REDIS_SSL_CA_CERTS", "")
+
+redis_auth = f"{REDIS_USERNAME}:{REDIS_PASSWORD}@" if REDIS_USERNAME else ""
+redis_url_suffix = (
+    (f"?ssl_cert_reqs={REDIS_SSL_CERT_REQS}" if REDIS_PROTOCOL == "rediss" else "")
+    + f"&ssl_ca_certs={REDIS_SSL_CA_CERTS}"
+    if REDIS_SSL_CA_CERTS
+    else ""
+)
+
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    f"{REDIS_PROTOCOL}://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0",
+    f"{REDIS_PROTOCOL}://{redis_auth}{REDIS_HOST}:{REDIS_PORT}/0{redis_url_suffix}",
 )
 
 BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(

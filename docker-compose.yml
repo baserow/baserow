@@ -64,6 +64,8 @@ x-backend-variables:
   REDIS_PROTOCOL:
   REDIS_URL:
   REDIS_USER:
+  REDIS_SSL_CERT_REQS:
+  REDIS_SSL_CA_CERTS:
 
   # Set these to enable Baserow to send emails.
   EMAIL_SMTP:
@@ -384,7 +386,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "/baserow/backend/docker/docker-entrypoint.sh celery-beat-healthcheck"
+          "/baserow/backend/docker/docker-entrypoint.sh celery-beat-healthcheck",
         ]
       interval: 30s
       timeout: 10s

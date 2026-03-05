@@ -260,6 +260,8 @@ docker run \
   -e REDIS_PASSWORD=TODO \
   -e REDIS_PORT=TODO \
   -e REDIS_PROTOCOL=TODO \
+  -e REDIS_SSL_CERT_REQS=TODO \
+  -e REDIS_SSL_CA_CERTS=TODO \
   -v baserow_data:/baserow/data \
   -p 80:80 \
   -p 443:443 \
