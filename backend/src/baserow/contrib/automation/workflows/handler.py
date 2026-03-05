@@ -13,6 +13,9 @@ from django.utils import timezone
 from celery.canvas import chain
 from opentelemetry import trace
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
@@ -945,8 +948,19 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             )
             trigger = workflow.get_trigger()
 
+            dispatch_context = AutomationDispatchContext(
+                workflow,
+                # This is a placeholder value, no actual history exists yet
+                # (it's created later in start_workflow). This is fine
+                # for now, because get_sample_data() doesn't use history.
+                history_id=0,
+                simulate_until_node=simulate_until_node,
+            )
             if workflow.can_immediately_be_tested() or (
-                trigger.service.specific.sample_data is not None
+                trigger.service.get_type().get_sample_data(
+                    trigger.service.specific, dispatch_context
+                )
+                is not None
                 and trigger.id != simulate_until_node.id
             ):
                 # If the trigger is immediately dispatchable or if we already have
