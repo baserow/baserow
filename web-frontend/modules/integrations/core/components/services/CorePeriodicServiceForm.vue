@@ -157,7 +157,7 @@ export default {
         day_of_week: 0, // Monday=0..Sunday=6 (LOCAL)
         day_of_month: 1, // 1..31 (LOCAL)
       },
-      syncedFromValues: false // Have we synced these from `values` yet?
+      syncedFromValues: false, // Have we synced these from `values` yet?
     }
   },
   computed: {
