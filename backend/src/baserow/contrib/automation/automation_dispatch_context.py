@@ -18,9 +18,9 @@ class AutomationDispatchContext(DispatchContext):
     def __init__(
         self,
         workflow: AutomationWorkflow,
+        history_id: int,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
-        history_id: Optional[int] = None,
         current_iterations: Optional[Dict[int, int]] = None,
     ):
         """
@@ -29,12 +29,12 @@ class AutomationDispatchContext(DispatchContext):
         node's changes.
 
         :param workflow: The workflow that this dispatch context is associated with.
+        :param history_id: The AutomationWorkflowHistory ID from which the
+            workflow's event payload and node results are derived.
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
         :param simulate_until_node: Stop simulating the dispatch once this node
             is reached.
-        :param history_id: The AutomationWorkflowHistory ID from which the
-            workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
         """
 
@@ -73,18 +73,13 @@ class AutomationDispatchContext(DispatchContext):
         return new_context
 
     def _get_previous_results_cache_key(self) -> Optional[str]:
-        if self.history_id:
-            return f"wa_previous_nodes_results_{self.history_id}"
-        return None
+        return f"wa_previous_nodes_results_{self.history_id}"
 
     def _load_previous_results(self) -> Dict[int, Any]:
         """
         Returns a dict where keys are the node IDs and values are the results
         of the previous_nodes_results.
         """
-
-        if not self.history_id:
-            return {}
 
         results = {}
         previous_results = AutomationNodeResult.objects.filter(

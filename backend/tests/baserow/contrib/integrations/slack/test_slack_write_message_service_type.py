@@ -175,7 +175,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
     service_type = service.get_type()
     dispatch_context = AutomationDispatchContext(
         workflow,
-        history_id=workflow_history.id,
+        workflow_history.id,
     )
 
     mock_response = Mock()

@@ -52,8 +52,8 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(
         workflow,
+        workflow_history.id,
         event_payload=workflow_history.event_payload,
-        history_id=workflow_history.id,
     )
 
     # `first_action` referencing the trigger input data.
@@ -94,7 +94,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(
         workflow,
-        history_id=workflow_history_2.id,
+        workflow_history_2.id,
     )
 
     # Existing node but after
@@ -155,8 +155,8 @@ def test_current_iteration_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(
         workflow,
+        workflow_history.id,
         event_payload=workflow_history.event_payload,
-        history_id=workflow_history.id,
         current_iterations={iterator.id: 0},
     )
 

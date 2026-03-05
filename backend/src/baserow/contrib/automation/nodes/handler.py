@@ -435,9 +435,9 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         dispatch_context = AutomationDispatchContext(
             node.workflow,
+            history_id,
             event_payload=workflow_history.event_payload,
             simulate_until_node=workflow_history.simulate_until_node,
-            history_id=history_id,
             current_iterations=current_iterations,
         )
 
