@@ -162,12 +162,11 @@ REDIS_SSL_CERT_REQS = os.getenv("REDIS_SSL_CERT_REQS", "required")
 REDIS_SSL_CA_CERTS = os.getenv("REDIS_SSL_CA_CERTS", "")
 
 redis_auth = f"{REDIS_USERNAME}:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
-redis_url_suffix = (
-    (f"?ssl_cert_reqs={REDIS_SSL_CERT_REQS}" if REDIS_PROTOCOL == "rediss" else "")
-    + f"&ssl_ca_certs={REDIS_SSL_CA_CERTS}"
-    if REDIS_SSL_CA_CERTS
-    else ""
-)
+redis_url_suffix = ""
+if REDIS_PROTOCOL == "rediss":
+    redis_url_suffix = f"?ssl_cert_reqs={REDIS_SSL_CERT_REQS}"
+    if REDIS_SSL_CA_CERTS:
+        redis_url_suffix += f"&ssl_ca_certs={REDIS_SSL_CA_CERTS}"
 
 REDIS_URL = os.getenv(
     "REDIS_URL",
