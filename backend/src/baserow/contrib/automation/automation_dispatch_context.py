@@ -90,10 +90,6 @@ class AutomationDispatchContext(DispatchContext):
 
         return results
 
-    def invalidate_previous_results(self):
-        if cache_key := self._get_previous_results_cache_key():
-            local_cache.delete(cache_key)
-
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry

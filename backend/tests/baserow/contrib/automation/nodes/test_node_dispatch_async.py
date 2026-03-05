@@ -3,6 +3,7 @@ from unittest.mock import ANY, patch
 import pytest
 from celery.canvas import Signature
 
+from baserow.config.celery import clear_local
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
@@ -329,6 +330,10 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
         iterator_node.id,
         history_id=workflow_history.id,
     )
+    # Clear the local cache between dispatch_node() calls to simulate
+    # how Celery clears the local cache between tasks in production.
+    clear_local()
+
     # result is a chain of chords
     assert isinstance(result, Signature)
 
@@ -341,6 +346,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
         history_id=workflow_history.id,
         current_iterations={iterator_node.id: 0},
     )
+    clear_local()
 
     assert_dispatches_next_node(
         result, (iterator_child_2_node, workflow_history, {iterator_node.id: 0})
@@ -352,6 +358,8 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
         history_id=workflow_history.id,
         current_iterations={iterator_node.id: 1},
     )
+    clear_local()
+
     assert_dispatches_next_node(
         result, (iterator_child_2_node, workflow_history, {iterator_node.id: 1})
     )
@@ -371,6 +379,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
         after_iteration_node.id,
         history_id=workflow_history.id,
     )
+
     # There are no next nodes
     assert result is None
 
@@ -561,6 +570,9 @@ def test_dispatch_node_dispatches_iterator_simulation(
             node.id,
             history_id=workflow_history.id,
         )
+        # Clear the local cache between dispatch_node() calls to simulate
+        # how Celery clears the local cache between tasks in production.
+        clear_local()
 
     assert_dispatches_next_node(
         result,
@@ -627,6 +639,9 @@ def test_dispatch_node_dispatches_test_run(
             node.id,
             history_id=workflow_history.id,
         )
+        # Clear the local cache between dispatch_node() calls to simulate
+        # how Celery clears the local cache between tasks in production.
+        clear_local()
 
     assert_dispatches_next_node(
         result,
