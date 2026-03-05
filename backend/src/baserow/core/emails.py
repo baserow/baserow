@@ -1,4 +1,5 @@
 import re
+from email.utils import make_msgid
 from typing import List
 
 from django.conf import settings
@@ -48,6 +49,9 @@ class BaseEmailMessage(EmailMultiAlternatives):
 
         super().__init__(
             subject=subject, body=text_content, from_email=from_email, to=to
+        )
+        self.extra_headers["Message-ID"] = make_msgid(
+            domain=settings.EMAIL_MESSAGE_ID_DOMAIN
         )
         self.attach_alternative(html_content, "text/html")
 

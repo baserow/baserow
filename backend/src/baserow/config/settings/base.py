@@ -802,6 +802,9 @@ if BASEROW_EXTRA_PUBLIC_URLS:
             EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
 
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
+EMAIL_MESSAGE_ID_DOMAIN = os.getenv(
+    "EMAIL_MESSAGE_ID_DOMAIN", FROM_EMAIL.rsplit("@", 1)[-1]
+)
 RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 48  # 48 hours
 CHANGE_EMAIL_TOKEN_MAX_AGE = 60 * 60 * 12  # 12 hours
 

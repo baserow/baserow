@@ -1,4 +1,5 @@
 import json
+from email.utils import make_msgid
 import socket
 import uuid
 from datetime import datetime, timedelta
@@ -812,6 +813,8 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             connection=connection,
         )
 
+        from_domain = resolved_values["from_email"].rsplit("@", 1)[-1]
+        email.extra_headers["Message-ID"] = make_msgid(domain=from_domain)
         email.content_subtype = service.body_type
 
         try:

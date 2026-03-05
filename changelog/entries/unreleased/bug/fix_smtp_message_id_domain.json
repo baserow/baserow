@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Prevent infrastructure internals from leaking in email Message-ID headers by using a configurable domain instead of the machine hostname.",
+    "issue_origin": "github",
+    "issue_number": 4567,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-06"
+}
