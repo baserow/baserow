@@ -1,4 +1,5 @@
 import re
+from email.utils import make_msgid, parseaddr
 from typing import List
 
 from django.conf import settings
@@ -46,8 +47,20 @@ class BaseEmailMessage(EmailMultiAlternatives):
 
         text_content = self._get_plain_text_from_html(html_content)
 
+        _, from_email_address = parseaddr(from_email)
+        message_id_domain = (
+            from_email_address.rsplit("@", 1)[-1]
+            if "@" in from_email_address
+            else None
+        )
+        message_id = make_msgid(domain=message_id_domain)
+
         super().__init__(
-            subject=subject, body=text_content, from_email=from_email, to=to
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=to,
+            headers={"Message-ID": message_id},
         )
         self.attach_alternative(html_content, "text/html")
 
