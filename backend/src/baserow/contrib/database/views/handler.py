@@ -3567,13 +3567,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         visible_field_options = view_type.get_visible_field_options_in_order(view)
         visible_field_ids = {o.field_id for o in visible_field_options}
 
-        view_group_by_field_ids = set()
-        if view_type.can_group_by:
-            view_group_by_field_ids = set(
-                view.viewgroupby_set.values_list("field_id", flat=True)
-            )
-        allowed_order_field_ids = visible_field_ids | view_group_by_field_ids
-
         field_ids = get_include_exclude_field_ids(
             view.table, include_fields, exclude_fields
         )
@@ -3599,7 +3592,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         if order_by is not None and order_by != "":
             queryset = queryset.order_by_fields_string(
-                order_by, False, allowed_order_field_ids
+                order_by, False, visible_field_ids
             )
 
         if adhoc_filters.has_any_filters:
@@ -3616,9 +3609,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if field_ids
             else visible_field_ids
         )
-        # Always include group_by field IDs so row data contains their values,
-        # which the frontend needs for grouping logic.
-        field_ids = list(set(field_ids) | view_group_by_field_ids)
 
         return queryset, field_ids, visible_field_options
 

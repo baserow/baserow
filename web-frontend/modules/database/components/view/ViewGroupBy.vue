@@ -6,10 +6,7 @@
       :class="{
         'active active--purple': view.group_bys.length > 0,
       }"
-      @click="
-        !disableGroupBy &&
-        $refs.context.toggle($refs.contextLink, 'bottom', 'left', 4)
-      "
+      @click="$refs.context.toggle($refs.contextLink, 'bottom', 'left', 4)"
     >
       <i class="header__filter-icon iconoir-book-stack"></i>
       <span class="header__filter-name">{{

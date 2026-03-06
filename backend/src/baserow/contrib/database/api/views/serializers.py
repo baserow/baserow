@@ -34,7 +34,6 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
     view_type_registry,
 )
-from baserow.core.db import specific_iterator
 
 from ..tables.serializers import TableWithoutDataSyncSerializer
 from .exceptions import FiltersParamValidationException
@@ -572,27 +571,6 @@ class PublicViewSortSerializer(serializers.ModelSerializer):
 
 class PublicViewGroupBySerializer(serializers.ModelSerializer):
     view = serializers.SlugField(source="view.slug")
-    field_type = serializers.SerializerMethodField()
-    field_name = serializers.SerializerMethodField()
-    field_object = serializers.SerializerMethodField()
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_field_type(self, instance):
-        return field_type_registry.get_by_model(instance.field.specific_class).type
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_field_name(self, instance):
-        return instance.field.name
-
-    @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_field_object(self, instance):
-        specific_fields_map = self.context.get("specific_fields_map", {})
-        specific_field = specific_fields_map.get(instance.field_id)
-        if specific_field is None:
-            return None
-        return field_type_registry.get_serializer(
-            specific_field, PublicFieldSerializer
-        ).data
 
     class Meta:
         model = ViewGroupBy
@@ -603,9 +581,6 @@ class PublicViewGroupBySerializer(serializers.ModelSerializer):
             "order",
             "width",
             "type",
-            "field_type",
-            "field_name",
-            "field_object",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
@@ -643,21 +618,11 @@ class PublicViewSerializer(serializers.ModelSerializer):
     def get_group_bys(self, instance):
         view_type = view_type_registry.get_by_model(instance.specific_class)
         if view_type.can_group_by:
-            group_by_qs = instance.viewgroupby_set.select_related("field").all()
-            group_by_list = list(group_by_qs)
-
-            # Batch-fetch specific field instances to avoid N+1 queries
-            # when serializing field_object for each group_by.
-            specific_fields_map = {}
-            if group_by_list:
-                base_fields = [gb.field for gb in group_by_list]
-                specific_fields = specific_iterator(base_fields, base_model=Field)
-                specific_fields_map = {sf.id: sf for sf in specific_fields}
-
             group_bys = PublicViewGroupBySerializer(
-                instance=group_by_list,
+                instance=instance.viewgroupby_set.filter(
+                    field__in=self.context["fields"]
+                ),
                 many=True,
-                context={"specific_fields_map": specific_fields_map},
             )
             return group_bys.data
         else:

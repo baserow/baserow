@@ -75,7 +75,6 @@
           ></GridViewPlaceholder>
           <GridViewGroups
             v-if="includeGroupBy && activeGroupBys.length > 0"
-            :all-fields-in-table="allFieldsInTable"
             :group-by-value-sets="groupByValueSets"
             :store-prefix="storePrefix"
           ></GridViewGroups>

@@ -51,16 +51,10 @@ export default {
     },
   },
   methods: {
-    /**
-     * Resolves the field object for a group_by. Falls back to embedded metadata
-     * from the group_by object when the field is hidden in public views.
-     */
     getGroupByField(groupBy) {
-      const field = this.$store.getters['field/getAll'].find(
+      return this.$store.getters['field/getAll'].find(
         (f) => f.id === groupBy.field
       )
-      if (field) return field
-      return groupBy.field_object
     },
     getFieldWidth(field) {
       const fieldId = field?.id
