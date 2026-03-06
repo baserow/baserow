@@ -141,3 +141,63 @@ def test_import_export_link_collection_field_type(data_fixture):
         "target": "self",
         "variant": LinkElement.VARIANTS.LINK,
     }
+
+
+@pytest.mark.django_db
+def test_import_link_collection_field_with_stale_page_id(data_fixture):
+    """
+    Ensure that importing a link collection field doesn't crash when
+    the navigate_to_page_id is provided but doesn't exist.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+        ],
+        rows=[
+            ["Foo"],
+        ],
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        table=table, page=page
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Foo Link Field",
+                "type": "link",
+                "config": {
+                    "link_name": "'Buy some gold!'",
+                    "navigate_to_url": "'https://www.kitco.com'",
+                    "navigation_type": "custom",
+                    "navigate_to_page_id": 100,
+                    "page_parameters": [],
+                    "query_parameters": [],
+                    "target": "self",
+                    "variant": LinkElement.VARIANTS.LINK,
+                },
+            },
+        ],
+    )
+
+    duplicated_page = PageService().duplicate_page(user, page)
+    data_source2 = duplicated_page.datasource_set.first()
+    id_mapping = {
+        "builder_data_sources": {data_source.id: data_source2.id},
+        # the invalid page 100 isn't included
+        "builder_pages": {},
+    }
+
+    exported = table_element.get_type().export_serialized(table_element)
+    # This shouldn't fail if page 100 isn't in the mapping
+    imported_table_element = table_element.get_type().import_serialized(
+        page, exported, id_mapping
+    )
+    imported_field = imported_table_element.fields.get(name="Foo Link Field")
+    assert imported_field.config["navigate_to_page_id"] is None
+    assert imported_field.config["navigation_type"] == "custom"

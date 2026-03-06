@@ -831,7 +831,7 @@ class NavigationElementManager:
         **kwargs,
     ) -> Any:
         if prop_name == "navigate_to_page_id" and value:
-            return id_mapping["builder_pages"][value]
+            return id_mapping["builder_pages"].get(value)
 
         return value
 
