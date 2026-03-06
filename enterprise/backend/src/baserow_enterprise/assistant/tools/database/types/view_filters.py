@@ -1,244 +1,200 @@
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from baserow_enterprise.assistant.types import BaseModel
 
 from .base import Date
 
 # ---------------------------------------------------------------------------
-# Filter config models (one per field type)
+# Flat filter model
 # ---------------------------------------------------------------------------
 
+FilterType = Literal[
+    "text", "number", "date", "single_select", "multiple_select", "link_row", "boolean"
+]
 
-class TextFilterConfig(BaseModel):
-    type: Literal["text"] = Field(..., description="Must be 'text'.")
-    operator: Literal[
-        "equal", "not_equal", "contains", "contains_not", "empty", "not_empty"
-    ] = Field(..., description="Filter operator.")
-    value: str = Field(
-        ...,
-        description="The text value to filter on. Use '' for empty/not_empty operators.",
-    )
+_OPERATORS: dict[str, tuple[str, ...]] = {
+    "text": ("equal", "not_equal", "contains", "contains_not", "empty", "not_empty"),
+    "number": ("equal", "not_equal", "higher_than", "lower_than", "empty", "not_empty"),
+    "date": ("equal", "not_equal", "after", "before"),
+    "single_select": ("is_any_of", "is_none_of"),
+    "multiple_select": ("is_any_of", "is_none_of"),
+    "link_row": ("has", "has_not"),
+    "boolean": ("is",),
+}
 
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return self.operator
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return self.value
-
-
-class NumberFilterConfig(BaseModel):
-    type: Literal["number"] = Field(..., description="Must be 'number'.")
-    operator: Literal[
-        "equal", "not_equal", "higher_than", "lower_than", "empty", "not_empty"
-    ] = Field(..., description="Filter operator.")
-    value: float = Field(
-        ...,
-        description="The number value to filter on. Use 0 for empty/not_empty operators.",
-    )
-    or_equal: bool = Field(
-        ...,
-        description=(
-            "For higher_than/lower_than: include equal values. false otherwise."
-        ),
-    )
-
-    _OR_EQUAL_MAP = {
-        "higher_than": "higher_than_or_equal",
-        "lower_than": "lower_than_or_equal",
-    }
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        if self.or_equal and self.operator in self._OR_EQUAL_MAP:
-            return self._OR_EQUAL_MAP[self.operator]
-        return self.operator
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return str(self.value)
-
-
-class DateFilterConfig(BaseModel):
-    type: Literal["date"] = Field(..., description="Must be 'date'.")
-    operator: Literal["equal", "not_equal", "after", "before"] = Field(
-        ..., description="Filter operator."
-    )
-    value: Date | int | None = Field(
-        ...,
-        description=(
-            "Date object for exact_date mode, integer for relative modes "
-            "(nr_days_ago, etc.), None otherwise."
-        ),
-    )
-    mode: Literal[
-        "today",
-        "yesterday",
-        "tomorrow",
-        "this_week",
-        "last_week",
-        "next_week",
-        "this_month",
-        "last_month",
-        "next_month",
-        "this_year",
-        "last_year",
-        "next_year",
-        "nr_days_ago",
-        "nr_days_from_now",
-        "nr_weeks_ago",
-        "nr_weeks_from_now",
-        "nr_months_ago",
-        "nr_months_from_now",
-        "nr_years_ago",
-        "nr_years_from_now",
-        "exact_date",
-    ] = Field(
-        ...,
-        description=(
-            "The date filter mode. Use 'exact_date' for an exact date, "
-            "relative modes like 'today'/'nr_days_ago' otherwise."
-        ),
-    )
-    or_equal: bool = Field(
-        ...,
-        description="For after/before: include equal values. false otherwise.",
-    )
-
-    _ORM_TYPE_MAP = {
-        "equal": "date_is",
-        "not_equal": "date_is_not",
-        "after": "date_is_after",
-        "before": "date_is_before",
-    }
-    _OR_EQUAL_MAP = {
-        "after": "date_is_on_or_after",
-        "before": "date_is_on_or_before",
-    }
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        if self.or_equal and self.operator in self._OR_EQUAL_MAP:
-            return self._OR_EQUAL_MAP[self.operator]
-        return self._ORM_TYPE_MAP[self.operator]
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        timezone = kwargs.get("timezone", "UTC")
-        if isinstance(self.value, Date):
-            value = self.value.to_django_orm()
-        elif isinstance(self.value, int):
-            value = str(self.value)
-        else:
-            value = ""
-        return f"{timezone}?{value}?{self.mode}"
-
-
-class SingleSelectFilterConfig(BaseModel):
-    type: Literal["single_select"] = Field(..., description="Must be 'single_select'.")
-    operator: Literal["is_any_of", "is_none_of"] = Field(
-        ..., description="Filter operator."
-    )
-    value: list[str] = Field(..., description="The select option names to filter on.")
-
-    _ORM_TYPE_MAP = {
-        "is_any_of": "single_select_is_any_of",
-        "is_none_of": "single_select_is_none_of",
-    }
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return self._ORM_TYPE_MAP[self.operator]
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        values = set(v.lower() for v in self.value)
-        valid_option_ids = [
-            option.id
-            for option in field.select_options.all()
-            if option.value.lower() in values
-        ]
-        return ",".join(str(v) for v in valid_option_ids)
-
-
-class MultipleSelectFilterConfig(BaseModel):
-    type: Literal["multiple_select"] = Field(
-        ..., description="Must be 'multiple_select'."
-    )
-    operator: Literal["is_any_of", "is_none_of"] = Field(
-        ..., description="Filter operator."
-    )
-    value: list[str] = Field(..., description="The select option names to filter on.")
-
-    _ORM_TYPE_MAP = {
-        "is_any_of": "multiple_select_has",
-        "is_none_of": "multiple_select_has_not",
-    }
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return self._ORM_TYPE_MAP[self.operator]
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        values = set(v.lower() for v in self.value)
-        valid_option_ids = [
-            option.id
-            for option in field.select_options.all()
-            if option.value.lower() in values
-        ]
-        return ",".join(str(v) for v in valid_option_ids)
-
-
-class LinkRowFilterConfig(BaseModel):
-    type: Literal["link_row"] = Field(..., description="Must be 'link_row'.")
-    operator: Literal["has", "has_not"] = Field(..., description="Filter operator.")
-    value: int = Field(..., description="The linked record ID to filter on.")
-
-    _ORM_TYPE_MAP = {
-        "has": "link_row_has",
-        "has_not": "link_row_has_not",
-    }
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return self._ORM_TYPE_MAP[self.operator]
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return str(self.value)
-
-
-class BooleanFilterConfig(BaseModel):
-    type: Literal["boolean"] = Field(..., description="Must be 'boolean'.")
-    operator: Literal["is"] = Field(..., description="Must be 'is'.")
-    value: bool = Field(..., description="The boolean value to filter on.")
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "boolean"
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return "1" if self.value else "0"
+DateFilterMode = Literal[
+    "today",
+    "yesterday",
+    "tomorrow",
+    "this_week",
+    "last_week",
+    "next_week",
+    "this_month",
+    "last_month",
+    "next_month",
+    "this_year",
+    "last_year",
+    "next_year",
+    "nr_days_ago",
+    "nr_days_from_now",
+    "nr_weeks_ago",
+    "nr_weeks_from_now",
+    "nr_months_ago",
+    "nr_months_from_now",
+    "nr_years_ago",
+    "nr_years_from_now",
+    "exact_date",
+]
 
 
 # ---------------------------------------------------------------------------
-# Config union and wrapper types
+# ORM type dispatch: (filter, field, **kwargs) -> str
 # ---------------------------------------------------------------------------
 
-# Plain union (no discriminator) — produces anyOf in JSON schema for Groq compat
-AnyFilterConfig = (
-    TextFilterConfig
-    | NumberFilterConfig
-    | DateFilterConfig
-    | SingleSelectFilterConfig
-    | MultipleSelectFilterConfig
-    | LinkRowFilterConfig
-    | BooleanFilterConfig
-)
+_NUMBER_OR_EQUAL = {
+    "higher_than": "higher_than_or_equal",
+    "lower_than": "lower_than_or_equal",
+}
+
+_DATE_ORM_TYPE = {
+    "equal": "date_is",
+    "not_equal": "date_is_not",
+    "after": "date_is_after",
+    "before": "date_is_before",
+}
+
+_DATE_OR_EQUAL = {
+    "after": "date_is_on_or_after",
+    "before": "date_is_on_or_before",
+}
+
+_SINGLE_SELECT_ORM_TYPE = {
+    "is_any_of": "single_select_is_any_of",
+    "is_none_of": "single_select_is_none_of",
+}
+
+_MULTIPLE_SELECT_ORM_TYPE = {
+    "is_any_of": "multiple_select_has",
+    "is_none_of": "multiple_select_has_not",
+}
+
+_LINK_ROW_ORM_TYPE = {
+    "has": "link_row_has",
+    "has_not": "link_row_has_not",
+}
+
+_GET_ORM_TYPE = {
+    "text": lambda f, field, **kw: f.operator,
+    "number": lambda f, field, **kw: (
+        _NUMBER_OR_EQUAL.get(f.operator, f.operator) if f.or_equal else f.operator
+    ),
+    "date": lambda f, field, **kw: (
+        _DATE_OR_EQUAL[f.operator]
+        if f.or_equal and f.operator in _DATE_OR_EQUAL
+        else _DATE_ORM_TYPE[f.operator]
+    ),
+    "single_select": lambda f, field, **kw: _SINGLE_SELECT_ORM_TYPE[f.operator],
+    "multiple_select": lambda f, field, **kw: _MULTIPLE_SELECT_ORM_TYPE[f.operator],
+    "link_row": lambda f, field, **kw: _LINK_ROW_ORM_TYPE[f.operator],
+    "boolean": lambda f, field, **kw: "boolean",
+}
+
+
+# ---------------------------------------------------------------------------
+# ORM value dispatch: (filter, field, **kwargs) -> str
+# ---------------------------------------------------------------------------
+
+
+def _select_orm_value(f, field, **kwargs):
+    values = set(v.lower() for v in f.value)
+    valid_option_ids = [
+        option.id
+        for option in field.select_options.all()
+        if option.value.lower() in values
+    ]
+    return ",".join(str(v) for v in valid_option_ids)
+
+
+def _date_orm_value(f, field, **kwargs):
+    timezone = kwargs.get("timezone", "UTC")
+    if isinstance(f.value, Date):
+        value = f.value.to_django_orm()
+    elif isinstance(f.value, int):
+        value = str(f.value)
+    else:
+        value = ""
+    return f"{timezone}?{value}?{f.mode}"
+
+
+_GET_ORM_VALUE = {
+    "text": lambda f, field, **kw: f.value if isinstance(f.value, str) else str(f.value or ""),
+    "number": lambda f, field, **kw: str(f.value),
+    "date": _date_orm_value,
+    "single_select": _select_orm_value,
+    "multiple_select": _select_orm_value,
+    "link_row": lambda f, field, **kw: str(f.value),
+    "boolean": lambda f, field, **kw: "1" if f.value else "0",
+}
+
+
+# ---------------------------------------------------------------------------
+# ViewFilterItemCreate
+# ---------------------------------------------------------------------------
 
 
 class ViewFilterItemCreate(BaseModel):
-    """Model for creating a new view filter: field_id + config."""
+    """Flat model for creating a view filter: field_id + type + operator + value."""
 
     field_id: int = Field(..., description="The ID of the field to filter on.")
-    config: AnyFilterConfig = Field(
-        ..., description="Type-specific filter configuration."
+    type: FilterType = Field(
+        ..., description="The filter type (must match the field type)."
     )
+    operator: str = Field(..., description="The filter operator.")
+
+    # Filter value — type depends on filter type
+    value: str | float | int | bool | list[str] | Date | None = Field(
+        None,
+        description=(
+            "The filter value. String for text, number for number, "
+            "bool for boolean, list of strings for select, "
+            "Date/int/null for date, int for link_row."
+        ),
+    )
+
+    # (date)
+    mode: DateFilterMode | None = Field(
+        None, description="(date) The date filter mode."
+    )
+
+    # (number, date)
+    or_equal: bool = Field(
+        False,
+        description="(number, date) For higher_than/lower_than/after/before: include equal values.",
+    )
+
+    @model_validator(mode="after")
+    def _validate_per_type(self):
+        valid = _OPERATORS.get(self.type)
+        if valid and self.operator not in valid:
+            raise ValueError(
+                f"Invalid operator '{self.operator}' for type '{self.type}'. "
+                f"Valid operators: {', '.join(valid)}"
+            )
+        if self.type == "date" and self.mode is None:
+            raise ValueError("date filter requires 'mode'.")
+        return self
+
+    def get_django_orm_type(self, field, **kwargs) -> str:
+        return _GET_ORM_TYPE[self.type](self, field, **kwargs)
+
+    def get_django_orm_value(self, field, **kwargs) -> str:
+        return _GET_ORM_VALUE[self.type](self, field, **kwargs)
 
 
 class ViewFilterItem(ViewFilterItemCreate):
-    """Model for an existing view filter (with ID)."""
+    """Existing view filter with ID."""
 
     id: int = Field(..., description="The unique identifier of the view filter.")
 
@@ -249,4 +205,4 @@ AnyViewFilterItem = ViewFilterItem
 
 class ViewFiltersArgs(BaseModel):
     view_id: int
-    filters: list[AnyViewFilterItemCreate]
+    filters: list[ViewFilterItemCreate]

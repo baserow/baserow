@@ -21,19 +21,6 @@ from baserow_enterprise.assistant.tools.database.types import (
     SelectOptionCreate,
     TableItemCreate,
 )
-from baserow_enterprise.assistant.tools.database.types.fields import (
-    BooleanConfig,
-    DateConfig,
-    FileConfig,
-    FormulaConfig,
-    LinkRowConfig,
-    LongTextConfig,
-    MultipleSelectConfig,
-    NumberConfig,
-    RatingConfig,
-    SingleSelectConfig,
-    TextConfig,
-)
 
 from .utils import make_test_ctx
 
@@ -201,49 +188,37 @@ def test_create_complex_table_tool(data_fixture):
 
     primary_field_name = "Name"
     fields = [
-        FieldItemCreate(
-            name="Description", config=LongTextConfig(type="long_text", rich_text=True)
-        ),
-        FieldItemCreate(
-            name="Amount",
-            config=NumberConfig(type="number", decimal_places=2, suffix="$"),
-        ),
-        FieldItemCreate(
-            name="Due Date", config=DateConfig(type="date", include_time=False)
-        ),
-        FieldItemCreate(
-            name="Event Time", config=DateConfig(type="date", include_time=True)
-        ),
-        FieldItemCreate(name="Done?", config=BooleanConfig(type="boolean")),
+        FieldItemCreate(name="Description", type="long_text", rich_text=True),
+        FieldItemCreate(name="Amount", type="number", decimal_places=2, suffix="$"),
+        FieldItemCreate(name="Due Date", type="date", include_time=False),
+        FieldItemCreate(name="Event Time", type="date", include_time=True),
+        FieldItemCreate(name="Done?", type="boolean"),
         FieldItemCreate(
             name="Status",
-            config=SingleSelectConfig(
-                type="single_select",
-                options=[
-                    SelectOptionCreate(value="New", color="blue"),
-                    SelectOptionCreate(value="In Progress", color="yellow"),
-                    SelectOptionCreate(value="Done", color="green"),
-                ],
-            ),
+            type="single_select",
+            options=[
+                SelectOptionCreate(value="New", color="blue"),
+                SelectOptionCreate(value="In Progress", color="yellow"),
+                SelectOptionCreate(value="Done", color="green"),
+            ],
         ),
         FieldItemCreate(
             name="Tags",
-            config=MultipleSelectConfig(
-                type="multiple_select",
-                options=[
-                    SelectOptionCreate(value="Red", color="red"),
-                    SelectOptionCreate(value="Yellow", color="yellow"),
-                    SelectOptionCreate(value="Green", color="green"),
-                    SelectOptionCreate(value="Blue", color="blue"),
-                ],
-            ),
+            type="multiple_select",
+            options=[
+                SelectOptionCreate(value="Red", color="red"),
+                SelectOptionCreate(value="Yellow", color="yellow"),
+                SelectOptionCreate(value="Green", color="green"),
+                SelectOptionCreate(value="Blue", color="blue"),
+            ],
         ),
         FieldItemCreate(
             name="Related Items",
-            config=LinkRowConfig(type="link_row", linked_table=table.id),
+            type="link_row",
+            linked_table=table.id,
         ),
-        FieldItemCreate(name="Rating", config=RatingConfig(type="rating", max_value=5)),
-        FieldItemCreate(name="Attachments", config=FileConfig(type="file")),
+        FieldItemCreate(name="Rating", type="rating", max_value=5),
+        FieldItemCreate(name="Attachments", type="file"),
     ]
     # Call the tool function directly
     response = create_tables(
@@ -289,22 +264,23 @@ def test_create_complex_table_tool(data_fixture):
         create_item = fields_map.pop(orm_field.name)
         create_dump = create_item.model_dump()
 
-        # Both create and read have the same structure: name + config
-        create_config = create_dump["config"]
-        read_config = read_item["config"]
+        # Both create and read are flat: type is top-level
+        assert create_dump["type"] == read_item["type"]
 
-        assert create_config["type"] == read_config["type"]
-
-        for key, value in create_config.items():
-            if key == "type":
+        # Compare type-specific fields present in both
+        skip_keys = {"name", "type"}
+        for key, value in create_dump.items():
+            if key in skip_keys:
                 continue
-            read_value = read_config.get(key)
+            read_value = read_item.get(key)
+            if read_value is None:
+                continue  # read model excludes None; defaults aren't relevant
             if key == "options":
                 # Saved options have an ID, so remove them before comparison
                 for option in read_value:
                     option.pop("id")
             assert read_value == value, (
-                f"Field '{orm_field.name}' config key '{key}': "
+                f"Field '{orm_field.name}' key '{key}': "
                 f"expected {value}, got {read_value}"
             )
 
@@ -650,7 +626,8 @@ def test_formula_field_validation_raises_on_invalid_formula(data_fixture):
 
     item = FieldItemCreate(
         name="Bad Formula",
-        config=FormulaConfig(type="formula", formula="this is not a valid formula!!!"),
+        type="formula",
+        formula="this is not a valid formula!!!",
     )
     with pytest.raises(InvalidFormulaFieldError) as exc_info:
         item.to_django_orm_kwargs(table)
@@ -669,7 +646,8 @@ def test_formula_field_validation_passes_for_valid_formula(data_fixture):
 
     item = FieldItemCreate(
         name="Good Formula",
-        config=FormulaConfig(type="formula", formula="field('Name')"),
+        type="formula",
+        formula="field('Name')",
     )
     result = item.to_django_orm_kwargs(table)
     assert result == {"name": "Good Formula", "formula": "field('Name')"}
@@ -683,7 +661,8 @@ def test_formula_field_validation_passes_for_empty_formula(data_fixture):
 
     item = FieldItemCreate(
         name="Empty Formula",
-        config=FormulaConfig(type="formula", formula=""),
+        type="formula",
+        formula="",
     )
     result = item.to_django_orm_kwargs(table)
     assert result == {"name": "Empty Formula", "formula": ""}
@@ -720,10 +699,11 @@ def test_create_fields_tool_with_invalid_formula_auto_fixes(data_fixture):
             thought="test",
             table_id=table.id,
             fields=[
-                FieldItemCreate(name="Description", config=TextConfig(type="text")),
+                FieldItemCreate(name="Description", type="text"),
                 FieldItemCreate(
                     name="Bad Formula",
-                    config=FormulaConfig(type="formula", formula="invalid_stuff!!!"),
+                    type="formula",
+                    formula="invalid_stuff!!!",
                 ),
             ],
         )
@@ -767,10 +747,11 @@ def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
             thought="test",
             table_id=table.id,
             fields=[
-                FieldItemCreate(name="Description", config=TextConfig(type="text")),
+                FieldItemCreate(name="Description", type="text"),
                 FieldItemCreate(
                     name="Bad Formula",
-                    config=FormulaConfig(type="formula", formula="invalid_stuff!!!"),
+                    type="formula",
+                    formula="invalid_stuff!!!",
                 ),
             ],
         )
@@ -823,9 +804,8 @@ def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
                     fields=[
                         FieldItemCreate(
                             name="My Formula",
-                            config=FormulaConfig(
-                                type="formula", formula="bad formula!!!"
-                            ),
+                            type="formula",
+                            formula="bad formula!!!",
                         ),
                     ],
                 )
