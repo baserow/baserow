@@ -9,7 +9,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 
 from .types import BuilderItem, BuilderItemCreate, builder_type_registry
 
@@ -130,5 +130,32 @@ def create_builders(
     return {"created_builders": created_builders}
 
 
-TOOL_FUNCTIONS = [list_builders, create_builders]
+def switch_mode(
+    ctx: RunContext[AssistantDeps],
+    mode: Annotated[
+        Literal["do", "explain"],
+        Field(description="Target mode: 'do' to act, 'explain' to answer questions."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> str:
+    """\
+    Switch between DO (act) and EXPLAIN (answer questions) modes.
+
+    WHEN to use: User asks a how-to or feature question about Baserow → switch to "explain". User wants to create/modify/delete resources → switch to "do".
+    WHAT it does: Changes the available toolset. DO mode has all action tools. EXPLAIN mode has read-only tools + search_user_docs.
+    RETURNS: Confirmation of mode switch.
+    DO NOT USE when: Already in the requested mode.
+    """
+
+    target = AgentMode(mode)
+    if ctx.deps.mode == target:
+        return f"Already in {target.value} mode."
+
+    ctx.deps.mode = target
+    return f"Switched to {target.value} mode."
+
+
+TOOL_FUNCTIONS = [list_builders, create_builders, switch_mode]
 core_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

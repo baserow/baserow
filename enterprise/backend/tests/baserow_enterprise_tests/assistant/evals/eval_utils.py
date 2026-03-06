@@ -205,17 +205,18 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     # so store in "/" format (e.g. "groq/openai/gpt-oss-120b").
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = model.replace(":", "/", 1)
 
-    # Build the single-agent toolset (navigation + core + database + automation)
-    toolset, tool_manifest = assistant_tool_registry.build_toolset(
-        user, workspace, model
-    )
-
     deps = AssistantDeps(
         user=user,
         workspace=workspace,
         tool_helpers=tool_helpers,
-        tool_manifest=tool_manifest,
     )
+
+    # Build the single-agent toolset (navigation + core + database + automation)
+    toolset, do_manifest, explain_manifest = assistant_tool_registry.build_toolset(
+        user, workspace, model, deps
+    )
+    deps.do_manifest = do_manifest
+    deps.explain_manifest = explain_manifest
     usage_limits = UsageLimits(request_limit=max_iters)
 
     return main_agent, deps, tracker, model, usage_limits, toolset

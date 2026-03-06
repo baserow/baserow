@@ -15,12 +15,17 @@ from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
 from baserow.core.registry import Instance, Registry
 
-from .toolset import InlineRefsToolset, generate_tool_manifest_compact
+from .toolset import (
+    InlineRefsToolset,
+    ModeAwareToolset,
+    generate_tool_manifest_compact,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
     from baserow.core.models import Workspace
+    from baserow_enterprise.assistant.deps import AssistantDeps
 
 
 class AssistantToolType(Instance):
@@ -64,14 +69,16 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         user: "AbstractUser",
         workspace: "Workspace",
         model: str,
-    ) -> tuple[AbstractToolset, str]:
+        deps: "AssistantDeps",
+    ) -> tuple[AbstractToolset, str, str]:
         """
         Assemble the combined assistant toolset, filtering by ``can_use()``.
 
         :param user: The requesting user.
         :param workspace: The current workspace.
         :param model: The pydantic-ai model string.
-        :return: A tuple of (toolset, manifest_string).
+        :param deps: The assistant deps (used for mode-aware filtering).
+        :return: ``(toolset, do_manifest, explain_manifest)``.
         """
 
         toolsets: list[AbstractToolset] = []
@@ -84,13 +91,28 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
             func_lists.append(tool_type.get_tool_functions())
 
         combined = CombinedToolset(toolsets)
+        mode_aware = ModeAwareToolset(combined, deps)
 
         from baserow_enterprise.assistant.prompts import TOOL_ROUTING_RULES
 
-        manifest = generate_tool_manifest_compact(
-            func_lists, routing_rules=TOOL_ROUTING_RULES
+        do_exclude = ModeAwareToolset._DO_EXCLUDE
+        explain_include = ModeAwareToolset._EXPLAIN_INCLUDE
+
+        do_funcs = [
+            [f for f in funcs if f.__name__ not in do_exclude]
+            for funcs in func_lists
+        ]
+        explain_funcs = [
+            [f for f in funcs if f.__name__ in explain_include]
+            for funcs in func_lists
+        ]
+
+        do_manifest = generate_tool_manifest_compact(
+            do_funcs, routing_rules=TOOL_ROUTING_RULES
         )
-        return InlineRefsToolset(combined, model=model), manifest
+        explain_manifest = generate_tool_manifest_compact(explain_funcs)
+
+        return InlineRefsToolset(mode_aware, model=model), do_manifest, explain_manifest
 
 
 assistant_tool_registry = AssistantToolRegistry()

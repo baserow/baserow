@@ -15,6 +15,13 @@ if TYPE_CHECKING:
     )
 
 
+class AgentMode(str, Enum):
+    """Operating mode that controls which tools are available to the agent."""
+
+    DO = "do"
+    EXPLAIN = "explain"
+
+
 class QueueEventKind(Enum):
     STREAM = auto()
     RESULT = auto()
@@ -94,24 +101,27 @@ class ToolHelpers:
 @dataclass
 class AssistantDeps:
     """
-    Typed dependency container for the pydantic-ai agent. Every agent run on the
-    behalf of a user in a given workspace. This runtime-context also allows
-    tools to share information (e.g. sources), provide helpers for emitting
-    events or requesting navigation, and dynamically extend the toolset by
-    adding tools to ``dynamic_tools`` and their manifest entries to
-    ``tool_manifest`` when dynamically loaded during a run (e.g. row tools
-    loaded by the database agent).
+    Typed dependency container for the pydantic-ai agent.
 
-    Passed via ``deps=`` to every ``agent.run()`` / ``agent.run_stream()`` call
-    and accessible in tools via ``RunContext[AssistantDeps].deps``.
+    Every agent run operates on behalf of a user in a given workspace.
+    This runtime-context also allows tools to share information (e.g.
+    sources), provide helpers for emitting events or requesting navigation,
+    switch between DO/EXPLAIN modes, and dynamically extend the toolset by
+    adding tools to ``dynamic_tools`` during a run (e.g. row tools loaded
+    by the database agent).
+
+    Passed via ``deps=`` to every ``agent.run()`` / ``agent.run_stream()``
+    call and accessible in tools via ``RunContext[AssistantDeps].deps``.
     """
 
     user: "AbstractUser"
     workspace: "Workspace"
     tool_helpers: ToolHelpers
+    mode: AgentMode = AgentMode.DO
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
-    tool_manifest: str = ""
+    do_manifest: str = ""
+    explain_manifest: str = ""
 
     def extend_sources(self, new_sources: list[str]):
         """

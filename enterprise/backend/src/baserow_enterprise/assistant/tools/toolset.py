@@ -2,15 +2,15 @@
 Pydantic-ai toolset utilities for the assistant.
 
 Contains schema helpers (``inline_refs``), lenient argument validation,
-the ``InlineRefsToolset`` wrapper, and the compact tool manifest builder.
-These are pure toolset concerns with no dependency on the Baserow registry
-system.
+the ``InlineRefsToolset`` wrapper, ``ModeAwareToolset``, and the compact
+tool manifest builder.  These are pure toolset concerns with no dependency
+on the Baserow registry system.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
 from pydantic import ValidationError
@@ -19,6 +19,9 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.deps import AssistantDeps
 
 # ---------------------------------------------------------------------------
 # Schema utilities
@@ -257,6 +260,74 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             ) from e2
 
         return validated
+
+
+# ---------------------------------------------------------------------------
+# Mode-aware toolset
+# ---------------------------------------------------------------------------
+
+
+class ModeAwareToolset(AbstractToolset[AgentDepsT]):
+    """
+    Filters the inner toolset based on the current :class:`AgentMode`.
+
+    In **DO** mode every tool is available except those in ``_DO_EXCLUDE``.
+    In **EXPLAIN** mode only tools listed in ``_EXPLAIN_INCLUDE`` are exposed.
+    """
+
+    _DO_EXCLUDE: frozenset[str] = frozenset({"search_user_docs"})
+    _EXPLAIN_INCLUDE: frozenset[str] = frozenset({
+        "list_builders",
+        "list_tables",
+        "get_tables_schema",
+        "list_rows",
+        "list_views",
+        "list_workflows",
+        "navigate",
+        "search_user_docs",
+        "switch_mode",
+    })
+
+    def __init__(self, inner: AbstractToolset[AgentDepsT], deps: "AssistantDeps"):
+        self._inner = inner
+        self._deps = deps
+
+    @property
+    def id(self) -> str:
+        return self._inner.id
+
+    async def __aenter__(self) -> Self:
+        await self._inner.__aenter__()
+        return self
+
+    async def __aexit__(self, *args: Any) -> bool | None:
+        return await self._inner.__aexit__(*args)
+
+    def apply(self, visitor: Callable[[AbstractToolset[AgentDepsT]], None]) -> None:
+        self._inner.apply(visitor)
+
+    def visit_and_replace(
+        self,
+        visitor: Callable[[AbstractToolset[AgentDepsT]], AbstractToolset[AgentDepsT]],
+    ) -> AbstractToolset[AgentDepsT]:
+        return ModeAwareToolset(self._inner.visit_and_replace(visitor), self._deps)
+
+    async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
+        from baserow_enterprise.assistant.deps import AgentMode
+
+        all_tools = await self._inner.get_tools(ctx)
+        if self._deps.mode == AgentMode.DO:
+            return {k: v for k, v in all_tools.items() if k not in self._DO_EXCLUDE}
+        return {k: v for k, v in all_tools.items() if k in self._EXPLAIN_INCLUDE}
+
+    async def call_tool(
+        self,
+        name: str,
+        tool_args: dict[str, Any],
+        ctx: Any,
+        tool: ToolsetTool[AgentDepsT],
+    ) -> Any:
+        return await self._inner.call_tool(name, tool_args, ctx, tool)
 
 
 # ---------------------------------------------------------------------------
