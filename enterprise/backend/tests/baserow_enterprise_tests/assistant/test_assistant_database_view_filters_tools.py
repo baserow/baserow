@@ -3,21 +3,14 @@ import pytest
 from baserow.contrib.database.views.models import ViewFilter
 from baserow_enterprise.assistant.tools.database.types.base import Date
 from baserow_enterprise.assistant.tools.database.types.view_filters import (
-    BooleanFilterConfig,
-    DateFilterConfig,
-    LinkRowFilterConfig,
-    MultipleSelectFilterConfig,
-    NumberFilterConfig,
-    SingleSelectFilterConfig,
-    TextFilterConfig,
     ViewFilterItemCreate,
 )
-from baserow_enterprise.assistant.tools.database.utils import create_view_filter
+from baserow_enterprise.assistant.tools.database.helpers import create_view_filter
 
 
-def _make_filter(field_id, config):
+def _make_filter(field_id, **kwargs):
     """Shortcut to build a ViewFilterItemCreate."""
-    return ViewFilterItemCreate(field_id=field_id, config=config)
+    return ViewFilterItemCreate(field_id=field_id, **kwargs)
 
 
 @pytest.mark.django_db
@@ -33,36 +26,28 @@ def test_all_text_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     text_filters = [
+        ({"type": "text", "operator": "equal", "value": "test"}, "equal", "test"),
         (
-            TextFilterConfig(type="text", operator="equal", value="test"),
-            "equal",
-            "test",
-        ),
-        (
-            TextFilterConfig(type="text", operator="not_equal", value="test"),
+            {"type": "text", "operator": "not_equal", "value": "test"},
             "not_equal",
             "test",
         ),
         (
-            TextFilterConfig(type="text", operator="contains", value="keyword"),
+            {"type": "text", "operator": "contains", "value": "keyword"},
             "contains",
             "keyword",
         ),
         (
-            TextFilterConfig(type="text", operator="contains_not", value="spam"),
+            {"type": "text", "operator": "contains_not", "value": "spam"},
             "contains_not",
             "spam",
         ),
-        (TextFilterConfig(type="text", operator="empty", value=""), "empty", ""),
-        (
-            TextFilterConfig(type="text", operator="not_empty", value=""),
-            "not_empty",
-            "",
-        ),
+        ({"type": "text", "operator": "empty", "value": ""}, "empty", ""),
+        ({"type": "text", "operator": "not_empty", "value": ""}, "not_empty", ""),
     ]
 
-    for config, expected_type, expected_value in text_filters:
-        filter_item = _make_filter(field.id, config)
+    for kwargs, expected_type, expected_value in text_filters:
+        filter_item = _make_filter(field.id, **kwargs)
         created_filter = create_view_filter(user, view, table_fields, filter_item)
 
         assert created_filter is not None
@@ -90,65 +75,49 @@ def test_all_number_filters_conversion(data_fixture):
 
     number_filters = [
         (
-            NumberFilterConfig(
-                type="number", operator="equal", value=42.0, or_equal=False
-            ),
+            {"type": "number", "operator": "equal", "value": 42.0, "or_equal": False},
             "equal",
             "42.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="not_equal", value=0.0, or_equal=False
-            ),
+            {"type": "number", "operator": "not_equal", "value": 0.0, "or_equal": False},
             "not_equal",
             "0.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="higher_than", value=100.0, or_equal=False
-            ),
+            {"type": "number", "operator": "higher_than", "value": 100.0, "or_equal": False},
             "higher_than",
             "100.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="higher_than", value=100.0, or_equal=True
-            ),
+            {"type": "number", "operator": "higher_than", "value": 100.0, "or_equal": True},
             "higher_than_or_equal",
             "100.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="lower_than", value=50.0, or_equal=False
-            ),
+            {"type": "number", "operator": "lower_than", "value": 50.0, "or_equal": False},
             "lower_than",
             "50.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="lower_than", value=50.0, or_equal=True
-            ),
+            {"type": "number", "operator": "lower_than", "value": 50.0, "or_equal": True},
             "lower_than_or_equal",
             "50.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="empty", value=0.0, or_equal=False
-            ),
+            {"type": "number", "operator": "empty", "value": 0.0, "or_equal": False},
             "empty",
             "0.0",
         ),
         (
-            NumberFilterConfig(
-                type="number", operator="not_empty", value=0.0, or_equal=False
-            ),
+            {"type": "number", "operator": "not_empty", "value": 0.0, "or_equal": False},
             "not_empty",
             "0.0",
         ),
     ]
 
-    for config, expected_type, expected_value in number_filters:
-        filter_item = _make_filter(field.id, config)
+    for kwargs, expected_type, expected_value in number_filters:
+        filter_item = _make_filter(field.id, **kwargs)
         created_filter = create_view_filter(user, view, table_fields, filter_item)
 
         assert created_filter is not None
@@ -172,70 +141,60 @@ def test_all_date_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test with exact date
-    config = DateFilterConfig(
+    filter_item = _make_filter(
+        field.id,
         type="date",
         operator="equal",
         value=Date(year=2024, month=1, day=15),
         mode="exact_date",
         or_equal=False,
     )
-    created = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config)
-    )
+    created = create_view_filter(user, view, table_fields, filter_item)
     assert created.type == "date_is"
     assert "2024-01-15" in created.value
     assert created.value.endswith("?exact_date")
 
     # Test with relative date (today)
-    config2 = DateFilterConfig(
-        type="date", operator="not_equal", value=None, mode="today", or_equal=False
+    filter_item2 = _make_filter(
+        field.id, type="date", operator="not_equal", value=None, mode="today", or_equal=False
     )
-    created2 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config2)
-    )
+    created2 = create_view_filter(user, view, table_fields, filter_item2)
     assert created2.type == "date_is_not"
     assert created2.value.endswith("??today")
 
     # Test date_is_after
-    config3 = DateFilterConfig(
-        type="date", operator="after", value=7, mode="nr_days_ago", or_equal=False
+    filter_item3 = _make_filter(
+        field.id, type="date", operator="after", value=7, mode="nr_days_ago", or_equal=False
     )
-    created3 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config3)
-    )
+    created3 = create_view_filter(user, view, table_fields, filter_item3)
     assert created3.type == "date_is_after"
     assert "?7?" in created3.value
     assert created3.value.endswith("nr_days_ago")
 
     # Test date_is_on_or_after
-    config4 = DateFilterConfig(
-        type="date", operator="after", value=30, mode="nr_days_from_now", or_equal=True
+    filter_item4 = _make_filter(
+        field.id, type="date", operator="after", value=30, mode="nr_days_from_now", or_equal=True
     )
-    created4 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config4)
-    )
+    created4 = create_view_filter(user, view, table_fields, filter_item4)
     assert created4.type == "date_is_on_or_after"
 
     # Test date_is_before
-    config5 = DateFilterConfig(
-        type="date", operator="before", value=None, mode="tomorrow", or_equal=False
+    filter_item5 = _make_filter(
+        field.id, type="date", operator="before", value=None, mode="tomorrow", or_equal=False
     )
-    created5 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config5)
-    )
+    created5 = create_view_filter(user, view, table_fields, filter_item5)
     assert created5.type == "date_is_before"
 
     # Test date_is_on_or_before
-    config6 = DateFilterConfig(
+    filter_item6 = _make_filter(
+        field.id,
         type="date",
         operator="before",
         value=14,
         mode="nr_weeks_from_now",
         or_equal=True,
     )
-    created6 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config6)
-    )
+    created6 = create_view_filter(user, view, table_fields, filter_item6)
     assert created6.type == "date_is_on_or_before"
 
 
@@ -255,12 +214,10 @@ def test_all_single_select_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test is_any_of
-    config = SingleSelectFilterConfig(
-        type="single_select", operator="is_any_of", value=["Active", "Pending"]
+    filter_item = _make_filter(
+        field.id, type="single_select", operator="is_any_of", value=["Active", "Pending"]
     )
-    created = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config)
-    )
+    created = create_view_filter(user, view, table_fields, filter_item)
     assert created.type == "single_select_is_any_of"
     option_ids = created.value.split(",")
     assert str(option1.id) in option_ids
@@ -268,21 +225,17 @@ def test_all_single_select_filters_conversion(data_fixture):
     assert len(option_ids) == 2
 
     # Test case insensitive matching
-    config2 = SingleSelectFilterConfig(
-        type="single_select", operator="is_any_of", value=["active"]
+    filter_item2 = _make_filter(
+        field.id, type="single_select", operator="is_any_of", value=["active"]
     )
-    created2 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config2)
-    )
+    created2 = create_view_filter(user, view, table_fields, filter_item2)
     assert str(option1.id) in created2.value
 
     # Test is_none_of
-    config3 = SingleSelectFilterConfig(
-        type="single_select", operator="is_none_of", value=["Inactive"]
+    filter_item3 = _make_filter(
+        field.id, type="single_select", operator="is_none_of", value=["Inactive"]
     )
-    created3 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config3)
-    )
+    created3 = create_view_filter(user, view, table_fields, filter_item3)
     assert created3.type == "single_select_is_none_of"
     assert str(option3.id) in created3.value
 
@@ -303,24 +256,20 @@ def test_all_multiple_select_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test is_any_of (has)
-    config = MultipleSelectFilterConfig(
-        type="multiple_select", operator="is_any_of", value=["Important", "Urgent"]
+    filter_item = _make_filter(
+        field.id, type="multiple_select", operator="is_any_of", value=["Important", "Urgent"]
     )
-    created = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config)
-    )
+    created = create_view_filter(user, view, table_fields, filter_item)
     assert created.type == "multiple_select_has"
     option_ids = created.value.split(",")
     assert str(option1.id) in option_ids
     assert str(option2.id) in option_ids
 
     # Test is_none_of (has_not)
-    config2 = MultipleSelectFilterConfig(
-        type="multiple_select", operator="is_none_of", value=["Archived"]
+    filter_item2 = _make_filter(
+        field.id, type="multiple_select", operator="is_none_of", value=["Archived"]
     )
-    created2 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config2)
-    )
+    created2 = create_view_filter(user, view, table_fields, filter_item2)
     assert created2.type == "multiple_select_has_not"
     assert str(option3.id) in created2.value
 
@@ -342,18 +291,14 @@ def test_all_link_row_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test link_row_has
-    config = LinkRowFilterConfig(type="link_row", operator="has", value=123)
-    created = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config)
-    )
+    filter_item = _make_filter(field.id, type="link_row", operator="has", value=123)
+    created = create_view_filter(user, view, table_fields, filter_item)
     assert created.type == "link_row_has"
     assert created.value == "123"
 
     # Test link_row_has_not
-    config2 = LinkRowFilterConfig(type="link_row", operator="has_not", value=456)
-    created2 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config2)
-    )
+    filter_item2 = _make_filter(field.id, type="link_row", operator="has_not", value=456)
+    created2 = create_view_filter(user, view, table_fields, filter_item2)
     assert created2.type == "link_row_has_not"
     assert created2.value == "456"
 
@@ -371,18 +316,14 @@ def test_all_boolean_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test is true
-    config = BooleanFilterConfig(type="boolean", operator="is", value=True)
-    created = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config)
-    )
+    filter_item = _make_filter(field.id, type="boolean", operator="is", value=True)
+    created = create_view_filter(user, view, table_fields, filter_item)
     assert created.type == "boolean"
     assert created.value == "1"
 
     # Test is false
-    config2 = BooleanFilterConfig(type="boolean", operator="is", value=False)
-    created2 = create_view_filter(
-        user, view, table_fields, _make_filter(field.id, config2)
-    )
+    filter_item2 = _make_filter(field.id, type="boolean", operator="is", value=False)
+    created2 = create_view_filter(user, view, table_fields, filter_item2)
     assert created2.type == "boolean"
     assert created2.value == "0"
 
@@ -421,135 +362,79 @@ def test_comprehensive_all_filter_types_conversion(data_fixture):
 
     all_filters = [
         # Text filters
-        _make_filter(
-            text_field.id, TextFilterConfig(type="text", operator="equal", value="test")
-        ),
-        _make_filter(
-            text_field.id,
-            TextFilterConfig(type="text", operator="not_equal", value="test"),
-        ),
-        _make_filter(
-            text_field.id,
-            TextFilterConfig(type="text", operator="contains", value="test"),
-        ),
-        _make_filter(
-            text_field.id,
-            TextFilterConfig(type="text", operator="contains_not", value="test"),
-        ),
-        _make_filter(
-            text_field.id, TextFilterConfig(type="text", operator="empty", value="")
-        ),
-        _make_filter(
-            text_field.id, TextFilterConfig(type="text", operator="not_empty", value="")
-        ),
+        _make_filter(text_field.id, type="text", operator="equal", value="test"),
+        _make_filter(text_field.id, type="text", operator="not_equal", value="test"),
+        _make_filter(text_field.id, type="text", operator="contains", value="test"),
+        _make_filter(text_field.id, type="text", operator="contains_not", value="test"),
+        _make_filter(text_field.id, type="text", operator="empty", value=""),
+        _make_filter(text_field.id, type="text", operator="not_empty", value=""),
         # Number filters
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="equal", value=42.0, or_equal=False
-            ),
+            number_field.id, type="number", operator="equal", value=42.0, or_equal=False
         ),
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="not_equal", value=0.0, or_equal=False
-            ),
+            number_field.id, type="number", operator="not_equal", value=0.0, or_equal=False
         ),
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="higher_than", value=10.0, or_equal=False
-            ),
+            number_field.id, type="number", operator="higher_than", value=10.0, or_equal=False
         ),
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="lower_than", value=100.0, or_equal=True
-            ),
+            number_field.id, type="number", operator="lower_than", value=100.0, or_equal=True
         ),
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="empty", value=0.0, or_equal=False
-            ),
+            number_field.id, type="number", operator="empty", value=0.0, or_equal=False
         ),
         _make_filter(
-            number_field.id,
-            NumberFilterConfig(
-                type="number", operator="not_empty", value=0.0, or_equal=False
-            ),
+            number_field.id, type="number", operator="not_empty", value=0.0, or_equal=False
         ),
         # Date filters
         _make_filter(
             date_field.id,
-            DateFilterConfig(
-                type="date",
-                operator="equal",
-                value=Date(year=2024, month=1, day=1),
-                mode="exact_date",
-                or_equal=False,
-            ),
+            type="date",
+            operator="equal",
+            value=Date(year=2024, month=1, day=1),
+            mode="exact_date",
+            or_equal=False,
         ),
         _make_filter(
             date_field.id,
-            DateFilterConfig(
-                type="date",
-                operator="not_equal",
-                value=None,
-                mode="today",
-                or_equal=False,
-            ),
+            type="date",
+            operator="not_equal",
+            value=None,
+            mode="today",
+            or_equal=False,
         ),
         _make_filter(
             date_field.id,
-            DateFilterConfig(
-                type="date",
-                operator="after",
-                value=7,
-                mode="nr_days_ago",
-                or_equal=False,
-            ),
+            type="date",
+            operator="after",
+            value=7,
+            mode="nr_days_ago",
+            or_equal=False,
         ),
         _make_filter(
             date_field.id,
-            DateFilterConfig(
-                type="date",
-                operator="before",
-                value=None,
-                mode="tomorrow",
-                or_equal=True,
-            ),
+            type="date",
+            operator="before",
+            value=None,
+            mode="tomorrow",
+            or_equal=True,
         ),
         # Select filters
         _make_filter(
-            single_select.id,
-            SingleSelectFilterConfig(
-                type="single_select", operator="is_any_of", value=["Active"]
-            ),
+            single_select.id, type="single_select", operator="is_any_of", value=["Active"]
         ),
         _make_filter(
-            single_select.id,
-            SingleSelectFilterConfig(
-                type="single_select", operator="is_none_of", value=["Active"]
-            ),
+            single_select.id, type="single_select", operator="is_none_of", value=["Active"]
         ),
         _make_filter(
-            multi_select.id,
-            MultipleSelectFilterConfig(
-                type="multiple_select", operator="is_any_of", value=["Important"]
-            ),
+            multi_select.id, type="multiple_select", operator="is_any_of", value=["Important"]
         ),
         _make_filter(
-            multi_select.id,
-            MultipleSelectFilterConfig(
-                type="multiple_select", operator="is_none_of", value=["Important"]
-            ),
+            multi_select.id, type="multiple_select", operator="is_none_of", value=["Important"]
         ),
         # Boolean filter
-        _make_filter(
-            boolean_field.id,
-            BooleanFilterConfig(type="boolean", operator="is", value=True),
-        ),
+        _make_filter(boolean_field.id, type="boolean", operator="is", value=True),
     ]
 
     created_filters = []

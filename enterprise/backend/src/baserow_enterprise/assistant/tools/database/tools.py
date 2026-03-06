@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
@@ -29,7 +29,14 @@ from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
 
-from . import utils
+from baserow.contrib.database.rows.actions import (
+    CreateRowsActionType,
+    DeleteRowsActionType,
+    UpdateRowsActionType,
+)
+from baserow.contrib.database.table.models import Table
+
+from . import helpers
 from .agents import (
     formula_generation_agent,
     generate_sample_rows,
@@ -37,6 +44,7 @@ from .agents import (
     make_formula_fixer,
 )
 from .prompts import format_formula_generation_prompt
+from baserow_enterprise.assistant.tools.toolset import inline_refs
 from .types import (
     FieldItemCreate,
     ListTablesFilterArg,
@@ -44,7 +52,13 @@ from .types import (
     ViewFiltersArgs,
     ViewItem,
     ViewItemCreate,
+    get_create_row_model,
+    get_link_row_hints,
+    get_update_row_model,
 )
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.deps import ToolHelpers
 
 MAX_HINT_TABLES = 10
 
@@ -86,7 +100,7 @@ def _no_tables_found_hint(
 
     # Fetch a sample of available tables across the workspace.
     all_tables = (
-        utils.filter_tables(user, workspace)
+        helpers.filter_tables(user, workspace)
         .select_related("database")
         .order_by("database_id", "id")
     )
@@ -154,7 +168,7 @@ def list_tables(
     tool_helpers = ctx.deps.tool_helpers
 
     tables = (
-        utils.filter_tables(user, workspace)
+        helpers.filter_tables(user, workspace)
         .filter(filters.to_orm_filter())
         .select_related("database")
     )
@@ -227,7 +241,7 @@ def get_tables_schema(
     if not table_ids:
         return "no table IDs provided"
 
-    tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
+    tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
 
     tool_helpers.update_status(
         _("Inspecting %(table_names)s schema...")
@@ -236,7 +250,7 @@ def get_tables_schema(
 
     return {
         "tables_schema": [
-            ts.model_dump() for ts in utils.get_tables_schema(tables, full_schema)
+            ts.model_dump() for ts in helpers.get_tables_schema(tables, full_schema)
         ]
     }
 
@@ -281,7 +295,7 @@ def list_rows(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = utils.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.filter_tables(user, workspace).get(id=table_id)
 
     tool_helpers.update_status(
         _("Listing rows in %(table_name)s ") % {"table_name": table.name}
@@ -293,7 +307,7 @@ def list_rows(
     response_model = create_model(
         f"ResponseTable{table.id}RowWithFieldFilter",
         id=(int, ...),
-        __base__=utils.get_create_row_model(table, field_ids=field_ids),
+        __base__=get_create_row_model(table, field_ids=field_ids),
     )
 
     return {
@@ -331,7 +345,7 @@ def list_views(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = utils.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.filter_tables(user, workspace).get(id=table_id)
 
     tool_helpers.update_status(
         _("Listing views in %(table_name)s...") % {"table_name": table.name}
@@ -371,6 +385,15 @@ def create_tables(
             description="List of tables to create, each with a name, primary field, fields and relationships.",
         ),
     ],
+    add_sample_rows: Annotated[
+        bool | str,
+        Field(
+            ...,
+            description="Controls sample row generation. True (default): generate realistic example rows. "
+            "A string: a brief describing what kind of data to create (e.g. 'Italian recipes with calorie counts'). "
+            "False: create empty tables, only use when the user explicitly asks for no sample data.",
+        ),
+    ],
     thought: Annotated[
         str,
         Field(
@@ -378,22 +401,17 @@ def create_tables(
             description="Brief reasoning for calling this tool.",
         ),
     ],
-    add_sample_rows: Annotated[
-        bool,
-        Field(
-            True,
-            description="If true, generate realistic example rows for each table. Should be true unless explicitly asked otherwise.",
-        ),
-    ] = True,
 ) -> dict[str, Any]:
     """\
     Create tables with fields; generates sample rows by default.
 
-    WHEN to use: User wants new tables created in a database. Always set add_sample_rows=true unless explicitly asked for empty tables.
-    WHAT it does: Creates tables with fields, generates sample rows by default. Table names must be unique. Reversed link_row fields are auto-created.
+    WHEN to use: User wants new tables created in a database. Always set add_sample_rows=true (or a descriptive string) unless explicitly asked for empty tables.
+    WHAT it does: Creates tables with fields, generates sample rows by default. Pass add_sample_rows=false ONLY when the user explicitly asks for empty tables.
+        Pass a string to guide the kind of sample data generated (e.g. "Italian recipes with calorie counts"). Table names must be unique. Reversed link_row fields are auto-created.
+        At the end, this tool automatically navigates the user to the last created table.
     RETURNS: Created table schemas with all field IDs. Notes on any errors.
     DO NOT USE when: Tables already exist — check with list_tables first.
-    HOW: Choose appropriate field types for each column. Use link_row for relationships (linked table must exist first).
+    HOW: Pass ALL tables in a single call to speed up creation and sample-row generation. Choose appropriate field types for each column. Use link_row for relationships (linked table must exist first).
         Use single_select/multiple_select with select_options for categorical data. The primary field is always text — pick a meaningful name for it.
     """
 
@@ -438,7 +456,7 @@ def create_tables(
     for table, created_table in zip(tables, created_tables):
         tool_helpers.raise_if_cancelled()
         with transaction.atomic():
-            _created, iter_field_errors, formula_errors = utils.create_fields(
+            _created, iter_field_errors, formula_errors = helpers.create_fields(
                 user,
                 created_table,
                 table.fields,
@@ -468,8 +486,9 @@ def create_tables(
     # created in a later retry.
     if add_sample_rows and not field_errors:
         try:
+            data_brief = add_sample_rows if isinstance(add_sample_rows, str) else None
             created_rows = generate_sample_rows(
-                user, workspace, tool_helpers, created_tables
+                user, workspace, tool_helpers, created_tables, data_brief=data_brief
             )
         except Exception as e:
             logger.exception(
@@ -481,7 +500,7 @@ def create_tables(
     # get_tables_schema call to learn field IDs.
     tables_schema = [
         ts.model_dump()
-        for ts in utils.get_tables_schema(created_tables, full_schema=True)
+        for ts in helpers.get_tables_schema(created_tables, full_schema=True)
     ]
 
     response = {
@@ -536,11 +555,11 @@ def create_fields(
     if not fields:
         return "No fields to create provided"
 
-    table = utils.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.filter_tables(user, workspace).get(id=table_id)
 
     with transaction.atomic():
         formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
-        created_fields, field_errors, formula_errors = utils.create_fields(
+        created_fields, field_errors, formula_errors = helpers.create_fields(
             user, table, fields, tool_helpers, formula_fixer=formula_fixer
         )
         result = {"created_fields": [field.model_dump() for field in created_fields]}
@@ -592,7 +611,7 @@ def create_views(
     if not views:
         return "No views to create provided"
 
-    table = utils.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.filter_tables(user, workspace).get(id=table_id)
 
     created_views = []
     with transaction.atomic():
@@ -600,13 +619,13 @@ def create_views(
             tool_helpers.raise_if_cancelled()
             tool_helpers.update_status(
                 _("Creating %(view_type)s view %(view_name)s")
-                % {"view_type": view.config.type, "view_name": view.name}
+                % {"view_type": view.type, "view_name": view.name}
             )
 
             orm_view = CreateViewActionType.do(
                 user,
                 table,
-                view.config.type,
+                view.type,
                 **view.to_django_orm_kwargs(table),
             )
 
@@ -623,7 +642,7 @@ def create_views(
             table_id=table.id,
             view_id=created_views[0]["id"],
             view_name=created_views[0]["name"],
-            view_type=created_views[0]["config"]["type"],
+            view_type=created_views[0]["type"],
         )
     )
 
@@ -668,7 +687,7 @@ def create_view_filters(
     created_view_filters = []
     for vf in view_filters:
         tool_helpers.raise_if_cancelled()
-        orm_view = utils.get_view(user, workspace, vf.view_id)
+        orm_view = helpers.get_view(user, workspace, vf.view_id)
         tool_helpers.update_status(
             _("Creating filters in %(view_name)s...") % {"view_name": orm_view.name}
         )
@@ -678,7 +697,7 @@ def create_view_filters(
         with transaction.atomic():
             for filter in vf.filters:
                 try:
-                    orm_filter = utils.create_view_filter(
+                    orm_filter = helpers.create_view_filter(
                         user, orm_view, fields, filter
                     )
                 except ValueError as e:
@@ -739,11 +758,11 @@ def generate_formula(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    database_tables = utils.filter_tables(user, workspace).filter(
+    database_tables = helpers.filter_tables(user, workspace).filter(
         database_id=database_id
     )
     database_tables_schema = [
-        t.model_dump() for t in utils.get_tables_schema(database_tables, True)
+        t.model_dump() for t in helpers.get_tables_schema(database_tables, True)
     ]
 
     tool_helpers.update_status(_("Generating formula..."))
@@ -834,6 +853,143 @@ def generate_formula(
 
 
 # ---------------------------------------------------------------------------
+# Dynamic row tools (create / update / delete)
+# ---------------------------------------------------------------------------
+
+
+def _build_row_tools(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: "ToolHelpers",
+    table: Table,
+) -> dict[str, Tool]:
+    """
+    Build pydantic-ai Tool objects for row CRUD on a single table.
+
+    Returns a dict with keys ``"create"``, ``"update"``, ``"delete"``, each
+    containing a ready-to-use ``Tool`` whose schema is derived from the table's
+    fields.
+
+    :param user: The acting user.
+    :param workspace: Current workspace.
+    :param tool_helpers: Provides status updates and cancellation.
+    :param table: The table to build row tools for.
+    """
+
+    row_model_for_create = get_create_row_model(table)
+    row_model_for_update = get_update_row_model(table)
+    link_row_hints = get_link_row_hints(row_model_for_create)
+
+    def _create_rows(
+        rows: list[row_model_for_create],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
+        """Create new rows in the specified table."""
+
+        if not rows:
+            return {"created_row_ids": []}
+
+        tool_helpers.update_status(
+            _("Creating rows in %(table_name)s ") % {"table_name": table.name}
+        )
+
+        validated_rows = [row.to_django_orm() for row in rows]
+
+        with transaction.atomic():
+            orm_rows = CreateRowsActionType.do(user, table, validated_rows)
+
+        return {"created_row_ids": [r.id for r in orm_rows]}
+
+    create_rows_tool = Tool(
+        _create_rows,
+        name=f"create_rows_in_table_{table.id}",
+        description=(
+            f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
+            f"WHAT: Inserts up to 20 rows with field values matching the table schema. "
+            f"RETURNS: Created row IDs. "
+            f"DO NOT USE: For other tables — each table has its own create tool. "
+            f"HOW: Fill every field and every relationship with valid data when possible."
+            f"{link_row_hints}"
+        ),
+        max_retries=2,
+    )
+    create_rows_tool.function_schema.json_schema = inline_refs(
+        create_rows_tool.function_schema.json_schema
+    )
+
+    def _update_rows(
+        rows: list[row_model_for_update],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
+        """Update existing rows in the specified table."""
+
+        if not rows:
+            return {"updated_row_ids": []}
+
+        tool_helpers.update_status(
+            _("Updating rows in %(table_name)s ") % {"table_name": table.name}
+        )
+
+        validated_rows = [row.to_django_orm() for row in rows]
+
+        with transaction.atomic():
+            orm_rows = UpdateRowsActionType.do(user, table, validated_rows).updated_rows
+
+        return {"updated_row_ids": [r.id for r in orm_rows]}
+
+    update_rows_tool = Tool(
+        _update_rows,
+        name=f"update_rows_in_table_{table.id}",
+        description=(
+            f"WHEN: Updating existing rows in '{table.name}' (ID: {table.id}) by row ID. "
+            f"WHAT: Updates specified fields on up to 20 rows. Only include fields you want to change — omit fields to keep them unchanged. "
+            f"RETURNS: Updated row IDs. "
+            f"DO NOT USE: For other tables — each table has its own update tool."
+            f"{link_row_hints}"
+        ),
+        max_retries=2,
+    )
+    update_rows_tool.function_schema.json_schema = inline_refs(
+        update_rows_tool.function_schema.json_schema
+    )
+
+    def _delete_rows(
+        row_ids: list[int],
+        thought: Annotated[str, "Brief reasoning for calling this tool."],
+    ) -> dict[str, Any]:
+        """Delete rows in the specified table."""
+
+        if not row_ids:
+            return {"deleted_row_ids": []}
+
+        tool_helpers.update_status(
+            _("Deleting rows in %(table_name)s ") % {"table_name": table.name}
+        )
+
+        with transaction.atomic():
+            DeleteRowsActionType.do(user, table, row_ids)
+
+        return {"deleted_row_ids": row_ids}
+
+    delete_rows_tool = Tool(
+        _delete_rows,
+        name=f"delete_rows_in_table_{table.id}",
+        description=(
+            f"WHEN: Deleting rows from '{table.name}' (ID: {table.id}) by row ID. "
+            f"WHAT: Permanently removes up to 20 specified rows. "
+            f"RETURNS: Deleted row IDs. "
+            f"DO NOT USE: For other tables — each table has its own delete tool."
+        ),
+    )
+
+    return {
+        "create": create_rows_tool,
+        "update": update_rows_tool,
+        "delete": delete_rows_tool,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Tool 10: load_row_tools
 # ---------------------------------------------------------------------------
 
@@ -873,7 +1029,7 @@ def load_row_tools(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
+    tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
     if not tables:
         return (
             "No valid tables found for the given IDs. "
@@ -882,7 +1038,7 @@ def load_row_tools(
 
     new_tools: list[Tool] = []
     for table in tables:
-        table_tools = utils.get_table_rows_tools(user, workspace, tool_helpers, table)
+        table_tools = _build_row_tools(user, workspace, tool_helpers, table)
 
         if "create" in operations:
             new_tools.append(table_tools["create"])

@@ -291,7 +291,7 @@ def test_update_rows(data_fixture):
     table_model = table.get_model()
     assert table_model.objects.count() == 3
 
-    # Update row 1 with new values
+    # Update row 1 — only pass fields to change, omit the rest
     row_1_updates = {
         "id": 1,
         "primary": "Updated Row A1",
@@ -300,24 +300,13 @@ def test_update_rows(data_fixture):
         "Single select": "Option 2",
         "link": ["Row B3"],
         "Single link to B": "Row B2",
-        "Datetime field": "__NO_CHANGE__",
-        "Date field": "__NO_CHANGE__",
-        "Multiple select": "__NO_CHANGE__",
-        "Long text field": "__NO_CHANGE__",
     }
-    # Update row 2 with new values
+    # Update row 2 — only pass fields to change
     row_2_updates = {
         "id": 2,
-        "Single link to B": "__NO_CHANGE__",
         "Long text field": "Updated Long text A2",
         "Date field": {"year": 2024, "month": 12, "day": 31},
         "Multiple select": ["Option A"],
-        "primary": "__NO_CHANGE__",
-        "Text field": "__NO_CHANGE__",
-        "Number field": "__NO_CHANGE__",
-        "Datetime field": "__NO_CHANGE__",
-        "Single select": "__NO_CHANGE__",
-        "link": "__NO_CHANGE__",
     }
 
     validated_args = update_tool.function_schema.validator.validate_python(
