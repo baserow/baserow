@@ -10,7 +10,6 @@ from baserow_enterprise.assistant.tools.database.types import (
     FormFieldOption,
     ViewItemCreate,
 )
-from baserow_enterprise.assistant.tools.database.types.base import Date
 from baserow_enterprise.assistant.tools.database.types.view_filters import (
     ViewFilterItemCreate,
     ViewFiltersArgs,
@@ -526,7 +525,7 @@ def test_create_date_equal_filter(data_fixture):
                         field_id=field.id,
                         type="date",
                         operator="equal",
-                        value=Date(year=2024, month=1, day=15),
+                        value="2024-01-15",
                         mode="exact_date",
                         or_equal=False,
                     )

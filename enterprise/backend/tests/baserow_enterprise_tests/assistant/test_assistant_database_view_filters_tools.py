@@ -1,7 +1,6 @@
 import pytest
 
 from baserow.contrib.database.views.models import ViewFilter
-from baserow_enterprise.assistant.tools.database.types.base import Date
 from baserow_enterprise.assistant.tools.database.types.view_filters import (
     ViewFilterItemCreate,
 )
@@ -145,7 +144,7 @@ def test_all_date_filters_conversion(data_fixture):
         field.id,
         type="date",
         operator="equal",
-        value=Date(year=2024, month=1, day=15),
+        value="2024-01-15",
         mode="exact_date",
         or_equal=False,
     )
@@ -392,7 +391,7 @@ def test_comprehensive_all_filter_types_conversion(data_fixture):
             date_field.id,
             type="date",
             operator="equal",
-            value=Date(year=2024, month=1, day=1),
+            value="2024-01-01",
             mode="exact_date",
             or_equal=False,
         ),
