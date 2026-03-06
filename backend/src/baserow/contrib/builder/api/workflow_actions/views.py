@@ -42,9 +42,7 @@ from baserow.contrib.builder.api.workflow_actions.serializers import (
     OrderWorkflowActionsSerializer,
     UpdateBuilderWorkflowActionsSerializer,
 )
-from baserow.contrib.builder.data_providers.registries import (
-    builder_data_provider_type_registry,
-)
+from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -288,11 +286,7 @@ class BuilderWorkflowActionView(APIView):
             builder_workflow_action_type_registry,
             request.data,
             base_serializer_class=UpdateBuilderWorkflowActionsSerializer,
-            serializer_class_context={
-                "formula_arg_validation_kwargs": {
-                    "data_provider_type_registry": builder_data_provider_type_registry,
-                }
-            },
+            serializer_class_context={"application_type": BuilderApplicationType},
             partial=True,
         )
 

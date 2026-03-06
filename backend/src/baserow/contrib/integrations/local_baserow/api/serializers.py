@@ -35,6 +35,7 @@ class LocalBaserowTableServiceSortSerializerMixin(serializers.Serializer):
         representation = super().to_representation(instance)
         representation["sortings"] = LocalBaserowTableServiceSortSerializer(
             instance.service_sorts.all(),
+            context=self.context,
             many=True,
         ).data
         return representation
@@ -44,7 +45,9 @@ class LocalBaserowTableServiceSortSerializerMixin(serializers.Serializer):
         data = super().to_internal_value(data)
         if sortings is not None:
             data["service_sorts"] = [
-                LocalBaserowTableServiceSortSerializer().to_internal_value(ss)
+                LocalBaserowTableServiceSortSerializer(
+                    context=self.context
+                ).to_internal_value(ss)
                 for ss in sortings
             ]
         return data
@@ -93,6 +96,7 @@ class LocalBaserowTableServiceFilterSerializerMixin(serializers.Serializer):
         representation["filters"] = LocalBaserowTableServiceFilterSerializer(
             instance.service_filters.all(),
             many=True,
+            context=self.context,
         ).data
         return representation
 
@@ -101,7 +105,9 @@ class LocalBaserowTableServiceFilterSerializerMixin(serializers.Serializer):
         data = super().to_internal_value(data)
         if filters is not None:
             data["service_filters"] = [
-                LocalBaserowTableServiceFilterSerializer().to_internal_value(sf)
+                LocalBaserowTableServiceFilterSerializer(
+                    context=self.context
+                ).to_internal_value(sf)
                 for sf in filters
             ]
         return data

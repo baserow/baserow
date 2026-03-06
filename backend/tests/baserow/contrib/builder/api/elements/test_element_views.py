@@ -280,7 +280,7 @@ def test_updating_element_with_invalid_formula_arguments_throws_error(
             "value": [
                 {
                     "error": "The formula provider 'foobar' used "
-                    "in 'foobar.123' does not exist in the builder module.",
+                    "in 'foobar.123' does not exist in this module.",
                     "code": "invalid_formula_argument",
                 }
             ]

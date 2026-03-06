@@ -416,7 +416,7 @@ def test_updating_node_with_invalid_formula_arguments_throws_error(
                 "row_id": [
                     {
                         "error": "The formula provider 'foobar' used "
-                        "in 'foobar.123' does not exist in the automation module.",
+                        "in 'foobar.123' does not exist in this module.",
                         "code": "invalid_formula_argument",
                     }
                 ]

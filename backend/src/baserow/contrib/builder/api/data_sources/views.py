@@ -50,9 +50,7 @@ from baserow.contrib.builder.api.data_sources.serializers import (
 )
 from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
-from baserow.contrib.builder.data_providers.registries import (
-    builder_data_provider_type_registry,
-)
+from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -313,11 +311,7 @@ class DataSourceView(APIView):
                 service_type_registry,
                 request.data,
                 base_serializer_class=UpdateDataSourceSerializer,
-                serializer_class_context={
-                    "formula_arg_validation_kwargs": {
-                        "data_provider_type_registry": builder_data_provider_type_registry,
-                    }
-                },
+                serializer_class_context={"application_type": BuilderApplicationType},
                 return_validated=True,
             )
 

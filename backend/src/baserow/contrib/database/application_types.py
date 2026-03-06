@@ -44,6 +44,7 @@ from .constants import (
     IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
     IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
 )
+from .data_providers.registries import database_data_provider_type_registry
 from .data_sync.registries import data_sync_type_registry
 from .db.atomic import read_repeatable_single_database_atomic_transaction
 from .export_serialized import DatabaseExportSerializedStructure
@@ -71,6 +72,7 @@ class DatabaseApplicationType(ApplicationType):
     # Mark the request serializer field names as empty, otherwise
     # the polymorphic request serializer will try and serialize tables.
     request_serializer_field_names = []
+    data_provider_type_registry = database_data_provider_type_registry
 
     # Database applications are imported first.
     import_application_priority = 2

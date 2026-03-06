@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, TypeVar
 
-from django.utils.translation import gettext as _
-
 from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentType
 from baserow.core.formula.parser.exceptions import (
     FormulaFunctionTypeDoesNotExist,
@@ -224,9 +222,6 @@ class DataProviderTypeRegistry(
     """
 
     name = "data_provider"
-
-    # The human-readable module name which uses this data provider.
-    provided_module_name = _("core")
 
 
 formula_runtime_function_registry = BaserowRuntimeFormulaFunctionRegistry()

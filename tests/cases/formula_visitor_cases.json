@@ -96,7 +96,7 @@
             "formula": "get('jeff')",
             "context": {},
             "frontendError": "runtimeGetErrors.invalidPath",
-            "backend_error": "The formula provider 'jeff' used in 'jeff' does not exist in the core module."
+            "backend_error": "The formula provider 'jeff' used in 'jeff' does not exist in this module."
         },
         {
             "formula": "get('.1')",
@@ -108,7 +108,7 @@
             "formula": "get('foo.1')",
             "context": {},
             "frontendError": "runtimeGetErrors.unknownProvider",
-            "backend_error": "The formula provider 'foo' used in 'foo.1' does not exist in the core module."
+            "backend_error": "The formula provider 'foo' used in 'foo.1' does not exist in this module."
         },
         {
             "formula": "concat()",

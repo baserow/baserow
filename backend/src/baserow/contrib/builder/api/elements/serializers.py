@@ -317,7 +317,7 @@ class CollectionFieldSerializer(serializers.ModelSerializer):
         else:
             instance_type = self.get_type_from_instance(instance)
 
-        serializer = instance_type.get_serializer(instance)
+        serializer = instance_type.get_serializer(instance, context=self.context)
 
         if isinstance(instance, Mapping):
             ret = serializer.to_representation(instance["config"])
@@ -359,9 +359,9 @@ class CollectionFieldSerializer(serializers.ModelSerializer):
                     code="INVALID_FIELD_PROPERTY",
                 )
 
-        ret = instance_type.get_serializer(field_config_data).to_internal_value(
-            field_config_data
-        )
+        ret = instance_type.get_serializer(
+            field_config_data, context=self.context
+        ).to_internal_value(field_config_data)
 
         data["config"] = ret
 

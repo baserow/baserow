@@ -317,6 +317,10 @@ class ApplicationType(
     # value. If this property is not overridden, then the instance is imported last.
     import_application_priority = 0
 
+    # The data provider type registry applicable to this type. Must be set
+    # by subclasses for runtime formula validation to work correctly.
+    data_provider_type_registry = None
+
     def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
         """
         This function allows you to hook into the moment an application is created or

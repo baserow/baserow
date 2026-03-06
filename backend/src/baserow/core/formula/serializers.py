@@ -120,32 +120,35 @@ class FormulaSerializerField(serializers.JSONField):
         if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:
             return data
 
-        # Have any formula argument validation context kwargs been provided? If so,
-        # we will use them to validate the formula arguments with the
-        # `BaserowFormulaValidationVisitor`.
-        formula_arg_validation_kwargs = None
-        if self.context:
-            formula_arg_validation_kwargs = self.context.get(
-                "formula_arg_validation_kwargs"
+        # Inspect the `context` for an `ApplicationType`, we'll need to
+        # determine what this application type's data provider registry is,
+        # so we can validate the formula
+        context = self.context or {}
+        if context.get("application_type") is None:
+            raise ValidationError(
+                "The formula serializer field requires an application type "
+                "context to validate the formula arguments.",
+                code="missing_context",
             )
 
         try:
             tree = get_parse_tree_for_formula(data["formula"])
-            if formula_arg_validation_kwargs:
-                try:
-                    BaserowFormulaValidationVisitor(
-                        formula_runtime_function_registry,
-                        **formula_arg_validation_kwargs,
-                    ).visit(tree)
-                except (
-                    BaserowFormulaSyntaxError,
-                    InvalidNumberOfArguments,
-                    InstanceTypeDoesNotExist,
-                ) as exc:
-                    raise ValidationError(
-                        exc.args[0],
-                        code="invalid_formula_argument",
-                    ) from exc
+            try:
+                BaserowFormulaValidationVisitor(
+                    formula_runtime_function_registry,
+                    data_provider_type_registry=self.context.get(
+                        "application_type"
+                    )().data_provider_type_registry,
+                ).visit(tree)
+            except (
+                BaserowFormulaSyntaxError,
+                InvalidNumberOfArguments,
+                InstanceTypeDoesNotExist,
+            ) as exc:
+                raise ValidationError(
+                    exc.args[0],
+                    code="invalid_formula_argument",
+                ) from exc
             return data
         except BaserowFormulaSyntaxError as e:
             raise ValidationError(f"The formula is invalid: {e}", code="invalid")

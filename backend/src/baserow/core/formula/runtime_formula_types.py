@@ -69,8 +69,7 @@ class RuntimeGet(RuntimeFormulaFunction):
             raise InstanceTypeDoesNotExist(
                 provider_name,
                 f"The formula provider '{provider_name}' "
-                f"used in '{args[0]}' does not exist in the "
-                f"{data_provider_type_registry.provided_module_name} module.",
+                f"used in '{args[0]}' does not exist in this module.",
             )
         provider.is_valid(rest)
 

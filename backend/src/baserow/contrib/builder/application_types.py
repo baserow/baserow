@@ -17,6 +17,9 @@ from baserow.contrib.builder.builder_beta_init_application import (
     BuilderApplicationTypeInitApplication,
 )
 from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
+from baserow.contrib.builder.data_providers.registries import (
+    builder_data_provider_type_registry,
+)
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
@@ -78,6 +81,7 @@ class BuilderApplicationType(ApplicationType):
     serializer_mixins = [lazy_get_instance_serializer_class]
     public_serializer_mixins = [lazy_get_instance_public_serializer_class]
     request_serializer_mixins = []
+    data_provider_type_registry = builder_data_provider_type_registry
 
     # Builder applications are imported second.
     import_application_priority = 1
