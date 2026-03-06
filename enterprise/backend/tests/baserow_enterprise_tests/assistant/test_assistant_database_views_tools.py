@@ -12,22 +12,8 @@ from baserow_enterprise.assistant.tools.database.types import (
 )
 from baserow_enterprise.assistant.tools.database.types.base import Date
 from baserow_enterprise.assistant.tools.database.types.view_filters import (
-    BooleanFilterConfig,
-    DateFilterConfig,
-    MultipleSelectFilterConfig,
-    NumberFilterConfig,
-    SingleSelectFilterConfig,
-    TextFilterConfig,
     ViewFilterItemCreate,
     ViewFiltersArgs,
-)
-from baserow_enterprise.assistant.tools.database.types.views import (
-    CalendarConfig,
-    FormConfig,
-    GalleryConfig,
-    GridConfig,
-    KanbanConfig,
-    TimelineConfig,
 )
 
 from .utils import make_test_ctx
@@ -50,10 +36,8 @@ def test_list_views_tool(data_fixture):
                 "id": view.id,
                 "name": "View 1",
                 "public": False,
-                "config": {
-                    "type": "grid",
-                    "row_height": "small",
-                },
+                "type": "grid",
+                "row_height": "small",
             }
         ]
     }
@@ -81,7 +65,8 @@ def test_create_grid_view(data_fixture):
             ViewItemCreate(
                 name="Grid View",
                 public=False,
-                config=GridConfig(type="grid", row_height="medium"),
+                type="grid",
+                row_height="medium",
             )
         ],
     )
@@ -108,7 +93,8 @@ def test_create_kanban_view(data_fixture):
             ViewItemCreate(
                 name="Kanban View",
                 public=False,
-                config=KanbanConfig(type="kanban", column_field_id=single_select.id),
+                type="kanban",
+                column_field_id=single_select.id,
             )
         ],
     )
@@ -135,7 +121,8 @@ def test_create_calendar_view(data_fixture):
             ViewItemCreate(
                 name="Calendar View",
                 public=False,
-                config=CalendarConfig(type="calendar", date_field_id=date_field.id),
+                type="calendar",
+                date_field_id=date_field.id,
             )
         ],
     )
@@ -162,7 +149,8 @@ def test_create_gallery_view(data_fixture):
             ViewItemCreate(
                 name="Gallery View",
                 public=False,
-                config=GalleryConfig(type="gallery", cover_field_id=file_field.id),
+                type="gallery",
+                cover_field_id=file_field.id,
             )
         ],
     )
@@ -190,11 +178,9 @@ def test_create_timeline_view(data_fixture):
             ViewItemCreate(
                 name="Timeline View",
                 public=False,
-                config=TimelineConfig(
-                    type="timeline",
-                    start_date_field_id=start_date.id,
-                    end_date_field_id=end_date.id,
-                ),
+                type="timeline",
+                start_date_field_id=start_date.id,
+                end_date_field_id=end_date.id,
             )
         ],
     )
@@ -221,25 +207,23 @@ def test_create_form_view(data_fixture):
             ViewItemCreate(
                 name="Form View",
                 public=True,
-                config=FormConfig(
-                    type="form",
-                    title="Contact Form",
-                    description="Fill out this form",
-                    submit_button_label="Submit",
-                    receive_notification_on_submit=False,
-                    submit_action="MESSAGE",
-                    submit_action_message="Thank you!",
-                    submit_action_redirect_url="",
-                    field_options=[
-                        FormFieldOption(
-                            field_id=field.id,
-                            name="Your Name",
-                            description="Enter your name",
-                            required=True,
-                            order=1,
-                        )
-                    ],
-                ),
+                type="form",
+                title="Contact Form",
+                description="Fill out this form",
+                submit_button_label="Submit",
+                receive_notification_on_submit=False,
+                submit_action="MESSAGE",
+                submit_action_message="Thank you!",
+                submit_action_redirect_url="",
+                field_options=[
+                    FormFieldOption(
+                        field_id=field.id,
+                        name="Your Name",
+                        description="Enter your name",
+                        required=True,
+                        order=1,
+                    )
+                ],
             )
         ],
     )
@@ -269,9 +253,9 @@ def test_create_text_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=TextFilterConfig(
-                            type="text", operator="equal", value="test"
-                        ),
+                        type="text",
+                        operator="equal",
+                        value="test",
                     )
                 ],
             )
@@ -281,7 +265,7 @@ def test_create_text_equal_filter(data_fixture):
     assert len(response["created_view_filters"]) == 1
     assert len(response["created_view_filters"][0]["filters"]) == 1
     assert (
-        response["created_view_filters"][0]["filters"][0]["config"]["operator"]
+        response["created_view_filters"][0]["filters"][0]["operator"]
         == "equal"
     )
     assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
@@ -306,9 +290,9 @@ def test_create_text_not_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=TextFilterConfig(
-                            type="text", operator="not_equal", value="test"
-                        ),
+                        type="text",
+                        operator="not_equal",
+                        value="test",
                     )
                 ],
             ),
@@ -338,9 +322,9 @@ def test_create_text_contains_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=TextFilterConfig(
-                            type="text", operator="contains", value="test"
-                        ),
+                        type="text",
+                        operator="contains",
+                        value="test",
                     )
                 ],
             ),
@@ -370,9 +354,9 @@ def test_create_text_not_contains_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=TextFilterConfig(
-                            type="text", operator="contains_not", value="test"
-                        ),
+                        type="text",
+                        operator="contains_not",
+                        value="test",
                     )
                 ],
             ),
@@ -405,9 +389,10 @@ def test_create_number_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=NumberFilterConfig(
-                            type="number", operator="equal", value=42.0, or_equal=False
-                        ),
+                        type="number",
+                        operator="equal",
+                        value=42.0,
+                        or_equal=False,
                     )
                 ],
             ),
@@ -437,12 +422,10 @@ def test_create_number_not_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=NumberFilterConfig(
-                            type="number",
-                            operator="not_equal",
-                            value=42.0,
-                            or_equal=False,
-                        ),
+                        type="number",
+                        operator="not_equal",
+                        value=42.0,
+                        or_equal=False,
                     )
                 ],
             ),
@@ -472,12 +455,10 @@ def test_create_number_higher_than_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=NumberFilterConfig(
-                            type="number",
-                            operator="higher_than",
-                            value=10.0,
-                            or_equal=False,
-                        ),
+                        type="number",
+                        operator="higher_than",
+                        value=10.0,
+                        or_equal=False,
                     )
                 ],
             )
@@ -509,12 +490,10 @@ def test_create_number_lower_than_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=NumberFilterConfig(
-                            type="number",
-                            operator="lower_than",
-                            value=100.0,
-                            or_equal=False,
-                        ),
+                        type="number",
+                        operator="lower_than",
+                        value=100.0,
+                        or_equal=False,
                     )
                 ],
             ),
@@ -545,13 +524,11 @@ def test_create_date_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=DateFilterConfig(
-                            type="date",
-                            operator="equal",
-                            value=Date(year=2024, month=1, day=15),
-                            mode="exact_date",
-                            or_equal=False,
-                        ),
+                        type="date",
+                        operator="equal",
+                        value=Date(year=2024, month=1, day=15),
+                        mode="exact_date",
+                        or_equal=False,
                     )
                 ],
             ),
@@ -581,13 +558,11 @@ def test_create_date_not_equal_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=DateFilterConfig(
-                            type="date",
-                            operator="not_equal",
-                            value=None,
-                            mode="today",
-                            or_equal=False,
-                        ),
+                        type="date",
+                        operator="not_equal",
+                        value=None,
+                        mode="today",
+                        or_equal=False,
                     )
                 ],
             ),
@@ -619,13 +594,11 @@ def test_create_date_after_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=DateFilterConfig(
-                            type="date",
-                            operator="after",
-                            value=7,
-                            mode="nr_days_ago",
-                            or_equal=False,
-                        ),
+                        type="date",
+                        operator="after",
+                        value=7,
+                        mode="nr_days_ago",
+                        or_equal=False,
                     )
                 ],
             ),
@@ -657,13 +630,11 @@ def test_create_date_before_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=DateFilterConfig(
-                            type="date",
-                            operator="before",
-                            value=None,
-                            mode="tomorrow",
-                            or_equal=True,
-                        ),
+                        type="date",
+                        operator="before",
+                        value=None,
+                        mode="tomorrow",
+                        or_equal=True,
                     )
                 ],
             ),
@@ -698,11 +669,9 @@ def test_create_single_select_is_any_of_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=SingleSelectFilterConfig(
-                            type="single_select",
-                            operator="is_any_of",
-                            value=["Option 1", "Option 2"],
-                        ),
+                        type="single_select",
+                        operator="is_any_of",
+                        value=["Option 1", "Option 2"],
                     )
                 ],
             ),
@@ -735,11 +704,9 @@ def test_create_single_select_is_none_of_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=SingleSelectFilterConfig(
-                            type="single_select",
-                            operator="is_none_of",
-                            value=["Bad Option"],
-                        ),
+                        type="single_select",
+                        operator="is_none_of",
+                        value=["Bad Option"],
                     )
                 ],
             ),
@@ -772,9 +739,9 @@ def test_create_boolean_is_true_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=BooleanFilterConfig(
-                            type="boolean", operator="is", value=True
-                        ),
+                        type="boolean",
+                        operator="is",
+                        value=True,
                     )
                 ],
             ),
@@ -804,9 +771,9 @@ def test_create_boolean_is_false_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=BooleanFilterConfig(
-                            type="boolean", operator="is", value=False
-                        ),
+                        type="boolean",
+                        operator="is",
+                        value=False,
                     )
                 ],
             ),
@@ -839,11 +806,9 @@ def test_create_multiple_select_is_any_of_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=MultipleSelectFilterConfig(
-                            type="multiple_select",
-                            operator="is_any_of",
-                            value=["Tag 1", "Tag 2"],
-                        ),
+                        type="multiple_select",
+                        operator="is_any_of",
+                        value=["Tag 1", "Tag 2"],
                     )
                 ],
             ),
@@ -876,11 +841,9 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
                 filters=[
                     ViewFilterItemCreate(
                         field_id=field.id,
-                        config=MultipleSelectFilterConfig(
-                            type="multiple_select",
-                            operator="is_none_of",
-                            value=["Bad Tag"],
-                        ),
+                        type="multiple_select",
+                        operator="is_none_of",
+                        value=["Bad Tag"],
                     )
                 ],
             ),
