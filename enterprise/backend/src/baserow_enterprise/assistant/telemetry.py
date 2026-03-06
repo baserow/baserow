@@ -12,11 +12,15 @@ Architecture:
                               trace metadata via a ``ContextVar`` for the
                               span exporter.
 
-    PosthogSpanExporter     -- OpenTelemetry ``SpanExporter`` that maps
+    PosthogSpanProcessor    -- OpenTelemetry ``SpanProcessor`` that maps
                               pydantic-ai spans to PostHog events:
                                 ``chat ...``       -> ``$ai_generation``
                                 ``running tool``   -> ``$ai_span``
-                              ``agent run`` / ``running tools`` are skipped.
+                                ``agent run``      -> ``$ai_span``
+                              The ``running tools`` grouping span is
+                              transparently skipped; child tool spans have
+                              their parent remapped to the grandparent
+                              (typically the ``agent run`` span).
 
     setup_instrumentation() -- one-time wiring of the span processor into a
                               ``TracerProvider`` + ``Agent.instrument_all()``.
@@ -29,11 +33,9 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Sequence
 from uuid import uuid4
 
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.trace import SpanKind
 
 from baserow.core.posthog import get_posthog_client
@@ -89,6 +91,17 @@ _tool_calls: ContextVar[list[str]] = ContextVar("_tool_calls")
 # Message format conversion (pydantic-ai -> PostHog)
 # ---------------------------------------------------------------------------
 
+
+def _parse_arguments(value):
+    """Ensure tool call arguments are a dict, parsing JSON strings if needed."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return value
+    return value
+
+
 # pydantic-ai key names  ->  PostHog key names
 _PART_TRANSFORMS = {
     "text": lambda p: {
@@ -99,7 +112,7 @@ _PART_TRANSFORMS = {
         "type": "tool_call",
         "tool_call_id": p.get("id", ""),
         "name": p.get("name", ""),
-        "arguments": p.get("args", {}),
+        "arguments": _parse_arguments(p.get("arguments", {})),
     },
     "tool_return": lambda p: {
         "type": "tool_result",
@@ -108,7 +121,7 @@ _PART_TRANSFORMS = {
     },
     "thinking": lambda p: {
         "type": "thinking",
-        "text": p.get("content", ""),
+        "thinking": p.get("content", ""),
     },
 }
 
@@ -159,15 +172,6 @@ def _span_latency(span: ReadableSpan) -> float | None:
     return None
 
 
-def _span_id_properties(span: ReadableSpan) -> dict:
-    """Return ``$ai_span_id`` (and ``$ai_parent_id`` if present)."""
-
-    props: dict = {"$ai_span_id": f"{span.context.span_id:016x}"}
-    if span.parent:
-        props["$ai_parent_id"] = f"{span.parent.span_id:016x}"
-    return props
-
-
 def _base_properties(ctx: _TraceContext) -> dict:
     """Properties common to every PostHog event within a trace."""
 
@@ -179,14 +183,20 @@ def _base_properties(ctx: _TraceContext) -> dict:
 
 
 def _extract_reasoning(output_messages: list[dict]) -> str | None:
-    """Join all ``thinking`` parts from output messages into a single string."""
+    """Join all ``thinking`` parts and tool-call ``thought`` fields from output
+    messages into a single string."""
 
-    parts = [
-        content
-        for msg in output_messages
-        for part in msg.get("parts", [])
-        if part.get("type") == "thinking" and (content := part.get("content"))
-    ]
+    parts: list[str] = []
+    for msg in output_messages:
+        for part in msg.get("parts", []):
+            ptype = part.get("type")
+            if ptype == "thinking":
+                if content := part.get("content"):
+                    parts.append(content)
+            elif ptype == "tool_call":
+                args = _parse_arguments(part.get("arguments", {}))
+                if isinstance(args, dict) and (thought := args.get("thought")):
+                    parts.append(thought)
     return "\n".join(parts) if parts else None
 
 
@@ -205,26 +215,41 @@ _MODEL_PARAM_KEYS = (
 )
 
 
-class PosthogSpanExporter(SpanExporter):
+class PosthogSpanProcessor(SpanProcessor):
     """Maps pydantic-ai OTel spans to PostHog LLM analytics events.
 
     ``chat {model}``   -> ``$ai_generation``
-    ``running tool``   -> ``$ai_span``
-    ``agent run`` / ``running tools`` -> skipped
+    ``running tool``   -> ``$ai_span``  (parent remapped past ``running tools``)
+    ``agent run``      -> ``$ai_span``
+    ``running tools``  -> skipped (children re-parented to grandparent)
     """
 
-    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+    def __init__(self):
+        # "running tools" span_id -> its parent span_id.
+        # Populated on_start so child tool spans (which end first) can
+        # look up the grandparent during on_end.
+        self._tools_group_parents: dict[int, int | None] = {}
+
+    # -- SpanProcessor interface -------------------------------------------
+
+    def on_start(self, span, parent_context=None):
+        if span.name == "running tools":
+            parent_id = span.parent.span_id if span.parent else None
+            self._tools_group_parents[span.context.span_id] = parent_id
+
+    def on_end(self, span: ReadableSpan):
         ctx = _trace_ctx.get()
         if ctx is None:
-            return SpanExportResult.SUCCESS
+            return
 
-        for span in spans:
-            try:
-                self._process_span(span, ctx)
-            except Exception:
-                pass
+        try:
+            self._process_span(span, ctx)
+        except Exception:
+            pass
 
-        return SpanExportResult.SUCCESS
+        # Clean up mapping once the grouping span itself ends.
+        if span.name == "running tools":
+            self._tools_group_parents.pop(span.context.span_id, None)
 
     def shutdown(self):
         pass
@@ -234,6 +259,25 @@ class PosthogSpanExporter(SpanExporter):
 
     # -- internal ----------------------------------------------------------
 
+    def _resolve_parent_id(self, span: ReadableSpan) -> str | None:
+        """Return the hex ``$ai_parent_id``, skipping ``running tools``."""
+
+        if not span.parent:
+            return None
+        parent_id = span.parent.span_id
+        # If the direct parent is a "running tools" span, jump to its parent.
+        grandparent = self._tools_group_parents.get(parent_id)
+        if grandparent is not None:
+            parent_id = grandparent
+        return f"{parent_id:016x}"
+
+    def _span_id_props(self, span: ReadableSpan) -> dict:
+        props: dict = {"$ai_span_id": f"{span.context.span_id:016x}"}
+        parent_hex = self._resolve_parent_id(span)
+        if parent_hex:
+            props["$ai_parent_id"] = parent_hex
+        return props
+
     def _process_span(self, span: ReadableSpan, ctx: _TraceContext):
         attrs = dict(span.attributes or {})
 
@@ -241,6 +285,9 @@ class PosthogSpanExporter(SpanExporter):
             self._emit_generation(span, attrs, ctx)
         elif span.name == "running tool":
             self._emit_tool_span(span, attrs, ctx)
+        elif span.name == "agent run":
+            self._emit_agent_span(span, attrs, ctx)
+        # "running tools" is intentionally not emitted.
 
     def _emit_generation(self, span: ReadableSpan, attrs: dict, ctx: _TraceContext):
         """Map a ``chat {model}`` span to ``$ai_generation``."""
@@ -306,8 +353,55 @@ class PosthogSpanExporter(SpanExporter):
             if reasoning:
                 properties["$ai_reasoning"] = reasoning
 
-        properties.update(_span_id_properties(span))
+        properties.update(self._span_id_props(span))
         _posthog_capture(ctx.user_id, "$ai_generation", properties)
+
+    def _emit_agent_span(self, span: ReadableSpan, attrs: dict, ctx: _TraceContext):
+        """Map an ``agent run`` span to ``$ai_span`` with the agent name."""
+
+        agent_name = attrs.get("agent_name", "unknown_agent")
+
+        properties = {
+            **_base_properties(ctx),
+            "$ai_span_name": f"Agent: {agent_name}",
+        }
+
+        # System prompt
+        system_instructions = _safe_json_attr(attrs, "gen_ai.system_instructions")
+        if system_instructions and isinstance(system_instructions, list):
+            system_text = "\n".join(
+                p.get("content", "") for p in system_instructions if isinstance(p, dict)
+            )
+            if system_text:
+                properties["$ai_input_state"] = {"system_prompt": system_text}
+
+        # User input (first user message) and final output
+        all_messages = _safe_json_attr(attrs, "pydantic_ai.all_messages")
+        if all_messages and isinstance(all_messages, list):
+            for msg in all_messages:
+                if msg.get("role") == "user":
+                    parts = msg.get("parts", [])
+                    user_texts = [
+                        p.get("content", "")
+                        for p in parts
+                        if isinstance(p, dict) and p.get("type") == "text"
+                    ]
+                    if user_texts:
+                        input_state = properties.get("$ai_input_state", {})
+                        input_state["user_prompt"] = "\n".join(user_texts)
+                        properties["$ai_input_state"] = input_state
+                    break
+
+        final_result = attrs.get("final_result")
+        if final_result is not None:
+            properties["$ai_output_state"] = _parse_arguments(final_result)
+
+        latency = _span_latency(span)
+        if latency is not None:
+            properties["$ai_latency"] = latency
+
+        properties.update(self._span_id_props(span))
+        _posthog_capture(ctx.user_id, "$ai_span", properties)
 
     def _emit_tool_span(self, span: ReadableSpan, attrs: dict, ctx: _TraceContext):
         """Map a ``running tool`` span to ``$ai_span``."""
@@ -326,7 +420,7 @@ class PosthogSpanExporter(SpanExporter):
             **_base_properties(ctx),
             "$ai_span_name": f"Tool: {tool_name}",
             "$ai_input_state": tool_args or {},
-            "$ai_output_state": attrs.get("tool_response"),
+            "$ai_output_state": _parse_arguments(attrs.get("tool_response")),
         }
 
         # Chain-of-thought reasoning from the "thought" argument
@@ -337,7 +431,7 @@ class PosthogSpanExporter(SpanExporter):
         if latency is not None:
             properties["$ai_latency"] = latency
 
-        properties.update(_span_id_properties(span))
+        properties.update(self._span_id_props(span))
         _posthog_capture(ctx.user_id, "$ai_span", properties)
 
 
@@ -365,13 +459,10 @@ def setup_instrumentation():
     if not posthog_enabled:
         return
 
-    # SimpleSpanProcessor exports synchronously in the same context where
-    # _trace_ctx is set, avoiding background-thread ContextVar issues.
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from pydantic_ai import Agent, InstrumentationSettings
 
     tracer_provider = TracerProvider()
-    tracer_provider.add_span_processor(SimpleSpanProcessor(PosthogSpanExporter()))
+    tracer_provider.add_span_processor(PosthogSpanProcessor())
 
     Agent.instrument_all(
         InstrumentationSettings(
