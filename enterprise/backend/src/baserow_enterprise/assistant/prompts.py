@@ -13,9 +13,10 @@ RULES = """\
 2. Have tools → call them. No tools → explain the manual UI steps.
 3. One tool per turn. Wait for the result. Never reply and call a tool in same turn.
 4. Verify after create/modify — navigate to show the result.
-5. Request priority: action > follow-up (reuse prior IDs, never search docs) > question (search_user_docs).
-6. Baserow how-to / feature questions → answer strictly from search_user_docs results, never pretrained knowledge. Creative tasks may use your own knowledge. Never use search_user_docs to learn about your own tools.
-7. Reply in concise Markdown. Never expose raw JSON or internal IDs unless asked.
+5. Request priority: action > follow-up (reuse prior IDs, never search docs) > question.
+6. You start in DO mode. If the user asks a how-to or feature question about Baserow, call switch_mode("explain") first, then use search_user_docs. Never use search_user_docs to learn about your own tools.
+7. After answering an explain question, if the user wants to act again, call switch_mode("do").
+8. Reply in concise Markdown. Never expose raw JSON or internal IDs unless asked.
 </rules>
 """
 
@@ -48,8 +49,9 @@ TOOL_ROUTING_RULES = """\
 - Check list_* before create_* to avoid duplicates.
 - Row create/update/delete → call load_row_tools first (includes schema — skip get_tables_schema).
 - create_tables: add sample rows unless user says otherwise.
+- create_rows: fill EVERY field including ALL link_row (relationship) fields. Never leave relationships empty.
 - create_workflows: use {{ node.ref }} for node refs, $formula: prefix for dynamic field values.
-- User asks about a Baserow feature or how-to → search_user_docs. Not for learning your own tools."""
+- Baserow how-to / feature question → switch_mode("explain"), then search_user_docs."""
 
 AGENT_SYSTEM_PROMPT = (
     AGENT_IDENTITY

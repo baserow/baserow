@@ -14,9 +14,12 @@ FORMULA_AGENT_INSTRUCTIONS = (
 SAMPLE_ROW_AGENT_INSTRUCTIONS = (
     "Create 5 realistic sample rows for each table using the "
     "create_rows tools provided. "
-    "Start with tables that other tables link to, so you can "
-    "reference their actual row IDs in link_row fields of "
-    "dependent tables. "
+    "IMPORTANT: You MUST fill EVERY field for every row, including ALL "
+    "link_row (relationship) fields. Do NOT leave any field empty or null "
+    "unless the data genuinely requires it. "
+    "Insertion order: start with tables that have NO link_row fields (or only "
+    "link to tables already inserted), so you have real row IDs to reference. "
+    "Then create rows in dependent tables, using those IDs in link_row fields. "
     "Reply with a short summary when done."
 )
 
@@ -51,7 +54,12 @@ def format_formula_generation_prompt(
 
 
 def format_sample_rows_prompt(table_info: str, data_brief: str | None = None) -> str:
-    prompt = f"Create 5 sample rows for each of these tables:\n{table_info}"
+    prompt = (
+        f"Create 5 sample rows for each of these tables:\n{table_info}"
+        "\n\nREMINDER: Fill ALL fields for every row — especially link_row "
+        "(relationship) fields. Use the row IDs returned by previous "
+        "create_rows calls as values for link_row fields in dependent tables."
+    )
     if data_brief:
         prompt += f"\n\nUser instructions for the data: {data_brief}"
     return prompt

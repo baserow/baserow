@@ -25,13 +25,26 @@ def dynamic_ui_context(ctx) -> str:
 
 
 @main_agent.instructions
+def dynamic_mode(ctx) -> str:
+    """Inject the current agent mode into the system prompt."""
+
+    return f"\n<mode>{ctx.deps.mode.value}</mode>"
+
+
+@main_agent.instructions
 def dynamic_tool_manifest(ctx) -> str:
     """
     Inject the available tools manifest into the system prompt, including both
     static and dynamically loaded tools name and description.
     """
 
-    manifest = ctx.deps.tool_manifest
+    from baserow_enterprise.assistant.deps import AgentMode
+
+    manifest = (
+        ctx.deps.do_manifest
+        if ctx.deps.mode == AgentMode.DO
+        else ctx.deps.explain_manifest
+    )
     if not manifest:
         return ""
 

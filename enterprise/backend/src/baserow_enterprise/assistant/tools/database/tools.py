@@ -908,7 +908,7 @@ def _build_row_tools(
             f"WHAT: Inserts up to 20 rows with field values matching the table schema. "
             f"RETURNS: Created row IDs. "
             f"DO NOT USE: For other tables — each table has its own create tool. "
-            f"HOW: Fill every field and every relationship with valid data when possible."
+            f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."
             f"{link_row_hints}"
         ),
         max_retries=2,

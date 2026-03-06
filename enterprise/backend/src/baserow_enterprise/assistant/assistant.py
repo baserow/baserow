@@ -93,15 +93,21 @@ class Assistant:
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
 
-        self._toolset, tool_manifest = assistant_tool_registry.build_toolset(
-            user=self._user, workspace=self._workspace, model=self._model
-        )
         self._deps = AssistantDeps(
             user=self._user,
             workspace=self._workspace,
             tool_helpers=self._tool_helpers,
-            tool_manifest=tool_manifest,
         )
+        self._toolset, do_manifest, explain_manifest = (
+            assistant_tool_registry.build_toolset(
+                user=self._user,
+                workspace=self._workspace,
+                model=self._model,
+                deps=self._deps,
+            )
+        )
+        self._deps.do_manifest = do_manifest
+        self._deps.explain_manifest = explain_manifest
 
         setup_instrumentation()
 
