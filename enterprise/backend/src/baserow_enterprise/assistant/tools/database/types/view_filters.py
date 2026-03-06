@@ -4,7 +4,7 @@ from pydantic import Field, model_validator
 
 from baserow_enterprise.assistant.types import BaseModel
 
-from .base import Date
+from .base import parse_date
 
 # ---------------------------------------------------------------------------
 # Flat filter model
@@ -119,8 +119,8 @@ def _select_orm_value(f, field, **kwargs):
 
 def _date_orm_value(f, field, **kwargs):
     timezone = kwargs.get("timezone", "UTC")
-    if isinstance(f.value, Date):
-        value = f.value.to_django_orm()
+    if isinstance(f.value, str):
+        value = parse_date(f.value).isoformat()
     elif isinstance(f.value, int):
         value = str(f.value)
     else:
@@ -154,12 +154,12 @@ class ViewFilterItemCreate(BaseModel):
     operator: str = Field(..., description="The filter operator.")
 
     # Filter value — type depends on filter type
-    value: str | float | int | bool | list[str] | Date | None = Field(
+    value: str | float | int | bool | list[str] | None = Field(
         None,
         description=(
             "The filter value. String for text, number for number, "
             "bool for boolean, list of strings for select, "
-            "Date/int/null for date, int for link_row."
+            "ISO date string/int/null for date, int for link_row."
         ),
     )
 

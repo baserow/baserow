@@ -21,7 +21,9 @@ from baserow.contrib.database.table.models import (
     Table,
 )
 
-from .base import BaseModel, Date, Datetime
+from baserow_enterprise.assistant.types import BaseModel
+
+from .base import format_date, format_datetime, parse_date, parse_datetime
 
 
 @dataclass
@@ -80,16 +82,17 @@ def _boolean_field_def(orm_field, orm_field_type):
 
 def _date_field_def(orm_field, orm_field_type):
     if orm_field.date_include_time:
-        cls = Datetime
-        desc = "Datetime or None"
-    else:
-        cls = Date
-        desc = "Date or None"
+        return FieldDefinition(
+            str | None,
+            Field(..., description="ISO datetime (YYYY-MM-DDTHH:MM) or None", title=orm_field.name),
+            lambda v: parse_datetime(v).isoformat() if v else None,
+            lambda v: format_datetime(v) if v is not None else None,
+        )
     return FieldDefinition(
-        cls | None,
-        Field(..., description=desc, title=orm_field.name),
-        lambda v: v.to_django_orm() if v else None,
-        lambda v: cls.from_django_orm(v) if v is not None else None,
+        str | None,
+        Field(..., description="ISO date (YYYY-MM-DD) or None", title=orm_field.name),
+        lambda v: parse_date(v).isoformat() if v else None,
+        lambda v: format_date(v) if v is not None else None,
     )
 
 
