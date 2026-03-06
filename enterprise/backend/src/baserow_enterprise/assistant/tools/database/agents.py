@@ -1,11 +1,3 @@
-"""
-Sub-agents for the database assistant tools.
-
-Contains:
-- ``formula_generation_agent``: Generates and fixes Baserow formulas.
-- ``generate_sample_rows()``: Creates sample data via row-creation tools.
-"""
-
 from typing import Any, Callable
 
 from django.contrib.auth.models import AbstractUser
@@ -23,7 +15,7 @@ from baserow.contrib.database.fields.models import FormulaField
 from baserow.core.models import Workspace
 from baserow_premium.prompts import get_formula_docs
 
-from . import utils
+from . import helpers
 from .prompts import (
     FORMULA_AGENT_INSTRUCTIONS,
     SAMPLE_ROW_AGENT_INSTRUCTIONS,
@@ -90,7 +82,7 @@ def get_formula_type_tool(
 
         nonlocal user, workspace
 
-        table = utils.filter_tables(user, workspace).get(id=table_id)
+        table = helpers.filter_tables(user, workspace).get(id=table_id)
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
         field.recalculate_internal_fields(raise_if_invalid=True)
 
@@ -121,11 +113,11 @@ def make_formula_fixer(
     """
 
     def fix_formula(table, field_name: str, original_formula: str) -> str | None:
-        database_tables = utils.filter_tables(user, workspace).filter(
+        database_tables = helpers.filter_tables(user, workspace).filter(
             database_id=table.database_id
         )
         schema = [
-            t.model_dump() for t in utils.get_tables_schema(database_tables, True)
+            t.model_dump() for t in helpers.get_tables_schema(database_tables, True)
         ]
         tool_helpers.update_status(
             _("Fixing formula for %(name)s...") % {"name": field_name}
@@ -167,6 +159,7 @@ def generate_sample_rows(
     workspace: Workspace,
     tool_helpers,
     created_tables: list,
+    data_brief: str | None = None,
 ) -> dict[int, list[Any]]:
     """
     Use an agent with ``create_rows`` tools to generate and insert
@@ -185,16 +178,18 @@ def generate_sample_rows(
         get_model_string,
     )
 
+    from .tools import _build_row_tools
+
     tool_helpers.update_status(_("Generating example rows for these new tables..."))
 
     # Build a create_rows tool for each table.
     create_tools = []
     for table in created_tables:
-        row_tools = utils.get_table_rows_tools(user, workspace, tool_helpers, table)
+        row_tools = _build_row_tools(user, workspace, tool_helpers, table)
         create_tools.append(row_tools["create"])
 
     # Build a description of each table so the agent knows the schemas.
-    schemas = utils.get_tables_schema(created_tables, full_schema=True)
+    schemas = helpers.get_tables_schema(created_tables, full_schema=True)
     table_info = "\n".join(f"- {schema.model_dump()}" for schema in schemas)
 
     model = get_model_string()
@@ -205,7 +200,7 @@ def generate_sample_rows(
         name="sample_row_agent",
     )
     sample_row_agent.run_sync(
-        format_sample_rows_prompt(table_info),
+        format_sample_rows_prompt(table_info, data_brief=data_brief),
         model=model,
         model_settings=get_model_settings(model, SAMPLE),
         usage_limits=UsageLimits(request_limit=len(created_tables) * 3 + 2),

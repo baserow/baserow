@@ -241,7 +241,7 @@ def test_row_tools_structured_output(data_fixture, eval_model):
     the LLM's structured output endpoint.
     """
 
-    from baserow_enterprise.assistant.tools.database.utils import get_table_rows_tools
+    from baserow_enterprise.assistant.tools.database.tools import _build_row_tools
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -262,7 +262,7 @@ def test_row_tools_structured_output(data_fixture, eval_model):
     data_fixture.create_select_option(field=multi_field, value="Urgent", order=1)
 
     tool_helpers = _tool_helpers
-    row_tools = get_table_rows_tools(user, workspace, tool_helpers, table)
+    row_tools = _build_row_tools(user, workspace, tool_helpers, table)
 
     model = eval_model
     failures: list[str] = []
