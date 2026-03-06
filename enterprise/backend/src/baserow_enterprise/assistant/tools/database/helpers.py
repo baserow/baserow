@@ -161,7 +161,7 @@ def create_fields(
             )
             created_fields.append(FieldItem.from_django_orm(new_field))
         except InvalidFormulaFieldError as exc:
-            _fix_formula(
+            _fix_formula_field(
                 user, table, formula_fixer, created_fields, formula_errors, exc
             )
         except Exception as e:
@@ -172,7 +172,7 @@ def create_fields(
     return created_fields, field_errors, formula_errors
 
 
-def _fix_formula(
+def _fix_formula_field(
     user: AbstractUser,
     table: Table,
     formula_fixer: Callable[[Table, str, str], str | None] | None,

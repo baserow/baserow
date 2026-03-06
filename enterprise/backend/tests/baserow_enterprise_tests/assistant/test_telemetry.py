@@ -5,7 +5,7 @@ import pytest
 
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.telemetry import (
-    PosthogSpanExporter,
+    PosthogSpanProcessor,
     PosthogTracingCallback,
     _pydantic_messages_to_posthog,
     _tool_calls,
@@ -148,7 +148,7 @@ class TestPydanticMessagesToPosthog:
                         "type": "tool_call",
                         "id": "call_123",
                         "name": "list_tables",
-                        "args": {"database_id": 1},
+                        "arguments": {"database_id": 1},
                     }
                 ],
             }
@@ -183,8 +183,8 @@ class TestPydanticMessagesToPosthog:
         assert result[0]["content"][0]["tool_call_id"] == "call_123"
 
 
-class TestPosthogSpanExporter:
-    """Test the OpenTelemetry span exporter for PostHog."""
+class TestPosthogSpanProcessor:
+    """Test the OpenTelemetry span processor for PostHog."""
 
     def _make_mock_span(
         self,
@@ -220,7 +220,7 @@ class TestPosthogSpanExporter:
         return span
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_export_generation_span(self, mock_get_client):
+    def test_generation_span(self, mock_get_client):
         """Test that a 'chat' span is mapped to $ai_generation."""
 
         from opentelemetry.trace import SpanKind
@@ -228,7 +228,7 @@ class TestPosthogSpanExporter:
         mock_posthog = MagicMock()
         mock_get_client.return_value = mock_posthog
 
-        exporter = PosthogSpanExporter()
+        processor = PosthogSpanProcessor()
 
         span = self._make_mock_span(
             name="chat groq:llama-3.3-70b",
@@ -262,7 +262,7 @@ class TestPosthogSpanExporter:
         )
         token = _trace_ctx.set(ctx)
         try:
-            exporter.export([span])
+            processor.on_end(span)
         finally:
             _trace_ctx.reset(token)
 
@@ -288,7 +288,7 @@ class TestPosthogSpanExporter:
         assert props["$ai_input"][0]["content"][0]["text"] == "Hi"
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_export_tool_span(self, mock_get_client):
+    def test_tool_span(self, mock_get_client):
         """Test that a 'running tool' span is mapped to $ai_span."""
 
         from opentelemetry.trace import SpanKind
@@ -296,7 +296,7 @@ class TestPosthogSpanExporter:
         mock_posthog = MagicMock()
         mock_get_client.return_value = mock_posthog
 
-        exporter = PosthogSpanExporter()
+        processor = PosthogSpanProcessor()
 
         span = self._make_mock_span(
             name="running tool",
@@ -317,7 +317,7 @@ class TestPosthogSpanExporter:
         )
         token = _trace_ctx.set(ctx)
         try:
-            exporter.export([span])
+            processor.on_end(span)
         finally:
             _trace_ctx.reset(token)
 
@@ -332,20 +332,43 @@ class TestPosthogSpanExporter:
         assert props["$ai_latency"] == pytest.approx(1.0, abs=0.01)
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_agent_run_span_is_ignored(self, mock_get_client):
-        """Test that 'agent run' spans are NOT exported (handled by callback)."""
+    def test_agent_run_span_is_exported(self, mock_get_client):
+        """Test that 'agent run' spans are exported as $ai_span with agent name,
+        system prompt, user input, and final output."""
 
         from opentelemetry.trace import SpanKind
 
         mock_posthog = MagicMock()
         mock_get_client.return_value = mock_posthog
 
-        exporter = PosthogSpanExporter()
+        processor = PosthogSpanProcessor()
+
+        system_instructions = json.dumps(
+            [{"type": "text", "content": "You are a helpful assistant."}]
+        )
+        all_messages = json.dumps(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"type": "text", "content": "Create a table"}],
+                },
+                {
+                    "role": "model-response",
+                    "parts": [{"type": "text", "content": "Done!"}],
+                },
+            ]
+        )
 
         span = self._make_mock_span(
             name="agent run",
             kind=SpanKind.INTERNAL,
-            attrs={"agent_name": "main_agent"},
+            attrs={
+                "agent_name": "main_agent",
+                "gen_ai.system_instructions": system_instructions,
+                "pydantic_ai.all_messages": all_messages,
+                "final_result": '{"table_id": 1}',
+            },
+            parent_span_id=0x9999,
         )
 
         ctx = _TraceContext(
@@ -356,14 +379,120 @@ class TestPosthogSpanExporter:
         )
         token = _trace_ctx.set(ctx)
         try:
-            exporter.export([span])
+            processor.on_end(span)
         finally:
             _trace_ctx.reset(token)
 
-        mock_posthog.capture.assert_not_called()
+        mock_posthog.capture.assert_called_once()
+        call = mock_posthog.capture.call_args
+        assert call.kwargs["event"] == "$ai_span"
+
+        props = call.kwargs["properties"]
+        assert props["$ai_span_name"] == "Agent: main_agent"
+        assert props["$ai_trace_id"] == "trace-123"
+        assert props["$ai_latency"] == pytest.approx(1.0, abs=0.01)
+        assert props["$ai_parent_id"] == f"{0x9999:016x}"
+        assert props["$ai_input_state"]["system_prompt"] == "You are a helpful assistant."
+        assert props["$ai_input_state"]["user_prompt"] == "Create a table"
+        assert props["$ai_output_state"] == {"table_id": 1}
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_export_without_trace_context_is_noop(self, mock_get_client):
+    def test_agent_run_span_subagent_label(self, mock_get_client):
+        """Test that sub-agent spans get their own distinct label and handle
+        string final_result."""
+
+        from opentelemetry.trace import SpanKind
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        processor = PosthogSpanProcessor()
+
+        span = self._make_mock_span(
+            name="agent run",
+            kind=SpanKind.INTERNAL,
+            attrs={
+                "agent_name": "sample_row_agent",
+                "final_result": "Rows created successfully",
+            },
+        )
+
+        ctx = _TraceContext(
+            trace_id="trace-123",
+            user_id="user-456",
+            workspace_id="ws-789",
+            chat_uuid="chat-abc",
+        )
+        token = _trace_ctx.set(ctx)
+        try:
+            processor.on_end(span)
+        finally:
+            _trace_ctx.reset(token)
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_span_name"] == "Agent: sample_row_agent"
+        assert props["$ai_output_state"] == "Rows created successfully"
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_running_tools_skipped_and_parent_remapped(self, mock_get_client):
+        """Test that 'running tools' is not emitted and child tool spans
+        have their parent remapped to the grandparent (agent span)."""
+
+        from opentelemetry.trace import SpanKind
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        processor = PosthogSpanProcessor()
+
+        agent_span_id = 0xAAAA
+        tools_group_span_id = 0xBBBB
+        tool_span_id = 0xCCCC
+
+        # 1) "running tools" starts — processor records the parent mapping.
+        tools_group_span = self._make_mock_span(
+            name="running tools",
+            kind=SpanKind.INTERNAL,
+            span_id=tools_group_span_id,
+            parent_span_id=agent_span_id,
+        )
+        processor.on_start(tools_group_span)
+
+        # 2) "running tool" ends — its direct parent is the tools group,
+        #    but the processor should remap to the agent span.
+        tool_span = self._make_mock_span(
+            name="running tool",
+            kind=SpanKind.INTERNAL,
+            attrs={
+                "gen_ai.tool.name": "create_tables",
+                "tool_arguments": "{}",
+                "tool_response": "ok",
+            },
+            span_id=tool_span_id,
+            parent_span_id=tools_group_span_id,
+        )
+
+        ctx = _TraceContext(
+            trace_id="t", user_id="u", workspace_id="w", chat_uuid="c"
+        )
+        token = _trace_ctx.set(ctx)
+        try:
+            processor.on_end(tool_span)
+
+            # Tool span's parent should be the agent, not the tools group.
+            props = mock_posthog.capture.call_args.kwargs["properties"]
+            assert props["$ai_parent_id"] == f"{agent_span_id:016x}"
+
+            mock_posthog.capture.reset_mock()
+
+            # 3) "running tools" ends — should NOT emit anything.
+            processor.on_end(tools_group_span)
+            mock_posthog.capture.assert_not_called()
+        finally:
+            _trace_ctx.reset(token)
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_without_trace_context_is_noop(self, mock_get_client):
         """Test that spans without a trace context are silently ignored."""
 
         from opentelemetry.trace import SpanKind
@@ -371,7 +500,7 @@ class TestPosthogSpanExporter:
         mock_posthog = MagicMock()
         mock_get_client.return_value = mock_posthog
 
-        exporter = PosthogSpanExporter()
+        processor = PosthogSpanProcessor()
 
         span = self._make_mock_span(
             name="chat groq:llama-3.3-70b",
@@ -379,20 +508,20 @@ class TestPosthogSpanExporter:
         )
 
         # No trace context set
-        exporter.export([span])
+        processor.on_end(span)
 
         mock_posthog.capture.assert_not_called()
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_export_multiple_spans(self, mock_get_client):
-        """Test that multiple spans in a batch are all processed."""
+    def test_multiple_spans(self, mock_get_client):
+        """Test that multiple spans are all processed."""
 
         from opentelemetry.trace import SpanKind
 
         mock_posthog = MagicMock()
         mock_get_client.return_value = mock_posthog
 
-        exporter = PosthogSpanExporter()
+        processor = PosthogSpanProcessor()
 
         generation_span = self._make_mock_span(
             name="chat openai:gpt-4o",
@@ -424,7 +553,8 @@ class TestPosthogSpanExporter:
         )
         token = _trace_ctx.set(ctx)
         try:
-            exporter.export([generation_span, tool_span])
+            processor.on_end(generation_span)
+            processor.on_end(tool_span)
         finally:
             _trace_ctx.reset(token)
 
@@ -461,7 +591,6 @@ class TestEndToEndOtelPipeline:
         $ai_trace and $ai_generation events via PostHog."""
 
         from opentelemetry.sdk.trace import TracerProvider as _TP
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from pydantic_ai import Agent, InstrumentationSettings
 
         mock_posthog = MagicMock()
@@ -469,7 +598,7 @@ class TestEndToEndOtelPipeline:
 
         # Wire up the same pipeline that setup_instrumentation() creates.
         tp = _TP()
-        tp.add_span_processor(SimpleSpanProcessor(PosthogSpanExporter()))
+        tp.add_span_processor(PosthogSpanProcessor())
         Agent.instrument_all(
             InstrumentationSettings(tracer_provider=tp, include_content=True)
         )

@@ -50,5 +50,8 @@ def format_formula_generation_prompt(
     )
 
 
-def format_sample_rows_prompt(table_info: str) -> str:
-    return f"Create 5 sample rows for each of these tables:\n{table_info}"
+def format_sample_rows_prompt(table_info: str, data_brief: str | None = None) -> str:
+    prompt = f"Create 5 sample rows for each of these tables:\n{table_info}"
+    if data_brief:
+        prompt += f"\n\nUser instructions for the data: {data_brief}"
+    return prompt
