@@ -17,11 +17,34 @@ export class UnknownOperatorError extends Error {
 }
 
 export class InvalidNumberOfArguments extends Error {
-  constructor(args, message) {
+  constructor(formulaFunctionType, minArgs, maxArgs = null) {
     super()
-    this.args = args
-    this.message = message
+    this.formulaFunctionType = formulaFunctionType
+    this.minArgs = minArgs
+    this.maxArgs = maxArgs
     this.scope = 'argument'
+    this.message = this.getMessage()
+  }
+
+  getMessage() {
+    const ctx = {
+      minArgs: this.minArgs,
+      maxArgs: this.maxArgs,
+      funcType: this.formulaFunctionType.getType()
+    }
+    const { app: { $i18n } } = this.formulaFunctionType
+    // If we have a minimum, but no maximum, then this function needs >= minArgs arguments.
+    if(this.minArgs && this.maxArgs === null) {
+      return $i18n.t('formulaParserErrors.invalidArgCountMin', ctx)
+    }
+    // If the minimum and maximum are the same, then this function needs exactly minArgs (or maxArgs) arguments.
+    else if(this.minArgs === this.maxArgs) {
+      return $i18n.t('formulaParserErrors.invalidArgCountExact', ctx)
+    }
+    // Otherwise, this function wants a range between minArgs and maxArgs arguments.
+    else {
+      return $i18n.t('formulaParserErrors.invalidArgCountRange', ctx)
+    }
   }
 }
 

@@ -83,13 +83,13 @@
         {
             "formula": "get()",
             "context": {},
-            "frontendError": "The 'get' function expects exactly 1 arguments.",
+            "frontendError": "formulaParserErrors.invalidArgCountExact",
             "backend_error": "0 arguments were given to the 'get' function, it must instead be given 1"
         },
         {
             "formula": "get('a', 'b')",
             "context": {},
-            "frontendError": "The 'get' function expects exactly 1 arguments.",
+            "frontendError": "formulaParserErrors.invalidArgCountExact",
             "backend_error": "2 arguments were given to the 'get' function, it must instead be given 1"
         },
         {

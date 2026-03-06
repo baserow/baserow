@@ -857,6 +857,11 @@
     "useAdvancedInputModalTitle": "Switch to expert mode?",
     "modalMessage": "Switching to a different mode will clear the current formula. Are you sure you want to continue?"
   },
+  "formulaParserErrors": {
+    "invalidArgCountMin": "The '{funcType}' function expects a minimum of {minArgs} arguments.",
+    "invalidArgCountExact": "The '{funcType}' function expects exactly {minArgs} arguments.",
+    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments."
+  },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
     "noProvidersText": "No data providers were found. To get started you can, for example, add a data source or page parameter."

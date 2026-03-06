@@ -105,14 +105,7 @@ export class RuntimeFormulaFunction extends Registerable {
     const validArgLength =
       args.length >= requiredArgs && args.length <= totalArgs
     if (!validArgLength && throwOnError) {
-      const argRequirements =
-        requiredArgs === totalArgs
-          ? `exactly ${totalArgs}`
-          : `between ${requiredArgs} and ${totalArgs}`
-      throw new InvalidNumberOfArguments(
-        args,
-        `The '${this.getType()}' function expects ${argRequirements} arguments.`
-      )
+      throw new InvalidNumberOfArguments(this, requiredArgs, totalArgs)
     }
     return validArgLength
   }
@@ -239,10 +232,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   validateNumberOfArgs(args, throwOnError = false) {
     const validArgLength = args.length > 1
     if (!validArgLength && throwOnError) {
-      throw new InvalidNumberOfArguments(
-        args,
-        `The 'concat' function expects at least 2 arguments.`
-      )
+      throw new InvalidNumberOfArguments(this, 2)
     }
     return validArgLength
   }
