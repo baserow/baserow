@@ -23,7 +23,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 
 from .prompts import GENERATE_FORMULA_PROMPT
-from .types import HasFormulasToCreateMixin, NodeBase, WorkflowCreate
+from .types import ActionNodeCreate, WorkflowCreate
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
@@ -31,10 +31,10 @@ if TYPE_CHECKING:
 
 class AssistantFormulaContext(BaseFormulaContext):
     """
-    Automation-specific formula context with previous_node structure.
+    Automation-specific formula context.
 
-    Extends the shared BaseFormulaContext to provide the nested
-    {"previous_node": {...}} structure expected by automation formulas.
+    Wraps node data in the ``{"previous_node": {...}}`` structure expected
+    by automation formula ``get()`` paths.
     """
 
     def add_node_context(
@@ -43,15 +43,15 @@ class AssistantFormulaContext(BaseFormulaContext):
         node_context: dict[str, Any],
         context_metadata: dict[str, dict[str, str]] | None = None,
     ):
-        """Update the formula context with new node values."""
+        """Add a node's output values to the formula context."""
         self.add_context(str(node_id), node_context, context_metadata)
 
     def get_formula_context(self) -> dict[str, Any]:
-        """Return context wrapped in previous_node for automation formulas."""
+        """Return context wrapped in ``previous_node`` for automation formulas."""
         return {"previous_node": self.context}
 
     def __getitem__(self, key) -> Any:
-        """Resolve paths like 'previous_node.1.0.field_name'."""
+        """Resolve paths like ``previous_node.1.0.field_name``."""
         return self._resolve_path(key, "previous_node")
 
 
@@ -66,56 +66,57 @@ def update_workflow_formulas(
     tool_helpers: "ToolHelpers",
 ) -> None:
     """
-    Loop over all nodes and verify if they have formulas to update. If so, update the
-    formulas in the ORM node service providing the available context up to that node and
-    the user request for that node.
+    Generate and apply formulas for all nodes in a newly created workflow.
+
+    Walks nodes in order, building up the available formula context as it goes.
+    For each node that has ``$formula:`` values, delegates to the formula
+    generation agent and writes the results back to the ORM service.
     """
 
     context = AssistantFormulaContext()
+    generate_formula = get_generate_formulas_tool()
 
-    def _get_service_schema(orm_node: AutomationNode):
-        return orm_node.service.get_type().generate_schema(orm_node.service.specific)
+    def _build_node_context(orm_node: AutomationNode, node_create):
+        """Extract schema/example from a node and add it to the formula context."""
 
-    def _update_context_with_node_data(
-        orm_node: AutomationNode, node_to_create: NodeBase
-    ):
-        schema = _get_service_schema(orm_node)
+        schema = orm_node.service.get_type().generate_schema(orm_node.service.specific)
         example = create_example_from_json_schema(schema)
-        descr = minimize_json_schema(schema)
-        descr["node_id"] = orm_node.id
-        descr["node_ref"] = node_to_create.ref
-        if getattr(node_to_create, "previous_node_ref", None):
-            descr["previous_node_ref"] = node_to_create.previous_node_ref
-        context.add_node_context(orm_node.id, example, descr)
+        metadata = minimize_json_schema(schema)
+        metadata["node_id"] = orm_node.id
+        metadata["node_ref"] = node_create.ref
+        if getattr(node_create, "previous_node_ref", None):
+            metadata["previous_node_ref"] = node_create.previous_node_ref
+        context.add_node_context(orm_node.id, example, metadata)
 
-    # Add the trigger context first
-    trigger_node = workflow.trigger
-    orm_trigger, __ = node_mapping[trigger_node.ref]
-    _update_context_with_node_data(orm_trigger, trigger_node)
+    def _generate_node_formulas(node: ActionNodeCreate, orm_node: AutomationNode):
+        """Generate formulas for a single node and write them to the service."""
 
-    generate_formula_tool = get_generate_formulas_tool()
-
-    def _generate_and_update_node_formulas(
-        node: HasFormulasToCreateMixin, orm_node: AutomationNode
-    ):
         formulas_to_create = node.get_formulas_to_create(orm_node)
-        result = generate_formula_tool(formulas_to_create, context)
+        if formulas_to_create is None:
+            return
+        result = generate_formula(formulas_to_create, context)
         if result:
             node.update_service_with_formulas(orm_node.service, result)
 
-    # Node by node, generate formulas if needed and update the context with the node
-    # data, so following nodes can use it.
+    # Seed context with the trigger
+    orm_trigger, trigger_create = node_mapping[workflow.trigger.ref]
+    _build_node_context(orm_trigger, trigger_create)
+
+    # Process action nodes in order
     for node in workflow.nodes:
-        orm_node, __ = node_mapping[node.ref]
-        if isinstance(node, HasFormulasToCreateMixin):
+        orm_node, _node_create = node_mapping[node.ref]
+        node.apply_direct_values(orm_node.service)
+
+        if node.get_formulas_to_create(orm_node) is not None:
             tool_helpers.update_status(
                 _("Generating formulas for node '%(label)s'..." % {"label": node.label})
             )
             with transaction.atomic():
                 try:
-                    _generate_and_update_node_formulas(node, orm_node)
+                    _generate_node_formulas(node, orm_node)
                 except Exception as exc:
                     logger.exception(
                         "Failed to generate formulas for node {}: {}", orm_node.id, exc
                     )
-        _update_context_with_node_data(orm_node, node)
+
+        _build_node_context(orm_node, node)

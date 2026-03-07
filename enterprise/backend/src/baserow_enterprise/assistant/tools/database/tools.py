@@ -673,8 +673,16 @@ def create_view_filters(
     WHAT it does: Creates filter conditions on one or more views. Supports multiple filters per view.
     RETURNS: Created filters with id and configuration per view.
     DO NOT USE when: The view doesn't exist yet — create it first with create_views.
-    HOW: Get the table schema first to know field IDs and types. Match filter type to field type (e.g., text filters for text fields,
-        number filters for number fields, date filters for date fields). Each filter config type documents which field types it supports.
+    HOW: Get the table schema first to know field IDs and types. Match filter type to field type.
+
+    ## Value formats by type
+
+    - text: string
+    - number: number
+    - date: ISO date string (mode=exact_date) or integer (mode=nr_days_ago etc.) or "" (mode=today etc.)
+    - single_select / multiple_select: list of option label strings (matched case-insensitively)
+    - link_row: row ID (integer)
+    - boolean: true / false
     """
 
     user = ctx.deps.user
