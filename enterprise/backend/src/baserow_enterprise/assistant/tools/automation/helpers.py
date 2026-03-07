@@ -1,3 +1,10 @@
+"""
+Shared helpers for the automation assistant tools.
+
+Contains permission-checked accessors and the workflow creation orchestrator
+used by ``tools.py`` and ``agents.py``.
+"""
+
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
@@ -20,19 +27,18 @@ if TYPE_CHECKING:
 def get_automation(
     automation_id: int, user: AbstractUser, workspace: Workspace
 ) -> Automation:
-    """Get automation with permission check."""
+    """Fetch an automation scoped to the user's workspace."""
 
     base_queryset = Automation.objects.filter(workspace=workspace)
-    automation = CoreService().get_application(
+    return CoreService().get_application(
         user, automation_id, base_queryset=base_queryset
     )
-    return automation
 
 
 def get_workflow(
     workflow_id: int, user: AbstractUser, workspace: Workspace
 ) -> AutomationWorkflow:
-    """Get workflow with permission check."""
+    """Fetch a workflow with a workspace-level permission check."""
 
     workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
     if workflow.automation.workspace_id != workspace.id:
@@ -47,7 +53,10 @@ def create_workflow(
     tool_helpers: "ToolHelpers",
 ) -> tuple[AutomationWorkflow, dict[int | str, Any]]:
     """
-    Creates a new workflow in the given automation based on the provided definition.
+    Create a workflow with its trigger and action nodes.
+
+    Returns the ORM workflow and a mapping of ``{ref_or_id: (orm_node, node_create)}``
+    for every created node, usable by downstream formula generation.
     """
 
     tool_helpers.update_status(
@@ -58,43 +67,39 @@ def create_workflow(
         user, automation.id, workflow.name
     )
 
-    node_mapping = {}
+    node_mapping: dict[int | str, Any] = {}
 
-    # First create the trigger node
-    orm_service_data = workflow.trigger.to_orm_service_dict()
-    node_type = automation_node_type_registry.get(workflow.trigger.type)
-    tool_helpers.update_status(
-        _("Creating trigger '%(label)s'..." % {"label": workflow.trigger.label})
-    )
-    orm_trigger = AutomationNodeService().create_node(
-        user,
-        node_type,
-        orm_wf,
-        label=workflow.trigger.label,
-        service=orm_service_data,
-    )
-
+    # -- Trigger --
+    orm_trigger = _create_node(user, orm_wf, workflow.trigger, tool_helpers)
     node_mapping[workflow.trigger.ref] = node_mapping[orm_trigger.id] = (
         orm_trigger,
         workflow.trigger,
     )
 
+    # -- Action / router / iterator nodes --
     for node in workflow.nodes:
-        orm_service_data = node.to_orm_service_dict()
         reference_node_id, output = node.to_orm_reference_node(node_mapping)
-        node_type = automation_node_type_registry.get(node.type)
-        tool_helpers.update_status(
-            _("Creating node '%(label)s'..." % {"label": node.label})
-        )
-        orm_node = AutomationNodeService().create_node(
-            user,
-            node_type,
-            orm_wf,
-            reference_node_id=reference_node_id,
-            output=output,
-            label=node.label,
-            service=orm_service_data,
+        orm_node = _create_node(
+            user, orm_wf, node, tool_helpers,
+            reference_node_id=reference_node_id, output=output,
         )
         node_mapping[node.ref] = node_mapping[orm_node.id] = (orm_node, node)
 
     return orm_wf, node_mapping
+
+
+def _create_node(user, workflow, node_create, tool_helpers, **extra_kwargs):
+    """Create a single automation node (trigger or action)."""
+
+    tool_helpers.update_status(
+        _("Creating node '%(label)s'..." % {"label": node_create.label})
+    )
+    node_type = automation_node_type_registry.get(node_create.type)
+    return AutomationNodeService().create_node(
+        user,
+        node_type,
+        workflow,
+        label=node_create.label,
+        service=node_create.to_orm_service_dict(),
+        **extra_kwargs,
+    )

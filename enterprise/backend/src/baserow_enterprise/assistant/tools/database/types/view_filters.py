@@ -147,32 +147,14 @@ _GET_ORM_VALUE = {
 class ViewFilterItemCreate(BaseModel):
     """Flat model for creating a view filter: field_id + type + operator + value."""
 
-    field_id: int = Field(..., description="The ID of the field to filter on.")
-    type: FilterType = Field(
-        ..., description="The filter type (must match the field type)."
-    )
-    operator: str = Field(..., description="The filter operator.")
-
-    # Filter value — type depends on filter type
+    field_id: int = Field(..., description="Field ID to filter on.")
+    type: FilterType = Field(..., description="Must match field type.")
+    operator: str = Field(..., description="Filter operator.")
     value: str | float | int | bool | list[str] | None = Field(
-        None,
-        description=(
-            "The filter value. String for text, number for number, "
-            "bool for boolean, list of strings for select, "
-            "ISO date string/int/null for date, int for link_row."
-        ),
+        None, description="Filter value (type-dependent).",
     )
-
-    # (date)
-    mode: DateFilterMode | None = Field(
-        None, description="(date) The date filter mode."
-    )
-
-    # (number, date)
-    or_equal: bool = Field(
-        False,
-        description="(number, date) For higher_than/lower_than/after/before: include equal values.",
-    )
+    mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
+    or_equal: bool = Field(False, description="(number, date) Include equal values.")
 
     @model_validator(mode="after")
     def _validate_per_type(self):

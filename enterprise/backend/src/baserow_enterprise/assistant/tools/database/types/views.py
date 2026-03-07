@@ -19,17 +19,11 @@ from baserow_premium.permission_manager import Table
 
 
 class FormFieldOption(BaseModel):
-    field_id: int = Field(..., description="The ID of the field.")
-    name: str = Field(..., description="The name to show for the field in the form.")
-    description: str = Field(
-        ...,
-        description="The description to show for the field in the form, or '' for none.",
-    )
-    required: bool = Field(
-        ...,
-        description="Whether the field is required in the form.",
-    )
-    order: int = Field(..., description="The order of the field in the form.")
+    field_id: int = Field(..., description="Field ID.")
+    name: str = Field(..., description="Display name in form.")
+    description: str = Field(..., description="Field description, or ''.")
+    required: bool = Field(..., description="Required?")
+    order: int = Field(..., description="Sort order.")
 
 
 class GridFieldOption(BaseModel):
@@ -192,67 +186,31 @@ _FROM_DJANGO_ORM: dict[str, Any] = {
 class ViewItemCreate(BaseModel):
     """Flat model for creating a view: name + type + type-specific options."""
 
-    name: str = Field(
-        ...,
-        description="A sensible name for the view (i.e. 'Pending payments', 'Completed tasks', etc.).",
-    )
-    public: bool = Field(
-        ...,
-        description="Whether the view is publicly accessible. Use false unless specified.",
-    )
-    type: ViewType = Field(..., description="The view type.")
+    name: str = Field(..., description="Descriptive view name.")
+    public: bool = Field(..., description="Publicly accessible? Default false.")
+    type: ViewType = Field(..., description="View type.")
 
-    # (grid)
-    row_height: Literal["small", "medium", "large"] = Field(
-        "small", description="(grid) Row height: 'small', 'medium', or 'large'."
-    )
-    # (kanban)
-    column_field_id: int | None = Field(
-        None, description="(kanban) ID of the single select field for columns."
-    )
-    # (calendar)
-    date_field_id: int | None = Field(
-        None, description="(calendar) ID of the date field for calendar dates."
-    )
-    # (gallery)
-    cover_field_id: int | None = Field(
-        None, description="(gallery) ID of the file field for cover images."
-    )
-    # (timeline)
-    start_date_field_id: int | None = Field(
-        None, description="(timeline) ID of the date field for start dates."
-    )
-    end_date_field_id: int | None = Field(
-        None, description="(timeline) ID of the date field for end dates."
-    )
-    # (form)
-    title: str = Field("", description="(form) The form title, or '' for none.")
-    description: str = Field(
-        "", description="(form) The form description, or '' for none."
-    )
-    submit_button_label: str = Field(
-        "Submit", description="(form) The submit button label (e.g. 'Submit')."
-    )
-    receive_notification_on_submit: bool = Field(
-        False, description="(form) Email notification on submit."
-    )
-    submit_action: Literal["MESSAGE", "REDIRECT"] = Field(
-        "MESSAGE", description="(form) Action on submit: 'MESSAGE' or 'REDIRECT'."
-    )
-    submit_action_message: str = Field(
-        "",
-        description="(form) Message shown after submit (MESSAGE action), or ''.",
-    )
-    submit_action_redirect_url: str = Field(
-        "",
-        description="(form) Redirect URL after submit (REDIRECT action), or ''.",
-    )
+    # -- grid --
+    row_height: Literal["small", "medium", "large"] = Field("small", description="(grid) Row height.")
+    # -- kanban --
+    column_field_id: int | None = Field(None, description="(kanban) Single-select field ID for columns.")
+    # -- calendar --
+    date_field_id: int | None = Field(None, description="(calendar) Date field ID.")
+    # -- gallery --
+    cover_field_id: int | None = Field(None, description="(gallery) File field ID for covers.")
+    # -- timeline --
+    start_date_field_id: int | None = Field(None, description="(timeline) Start date field ID.")
+    end_date_field_id: int | None = Field(None, description="(timeline) End date field ID.")
+    # -- form --
+    title: str = Field("", description="(form) Title, or ''.")
+    description: str = Field("", description="(form) Description, or ''.")
+    submit_button_label: str = Field("Submit", description="(form) Button label.")
+    receive_notification_on_submit: bool = Field(False, description="(form) Email on submit.")
+    submit_action: Literal["MESSAGE", "REDIRECT"] = Field("MESSAGE", description="(form) 'MESSAGE' or 'REDIRECT'.")
+    submit_action_message: str = Field("", description="(form) Message after submit.")
+    submit_action_redirect_url: str = Field("", description="(form) Redirect URL after submit.")
     field_options: list[FormFieldOption] | None = Field(
-        None,
-        description=(
-            "(form) Fields to show in the form with their options. "
-            "Fields are OPT-IN, so ALWAYS include all fields you want to show in the form."
-        ),
+        None, description="(form) Fields to show (OPT-IN: include all you want visible).",
     )
 
     # Required fields per type: {type: [(attr_name, display_name), ...]}

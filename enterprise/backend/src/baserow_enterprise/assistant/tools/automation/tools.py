@@ -11,7 +11,7 @@ from baserow.contrib.automation.workflows.service import AutomationWorkflowServi
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
-from . import agents, utils
+from . import agents, helpers
 from .types import WorkflowCreate
 
 
@@ -39,7 +39,7 @@ def list_workflows(
 
     tool_helpers.update_status(_("Listing workflows..."))
 
-    automation = utils.get_automation(automation_id, user, workspace)
+    automation = helpers.get_automation(automation_id, user, workspace)
     workflows = AutomationWorkflowService().list_workflows(user, automation.id)
 
     return {
@@ -79,12 +79,12 @@ def create_workflows(
 
     ## Dynamic Values with $formula:
 
-    For field values in create_row/update_row actions, use $formula: prefix:
+    Any string field marked "Supports $formula:" can use dynamic values.
+    Prefix with '$formula:' + a natural-language description to auto-generate a formula
+    from context data. Otherwise the value is used as a literal.
     - {"field_id": 123, "value": "$formula: the customer name from the trigger data"}
     - {"field_id": 456, "value": "$formula: today's date"}
-
-    For static values, provide the value directly:
-    - {"field_id": 789, "value": "pending"}
+    - {"field_id": 789, "value": "pending"}  ← literal, no prefix
     """
 
     user = ctx.deps.user
@@ -96,11 +96,11 @@ def create_workflows(
 
     created = []
 
-    automation = utils.get_automation(automation_id, user, workspace)
+    automation = helpers.get_automation(automation_id, user, workspace)
     for wf in workflows:
         tool_helpers.raise_if_cancelled()
         with transaction.atomic():
-            orm_workflow, node_mapping = utils.create_workflow(
+            orm_workflow, node_mapping = helpers.create_workflow(
                 user, automation, wf, tool_helpers
             )
             created.append(
