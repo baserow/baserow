@@ -263,10 +263,7 @@ def test_create_text_equal_filter(data_fixture):
 
     assert len(response["created_view_filters"]) == 1
     assert len(response["created_view_filters"][0]["filters"]) == 1
-    assert (
-        response["created_view_filters"][0]["filters"][0]["operator"]
-        == "equal"
-    )
+    assert response["created_view_filters"][0]["filters"][0]["operator"] == "equal"
     assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
 
 

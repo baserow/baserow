@@ -20,7 +20,6 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
-
 from baserow_enterprise.assistant.types import BaseModel
 
 from .base import format_date, format_datetime, parse_date, parse_datetime
@@ -84,7 +83,11 @@ def _date_field_def(orm_field, orm_field_type):
     if orm_field.date_include_time:
         return FieldDefinition(
             str | None,
-            Field(..., description="ISO datetime (YYYY-MM-DDTHH:MM) or None", title=orm_field.name),
+            Field(
+                ...,
+                description="ISO datetime (YYYY-MM-DDTHH:MM) or None",
+                title=orm_field.name,
+            ),
             lambda v: parse_datetime(v).isoformat() if v else None,
             lambda v: format_datetime(v) if v is not None else None,
         )
@@ -235,7 +238,11 @@ def _scan_table_fields(
 
         field = field_object["field"]
         field_definitions[field.name] = (fd.type, fd.field_def)
-        field_conversions[field.name] = (field.db_column, fd.to_django_orm, fd.from_django_orm)
+        field_conversions[field.name] = (
+            field.db_column,
+            fd.to_django_orm,
+            fd.from_django_orm,
+        )
 
     return field_definitions, field_conversions
 
@@ -262,7 +269,9 @@ def _convert_fields(
 # ---------------------------------------------------------------------------
 
 
-def get_create_row_model(table: Table, field_ids: list[int] | None = None) -> type[BaseModel]:
+def get_create_row_model(
+    table: Table, field_ids: list[int] | None = None
+) -> type[BaseModel]:
     """
     Build a Pydantic model for creating rows in the given table.
 
@@ -294,7 +303,9 @@ def get_create_row_model(table: Table, field_ids: list[int] | None = None) -> ty
                     continue
                 db_column, _, from_django_orm = field_conversions[field.name]
                 value = getattr(orm_row, db_column)
-                init_data[field.name] = from_django_orm(value) if from_django_orm else value
+                init_data[field.name] = (
+                    from_django_orm(value) if from_django_orm else value
+                )
             return cls(**init_data)
 
     return create_model(

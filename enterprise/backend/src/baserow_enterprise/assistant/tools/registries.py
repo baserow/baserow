@@ -82,13 +82,13 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         """
 
         toolsets: list[AbstractToolset] = []
-        func_lists: list[list[Callable]] = []
+        module_groups: list[tuple[str, list[Callable]]] = []
 
         for tool_type in self.get_all():
             if not tool_type.can_use(user, workspace):
                 continue
             toolsets.append(tool_type.get_toolset())
-            func_lists.append(tool_type.get_tool_functions())
+            module_groups.append((tool_type.type, tool_type.get_tool_functions()))
 
         combined = CombinedToolset(toolsets)
         mode_aware = ModeAwareToolset(combined, deps)
@@ -98,19 +98,19 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         do_exclude = ModeAwareToolset._DO_EXCLUDE
         explain_include = ModeAwareToolset._EXPLAIN_INCLUDE
 
-        do_funcs = [
-            [f for f in funcs if f.__name__ not in do_exclude]
-            for funcs in func_lists
+        do_groups = [
+            (label, [f for f in funcs if f.__name__ not in do_exclude])
+            for label, funcs in module_groups
         ]
-        explain_funcs = [
-            [f for f in funcs if f.__name__ in explain_include]
-            for funcs in func_lists
+        explain_groups = [
+            (label, [f for f in funcs if f.__name__ in explain_include])
+            for label, funcs in module_groups
         ]
 
         do_manifest = generate_tool_manifest_compact(
-            do_funcs, routing_rules=TOOL_ROUTING_RULES
+            do_groups, routing_rules=TOOL_ROUTING_RULES
         )
-        explain_manifest = generate_tool_manifest_compact(explain_funcs)
+        explain_manifest = generate_tool_manifest_compact(explain_groups)
 
         return InlineRefsToolset(mode_aware, model=model), do_manifest, explain_manifest
 

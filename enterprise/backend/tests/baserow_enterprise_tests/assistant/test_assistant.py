@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 from unittest.mock import MagicMock, patch
 
@@ -680,6 +681,106 @@ class TestAssistantCancellation:
 
         cache_key = get_assistant_cancellation_key(str(chat.uuid))
         assert cache_key == f"assistant:chat:{chat.uuid}:cancelled"
+
+
+class TestStreamAnswerJsonSuppression:
+    """Test that raw JSON from tool retry artifacts is not streamed to the user."""
+
+    def test_json_output_is_suppressed_and_replaced(self):
+        """When the model outputs raw JSON (e.g. from a retry artifact),
+        _stream_answer should replace it with a fallback message."""
+
+        json_output = '{"name": "create_tables", "arguments": {"tables": []}}'
+
+        result = MagicMock()
+
+        async def stream_text():
+            yield json_output
+
+        result.stream_text = stream_text
+
+        assistant = object.__new__(Assistant)
+        assistant._deps = MagicMock()
+        assistant._deps.sources = []
+
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def run():
+            return await assistant._stream_answer(result, queue)
+
+        answer = async_to_sync(run)()
+
+        # The answer should be the fallback, not the raw JSON
+        assert json_output not in answer
+        assert "try again" in answer.lower()
+
+        # The queue should contain the fallback chunk, not the raw JSON
+        events = []
+        while not queue.empty():
+            events.append(queue.get_nowait())
+        assert len(events) == 1
+        assert json_output not in events[0].message.content
+        assert "try again" in events[0].message.content.lower()
+
+    def test_normal_text_is_not_suppressed(self):
+        """Normal text output (not starting with { or [) should stream as usual."""
+
+        normal_text = "Here is your answer!"
+        result = MagicMock()
+
+        async def stream_text():
+            yield normal_text
+
+        result.stream_text = stream_text
+
+        assistant = object.__new__(Assistant)
+        assistant._deps = MagicMock()
+        assistant._deps.sources = []
+
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def run():
+            return await assistant._stream_answer(result, queue)
+
+        answer = async_to_sync(run)()
+
+        assert answer == normal_text
+
+        events = []
+        while not queue.empty():
+            events.append(queue.get_nowait())
+        assert len(events) == 1
+        assert events[0].message.content == normal_text
+
+    def test_text_starting_with_non_json_char_streams_immediately(self):
+        """Text that starts with a letter should not be buffered."""
+
+        result = MagicMock()
+
+        async def stream_text():
+            yield "I will "
+            yield "I will help you."
+
+        result.stream_text = stream_text
+
+        assistant = object.__new__(Assistant)
+        assistant._deps = MagicMock()
+        assistant._deps.sources = []
+
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def run():
+            return await assistant._stream_answer(result, queue)
+
+        answer = async_to_sync(run)()
+
+        assert answer == "I will help you."
+
+        events = []
+        while not queue.empty():
+            events.append(queue.get_nowait())
+        # Both chunks should have been streamed
+        assert len(events) == 2
 
 
 class TestGetModelString:

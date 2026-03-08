@@ -12,7 +12,11 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 from django.utils.translation import gettext as _
 
-from baserow.contrib.database.fields.actions import CreateFieldActionType
+from baserow.contrib.database.fields.actions import (
+    CreateFieldActionType,
+    DeleteFieldActionType,
+    UpdateFieldActionType,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -29,6 +33,7 @@ from .types import (
     AnyViewFilterItemCreate,
     FieldItem,
     FieldItemCreate,
+    FieldItemUpdate,
     InvalidFormulaFieldError,
 )
 
@@ -270,3 +275,92 @@ def create_view_filter(
         filter_value,
         filter_group_id=None,
     )
+
+
+def update_field(
+    user: AbstractUser,
+    workspace: Workspace,
+    field_update: "FieldItemUpdate",
+    formula_fixer: Callable[[Table, str, str], str | None] | None = None,
+) -> FieldItem:
+    """
+    Update an existing field.
+
+    :param user: The acting user.
+    :param workspace: Workspace the field must belong to.
+    :param field_update: The update definition.
+    :param formula_fixer: Optional callback for fixing invalid formulas.
+    :returns: Updated field as FieldItem.
+    """
+
+    base_field = FieldHandler().get_field(field_update.field_id)
+    field = base_field.specific
+
+    # Verify workspace access
+    filter_tables(user, workspace).filter(id=base_field.table_id).get()
+    field_type = field_type_registry.get_by_model(field).type
+    kwargs = field_update.to_update_kwargs(field_type)
+
+    if not kwargs:
+        return FieldItem.from_django_orm(field)
+
+    # Validate formula before updating
+    if "formula" in kwargs and kwargs["formula"]:
+        from baserow.contrib.database.fields.models import FormulaField
+        from baserow.core.formula.parser.exceptions import BaserowFormulaException
+
+        try:
+            tmp = FormulaField(
+                formula=kwargs["formula"],
+                table=field.table,
+                name=kwargs.get("name", field.name),
+                order=0,
+            )
+            tmp.recalculate_internal_fields(raise_if_invalid=True)
+        except BaserowFormulaException as e:
+            if formula_fixer:
+                fixed = formula_fixer(
+                    field.table,
+                    kwargs.get("name", field.name),
+                    kwargs["formula"],
+                )
+                if fixed:
+                    kwargs["formula"] = fixed
+                else:
+                    raise InvalidFormulaFieldError(
+                        kwargs.get("name", field.name),
+                        kwargs["formula"],
+                        field.table,
+                        str(e),
+                    )
+            else:
+                raise InvalidFormulaFieldError(
+                    kwargs.get("name", field.name),
+                    kwargs["formula"],
+                    field.table,
+                    str(e),
+                )
+
+    UpdateFieldActionType.do(user, field, **kwargs)
+    # Re-fetch the specific field to get the updated state
+    updated_field = FieldHandler().get_field(field_update.field_id).specific
+    return FieldItem.from_django_orm(updated_field)
+
+
+def delete_field(
+    user: AbstractUser,
+    workspace: Workspace,
+    field_id: int,
+) -> None:
+    """
+    Delete (soft-delete / trash) a field.
+
+    :param user: The acting user.
+    :param workspace: Workspace the field must belong to.
+    :param field_id: ID of the field to delete.
+    """
+
+    base_field = FieldHandler().get_field(field_id)
+    # Verify workspace access
+    filter_tables(user, workspace).filter(id=base_field.table_id).get()
+    DeleteFieldActionType.do(user, base_field.specific)

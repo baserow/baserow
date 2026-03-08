@@ -1,6 +1,7 @@
 from .node import (
     ActionNodeCreate,
     ActionNodeItem,
+    NodeUpdate,
     TriggerNodeCreate,
 )
 from .workflow import WorkflowCreate, WorkflowItem
@@ -10,5 +11,6 @@ __all__ = [
     "WorkflowItem",
     "ActionNodeCreate",
     "ActionNodeItem",
+    "NodeUpdate",
     "TriggerNodeCreate",
 ]

@@ -204,7 +204,9 @@ def test_create_multiple_workflows(data_fixture):
     [
         (
             TriggerNodeCreate(
-                type="rows_created", ref="trigger", label="Rows Created Trigger",
+                type="rows_created",
+                ref="trigger",
+                label="Rows Created Trigger",
                 rows_triggers_settings={"table_id": 999},
             ),
             ActionNodeCreate(
@@ -218,7 +220,9 @@ def test_create_multiple_workflows(data_fixture):
         ),
         (
             TriggerNodeCreate(
-                type="rows_updated", ref="trigger", label="Rows Updated Trigger",
+                type="rows_updated",
+                ref="trigger",
+                label="Rows Updated Trigger",
                 rows_triggers_settings={"table_id": 999},
             ),
             ActionNodeCreate(
@@ -233,7 +237,9 @@ def test_create_multiple_workflows(data_fixture):
         ),
         (
             TriggerNodeCreate(
-                type="rows_deleted", ref="trigger", label="Rows Deleted Trigger",
+                type="rows_deleted",
+                ref="trigger",
+                label="Rows Deleted Trigger",
                 rows_triggers_settings={"table_id": 999},
             ),
             ActionNodeCreate(

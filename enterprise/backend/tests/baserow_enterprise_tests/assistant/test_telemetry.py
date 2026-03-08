@@ -392,7 +392,9 @@ class TestPosthogSpanProcessor:
         assert props["$ai_trace_id"] == "trace-123"
         assert props["$ai_latency"] == pytest.approx(1.0, abs=0.01)
         assert props["$ai_parent_id"] == f"{0x9999:016x}"
-        assert props["$ai_input_state"]["system_prompt"] == "You are a helpful assistant."
+        assert (
+            props["$ai_input_state"]["system_prompt"] == "You are a helpful assistant."
+        )
         assert props["$ai_input_state"]["user_prompt"] == "Create a table"
         assert props["$ai_output_state"] == {"table_id": 1}
 
@@ -472,9 +474,7 @@ class TestPosthogSpanProcessor:
             parent_span_id=tools_group_span_id,
         )
 
-        ctx = _TraceContext(
-            trace_id="t", user_id="u", workspace_id="w", chat_uuid="c"
-        )
+        ctx = _TraceContext(trace_id="t", user_id="u", workspace_id="w", chat_uuid="c")
         token = _trace_ctx.set(ctx)
         try:
             processor.on_end(tool_span)

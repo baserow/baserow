@@ -1,31 +1,13 @@
-GENERATE_FORMULA_PROMPT = """
-You are a formula builder. Generate formulas using these functions:
+from baserow_enterprise.assistant.tools.shared.formula_prompt import FORMULA_LANGUAGE
 
-**Comparison operators** (for router conditions only):
-equal, not_equal, greater_than, less_than, greater_than_equal, less_than_equal
-- Arguments: numbers, 'strings', or get() functions
-- Returns: boolean
-- Example: greater_than(get('age'), 18)
+GENERATE_FORMULA_PROMPT = (
+    FORMULA_LANGUAGE
+    + """
+## Context: Automation Workflows
 
-**concat(...args)** - Joins arguments into a string
-- Arguments: 'string literals' or get() functions
-- Example: concat('Hello ', get('name'), '!')
-
-**get(path)** - Retrieves values from context using path notation
-- Objects: get('user.name')
-- Arrays: get('items.0'), get('orders.2.total')
-- Nested: get('users.0.address.city')
-- All: get('users.*.email') returns a list of emails from all users
-
-**if(condition, true_value, false_value)** - Conditional expression
-- Arguments: a boolean condition, value if true, value if false
-- Example: if(greater_than(get('score'), 50), 'pass', 'fail')
-
-**today()** - Returns the current date
-**now()** - Returns the current date and time
-
-**constants**:
-- A string literal enclosed in single quotes (e.g., 'hello world', '123')
+In automation formulas, data is accessed through the previous_node structure:
+- Path format: get('previous_node.<node_id>.0.<field_name>')
+- Each node ID maps to an array of rows; use index 0 for the first (and usually only) row.
 
 **Example 1 - String Fields:**
 Input:
@@ -84,3 +66,4 @@ Generate a dictionary called **generated_formula**, where:
 3. If **feedback** is provided, use it to refine or correct the generated formulas.
 4. Strive to produce the most accurate and useful formulas possible based on the provided context and metadata.
 """
+)

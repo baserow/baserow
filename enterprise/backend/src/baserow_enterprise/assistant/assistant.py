@@ -29,6 +29,7 @@ from baserow_enterprise.assistant.model_profiles import (
     get_model_settings,
     get_model_string,
 )
+from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
@@ -88,7 +89,8 @@ class Assistant:
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model = get_model_string()
+        self._model_string = get_model_string()
+        self._model = RetryingModel(self._model_string)
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
@@ -102,7 +104,7 @@ class Assistant:
             assistant_tool_registry.build_toolset(
                 user=self._user,
                 workspace=self._workspace,
-                model=self._model,
+                model=self._model_string,
                 deps=self._deps,
             )
         )
@@ -256,7 +258,7 @@ class Assistant:
         result = await title_agent.run(
             user_message,
             model=self._model,
-            model_settings=get_model_settings(self._model, TITLE),
+            model_settings=get_model_settings(self._model_string, TITLE),
         )
         return result.output
 
@@ -282,7 +284,7 @@ class Assistant:
                     message_history=message_history,
                     usage_limits=UsageLimits(request_limit=120),
                     toolsets=[self._toolset],
-                    model_settings=get_model_settings(self._model, ORCHESTRATOR),
+                    model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
                     event_stream_handler=lambda ctx, events: self._relay_tool_events(
                         events, queue
                     ),
@@ -320,11 +322,34 @@ class Assistant:
 
     async def _stream_answer(self, result, queue: asyncio.Queue[QueueEvent]) -> str:
         """Stream the agent's text output as ``AiMessageChunk`` events and
-        return the final accumulated answer."""
+        return the final accumulated answer.
+
+        Includes a guard against raw JSON leaking to the user.  When a
+        provider error recovery emits a ``ToolCallPart`` with empty args,
+        pydantic-ai's validation rejects it and sends a retry prompt.  The
+        model sometimes responds with the raw JSON as text instead of making
+        a corrected tool call.  We detect this by buffering output that
+        starts with ``{`` or ``[`` and replacing it with a fallback message
+        if the entire output turns out to be a JSON blob.
+        """
 
         answer = ""
+        # True while we suspect the output might be raw JSON; once the first
+        # non-whitespace character is not ``{``/``[`` we flush and stop.
+        json_buffering = True
+
         async for full_text in result.stream_text():
             answer = full_text
+
+            if json_buffering:
+                stripped = full_text.strip()
+                if not stripped:
+                    continue  # still empty, keep buffering
+                if stripped[0] in "{[":
+                    continue  # looks like JSON, keep buffering
+                # First real char is not JSON — flush the buffer and stream
+                json_buffering = False
+
             await queue.put(
                 QueueEvent(
                     kind=QueueEventKind.STREAM,
@@ -333,6 +358,25 @@ class Assistant:
                     ),
                 )
             )
+
+        # If the entire output was buffered (JSON-like), replace it.
+        if json_buffering and answer.strip():
+            logger.warning(
+                "[assistant] Suppressed JSON text output (likely a tool retry "
+                "artifact): {}",
+                answer[:200],
+            )
+            answer = (
+                "I ran into a temporary issue processing your request. "
+                "Could you please try again?"
+            )
+            await queue.put(
+                QueueEvent(
+                    kind=QueueEventKind.STREAM,
+                    message=AiMessageChunk(content=answer, sources=self._deps.sources),
+                )
+            )
+
         return answer
 
     # ------------------------------------------------------------------

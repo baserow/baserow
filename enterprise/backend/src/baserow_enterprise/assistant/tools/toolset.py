@@ -276,17 +276,23 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
     """
 
     _DO_EXCLUDE: frozenset[str] = frozenset({"search_user_docs"})
-    _EXPLAIN_INCLUDE: frozenset[str] = frozenset({
-        "list_builders",
-        "list_tables",
-        "get_tables_schema",
-        "list_rows",
-        "list_views",
-        "list_workflows",
-        "navigate",
-        "search_user_docs",
-        "switch_mode",
-    })
+    _EXPLAIN_INCLUDE: frozenset[str] = frozenset(
+        {
+            "list_builders",
+            "list_tables",
+            "get_tables_schema",
+            "list_rows",
+            "list_views",
+            "list_workflows",
+            "list_pages",
+            "list_data_sources",
+            "list_elements",
+            "list_actions",
+            "navigate",
+            "search_user_docs",
+            "switch_mode",
+        }
+    )
 
     def __init__(self, inner: AbstractToolset[AgentDepsT], deps: "AssistantDeps"):
         self._inner = inner
@@ -327,7 +333,12 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         ctx: Any,
         tool: ToolsetTool[AgentDepsT],
     ) -> Any:
-        return await self._inner.call_tool(name, tool_args, ctx, tool)
+        from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+
+        try:
+            return await self._inner.call_tool(name, tool_args, ctx, tool)
+        except ToolInputError as exc:
+            return {"error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -343,15 +354,25 @@ def tool_manifest_line_compact(name: str, description: str) -> str:
     return f"- {name}: {first_line}"
 
 
+_MODULE_LABELS: dict[str, str] = {
+    "core": "Core (workspace & modules)",
+    "navigation": "Navigation",
+    "database": "Database (tables, fields, views, rows)",
+    "builder": "Application Builder (pages, elements, data sources, actions)",
+    "automation": "Automations (workflows, triggers, actions)",
+    "search_user_docs": "Documentation",
+}
+
+
 def generate_tool_manifest_compact(
-    func_lists: list[list[Callable]],
+    module_groups: list[tuple[str, list[Callable]]],
     routing_rules: str = "",
 ) -> str:
     """
-    Build a compact ``<available_tools>`` manifest: routing rules + first-line
-    descriptions only.  Full tool guidance stays in the pydantic-ai tool schemas.
+    Build a compact ``<available_tools>`` manifest: routing rules + tools
+    grouped by module with section headers.
 
-    :param func_lists: Ordered lists of tool functions, one per module.
+    :param module_groups: ``(module_type, funcs)`` pairs, one per module.
     :param routing_rules: Cross-tool routing rules to prepend.
     :return: A newline-separated manifest string.
     """
@@ -359,8 +380,13 @@ def generate_tool_manifest_compact(
     lines: list[str] = []
     if routing_rules:
         lines.append(routing_rules.strip())
-        lines.append("")  # blank line separator
-    for funcs in func_lists:
+        lines.append("")
+    for module_type, funcs in module_groups:
+        if not funcs:
+            continue
+        label = _MODULE_LABELS.get(module_type, module_type)
+        lines.append(f"## {label}")
         for func in funcs:
             lines.append(tool_manifest_line_compact(func.__name__, func.__doc__ or ""))
-    return "\n".join(lines)
+        lines.append("")
+    return "\n".join(lines).rstrip()
