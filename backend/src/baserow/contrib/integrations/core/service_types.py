@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -48,7 +48,6 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.contrib.integrations.core.types import CorePeriodicServiceDueResult
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
 from baserow.core.formula.types import BaserowFormulaObject
@@ -1319,27 +1318,26 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return self._get_simulation_payload(service)
 
-    def call_periodic_services_that_are_due(self) -> CorePeriodicServiceDueResult:
+    def get_periodic_services_that_are_due(
+        self, current: datetime = None
+    ) -> QuerySet[CorePeriodicService]:
         """
-        Responsible for finding all periodic services that are due. This will likely
-        result in services which are due, but not dispatchable, it is up to the parent
-        instance (e.g. automation trigger) to determine if the due service is *also*
-        dispatchable (e.g. a trigger wants to know if the workflow is published).
+        Responsible for fetching all periodic services which are due to be run at the
+        given time. It also locks these services to prevent multiple workers from
+        dispatching the same service.
 
-        Only services which were dispatched will be included in the bulk-update, where
-        the two date fields are refreshed for their next run.
-
-        :returns: a `CorePeriodicServiceDueResult` containing the services which are
-            due, and the services which were dispatched.
+        :param current: The current time to compare the `next_run_at` field to.
+            If not provided, it will default to the current time.
+        :return: A queryset of `CorePeriodicService` instances which are due to be run.
         """
 
-        # Truncate to minute precision for consistent comparisons
-        now = timezone.now().replace(second=0, microsecond=0)
+        # If we haven't been given the current time, get it.
+        current = current or timezone.now()
 
-        # Find all services where next_run_at <= now OR next_run_at is NULL.
-        periodic_services_due = (
+        return (
             CorePeriodicService.objects.filter(
-                Q(next_run_at__lte=now) | Q(next_run_at__isnull=True)
+                Q(next_run_at__lte=current.replace(second=0, microsecond=0))
+                | Q(next_run_at__isnull=True)
             )
             .select_for_update(
                 of=("self",),
@@ -1348,6 +1346,21 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             .using(router.db_for_write(CorePeriodicService))
             .order_by("id")
         )
+
+    def call_periodic_services_that_are_due(self):
+        """
+        Responsible for finding all periodic services that are due. This will likely
+        result in services which are due, but not dispatchable, it is up to the parent
+        instance (e.g. automation trigger) to determine if the due service is *also*
+        dispatchable (e.g. a trigger wants to know if the workflow is published).
+
+        Only services which were dispatched will be included in the bulk-update, where
+        the two date fields are refreshed for their next run.
+        """
+
+        # Truncate to minute precision for consistent comparisons
+        now = timezone.now().replace(second=0, microsecond=0)
+        periodic_services_due = self.get_periodic_services_that_are_due(now)
 
         # After execution, calculate the next run time for each service
         calculated_periodic_services_due = []
@@ -1405,11 +1418,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             CorePeriodicService.objects.bulk_update(
                 periodic_services_dispatched, ["next_run_at", "last_periodic_run"]
             )
-
-        return CorePeriodicServiceDueResult(
-            services_due=periodic_services_due,
-            services_dispatched=periodic_services_dispatched,
-        )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"

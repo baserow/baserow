@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
+from django.utils.timezone import now
 
 import pytest
 from freezegun import freeze_time
@@ -22,6 +23,7 @@ from baserow.contrib.automation.workflows.service import AutomationWorkflowServi
 from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_DAY,
 )
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.handler import CoreHandler
 from baserow.core.services.registries import service_type_registry
@@ -671,25 +673,28 @@ def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fi
     )
 
     with freeze_time("2026-03-04 12:00:00"):
-        result = service_type_registry.get(
+        current_time = now()
+        services_due = list(
+            CorePeriodicServiceType().get_periodic_services_that_are_due(current_time)
+        )
+        service_type_registry.get(
             CorePeriodicServiceType.type
         ).call_periodic_services_that_are_due()
+        services_dispatched = CorePeriodicService.objects.filter(
+            last_periodic_run=now()
+        )
 
-        # `trigger_node_a` is due because: it's got no last/next runs, even though it's in draft.
-        assert result.services_due.contains(trigger_node_a.service)
-
-        # `trigger_node_b1` is due because: it's got no last/next runs, even though it's in draft.
-        assert result.services_due.contains(trigger_node_b1.service)
-
-        # `trigger_node_b2` is due because: its next run is now, and it's published.
-        assert result.services_due.contains(trigger_node_b2.service)
-
-        # `trigger_node_c1` is due because: it's got no last/next runs, even though it's in draft.
-        assert result.services_due.contains(trigger_node_c1.service)
-
-        # `trigger_node_c2` is NOT due because: its next run is tomorrow.
-        assert not result.services_due.contains(trigger_node_c2.service)
+        assert services_due == [
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_a.service,
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_b1.service,
+            # Due because: its next run is now, and it's published.
+            trigger_node_b2.service,
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_c1.service,
+        ]
 
         # `trigger_node_b2` is the only due service which we've found to be
         # appropriate for dispatching (its workflow is live/published).
-        assert result.services_dispatched == [trigger_node_b2.service]
+        assert list(services_dispatched) == [trigger_node_b2.service]
