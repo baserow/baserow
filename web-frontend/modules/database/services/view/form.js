@@ -20,14 +20,16 @@ export default (client) => {
     },
     getEditRow(slug, editToken, publicAuthToken = null) {
       const config = prepareRequestConfig({ publicAuthToken })
-      config.params = { edit_token: editToken }
-      return client.get(`/database/views/form/${slug}/edit-row/`, config)
+      return client.get(
+        `/database/views/form/${slug}/edit-row/${editToken}/`,
+        config
+      )
     },
     submitEditRow(slug, editToken, values, publicAuthToken = null) {
       const config = prepareRequestConfig({ publicAuthToken })
       return client.patch(
-        `/database/views/form/${slug}/edit-row/`,
-        { edit_token: editToken, ...values },
+        `/database/views/form/${slug}/edit-row/${editToken}/`,
+        values,
         config
       )
     },

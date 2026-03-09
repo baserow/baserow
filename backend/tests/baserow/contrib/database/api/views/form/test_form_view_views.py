@@ -3855,8 +3855,11 @@ def test_edit_row_get_valid_token(data_fixture, api_client):
     )
 
     token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
-    response = api_client.get(url, {"edit_token": token})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
+    response = api_client.get(url)
 
     assert response.status_code == HTTP_200_OK
     data = response.json()
@@ -3872,9 +3875,12 @@ def test_edit_row_get_invalid_token(data_fixture, api_client):
 
     RowHandler().create_row(user=user, table=table, values={})
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
-    response = api_client.get(url, {"edit_token": "invalid-token"})
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": "invalid-token"},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -3893,8 +3899,11 @@ def test_edit_row_get_missing_row(data_fixture, api_client):
     )
 
     token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
-    response = api_client.get(url, {"edit_token": token})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
+    response = api_client.get(url)
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
@@ -3923,10 +3932,13 @@ def test_edit_row_patch_updates_row(data_fixture, api_client):
     )
 
     token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
     response = api_client.patch(
         url,
-        {"edit_token": token, f"field_{text_field.id}": "Updated"},
+        {f"field_{text_field.id}": "Updated"},
         format="json",
     )
 
@@ -3949,13 +3961,16 @@ def test_edit_row_patch_invalid_token(data_fixture, api_client):
 
     RowHandler().create_row(user=user, table=table, values={})
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": "bad-token"},
+    )
     response = api_client.patch(
         url,
-        {"edit_token": "bad-token"},
+        {},
         format="json",
     )
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -3974,10 +3989,13 @@ def test_edit_row_patch_missing_row(data_fixture, api_client):
     )
 
     token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
     response = api_client.patch(
         url,
-        {"edit_token": token},
+        {},
         format="json",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -4014,11 +4032,13 @@ def test_edit_row_patch_only_visible_form_fields_are_writable(data_fixture, api_
     )
 
     token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
     response = api_client.patch(
         url,
         {
-            "edit_token": token,
             f"field_{visible_field.id}": "Updated visible",
             f"field_{hidden_field.id}": "Attempt to change hidden",
         },
@@ -4053,10 +4073,11 @@ def test_edit_row_get_token_for_wrong_view(data_fixture, api_client):
     # Token is signed for form_view, but request targets other_form_view.
     token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
     url = reverse(
-        "api:database:views:form:edit_row", kwargs={"slug": other_form_view.slug}
+        "api:database:views:form:edit_row",
+        kwargs={"slug": other_form_view.slug, "row_token": token},
     )
-    response = api_client.get(url, {"edit_token": token})
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -4079,10 +4100,11 @@ def test_edit_row_patch_token_for_wrong_view(data_fixture, api_client):
 
     token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
     url = reverse(
-        "api:database:views:form:edit_row", kwargs={"slug": other_form_view.slug}
+        "api:database:views:form:edit_row",
+        kwargs={"slug": other_form_view.slug, "row_token": token},
     )
-    response = api_client.patch(url, {"edit_token": token}, format="json")
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    response = api_client.patch(url, {}, format="json")
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -4107,9 +4129,12 @@ def test_edit_row_get_deleted_edit_field(data_fixture, api_client):
     # Delete the field after generating the token.
     FieldHandler().delete_field(user=user, field=edit_field_obj)
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
-    response = api_client.get(url, {"edit_token": token})
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -4133,9 +4158,12 @@ def test_edit_row_patch_deleted_edit_field(data_fixture, api_client):
 
     FieldHandler().delete_field(user=user, field=edit_field_obj)
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": form_view.slug})
-    response = api_client.patch(url, {"edit_token": token}, format="json")
-    assert response.status_code == HTTP_401_UNAUTHORIZED
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form_view.slug, "row_token": token},
+    )
+    response = api_client.patch(url, {}, format="json")
+    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -4161,8 +4189,11 @@ def test_edit_row_get_deleted_form_view(data_fixture, api_client):
     # Delete the form view after generating the token.
     form_view.delete()
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": slug})
-    response = api_client.get(url, {"edit_token": token})
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": slug, "row_token": token},
+    )
+    response = api_client.get(url)
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
@@ -4188,6 +4219,9 @@ def test_edit_row_patch_deleted_form_view(data_fixture, api_client):
 
     form_view.delete()
 
-    url = reverse("api:database:views:form:edit_row", kwargs={"slug": slug})
-    response = api_client.patch(url, {"edit_token": token}, format="json")
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": slug, "row_token": token},
+    )
+    response = api_client.patch(url, {}, format="json")
     assert response.status_code == HTTP_404_NOT_FOUND

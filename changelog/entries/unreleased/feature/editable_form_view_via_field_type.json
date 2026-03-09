@@ -1,7 +1,7 @@
 {
-    "type": "bug",
+    "type": "feature",
     "message": "Introduced field type that can edit a row via a form view.",
-    "issue_origin": "feature",
+    "issue_origin": "github",
     "issue_number": 2287,
     "domain": "database",
     "bullet_points": [],

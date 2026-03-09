@@ -63,7 +63,8 @@ class Command(BaseCommand):
 
 def _get_or_create_form_view(table: Table) -> FormView:
     return FormView.objects.get_or_create(
-        name="Form", order=0, defaults={"table": table}
+        table=table,
+        defaults={"name": "Form", "order": 0},
     )[0]
 
 

@@ -38,7 +38,7 @@ def decode_and_validate_edit_token(form: FormView, token: str) -> Tuple[int, int
     return data["row_id"], field_id
 
 
-def _build_field_kwargs_for_options(model, options, enforce_required=False):
+def build_field_kwargs_for_options(model, options, enforce_required=False):
     """
     Builds `field_kwargs` for the row serializer based on the form view's
     active field options.
@@ -64,9 +64,8 @@ def _build_field_kwargs_for_options(model, options, enforce_required=False):
                     ]
                 )
             )
-        if validators:
-            o["validators"] = validators
-        if o:
+        if len(validators) > 0 and len(o) > 0:
             name = model._field_objects[option.field_id]["name"]
+            o["validators"] = validators
             field_kwargs[name] = o
     return field_kwargs

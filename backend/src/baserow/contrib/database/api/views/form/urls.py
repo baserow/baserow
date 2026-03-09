@@ -16,7 +16,7 @@ urlpatterns = [
         name="upload_file",
     ),
     re_path(
-        r"(?P<slug>[-\w]+)/edit-row/$",
+        r"(?P<slug>[-\w]+)/edit-row/(?P<row_token>[^/]+)/$",
         EditRowFormViewView.as_view(),
         name="edit_row",
     ),

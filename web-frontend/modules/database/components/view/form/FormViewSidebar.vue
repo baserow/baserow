@@ -2,7 +2,9 @@
   <div class="form-view__sidebar">
     <div class="form-view__sidebar-fields">
       <div class="form-view__sidebar-fields-head">
-        <div class="form-view__sidebar-fields-title">Fields</div>
+        <div class="form-view__sidebar-fields-title">
+          {{ $t('formSidebar.fields') }}
+        </div>
         <ul
           v-if="!readOnly && !isDeactivated"
           class="form-view__sidebar-fields-actions"
@@ -75,6 +77,31 @@
           @field-created="$event.callback()"
         ></CreateFieldContext>
       </div>
+      <div v-if="editableByFields.length > 0" class="margin-top-2">
+        <p class="margin-bottom-1">
+          <i class="iconoir-warning-circle"></i>
+          {{ $t('formSidebar.rowEditableByDescription') }}
+        </p>
+        <div class="form-view__sidebar-fields-list">
+          <div
+            v-for="field in editableByFields"
+            :key="field.id"
+            class="form-view__sidebar-fields-item-wrapper"
+          >
+            <span
+              class="form-view__sidebar-fields-item form-view__sidebar-fields-item--disabled"
+            >
+              <i
+                class="form-view__sidebar-fields-icon"
+                :class="field._.type.iconClass"
+              ></i>
+              <div class="form-view__sidebar-fields-name">
+                {{ field.name }}
+              </div>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="form-view__sidebar-prefill-or-hide-link">
       <a @click="showFormPrefillOrHideModal">
@@ -93,6 +120,7 @@ import CreateFieldContext from '@baserow/modules/database/components/field/Creat
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewSidebarField from '@baserow/modules/database/components/view/form/FormViewSidebarField'
 import FormPrefillOrHideModal from '@baserow/modules/database/components/view/form/FormPrefillOrHideModal'
+import { FormViewEditRowFieldType } from '~/modules/database/fieldTypes.js'
 
 export default {
   name: 'FormViewSidebar',
@@ -141,6 +169,13 @@ export default {
       return (
         !this.readOnly &&
         this.modeType.isDeactivated(this.database.workspace.id)
+      )
+    },
+    editableByFields() {
+      return this.fields.filter(
+        (field) =>
+          field.type === FormViewEditRowFieldType.getType() &&
+          field.form_view_id === this.view.id
       )
     },
   },

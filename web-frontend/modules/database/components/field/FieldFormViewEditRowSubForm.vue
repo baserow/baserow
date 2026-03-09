@@ -35,7 +35,7 @@
     </FormGroup>
     <p
       v-if="values.form_view_id && !selectedViewIsPublic"
-      class="warning field-context__inner-element-width"
+      class="error field-context__inner-element-width"
     >
       <i class="iconoir-warning-triangle"></i>
       {{ $t('fieldFormViewEditRowSubForm.notPublicWarning') }}
@@ -49,6 +49,7 @@ import { required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import ViewService from '@baserow/modules/database/services/view'
+import { notifyIf } from '~/modules/core/utils/error.js'
 
 export default {
   name: 'FieldFormViewEditRowSubForm',
@@ -74,15 +75,23 @@ export default {
     },
   },
   async created() {
+    const selectedTableId = this.$store.getters['table/getSelected']?.id
+    const isSelectedTable = selectedTableId && selectedTableId === this.table.id
+    let views
     try {
-      const { data } = await ViewService(this.$client).fetchAll(
-        this.table.id,
-        false,
-        false,
-        false,
-        false
-      )
-      this.formViews = data
+      if (isSelectedTable) {
+        views = this.$store.getters['view/getAll']
+      } else {
+        const { data } = await ViewService(this.$client).fetchAll(
+          this.table.id,
+          false,
+          false,
+          false,
+          false
+        )
+        views = data
+      }
+      this.formViews = views
         .filter((view) => view.type === 'form')
         .map((view) => {
           const viewType = this.$registry.get('view', view.type)
@@ -90,6 +99,8 @@ export default {
           return view
         })
         .sort((a, b) => a.order - b.order)
+    } catch (error) {
+      notifyIf(error)
     } finally {
       this.viewsLoading = false
     }

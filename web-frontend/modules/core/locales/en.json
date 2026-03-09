@@ -635,6 +635,9 @@
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
   },
   "formSidebar": {
+    "fields": "Fields",
+    "rowEditableBy": "Update rows via fields",
+    "rowEditableByDescription": "The rows in this table can be updated using this form via the following row edit fields:",
     "actions": {
       "addAll": "Add all",
       "removeAll": "Remove all",

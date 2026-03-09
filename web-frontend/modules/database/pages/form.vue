@@ -157,7 +157,7 @@ const { data, error } = await useAsyncData(
     await Promise.all(promises)
 
     // If an edit token is present, prefill form with the existing row values so that
-    // the visit can update them.
+    // the visitor can update them.
     const editToken = route.query.edit_token || null
     if (editToken) {
       try {
