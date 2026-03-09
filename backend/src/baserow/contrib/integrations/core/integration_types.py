@@ -16,7 +16,7 @@ class SMTPIntegrationType(IntegrationType):
 
     serializer_field_names = ["host", "port", "use_tls", "username", "password"]
     allowed_fields = ["host", "port", "use_tls", "username", "password"]
-    sensitive_fields = ["username", "password"]
+    sensitive_fields = ["host", "port", "use_tls", "username", "password"]
 
     request_serializer_field_names = ["host", "port", "use_tls", "username", "password"]
     request_serializer_field_overrides = {}

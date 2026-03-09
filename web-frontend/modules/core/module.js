@@ -131,7 +131,6 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/version.js'))
     addPlugin(resolve('plugins/posthog.js'))
     addPlugin(resolve('plugins/vueDatepicker.js'))
-    //addPlugin(resolve('plugins/router.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
     addPlugin(resolve('plugins/storeRegister.js'))
     addPlugin(resolve('plugins/isWebFrontendHostname.js'))

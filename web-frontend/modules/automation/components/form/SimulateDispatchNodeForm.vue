@@ -1,5 +1,5 @@
 <template>
-  <div class="simulate-dispatch-node">
+  <div v-if="!isReadOnly" class="simulate-dispatch-node">
     <Button
       :loading="isLoading"
       :disabled="isDisabled"
@@ -82,9 +82,10 @@ import { computed, ref } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
-const app = useNuxtApp()
+const { $i18n, $hasPermission, $registry } = useNuxtApp()
 const store = useStore()
 
+const workspace = inject('workspace')
 const automation = inject('automation')
 const workflow = inject('workflow')
 const sampleDataModalRef = ref(null)
@@ -95,6 +96,11 @@ const props = defineProps({
     required: true,
   },
 })
+
+const isReadOnly = computed(
+  () =>
+    !$hasPermission('automation.node.update', props.node, workspace.value.id)
+)
 
 const isSimulating = computed(() => {
   return Number.isInteger(workflow.value.simulate_until_node_id)
@@ -113,7 +119,7 @@ const isLoading = computed(() => {
   return queryInProgress.value || isSimulatingThisNode.value
 })
 
-const nodeType = computed(() => app.$registry.get('node', props.node.type))
+const nodeType = computed(() => $registry.get('node', props.node.type))
 
 const sampleData = computed(() => {
   const sample = nodeType.value.getSampleData(props.node)
@@ -142,7 +148,7 @@ const isErrorSample = computed(() => {
  */
 const cantBeTestedReason = computed(() => {
   if (nodeType.value.isInError({ service: props.node.service })) {
-    return app.$i18n.t('simulateDispatch.errorNodeNotConfigured')
+    return $i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
   const previousNodes = store.getters[
@@ -150,19 +156,19 @@ const cantBeTestedReason = computed(() => {
   ](workflow.value, props.node)
 
   for (const previousNode of previousNodes) {
-    const previousNodeType = app.$registry.get('node', previousNode.type)
+    const previousNodeType = $registry.get('node', previousNode.type)
     const nodeLabel = previousNodeType.getLabel({
       automation: automation.value,
       node: previousNode,
     })
     if (previousNodeType.isInError(previousNode)) {
-      return app.$i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
+      return $i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
         node: nodeLabel,
       })
     }
 
     if (!previousNodeType.getSampleData(previousNode)?.data) {
-      return app.$i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
+      return $i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
         node: nodeLabel,
       })
     }
@@ -179,8 +185,8 @@ const isDisabled = computed(() => {
 })
 
 const sampleDataModalTitle = computed(() => {
-  const nodeType = app.$registry.get('node', props.node.type)
-  return app.$i18n.t('simulateDispatch.sampleDataModalTitle', {
+  const nodeType = $registry.get('node', props.node.type)
+  return $i18n.t('simulateDispatch.sampleDataModalTitle', {
     nodeLabel: nodeType.getLabel({
       automation: props.automation,
       node: props.node,
@@ -190,8 +196,8 @@ const sampleDataModalTitle = computed(() => {
 
 const buttonLabel = computed(() => {
   return hasSampleData.value
-    ? app.$i18n.t('simulateDispatch.buttonLabelTestAgain')
-    : app.$i18n.t('simulateDispatch.buttonLabelTest')
+    ? $i18n.t('simulateDispatch.buttonLabelTestAgain')
+    : $i18n.t('simulateDispatch.buttonLabelTest')
 })
 
 const simulateDispatchNode = async () => {

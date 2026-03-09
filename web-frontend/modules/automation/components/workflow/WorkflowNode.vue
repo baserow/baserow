@@ -124,7 +124,6 @@ const app = useNuxtApp()
 
 const workflowNode = ref()
 const children = ref()
-const nodeComponent = ref()
 const childEdge = ref()
 const coordsPerEdge = ref([])
 const edgeRefs = reactive({})

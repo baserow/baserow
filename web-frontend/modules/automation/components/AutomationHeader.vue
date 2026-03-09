@@ -62,7 +62,16 @@
       </li>
     </ul>
 
-    <div class="header__right">
+    <div
+      class="header__right"
+      v-if="
+        $hasPermission(
+          'application.update',
+          automation,
+          automation.workspace.id
+        )
+      "
+    >
       <span class="header__switch-container">
         <template v-if="!publishedOn">
           <Badge color="cyan" rounded size="small">{{

@@ -72,6 +72,7 @@ from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 AUTOMATION_NODES_TAG = "Automation nodes"
@@ -175,7 +176,7 @@ class AutomationNodesView(APIView):
         }
     )
     def get(self, request, workflow_id: int):
-        workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
+        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
 

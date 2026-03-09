@@ -233,9 +233,9 @@ def test_smtp_integration_export_serialized_exclude_sensitive(data_fixture):
     expected_serialized = {
         "id": AnyInt(),
         "type": "smtp",
-        "host": "smtp.example.com",
-        "port": 587,
-        "use_tls": True,
+        "host": None,
+        "port": None,
+        "use_tls": None,
         "username": None,
         "password": None,
         "name": "",

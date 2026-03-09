@@ -28,8 +28,8 @@
         size="large"
         icon="iconoir-nav-arrow-left"
       >
-        {{ $t('errorLayout.backDashboard') }}</Button
-      >
+        {{ $t('errorLayout.backDashboard') }}
+      </Button>
 
       <Button
         v-else

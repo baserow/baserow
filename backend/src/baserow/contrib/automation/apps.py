@@ -145,6 +145,20 @@ class AutomationConfig(AppConfig):
 
         action_scope_registry.register(WorkflowActionScopeType())
 
+        from baserow.core.registries import permission_manager_type_registry
+
+        from .permission_manager import AllowIfTemplatePermissionManagerType
+
+        prev_manager = permission_manager_type_registry.get(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.unregister(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.register(
+            AllowIfTemplatePermissionManagerType(prev_manager)
+        )
+
         automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
         automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
         automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
