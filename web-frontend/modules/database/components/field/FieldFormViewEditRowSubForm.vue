@@ -34,7 +34,14 @@
       </template>
     </FormGroup>
     <p
-      v-if="values.form_view_id && !selectedViewIsPublic"
+      v-if="values.form_view_id && !selectedFormExists"
+      class="error field-context__inner-element-width"
+    >
+      <i class="iconoir-warning-triangle"></i>
+      {{ $t('fieldFormViewEditRowSubForm.formDoesNotExist') }}
+    </p>
+    <p
+      v-else-if="values.form_view_id && !selectedViewIsPublic"
       class="error field-context__inner-element-width"
     >
       <i class="iconoir-warning-triangle"></i>
@@ -68,6 +75,10 @@ export default {
     }
   },
   computed: {
+    selectedFormExists() {
+      if (!this.values.form_view_id) return false
+      return !!this.formViews.find((v) => v.id === this.values.form_view_id)
+    },
     selectedViewIsPublic() {
       if (!this.values.form_view_id) return false
       const view = this.formViews.find((v) => v.id === this.values.form_view_id)

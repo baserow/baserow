@@ -168,7 +168,10 @@ const { data, error } = await useAsyncData(
         )
         Object.assign(values, rowData)
       } catch (e) {
-        throw createError({ statusCode: 404, message: 'Invalid edit token.' })
+        if (e.response.status === 404) {
+          throw createError({ statusCode: 404, message: 'Invalid edit token.' })
+        }
+        throw e
       }
     }
 

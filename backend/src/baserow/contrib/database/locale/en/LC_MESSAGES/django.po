@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 19:58+0000\n"
+"POT-Creation-Date: 2026-03-16 14:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,7 +49,7 @@ msgid ""
 "\"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:305
+#: src/baserow/contrib/database/application_types.py:311
 msgid "Table"
 msgstr ""
 
@@ -62,25 +62,25 @@ msgstr ""
 msgid "Data sync table \"%(table_name)s\" (%(table_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/actions.py:104
+#: src/baserow/contrib/database/data_sync/actions.py:105
 msgid "Update data sync table"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/actions.py:105
+#: src/baserow/contrib/database/data_sync/actions.py:106
 #, python-format
 msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/actions.py:166
+#: src/baserow/contrib/database/data_sync/actions.py:167
 msgid "Sync data sync table"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/actions.py:167
+#: src/baserow/contrib/database/data_sync/actions.py:168
 msgid "The data sync synchronized"
 msgstr ""
 
 #: src/baserow/contrib/database/data_sync/handler.py:209
-#: src/baserow/contrib/database/table/handler.py:476
+#: src/baserow/contrib/database/table/handler.py:478
 msgid "Grid"
 msgstr ""
 
@@ -210,8 +210,8 @@ msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:55
 #: src/baserow/contrib/database/plugins.py:77
-#: src/baserow/contrib/database/table/handler.py:572
-#: src/baserow/contrib/database/table/handler.py:585
+#: src/baserow/contrib/database/table/handler.py:574
+#: src/baserow/contrib/database/table/handler.py:587
 msgid "Name"
 msgstr ""
 
@@ -220,13 +220,13 @@ msgid "Last name"
 msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:57
-#: src/baserow/contrib/database/table/handler.py:573
+#: src/baserow/contrib/database/table/handler.py:575
 msgid "Notes"
 msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:58
 #: src/baserow/contrib/database/plugins.py:79
-#: src/baserow/contrib/database/table/handler.py:574
+#: src/baserow/contrib/database/table/handler.py:576
 msgid "Active"
 msgstr ""
 
@@ -254,74 +254,74 @@ msgstr ""
 msgid "Cellular Automata"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:82
+#: src/baserow/contrib/database/rows/actions.py:83
 msgid "Create row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:82
+#: src/baserow/contrib/database/rows/actions.py:83
 #, python-format
 msgid "Row (%(row_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:195
+#: src/baserow/contrib/database/rows/actions.py:204
 msgid "Create rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:195
+#: src/baserow/contrib/database/rows/actions.py:204
 #, python-format
 msgid "Rows (%(row_ids)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:312
+#: src/baserow/contrib/database/rows/actions.py:329
 msgid "Import rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:312
+#: src/baserow/contrib/database/rows/actions.py:329
 #, python-format
 msgid "Rows (%(row_ids)s) imported"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:403
+#: src/baserow/contrib/database/rows/actions.py:420
 msgid "Delete row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:403
+#: src/baserow/contrib/database/rows/actions.py:420
 #, python-format
 msgid "Row (%(row_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:497
+#: src/baserow/contrib/database/rows/actions.py:526
 msgid "Delete rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:497
+#: src/baserow/contrib/database/rows/actions.py:526
 #, python-format
 msgid "Rows (%(row_ids)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:667
+#: src/baserow/contrib/database/rows/actions.py:708
 msgid "Move row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:667
+#: src/baserow/contrib/database/rows/actions.py:708
 #, python-format
 msgid "Row (%(row_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:785
+#: src/baserow/contrib/database/rows/actions.py:826
 msgid "Update row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:785
+#: src/baserow/contrib/database/rows/actions.py:826
 #, python-format
 msgid "Row (%(row_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:885
+#: src/baserow/contrib/database/rows/actions.py:940
 msgid "Update rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:885
+#: src/baserow/contrib/database/rows/actions.py:940
 #, python-format
 msgid "Rows (%(row_ids)s) updated"
 msgstr ""
@@ -374,7 +374,7 @@ msgid ""
 "\"%(original_table_name)s\" (%(original_table_id)s) "
 msgstr ""
 
-#: src/baserow/contrib/database/table/handler.py:534
+#: src/baserow/contrib/database/table/handler.py:536
 #, python-format
 msgid "Field %d"
 msgstr ""
@@ -631,6 +631,15 @@ msgstr ""
 #: src/baserow/contrib/database/views/actions.py:2327
 #, python-format
 msgid "Row (%(row_id)s) created via form submission"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2484
+msgid "Edit form row"
+msgstr ""
+
+#: src/baserow/contrib/database/views/actions.py:2485
+#, python-format
+msgid "Row (%(row_id)s) updated via form edit"
 msgstr ""
 
 #: src/baserow/contrib/database/views/notification_types.py:86

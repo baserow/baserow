@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from uuid import UUID
 
 from django.db import models
 from django.db.models import Field
@@ -391,7 +392,7 @@ class FormViewEditRowURLSerializerField(serializers.Field):
         kwargs.setdefault("read_only", True)
         super().__init__(*args, **kwargs)
 
-    def to_representation(self, cell_uuid: str) -> Optional[str]:
+    def to_representation(self, cell_uuid: UUID) -> Optional[str]:
         """
         Convert the cell UUID into a full edit URL.
 

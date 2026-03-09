@@ -130,6 +130,8 @@ from .exceptions import (
 from .models import (
     DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
+    FormView,
+    FormViewFieldOptions,
     View,
     ViewDecoration,
     ViewFilter,
@@ -3374,12 +3376,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
     def submit_form_view(
         self,
-        user,
-        form,
-        values,
-        model: GeneratedTableModel | None = None,
-        enabled_field_options=None,
-    ):
+        user: AbstractUser,
+        form: FormView,
+        values: Dict[str, Any],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        enabled_field_options: Optional[QuerySet[FormViewFieldOptions]] = None,
+    ) -> GeneratedTableModel:
         """
         Handles when a form is submitted. It will validate the data by checking if
         the required fields are provided and not empty and it will create a new row
@@ -3431,13 +3433,13 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
     def edit_form_view_row(
         self,
-        user,
-        form,
-        row_id,
-        values,
-        model: GeneratedTableModel | None = None,
-        enabled_field_options=None,
-    ):
+        user: AbstractUser,
+        form: FormView,
+        row_id: int,
+        values: Dict[str, Any],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        enabled_field_options: Optional[QuerySet[FormViewFieldOptions]] = None,
+    ) -> GeneratedTableModel:
         """
         Handles when a row is edited via a form view. Only fields that are enabled
         in the form view can be updated.

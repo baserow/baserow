@@ -7547,6 +7547,7 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
     def get_model_field(self, instance, **kwargs):
         return models.UUIDField(
             default=uuid.uuid4,
+            db_default=RandomUUID(),
             null=True,
             db_index=instance.db_index,
             **kwargs,
@@ -7572,30 +7573,6 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
                 id=form_view_id, table_id=from_field.table_id
             ).exists():
                 raise ViewNotInTable(form_view_id)
-
-    def after_create(self, field, model, user, connection, before, field_kwargs):
-        """
-        After the field column is created, assign a unique UUID to every
-        existing row using a single SQL UPDATE with the database's built-in
-        random UUID generator.
-        """
-
-        model.objects.all().update(**{f"{field.db_column}": RandomUUID()})
-
-    def after_update(
-        self,
-        from_field,
-        to_field,
-        from_model,
-        to_model,
-        user,
-        connection,
-        altered_column,
-        before,
-        to_field_kwargs,
-    ):
-        if not isinstance(from_field, self.model_class):
-            to_model.objects.all().update(**{f"{to_field.db_column}": RandomUUID()})
 
     def is_searchable(self, field: Field) -> bool:
         return False

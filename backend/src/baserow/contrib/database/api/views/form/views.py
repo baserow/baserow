@@ -1,4 +1,3 @@
-from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -210,12 +209,15 @@ class EditRowFormViewView(APIView):
             200: get_example_row_serializer_class(example_type="get"),
             401: get_error_schema(
                 [
-                    "ERROR_INVALID_EDIT_ROW_TOKEN",
                     "ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM",
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_FORM_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_FORM_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_INVALID_EDIT_ROW_TOKEN",
+                ]
             ),
         },
     )
@@ -283,13 +285,16 @@ class EditRowFormViewView(APIView):
             200: FormViewSubmittedSerializer,
             401: get_error_schema(
                 [
-                    "ERROR_INVALID_EDIT_ROW_TOKEN",
                     "ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM",
                 ]
             ),
             400: get_error_schema(["ERROR_FIELD_DATA_CONSTRAINT"]),
             404: get_error_schema(
-                ["ERROR_FORM_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_FORM_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_INVALID_EDIT_ROW_TOKEN",
+                ]
             ),
         },
     )
@@ -332,9 +337,8 @@ class EditRowFormViewView(APIView):
         )
         values = validate_data(validation_serializer, data, return_validated=True)
 
-        user = AnonymousUser()
         updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
-            user, form, row.id, values, model, options
+            request.user, form, row.id, values, model, options
         )
 
         form.row_id = updated_row.id
