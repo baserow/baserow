@@ -113,7 +113,7 @@
     "tldjs": "^2.3.1",
     "ulid": "^3.0.1",
     "vite-plugin-node-polyfills": "^0.24.0",
-    "vite-svg-loader": "^5.1.0",
+    "vite-svg-loader": "^5.1.1",
     "vue": "^3.5.25",
     "vue-chartjs": "^5.3.3",
     "vue-router": "^4.6.3",
