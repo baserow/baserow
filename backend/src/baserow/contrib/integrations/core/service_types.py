@@ -1360,11 +1360,28 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         # Truncate to minute precision for consistent comparisons
         now = timezone.now().replace(second=0, microsecond=0)
+
+        # Determine which services are due to be run. This is not an exhaustive list,
+        # it's possible only a subset of these will actually be dispatched.
         periodic_services_due = self.get_periodic_services_that_are_due(now)
 
-        # After execution, calculate the next run time for each service
-        calculated_periodic_services_due = []
-        for service in periodic_services_due:
+        # This list will contain the definitive list of services that were marked
+        # for dispatching by the parent, and which we will update the `next_run_at` and
+        # `last_periodic_run` fields for.
+        periodic_services_dispatched = []
+
+        def _get_service_payload(
+            dispatched_service: CorePeriodicService,
+        ) -> Dict[str, str]:
+            """
+            Responsible for returning this service's specific payload,
+            and also creating a list of our due services which were *also*
+            deemed to be dispatchable by the parent.
+
+            :param dispatched_service: The service which will be dispatched.
+            :return: The payload to dispatch for this service.
+            """
+
             # Calculate next run from the current `next_run_at` (not from 'now').
             # This prevents drift even if the service runs late.
             # If the service ran *very* late (e.g. it was scheduled, but the server
@@ -1377,41 +1394,26 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             # - The next run would technically be scheduled for 10:01:00, but that time
             #   is also in the past. So we keep advancing until we find a future time
             #  (10:06:00 in this case).
-            next_run = service.next_run_at or now
+            next_run = dispatched_service.next_run_at or now
             while next_run <= now:
                 next_run = calculate_next_periodic_run(
-                    interval=service.interval,
-                    minute=service.minute,
-                    hour=service.hour,
-                    day_of_week=service.day_of_week,
-                    day_of_month=service.day_of_month,
+                    interval=dispatched_service.interval,
+                    minute=dispatched_service.minute,
+                    hour=dispatched_service.hour,
+                    day_of_week=dispatched_service.day_of_week,
+                    day_of_month=dispatched_service.day_of_month,
                     from_time=next_run,
                 )
 
-            service.next_run_at = next_run
-            service.last_periodic_run = now
-            calculated_periodic_services_due.append(service)
-
-        periodic_services_dispatched = []
-
-        def _after_service_dispatch(
-            dispatched_service: CorePeriodicService,
-        ) -> Dict[str, str]:
-            """
-            Responsible for returning this service's specific payload,
-            and also creating a list of our due services which were *also*
-            deemed to be dispatchable by the parent.
-
-            :param dispatched_service: The service which will be dispatched.
-            :return: The payload to dispatch for this service.
-            """
+            dispatched_service.next_run_at = next_run
+            dispatched_service.last_periodic_run = now
 
             periodic_services_dispatched.append(dispatched_service)
             return self._get_dispatch_payload(dispatched_service)
 
         self.on_event(
-            calculated_periodic_services_due,
-            _after_service_dispatch,
+            periodic_services_due,
+            _get_service_payload,
         )
 
         if periodic_services_dispatched:
