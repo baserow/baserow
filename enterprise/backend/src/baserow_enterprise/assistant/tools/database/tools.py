@@ -411,7 +411,7 @@ def create_tables(
         At the end, this tool automatically navigates the user to the last created table.
     RETURNS: Created table schemas with all field IDs. Notes on any errors.
     DO NOT USE when: Tables already exist — check with list_tables first.
-    HOW: Pass ALL tables in a single call to speed up creation and sample-row generation. Choose appropriate field types for each column. Use link_row for relationships (linked table must exist first).
+    HOW: Pass ALL related tables in a single call — link_row fields can reference other tables in the same call by name (they are created internally before fields are added). Choose appropriate field types for each column.
         Use single_select/multiple_select with select_options for categorical data. The primary field is always text — pick a meaningful name for it.
     """
 
@@ -982,6 +982,7 @@ def _build_row_tools(
     workspace: Workspace,
     tool_helpers: "ToolHelpers",
     table: Table,
+    field_ids: list[int] | None = None,
 ) -> dict[str, Tool]:
     """
     Build pydantic-ai Tool objects for row CRUD on a single table.
@@ -994,9 +995,11 @@ def _build_row_tools(
     :param workspace: Current workspace.
     :param tool_helpers: Provides status updates and cancellation.
     :param table: The table to build row tools for.
+    :param field_ids: If given, only include these field IDs in the
+        create model (useful for excluding reverse link_row fields).
     """
 
-    row_model_for_create = get_create_row_model(table)
+    row_model_for_create = get_create_row_model(table, field_ids=field_ids)
     row_model_for_update = get_update_row_model(table)
     link_row_hints = get_link_row_hints(row_model_for_create)
 

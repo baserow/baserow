@@ -9,6 +9,7 @@ import pytest
 
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
+    create_collection_elements,
     create_data_sources,
     create_display_elements,
     create_form_elements,
@@ -21,20 +22,29 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     set_theme,
     update_data_source,
     update_element,
+    update_element_style,
     update_page,
 )
 from baserow_enterprise.assistant.tools.builder.types import (
     ActionCreate,
+    ButtonStyleOverride,
+    CollectionElementCreate,
     DataSourceCreate,
     DataSourceSort,
     DataSourceUpdate,
     DisplayElementCreate,
+    ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
+    InputStyleOverride,
     LayoutElementCreate,
+    LinkStyleOverride,
+    MenuItemCreate,
     PageCreate,
     PagePathParam,
     PageUpdate,
+    TableFieldConfig,
+    TypographyStyleOverride,
 )
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
@@ -50,7 +60,7 @@ def mock_formula_generators(monkeypatch):
     """Mock all formula generation to avoid LLM requirement in tests."""
 
     def noop(*args, **kwargs):
-        pass
+        return []
 
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
@@ -1118,3 +1128,796 @@ def test_update_data_source_search_query_formula():
 
     formulas = ds_update.get_formulas_to_update(None, None)
     assert "search_query" in formulas
+
+
+# ---------------------------------------------------------------------------
+# Shared element tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_menu_with_items(data_fixture):
+    """Creating a menu element with menu_items should produce MenuItemElement rows."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+    page2 = data_fixture.create_builder_page(
+        builder=builder, name="About", path="/about"
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    result = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(
+                ref="hdr",
+                type="header",
+            ),
+            LayoutElementCreate(
+                ref="nav",
+                type="menu",
+                parent_element="hdr",
+                menu_items=[
+                    MenuItemCreate(name="Home", page_id=page.id),
+                    MenuItemCreate(name="About", page_id=page2.id),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+
+    assert len(result["created_elements"]) == 2
+
+    # Menu should be on the shared page (child of header)
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    menu_id = result["ref_to_id_map"]["nav"]
+    menu_el = ElementHandler().get_element(menu_id).specific
+    assert menu_el.page.shared, "Menu should be on the shared page"
+
+    items = list(menu_el.menu_items.all().order_by("menu_item_order"))
+    assert len(items) == 2
+    assert items[0].name == "Home"
+    assert items[0].navigate_to_page_id == page.id
+    assert items[1].name == "About"
+    assert items[1].navigate_to_page_id == page2.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_menu_items(data_fixture):
+    """update_element with menu_items should replace the menu's items."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+    page2 = data_fixture.create_builder_page(
+        builder=builder, name="About", path="/about"
+    )
+    page3 = data_fixture.create_builder_page(
+        builder=builder, name="Contact", path="/contact"
+    )
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    # Create header + menu with 1 item
+    result = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="hdr", type="header"),
+            LayoutElementCreate(
+                ref="nav",
+                type="menu",
+                parent_element="hdr",
+                menu_items=[MenuItemCreate(name="Home", page_id=page.id)],
+            ),
+        ],
+        thought="test",
+    )
+    menu_id = result["ref_to_id_map"]["nav"]
+
+    # Update to 3 items
+    update_result = update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=menu_id,
+            menu_items=[
+                MenuItemCreate(name="Home", page_id=page.id),
+                MenuItemCreate(name="About", page_id=page2.id),
+                MenuItemCreate(name="Contact", page_id=page3.id),
+            ],
+        ),
+        thought="test",
+    )
+
+    assert update_result["status"] == "ok"
+    assert "menu_items" in update_result["updated_fields"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    menu_el = ElementHandler().get_element(menu_id).specific
+    items = list(menu_el.menu_items.all().order_by("menu_item_order"))
+    assert len(items) == 3
+    assert items[0].name == "Home"
+    assert items[1].name == "About"
+    assert items[1].navigate_to_page_id == page2.id
+    assert items[2].name == "Contact"
+    assert items[2].navigate_to_page_id == page3.id
+
+
+# ===========================================================================
+# Element style tests
+# ===========================================================================
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_box_model(data_fixture):
+    """Set border, padding, margin, background, width — all sides uniform."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            border_color="#ff0000",
+            border_size=2,
+            padding=30,
+            margin=10,
+            border_radius=8,
+            background="color",
+            background_color="#00ff00",
+            width="full",
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+    assert result["element_type"] == "heading"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    for side in ("top", "bottom", "left", "right"):
+        assert getattr(el, f"style_border_{side}_color") == "#ff0000"
+        assert getattr(el, f"style_border_{side}_size") == 2
+        assert getattr(el, f"style_padding_{side}") == 30
+        assert getattr(el, f"style_margin_{side}") == 10
+    assert el.style_border_radius == 8
+    assert el.style_background == "color"
+    assert el.style_background_color == "#00ff00"
+    assert el.style_width == "full"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_reset(data_fixture):
+    """Apply custom styles, then reset to defaults."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    # Apply custom styles
+    update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            padding=50,
+            border_size=5,
+            background="color",
+            background_color="#123456",
+        ),
+        thought="test",
+    )
+
+    # Reset
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(element_id=element_id, reset=True),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    assert el.style_padding_top == 10
+    assert el.style_padding_left == 20
+    assert el.style_border_top_size == 0
+    assert el.style_background == "none"
+    assert el.style_background_color == "#ffffffff"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_reset_with_overrides(data_fixture):
+    """reset=True + padding=50 → padding=50 all sides, rest at defaults."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(element_id=element_id, reset=True, padding=50),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    for side in ("top", "bottom", "left", "right"):
+        assert getattr(el, f"style_padding_{side}") == 50
+    # Other fields at defaults
+    assert el.style_border_top_size == 0
+    assert el.style_background == "none"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_partial(data_fixture):
+    """Only set background_color — other fields untouched."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el_before = ElementHandler().get_element(element_id)
+    padding_before = el_before.style_padding_top
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            background_color="#abcdef",
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+    assert result["updated_fields"] == ["style_background_color"]
+
+    el = ElementHandler().get_element(element_id)
+    assert el.style_background_color == "#abcdef"
+    assert el.style_padding_top == padding_before  # unchanged
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_button_overrides(data_fixture):
+    """Button element with button style overrides → styles JSON."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="btn", type="button", value="Click me"),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            button=ButtonStyleOverride(
+                background_color="#ff0000",
+                text_color="#ffffff",
+            ),
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+    assert result["element_type"] == "button"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    styles = el.styles
+    assert styles["button"]["button_background_color"] == "#ff0000"
+    assert styles["button"]["button_text_color"] == "#ffffff"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_typography_overrides(data_fixture):
+    """Heading element with typography overrides → styles JSON."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            typography=TypographyStyleOverride(
+                heading_1_text_color="#333333",
+                heading_1_font_size=32,
+                heading_1_text_alignment="center",
+            ),
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    styles = el.styles
+    assert styles["typography"]["heading_1_text_color"] == "#333333"
+    assert styles["typography"]["heading_1_font_size"] == 32
+    assert styles["typography"]["heading_1_text_alignment"] == "center"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_input_overrides(data_fixture):
+    """Input text element with input overrides → styles JSON."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_form_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            FormElementCreate(ref="inp", type="input_text", label="Name"),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            input=InputStyleOverride(
+                input_background_color="#f0f0f0",
+                input_border_color="#cccccc",
+                label_text_color="#666666",
+            ),
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    styles = el.styles
+    assert styles["input"]["input_background_color"] == "#f0f0f0"
+    assert styles["input"]["input_border_color"] == "#cccccc"
+    assert styles["input"]["label_text_color"] == "#666666"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_ignores_wrong_block(data_fixture):
+    """On a heading, button overrides should be ignored (wrong type)."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Title", level=1),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            button=ButtonStyleOverride(background_color="#ff0000"),
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    # styles should not contain button block
+    assert "button" not in (el.styles or {})
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_combined(data_fixture):
+    """Box model + theme overrides in one call."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="btn", type="button", value="Go"),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            padding=20,
+            border_color="#000000",
+            border_size=1,
+            button=ButtonStyleOverride(
+                background_color="#0000ff",
+                text_color="#ffffff",
+            ),
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "ok"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    # Box model
+    assert el.style_padding_top == 20
+    assert el.style_border_top_color == "#000000"
+    assert el.style_border_top_size == 1
+    # Theme overrides
+    assert el.styles["button"]["button_background_color"] == "#0000ff"
+    assert el.styles["button"]["button_text_color"] == "#ffffff"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_merges_existing_overrides(data_fixture):
+    """Second style call should merge with existing overrides, not wipe them."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    el_result = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="btn", type="button", value="Go"),
+        ],
+        thought="test",
+    )
+    element_id = el_result["created_elements"][0]["id"]
+
+    # First call: set font_size and background_color
+    update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            button=ButtonStyleOverride(
+                font_size=18,
+                background_color="#0000ff",
+            ),
+        ),
+        thought="test",
+    )
+
+    # Second call: only change text_color
+    update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=element_id,
+            button=ButtonStyleOverride(text_color="#ffffff"),
+        ),
+        thought="test",
+    )
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(element_id)
+    btn = el.styles["button"]
+    # First call's values should still be present
+    assert btn["button_font_size"] == 18
+    assert btn["button_background_color"] == "#0000ff"
+    # Second call's value should be added
+    assert btn["button_text_color"] == "#ffffff"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_menu_link_color(data_fixture):
+    """Menu element link overrides should store under 'menu' key, not 'link'."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    # Create header + menu
+    result = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="hdr", type="header"),
+            LayoutElementCreate(
+                ref="nav",
+                type="menu",
+                parent_element="hdr",
+                menu_items=[MenuItemCreate(name="Home", page_id=page.id)],
+            ),
+        ],
+        thought="test",
+    )
+    menu_id = result["ref_to_id_map"]["nav"]
+
+    # Set link color to red on menu
+    style_result = update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=menu_id,
+            link=LinkStyleOverride(text_color="#ff0000"),
+        ),
+        thought="test",
+    )
+
+    assert style_result["status"] == "ok"
+    assert style_result["element_type"] == "menu"
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(menu_id)
+    # Link props go under "menu" key for menu elements
+    assert "menu" in el.styles
+    assert el.styles["menu"]["link_text_color"] == "#ff0000"
+    # Should NOT have a separate "link" key
+    assert "link" not in el.styles
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_element_style_menu_button_and_link(data_fixture):
+    """Menu element: both button and link overrides merge under 'menu' key."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    result = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="hdr", type="header"),
+            LayoutElementCreate(
+                ref="nav",
+                type="menu",
+                parent_element="hdr",
+                menu_items=[MenuItemCreate(name="Home", page_id=page.id)],
+            ),
+        ],
+        thought="test",
+    )
+    menu_id = result["ref_to_id_map"]["nav"]
+
+    update_element_style(
+        ctx,
+        page_id=page.id,
+        style=ElementStyleUpdate(
+            element_id=menu_id,
+            button=ButtonStyleOverride(background_color="#0000ff"),
+            link=LinkStyleOverride(text_color="#ff0000"),
+        ),
+        thought="test",
+    )
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    el = ElementHandler().get_element(menu_id)
+    menu_styles = el.styles["menu"]
+    assert menu_styles["button_background_color"] == "#0000ff"
+    assert menu_styles["link_text_color"] == "#ff0000"
+
+
+# ===========================================================================
+# Table element property options tests
+# ===========================================================================
+
+
+@pytest.mark.django_db(transaction=True)
+def test_table_element_auto_enables_filter_sort_search(data_fixture):
+    """Table text columns referencing real fields get filter/sort/search enabled."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    # Create a data source first
+    ds_result = create_data_sources(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="ds1",
+                name="People",
+                type="list_rows",
+                table_id=table.id,
+            ),
+        ],
+        thought="test",
+    )
+    ds_id = ds_result["ref_to_id_map"]["ds1"]
+
+    # Create a table with 2 text columns + 1 button column
+    result = create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=ds_id,
+                fields=[
+                    TableFieldConfig(name="Name", type="text"),
+                    TableFieldConfig(name="Email", type="text"),
+                    TableFieldConfig(name="Actions", type="button", label="Edit"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+
+    table_element_id = result["ref_to_id_map"]["tbl"]
+
+    from baserow.contrib.builder.elements.models import CollectionElementPropertyOptions
+
+    options = list(
+        CollectionElementPropertyOptions.objects.filter(
+            element_id=table_element_id
+        ).order_by("schema_property")
+    )
+
+    # Should have options for both text columns, not for the button column
+    assert len(options) == 2
+
+    schema_props = {o.schema_property for o in options}
+    assert f"field_{name_field.id}" in schema_props
+    assert f"field_{email_field.id}" in schema_props
+
+    for opt in options:
+        assert opt.filterable is True
+        assert opt.sortable is True
+        assert opt.searchable is True

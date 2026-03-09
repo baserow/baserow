@@ -70,7 +70,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         workspace: "Workspace",
         model: str,
         deps: "AssistantDeps",
-    ) -> tuple[AbstractToolset, str, str]:
+    ) -> tuple[AbstractToolset, str, str, str, str]:
         """
         Assemble the combined assistant toolset, filtering by ``can_use()``.
 
@@ -78,7 +78,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         :param workspace: The current workspace.
         :param model: The pydantic-ai model string.
         :param deps: The assistant deps (used for mode-aware filtering).
-        :return: ``(toolset, do_manifest, explain_manifest)``.
+        :return: ``(toolset, database_manifest, application_manifest,
+            automation_manifest, explain_manifest)``.
         """
 
         toolsets: list[AbstractToolset] = []
@@ -93,26 +94,46 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         combined = CombinedToolset(toolsets)
         mode_aware = ModeAwareToolset(combined, deps)
 
-        from baserow_enterprise.assistant.prompts import TOOL_ROUTING_RULES
-
-        do_exclude = ModeAwareToolset._DO_EXCLUDE
-        explain_include = ModeAwareToolset._EXPLAIN_INCLUDE
-
-        do_groups = [
-            (label, [f for f in funcs if f.__name__ not in do_exclude])
-            for label, funcs in module_groups
-        ]
-        explain_groups = [
-            (label, [f for f in funcs if f.__name__ in explain_include])
-            for label, funcs in module_groups
-        ]
-
-        do_manifest = generate_tool_manifest_compact(
-            do_groups, routing_rules=TOOL_ROUTING_RULES
+        from baserow_enterprise.assistant.prompts import (
+            TOOL_ROUTING_RULES_APPLICATION,
+            TOOL_ROUTING_RULES_AUTOMATION,
+            TOOL_ROUTING_RULES_DATABASE,
         )
-        explain_manifest = generate_tool_manifest_compact(explain_groups)
 
-        return InlineRefsToolset(mode_aware, model=model), do_manifest, explain_manifest
+        from .toolset import (
+            _APPLICATION_TOOLS,
+            _AUTOMATION_TOOLS,
+            _DATABASE_TOOLS,
+            _EXPLAIN_INCLUDE,
+        )
+
+        manifests = {}
+        for mode_key, allowed, rules in [
+            ("database", _DATABASE_TOOLS, TOOL_ROUTING_RULES_DATABASE),
+            ("application", _APPLICATION_TOOLS, TOOL_ROUTING_RULES_APPLICATION),
+            ("automation", _AUTOMATION_TOOLS, TOOL_ROUTING_RULES_AUTOMATION),
+        ]:
+            groups = [
+                (label, [f for f in funcs if f.__name__ in allowed])
+                for label, funcs in module_groups
+            ]
+            manifests[mode_key] = generate_tool_manifest_compact(
+                groups, routing_rules=rules
+            )
+
+        explain_groups = [
+            (label, [f for f in funcs if f.__name__ in _EXPLAIN_INCLUDE])
+            for label, funcs in module_groups
+        ]
+        manifests["explain"] = generate_tool_manifest_compact(explain_groups)
+
+        return (
+            InlineRefsToolset(mode_aware, model=model),
+            manifests["database"],
+            manifests["application"],
+            manifests["automation"],
+            manifests["explain"],
+        )
 
 
 assistant_tool_registry = AssistantToolRegistry()

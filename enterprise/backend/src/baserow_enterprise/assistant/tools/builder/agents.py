@@ -334,9 +334,14 @@ def update_element_formulas(
     elements: list[ElementItemCreate],
     element_mapping: dict[str, tuple[Any, ElementItemCreate]],
     tool_helpers: "ToolHelpers",
-) -> None:
-    """Generate and apply formulas for elements that need them."""
+) -> list[str]:
+    """Generate and apply formulas for elements that need them.
 
+    Returns a list of error messages for elements whose formulas could
+    not be generated (empty list on full success).
+    """
+
+    errors: list[str] = []
     context = BuilderFormulaContext(page)
     context.load_page_context()
     generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
@@ -350,9 +355,13 @@ def update_element_formulas(
 
         # Push collection context if inside a repeat/table
         pushed = False
-        ancestor = ElementHandler().get_first_ancestor_of_type(
-            orm_element.id, CollectionElementTypeMixin
-        )
+        try:
+            ancestor = ElementHandler().get_first_ancestor_of_type(
+                orm_element.id, CollectionElementTypeMixin
+            )
+        except KeyError:
+            # Parent element may be on a different page (e.g. shared page header)
+            ancestor = None
         if ancestor:
             context.push_current_record_context(ancestor.data_source_id)
             pushed = True
@@ -378,14 +387,17 @@ def update_element_formulas(
                         if generated:
                             el_create.update_with_formulas(user, orm_element, generated)
                     except Exception as exc:
-                        logger.exception(
+                        logger.error(
                             "Failed to generate formulas for element {}: {}",
                             orm_element.id,
                             exc,
                         )
+                        errors.append(f"Formula generation failed for '{ref}': {exc}")
         finally:
             if pushed:
                 context.pop_current_record_context()
+
+    return errors
 
 
 def update_data_source_formulas(
@@ -393,11 +405,16 @@ def update_data_source_formulas(
     page: Page,
     ds_pairs: list[tuple[Any, DataSourceCreate]],
     tool_helpers: "ToolHelpers",
-) -> None:
-    """Generate and apply formulas for data sources that need them."""
+) -> list[str]:
+    """Generate and apply formulas for data sources that need them.
 
+    Returns a list of error messages for data sources whose formulas could
+    not be generated (empty list on full success).
+    """
+
+    errors: list[str] = []
     if not ds_pairs:
-        return
+        return errors
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
@@ -417,15 +434,22 @@ def update_data_source_formulas(
                         if generated:
                             ds_create.update_with_formulas(user, orm_ds, generated)
                     except Exception as exc:
-                        logger.exception(
+                        logger.error(
                             "Failed to generate formulas for data source {}: {}",
                             orm_ds.id,
                             exc,
                         )
+                        errors.append(
+                            f"Formula generation failed for data source "
+                            f"'{ds_create.name}': {exc}"
+                        )
         except Exception as exc:
-            logger.exception(
+            logger.error(
                 "Error processing data source {} for formulas: {}", orm_ds.id, exc
             )
+            errors.append(f"Error processing data source '{ds_create.name}': {exc}")
+
+    return errors
 
 
 def update_single_data_source_formulas(
@@ -560,11 +584,16 @@ def update_workflow_action_formulas(
     page: Page,
     action_pairs: list[tuple[Any, ActionCreate]],
     tool_helpers: "ToolHelpers",
-) -> None:
-    """Generate and apply formulas for workflow actions that need them."""
+) -> list[str]:
+    """Generate and apply formulas for workflow actions that need them.
 
+    Returns a list of error messages for actions whose formulas could
+    not be generated (empty list on full success).
+    """
+
+    errors: list[str] = []
     if not action_pairs:
-        return
+        return errors
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
@@ -601,15 +630,23 @@ def update_workflow_action_formulas(
                             None, workflow_action=orm_action, user=user
                         )
                     except Exception as exc:
-                        logger.exception(
+                        logger.error(
                             "Failed to generate formulas for action {}: {}",
                             orm_action.id,
                             exc,
                         )
+                        errors.append(
+                            f"Formula generation failed for action on '{ref}': {exc}"
+                        )
         except Exception as exc:
-            logger.exception(
+            logger.error(
                 "Error processing action {} for formulas: {}", orm_action.id, exc
+            )
+            errors.append(
+                f"Error processing action on element '{action_create.element}': {exc}"
             )
         finally:
             if pushed:
                 context.pop_current_record_context()
+
+    return errors

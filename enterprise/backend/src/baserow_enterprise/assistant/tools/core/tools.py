@@ -134,18 +134,25 @@ def create_builders(
 def switch_mode(
     ctx: RunContext[AssistantDeps],
     mode: Annotated[
-        Literal["do", "explain"],
-        Field(description="Target mode: 'do' to act, 'explain' to answer questions."),
+        Literal["database", "application", "automation", "explain"],
+        Field(
+            description=(
+                "Target mode: 'database' for table/field/view/row ops, "
+                "'application' for page/element/data-source ops, "
+                "'automation' for workflow/node ops, "
+                "'explain' for answering Baserow questions."
+            )
+        ),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
 ) -> str:
     """\
-    Switch between DO (act) and EXPLAIN (answer questions) modes.
+    Switch between domain modes (database, application, automation, explain).
 
-    WHEN to use: User asks a how-to or feature question about Baserow → switch to "explain". User wants to create/modify/delete resources → switch to "do".
-    WHAT it does: Changes the available toolset. DO mode has all action tools. EXPLAIN mode has read-only tools + search_user_docs.
+    WHEN to use: Task needs tools from a different domain, or user asks a how-to question (→ "explain").
+    WHAT it does: Changes the available toolset to the target domain's tools.
     RETURNS: Confirmation of mode switch.
     DO NOT USE when: Already in the requested mode.
     """

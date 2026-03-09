@@ -9,7 +9,7 @@ main_agent: Agent[AssistantDeps, str] = Agent(
     deps_type=AssistantDeps,
     output_type=str,
     instructions=AGENT_SYSTEM_PROMPT,
-    retries=1,
+    retries=3,
     name="main_agent",
 )
 
@@ -32,19 +32,22 @@ def dynamic_mode(ctx) -> str:
 
 
 @main_agent.instructions
+def dynamic_current_task(ctx) -> str:
+    """Pin the original user request as immutable context."""
+
+    if ctx.deps.original_request:
+        return f"\n<current_task>\n{ctx.deps.original_request}\n</current_task>"
+    return ""
+
+
+@main_agent.instructions
 def dynamic_tool_manifest(ctx) -> str:
     """
     Inject the available tools manifest into the system prompt, including both
     static and dynamically loaded tools name and description.
     """
 
-    from baserow_enterprise.assistant.deps import AgentMode
-
-    manifest = (
-        ctx.deps.do_manifest
-        if ctx.deps.mode == AgentMode.DO
-        else ctx.deps.explain_manifest
-    )
+    manifest = ctx.deps.active_manifest
     if not manifest:
         return ""
 

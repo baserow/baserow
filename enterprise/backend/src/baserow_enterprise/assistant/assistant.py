@@ -15,6 +15,7 @@ from pydantic_ai.usage import UsageLimits
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
+    AgentMode,
     AssistantDeps,
     EventBus,
     QueueEvent,
@@ -100,7 +101,7 @@ class Assistant:
             workspace=self._workspace,
             tool_helpers=self._tool_helpers,
         )
-        self._toolset, do_manifest, explain_manifest = (
+        self._toolset, db_m, app_m, auto_m, explain_m = (
             assistant_tool_registry.build_toolset(
                 user=self._user,
                 workspace=self._workspace,
@@ -108,8 +109,10 @@ class Assistant:
                 deps=self._deps,
             )
         )
-        self._deps.do_manifest = do_manifest
-        self._deps.explain_manifest = explain_manifest
+        self._deps.database_manifest = db_m
+        self._deps.application_manifest = app_m
+        self._deps.automation_manifest = auto_m
+        self._deps.explain_manifest = explain_m
 
         setup_instrumentation()
 
@@ -262,6 +265,8 @@ class Assistant:
         )
         return result.output
 
+    _JSON_TOOL_CALL_MAX_RETRIES = 3
+
     async def _run_agent(
         self,
         user_prompt: str,
@@ -277,32 +282,82 @@ class Assistant:
 
         try:
             with self._telemetry.trace(self._chat, user_prompt) as tracer:
-                async with main_agent.run_stream(
-                    user_prompt=user_prompt,
-                    deps=self._deps,
-                    model=self._model,
-                    message_history=message_history,
-                    usage_limits=UsageLimits(request_limit=120),
-                    toolsets=[self._toolset],
-                    model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
-                    event_stream_handler=lambda ctx, events: self._relay_tool_events(
-                        events, queue
-                    ),
-                ) as result:
-                    answer = await self._stream_answer(result, queue)
-                    tracer.set_trace_output(answer)
-                    queue.put_nowait(
-                        QueueEvent(
-                            kind=QueueEventKind.RESULT,
-                            answer=answer,
-                            messages_json=result.all_messages_json(),
-                        )
+                answer, messages_json = await self._run_agent_with_json_retry(
+                    user_prompt, message_history, queue
+                )
+                tracer.set_trace_output(answer)
+                queue.put_nowait(
+                    QueueEvent(
+                        kind=QueueEventKind.RESULT,
+                        answer=answer,
+                        messages_json=messages_json,
                     )
+                )
         except Exception as exc:
             logger.exception("Error running main agent")
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
+
+    async def _run_agent_with_json_retry(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, bytes]:
+        """Run the agent, retrying if the model outputs a tool call as text.
+
+        Some providers occasionally return tool calls in the text/content
+        field instead of the structured tool_calls field. When detected,
+        we re-run the agent with the accumulated message history so the
+        model can make the proper tool call.
+        """
+
+        for attempt in range(self._JSON_TOOL_CALL_MAX_RETRIES):
+            async with main_agent.run_stream(
+                user_prompt=user_prompt,
+                deps=self._deps,
+                model=self._model,
+                message_history=message_history,
+                usage_limits=UsageLimits(request_limit=200),
+                toolsets=[self._toolset],
+                model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+                event_stream_handler=lambda ctx, events: self._relay_tool_events(
+                    events, queue
+                ),
+            ) as result:
+                answer = await self._stream_answer(result, queue)
+                if not self._looks_like_json_tool_call(answer):
+                    return answer, result.all_messages_json()
+
+                # The model dumped a tool call as text — retry with the
+                # conversation so far plus a correction prompt.
+                logger.warning(
+                    "[assistant] Model output tool call as text (attempt {}/{}), "
+                    "retrying: {}",
+                    attempt + 1,
+                    self._JSON_TOOL_CALL_MAX_RETRIES,
+                    answer[:200],
+                )
+                message_history = result.all_messages()
+                user_prompt = (
+                    "You returned a tool call as text instead of calling the "
+                    "tool. Please call the tool directly with valid JSON. ",
+                    "Here's your last incorrect output:\n\n" + answer,
+                )
+
+        # Exhausted retries — return fallback
+        answer = (
+            "I ran into a temporary issue processing your request. "
+            "Could you please try again?"
+        )
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiMessageChunk(content=answer, sources=self._deps.sources),
+            )
+        )
+        return answer, result.all_messages_json()
 
     @staticmethod
     async def _relay_tool_events(events, queue: asyncio.Queue[QueueEvent]) -> None:
@@ -324,13 +379,9 @@ class Assistant:
         """Stream the agent's text output as ``AiMessageChunk`` events and
         return the final accumulated answer.
 
-        Includes a guard against raw JSON leaking to the user.  When a
-        provider error recovery emits a ``ToolCallPart`` with empty args,
-        pydantic-ai's validation rejects it and sends a retry prompt.  The
-        model sometimes responds with the raw JSON as text instead of making
-        a corrected tool call.  We detect this by buffering output that
-        starts with ``{`` or ``[`` and replacing it with a fallback message
-        if the entire output turns out to be a JSON blob.
+        Buffers output that starts with ``{`` or ``[`` to avoid streaming
+        raw JSON to the user. If the entire output looks like a JSON tool
+        call, it is returned un-streamed so the caller can decide to retry.
         """
 
         answer = ""
@@ -359,25 +410,23 @@ class Assistant:
                 )
             )
 
-        # If the entire output was buffered (JSON-like), replace it.
-        if json_buffering and answer.strip():
-            logger.warning(
-                "[assistant] Suppressed JSON text output (likely a tool retry "
-                "artifact): {}",
-                answer[:200],
-            )
-            answer = (
-                "I ran into a temporary issue processing your request. "
-                "Could you please try again?"
-            )
-            await queue.put(
-                QueueEvent(
-                    kind=QueueEventKind.STREAM,
-                    message=AiMessageChunk(content=answer, sources=self._deps.sources),
-                )
-            )
-
         return answer
+
+    @staticmethod
+    def _looks_like_json_tool_call(text: str) -> bool:
+        """Return True if *text* looks like a tool call dumped as JSON.
+
+        Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
+        200 chars. Does not require valid JSON (the output may be truncated).
+        """
+
+        stripped = text.strip()
+        return (
+            bool(stripped)
+            and stripped[0] == "{"
+            and '"name"' in stripped[:200]
+            and '"arguments"' in stripped[:200]
+        )
 
     # ------------------------------------------------------------------
     # Cancellation
@@ -411,6 +460,18 @@ class Assistant:
         persisted answer. A ``ChatTitleMessage`` is appended on the first
         message in a chat.
         """
+
+        # Sticky task: capture on first message of the session
+        if not self._deps.original_request:
+            self._deps.original_request = message.content
+
+            # Auto-detect starting mode from UI context (only on first message)
+            if message.ui_context:
+                if message.ui_context.application or message.ui_context.page:
+                    self._deps.mode = AgentMode.APPLICATION
+                elif message.ui_context.automation or message.ui_context.workflow:
+                    self._deps.mode = AgentMode.AUTOMATION
+                # else stays DATABASE (default)
 
         human_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.HUMAN, message.content
@@ -461,6 +522,6 @@ class Assistant:
 
         if not self._chat.title:
             title = await self._generate_chat_title(human_msg.content)
-            self._chat.title = title
+            self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
             await self._chat.asave(update_fields=["title", "updated_on"])
             yield ChatTitleMessage(content=title)

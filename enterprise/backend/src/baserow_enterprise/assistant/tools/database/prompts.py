@@ -14,11 +14,10 @@ FORMULA_AGENT_INSTRUCTIONS = (
 SAMPLE_ROW_AGENT_INSTRUCTIONS = (
     "Create 5 realistic sample rows for each table using the "
     "create_rows tools provided. "
-    "IMPORTANT: You MUST fill EVERY field for every row, including ALL "
-    "link_row (relationship) fields. Do NOT leave any field empty or null "
-    "unless the data genuinely requires it. "
-    "Insertion order: start with tables that have NO link_row fields (or only "
-    "link to tables already inserted), so you have real row IDs to reference. "
+    "IMPORTANT: Fill EVERY field for every row. Do NOT leave any field "
+    "empty or null unless the data genuinely requires it. "
+    "Insertion order: start with tables that have NO link_row fields, "
+    "so you have real row IDs to reference. "
     "Then create rows in dependent tables, using those IDs in link_row fields. "
     "Reply with a short summary when done."
 )

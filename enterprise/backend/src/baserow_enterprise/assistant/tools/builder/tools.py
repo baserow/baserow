@@ -32,6 +32,7 @@ from .types import (
     DisplayElementCreate,
     ElementItemCreate,
     ElementMove,
+    ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
     LayoutElementCreate,
@@ -276,8 +277,8 @@ def create_data_sources(
     DO NOT USE when: Data sources with those names already exist on the page.
 
     ## Data Source Types
-    - list_rows: Fetches multiple rows (for tables, repeaters, dropdowns).
-    - get_row: Fetches a single row by ID (for detail pages).
+    - list_rows: Fetches multiple rows — use when the page displays a collection (table, repeat, dropdown).
+    - get_row: Fetches a single row by ID — use when the page works with one specific record. Set row_id with $formula: to get the ID dynamically (e.g. from a page parameter).
 
     ## Dynamic Values with $formula:
     - get_row row_id: "$formula: the id from the page parameter"
@@ -293,7 +294,8 @@ def create_data_sources(
     page = helpers.get_page(user, page_id)
     integration = helpers.get_local_baserow_integration(page.builder)
 
-    existing = {ds.name.lower(): ds for ds in helpers.list_data_sources(page)}
+    existing_ds = helpers.list_data_sources(page)
+    existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
     ref_to_id: dict[str, int] = {}
     created: list[dict] = []
     ds_pairs: list[tuple] = []
@@ -301,7 +303,11 @@ def create_data_sources(
     with transaction.atomic():
         for ds_create in data_sources:
             tool_helpers.raise_if_cancelled()
-            ex = existing.get(ds_create.name.lower())
+            ex = existing_by_name.get(ds_create.name.lower())
+            if not ex:
+                ex = next(
+                    (ds for ds in existing_ds if ds_create.matches_existing(ds)), None
+                )
             if ex:
                 ref_to_id[ds_create.ref] = ex.id
                 continue
@@ -324,11 +330,17 @@ def create_data_sources(
             )
 
     # Formula generation (separate transactions)
-    agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    errors = agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
 
     _track_data_source_refs(tool_helpers, page_id, ref_to_id)
 
-    return {"created_data_sources": created, "ref_to_id_map": ref_to_id}
+    result: dict[str, Any] = {
+        "created_data_sources": created,
+        "ref_to_id_map": ref_to_id,
+    }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -477,7 +489,11 @@ def _create_elements_internal(
             created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
 
     # Formula generation (separate transactions)
-    agents.update_element_formulas(user, page, elements, element_mapping, tool_helpers)
+    errors.extend(
+        agents.update_element_formulas(
+            user, page, elements, element_mapping, tool_helpers
+        )
+    )
 
     # Handle table button action formulas
     table_action_pairs = []
@@ -485,8 +501,10 @@ def _create_elements_internal(
         if el_create.type == "table":
             table_action_pairs.extend(el_create._created_action_pairs)
     if table_action_pairs:
-        agents.update_workflow_action_formulas(
-            user, page, table_action_pairs, tool_helpers
+        errors.extend(
+            agents.update_workflow_action_formulas(
+                user, page, table_action_pairs, tool_helpers
+            )
         )
 
     _track_element_refs(tool_helpers, page_id, ref_to_id)
@@ -548,6 +566,11 @@ def create_display_elements(
     ## After Creating Buttons/Links
     Buttons/links need a click action (open_page, notification, etc.) via create_actions.
     ALWAYS call create_actions after creating buttons or links.
+
+    ## Buttons/Links in Shared Headers
+    - In shared headers, only use links that navigate to a FIXED page (navigate_to_page_id).
+    - Do NOT create "back" buttons or context-dependent navigation in shared headers.
+    - For page-specific navigation (back, contextual links), place buttons on the page itself.
     """
 
     internal = [el.to_element_item_create() for el in elements]
@@ -578,8 +601,16 @@ def create_layout_elements(
     ## Element Structure
     - Layout elements are containers — add children via parent_element ref.
     - column: creates N columns, children use place_in_container "0", "1", etc.
-    - header/footer: shared across pages by default.
     - menu: add menu_items to link to pages.
+
+    ## Shared Elements (header, footer)
+    - Headers/footers are shared across ALL pages by default (share_type="all").
+    - Use share_type="only" + page_ids to limit which pages show them.
+    - ONLY put absolute navigation in shared headers: links/menus to specific pages.
+    - NEVER put page-specific content in shared headers (e.g., "back" button,
+      page-specific data, breadcrumbs). These vary per page and will be wrong.
+    - A menu element inside a header/footer is also shared.
+    - Shared elements CANNOT reference page-specific data sources.
     """
 
     internal = [el.to_element_item_create() for el in elements]
@@ -615,7 +646,8 @@ def create_form_elements(
     - record_selector: needs data_source.
 
     ## Edit Forms
-    For update_row forms, set default_value="get('current_record.field_<id>')" on each input to pre-fill with existing data.
+    For forms that edit existing data, set default_value on each input using $formula: to reference the field value from the page's data source (e.g. "$formula: the Name field from the <data source name> data source").
+    The form's submit action should be update_row with row_id referencing the page parameter.
 
     ## After Creating Forms
     Form containers need a submit action (create_row, update_row) via create_actions.
@@ -653,7 +685,7 @@ def create_collection_elements(
 
     ## Table
     - data_source: the data source ID or ref.
-    - fields: column configurations (name, type, value). If omitted, auto-generated from data source.
+    - fields: column configurations — always specify which columns to show. Each field has name, type ("text" or "button"), and value ($formula: for dynamic content).
 
     ## Repeat
     - data_source: the data source ID or ref.
@@ -694,6 +726,11 @@ def update_element(
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
     - default_value: "$formula: the current user's email"
+
+    ## Menu Items
+    - To add/replace menu items on a menu element, set menu_items with the full list.
+    - Each item needs name (display text) and page_id (target page).
+    - This REPLACES all existing items — include existing items you want to keep.
     """
 
     user = ctx.deps.user
@@ -718,6 +755,69 @@ def update_element(
     return {
         "status": "ok",
         "element_id": element.element_id,
+        "element_type": element_type,
+        "updated_fields": updated_fields,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Element style tool
+# ---------------------------------------------------------------------------
+
+
+def update_element_style(
+    ctx: RunContext[AssistantDeps],
+    page_id: Annotated[int, Field(description="The page ID the element belongs to.")],
+    style: Annotated[ElementStyleUpdate, Field(description="Style update data.")],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Update visual style of an element (box model + theme overrides).
+
+    WHEN to use: User wants to change borders, padding, margins, background, width, or theme style overrides (button colors, typography, input styles, etc.).
+    WHAT it does: Applies uniform box-model values (all 4 sides) and per-element-type theme overrides.
+    RETURNS: Updated element ID, type, and list of changed fields.
+    DO NOT USE when: You need to change content (text, label) or structural properties — use update_element instead.
+
+    ## Box Model (all sides uniform)
+    - border_color, border_size, padding, margin: applied to all 4 sides.
+    - border_radius, background_radius: corner rounding.
+    - background: "none" or "color", background_color: hex color.
+    - width: "full", "full-width", "normal", "medium", "small".
+
+    ## Theme Style Overrides (per element type)
+    - button: background_color, text_color, border_color, hover colors, font_size, width, alignment.
+    - link: text_color, hover_text_color, font_size, font_weight.
+    - typography: heading_1_*/body_* text_color, font_size, font_weight, text_alignment.
+    - input: input_background_color, input_border_color, input_text_color, label_text_color.
+    - table: header/cell colors, border_color, border_size.
+    - image: image_alignment, max_width, max_height, border_radius.
+
+    Only blocks valid for the element type are applied; others are ignored.
+
+    ## Reset
+    Set reset=true to restore all box-model fields to defaults and clear theme overrides.
+    You can combine reset with new values to reset-then-apply.
+    """
+
+    user = ctx.deps.user
+    tool_helpers = ctx.deps.tool_helpers
+
+    helpers.get_page(user, page_id)
+    tool_helpers.update_status(
+        _("Styling element %(id)d...") % {"id": style.element_id}
+    )
+
+    with transaction.atomic():
+        element, element_type = helpers.update_element_style(user, style)
+
+    # Report which fields were explicitly set (not inherited from existing styles)
+    updated_fields = list(style.to_update_kwargs(element_type, {}).keys())
+    return {
+        "status": "ok",
+        "element_id": style.element_id,
         "element_type": element_type,
         "updated_fields": updated_fields,
     }
@@ -846,7 +946,7 @@ def create_actions(
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
-    - open_page: Navigate to another page (set navigate_to_page_id)
+    - open_page: Navigate to another page (set navigate_to_page_id). Use page_parameters to pass context like the current row's ID to the target page's path parameters.
     - create_row: Insert a row (needs table_id and field_values)
     - update_row: Update a row (needs table_id, row_id, field_values)
     - delete_row: Delete a row (needs table_id and row_id)
@@ -897,7 +997,9 @@ def create_actions(
             )
 
     # Formula generation (separate transactions)
-    agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)
+    errors.extend(
+        agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)
+    )
 
     result: dict[str, Any] = {"created_actions": created}
     if errors:
@@ -933,6 +1035,233 @@ def add_action_field_mapping(
     )
 
     return helpers.add_field_mapping_to_action(action_id, field_id, value_formula)
+
+
+# ---------------------------------------------------------------------------
+# Composite page setup tool
+# ---------------------------------------------------------------------------
+
+
+def setup_page(
+    ctx: RunContext[AssistantDeps],
+    page_id: Annotated[int, Field(description="The page ID.")],
+    data_sources: Annotated[
+        list[DataSourceCreate] | None,
+        Field(default=None, description="Data sources to create."),
+    ] = None,
+    elements: Annotated[
+        list[ElementItemCreate] | None,
+        Field(default=None, description="Elements to create (all types)."),
+    ] = None,
+    actions: Annotated[
+        list[ActionCreate] | None,
+        Field(default=None, description="Workflow actions to create."),
+    ] = None,
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ] = "",
+) -> dict[str, Any]:
+    """\
+    Set up a complete page: data sources, elements, and actions in one call.
+
+    WHEN to use: Building a complete page with data, UI elements, and interactions.
+    WHAT it does: Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
+    RETURNS: Created items with ref-to-ID mappings and any errors.
+
+    ## Execution Order
+    1. Data sources (list_rows, get_row) — so elements can reference them.
+    2. Elements (in order — parents before children): heading, text, button, link, image, column, form_container, simple_container, input_text, choice, checkbox, datetime_picker, record_selector, table, repeat.
+    3. Actions (click, submit) — attached to elements via ref.
+
+    ## Element Fields by Type
+    - heading: value (text), level (1-5)
+    - text: value (text), format ("plain"/"markdown")
+    - button/link: value (label)
+    - image: image_url, alt_text
+    - column: column_count
+    - form_container: submit_button_label
+    - input_text: label, placeholder, default_value, required, validation_type, is_multiline
+    - choice: label, choice_options, multiple
+    - checkbox: label, default_value
+    - table: data_source (ref), fields [{name, type ("text"/"button"), value}]
+    - repeat: data_source (ref), orientation
+
+    ## Refs
+    - data_source refs: referenced by elements (data_source field) and actions (data_source field)
+    - element refs: referenced by child elements (parent_element field) and actions (element field)
+    - Use string refs for items created in this call, int IDs for pre-existing items.
+
+    ## Dynamic Values
+    Use $formula: prefix for dynamic content (e.g. "$formula: the Name field from the projects data source").
+    """
+
+    user = ctx.deps.user
+    tool_helpers = ctx.deps.tool_helpers
+
+    page = helpers.get_page(user, page_id)
+    shared_page = PageHandler().get_shared_page(page.builder)
+    integration = helpers.get_local_baserow_integration(page.builder)
+
+    ds_ref_to_id: dict[str, int] = _get_data_source_refs(tool_helpers, page_id)
+    el_ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
+    shared_page_refs: set[str] = set(
+        _get_element_refs(tool_helpers, shared_page.id).keys()
+    )
+
+    result: dict[str, Any] = {}
+    all_errors: list[str] = []
+
+    # Phase 1: Data sources
+    created_ds: list[dict] = []
+    ds_pairs: list[tuple] = []
+    if data_sources:
+        existing_ds = helpers.list_data_sources(page)
+        existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
+        with transaction.atomic():
+            for ds_create in data_sources:
+                tool_helpers.raise_if_cancelled()
+                ex = existing_by_name.get(ds_create.name.lower())
+                if not ex:
+                    ex = next(
+                        (ds for ds in existing_ds if ds_create.matches_existing(ds)),
+                        None,
+                    )
+                if ex:
+                    ds_ref_to_id[ds_create.ref] = ex.id
+                    continue
+                tool_helpers.update_status(
+                    _("Creating data source '%(name)s'...") % {"name": ds_create.name}
+                )
+                try:
+                    orm_ds, ds_id = helpers.create_data_source(
+                        user, page, ds_create, integration
+                    )
+                    ds_ref_to_id[ds_create.ref] = ds_id
+                    ds_pairs.append((orm_ds, ds_create))
+                    created_ds.append(
+                        {
+                            "id": ds_id,
+                            "ref": ds_create.ref,
+                            "name": ds_create.name,
+                            "type": ds_create.type,
+                        }
+                    )
+                except Exception as exc:
+                    all_errors.append(f"data_source {ds_create.ref}: {exc}")
+        all_errors.extend(
+            agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+        )
+    _track_data_source_refs(tool_helpers, page_id, ds_ref_to_id)
+    if created_ds:
+        result["created_data_sources"] = created_ds
+
+    # Phase 2: Elements
+    created_el: list[dict] = []
+    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
+    if elements:
+        tool_helpers.update_status(
+            _("Creating %(count)d elements on %(name)s...")
+            % {"count": len(elements), "name": page.name}
+        )
+        with transaction.atomic():
+            for el_create in elements:
+                tool_helpers.raise_if_cancelled()
+                try:
+                    element, el_id = helpers.create_element(
+                        user,
+                        page,
+                        el_create,
+                        el_ref_to_id,
+                        ds_ref_to_id,
+                        shared_page_refs,
+                        None,
+                    )
+                    el_ref_to_id[el_create.ref] = el_id
+                    element_mapping[el_create.ref] = (element, el_create)
+                    created_el.append(
+                        {"id": el_id, "ref": el_create.ref, "type": el_create.type}
+                    )
+                except Exception as exc:
+                    all_errors.append(f"element {el_create.ref}: {exc}")
+        all_errors.extend(
+            agents.update_element_formulas(
+                user, page, elements, element_mapping, tool_helpers
+            )
+        )
+        # Handle table button action formulas
+        table_action_pairs = []
+        for el_create in elements:
+            if el_create.type == "table":
+                table_action_pairs.extend(el_create._created_action_pairs)
+        if table_action_pairs:
+            all_errors.extend(
+                agents.update_workflow_action_formulas(
+                    user, page, table_action_pairs, tool_helpers
+                )
+            )
+    _track_element_refs(tool_helpers, page_id, el_ref_to_id)
+    _track_element_refs(
+        tool_helpers,
+        shared_page.id,
+        {r: 0 for r in el_ref_to_id if r in shared_page_refs},
+    )
+    if created_el:
+        result["created_elements"] = created_el
+
+    # Phase 3: Actions
+    created_actions: list[dict] = []
+    action_pairs: list[tuple] = []
+    if actions:
+        with transaction.atomic():
+            for action_create in actions:
+                tool_helpers.raise_if_cancelled()
+                tool_helpers.update_status(
+                    _("Creating %(type)s action...") % {"type": action_create.type}
+                )
+                try:
+                    orm_action, action_id = helpers.create_workflow_action(
+                        user,
+                        page,
+                        action_create,
+                        el_ref_to_id,
+                        ds_ref_to_id,
+                        integration,
+                    )
+                    action_pairs.append((orm_action, action_create))
+                    created_actions.append(
+                        {
+                            "id": action_id,
+                            "type": action_create.type,
+                            "element": action_create.element,
+                            "event": action_create.event,
+                        }
+                    )
+                except Exception as exc:
+                    all_errors.append(
+                        f"action {action_create.type} on {action_create.element}: {exc}"
+                    )
+        all_errors.extend(
+            agents.update_workflow_action_formulas(
+                user, page, action_pairs, tool_helpers
+            )
+        )
+    if created_actions:
+        result["created_actions"] = created_actions
+
+    if all_errors:
+        result["errors"] = all_errors
+
+    # Navigate to the page
+    tool_helpers.navigate_to(
+        BuilderPageNavigationType(
+            type="builder-page",
+            application_id=page.builder_id,
+            page_id=page_id,
+            page_name=page.name,
+        )
+    )
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1004,10 +1333,12 @@ TOOL_FUNCTIONS = [
     create_form_elements,
     create_collection_elements,
     update_element,
+    update_element_style,
     move_elements,
     list_actions,
     create_actions,
     add_action_field_mapping,
+    setup_page,
     set_theme,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

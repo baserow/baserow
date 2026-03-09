@@ -686,9 +686,10 @@ class TestAssistantCancellation:
 class TestStreamAnswerJsonSuppression:
     """Test that raw JSON from tool retry artifacts is not streamed to the user."""
 
-    def test_json_output_is_suppressed_and_replaced(self):
-        """When the model outputs raw JSON (e.g. from a retry artifact),
-        _stream_answer should replace it with a fallback message."""
+    def test_json_output_is_buffered_not_streamed(self):
+        """When the model outputs raw JSON (e.g. a tool call as text),
+        _stream_answer should return it without streaming to the queue,
+        so the caller can detect it and retry."""
 
         json_output = '{"name": "create_tables", "arguments": {"tables": []}}'
 
@@ -710,17 +711,26 @@ class TestStreamAnswerJsonSuppression:
 
         answer = async_to_sync(run)()
 
-        # The answer should be the fallback, not the raw JSON
-        assert json_output not in answer
-        assert "try again" in answer.lower()
+        # The raw JSON is returned (not streamed) so the caller can retry
+        assert answer == json_output
 
-        # The queue should contain the fallback chunk, not the raw JSON
-        events = []
-        while not queue.empty():
-            events.append(queue.get_nowait())
-        assert len(events) == 1
-        assert json_output not in events[0].message.content
-        assert "try again" in events[0].message.content.lower()
+        # Nothing should have been streamed to the queue
+        assert queue.empty()
+
+    def test_looks_like_json_tool_call(self):
+        """_looks_like_json_tool_call detects tool call JSON patterns."""
+
+        assert Assistant._looks_like_json_tool_call(
+            '{"name": "create_tables", "arguments": {"tables": []}}'
+        )
+        # Malformed/truncated JSON should still be detected
+        assert Assistant._looks_like_json_tool_call(
+            '{"name": "create_form_elements", "arguments": {"elements":[{"type":"form'
+        )
+        # Normal text should not match
+        assert not Assistant._looks_like_json_tool_call("Here is your answer!")
+        assert not Assistant._looks_like_json_tool_call('{"key": "value"}')
+        assert not Assistant._looks_like_json_tool_call("")
 
     def test_normal_text_is_not_suppressed(self):
         """Normal text output (not starting with { or [) should stream as usual."""

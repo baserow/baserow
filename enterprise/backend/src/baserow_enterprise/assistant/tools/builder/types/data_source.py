@@ -5,7 +5,7 @@ Defines ``DataSourceCreate`` (flat) for creating data sources and
 ``DataSourceItem`` for reading them back.
 """
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
@@ -57,6 +57,13 @@ _SERVICE_TYPE: dict[str, str] = {
     "get_row": "local_baserow_get_row",
 }
 
+# Structural match dispatch: type -> (new, existing) -> bool
+# Used to detect duplicate data sources regardless of name.
+_STRUCTURAL_MATCH: dict[str, Callable] = {
+    "list_rows": lambda new, ex: new.table_id == ex.table_id,
+    "get_row": lambda new, ex: False,  # row_id varies, can't dedup
+}
+
 
 # ---------------------------------------------------------------------------
 # DataSourceCreate (flat)
@@ -106,6 +113,17 @@ class DataSourceCreate(BaseModel):
     def get_service_type(self) -> str:
         """Return the service type string for this data source."""
         return _SERVICE_TYPE[self.type]
+
+    def matches_existing(self, existing: "DataSourceItem") -> bool:
+        """Check if this create request would produce a duplicate of *existing*.
+
+        Delegates to a per-type matcher in ``_STRUCTURAL_MATCH``.
+        """
+
+        if self.type != existing.type:
+            return False
+        matcher = _STRUCTURAL_MATCH.get(self.type)
+        return matcher(self, existing) if matcher else False
 
     def to_service_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
         """Build kwargs for ``DataSourceService.create_data_source()``."""

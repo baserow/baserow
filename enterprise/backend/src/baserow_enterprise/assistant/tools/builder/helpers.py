@@ -43,6 +43,7 @@ from .types import (
     ElementItem,
     ElementItemCreate,
     ElementMove,
+    ElementStyleUpdate,
     ElementUpdate,
     PageCreate,
     PageItem,
@@ -139,8 +140,16 @@ def list_data_sources(page: Page) -> list[DataSourceItem]:
 
 
 def list_elements(page: Page) -> list[ElementItem]:
-    """List all elements on a page."""
-    return [ElementItem.from_orm(el) for el in ElementHandler().get_elements(page)]
+    """List all elements on a page, including shared elements visible on it."""
+    elements = list(ElementHandler().get_elements(page))
+
+    # Also include shared elements (headers/footers) visible on this page
+    if not page.shared:
+        shared_page = page.builder.shared_page
+        shared_elements = ElementHandler().get_elements(shared_page)
+        elements = list(shared_elements) + elements
+
+    return [ElementItem.from_orm(el) for el in elements]
 
 
 def list_workflow_actions(page: Page) -> list[ActionItem]:
@@ -313,10 +322,24 @@ def create_element(
     parent = element_create.parent_element
     if isinstance(parent, str) and parent in shared_page_refs:
         use_shared_page = True
+    elif isinstance(parent, int):
+        # Check if the parent element lives on the shared page
+        try:
+            parent_el = ElementHandler().get_element(parent)
+            if parent_el.page.shared:
+                use_shared_page = True
+        except Exception:
+            pass
 
     target_page = page.builder.shared_page if use_shared_page else page
     if use_shared_page:
         shared_page_refs.add(element_create.ref)
+
+    # Resolve data source ref to integer ID early so that to_orm_kwargs
+    # (e.g. _convert_table_fields) can look up the data source's table fields.
+    ds = element_create.data_source
+    if isinstance(ds, str) and ds in data_source_ref_to_id_map:
+        element_create.data_source = data_source_ref_to_id_map[ds]
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
 
@@ -341,12 +364,9 @@ def create_element(
         except Exception:
             pass
 
-    # Resolve data source
-    ds = element_create.data_source
-    if isinstance(ds, int):
-        kwargs["data_source_id"] = ds
-    elif isinstance(ds, str) and ds in data_source_ref_to_id_map:
-        kwargs["data_source_id"] = data_source_ref_to_id_map[ds]
+    # Set data_source_id in kwargs (may already be set by to_orm_kwargs)
+    if isinstance(element_create.data_source, int):
+        kwargs["data_source_id"] = element_create.data_source
 
     before = None
     if before_id is not None:
@@ -435,8 +455,90 @@ def update_element(
 
 
 # ---------------------------------------------------------------------------
+# Element style update
+# ---------------------------------------------------------------------------
+
+
+def update_element_style(
+    user: AbstractUser,
+    style_update: ElementStyleUpdate,
+) -> tuple[Any, str]:
+    """
+    Update an element's visual styles (box model + theme overrides).
+
+    Returns ``(orm_element, element_type_str)``.
+    """
+
+    try:
+        element = ElementHandler().get_element_for_update(style_update.element_id)
+    except ElementDoesNotExist:
+        raise ToolInputError(
+            f"Element with ID {style_update.element_id} not found. "
+            "Use list_elements to find valid element IDs."
+        )
+
+    element_type = element.get_type().type
+    existing_styles = getattr(element, "styles", None) or {}
+    kwargs = style_update.to_update_kwargs(element_type, existing_styles)
+    if kwargs:
+        element = ElementService().update_element(user, element, **kwargs)
+    return element, element_type
+
+
+# ---------------------------------------------------------------------------
 # Workflow action creation
 # ---------------------------------------------------------------------------
+
+
+def _resolve_event(element_id: int, event: str) -> str:
+    """
+    Resolve a human-friendly event name to the actual event string for
+    any element type.
+
+    For elements with button collection fields (e.g. ``TableElement``),
+    the LLM typically sends ``"click"`` or ``"<button_name>_click"``
+    which must be resolved to ``"{uid}_click"`` where ``uid`` is the
+    ``CollectionField.uid``.
+
+    For all other elements (``ButtonElement``, ``FormContainerElement``,
+    etc.) the event is returned unchanged since they use static event
+    names (``"click"``, ``"submit"``, ``"after_login"``).
+    """
+
+    try:
+        element = ElementHandler().get_element(element_id).specific
+    except Exception:
+        return event
+
+    # Check if the element has a `fields` relation to CollectionField
+    # (currently TableElement; works for any future collection element).
+    if not hasattr(element, "fields"):
+        return event
+
+    button_fields = list(element.fields.filter(type="button").order_by("order"))
+    if not button_fields:
+        return event
+
+    # Already a UUID-prefixed event — no resolution needed
+    if "_" in event:
+        prefix = event.rsplit("_", 1)[0]
+        button_uids = {str(bf.uid) for bf in button_fields}
+        if prefix in button_uids:
+            return event
+
+    # "click" → match to the first (or only) button column
+    if event == "click":
+        return f"{button_fields[0].uid}_click"
+
+    # "<button_name>_click" → match by name (case-insensitive)
+    if event.endswith("_click"):
+        name = event[: -len("_click")].strip().lower()
+        for bf in button_fields:
+            if bf.name.strip().lower() == name:
+                return f"{bf.uid}_click"
+
+    # Fallback: first button column
+    return f"{button_fields[0].uid}_click"
 
 
 def create_workflow_action(
@@ -464,10 +566,14 @@ def create_workflow_action(
         action_create.get_action_type()
     )
 
+    # Resolve human-friendly event names (e.g. "click" → "{uid}_click"
+    # for collection elements with button fields).
+    event = _resolve_event(element_id, action_create.event)
+
     kwargs: dict[str, Any] = {
         "page": page,
         "element_id": element_id,
-        "event": action_create.event,
+        "event": event,
     }
     kwargs.update(action_create.to_orm_kwargs())
 

@@ -456,10 +456,11 @@ def _header_footer_post_create(
 
 
 def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None:
-    """Create button-column workflow actions for table elements."""
+    """Create button-column workflow actions and enable filter/sort/search."""
     if not el.fields:
         return
 
+    from baserow.contrib.builder.elements.models import CollectionElementPropertyOptions
     from baserow_enterprise.assistant.tools.builder.helpers import (
         create_table_button_actions,
         get_local_baserow_integration,
@@ -469,6 +470,29 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None
     el._created_action_pairs = create_table_button_actions(
         user, page, orm_element, el, integration
     )
+
+    # Auto-enable filter/sort/search for text columns referencing real fields.
+    table_fields = _resolve_table_fields(el.data_source)
+    property_options = []
+    for field_cfg in el.fields:
+        if field_cfg.type != "text":
+            continue
+        match = table_fields.get(field_cfg.name.lower())
+        if match:
+            field_id, _ = match
+            property_options.append(
+                CollectionElementPropertyOptions(
+                    element=orm_element,
+                    schema_property=f"field_{field_id}",
+                    filterable=True,
+                    sortable=True,
+                    searchable=True,
+                )
+            )
+    if property_options:
+        CollectionElementPropertyOptions.objects.bulk_create(
+            property_options, ignore_conflicts=True
+        )
 
 
 _POST_CREATE: dict[str, Any] = {
@@ -1055,6 +1079,14 @@ class LayoutElementCreate(_ElementBase):
     menu_items: list[MenuItemCreate] | None = Field(
         default=None, description="(menu) Menu item configurations."
     )
+    share_type: Literal["all", "only", "except"] | None = Field(
+        default=None,
+        description="(header, footer) Page sharing: 'all' (default), 'only' (show on page_ids only), 'except' (hide on page_ids).",
+    )
+    page_ids: list[int] | None = Field(
+        default=None,
+        description="(header, footer) Page IDs for share_type='only' or 'except'.",
+    )
 
     def to_element_item_create(self) -> "ElementItemCreate":
         return ElementItemCreate(
@@ -1064,6 +1096,8 @@ class LayoutElementCreate(_ElementBase):
             place_in_container=self.place_in_container,
             column_amount=self.column_amount,
             menu_items=self.menu_items,
+            share_type=self.share_type,
+            page_ids=self.page_ids,
         )
 
 
@@ -1415,6 +1449,19 @@ def _menu_update(el: "ElementUpdate") -> dict:
         kwargs["orientation"] = el.menu_orientation
     if el.menu_alignment is not None:
         kwargs["alignment"] = el.menu_alignment
+    if el.menu_items is not None:
+        kwargs["menu_items"] = [
+            {
+                "uid": str(uuid.uuid4()),
+                "type": "link",
+                "variant": "link",
+                "name": item.name,
+                "navigation_type": "page",
+                "navigate_to_page_id": item.page_id,
+                "target": "self",
+            }
+            for item in el.menu_items
+        ]
     return kwargs
 
 
@@ -1612,6 +1659,10 @@ class ElementUpdate(BaseModel):
     menu_alignment: Literal["left", "center", "right", "justify"] | None = Field(
         default=None, description="(menu) Menu alignment."
     )
+    menu_items: list[MenuItemCreate] | None = Field(
+        default=None,
+        description="(menu) Replace all menu items. Each item has name + page_id.",
+    )
 
     # -- Dispatch -------------------------------------------------------------
 
@@ -1665,11 +1716,32 @@ class ElementItem(BaseModel):
         default=None,
         description="Short content preview (text value, label, or name).",
     )
+    page_name: str | None = Field(
+        default=None,
+        description="Page name. '[shared]' for elements on the shared page (headers/footers).",
+    )
+    menu_items: list[dict] | None = Field(
+        default=None,
+        description="(menu) Current menu items with name and page_id.",
+    )
 
     @classmethod
     def from_orm(cls, element) -> "ElementItem":
         """Create ElementItem from ORM Element instance."""
         element_type = element.get_type().type
+        page = element.page
+        page_name = "[shared]" if page.shared else page.name
+        menu_items = None
+        if element_type == "menu":
+            specific = element.specific
+            menu_items = [
+                {
+                    "name": item.name,
+                    "page_id": item.navigate_to_page_id,
+                    "type": item.type,
+                }
+                for item in specific.menu_items.all().order_by("menu_item_order")
+            ]
         return cls(
             id=element.id,
             type=element_type,
@@ -1678,6 +1750,8 @@ class ElementItem(BaseModel):
             place_in_container=element.place_in_container,
             is_container=element_type in CONTAINER_ELEMENT_TYPES,
             label=cls._extract_label(element),
+            page_name=page_name,
+            menu_items=menu_items,
         )
 
     @staticmethod
@@ -1707,6 +1781,285 @@ class ElementItem(BaseModel):
 # ---------------------------------------------------------------------------
 # Element move model
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Style override block types
+# ---------------------------------------------------------------------------
+
+
+class ButtonStyleOverride(BaseModel):
+    """Per-element button style overrides."""
+
+    model_config = {"extra": "forbid"}
+
+    background_color: str | None = Field(default=None, description="Button bg color.")
+    text_color: str | None = Field(default=None, description="Button text color.")
+    border_color: str | None = Field(default=None, description="Button border color.")
+    border_size: int | None = Field(default=None)
+    border_radius: int | None = Field(default=None)
+    hover_background_color: str | None = Field(default=None)
+    hover_text_color: str | None = Field(default=None)
+    font_size: int | None = Field(default=None)
+    width: Literal["auto", "full"] | None = Field(default=None)
+    alignment: Literal["left", "center", "right"] | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return {f"button_{k}": v for k, v in self.model_dump(exclude_none=True).items()}
+
+
+class LinkStyleOverride(BaseModel):
+    """Per-element link style overrides."""
+
+    model_config = {"extra": "forbid"}
+
+    text_color: str | None = Field(default=None)
+    hover_text_color: str | None = Field(default=None)
+    font_size: int | None = Field(default=None)
+    font_weight: str | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return {f"link_{k}": v for k, v in self.model_dump(exclude_none=True).items()}
+
+
+class TypographyStyleOverride(BaseModel):
+    """Per-element typography overrides (heading/text elements)."""
+
+    model_config = {"extra": "forbid"}
+
+    heading_1_text_color: str | None = Field(default=None)
+    heading_1_font_size: int | None = Field(default=None)
+    heading_1_font_weight: str | None = Field(default=None)
+    heading_1_text_alignment: Literal["left", "center", "right"] | None = Field(
+        default=None
+    )
+    body_text_color: str | None = Field(default=None)
+    body_font_size: int | None = Field(default=None)
+    body_font_weight: str | None = Field(default=None)
+    body_text_alignment: Literal["left", "center", "right"] | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return self.model_dump(exclude_none=True)
+
+
+class InputStyleOverride(BaseModel):
+    """Per-element input style overrides."""
+
+    model_config = {"extra": "forbid"}
+
+    input_background_color: str | None = Field(default=None)
+    input_border_color: str | None = Field(default=None)
+    input_text_color: str | None = Field(default=None)
+    input_border_size: int | None = Field(default=None)
+    input_border_radius: int | None = Field(default=None)
+    label_text_color: str | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return self.model_dump(exclude_none=True)
+
+
+class TableStyleOverride(BaseModel):
+    """Per-element table style overrides."""
+
+    model_config = {"extra": "forbid"}
+
+    table_header_background_color: str | None = Field(default=None)
+    table_header_text_color: str | None = Field(default=None)
+    table_cell_background_color: str | None = Field(default=None)
+    table_border_color: str | None = Field(default=None)
+    table_border_size: int | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return self.model_dump(exclude_none=True)
+
+
+class ImageStyleOverride(BaseModel):
+    """Per-element image style overrides."""
+
+    model_config = {"extra": "forbid"}
+
+    image_alignment: Literal["left", "center", "right"] | None = Field(default=None)
+    image_max_width: int | None = Field(default=None)
+    image_max_height: int | None = Field(default=None)
+    image_border_radius: int | None = Field(default=None)
+
+    def to_styles_dict(self) -> dict:
+        return self.model_dump(exclude_none=True)
+
+
+# ---------------------------------------------------------------------------
+# Style update model
+# ---------------------------------------------------------------------------
+
+_STYLE_DEFAULTS: dict[str, Any] = {
+    "style_border_top_color": "border",
+    "style_border_top_size": 0,
+    "style_border_bottom_color": "border",
+    "style_border_bottom_size": 0,
+    "style_border_left_color": "border",
+    "style_border_left_size": 0,
+    "style_border_right_color": "border",
+    "style_border_right_size": 0,
+    "style_padding_top": 10,
+    "style_padding_bottom": 10,
+    "style_padding_left": 20,
+    "style_padding_right": 20,
+    "style_margin_top": 0,
+    "style_margin_bottom": 0,
+    "style_margin_left": 0,
+    "style_margin_right": 0,
+    "style_border_radius": 0,
+    "style_background_radius": 0,
+    "style_background": "none",
+    "style_background_color": "#ffffffff",
+    "style_background_mode": "fill",
+    "style_width": "normal",
+}
+
+# Maps (element_type, tool_block_name) → styles JSON key.
+# The styles JSON key is the serializer's `property_name`, which varies per
+# element type.  E.g. for "menu", both button and link props go under "menu".
+_BLOCK_TO_STYLES_KEY: dict[str, dict[str, str]] = {
+    "heading": {"typography": "typography"},
+    "text": {"typography": "typography"},
+    "button": {"button": "button"},
+    "link": {"button": "button", "link": "link"},
+    "image": {"image": "image"},
+    "input_text": {"input": "input"},
+    "choice": {"input": "input"},
+    "checkbox": {"input": "input"},
+    "table": {"button": "button", "table": "table"},
+    "repeat": {"button": "button"},
+    "menu": {"button": "menu", "link": "menu"},
+    "form_container": {"button": "button"},
+}
+
+
+class ElementStyleUpdate(BaseModel):
+    """
+    Compact model for updating element visual styles.
+
+    All fields optional — only non-None fields are applied.
+    Set reset=true to restore all styles to defaults first.
+    """
+
+    element_id: int = Field(..., description="ID of the element to style.")
+    reset: bool = Field(
+        default=False, description="Reset all styles to defaults first."
+    )
+
+    # -- Box model (uniform for all 4 sides) --
+    border_color: str | None = Field(
+        default=None, description="Border color (all sides)."
+    )
+    border_size: int | None = Field(
+        default=None, description="Border size in px (all sides)."
+    )
+    padding: int | None = Field(default=None, description="Padding in px (all sides).")
+    margin: int | None = Field(default=None, description="Margin in px (all sides).")
+
+    # -- Radii --
+    border_radius: int | None = Field(default=None)
+    background_radius: int | None = Field(default=None)
+
+    # -- Background --
+    background: Literal["none", "color"] | None = Field(default=None)
+    background_color: str | None = Field(
+        default=None, description="Background color (hex)."
+    )
+
+    # -- Width --
+    width: Literal["full", "full-width", "normal", "medium", "small"] | None = Field(
+        default=None
+    )
+
+    # -- Theme style overrides (per element type) --
+    button: ButtonStyleOverride | None = Field(
+        default=None, description="Button style overrides."
+    )
+    link: LinkStyleOverride | None = Field(
+        default=None, description="Link style overrides."
+    )
+    typography: TypographyStyleOverride | None = Field(
+        default=None, description="Typography overrides."
+    )
+    input: InputStyleOverride | None = Field(
+        default=None, description="Input style overrides."
+    )
+    table: TableStyleOverride | None = Field(
+        default=None, description="Table style overrides."
+    )
+    image: ImageStyleOverride | None = Field(
+        default=None, description="Image style overrides."
+    )
+
+    def to_update_kwargs(
+        self, element_type: str, existing_styles: dict | None = None
+    ) -> dict:
+        """Convert to ORM kwargs for ElementService.update_element().
+
+        :param element_type: The element's type string (e.g. "button").
+        :param existing_styles: The element's current ``styles`` JSON dict.
+            Used to merge theme overrides without wiping unrelated keys.
+        """
+
+        kwargs: dict[str, Any] = {}
+
+        if self.reset:
+            kwargs.update(_STYLE_DEFAULTS)
+            kwargs["styles"] = {}
+
+        # Box model — expand uniform values to all 4 sides
+        for side in ("top", "bottom", "left", "right"):
+            if self.border_color is not None:
+                kwargs[f"style_border_{side}_color"] = self.border_color
+            if self.border_size is not None:
+                kwargs[f"style_border_{side}_size"] = self.border_size
+            if self.padding is not None:
+                kwargs[f"style_padding_{side}"] = self.padding
+            if self.margin is not None:
+                kwargs[f"style_margin_{side}"] = self.margin
+
+        # Simple style fields
+        if self.border_radius is not None:
+            kwargs["style_border_radius"] = self.border_radius
+        if self.background_radius is not None:
+            kwargs["style_background_radius"] = self.background_radius
+        if self.background is not None:
+            kwargs["style_background"] = self.background
+        if self.background_color is not None:
+            kwargs["style_background_color"] = self.background_color
+        if self.width is not None:
+            kwargs["style_width"] = self.width
+
+        # Theme style overrides — merge into existing styles JSON.
+        # Start from existing styles (or {} after reset) so we don't wipe
+        # keys that weren't touched in this call.
+        block_key_map = _BLOCK_TO_STYLES_KEY.get(element_type, {})
+        if self.reset:
+            styles: dict = {}
+        else:
+            styles = dict(existing_styles) if existing_styles else {}
+            # Deep-copy block dicts so we don't mutate the original
+            for k, v in styles.items():
+                if isinstance(v, dict):
+                    styles[k] = dict(v)
+        styles_changed = False
+        for block_name in ("button", "link", "typography", "input", "table", "image"):
+            override = getattr(self, block_name)
+            target_key = block_key_map.get(block_name)
+            if override is not None and target_key is not None:
+                block_dict = override.to_styles_dict()
+                if block_dict:
+                    styles[target_key] = {
+                        **styles.get(target_key, {}),
+                        **block_dict,
+                    }
+                    styles_changed = True
+        if styles_changed or "styles" in kwargs:
+            kwargs["styles"] = styles
+
+        return kwargs
 
 
 class ElementMove(BaseModel):

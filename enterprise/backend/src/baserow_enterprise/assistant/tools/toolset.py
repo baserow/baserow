@@ -20,6 +20,8 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
+from baserow_enterprise.assistant.deps import AgentMode
+
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import AssistantDeps
 
@@ -267,32 +269,103 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
 # ---------------------------------------------------------------------------
 
 
+_SHARED_TOOLS: frozenset[str] = frozenset(
+    {
+        "navigate",
+        "switch_mode",
+        "list_builders",
+        "list_tables",
+        "get_tables_schema",
+        "list_rows",
+        "list_views",
+        "list_workflows",
+        "list_nodes",
+        "list_pages",
+        "list_data_sources",
+        "list_elements",
+        "list_actions",
+    }
+)
+
+_DATABASE_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
+    {
+        "create_tables",
+        "create_fields",
+        "update_fields",
+        "delete_fields",
+        "create_views",
+        "create_view_filters",
+        "generate_formula",
+        "load_row_tools",
+        "create_builders",
+    }
+)
+
+_APPLICATION_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
+    {
+        "create_pages",
+        "update_page",
+        "create_data_sources",
+        "update_data_source",
+        "create_display_elements",
+        "create_layout_elements",
+        "create_form_elements",
+        "create_collection_elements",
+        "update_element",
+        "update_element_style",
+        "move_elements",
+        "create_actions",
+        "add_action_field_mapping",
+        "setup_page",
+        "set_theme",
+        "create_builders",
+    }
+)
+
+_AUTOMATION_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
+    {
+        "create_workflows",
+        "add_nodes",
+        "update_nodes",
+        "delete_nodes",
+        "create_builders",
+    }
+)
+
+_EXPLAIN_INCLUDE: frozenset[str] = frozenset(
+    {
+        "list_builders",
+        "list_tables",
+        "get_tables_schema",
+        "list_rows",
+        "list_views",
+        "list_workflows",
+        "list_pages",
+        "list_data_sources",
+        "list_elements",
+        "list_actions",
+        "navigate",
+        "search_user_docs",
+        "switch_mode",
+    }
+)
+
+_MODE_TOOL_MAP: dict = {
+    AgentMode.DATABASE: _DATABASE_TOOLS,
+    AgentMode.APPLICATION: _APPLICATION_TOOLS,
+    AgentMode.AUTOMATION: _AUTOMATION_TOOLS,
+    AgentMode.EXPLAIN: _EXPLAIN_INCLUDE,
+}
+
+
 class ModeAwareToolset(AbstractToolset[AgentDepsT]):
     """
     Filters the inner toolset based on the current :class:`AgentMode`.
 
-    In **DO** mode every tool is available except those in ``_DO_EXCLUDE``.
-    In **EXPLAIN** mode only tools listed in ``_EXPLAIN_INCLUDE`` are exposed.
+    Each domain mode (DATABASE, APPLICATION, AUTOMATION) exposes only its
+    relevant tools plus shared read-only tools. EXPLAIN mode exposes
+    read-only tools plus ``search_user_docs``.
     """
-
-    _DO_EXCLUDE: frozenset[str] = frozenset({"search_user_docs"})
-    _EXPLAIN_INCLUDE: frozenset[str] = frozenset(
-        {
-            "list_builders",
-            "list_tables",
-            "get_tables_schema",
-            "list_rows",
-            "list_views",
-            "list_workflows",
-            "list_pages",
-            "list_data_sources",
-            "list_elements",
-            "list_actions",
-            "navigate",
-            "search_user_docs",
-            "switch_mode",
-        }
-    )
 
     def __init__(self, inner: AbstractToolset[AgentDepsT], deps: "AssistantDeps"):
         self._inner = inner
@@ -319,12 +392,9 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         return ModeAwareToolset(self._inner.visit_and_replace(visitor), self._deps)
 
     async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
-        from baserow_enterprise.assistant.deps import AgentMode
-
         all_tools = await self._inner.get_tools(ctx)
-        if self._deps.mode == AgentMode.DO:
-            return {k: v for k, v in all_tools.items() if k not in self._DO_EXCLUDE}
-        return {k: v for k, v in all_tools.items() if k in self._EXPLAIN_INCLUDE}
+        allowed = _MODE_TOOL_MAP[self._deps.mode]
+        return {k: v for k, v in all_tools.items() if k in allowed}
 
     async def call_tool(
         self,

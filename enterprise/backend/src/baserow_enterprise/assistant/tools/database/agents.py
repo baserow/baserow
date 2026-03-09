@@ -154,6 +154,47 @@ def make_formula_fixer(
 # ---------------------------------------------------------------------------
 
 
+def _find_reverse_link_row_fields(tables: list) -> dict[int, set[int]]:
+    """
+    Identify auto-created reverse link_row fields across a set of tables.
+
+    When a link_row field is created between two tables, Baserow auto-creates
+    a reverse field on the linked table.  For sample-row generation we only
+    want the "owning" side (the explicitly created field) so the agent doesn't
+    face circular dependencies.
+
+    For any bidirectional pair the field with the **higher** ID is the
+    auto-created reverse (it's created immediately after the explicit one).
+
+    :returns: ``{table_id: {field_id, ...}}`` of reverse field IDs to exclude.
+    """
+
+    from baserow.contrib.database.fields.models import LinkRowField
+
+    table_ids = {t.id for t in tables}
+    link_fields = LinkRowField.objects.filter(
+        table_id__in=table_ids, link_row_table_id__in=table_ids
+    ).select_related("link_row_related_field")
+
+    reverse_ids: dict[int, set[int]] = {}
+    seen_pairs: set[tuple[int, int]] = set()
+
+    for lf in link_fields:
+        related = lf.link_row_related_field
+        if related is None:
+            continue
+        pair = (min(lf.id, related.id), max(lf.id, related.id))
+        if pair in seen_pairs:
+            continue
+        seen_pairs.add(pair)
+
+        # The field with the higher ID is the auto-created reverse.
+        reverse = lf if lf.id > related.id else related
+        reverse_ids.setdefault(reverse.table_id, set()).add(reverse.id)
+
+    return reverse_ids
+
+
 def generate_sample_rows(
     user: AbstractUser,
     workspace: Workspace,
@@ -182,10 +223,33 @@ def generate_sample_rows(
 
     tool_helpers.update_status(_("Generating example rows for these new tables..."))
 
-    # Build a create_rows tool for each table.
+    # Build a create_rows tool for every table in the database (not just
+    # the newly created ones) so link_row fields can reference rows in
+    # pre-existing tables too.
+    database = created_tables[0].database
+    all_db_tables = list(database.table_set.all())
+
+    # Identify reverse (auto-created) link_row fields to exclude from the
+    # create schema.  When a link_row is created between two tables in the
+    # same batch, Baserow auto-creates a reverse field.  Including both
+    # sides creates a circular dependency the sample-row agent cannot
+    # resolve.  For any bidirectional pair, the field with the higher ID
+    # is the auto-created reverse — we exclude it.
+    reverse_field_ids = _find_reverse_link_row_fields(all_db_tables)
+
     create_tools = []
-    for table in created_tables:
-        row_tools = _build_row_tools(user, workspace, tool_helpers, table)
+    for table in all_db_tables:
+        # Exclude reverse link_row fields for this table
+        exclude = reverse_field_ids.get(table.id)
+        field_ids = None
+        if exclude:
+            all_field_ids = [
+                fo["field"].id for fo in table.get_model().get_field_objects()
+            ]
+            field_ids = [fid for fid in all_field_ids if fid not in exclude]
+        row_tools = _build_row_tools(
+            user, workspace, tool_helpers, table, field_ids=field_ids
+        )
         create_tools.append(row_tools["create"])
 
     # Build a description of each table so the agent knows the schemas.
@@ -203,7 +267,7 @@ def generate_sample_rows(
         format_sample_rows_prompt(table_info, data_brief=data_brief),
         model=model,
         model_settings=get_model_settings(model, SAMPLE),
-        usage_limits=UsageLimits(request_limit=len(created_tables) * 3 + 2),
+        usage_limits=UsageLimits(request_limit=len(all_db_tables) * 3 + 2),
     )
 
     # Collect the rows that were actually inserted.
