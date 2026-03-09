@@ -311,6 +311,12 @@ export default {
       }
     },
     syncValuesFromUser() {
+      if (!this.syncedFromValues) {
+        // This function could have been called before the initial sync from `values`
+        // to `user` in mounted() has completed. In that case, we don't want to run
+        // this logic yet since `user` won't have the correct values yet.
+        return
+      }
       this.v$.$touch()
       if (this.v$.values.interval.$invalid) return
       if (this.showMinuteFrequencyField && this.v$.user.minute.$invalid) return
