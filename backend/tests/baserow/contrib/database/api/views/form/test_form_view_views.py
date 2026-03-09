@@ -3830,6 +3830,13 @@ def test_can_use_link_row_field_to_table_with_formula_as_primary_key_in_form_vie
     assert response.json()["submit_action_message"] == ""
 
 
+def _get_cell_uuid(table, edit_field_id, row_id):
+    """Helper to fetch the cell UUID for an edit-row field from the database."""
+    model = table.get_model()
+    row_obj = model.objects.get(id=row_id)
+    return str(getattr(row_obj, f"field_{edit_field_id}"))
+
+
 @pytest.mark.django_db
 def test_edit_row_get_valid_token(data_fixture, api_client):
     user = data_fixture.create_user()
@@ -3854,7 +3861,8 @@ def test_edit_row_get_valid_token(data_fixture, api_client):
         values={f"field_{text_field.id}": "Test value"},
     )
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": form_view.slug, "row_token": token},
@@ -3898,7 +3906,10 @@ def test_edit_row_get_missing_row(data_fixture, api_client):
         form_view_id=form_view.id,
     )
 
-    token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
+    # Use a UUID that doesn't exist in any row.
+    token = generate_row_edit_token(
+        form_view.slug, edit_field_obj.id, "00000000-0000-0000-0000-000000000000"
+    )
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": form_view.slug, "row_token": token},
@@ -3931,7 +3942,8 @@ def test_edit_row_patch_updates_row(data_fixture, api_client):
         values={f"field_{text_field.id}": "Original"},
     )
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": form_view.slug, "row_token": token},
@@ -3988,7 +4000,9 @@ def test_edit_row_patch_missing_row(data_fixture, api_client):
         form_view_id=form_view.id,
     )
 
-    token = generate_row_edit_token(99999, form_view.id, edit_field_obj.id)
+    token = generate_row_edit_token(
+        form_view.slug, edit_field_obj.id, "00000000-0000-0000-0000-000000000000"
+    )
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": form_view.slug, "row_token": token},
@@ -4031,7 +4045,8 @@ def test_edit_row_patch_only_visible_form_fields_are_writable(data_fixture, api_
         },
     )
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": form_view.slug, "row_token": token},
@@ -4070,8 +4085,9 @@ def test_edit_row_get_token_for_wrong_view(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    # Token is signed for form_view, but request targets other_form_view.
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    # Token is signed for form_view's slug, but request targets other_form_view.
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": other_form_view.slug, "row_token": token},
@@ -4098,7 +4114,8 @@ def test_edit_row_patch_token_for_wrong_view(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     url = reverse(
         "api:database:views:form:edit_row",
         kwargs={"slug": other_form_view.slug, "row_token": token},
@@ -4124,7 +4141,8 @@ def test_edit_row_get_deleted_edit_field(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
 
     # Delete the field after generating the token.
     FieldHandler().delete_field(user=user, field=edit_field_obj)
@@ -4154,7 +4172,8 @@ def test_edit_row_patch_deleted_edit_field(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
 
     FieldHandler().delete_field(user=user, field=edit_field_obj)
 
@@ -4183,7 +4202,8 @@ def test_edit_row_get_deleted_form_view(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     slug = form_view.slug
 
     # Delete the form view after generating the token.
@@ -4214,7 +4234,8 @@ def test_edit_row_patch_deleted_form_view(data_fixture, api_client):
 
     row = RowHandler().create_row(user=user, table=table, values={})
 
-    token = generate_row_edit_token(row.id, form_view.id, edit_field_obj.id)
+    cell_uuid = _get_cell_uuid(table, edit_field_obj.id, row.id)
+    token = generate_row_edit_token(form_view.slug, edit_field_obj.id, cell_uuid)
     slug = form_view.slug
 
     form_view.delete()

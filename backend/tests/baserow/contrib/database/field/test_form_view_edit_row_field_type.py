@@ -14,38 +14,41 @@ from baserow.contrib.database.fields.utils.row_edit import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.exceptions import ViewNotInTable
+from baserow.contrib.database.views.handler import ViewHandler
 
 
 @pytest.mark.django_db
 def test_generate_row_edit_token_is_deterministic():
     """The same inputs must always produce the same token."""
-    token1 = generate_row_edit_token(row_id=1, view_id=2, field_id=3)
-    token2 = generate_row_edit_token(row_id=1, view_id=2, field_id=3)
+    token1 = generate_row_edit_token(view_slug="slug1", field_id=2, cell_uuid="abc-123")
+    token2 = generate_row_edit_token(view_slug="slug1", field_id=2, cell_uuid="abc-123")
     assert token1 == token2
 
 
 @pytest.mark.django_db
 def test_generate_row_edit_token_differs_by_input():
     """Different inputs must produce different tokens."""
-    t1 = generate_row_edit_token(row_id=1, view_id=2, field_id=3)
-    t2 = generate_row_edit_token(row_id=2, view_id=2, field_id=3)
-    t3 = generate_row_edit_token(row_id=1, view_id=99, field_id=3)
-    t4 = generate_row_edit_token(row_id=1, view_id=2, field_id=99)
+    t1 = generate_row_edit_token(view_slug="slug1", field_id=2, cell_uuid="uuid-a")
+    t2 = generate_row_edit_token(view_slug="slug2", field_id=2, cell_uuid="uuid-a")
+    t3 = generate_row_edit_token(view_slug="slug1", field_id=99, cell_uuid="uuid-a")
+    t4 = generate_row_edit_token(view_slug="slug1", field_id=2, cell_uuid="uuid-b")
     assert len({t1, t2, t3, t4}) == 4
 
 
 @pytest.mark.django_db
 def test_verify_and_decode_edit_token_valid():
     """A freshly generated token must decode back to the original values."""
-    token = generate_row_edit_token(row_id=5, view_id=10, field_id=15)
+    token = generate_row_edit_token(
+        view_slug="test-slug", field_id=15, cell_uuid="my-uuid"
+    )
     data = verify_and_decode_edit_token(token)
-    assert data == {"row_id": 5, "view_id": 10, "field_id": 15}
+    assert data == {"view_slug": "test-slug", "field_id": 15, "cell_uuid": "my-uuid"}
 
 
 @pytest.mark.django_db
 def test_verify_and_decode_edit_token_tampered():
     """A tampered token must return None."""
-    token = generate_row_edit_token(row_id=1, view_id=2, field_id=3)
+    token = generate_row_edit_token(view_slug="slug", field_id=3, cell_uuid="uuid")
     assert verify_and_decode_edit_token(token + "X") is None
     assert verify_and_decode_edit_token("totallyinvalid") is None
     assert verify_and_decode_edit_token("") is None
@@ -134,6 +137,94 @@ def test_field_excluded_from_form_view_active_options(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_field_on_table_with_existing_rows(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    # Create multiple rows before adding the edit-row field.
+    for i in range(5):
+        RowHandler().create_row(
+            user=user,
+            table=table,
+            values={f"field_{text_field.id}": f"Row {i}"},
+        )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Edit link",
+            "type": "form_view_edit_row",
+            "form_view_id": form_view.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+    field_id = response.json()["id"]
+    model = table.get_model()
+    uuids = list(
+        model.objects.values_list(f"field_{field_id}", flat=True).order_by("id")
+    )
+
+    # All UUIDs must be non-empty and unique.
+    assert all(u is not None for u in uuids), f"Bad UUIDs: {uuids}"
+    assert len(set(uuids)) == 5, f"Duplicate UUIDs found: {uuids}"
+
+
+@pytest.mark.django_db
+def test_update_field_preserves_unique_uuids(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    for i in range(3):
+        RowHandler().create_row(
+            user=user,
+            table=table,
+            values={f"field_{text_field.id}": f"Row {i}"},
+        )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Edit link",
+            "type": "form_view_edit_row",
+            "form_view_id": form_view.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    field_id = response.json()["id"]
+
+    # Update the field without changing the type (simulates a rename or
+    # no-op update from the frontend).
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_id}),
+        {
+            "name": "Edit link renamed",
+            "type": "form_view_edit_row",
+            "form_view_id": form_view.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    model = table.get_model()
+    uuids = list(
+        model.objects.values_list(f"field_{field_id}", flat=True).order_by("id")
+    )
+
+    assert all(u is not None for u in uuids), f"Bad UUIDs: {uuids}"
+    assert len(set(uuids)) == 3, f"Duplicate UUIDs after update: {uuids}"
+
+
+@pytest.mark.django_db
 def test_row_serializer_includes_edit_url(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -173,9 +264,14 @@ def test_row_serializer_includes_edit_url(data_fixture, api_client):
     token_val = qs["edit_token"][0]
     decoded = verify_and_decode_edit_token(token_val)
     assert decoded is not None
-    assert decoded["row_id"] == row.id
-    assert decoded["view_id"] == form_view.id
+    assert decoded["view_slug"] == form_view.slug
     assert decoded["field_id"] == edit_field.id
+
+    # The cell_uuid in the token must match the value stored in the row.
+    model = table.get_model()
+    row_instance = model.objects.get(id=row.id)
+    cell_uuid = str(getattr(row_instance, f"field_{edit_field.id}"))
+    assert decoded["cell_uuid"] == cell_uuid
 
 
 @pytest.mark.django_db
@@ -268,9 +364,14 @@ def test_grid_view_includes_edit_url(data_fixture, api_client):
     token_val = qs["edit_token"][0]
     decoded = verify_and_decode_edit_token(token_val)
     assert decoded is not None
-    assert decoded["row_id"] == row.id
-    assert decoded["view_id"] == form_view.id
+    assert decoded["view_slug"] == form_view.slug
     assert decoded["field_id"] == edit_field.id
+
+    # The cell_uuid in the token must match the stored value.
+    model = table.get_model()
+    row_instance = model.objects.get(id=row.id)
+    cell_uuid = str(getattr(row_instance, f"field_{edit_field.id}"))
+    assert decoded["cell_uuid"] == cell_uuid
 
 
 @pytest.mark.django_db
@@ -289,7 +390,7 @@ def test_export_includes_edit_url(data_fixture):
         form_view_id=form_view.id,
     )
 
-    row = RowHandler().create_row(user=user, table=table, values={})
+    RowHandler().create_row(user=user, table=table, values={})
 
     from baserow.contrib.database.fields.registries import field_type_registry
 
@@ -299,7 +400,7 @@ def test_export_includes_edit_url(data_fixture):
         fo for fo in model.get_field_objects() if fo["field"].id == edit_field.id
     )
 
-    row_instance = model.objects.get(id=row.id)
+    row_instance = model.objects.first()
     value = getattr(row_instance, field_object["name"])
     export_value = field_type.get_export_value(value, field_object)
 
@@ -327,7 +428,6 @@ def test_convert_form_view_edit_row_to_text(data_fixture):
 
     RowHandler().create_row(user=user, table=table, values={})
 
-    # Converting from a generated column to a regular text column must work.
     handler.update_field(user=user, field=edit_field, new_type_name="text")
 
     from baserow.contrib.database.fields.models import TextField
@@ -365,6 +465,12 @@ def test_convert_text_to_form_view_edit_row(data_fixture):
 
     assert FormViewEditRowField.objects.filter(id=text_field.id).exists()
 
+    # Verify the converted field has a UUID backfilled.
+    model = table.get_model()
+    row = model.objects.first()
+    cell_uuid = str(getattr(row, f"field_{text_field.id}"))
+    assert cell_uuid is not None and len(cell_uuid) == 36
+
 
 @pytest.mark.django_db
 def test_duplicate_table_remaps_form_view_id(data_fixture):
@@ -391,3 +497,45 @@ def test_duplicate_table_remaps_form_view_id(data_fixture):
     # It must point to a form view that belongs to the new table.
     assert new_edit_field.form_view_id is not None
     assert new_edit_field.form_view.table_id == new_table.id
+
+
+@pytest.mark.django_db
+def test_rotating_slug_invalidates_edit_urls(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    form_view = data_fixture.create_form_view(table=table, public=True)
+
+    edit_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form_view.id,
+    )
+
+    RowHandler().create_row(user=user, table=table, values={})
+
+    response = api_client.get(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    old_url = response.json()["results"][0][f"field_{edit_field.id}"]
+    old_slug = form_view.slug
+    assert old_slug in old_url
+
+    ViewHandler().rotate_view_slug(user, form_view)
+    form_view.refresh_from_db()
+    new_slug = form_view.slug
+    assert new_slug != old_slug
+
+    # Fetch the edit URL again — it must contain the new slug.
+    response = api_client.get(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    new_url = response.json()["results"][0][f"field_{edit_field.id}"]
+    assert new_slug in new_url
+    assert old_slug not in new_url

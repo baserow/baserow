@@ -322,7 +322,7 @@ def test_get_row_serializer_with_user_field_names(
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     model = table.get_model()
 
-    form_view_edit_row_url = get_form_view_edit_row_url(context, row.id)
+    form_view_edit_row_url = get_form_view_edit_row_url(context, row)
 
     # get_row_serializer_class should nevere make any queries to the database
     with django_assert_num_queries(0):

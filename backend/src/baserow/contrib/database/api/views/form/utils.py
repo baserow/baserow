@@ -13,29 +13,38 @@ from baserow.contrib.database.views.validators import (
 from .exceptions import InvalidEditRowTokenError
 
 
-def decode_and_validate_edit_token(form: FormView, token: str) -> Tuple[int, int]:
+def decode_and_validate_edit_token(form: FormView, token: str) -> Tuple[str, int]:
     """
     Decode the edit token and validate it against the given form view.
+
+    The token payload must contain `view_slug`, `field_id`, and
+    `cell_uuid`. Validation checks:
+
+    1. The token signature is valid.
+    2. The `view_slug` matches the form view's current slug (rotating the
+       slug invalidates all existing tokens).
+    3. The `field_id` references a `FormViewEditRowField` linked to this
+       form view.
 
     :param form: The form view the token must belong to.
     :param token: The signed edit token string.
     :raises InvalidEditRowTokenError: If the token is missing, invalid, or
         does not match the form view.
-    :return: A (row_id, field_id) tuple extracted from the valid token.
+    :return: A (cell_uuid, field_id) tuple extracted from the valid token.
     """
 
     if not token:
         raise InvalidEditRowTokenError()
 
     data = verify_and_decode_edit_token(token)
-    if data is None or data.get("view_id") != form.id:
+    if data is None or data.get("view_slug") != form.slug:
         raise InvalidEditRowTokenError()
 
     field_id = data.get("field_id")
     if not FormViewEditRowField.objects.filter(id=field_id, form_view=form).exists():
         raise InvalidEditRowTokenError()
 
-    return data["row_id"], field_id
+    return data["cell_uuid"], field_id
 
 
 def build_field_kwargs_for_options(model, options, enforce_required=False):

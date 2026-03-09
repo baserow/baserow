@@ -296,8 +296,8 @@ def test_can_export_every_interesting_different_field_to_csv(
     contents, row, blank_row, context = run_export_job_over_interesting_table(
         data_fixture, storage_mock, {"exporter_type": "csv"}
     )
-    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row.id)
-    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row.id)
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     # noinspection HttpUrlsUsage
     fields = {
         "id": ["1", "2"],

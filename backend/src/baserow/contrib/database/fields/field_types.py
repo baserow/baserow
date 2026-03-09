@@ -7528,30 +7528,27 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         )
     }
     can_be_in_form_view = False
-    field_data_is_derived_from_attrs = True
+    field_data_is_derived_from_attrs = False
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
-    _can_have_db_index = False
+    _can_have_db_index = True
     keep_data_on_duplication = False
     api_exceptions_map = {
         ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
     }
 
     def get_serializer_field(self, instance, **kwargs):
-        return serializers.IntegerField(required=False, **kwargs)
+        return serializers.UUIDField(required=False, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         return FormViewEditRowURLSerializerField(field_instance=instance, **kwargs)
 
     def get_model_field(self, instance, **kwargs):
-        # A GENERATED ALWAYS AS (id) STORED column so that the row PK is always
-        # available as the field value. This means CSV export can call
-        # get_export_value(row_pk) without any extra infrastructure.
-        return models.GeneratedField(
-            expression=models.F("id"),
-            output_field=models.IntegerField(),
-            db_persist=True,
+        return models.UUIDField(
+            default=uuid.uuid4,
+            null=True,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -7576,6 +7573,30 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
             ).exists():
                 raise ViewNotInTable(form_view_id)
 
+    def after_create(self, field, model, user, connection, before, field_kwargs):
+        """
+        After the field column is created, assign a unique UUID to every
+        existing row using a single SQL UPDATE with the database's built-in
+        random UUID generator.
+        """
+
+        model.objects.all().update(**{f"{field.db_column}": RandomUUID()})
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        if not isinstance(from_field, self.model_class):
+            to_model.objects.all().update(**{f"{to_field.db_column}": RandomUUID()})
+
     def is_searchable(self, field: Field) -> bool:
         return False
 
@@ -7586,7 +7607,7 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         form_view = field_instance.form_view
         if form_view is None:
             return ""
-        return build_row_edit_url(value, form_view, field_instance.id)
+        return build_row_edit_url(str(value), form_view, field_instance.id)
 
     def import_serialized(
         self,

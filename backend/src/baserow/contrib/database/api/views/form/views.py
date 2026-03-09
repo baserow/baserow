@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -234,16 +235,18 @@ class EditRowFormViewView(APIView):
             view_model=FormView,
             authorization_token=get_public_view_authorization_token(request),
         )
-        row_id, _ = decode_and_validate_edit_token(form, row_token)
+        cell_uuid, field_id = decode_and_validate_edit_token(form, row_token)
 
         model = form.table.get_model()
-        options = form.active_field_options
-        field_ids = [option.field_id for option in options]
+        field_column = f"field_{field_id}"
 
         try:
-            row = model.objects.get(id=row_id)
-        except model.DoesNotExist:
-            raise RowDoesNotExist([row_id])
+            row = model.objects.get(**{field_column: cell_uuid})
+        except (model.DoesNotExist, ValidationError):
+            raise RowDoesNotExist(cell_uuid)
+
+        options = form.active_field_options
+        field_ids = [option.field_id for option in options]
 
         serializer_class = get_row_serializer_class(
             model, is_response=True, field_ids=field_ids
@@ -309,10 +312,16 @@ class EditRowFormViewView(APIView):
             authorization_token=get_public_view_authorization_token(request),
         )
 
-        row_id, _ = decode_and_validate_edit_token(form, row_token)
+        cell_uuid, field_id = decode_and_validate_edit_token(form, row_token)
         data = request.data
 
         model = form.table.get_model()
+        field_column = f"field_{field_id}"
+
+        try:
+            row = model.objects.get(**{field_column: cell_uuid})
+        except (model.DoesNotExist, ValidationError):
+            raise RowDoesNotExist(cell_uuid)
 
         options = form.active_field_options
         field_kwargs = build_field_kwargs_for_options(model, options)
@@ -325,7 +334,7 @@ class EditRowFormViewView(APIView):
 
         user = AnonymousUser()
         updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
-            user, form, row_id, values, model, options
+            user, form, row.id, values, model, options
         )
 
         form.row_id = updated_row.id

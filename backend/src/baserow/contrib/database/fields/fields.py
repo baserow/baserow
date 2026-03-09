@@ -382,24 +382,25 @@ class SyncedUserForeignKeyField(IgnoreMissingForeignKey):
 class FormViewEditRowURLSerializerField(serializers.Field):
     """
     A custom serializer field that computes a unique, secure edit URL for a
-    row. Instead of reading a stored column value, it uses the row's primary
-    key (``source='id'``) to generate the URL on the fly using signed tokens.
+    row. It reads the per-cell UUID stored in the field column and uses it
+    together with the form view slug to generate a signed token URL.
     """
 
     def __init__(self, field_instance, *args, **kwargs):
         self.field_instance = field_instance
         kwargs.setdefault("read_only", True)
-        kwargs["source"] = "id"
         super().__init__(*args, **kwargs)
 
-    def to_representation(self, row_id: int) -> Optional[str]:
+    def to_representation(self, cell_uuid: str) -> Optional[str]:
         """
-        Convert the row PK into a full edit URL.
+        Convert the cell UUID into a full edit URL.
 
-        :param row_id: The primary key of the row.
+        :param cell_uuid: The unique UUID stored in the row's edit-link cell.
         :return: The edit URL, or ``None`` if no form view is configured.
         """
 
+        if not cell_uuid:
+            return None
         if not self.field_instance.form_view_id:
             return None
         try:
@@ -411,7 +412,7 @@ class FormViewEditRowURLSerializerField(serializers.Field):
             return None
         if form_view is None:
             return None
-        return build_row_edit_url(row_id, form_view, self.field_instance.id)
+        return build_row_edit_url(str(cell_uuid), form_view, self.field_instance.id)
 
     def to_internal_value(self, data):
         raise serializers.ValidationError("This field is read-only.")

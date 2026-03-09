@@ -33,8 +33,8 @@ def test_can_export_every_interesting_different_field_to_json(
         {"exporter_type": "json"},
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
-    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row.id)
-    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row.id)
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     assert (
         contents
         == """[
@@ -362,8 +362,8 @@ def test_can_export_every_interesting_different_field_to_xml(
         {"exporter_type": "xml"},
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
-    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row.id)
-    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row.id)
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     expected_xml = """<?xml version="1.0" encoding="utf-8" ?>
 <rows>
    <row>
@@ -765,8 +765,8 @@ def test_can_export_every_interesting_different_field_to_excel(
         },
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
-    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row.id)
-    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row.id)
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
 
     excel_file = BytesIO(contents)
     workbook = load_workbook(excel_file)

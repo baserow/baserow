@@ -567,21 +567,22 @@ def independent_test_db_connection():
     conn.close()
 
 
-def get_form_view_edit_row_url(context: Dict[str, Any], row_id: int) -> str:
+def get_form_view_edit_row_url(context: Dict[str, Any], row) -> str:
     """
     Compute the expected form_view_edit_row URL for a given row in an
     interesting test table.
 
     :param context: The context dict returned by ``setup_interesting_test_table``.
-    :param row_id: The primary key of the row.
+    :param row: The row instance (must have the edit-link field column).
     :return: The full edit URL.
     """
 
     form_view = context["form_view"]
     name_to_field_id = context["name_to_field_id"]
     field_id = name_to_field_id["form_view_edit_row"]
+    cell_uuid = str(getattr(row, f"field_{field_id}"))
     base = getattr(settings, "PUBLIC_WEB_FRONTEND_URL", "").rstrip("/")
-    token = generate_row_edit_token(row_id, form_view.id, field_id)
+    token = generate_row_edit_token(form_view.slug, field_id, cell_uuid)
     return f"{base}/form/{form_view.slug}/?edit_token={token}"
 
 

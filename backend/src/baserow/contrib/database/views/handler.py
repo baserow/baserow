@@ -36,6 +36,7 @@ from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewOwnershipTypeDoesNotExist
 from baserow.contrib.database.views.filters import AdHocFilters
@@ -3272,6 +3273,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         setattr(view, slug_field, slug)
         view.save()
+
+        table_id = view.table_id
+        # Invalidate the model cache because fields could be depending on that specific
+        # model slug, like the edit row link field.
+        invalidate_table_in_model_cache(table_id)
 
         view_updated.send(self, view=view, user=user, old_view=old_view)
 

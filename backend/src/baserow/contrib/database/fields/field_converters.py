@@ -129,7 +129,7 @@ class FormViewEditRowFieldConverter(RecreateFieldConverter):
     def is_applicable(self, from_model, from_field, to_field):
         from_edit_row = isinstance(from_field, FormViewEditRowField)
         to_edit_row = isinstance(to_field, FormViewEditRowField)
-        return from_edit_row or to_edit_row
+        return from_edit_row != to_edit_row
 
 
 class AutonumberFieldConverter(RecreateFieldConverter):
