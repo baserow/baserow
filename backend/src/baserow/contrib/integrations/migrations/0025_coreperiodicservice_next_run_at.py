@@ -17,6 +17,7 @@ class Migration(migrations.Migration):
                 help_text="The next scheduled time for this service to run. "
                 "Automatically calculated based on the interval and schedule fields.",
                 null=True,
+                db_default=None,
             ),
         ),
     ]

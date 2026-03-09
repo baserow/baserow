@@ -209,6 +209,7 @@ class CorePeriodicService(Service):
     next_run_at = models.DateTimeField(
         null=True,
         db_index=True,
+        db_default=None,
         help_text="The next scheduled time for this service to run. Automatically "
         "calculated based on the interval and schedule fields.",
     )
