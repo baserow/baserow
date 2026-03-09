@@ -82,7 +82,11 @@ def forward(apps, schema_editor):
     now = timezone.now().replace(second=0, microsecond=0)
 
     services_to_update = []
-    for service in CorePeriodicService.objects.all():
+
+    # Only migrate services which have run, this will help reduce the
+    # size of the queryset by excluding 'draft' workflows.
+    services_which_have_run = CorePeriodicService.objects.exclude(last_periodic_run__is_null=True)
+    for service in services_which_have_run:
         # Calculate next_run_at based on the service's schedule
         # Use last_periodic_run as the base if available, otherwise use now
         from_time = service.last_periodic_run if service.last_periodic_run else now
