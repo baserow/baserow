@@ -37,8 +37,10 @@ from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     RowDoesNotExist,
 )
-from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.views.actions import SubmitFormActionType
+from baserow.contrib.database.views.actions import (
+    EditFormRowActionType,
+    SubmitFormActionType,
+)
 from baserow.contrib.database.views.exceptions import (
     NoAuthorizationToPubliclySharedView,
     ViewDoesNotExist,
@@ -322,13 +324,9 @@ class EditRowFormViewView(APIView):
         values = validate_data(validation_serializer, data, return_validated=True)
 
         user = AnonymousUser()
-        updated_rows_data = RowHandler().force_update_rows(
-            user,
-            form.table,
-            [{"id": row_id, **values}],
-            model=model,
+        updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
+            user, form, row_id, values, model, options
         )
-        updated_row = updated_rows_data.updated_rows[0]
 
         form.row_id = updated_row.id
         return Response(FormViewSubmittedSerializer(form).data)

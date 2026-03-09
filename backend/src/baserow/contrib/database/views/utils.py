@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from django.db.models.aggregates import Aggregate, Count
 
@@ -50,3 +50,30 @@ class DistributionAggregation:
             .order_by("-count", self.group_by)
             .values_list(self.group_by, "count")[:limit]
         )
+
+
+def serialize_row_for_action(row, model) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """
+    Build the serialized values dict and fields metadata for a row, to be used
+    when registering form-related actions for the audit log.
+
+    :param row: The row instance.
+    :param model: The generated table model.
+    :return: A tuple of (serialized_values, fields_metadata).
+    """
+
+    from baserow.contrib.database.rows.handler import RowHandler
+
+    row_handler = RowHandler()
+    fields_metadata = row_handler.get_fields_metadata_for_rows(
+        [row], model.get_fields()
+    )[row.id]
+    cache = {}
+    serialized_values = {
+        f["name"]: f["type"].get_export_serialized_value(
+            row, f["name"], cache=cache, files_zip=None, storage=None
+        )
+        for f in model.get_field_objects()
+        if not f["type"].read_only
+    }
+    return serialized_values, fields_metadata

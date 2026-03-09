@@ -113,6 +113,7 @@ class DatabaseConfig(AppConfig):
             DeleteViewGroupByActionType,
             DeleteViewSortActionType,
             DuplicateViewActionType,
+            EditFormRowActionType,
             OrderViewsActionType,
             RotateViewSlugActionType,
             SubmitFormActionType,
@@ -140,6 +141,7 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateViewGroupByActionType())
         action_type_registry.register(DeleteViewGroupByActionType())
         action_type_registry.register(SubmitFormActionType())
+        action_type_registry.register(EditFormRowActionType())
         action_type_registry.register(RotateViewSlugActionType())
         action_type_registry.register(UpdateViewFieldOptionsActionType())
         action_type_registry.register(CreateDecorationActionType())
