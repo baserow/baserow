@@ -24,16 +24,18 @@ def test_table_page_can_add(data_fixture):
     table_1 = data_fixture.create_database_table(user=user_1)
 
     # Success
-    table_page.can_add(user_1, user_1_websocket_id, table_1.id) is True
+    assert table_page.can_add(user_1, user_1_websocket_id, table_1.id) is True
 
     # Table doesn't exist
-    table_page.can_add(user_1, user_1_websocket_id, 999) is False
+    assert table_page.can_add(user_1, user_1_websocket_id, 999) is False
 
     # User not in workspace
-    table_page.can_add(user_2, user_2_websocket_id, table_1.id) is False
+    assert table_page.can_add(user_2, user_2_websocket_id, table_1.id) is False
 
     # Permission denied
-    table_page.can_add(AnonymousUser(), anonymous_websocket_id, table_1.id) is False
+    assert (
+        table_page.can_add(AnonymousUser(), anonymous_websocket_id, table_1.id) is False
+    )
 
 
 @pytest.mark.websockets
@@ -99,37 +101,60 @@ def test_public_view_page_can_add(data_fixture):
     anonymous_websocket_id = 123
 
     # Success
-    view_page.can_add(user_1, user_1_websocket_id, public_grid_view.slug) is True
-    view_page.can_add(
-        AnonymousUser(), anonymous_websocket_id, public_grid_view.slug
-    ) is True
-    view_page.can_add(
-        user_1, user_1_websocket_id, password_protected_grid_view.slug
-    ) is True
+    assert view_page.can_add(user_1, user_1_websocket_id, public_grid_view.slug) is True
+    assert (
+        view_page.can_add(
+            AnonymousUser(), anonymous_websocket_id, public_grid_view.slug
+        )
+        is True
+    )
+    assert (
+        view_page.can_add(
+            user_1, user_1_websocket_id, password_protected_grid_view.slug
+        )
+        is True
+    )
 
     # View doesn't exist
-    view_page.can_add(user_1, user_1_websocket_id, "non-existing-slug") is False
+    assert view_page.can_add(user_1, user_1_websocket_id, "non-existing-slug") is False
 
     # Not a public view
-    view_page.can_add(user_1, user_1_websocket_id, non_public_grid_view.slug) is False
+    assert (
+        view_page.can_add(
+            AnonymousUser(), user_1_websocket_id, non_public_grid_view.slug
+        )
+        is False
+    )
 
     # Some views don't have realtime events
-    view_page.can_add(
-        user_1, user_1_websocket_id, public_form_view_which_cant_be_subbed.slug
-    ) is False
-    view_page.can_add(
-        AnonymousUser(),
-        anonymous_websocket_id,
-        public_form_view_which_cant_be_subbed.slug,
-    ) is False
+    assert (
+        view_page.can_add(
+            user_1, user_1_websocket_id, public_form_view_which_cant_be_subbed.slug
+        )
+        is False
+    )
+    assert (
+        view_page.can_add(
+            AnonymousUser(),
+            anonymous_websocket_id,
+            public_form_view_which_cant_be_subbed.slug,
+        )
+        is False
+    )
 
     # Not allowed when view is password protected
-    view_page.can_add(
-        user_2, user_2_websocket_id, password_protected_grid_view.slug
-    ) is False
-    view_page.can_add(
-        AnonymousUser(), anonymous_websocket_id, password_protected_grid_view.slug
-    ) is False
+    assert (
+        view_page.can_add(
+            user_2, user_2_websocket_id, password_protected_grid_view.slug
+        )
+        is False
+    )
+    assert (
+        view_page.can_add(
+            AnonymousUser(), anonymous_websocket_id, password_protected_grid_view.slug
+        )
+        is False
+    )
 
 
 @pytest.mark.websockets
@@ -174,21 +199,22 @@ def test_row_page_can_add(data_fixture):
     row_1 = model.objects.create()
 
     # Success
-    row_page.can_add(user_1, user_1_websocket_id, table_1.id, row_1.id) is True
+    assert row_page.can_add(user_1, user_1_websocket_id, table_1.id, row_1.id) is True
 
     # Row doesn't exist
-    row_page.can_add(user_1, user_1_websocket_id, table_1.id, 999) is False
+    assert row_page.can_add(user_1, user_1_websocket_id, table_1.id, 999) is False
 
     # Table doesn't exist
-    row_page.can_add(user_1, user_1_websocket_id, 999, row_1.id) is False
+    assert row_page.can_add(user_1, user_1_websocket_id, 999, row_1.id) is False
 
     # User not in workspace
-    row_page.can_add(user_2, user_2_websocket_id, table_1.id, row_1.id) is False
+    assert row_page.can_add(user_2, user_2_websocket_id, table_1.id, row_1.id) is False
 
     # Permission denied
-    row_page.can_add(
-        AnonymousUser(), anonymous_websocket_id, table_1.id, row_1.id
-    ) is False
+    assert (
+        row_page.can_add(AnonymousUser(), anonymous_websocket_id, table_1.id, row_1.id)
+        is False
+    )
 
 
 @pytest.mark.websockets
