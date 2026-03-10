@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import IntegrityError
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from celery.canvas import chain
@@ -698,17 +698,23 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         keep the most recent MAX_HISTORY_ENTRIES entries.
         """
 
+        is_finished = ~Q(status=HistoryStatusChoices.STARTED)
+
         oldest_history_date = timezone.now() - timedelta(
             days=settings.AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS
         )
-        workflow.workflow_histories.filter(started_on__lt=oldest_history_date).delete()
+        workflow.workflow_histories.filter(
+            is_finished, started_on__lt=oldest_history_date
+        ).delete()
 
         history_ids_to_keep = list(
             workflow.workflow_histories.order_by("-started_on").values_list(
                 "id", flat=True
             )[: settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES]
         )
-        workflow.workflow_histories.exclude(id__in=history_ids_to_keep).delete()
+        workflow.workflow_histories.filter(is_finished).exclude(
+            id__in=history_ids_to_keep
+        ).delete()
 
     def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)

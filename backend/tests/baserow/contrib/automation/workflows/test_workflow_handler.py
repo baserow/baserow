@@ -880,11 +880,15 @@ def test_clear_old_history_deletes_history_older_than_max_days(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2025-02-01 12:00:00"):
-        old_history = data_fixture.create_automation_workflow_history(workflow=workflow)
+        old_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.SUCCESS,
+        )
 
     with freeze_time("2025-02-02 12:00:00"):
         recent_history = data_fixture.create_automation_workflow_history(
-            workflow=workflow
+            workflow=workflow,
+            status=HistoryStatusChoices.SUCCESS,
         )
 
     # This is 8 days after old_history was created, so it should be deleted.
@@ -906,7 +910,10 @@ def test_clear_old_history_keeps_only_max_entries(data_fixture):
         day += i
         with freeze_time(f"2025-02-{day} 12:00:00"):
             histories.append(
-                data_fixture.create_automation_workflow_history(workflow=workflow)
+                data_fixture.create_automation_workflow_history(
+                    workflow=workflow,
+                    status=HistoryStatusChoices.SUCCESS,
+                )
             )
 
     with freeze_time(f"2025-02-16 12:00:00"):
@@ -1019,3 +1026,57 @@ def test_start_workflow_before_run_error(
 
     assert original_workflow.state == WorkflowState.DRAFT
     assert published_workflow.state == WorkflowState.LIVE
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
+@pytest.mark.django_db
+def test_clear_old_history_excludes_started_workflows_max_entries(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    # Create three history entries
+    with freeze_time("2026-03-10 12:00:00"):
+        started_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.STARTED
+        )
+
+    with freeze_time("2026-03-10 13:00:00"):
+        data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    with freeze_time("2026-03-10 14:00:00"):
+        data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    # Although max entries is 2 and the oldest history should be deleted,
+    # the oldest one is still kept because its status is STARTED.
+    with freeze_time("2026-03-10 15:00:00"):
+        AutomationWorkflowHandler()._clear_old_history(workflow)
+
+    assert workflow.workflow_histories.filter(id=started_history.id).exists() is True
+    assert workflow.workflow_histories.count() == 3
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=1)
+@pytest.mark.django_db
+def test_clear_old_history_excludes_started_workflows_max_days(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-03-10 12:00:00"):
+        history_1 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.STARTED
+        )
+
+    with freeze_time("2026-03-11 12:00:00"):
+        history_2 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    # After 2 days, both history entries are older than MAX_DAYS, but since
+    # history_1 hasn't finished yet it shouldn't be deleted.
+    with freeze_time("2026-03-13 12:00:00"):
+        AutomationWorkflowHandler()._clear_old_history(workflow)
+
+    assert workflow.workflow_histories.filter(id=history_1.id).exists() is True
+    assert workflow.workflow_histories.filter(id=history_2.id).exists() is False
