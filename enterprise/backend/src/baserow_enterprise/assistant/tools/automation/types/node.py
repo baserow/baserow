@@ -94,7 +94,9 @@ class PeriodicTriggerSettings(BaseModel):
         description=f"MINUTE: minutes between triggers (min {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}). HOUR: minute of the hour.",
     )
     hour: int = Field(default=0, ge=0, le=23, description="UTC hour (0-23).")
-    day_of_week: int = Field(default=0, ge=0, le=6, description="0=Monday, 6=Sunday.")
+    day_of_week: int = Field(
+        default=0, ge=0, le=6, description="0=Monday, 6=Sunday."
+    )
     day_of_month: int = Field(default=1, ge=1, le=31, description="1-31.")
 
 
