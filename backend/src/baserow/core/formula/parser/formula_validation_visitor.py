@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import (
@@ -14,6 +14,19 @@ from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
 if TYPE_CHECKING:
     from baserow.core.formula import FunctionCollection
     from baserow.core.formula.registries import DataProviderTypeRegistry
+
+
+class DeferredValue:
+    """
+    Marker class representing a value that will be resolved at execution time.
+
+    During validation, when we encounter nested function calls (e.g., `is_even(get('foo.bar'))`),
+    the inner function's return value isn't available yet. Instead of failing validation
+    because we can't type-check an unknown value, we return this marker to indicate
+    "this will be a valid value at runtime, skip type validation for now."
+    """
+
+    pass
 
 
 class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
@@ -81,6 +94,35 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
 
         raise InvalidRuntimeFormula("'field' is not a a supported function")
 
+    def _parse_args_for_validation(
+        self, formula_function_type, accepted_args: List
+    ) -> List:
+        """
+        Parse arguments for validation, skipping DeferredValue instances.
+
+        During validation, nested function calls return DeferredValue markers
+        since their actual values aren't available yet. We pass these through
+        unchanged rather than attempting to parse/cast them.
+
+        :param formula_function_type: The function type with arg definitions.
+        :param accepted_args: The arguments from visiting child expressions.
+        :return: Parsed arguments with DeferredValue instances preserved.
+        """
+
+        if formula_function_type.args is None:
+            return accepted_args
+
+        result = []
+        for index, arg in enumerate(accepted_args):
+            if isinstance(arg, DeferredValue):
+                # Preserve deferred values - they'll be resolved at execution time
+                result.append(arg)
+            elif index < len(formula_function_type.args):
+                result.append(formula_function_type.args[index].parse(arg))
+            else:
+                result.append(arg)
+        return result
+
     def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
         """
         Visits a function call node in the parse tree. For each function we encounter,
@@ -90,7 +132,8 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
         :param ctx: The function call context from the parse tree.
         :raises InvalidNumberOfArguments: If the number of arguments provided to the
             function does not match the expected number.
-        :return: The result of visiting child nodes.
+        :return: DeferredValue marker to indicate this function's result will be
+            resolved at execution time.
         """
 
         accepted_args = [expr.accept(self) for expr in ctx.expr()]
@@ -101,10 +144,22 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
             raise InvalidRuntimeFormula(f"Unsupported function '{function_name}'.")
         if not formula_function_type.validate_number_of_args(accepted_args):
             raise InvalidNumberOfArguments(formula_function_type, len(accepted_args))
-        args_parsed = formula_function_type.parse_args(accepted_args)
-        formula_function_type.validate_args(
-            args_parsed,
-            validation_context={
-                "data_provider_type_registry": self.data_provider_type_registry
-            },
+
+        args_parsed = self._parse_args_for_validation(
+            formula_function_type, accepted_args
         )
+        # Only run validate_args if none of the arguments are DeferredValue.
+        # DeferredValue represents nested function calls whose values aren't
+        # available until execution time, so we can't type-check them.
+        has_deferred = any(isinstance(arg, DeferredValue) for arg in args_parsed)
+        if not has_deferred:
+            formula_function_type.validate_args(
+                args_parsed,
+                validation_context={
+                    "data_provider_type_registry": self.data_provider_type_registry
+                },
+            )
+
+        # Return DeferredValue so parent function calls know this arg's value
+        # will only be available at execution time
+        return DeferredValue()

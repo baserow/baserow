@@ -19,6 +19,10 @@ from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class RuntimeFormulaFunction(ABC, Instance):
+    # The minimum number of arguments that the function expects. This value
+    # will only be used if `args` is not defined.
+    min_args = None
+
     @classmethod
     @property
     @abstractmethod

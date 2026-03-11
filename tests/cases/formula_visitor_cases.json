@@ -63,8 +63,38 @@
             "context": {}
         },
         {
-          "formula": "get('test_data_provider.1')",
-          "context": {}
+            "formula": "get('test_data_provider.1')",
+            "context": {}
+        },
+        {
+            "formula": "is_even(2)",
+            "context": {},
+            "description": "Literal numeric value validates correctly"
+        },
+        {
+            "formula": "is_odd(3)",
+            "context": {},
+            "description": "Literal numeric value validates correctly"
+        },
+        {
+            "formula": "is_even(get('test_data_provider.value'))",
+            "context": {},
+            "description": "Nested get() call is deferred, skipping type validation"
+        },
+        {
+            "formula": "is_odd(get('test_data_provider.value'))",
+            "context": {},
+            "description": "Nested get() call is deferred, skipping type validation"
+        },
+        {
+            "formula": "add(get('test_data_provider.a'), get('test_data_provider.b'))",
+            "context": {},
+            "description": "Multiple nested get() calls are deferred"
+        },
+        {
+            "formula": "is_even(add(1, 2))",
+            "context": {},
+            "description": "Nested function calls with literals are deferred"
         }
     ],
     "INVALID_FORMULA_VALIDATION_TESTS": [
@@ -114,13 +144,27 @@
             "formula": "concat()",
             "context": {},
             "frontendError": null,
-            "backend_error": "0 arguments were given to the 'concat' function, it must instead be given None"
+            "backend_error": "0 arguments were given to the 'concat' function, it must instead be given at least 2"
         },
         {
             "formula": "concat('a')",
             "context": {},
             "frontendError": null,
             "backend_error": null
+        },
+        {
+            "formula": "is_even('not a number')",
+            "context": {},
+            "frontendError": null,
+            "backend_error": "is not a valid number or convertible to a number",
+            "description": "Literal string fails numeric type validation"
+        },
+        {
+            "formula": "add(1, 'two')",
+            "context": {},
+            "frontendError": null,
+            "backend_error": "is not a valid number or convertible to a number",
+            "description": "Mixed literal types fail validation"
         }
     ]
 }

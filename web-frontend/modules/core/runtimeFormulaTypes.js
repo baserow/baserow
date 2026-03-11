@@ -84,7 +84,7 @@ export class RuntimeFormulaFunction extends Registerable {
    * @param {Object} ctx - ANTLR context object
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
-  validateArgs(args, validationContext, ctx) {
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
     const invalidArg = this.validateTypeOfArgs(args)
     if (invalidArg) {
       throw new InvalidFormulaArgumentType(this, invalidArg)
@@ -368,13 +368,21 @@ export class RuntimeGet extends RuntimeFormulaFunction {
    * Validates the arguments for the get() function.
    *
    * @param {Array} args - The accepted ANTLR parse tree nodes for arguments
+   *
    * @param {Object} validationContext - Contains { dataProviderRegistry }
    * @param {Object} ctx - ANTLR context object
    * @throws {InvalidFormulaArgument} - If the argument is invalid.
    */
-  validateArgs(args, validationContext, ctx) {
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
     // Perform our argument count and type validation first.
-    super.validateArgs(args, validationContext, ctx)
+    super.validateArgs(args, { ctx, validationContext })
+
+    // Only continue with validation if we have a context to work with.
+    // In the validation visitor, we'll have additional context, in the
+    // execution visitor, we won't.
+    if (_.isEmpty(validationContext)) {
+      return
+    }
 
     const { $i18n } = this.app
     const { dataProviderRegistry } = validationContext

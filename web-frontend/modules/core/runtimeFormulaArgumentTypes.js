@@ -57,7 +57,7 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
   }
 
   parse(value) {
-    const val = ensureNumeric(value, { allowNull: true })
+    const val = ensureNumeric(value)
     if (this.castToInt) {
       return Math.trunc(val)
     } else if (this.castToFloat) {

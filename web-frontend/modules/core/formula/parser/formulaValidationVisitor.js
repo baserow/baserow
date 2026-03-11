@@ -2,6 +2,16 @@ import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generate
 import { InvalidFormulaType } from '@baserow/modules/core/formula/parser/errors.js'
 
 /**
+ * Marker class representing a value that will be resolved at execution time.
+ *
+ * During validation, when we encounter nested function calls (e.g., `is_even(get('foo.bar'))`),
+ * the inner function's return value isn't available yet. Instead of failing validation
+ * because we can't type-check an unknown value, we return this marker to indicate
+ * "this will be a valid value at runtime, skip type validation for now."
+ */
+export class DeferredValue {}
+
+/**
  * A visitor that validates formula functions and their arguments during parsing.
  * Each function can define custom validation logic via validateArguments().
  *
@@ -71,6 +81,30 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
   }
 
   /**
+   * Parse arguments for validation, skipping DeferredValue instances.
+   *
+   * During validation, nested function calls return DeferredValue markers
+   * since their actual values aren't available yet. We pass these through
+   * unchanged rather than attempting to parse/cast them.
+   */
+  _parseArgsForValidation(formulaFunctionType, acceptedArgs) {
+    if (!formulaFunctionType.args) {
+      return acceptedArgs
+    }
+
+    return acceptedArgs.map((arg, index) => {
+      if (arg instanceof DeferredValue) {
+        // Preserve deferred values - they'll be resolved at execution time
+        return arg
+      } else if (index < formulaFunctionType.args.length) {
+        return formulaFunctionType.args[index].parse(arg)
+      } else {
+        return arg
+      }
+    })
+  }
+
+  /**
    * Visit a function call and validate its arguments.
    */
   visitFunctionCall(ctx) {
@@ -79,7 +113,7 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     let formulaFunctionType = null
     try {
       formulaFunctionType = this.functions.get(functionName)
-    } catch(e) {
+    } catch (e) {
       throw new InvalidFormulaType(`Unsupported function '${functionName}'.`)
     }
 
@@ -90,16 +124,22 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     )
     formulaFunctionType.validateNumberOfArgs(acceptedArgs, true)
 
-    // Now that we have checked we have the correct number of args,
-    // we can safely validate their types and values.
-    const argsParsed = formulaFunctionType.parseArgs(acceptedArgs)
-    formulaFunctionType.validateArgs(argsParsed, this.validationContext, ctx)
+    // Parse args, skipping DeferredValue instances
+    const argsParsed = this._parseArgsForValidation(
+      formulaFunctionType,
+      acceptedArgs
+    )
 
-    // Continue visiting children to validate nested function calls
-    for (const expr of functionArgumentExpressions) {
-      expr.accept(this)
+    // Only run validateArgs if none of the arguments are DeferredValue.
+    // DeferredValue represents nested function calls whose values aren't
+    // available until execution time, so we can't type-check them.
+    const hasDeferred = argsParsed.some((arg) => arg instanceof DeferredValue)
+    if (!hasDeferred) {
+      formulaFunctionType.validateArgs(argsParsed, { ctx, validationContext: this.validationContext})
     }
 
-    return null
+    // Return DeferredValue to indicate this function's result
+    // will only be available at execution time
+    return new DeferredValue()
   }
 }

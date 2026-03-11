@@ -1,5 +1,5 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
-import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
+import { InvalidFormulaType, UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
 
 export class FunctionCollection {
   get(name) {
@@ -50,17 +50,23 @@ export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisito
   }
 
   visitFunctionCall(ctx) {
-    const functionName = this.visitFuncName(ctx.func_name()).toLowerCase()
-    const functionArgumentExpressions = ctx.expr()
-    return this.doFunc(functionArgumentExpressions, functionName)
+    const functionName = ctx.func_name().getText().toLowerCase()
+    return this.doFunc(ctx, functionName)
   }
 
-  doFunc(functionArgumentExpressions, functionName) {
-    const args = Array.from(functionArgumentExpressions, (expr) =>
+  doFunc(ctx, functionName) {
+    const functionArgumentExpressions = ctx.expr()
+    let formulaFunctionType = null
+    try {
+      formulaFunctionType = this.functions.get(functionName)
+    } catch (e) {
+      throw new InvalidFormulaType(`Unsupported function '${functionName}'.`)
+    }
+    const acceptedArgs = Array.from(functionArgumentExpressions, (expr) =>
       expr.accept(this)
     )
-    const formulaFunctionType = this.functions.get(functionName)
-    const argsParsed = formulaFunctionType.parseArgs(args)
+    const argsParsed = formulaFunctionType.parseArgs(acceptedArgs)
+    formulaFunctionType.validateArgs(argsParsed)
     return formulaFunctionType.execute(this.formulaContext, argsParsed)
   }
 
@@ -95,7 +101,7 @@ export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisito
       throw new UnknownOperatorError(ctx.getText())
     }
 
-    return this.doFunc(ctx.expr(), op)
+    return this.doFunc(ctx, op)
   }
 
   visitFuncName(ctx) {

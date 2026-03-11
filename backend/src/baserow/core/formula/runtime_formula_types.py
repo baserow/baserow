@@ -26,6 +26,7 @@ from baserow.core.utils import to_path
 
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
+    min_args = 2
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
         arg_type = TextBaserowRuntimeFormulaArgumentType()
@@ -35,7 +36,7 @@ class RuntimeConcat(RuntimeFormulaFunction):
         )
 
     def validate_number_of_args(self, args):
-        return len(args) > 1
+        return len(args) >= self.min_args
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return "".join([ensure_string(a) for a in args])
