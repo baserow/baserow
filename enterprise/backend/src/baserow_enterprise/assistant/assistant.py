@@ -7,9 +7,15 @@ from django.utils import translation
 from loguru import logger
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
 )
+from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
@@ -265,7 +271,38 @@ class Assistant:
         )
         return result.output
 
-    _JSON_TOOL_CALL_MAX_RETRIES = 3
+    _MAX_TOOL_CALL_AS_TEXT_RETRIES = 2
+
+    _TOOL_CALL_CORRECTION_PROMPT = (
+        "Your previous response contained a raw JSON tool call instead of "
+        "actually invoking the tool. The malformed output was:\n\n"
+        "{malformed_output}\n\n"
+        "Please call the tool directly using the proper tool-calling "
+        "mechanism instead of outputting JSON text. Make sure the "
+        "arguments conform to the tool's schema."
+    )
+
+    async def _emit_answer(
+        self,
+        answer: str,
+        run_result: Any,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> None:
+        """Push the final answer and result events onto *queue*."""
+
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiMessageChunk(content=answer, sources=self._deps.sources),
+            )
+        )
+        queue.put_nowait(
+            QueueEvent(
+                kind=QueueEventKind.RESULT,
+                answer=answer,
+                messages_json=run_result.all_messages_json(),
+            )
+        )
 
     async def _run_agent(
         self,
@@ -273,99 +310,127 @@ class Assistant:
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[QueueEvent],
     ) -> None:
-        """Execute the main agent and push streaming events onto *queue*.
+        """Execute the main agent, retrying if it outputs tool calls as text.
 
-        On success a ``RESULT`` event carries the final answer and
-        serialised message history. On failure an ``ERROR`` event carries
-        the exception. A ``DONE`` sentinel is always sent last.
+        Delegates each streaming pass to ``_stream_agent_run``.  If the
+        final output looks like a raw JSON tool call, re-runs the agent
+        with the conversation history and a corrective prompt (up to
+        ``_MAX_TOOL_CALL_AS_TEXT_RETRIES`` times) so the model can
+        self-correct and invoke the tool properly.
+
+        Pushes ``STREAM``, ``RESULT``, ``ERROR``, and ``DONE`` events
+        onto *queue* for the consumer in ``astream_messages``.
         """
 
         try:
             with self._telemetry.trace(self._chat, user_prompt) as tracer:
-                answer, messages_json = await self._run_agent_with_json_retry(
+                answer, run_result = await self._run_agent_with_retries(
                     user_prompt, message_history, queue
                 )
                 tracer.set_trace_output(answer)
-                queue.put_nowait(
-                    QueueEvent(
-                        kind=QueueEventKind.RESULT,
-                        answer=answer,
-                        messages_json=messages_json,
-                    )
-                )
+                await self._emit_answer(answer, run_result, queue)
         except Exception as exc:
             logger.exception("Error running main agent")
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
 
-    async def _run_agent_with_json_retry(
+    async def _run_agent_with_retries(
         self,
         user_prompt: str,
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[QueueEvent],
-    ) -> tuple[str, bytes]:
-        """Run the agent, retrying if the model outputs a tool call as text.
+    ) -> tuple[str, Any]:
+        """Stream the agent, retrying on tool-call-as-text outputs.
 
-        Some providers occasionally return tool calls in the text/content
-        field instead of the structured tool_calls field. When detected,
-        we re-run the agent with the accumulated message history so the
-        model can make the proper tool call.
+        Returns ``(answer, run_result)`` — either the model's valid
+        answer or a fallback message after exhausting retries.
+
+        :raises RuntimeError: if the stream ends without a result event.
         """
 
-        for attempt in range(self._JSON_TOOL_CALL_MAX_RETRIES):
-            async with main_agent.run_stream(
-                user_prompt=user_prompt,
-                deps=self._deps,
-                model=self._model,
-                message_history=message_history,
-                usage_limits=UsageLimits(request_limit=200),
-                toolsets=[self._toolset],
-                model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
-                event_stream_handler=lambda ctx, events: self._relay_tool_events(
-                    events, queue
-                ),
-            ) as result:
-                answer = await self._stream_answer(result, queue)
-                if not self._looks_like_json_tool_call(answer):
-                    return answer, result.all_messages_json()
+        current_prompt = user_prompt
+        current_history = message_history
 
-                # The model dumped a tool call as text — retry with the
-                # conversation so far plus a correction prompt.
-                logger.warning(
-                    "[assistant] Model output tool call as text (attempt {}/{}), "
-                    "retrying: {}",
-                    attempt + 1,
-                    self._JSON_TOOL_CALL_MAX_RETRIES,
-                    answer[:200],
-                )
-                message_history = result.all_messages()
-                user_prompt = (
-                    "You returned a tool call as text instead of calling the "
-                    "tool. Please call the tool directly with valid JSON. ",
-                    "Here's your last incorrect output:\n\n" + answer,
-                )
-
-        # Exhausted retries — return fallback
-        answer = (
-            "I ran into a temporary issue processing your request. "
-            "Could you please try again?"
-        )
-        await queue.put(
-            QueueEvent(
-                kind=QueueEventKind.STREAM,
-                message=AiMessageChunk(content=answer, sources=self._deps.sources),
+        for attempt in range(1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES):
+            result = await self._stream_agent_run(
+                current_prompt, current_history, queue
             )
+            if result is None:
+                raise RuntimeError("Agent stream ended without a result event")
+
+            answer, run_result = result
+
+            if not self._looks_like_json_tool_call(answer):
+                return answer, run_result
+
+            logger.warning(
+                "[assistant] Model output tool call as text (attempt {}/{}): {}",
+                attempt + 1,
+                1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
+                answer[:200],
+            )
+
+            if attempt < self._MAX_TOOL_CALL_AS_TEXT_RETRIES:
+                # Replace the malformed JSON visible in the UI with a
+                # reasoning indicator so the user doesn't see garbage.
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=AiReasoningChunk(content=""),
+                    )
+                )
+                current_history = run_result.all_messages()
+                current_prompt = self._TOOL_CALL_CORRECTION_PROMPT.format(
+                    malformed_output=answer[:500]
+                )
+
+        # Exhausted retries — give up gracefully.
+        logger.error(
+            "[assistant] Model persisted outputting tool "
+            "calls as text after {} retries",
+            self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
         )
-        return answer, result.all_messages_json()
+        fallback = (
+            "I ran into a temporary issue processing "
+            "your request. Could you please try again?"
+        )
+        return fallback, run_result
 
-    @staticmethod
-    async def _relay_tool_events(events, queue: asyncio.Queue[QueueEvent]) -> None:
-        """Forward chain-of-thought ``thought`` arguments from tool calls
-        to the stream as reasoning chunks."""
+    async def _stream_agent_run(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, Any] | None:
+        """Run a single agent streaming pass.
 
-        async for event in events:
-            if isinstance(event, FunctionToolCallEvent):
+        Streams reasoning/text chunks to *queue* and returns
+        ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
+        received, or ``None`` if the stream ends without one.
+        """
+
+        text_parts: dict[int, str] = {}
+        tool_state = "no_tools"
+
+        is_anthropic = self._model_string.startswith("anthropic:")
+        default_chunk_cls = AiReasoningChunk if is_anthropic else AiMessageChunk
+
+        async for event in main_agent.run_stream_events(
+            user_prompt=user_prompt,
+            deps=self._deps,
+            model=self._model,
+            message_history=message_history,
+            usage_limits=UsageLimits(request_limit=200),
+            toolsets=[self._toolset],
+            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+        ):
+            if isinstance(event, AgentRunResultEvent):
+                return (event.result.output, event.result)
+            elif isinstance(event, FunctionToolCallEvent):
+                if tool_state == "after_tools":
+                    text_parts.clear()
+                tool_state = "tools_running"
                 thought = _extract_tool_thought(event)
                 if thought:
                     await queue.put(
@@ -374,43 +439,41 @@ class Assistant:
                             message=AiReasoningChunk(content=thought),
                         )
                     )
-
-    async def _stream_answer(self, result, queue: asyncio.Queue[QueueEvent]) -> str:
-        """Stream the agent's text output as ``AiMessageChunk`` events and
-        return the final accumulated answer.
-
-        Buffers output that starts with ``{`` or ``[`` to avoid streaming
-        raw JSON to the user. If the entire output looks like a JSON tool
-        call, it is returned un-streamed so the caller can decide to retry.
-        """
-
-        answer = ""
-        # True while we suspect the output might be raw JSON; once the first
-        # non-whitespace character is not ``{``/``[`` we flush and stop.
-        json_buffering = True
-
-        async for full_text in result.stream_text():
-            answer = full_text
-
-            if json_buffering:
-                stripped = full_text.strip()
-                if not stripped:
-                    continue  # still empty, keep buffering
-                if stripped[0] in "{[":
-                    continue  # looks like JSON, keep buffering
-                # First real char is not JSON — flush the buffer and stream
-                json_buffering = False
-
-            await queue.put(
-                QueueEvent(
-                    kind=QueueEventKind.STREAM,
-                    message=AiMessageChunk(
-                        content=full_text, sources=self._deps.sources
-                    ),
+            elif isinstance(event, FunctionToolResultEvent):
+                tool_state = "after_tools"
+                text_parts.clear()
+            elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+                text_parts[event.index] = event.part.content
+                chunk_cls = (
+                    AiReasoningChunk
+                    if tool_state == "tools_running"
+                    else default_chunk_cls
                 )
-            )
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=chunk_cls(content=event.part.content),
+                    )
+                )
+            elif isinstance(event, PartDeltaEvent) and isinstance(
+                event.delta, TextPartDelta
+            ):
+                text_parts[event.index] = (
+                    text_parts.get(event.index, "") + event.delta.content_delta
+                )
+                chunk_cls = (
+                    AiReasoningChunk
+                    if tool_state == "tools_running"
+                    else default_chunk_cls
+                )
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=chunk_cls(content=text_parts[event.index]),
+                    )
+                )
 
-        return answer
+        return None
 
     @staticmethod
     def _looks_like_json_tool_call(text: str) -> bool:
@@ -521,7 +584,10 @@ class Assistant:
             self._event_bus.set_queue(None)
 
         if not self._chat.title:
-            title = await self._generate_chat_title(human_msg.content)
-            self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
-            await self._chat.asave(update_fields=["title", "updated_on"])
-            yield ChatTitleMessage(content=title)
+            try:
+                title = await self._generate_chat_title(human_msg.content)
+                self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
+                await self._chat.asave(update_fields=["title", "updated_on"])
+                yield ChatTitleMessage(content=self._chat.title)
+            except Exception:
+                logger.exception("Failed to generate chat title")

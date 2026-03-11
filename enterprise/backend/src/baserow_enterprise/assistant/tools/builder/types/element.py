@@ -4,12 +4,25 @@ Builder element type models.
 Defines ``ElementItemCreate`` (flat) for creating UI elements and
 ``ElementItem`` for reading them back. Uses dispatch tables for
 per-type ORM conversion and formula handling.
+
+## Dispatch Tables (add entries when adding a new element type)
+
+When adding support for a new element type, update these tables:
+
+- ``_TO_ORM``: Convert ``ElementItemCreate`` → ORM kwargs for creation.
+- ``_POST_CREATE``: Hook called after ORM creation (e.g. for child objects).
+- ``_GET_FORMULAS``: Return ``{field: description}`` for LLM formula generation.
+- ``_UPDATE_FORMULAS``: Apply generated formulas to the ORM element.
+- ``_TO_ORM_UPDATE``: Convert ``ElementUpdate`` → ORM kwargs for updates.
+- ``_GET_UPDATE_FORMULAS``: Return formulas needed for element updates.
+
+Not all tables need entries — only add to those relevant for the new type.
 """
 
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, model_validator
 
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_ADVANCED,
@@ -450,15 +463,48 @@ def _choice_post_create(el: "ElementItemCreate", user, orm_element, page) -> Non
 def _header_footer_post_create(
     el: "ElementItemCreate", user, orm_element, page
 ) -> None:
-    """Set page associations for header/footer elements."""
+    """Set page associations and auto-create a child menu for header/footer elements."""
+
     if el.page_ids:
         orm_element.pages.set(el.page_ids)
 
+    # If menu_items were provided on the header/footer itself, create a child
+    # menu element — headers are containers, not menus.
+    if el.menu_items:
+        from baserow.contrib.builder.elements.registries import element_type_registry
+        from baserow.contrib.builder.elements.service import ElementService
 
-def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None:
-    """Create button-column workflow actions and enable filter/sort/search."""
+        menu_items_orm = [
+            {
+                "uid": str(uuid.uuid4()),
+                "type": "link",
+                "variant": "link",
+                "name": item.name,
+                "navigation_type": "page",
+                "navigate_to_page_id": item.page_id,
+                "target": "self",
+            }
+            for item in el.menu_items
+        ]
+        menu_type = element_type_registry.get("menu")
+        ElementService().create_element(
+            user,
+            menu_type,
+            page,
+            parent_element_id=orm_element.id,
+            menu_items=menu_items_orm,
+        )
+
+
+def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list:
+    """Create button-column workflow actions and enable filter/sort/search.
+
+    Returns a list of ``(orm_action, action_create)`` pairs for any
+    button-column actions that were created (empty list if none).
+    """
+
     if not el.fields:
-        return
+        return []
 
     from baserow.contrib.builder.elements.models import CollectionElementPropertyOptions
     from baserow_enterprise.assistant.tools.builder.helpers import (
@@ -467,7 +513,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None
     )
 
     integration = get_local_baserow_integration(page.builder)
-    el._created_action_pairs = create_table_button_actions(
+    action_pairs = create_table_button_actions(
         user, page, orm_element, el, integration
     )
 
@@ -493,6 +539,8 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> None
         CollectionElementPropertyOptions.objects.bulk_create(
             property_options, ignore_conflicts=True
         )
+
+    return action_pairs
 
 
 _POST_CREATE: dict[str, Any] = {
@@ -697,12 +745,25 @@ def _field_formula(field_id: int, field_type: str) -> str:
     return f"get('current_record.field_{field_id}{suffix}')"
 
 
-def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
-    """Convert TableFieldConfig list to ORM collection field format."""
+def _convert_table_fields(
+    el: "ElementItemCreate | None" = None,
+    *,
+    data_source_id: int | None = None,
+    fields: list | None = None,
+) -> list[dict]:
+    """Convert TableFieldConfig list to ORM collection field format.
 
-    table_fields = _resolve_table_fields(el.data_source)
+    Can be called with an ``ElementItemCreate`` (creation path) or with
+    explicit ``data_source_id`` + ``fields`` (update path).
+    """
+
+    if el is not None:
+        data_source_id = el.data_source  # type: ignore[assignment]
+        fields = el.fields
+
+    table_fields = _resolve_table_fields(data_source_id)
     result = []
-    for field_cfg in el.fields or []:
+    for field_cfg in fields or []:
         if field_cfg.type == "text":
             value = field_cfg.value or ""
             if value and not needs_formula(value):
@@ -929,10 +990,6 @@ class ElementItemCreate(BaseModel):
         default=None, description="(menu) Menu item configurations."
     )
 
-    # -- Private state (not serialized) -------------------------------------
-
-    _created_action_pairs: list = PrivateAttr(default_factory=list)
-
     # -- Properties ---------------------------------------------------------
 
     @property
@@ -952,11 +1009,18 @@ class ElementItemCreate(BaseModel):
         user: "AbstractUser",
         orm_element: "Element",
         page: "Page",
-    ) -> None:
-        """Hook called after ORM element creation."""
+    ) -> list:
+        """Hook called after ORM element creation.
+
+        Returns a list of ``(orm_action, action_create)`` pairs for any
+        workflow actions created as part of the element setup (e.g. button
+        columns in table elements). Empty list if none.
+        """
+
         fn = _POST_CREATE.get(self.type)
         if fn:
-            fn(self, user, orm_element, page)
+            return fn(self, user, orm_element, page) or []
+        return []
 
     def get_formulas_to_create(
         self,
@@ -1433,6 +1497,53 @@ def _table_update(el: "ElementUpdate") -> dict:
             f"'{el.button_load_more_label}'",
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
+    has_field_change = (
+        el.fields is not None
+        or el.add_fields is not None
+        or el.remove_fields is not None
+    )
+    if has_field_change:
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        try:
+            element = ElementHandler().get_element(el.element_id).specific
+            ds_id = getattr(element, "data_source_id", None)
+        except Exception:
+            element = None
+            ds_id = None
+
+        if el.fields is not None:
+            # Full replace
+            kwargs["fields"] = _convert_table_fields(
+                data_source_id=ds_id, fields=el.fields
+            )
+        else:
+            # Incremental: start from existing fields
+            existing = []
+            if element is not None and hasattr(element, "fields"):
+                for f in element.fields.order_by("order"):
+                    existing.append(
+                        {
+                            "name": f.name,
+                            "type": f.type,
+                            "config": f.config,
+                            "uid": str(f.uid),
+                        }
+                    )
+
+            # Remove by name (case-insensitive)
+            if el.remove_fields:
+                remove_set = {n.lower() for n in el.remove_fields}
+                existing = [f for f in existing if f["name"].lower() not in remove_set]
+
+            # Append new columns
+            if el.add_fields:
+                new_fields = _convert_table_fields(
+                    data_source_id=ds_id, fields=el.add_fields
+                )
+                existing.extend(new_fields)
+
+            kwargs["fields"] = existing
     return kwargs
 
 
@@ -1644,6 +1755,18 @@ class ElementUpdate(BaseModel):
     )
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."
+    )
+    fields: list[TableFieldConfig] | None = Field(
+        default=None,
+        description="(table) Replace ALL columns — use only when you want to redefine the entire column list. Prefer add_fields/remove_fields for incremental changes.",
+    )
+    add_fields: list[TableFieldConfig] | None = Field(
+        default=None,
+        description="(table) Append columns to the existing table. Existing columns are preserved.",
+    )
+    remove_fields: list[str] | None = Field(
+        default=None,
+        description="(table) Remove columns by name (case-insensitive). Remaining columns are preserved.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1948,15 +2071,34 @@ class ElementStyleUpdate(BaseModel):
         default=False, description="Reset all styles to defaults first."
     )
 
-    # -- Box model (uniform for all 4 sides) --
-    border_color: str | None = Field(
-        default=None, description="Border color (all sides)."
+    # -- Box model: single value for all sides, or dict for per-side --
+    border_color: str | dict[str, str] | None = Field(
+        default=None,
+        description='Border color: value for all sides, or {"left": "#ff0000", ...} for specific sides.',
     )
-    border_size: int | None = Field(
-        default=None, description="Border size in px (all sides)."
+    border_size: int | dict[str, int] | None = Field(
+        default=None,
+        description='Border size in px: value for all sides, or {"top": 2, ...} for specific sides.',
     )
-    padding: int | None = Field(default=None, description="Padding in px (all sides).")
-    margin: int | None = Field(default=None, description="Margin in px (all sides).")
+    padding: int | dict[str, int] | None = Field(
+        default=None,
+        description='Padding in px: value for all sides, or {"left": 0, ...} for specific sides.',
+    )
+    margin: int | dict[str, int] | None = Field(
+        default=None,
+        description='Margin in px: value for all sides, or {"top": 10, ...} for specific sides.',
+    )
+
+    @model_validator(mode="after")
+    def _validate_box_sides(self) -> "ElementStyleUpdate":
+        valid_sides = {"top", "bottom", "left", "right"}
+        for field_name in ("padding", "margin", "border_size", "border_color"):
+            val = getattr(self, field_name)
+            if isinstance(val, dict):
+                invalid = set(val.keys()) - valid_sides
+                if invalid:
+                    raise ValueError(f"{field_name}: invalid sides {invalid}")
+        return self
 
     # -- Radii --
     border_radius: int | None = Field(default=None)
@@ -1993,6 +2135,17 @@ class ElementStyleUpdate(BaseModel):
         default=None, description="Image style overrides."
     )
 
+    def _apply_box(self, kwargs: dict, field_name: str, orm_template: str):
+        val = getattr(self, field_name)
+        if val is None:
+            return
+        if isinstance(val, dict):
+            for side, side_val in val.items():
+                kwargs[orm_template.format(side=side)] = side_val
+        else:
+            for side in ("top", "bottom", "left", "right"):
+                kwargs[orm_template.format(side=side)] = val
+
     def to_update_kwargs(
         self, element_type: str, existing_styles: dict | None = None
     ) -> dict:
@@ -2009,16 +2162,11 @@ class ElementStyleUpdate(BaseModel):
             kwargs.update(_STYLE_DEFAULTS)
             kwargs["styles"] = {}
 
-        # Box model — expand uniform values to all 4 sides
-        for side in ("top", "bottom", "left", "right"):
-            if self.border_color is not None:
-                kwargs[f"style_border_{side}_color"] = self.border_color
-            if self.border_size is not None:
-                kwargs[f"style_border_{side}_size"] = self.border_size
-            if self.padding is not None:
-                kwargs[f"style_padding_{side}"] = self.padding
-            if self.margin is not None:
-                kwargs[f"style_margin_{side}"] = self.margin
+        # Box model — uniform or per-side
+        self._apply_box(kwargs, "border_color", "style_border_{side}_color")
+        self._apply_box(kwargs, "border_size", "style_border_{side}_size")
+        self._apply_box(kwargs, "padding", "style_padding_{side}")
+        self._apply_box(kwargs, "margin", "style_margin_{side}")
 
         # Simple style fields
         if self.border_radius is not None:

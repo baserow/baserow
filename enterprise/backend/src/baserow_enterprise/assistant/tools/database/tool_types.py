@@ -13,3 +13,8 @@ class DatabaseToolType(AssistantToolType):
         from .tools import database_toolset
 
         return database_toolset
+
+    def get_routing_rules(self):
+        from .tools import ROUTING_RULES
+
+        return ROUTING_RULES

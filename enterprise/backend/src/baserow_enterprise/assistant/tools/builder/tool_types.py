@@ -13,3 +13,8 @@ class BuilderToolType(AssistantToolType):
         from .tools import builder_toolset
 
         return builder_toolset
+
+    def get_routing_rules(self):
+        from .tools import ROUTING_RULES
+
+        return ROUTING_RULES

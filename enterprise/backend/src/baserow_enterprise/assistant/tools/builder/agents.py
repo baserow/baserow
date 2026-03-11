@@ -75,7 +75,7 @@ class BuilderFormulaContext:
         self._load_page_parameters()
         self._load_user_context()
 
-        elements = ElementHandler().get_elements(self.page)
+        elements = ElementHandler().get_elements(self.page, use_cache=False)
         self._load_form_data(elements)
 
     # -- Private loaders ----------------------------------------------------
@@ -258,13 +258,21 @@ class BuilderFormulaContext:
         wildcard ``*`` for array expansion.
         """
 
-        from datetime import date, datetime
-
         parts = to_path(key)
         if not parts:
             raise KeyError(f"Empty path: {key}")
 
-        # Handle data_source.{id} compound keys
+        value, remaining = self._resolve_root(key, parts)
+        value = self._traverse_path(key, value, remaining)
+        return self._coerce_leaf(value, key)
+
+    # -- __getitem__ helpers ------------------------------------------------
+
+    def _resolve_root(
+        self, key: str, parts: list[str]
+    ) -> tuple[Any, list[str]]:
+        """Resolve the root segment, handling ``data_source.{id}`` compound keys."""
+
         if len(parts) >= 2 and parts[0] == "data_source":
             ds_key = f"data_source.{parts[1]}"
             if ds_key not in self.context:
@@ -272,50 +280,60 @@ class BuilderFormulaContext:
                     f"Data source '{parts[1]}' not found. "
                     f"Available: {[k for k in self.context if k.startswith('data_source.')]}"
                 )
-            value = self.context[ds_key]
-            remaining = parts[2:]
-        else:
-            value = self.context
-            remaining = parts
+            return self.context[ds_key], parts[2:]
+        return self.context, parts
 
-        for i, part in enumerate(remaining):
+    def _traverse_path(self, key: str, value: Any, parts: list[str]) -> Any:
+        """Walk through *parts*, handling dicts, lists, and ``*`` wildcards."""
+
+        for i, part in enumerate(parts):
             if isinstance(value, dict):
                 if part not in value:
                     raise KeyError(f"Key '{part}' not found in context at '{key}'")
                 value = value[part]
             elif isinstance(value, list):
                 if part == "*":
-                    rest = remaining[i + 1 :]
-                    if not rest:
-                        return json.dumps(value)
-                    results = []
-                    for item in value:
-                        v = item
-                        for r in rest:
-                            if isinstance(v, dict) and r in v:
-                                v = v[r]
-                            else:
-                                v = None
-                                break
-                        if v is not None:
-                            results.append(str(v))
-                    return ",".join(results)
-                else:
-                    try:
-                        idx = int(part)
-                    except ValueError:
-                        raise KeyError(f"Invalid list index '{part}' at '{key}'")
-                    if idx >= len(value):
-                        raise KeyError(
-                            f"Index {idx} out of range (len {len(value)}) at '{key}'"
-                        )
-                    value = value[idx]
+                    return self._expand_wildcard(value, parts[i + 1 :])
+                try:
+                    idx = int(part)
+                except ValueError:
+                    raise KeyError(f"Invalid list index '{part}' at '{key}'")
+                if idx >= len(value):
+                    raise KeyError(
+                        f"Index {idx} out of range (len {len(value)}) at '{key}'"
+                    )
+                value = value[idx]
             else:
                 raise KeyError(f"Cannot traverse at '{part}' in '{key}'")
+        return value
+
+    @staticmethod
+    def _expand_wildcard(items: list, rest: list[str]) -> str:
+        """Expand a ``*`` wildcard over *items*, extracting the remaining path."""
+
+        if not rest:
+            return json.dumps(items)
+        results = []
+        for item in items:
+            v = item
+            for r in rest:
+                if isinstance(v, dict) and r in v:
+                    v = v[r]
+                else:
+                    v = None
+                    break
+            if v is not None:
+                results.append(str(v))
+        return ",".join(results)
+
+    @staticmethod
+    def _coerce_leaf(value: Any, key: str = "") -> Any:
+        """Ensure the leaf value is a JSON-serialisable primitive."""
+
+        from datetime import date, datetime
 
         if isinstance(value, (list, dict)):
             return json.dumps(value)
-
         if not isinstance(value, (int, float, str, bool, date, datetime, type(None))):
             raise ValueError(
                 f"Value for '{key}' is not a primitive. Got {type(value).__name__}."

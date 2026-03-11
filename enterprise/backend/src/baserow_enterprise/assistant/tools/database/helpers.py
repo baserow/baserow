@@ -47,6 +47,20 @@ def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
     return TableHandler().list_workspace_tables(user, workspace)
 
 
+def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
+    """Get a single table by ID, raising ToolInputError if not found."""
+
+    from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+
+    try:
+        return filter_tables(user, workspace).get(id=table_id)
+    except Table.DoesNotExist:
+        raise ToolInputError(
+            f"Table with ID {table_id} not found. "
+            "Use get_tables_schema to find valid table IDs."
+        )
+
+
 def get_tables_schema(
     tables: list[Table],
     full_schema: bool = False,
@@ -257,10 +271,16 @@ def create_view_filter(
 
     field = table_fields.get(view_filter_item.field_id)
     if field is None:
-        raise ValueError("Field not found for filter")
+        raise ValueError(
+            f"Field {view_filter_item.field_id} not found for filter. "
+            f"Available field IDs: {sorted(table_fields.keys())}"
+        )
     field_type = field_type_registry.get_by_model(field.specific_class)
     if field_type.type != view_filter_item.type:
-        raise ValueError("Field type mismatch for filter")
+        raise ValueError(
+            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
+            f"but filter declared type '{view_filter_item.type}'"
+        )
 
     filter_type = view_filter_item.get_django_orm_type(field)
     filter_value = view_filter_item.get_django_orm_value(

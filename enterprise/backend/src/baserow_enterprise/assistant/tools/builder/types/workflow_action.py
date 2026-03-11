@@ -51,7 +51,7 @@ class FieldValueMapping(BaseModel):
     field_id: str = Field(..., description="The field ID (as string).")
     value: str = Field(
         ...,
-        description="Value or formula. Supports $formula: prefix.",
+        description="Value or $formula: prefix + formula intent.",
     )
 
 

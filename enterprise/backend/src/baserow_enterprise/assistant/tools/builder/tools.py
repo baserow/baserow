@@ -468,11 +468,12 @@ def _create_elements_internal(
     created: list[dict] = []
 
     errors: list[str] = []
+    table_action_pairs: list[tuple] = []
     with transaction.atomic():
         for el_create in elements:
             tool_helpers.raise_if_cancelled()
             try:
-                element, el_id = helpers.create_element(
+                element, el_id, action_pairs = helpers.create_element(
                     user,
                     page,
                     el_create,
@@ -486,6 +487,7 @@ def _create_elements_internal(
                 continue
             ref_to_id[el_create.ref] = el_id
             element_mapping[el_create.ref] = (element, el_create)
+            table_action_pairs.extend(action_pairs)
             created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
 
     # Formula generation (separate transactions)
@@ -495,11 +497,6 @@ def _create_elements_internal(
         )
     )
 
-    # Handle table button action formulas
-    table_action_pairs = []
-    for el_create in elements:
-        if el_create.type == "table":
-            table_action_pairs.extend(el_create._created_action_pairs)
     if table_action_pairs:
         errors.extend(
             agents.update_workflow_action_formulas(
@@ -528,6 +525,17 @@ def _create_elements_internal(
             f"Elements {actionable} need workflow actions. "
             "Call create_actions next: 'click' event for buttons/links, "
             "'submit' event for form_container."
+        )
+
+    # Navigate to the page containing the created elements
+    if created:
+        tool_helpers.navigate_to(
+            BuilderPageNavigationType(
+                type="builder-page",
+                application_id=page.builder_id,
+                page_id=page_id,
+                page_name=page.name,
+            )
         )
 
     return result
@@ -777,12 +785,12 @@ def update_element_style(
     Update visual style of an element (box model + theme overrides).
 
     WHEN to use: User wants to change borders, padding, margins, background, width, or theme style overrides (button colors, typography, input styles, etc.).
-    WHAT it does: Applies uniform box-model values (all 4 sides) and per-element-type theme overrides.
+    WHAT it does: Applies box-model values and per-element-type theme overrides.
     RETURNS: Updated element ID, type, and list of changed fields.
     DO NOT USE when: You need to change content (text, label) or structural properties — use update_element instead.
 
-    ## Box Model (all sides uniform)
-    - border_color, border_size, padding, margin: applied to all 4 sides.
+    ## Box Model
+    - border_color, border_size, padding, margin: pass a single value for all 4 sides, or a dict like {"left": 0, "top": 10} to set specific sides only.
     - border_radius, background_radius: corner rounding.
     - background: "none" or "color", background_color: hex color.
     - width: "full", "full-width", "normal", "medium", "small".
@@ -815,6 +823,19 @@ def update_element_style(
 
     # Report which fields were explicitly set (not inherited from existing styles)
     updated_fields = list(style.to_update_kwargs(element_type, {}).keys())
+    if not updated_fields:
+        return {
+            "status": "warning",
+            "element_id": style.element_id,
+            "element_type": element_type,
+            "message": (
+                "No style fields were applied. Make sure you pass style "
+                "properties (padding, margin, border_size, border_color, "
+                "background, width, etc.) in the style parameter. "
+                "Theme overrides (button, link, typography, etc.) are only "
+                "applied if the element type supports them."
+            ),
+        }
     return {
         "status": "ok",
         "element_id": style.element_id,
@@ -954,7 +975,8 @@ def create_actions(
     - logout: Log out the user
 
     ## Dynamic Values with $formula:
-    - field_values: {"field_id": "123", "value": "$formula: the name from the Name input"}
+    Use "$formula: <intent>" — describe the data you want using references or ids when possible.
+    - field_values: {"field_id": "123", "value": "$formula: the Name form input"}
     - row_id: "$formula: the id from the page parameter"
     """
 
@@ -1038,6 +1060,188 @@ def add_action_field_mapping(
 
 
 # ---------------------------------------------------------------------------
+# Composite page setup — phase helpers
+# ---------------------------------------------------------------------------
+
+
+def _setup_data_sources(
+    user,
+    page,
+    data_sources: list,
+    ds_ref_to_id: dict[str, int],
+    integration,
+    tool_helpers,
+) -> tuple[list[dict], list[str]]:
+    """Create data sources, skipping duplicates by name or structural match.
+
+    Mutates *ds_ref_to_id* in place. Returns ``(created, errors)``.
+    """
+
+    created: list[dict] = []
+    errors: list[str] = []
+    if not data_sources:
+        return created, errors
+
+    existing_ds = helpers.list_data_sources(page)
+    existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
+    ds_pairs: list[tuple] = []
+
+    with transaction.atomic():
+        for ds_create in data_sources:
+            tool_helpers.raise_if_cancelled()
+            ex = existing_by_name.get(ds_create.name.lower())
+            if not ex:
+                ex = next(
+                    (ds for ds in existing_ds if ds_create.matches_existing(ds)),
+                    None,
+                )
+            if ex:
+                ds_ref_to_id[ds_create.ref] = ex.id
+                continue
+            tool_helpers.update_status(
+                _("Creating data source '%(name)s'...") % {"name": ds_create.name}
+            )
+            try:
+                orm_ds, ds_id = helpers.create_data_source(
+                    user, page, ds_create, integration
+                )
+                ds_ref_to_id[ds_create.ref] = ds_id
+                ds_pairs.append((orm_ds, ds_create))
+                created.append(
+                    {
+                        "id": ds_id,
+                        "ref": ds_create.ref,
+                        "name": ds_create.name,
+                        "type": ds_create.type,
+                    }
+                )
+            except Exception as exc:
+                errors.append(f"data_source {ds_create.ref}: {exc}")
+    errors.extend(
+        agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
+    )
+    return created, errors
+
+
+def _setup_elements(
+    user,
+    page,
+    elements: list,
+    el_ref_to_id: dict[str, int],
+    ds_ref_to_id: dict[str, int],
+    shared_page_refs: set[str],
+    tool_helpers,
+) -> tuple[list[dict], list[str]]:
+    """Create elements in order, generate formulas, and handle table actions.
+
+    Mutates *el_ref_to_id* and *shared_page_refs* in place.
+    Returns ``(created, errors)``.
+    """
+
+    created: list[dict] = []
+    errors: list[str] = []
+    if not elements:
+        return created, errors
+
+    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
+    table_action_pairs: list[tuple] = []
+
+    tool_helpers.update_status(
+        _("Creating %(count)d elements on %(name)s...")
+        % {"count": len(elements), "name": page.name}
+    )
+    with transaction.atomic():
+        for el_create in elements:
+            tool_helpers.raise_if_cancelled()
+            try:
+                element, el_id, action_pairs = helpers.create_element(
+                    user,
+                    page,
+                    el_create,
+                    el_ref_to_id,
+                    ds_ref_to_id,
+                    shared_page_refs,
+                    None,
+                )
+                el_ref_to_id[el_create.ref] = el_id
+                element_mapping[el_create.ref] = (element, el_create)
+                table_action_pairs.extend(action_pairs)
+                created.append(
+                    {"id": el_id, "ref": el_create.ref, "type": el_create.type}
+                )
+            except Exception as exc:
+                errors.append(f"element {el_create.ref}: {exc}")
+    errors.extend(
+        agents.update_element_formulas(
+            user, page, elements, element_mapping, tool_helpers
+        )
+    )
+    if table_action_pairs:
+        errors.extend(
+            agents.update_workflow_action_formulas(
+                user, page, table_action_pairs, tool_helpers
+            )
+        )
+    return created, errors
+
+
+def _setup_actions(
+    user,
+    page,
+    actions: list,
+    el_ref_to_id: dict[str, int],
+    ds_ref_to_id: dict[str, int],
+    integration,
+    tool_helpers,
+) -> tuple[list[dict], list[str]]:
+    """Create workflow actions and generate their formulas.
+
+    Returns ``(created, errors)``.
+    """
+
+    created: list[dict] = []
+    errors: list[str] = []
+    if not actions:
+        return created, errors
+
+    action_pairs: list[tuple] = []
+    with transaction.atomic():
+        for action_create in actions:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(
+                _("Creating %(type)s action...") % {"type": action_create.type}
+            )
+            try:
+                orm_action, action_id = helpers.create_workflow_action(
+                    user,
+                    page,
+                    action_create,
+                    el_ref_to_id,
+                    ds_ref_to_id,
+                    integration,
+                )
+                action_pairs.append((orm_action, action_create))
+                created.append(
+                    {
+                        "id": action_id,
+                        "type": action_create.type,
+                        "element": action_create.element,
+                        "event": action_create.event,
+                    }
+                )
+            except Exception as exc:
+                errors.append(
+                    f"action {action_create.type} on {action_create.element}: {exc}"
+                )
+    errors.extend(
+        agents.update_workflow_action_formulas(
+            user, page, action_pairs, tool_helpers
+        )
+    )
+    return created, errors
+
+
+# ---------------------------------------------------------------------------
 # Composite page setup tool
 # ---------------------------------------------------------------------------
 
@@ -1066,7 +1270,10 @@ def setup_page(
 
     WHEN to use: Building a complete page with data, UI elements, and interactions.
     WHAT it does: Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
-    RETURNS: Created items with ref-to-ID mappings and any errors.
+    RETURNS: Created items with ref-to-ID mappings and any errors. Partial success is possible — some items may be created even when others fail. Check the ``errors`` key.
+
+    ## Deduplication
+    Data sources are deduplicated by name (case-insensitive) and by structural match (same type and table). Existing data sources are reused and their IDs mapped to the provided refs.
 
     ## Execution Order
     1. Data sources (list_rows, get_row) — so elements can reference them.
@@ -1092,7 +1299,8 @@ def setup_page(
     - Use string refs for items created in this call, int IDs for pre-existing items.
 
     ## Dynamic Values
-    Use $formula: prefix for dynamic content (e.g. "$formula: the Name field from the projects data source").
+    Use "$formula: <intent>" — describe the data you want using references or ids when possible.
+    Examples: "$formula: the Name field from the projects data source", "$formula: the Email form input".
     """
 
     user = ctx.deps.user
@@ -1112,93 +1320,20 @@ def setup_page(
     all_errors: list[str] = []
 
     # Phase 1: Data sources
-    created_ds: list[dict] = []
-    ds_pairs: list[tuple] = []
-    if data_sources:
-        existing_ds = helpers.list_data_sources(page)
-        existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
-        with transaction.atomic():
-            for ds_create in data_sources:
-                tool_helpers.raise_if_cancelled()
-                ex = existing_by_name.get(ds_create.name.lower())
-                if not ex:
-                    ex = next(
-                        (ds for ds in existing_ds if ds_create.matches_existing(ds)),
-                        None,
-                    )
-                if ex:
-                    ds_ref_to_id[ds_create.ref] = ex.id
-                    continue
-                tool_helpers.update_status(
-                    _("Creating data source '%(name)s'...") % {"name": ds_create.name}
-                )
-                try:
-                    orm_ds, ds_id = helpers.create_data_source(
-                        user, page, ds_create, integration
-                    )
-                    ds_ref_to_id[ds_create.ref] = ds_id
-                    ds_pairs.append((orm_ds, ds_create))
-                    created_ds.append(
-                        {
-                            "id": ds_id,
-                            "ref": ds_create.ref,
-                            "name": ds_create.name,
-                            "type": ds_create.type,
-                        }
-                    )
-                except Exception as exc:
-                    all_errors.append(f"data_source {ds_create.ref}: {exc}")
-        all_errors.extend(
-            agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
-        )
+    created_ds, ds_errors = _setup_data_sources(
+        user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
+    )
+    all_errors.extend(ds_errors)
     _track_data_source_refs(tool_helpers, page_id, ds_ref_to_id)
     if created_ds:
         result["created_data_sources"] = created_ds
 
     # Phase 2: Elements
-    created_el: list[dict] = []
-    element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
-    if elements:
-        tool_helpers.update_status(
-            _("Creating %(count)d elements on %(name)s...")
-            % {"count": len(elements), "name": page.name}
-        )
-        with transaction.atomic():
-            for el_create in elements:
-                tool_helpers.raise_if_cancelled()
-                try:
-                    element, el_id = helpers.create_element(
-                        user,
-                        page,
-                        el_create,
-                        el_ref_to_id,
-                        ds_ref_to_id,
-                        shared_page_refs,
-                        None,
-                    )
-                    el_ref_to_id[el_create.ref] = el_id
-                    element_mapping[el_create.ref] = (element, el_create)
-                    created_el.append(
-                        {"id": el_id, "ref": el_create.ref, "type": el_create.type}
-                    )
-                except Exception as exc:
-                    all_errors.append(f"element {el_create.ref}: {exc}")
-        all_errors.extend(
-            agents.update_element_formulas(
-                user, page, elements, element_mapping, tool_helpers
-            )
-        )
-        # Handle table button action formulas
-        table_action_pairs = []
-        for el_create in elements:
-            if el_create.type == "table":
-                table_action_pairs.extend(el_create._created_action_pairs)
-        if table_action_pairs:
-            all_errors.extend(
-                agents.update_workflow_action_formulas(
-                    user, page, table_action_pairs, tool_helpers
-                )
-            )
+    created_el, el_errors = _setup_elements(
+        user, page, elements or [], el_ref_to_id, ds_ref_to_id,
+        shared_page_refs, tool_helpers,
+    )
+    all_errors.extend(el_errors)
     _track_element_refs(tool_helpers, page_id, el_ref_to_id)
     _track_element_refs(
         tool_helpers,
@@ -1209,42 +1344,11 @@ def setup_page(
         result["created_elements"] = created_el
 
     # Phase 3: Actions
-    created_actions: list[dict] = []
-    action_pairs: list[tuple] = []
-    if actions:
-        with transaction.atomic():
-            for action_create in actions:
-                tool_helpers.raise_if_cancelled()
-                tool_helpers.update_status(
-                    _("Creating %(type)s action...") % {"type": action_create.type}
-                )
-                try:
-                    orm_action, action_id = helpers.create_workflow_action(
-                        user,
-                        page,
-                        action_create,
-                        el_ref_to_id,
-                        ds_ref_to_id,
-                        integration,
-                    )
-                    action_pairs.append((orm_action, action_create))
-                    created_actions.append(
-                        {
-                            "id": action_id,
-                            "type": action_create.type,
-                            "element": action_create.element,
-                            "event": action_create.event,
-                        }
-                    )
-                except Exception as exc:
-                    all_errors.append(
-                        f"action {action_create.type} on {action_create.element}: {exc}"
-                    )
-        all_errors.extend(
-            agents.update_workflow_action_formulas(
-                user, page, action_pairs, tool_helpers
-            )
-        )
+    created_actions, action_errors = _setup_actions(
+        user, page, actions or [], el_ref_to_id, ds_ref_to_id,
+        integration, tool_helpers,
+    )
+    all_errors.extend(action_errors)
     if created_actions:
         result["created_actions"] = created_actions
 
@@ -1342,3 +1446,10 @@ TOOL_FUNCTIONS = [
     set_theme,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+
+ROUTING_RULES = """\
+- Check list_* before create_* to avoid duplicates.
+- switch_mode: switch domain if task needs tools not in the current mode.
+- Builder workflow actions (button/form actions) → use create_actions, NOT load_row_tools.
+- Builder apps that need tables: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page for each page.
+- Builder completeness: every data page needs a data source. Table/repeat elements must specify columns. Forms need inputs + submit action. No page left empty."""

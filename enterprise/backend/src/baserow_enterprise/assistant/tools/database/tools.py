@@ -295,7 +295,7 @@ def list_rows(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     tool_helpers.update_status(
         _("Listing rows in %(table_name)s ") % {"table_name": table.name}
@@ -345,7 +345,7 @@ def list_views(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     tool_helpers.update_status(
         _("Listing views in %(table_name)s...") % {"table_name": table.name}
@@ -555,7 +555,7 @@ def create_fields(
     if not fields:
         return "No fields to create provided"
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     with transaction.atomic():
         formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
@@ -723,7 +723,7 @@ def create_views(
     if not views:
         return "No views to create provided"
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     created_views = []
     with transaction.atomic():
@@ -1199,3 +1199,11 @@ TOOL_FUNCTIONS = [
     load_row_tools,
 ]
 database_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+
+ROUTING_RULES = """\
+- Check list_* before create_* to avoid duplicates.
+- switch_mode: switch domain if task needs tools not in the current mode.
+- Database row CRUD → call load_row_tools first (includes schema — skip get_tables_schema).
+- create_tables: include ALL related tables in one call so link_row fields connect properly. Add sample rows unless told otherwise.
+- create_rows: fill EVERY field including ALL link_row fields.
+- After creating tables for an app/automation task, switch_mode back to continue building."""

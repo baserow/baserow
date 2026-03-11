@@ -172,6 +172,32 @@ def _try_recover_tool_use_failed(exc: Exception) -> ModelResponse | None:
     return _recover_failed_generation(failed_gen, model_name)
 
 
+def _resolve_model(model_name: str) -> Model:
+    """Resolve a model name to a pydantic-ai Model instance.
+
+    For Google models, constructs the model with a fresh
+    ``httpx.AsyncClient`` instead of relying on ``infer_model()`` which
+    uses a process-global cached client.  That cached client binds to the
+    event loop at creation time and breaks when reused on a different loop
+    (common in Django async views).
+    See: https://github.com/pydantic/pydantic-ai/issues/3240
+    """
+
+    if model_name.startswith(("google-gla:", "google:", "google-vertex:")):
+        import httpx
+        from pydantic_ai.models.google import GoogleModel
+        from pydantic_ai.providers.google import GoogleProvider
+
+        vertexai = model_name.startswith("google-vertex:")
+        google_model_name = model_name.split(":", 1)[1]
+        return GoogleModel(
+            google_model_name,
+            provider=GoogleProvider(http_client=httpx.AsyncClient(), vertexai=vertexai),
+        )
+
+    return infer_model(model_name)
+
+
 class RetryingModel(WrapperModel):
     """Model wrapper that retries ``request()`` on transient provider errors.
 
@@ -206,7 +232,7 @@ class RetryingModel(WrapperModel):
             self._resolved = (
                 self._wrapped_or_name
                 if isinstance(self._wrapped_or_name, Model)
-                else infer_model(self._wrapped_or_name)
+                else _resolve_model(self._wrapped_or_name)
             )
         return self._resolved
 

@@ -651,6 +651,133 @@ def test_list_actions(data_fixture):
 
 
 # ===========================================================================
+# add_action_field_mapping tests
+# ===========================================================================
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_action_field_mapping_creates_mapping(data_fixture):
+    """add_action_field_mapping should create a field mapping on an existing action."""
+
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    # Create a form and create_row action with one field mapping
+    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+
+    create_form_elements(
+        ctx,
+        page_id=page.id,
+        elements=[FormElementCreate(ref="form", type="form_container")],
+        thought="test",
+    )
+    action_result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="create_row",
+                element="form",
+                event="submit",
+                table_id=table.id,
+                field_values=[
+                    FieldValueMapping(field_id=str(name_field.id), value="'Alice'"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+    action_id = action_result["created_actions"][0]["id"]
+
+    # Now add a second field mapping via add_action_field_mapping
+    result = add_action_field_mapping(
+        ctx,
+        action_id=action_id,
+        field_id=email_field.id,
+        value_formula="get('form_data.123')",
+        thought="test",
+    )
+
+    assert result["status"] == "created"
+    assert len(result["field_mappings"]) == 2
+    mapped_field_ids = {m["field_id"] for m in result["field_mappings"]}
+    assert name_field.id in mapped_field_ids
+    assert email_field.id in mapped_field_ids
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_action_field_mapping_updates_existing(data_fixture):
+    """add_action_field_mapping should update an existing field mapping."""
+
+    from baserow_enterprise.assistant.tools.builder.tools import (
+        add_action_field_mapping,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
+
+    create_form_elements(
+        ctx,
+        page_id=page.id,
+        elements=[FormElementCreate(ref="form", type="form_container")],
+        thought="test",
+    )
+    action_result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="create_row",
+                element="form",
+                event="submit",
+                table_id=table.id,
+                field_values=[
+                    FieldValueMapping(field_id=str(name_field.id), value="'Alice'"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+    action_id = action_result["created_actions"][0]["id"]
+
+    # Update the existing mapping with a new formula
+    result = add_action_field_mapping(
+        ctx,
+        action_id=action_id,
+        field_id=name_field.id,
+        value_formula="get('form_data.456')",
+        thought="test",
+    )
+
+    assert result["status"] == "updated"
+    assert len(result["field_mappings"]) == 1
+    assert result["field_mappings"][0]["field_id"] == name_field.id
+
+
+# ===========================================================================
 # Element ref tracking tests
 # ===========================================================================
 
@@ -1626,7 +1753,8 @@ def test_update_element_style_ignores_wrong_block(data_fixture):
         thought="test",
     )
 
-    assert result["status"] == "ok"
+    # Button overrides on a heading should be silently ignored, returning a warning
+    assert result["status"] == "warning"
 
     from baserow.contrib.builder.elements.handler import ElementHandler
 
@@ -1921,3 +2049,291 @@ def test_table_element_auto_enables_filter_sort_search(data_fixture):
         assert opt.filterable is True
         assert opt.sortable is True
         assert opt.searchable is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_table_element_replace_columns(data_fixture):
+    """Updating a table element's fields replaces all columns."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_text_field(table=table, name="Email")
+    phone_field = data_fixture.create_text_field(table=table, name="Phone")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    # Create data source
+    ds_result = create_data_sources(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="ds1", name="People", type="list_rows", table_id=table.id
+            ),
+        ],
+        thought="test",
+    )
+    ds_id = ds_result["ref_to_id_map"]["ds1"]
+
+    # Create table with 2 columns
+    el_result = create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=ds_id,
+                fields=[
+                    TableFieldConfig(name="Name", type="text"),
+                    TableFieldConfig(name="Email", type="text"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+    table_element_id = el_result["ref_to_id_map"]["tbl"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element(table_element_id).specific
+
+    # Verify initial state: 2 columns
+    fields_before = list(element.fields.order_by("order"))
+    assert len(fields_before) == 2
+    assert fields_before[0].name == "Name"
+    assert fields_before[1].name == "Email"
+
+    # Update: replace with 3 columns (add Phone, remove Email)
+    update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=table_element_id,
+            fields=[
+                TableFieldConfig(name="Name", type="text"),
+                TableFieldConfig(name="Phone", type="text"),
+                TableFieldConfig(name="Actions", type="button", label="Edit"),
+            ],
+        ),
+        thought="test",
+    )
+
+    element = ElementHandler().get_element(table_element_id).specific
+    fields_after = list(element.fields.order_by("order"))
+    assert len(fields_after) == 3
+    assert fields_after[0].name == "Name"
+    assert fields_after[1].name == "Phone"
+    assert fields_after[2].name == "Actions"
+    assert fields_after[2].type == "button"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_table_element_add_fields(data_fixture):
+    """add_fields appends columns without touching existing ones."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_text_field(table=table, name="Email")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    ds_result = create_data_sources(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="ds1", name="People", type="list_rows", table_id=table.id
+            ),
+        ],
+        thought="test",
+    )
+    ds_id = ds_result["ref_to_id_map"]["ds1"]
+
+    # Create table with 1 column
+    el_result = create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=ds_id,
+                fields=[TableFieldConfig(name="Name", type="text")],
+            ),
+        ],
+        thought="test",
+    )
+    table_element_id = el_result["ref_to_id_map"]["tbl"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element(table_element_id).specific
+    assert element.fields.count() == 1
+
+    # Add Email column — Name should be preserved
+    update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=table_element_id,
+            add_fields=[TableFieldConfig(name="Email", type="text")],
+        ),
+        thought="test",
+    )
+
+    element = ElementHandler().get_element(table_element_id).specific
+    fields = list(element.fields.order_by("order"))
+    assert len(fields) == 2
+    assert fields[0].name == "Name"
+    assert fields[1].name == "Email"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_table_element_remove_fields(data_fixture):
+    """remove_fields removes columns by name, preserving the rest."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_text_field(table=table, name="Email")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    ds_result = create_data_sources(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="ds1", name="People", type="list_rows", table_id=table.id
+            ),
+        ],
+        thought="test",
+    )
+    ds_id = ds_result["ref_to_id_map"]["ds1"]
+
+    # Create table with 2 columns
+    el_result = create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=ds_id,
+                fields=[
+                    TableFieldConfig(name="Name", type="text"),
+                    TableFieldConfig(name="Email", type="text"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+    table_element_id = el_result["ref_to_id_map"]["tbl"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element(table_element_id).specific
+    assert element.fields.count() == 2
+
+    # Remove Email by name — Name should be preserved
+    update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=table_element_id,
+            remove_fields=["Email"],
+        ),
+        thought="test",
+    )
+
+    element = ElementHandler().get_element(table_element_id).specific
+    fields = list(element.fields.order_by("order"))
+    assert len(fields) == 1
+    assert fields[0].name == "Name"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_table_element_add_and_remove_fields(data_fixture):
+    """add_fields and remove_fields can be combined in a single update."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_text_field(table=table, name="Email")
+    data_fixture.create_text_field(table=table, name="Phone")
+
+    tool_helpers = create_fake_tool_helpers()
+    ctx = make_test_ctx(user, workspace, tool_helpers)
+
+    ds_result = create_data_sources(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="ds1", name="People", type="list_rows", table_id=table.id
+            ),
+        ],
+        thought="test",
+    )
+    ds_id = ds_result["ref_to_id_map"]["ds1"]
+
+    el_result = create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=ds_id,
+                fields=[
+                    TableFieldConfig(name="Name", type="text"),
+                    TableFieldConfig(name="Email", type="text"),
+                ],
+            ),
+        ],
+        thought="test",
+    )
+    table_element_id = el_result["ref_to_id_map"]["tbl"]
+
+    # Remove Email, add Phone + button — in one call
+    update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=table_element_id,
+            remove_fields=["Email"],
+            add_fields=[
+                TableFieldConfig(name="Phone", type="text"),
+                TableFieldConfig(name="Actions", type="button", label="Edit"),
+            ],
+        ),
+        thought="test",
+    )
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+
+    element = ElementHandler().get_element(table_element_id).specific
+    fields = list(element.fields.order_by("order"))
+    assert len(fields) == 3
+    assert fields[0].name == "Name"
+    assert fields[1].name == "Phone"
+    assert fields[2].name == "Actions"
+    assert fields[2].type == "button"

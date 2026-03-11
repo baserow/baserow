@@ -89,11 +89,15 @@ class PeriodicTriggerSettings(BaseModel):
     interval: Literal["MINUTE", "HOUR", "DAY", "WEEK", "MONTH"]
     minute: int = Field(
         default=0,
+        ge=0,
+        le=59,
         description=f"MINUTE: minutes between triggers (min {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}). HOUR: minute of the hour.",
     )
-    hour: int = Field(default=0, description="UTC hour (0-23).")
-    day_of_week: int = Field(default=0, description="0=Monday, 6=Sunday.")
-    day_of_month: int = Field(default=1, description="1-31.")
+    hour: int = Field(default=0, ge=0, le=23, description="UTC hour (0-23).")
+    day_of_week: int = Field(
+        default=0, ge=0, le=6, description="0=Monday, 6=Sunday."
+    )
+    day_of_month: int = Field(default=1, ge=1, le=31, description="1-31.")
 
 
 class RowsTriggersSettings(BaseModel):

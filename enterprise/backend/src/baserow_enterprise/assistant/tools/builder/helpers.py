@@ -305,11 +305,13 @@ def create_element(
     data_source_ref_to_id_map: dict[str, int],
     shared_page_refs: set[str] | None = None,
     before_id: int | None = None,
-) -> tuple[Any, int]:
+) -> tuple[Any, int, list]:
     """
     Create an element on a page, resolving refs to IDs.
 
-    Returns ``(orm_element, element_id)``.
+    Returns ``(orm_element, element_id, action_pairs)`` where
+    *action_pairs* is a list of ``(orm_action, action_create)`` tuples
+    produced by post-create hooks (e.g. table button columns).
     """
 
     if shared_page_refs is None:
@@ -379,8 +381,8 @@ def create_element(
         user, element_type, target_page, before=before, **kwargs
     )
 
-    element_create.post_create(user, element, target_page)
-    return element, element.id
+    action_pairs = element_create.post_create(user, element, target_page)
+    return element, element.id, action_pairs
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +438,10 @@ def update_element(
     """
     Update an existing element by ID.
 
+    If the element is a header/footer and ``menu_items`` are provided,
+    automatically finds or creates a child menu element and sets the
+    items on it (headers are containers, not menus themselves).
+
     Returns ``(orm_element, element_type_str)``.
     """
 
@@ -451,7 +457,58 @@ def update_element(
     kwargs = element_update.to_update_kwargs(element_type)
     if kwargs:
         element = ElementService().update_element(user, element, **kwargs)
+
+    # Headers/footers are containers — menu_items belong on a child menu.
+    if element_type in ("header", "footer") and element_update.menu_items:
+        _ensure_child_menu(user, element, element_update)
+
     return element, element_type
+
+
+def _ensure_child_menu(
+    user: AbstractUser,
+    header_element: Any,
+    element_update: ElementUpdate,
+) -> None:
+    """Find or create a menu element inside a header/footer, then set its items."""
+
+    import uuid
+
+    handler = ElementHandler()
+    children = handler.get_elements(header_element.page)
+    menu_child = None
+    for child in children:
+        if (
+            child.parent_element_id == header_element.id
+            and child.get_type().type == "menu"
+        ):
+            menu_child = child
+            break
+
+    menu_items_orm = [
+        {
+            "uid": str(uuid.uuid4()),
+            "type": "link",
+            "variant": "link",
+            "name": item.name,
+            "navigation_type": "page",
+            "navigate_to_page_id": item.page_id,
+            "target": "self",
+        }
+        for item in element_update.menu_items
+    ]
+
+    if menu_child is not None:
+        ElementService().update_element(user, menu_child, menu_items=menu_items_orm)
+    else:
+        menu_type = element_type_registry.get("menu")
+        ElementService().create_element(
+            user,
+            menu_type,
+            header_element.page,
+            parent_element_id=header_element.id,
+            menu_items=menu_items_orm,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -537,7 +594,9 @@ def _resolve_event(element_id: int, event: str) -> str:
             if bf.name.strip().lower() == name:
                 return f"{bf.uid}_click"
 
-    # Fallback: first button column
+    # Fallback: use the first button column when no name matches.
+    # This is intentional — the LLM may send an unrecognised event name
+    # (e.g. a typo) and we prefer a working action over an error.
     return f"{button_fields[0].uid}_click"
 
 

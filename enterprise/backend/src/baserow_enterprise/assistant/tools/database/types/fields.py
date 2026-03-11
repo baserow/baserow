@@ -83,7 +83,7 @@ OptionColorCreate = Literal[
 
 class SelectOptionCreate(BaseModel):
     value: str
-    color: OptionColorCreate
+    color: OptionColorCreate | None = None
 
 
 class InvalidFormulaFieldError(Exception):
@@ -266,7 +266,11 @@ def _select_to_orm(f, table, user):
     return {
         "name": f.name,
         "select_options": [
-            {"id": -i, "value": opt.value, "color": opt.color}
+            {
+                "id": -i,
+                "value": opt.value,
+                "color": opt.color or _SELECT_COLORS[(i - 1) % len(_SELECT_COLORS)],
+            }
             for i, opt in enumerate(f.options, start=1)
         ],
     }
@@ -578,7 +582,11 @@ def _update_select(f, field_type):
     kwargs = _update_simple(f, field_type)
     if f.options is not None:
         kwargs["select_options"] = [
-            {"id": -i, "value": opt.value, "color": opt.color}
+            {
+                "id": -i,
+                "value": opt.value,
+                "color": opt.color or _SELECT_COLORS[(i - 1) % len(_SELECT_COLORS)],
+            }
             for i, opt in enumerate(f.options, start=1)
         ]
     return kwargs

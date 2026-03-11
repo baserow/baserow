@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
 from baserow.core.registry import Instance, Registry
+from baserow_enterprise.assistant.deps import AgentMode
 
 from .toolset import (
     InlineRefsToolset,
@@ -60,6 +61,15 @@ class AssistantToolType(Instance):
 
         raise NotImplementedError
 
+    def get_routing_rules(self) -> str:
+        """Return routing rules text for this tool group's manifest.
+
+        Override in subclasses that define mode-specific routing rules.
+        Returns empty string by default (no rules).
+        """
+
+        return ""
+
 
 class AssistantToolRegistry(Registry[AssistantToolType]):
     name = "assistant_tool"
@@ -94,35 +104,52 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         combined = CombinedToolset(toolsets)
         mode_aware = ModeAwareToolset(combined, deps)
 
-        from baserow_enterprise.assistant.prompts import (
-            TOOL_ROUTING_RULES_APPLICATION,
-            TOOL_ROUTING_RULES_AUTOMATION,
-            TOOL_ROUTING_RULES_DATABASE,
-        )
+        from .toolset import _get_mode_tool_map
 
-        from .toolset import (
-            _APPLICATION_TOOLS,
-            _AUTOMATION_TOOLS,
-            _DATABASE_TOOLS,
-            _EXPLAIN_INCLUDE,
-        )
+        # Build a routing-rules lookup from registered tool types so each
+        # module owns its own rules (no hardcoded imports here).
+        routing_rules_by_type: dict[str, str] = {
+            tt.type: tt.get_routing_rules()
+            for tt in self.get_all()
+            if tt.get_routing_rules()
+        }
+
+        mode_map = _get_mode_tool_map()
+        shared = mode_map[AgentMode.DATABASE] & mode_map[AgentMode.APPLICATION]
+
+        _mode_config: list[tuple[str, AgentMode, str]] = [
+            ("database", AgentMode.DATABASE, routing_rules_by_type.get("database", "")),
+            ("application", AgentMode.APPLICATION, routing_rules_by_type.get("builder", "")),
+            ("automation", AgentMode.AUTOMATION, routing_rules_by_type.get("automation", "")),
+        ]
 
         manifests = {}
-        for mode_key, allowed, rules in [
-            ("database", _DATABASE_TOOLS, TOOL_ROUTING_RULES_DATABASE),
-            ("application", _APPLICATION_TOOLS, TOOL_ROUTING_RULES_APPLICATION),
-            ("automation", _AUTOMATION_TOOLS, TOOL_ROUTING_RULES_AUTOMATION),
-        ]:
+        for mode_key, mode, rules in _mode_config:
+            allowed = mode_map[mode]
             groups = [
                 (label, [f for f in funcs if f.__name__ in allowed])
                 for label, funcs in module_groups
             ]
-            manifests[mode_key] = generate_tool_manifest_compact(
-                groups, routing_rules=rules
-            )
+            manifest = generate_tool_manifest_compact(groups, routing_rules=rules)
 
+            # Append a compact cross-mode summary so the agent knows what
+            # capabilities exist in other modes (and can switch_mode to use them).
+            other_lines = []
+            for other_key, other_mode, _ in _mode_config:
+                if other_key == mode_key:
+                    continue
+                specific = mode_map[other_mode] - shared
+                other_lines.append(f"- {other_key}: {', '.join(sorted(specific))}")
+            if other_lines:
+                manifest += "\n\n## Other modes (switch_mode to access)\n" + "\n".join(
+                    other_lines
+                )
+
+            manifests[mode_key] = manifest
+
+        explain_allowed = mode_map[AgentMode.EXPLAIN]
         explain_groups = [
-            (label, [f for f in funcs if f.__name__ in _EXPLAIN_INCLUDE])
+            (label, [f for f in funcs if f.__name__ in explain_allowed])
             for label, funcs in module_groups
         ]
         manifests["explain"] = generate_tool_manifest_compact(explain_groups)

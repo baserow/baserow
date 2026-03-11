@@ -627,13 +627,48 @@ def test_agent_creates_page_specific_nav_on_page(data_fixture, eval_model):
     detail_elements = Element.objects.filter(page=detail_page)
     assert detail_elements.exists(), "Expected elements on the Detail page"
 
-    # Check that a link element exists on the detail page
+    # Check that a link, button, or menu element exists on the detail page
     link_elements = detail_elements.filter(content_type__model="linkelement")
     button_elements = detail_elements.filter(content_type__model="buttonelement")
-    assert link_elements.exists() or button_elements.exists(), (
-        f"Expected a link or button element on the Detail page, "
-        f"got types: {list(detail_elements.values_list('content_type__model', flat=True))}"
+    menu_elements = detail_elements.filter(content_type__model="menuelement")
+    element_types = list(detail_elements.values_list("content_type__model", flat=True))
+    assert (
+        link_elements.exists() or button_elements.exists() or menu_elements.exists()
+    ), (
+        f"Expected a link, button, or menu element on the Detail page, "
+        f"got types: {element_types}"
     )
+
+    # If a menu element was created, verify it has items linking to the List page
+    if menu_elements.exists():
+        menu_element = menu_elements.first().specific
+        menu_items = MenuItemElement.objects.filter(
+            pk__in=menu_element.menu_items.values_list("pk", flat=True)
+        ).select_related("navigate_to_page")
+        assert menu_items.count() >= 1, (
+            f"Menu element exists but has no menu items. "
+            f"Expected at least 1 item linking to the List page."
+        )
+        linked_page_ids = {
+            item.navigate_to_page_id
+            for item in menu_items
+            if item.navigate_to_page_id is not None
+        }
+        assert list_page.id in linked_page_ids, (
+            f"Menu items should link to the List page (id={list_page.id}). "
+            f"Linked page IDs: {linked_page_ids}"
+        )
+
+    # If a link element was created, verify it navigates to the List page
+    if link_elements.exists():
+        link_el = link_elements.first().specific
+        assert link_el.navigate_to_page_id == list_page.id or "/list" in str(
+            link_el.navigate_to_url
+        ), (
+            f"Link element should navigate to List page (id={list_page.id}), "
+            f"but navigate_to_page_id={link_el.navigate_to_page_id}, "
+            f"navigate_to_url={link_el.navigate_to_url}"
+        )
 
     # No elements should have been added to the shared page
     shared_page = builder.shared_page

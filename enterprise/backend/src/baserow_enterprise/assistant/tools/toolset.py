@@ -269,93 +269,54 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
 # ---------------------------------------------------------------------------
 
 
-_SHARED_TOOLS: frozenset[str] = frozenset(
-    {
-        "navigate",
-        "switch_mode",
-        "list_builders",
-        "list_tables",
-        "get_tables_schema",
-        "list_rows",
-        "list_views",
-        "list_workflows",
-        "list_nodes",
-        "list_pages",
-        "list_data_sources",
-        "list_elements",
-        "list_actions",
-    }
-)
+def _build_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
+    """Build mode → tool-names mapping from actual function references.
 
-_DATABASE_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
-    {
-        "create_tables",
-        "create_fields",
-        "update_fields",
-        "delete_fields",
-        "create_views",
-        "create_view_filters",
-        "generate_formula",
-        "load_row_tools",
-        "create_builders",
-    }
-)
+    Derives names via ``f.__name__`` instead of hand-maintained string
+    lists to eliminate typo risk.
+    """
 
-_APPLICATION_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
-    {
-        "create_pages",
-        "update_page",
-        "create_data_sources",
-        "update_data_source",
-        "create_display_elements",
-        "create_layout_elements",
-        "create_form_elements",
-        "create_collection_elements",
-        "update_element",
-        "update_element_style",
-        "move_elements",
-        "create_actions",
-        "add_action_field_mapping",
-        "setup_page",
-        "set_theme",
-        "create_builders",
-    }
-)
+    from .automation.tools import TOOL_FUNCTIONS as AUTO_FN
+    from .builder.tools import TOOL_FUNCTIONS as BUILDER_FN
+    from .core.tools import create_builders, list_builders, switch_mode
+    from .database.tools import TOOL_FUNCTIONS as DB_FN
+    from .navigation.tools import navigate
+    from .search_user_docs.tools import search_user_docs
 
-_AUTOMATION_TOOLS: frozenset[str] = _SHARED_TOOLS | frozenset(
-    {
-        "create_workflows",
-        "add_nodes",
-        "update_nodes",
-        "delete_nodes",
-        "create_builders",
-    }
-)
+    n = frozenset  # alias for readability
 
-_EXPLAIN_INCLUDE: frozenset[str] = frozenset(
-    {
-        "list_builders",
-        "list_tables",
-        "get_tables_schema",
-        "list_rows",
-        "list_views",
-        "list_workflows",
-        "list_pages",
-        "list_data_sources",
-        "list_elements",
-        "list_actions",
-        "navigate",
-        "search_user_docs",
-        "switch_mode",
-    }
-)
+    def names(*funcs):
+        return n(f.__name__ for f in funcs)
 
-_MODE_TOOL_MAP: dict = {
-    AgentMode.DATABASE: _DATABASE_TOOLS,
-    AgentMode.APPLICATION: _APPLICATION_TOOLS,
-    AgentMode.AUTOMATION: _AUTOMATION_TOOLS,
-    AgentMode.EXPLAIN: _EXPLAIN_INCLUDE,
-}
+    shared = names(
+        navigate,
+        switch_mode,
+        list_builders,
+        # Read-only database tools available in every mode
+        *[f for f in DB_FN if f.__name__.startswith(("list_", "get_"))],
+    )
+
+    return {
+        AgentMode.DATABASE: shared | names(*DB_FN, create_builders),
+        AgentMode.APPLICATION: shared | names(*BUILDER_FN, create_builders),
+        AgentMode.AUTOMATION: shared | names(*AUTO_FN, create_builders),
+        AgentMode.EXPLAIN: shared
+        | names(
+            *[f for f in BUILDER_FN if f.__name__.startswith("list_")],
+            *[f for f in AUTO_FN if f.__name__.startswith("list_")],
+            search_user_docs,
+        ),
+    }
+
+
+_MODE_TOOL_MAP: dict[AgentMode, frozenset[str]] | None = None
+
+
+def _get_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
+    global _MODE_TOOL_MAP
+    if _MODE_TOOL_MAP is None:
+        _MODE_TOOL_MAP = _build_mode_tool_map()
+    return _MODE_TOOL_MAP
 
 
 class ModeAwareToolset(AbstractToolset[AgentDepsT]):
@@ -393,7 +354,7 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
 
     async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
         all_tools = await self._inner.get_tools(ctx)
-        allowed = _MODE_TOOL_MAP[self._deps.mode]
+        allowed = _get_mode_tool_map()[self._deps.mode]
         return {k: v for k, v in all_tools.items() if k in allowed}
 
     async def call_tool(
@@ -403,12 +364,21 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         ctx: Any,
         tool: ToolsetTool[AgentDepsT],
     ) -> Any:
+        from baserow.core.exceptions import UserNotInWorkspace
         from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
 
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
             return {"error": str(exc)}
+        except UserNotInWorkspace:
+            return {
+                "error": (
+                    "One or more IDs reference a resource outside the current "
+                    "workspace. Use the appropriate list_* tool to find "
+                    "the correct IDs and retry."
+                )
+            }
 
 
 # ---------------------------------------------------------------------------

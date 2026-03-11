@@ -24,7 +24,7 @@ def mock_formula_generators(monkeypatch):
     """Mock all formula generation to avoid LLM requirement in tests."""
 
     def noop(*args, **kwargs):
-        pass
+        return []
 
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",

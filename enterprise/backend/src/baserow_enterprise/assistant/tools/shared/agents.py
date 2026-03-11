@@ -80,10 +80,14 @@ def get_formula_generator(
         """
         feedback = ""
         valid_formulas = {}
+        remaining = dict(fields_to_resolve)
 
         for __ in range(max_retries):
+            if not remaining:
+                break
+
             user_prompt = (
-                f"Fields to resolve: {fields_to_resolve}\n"
+                f"Fields to resolve: {remaining}\n"
                 f"(If prefixed with [optional], the field is not mandatory.)\n\n"
                 f"Context: {context.get_formula_context()}\n\n"
                 f"Context metadata: {context.get_context_metadata()}\n"
@@ -104,20 +108,21 @@ def get_formula_generator(
                 model_settings=get_model_settings(model, UTILITY),
             )
 
-            # Validate all generated formulas
-            valid_formulas = {}
             generated_formulas = result.output.generated_formulas
             for field_id, formula in generated_formulas.items():
+                if field_id not in remaining:
+                    continue
                 try:
                     check_formula(formula, context)
                     valid_formulas[field_id] = formula
+                    remaining.pop(field_id, None)
                 except ValueError as exc:
                     feedback += (
                         f"Error for {field_id}, formula {formula} not valid: "
                         f"{str(exc)}\n"
                     )
 
-            if len(valid_formulas) == len(generated_formulas):
+            if not remaining:
                 return valid_formulas
 
         # Return any valid formulas we have, or raise if none
