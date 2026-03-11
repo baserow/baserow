@@ -268,9 +268,7 @@ class BuilderFormulaContext:
 
     # -- __getitem__ helpers ------------------------------------------------
 
-    def _resolve_root(
-        self, key: str, parts: list[str]
-    ) -> tuple[Any, list[str]]:
+    def _resolve_root(self, key: str, parts: list[str]) -> tuple[Any, list[str]]:
         """Resolve the root segment, handling ``data_source.{id}`` compound keys."""
 
         if len(parts) >= 2 and parts[0] == "data_source":
