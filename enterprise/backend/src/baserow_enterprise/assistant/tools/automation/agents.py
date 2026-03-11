@@ -23,7 +23,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 
 from .prompts import GENERATE_FORMULA_PROMPT
-from .types import ActionNodeCreate, WorkflowCreate
+from .types import ActionNodeCreate, NodeUpdate, WorkflowCreate
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
@@ -120,3 +120,37 @@ def update_workflow_formulas(
                     )
 
         _build_node_context(orm_node, node)
+
+
+def update_single_node_formulas(
+    node_update: "NodeUpdate",
+    orm_node: AutomationNode,
+    tool_helpers: "ToolHelpers",
+) -> None:
+    """
+    Generate and apply formulas for a single node being updated.
+
+    Builds formula context from the node's workflow, then generates
+    formulas for the $formula: fields in the update.
+    """
+
+    context = AssistantFormulaContext()
+    generate_formula = get_generate_formulas_tool()
+
+    # Build context from the workflow's existing nodes
+    workflow = orm_node.workflow
+    all_nodes = list(workflow.automation_workflow_nodes.all().order_by("id"))
+    for wf_node in all_nodes:
+        schema = wf_node.service.get_type().generate_schema(wf_node.service.specific)
+        example = create_example_from_json_schema(schema)
+        metadata = minimize_json_schema(schema)
+        metadata["node_id"] = wf_node.id
+        context.add_node_context(wf_node.id, example, metadata)
+
+    formulas_to_create = node_update.get_formulas_to_update(orm_node)
+    if formulas_to_create is None:
+        return
+
+    result = generate_formula(formulas_to_create, context)
+    if result:
+        node_update.update_service_with_formulas(orm_node.service, result)

@@ -6,7 +6,6 @@ counterparts (``TriggerNodeItem``, ``ActionNodeItem``), plus the dispatch
 tables that convert between Pydantic models and Django ORM representations.
 """
 
-import re
 from typing import Any, Callable, Literal, Optional
 from uuid import uuid4
 
@@ -21,67 +20,17 @@ from baserow.core.formula.types import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    FORMULA_PREFIX,
+    formula_desc,
+    literal_or_placeholder,
+    needs_formula,
+)
 from baserow_enterprise.assistant.types import BaseModel
-
-FORMULA_PREFIX = "$formula:"
 
 # Short marker appended to fields that support $formula: dynamic values.
 # The full explanation lives in the create_workflows tool description.
 _F = f" Supports {FORMULA_PREFIX} prefix."
-
-# Detects raw formula syntax the LLM might write instead of using $formula:.
-# Matches: get('...'), concat(...), {{ ... }}, comparison operators, if(...),
-# today(), now().
-_RAW_FORMULA_RE = re.compile(
-    r"\bget\s*\(|\bconcat\s*\(|\{\{.*\}\}"
-    r"|\b(?:equal|not_equal|greater_than|less_than|greater_than_equal|less_than_equal)\s*\("
-    r"|\bif\s*\(|\btoday\s*\(|\bnow\s*\("
-)
-
-
-# ---------------------------------------------------------------------------
-# Formula value helpers
-# ---------------------------------------------------------------------------
-
-
-def _needs_formula(value: str | None) -> bool:
-    """
-    Check if a value requires formula processing.
-
-    Returns True for explicit ``$formula:`` prefixed values *and* for raw
-    formula expressions the LLM may write inline (e.g. ``get('field')``
-    or ``{{ get('field') }}``).
-    """
-
-    if not value:
-        return False
-    stripped = value.strip()
-    return stripped.lower().startswith(FORMULA_PREFIX) or bool(
-        _RAW_FORMULA_RE.search(stripped)
-    )
-
-
-def _formula_desc(value: str) -> str:
-    """
-    Extract the formula description from a value.
-
-    For ``$formula:`` prefixed values, strips the prefix.
-    For raw formula expressions, returns the value as-is so the
-    formula generator can convert it to a proper formula.
-    """
-
-    stripped = value.strip()
-    if stripped.lower().startswith(FORMULA_PREFIX):
-        return stripped[len(FORMULA_PREFIX) :].strip()
-    # Raw formula expression — pass through for the generator to fix up
-    return stripped
-
-
-def _literal_or_placeholder(value: str | None) -> str:
-    """Return a quoted literal formula, or empty placeholder for formula values."""
-    if not value or _needs_formula(value):
-        return "''"
-    return f"'{value}'"
 
 
 # ---------------------------------------------------------------------------
@@ -140,11 +89,15 @@ class PeriodicTriggerSettings(BaseModel):
     interval: Literal["MINUTE", "HOUR", "DAY", "WEEK", "MONTH"]
     minute: int = Field(
         default=0,
+        ge=0,
+        le=59,
         description=f"MINUTE: minutes between triggers (min {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}). HOUR: minute of the hour.",
     )
-    hour: int = Field(default=0, description="UTC hour (0-23).")
-    day_of_week: int = Field(default=0, description="0=Monday, 6=Sunday.")
-    day_of_month: int = Field(default=1, description="1-31.")
+    hour: int = Field(default=0, ge=0, le=23, description="UTC hour (0-23).")
+    day_of_week: int = Field(
+        default=0, ge=0, le=6, description="0=Monday, 6=Sunday."
+    )
+    day_of_month: int = Field(default=1, ge=1, le=31, description="1-31.")
 
 
 class RowsTriggersSettings(BaseModel):
@@ -425,11 +378,11 @@ def _router_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
 
 def _email_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
     return {
-        "to_email": _literal_or_placeholder(n.to_emails),
-        "cc_email": _literal_or_placeholder(n.cc_emails),
-        "bcc_email": _literal_or_placeholder(n.bcc_emails),
-        "subject": _literal_or_placeholder(n.subject),
-        "body": _literal_or_placeholder(n.body),
+        "to_email": literal_or_placeholder(n.to_emails),
+        "cc_email": literal_or_placeholder(n.cc_emails),
+        "bcc_email": literal_or_placeholder(n.bcc_emails),
+        "subject": literal_or_placeholder(n.subject),
+        "body": literal_or_placeholder(n.body),
         "body_type": f"'{n.body_type}'",
     }
 
@@ -438,7 +391,7 @@ def _slack_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
     channel = (n.channel or "").lstrip("#")
     return {
         "channel": channel,
-        "text": _literal_or_placeholder(n.text),
+        "text": literal_or_placeholder(n.text),
     }
 
 
@@ -449,7 +402,7 @@ def _row_action_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
 def _ai_agent_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
     return {
         "ai_choices": (n.choices or []) if n.output_type == "choice" else [],
-        "ai_prompt": _literal_or_placeholder(n.prompt),
+        "ai_prompt": literal_or_placeholder(n.prompt),
         "ai_output_type": n.output_type,
     }
 
@@ -494,9 +447,9 @@ def _email_formulas(
         "body": (f"The {n.body_type} body content of the email.", n.body),
     }
     values = {
-        key: f"{base_desc} Value to resolve: {_formula_desc(val)}"
+        key: f"{base_desc} Value to resolve: {formula_desc(val)}"
         for key, (base_desc, val) in fields.items()
-        if _needs_formula(val)
+        if needs_formula(val)
     }
     return values or None
 
@@ -504,9 +457,9 @@ def _email_formulas(
 def _slack_formulas(
     n: ActionNodeCreate, orm_node: AutomationNode
 ) -> dict[str, str] | None:
-    if _needs_formula(n.text):
+    if needs_formula(n.text):
         return {
-            "text": f"The message content. Value to resolve: {_formula_desc(n.text)}"
+            "text": f"The message content. Value to resolve: {formula_desc(n.text)}"
         }
     return None
 
@@ -523,15 +476,15 @@ def _row_action_formulas(
     values_by_id = {fv.field_id: fv.value for fv in (n.values or [])}
     values = {}
 
-    if _needs_formula(n.row_id):
+    if needs_formula(n.row_id):
         values["row_id"] = (
-            f"the row ID to update. Value to resolve: {_formula_desc(n.row_id)}"
+            f"the row ID to update. Value to resolve: {formula_desc(n.row_id)}"
         )
 
     for v in minimize_json_schema(schema).values():
         value = values_by_id.get(int(v["id"]))
-        if _needs_formula(value):
-            desc = v["desc"] + f" Value to resolve: {_formula_desc(value)}"
+        if needs_formula(value):
+            desc = v["desc"] + f" Value to resolve: {formula_desc(value)}"
             values[int(v["id"])] = {**v, "desc": desc}
 
     return values or None
@@ -540,9 +493,9 @@ def _row_action_formulas(
 def _ai_agent_formulas(
     n: ActionNodeCreate, orm_node: AutomationNode
 ) -> dict[str, str] | None:
-    if _needs_formula(n.prompt):
+    if needs_formula(n.prompt):
         return {
-            "ai_prompt": f"The AI prompt. Value to resolve: {_formula_desc(n.prompt)}"
+            "ai_prompt": f"The AI prompt. Value to resolve: {formula_desc(n.prompt)}"
         }
     return None
 
@@ -631,11 +584,11 @@ def _row_action_apply_direct(n: ActionNodeCreate, service: Service):
         {
             fv.field_id: (f"'{fv.value}'", True)
             for fv in (n.values or [])
-            if not _needs_formula(fv.value)
+            if not needs_formula(fv.value)
         },
     )
 
-    if n.row_id and not _needs_formula(n.row_id):
+    if n.row_id and not needs_formula(n.row_id):
         service.row_id = f"'{n.row_id}'"
         ServiceHandler().update_service(service.get_type(), service)
 
@@ -650,6 +603,232 @@ _APPLY_DIRECT: dict[str, Callable] = {
 # ---------------------------------------------------------------------------
 # ActionNodeItem (read-back)
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# NodeUpdate (for update_nodes tool)
+# ---------------------------------------------------------------------------
+
+
+class NodeUpdate(BaseModel):
+    """Flat model for updating an automation node."""
+
+    node_id: int = Field(..., description="The ID of the node to update.")
+    label: str | None = Field(None, description="New display name.")
+
+    # -- smtp_email --
+    to_emails: str | None = Field(
+        default=None, description=f"(smtp_email) Recipients.{_F}"
+    )
+    cc_emails: str | None = Field(default=None, description=f"(smtp_email) CC.{_F}")
+    bcc_emails: str | None = Field(default=None, description=f"(smtp_email) BCC.{_F}")
+    subject: str | None = Field(default=None, description=f"(smtp_email) Subject.{_F}")
+    body: str | None = Field(default=None, description=f"(smtp_email) Body.{_F}")
+    body_type: Literal["plain", "html"] | None = None
+
+    # -- slack_write_message --
+    channel: str | None = None
+    text: str | None = Field(default=None, description=f"(slack) Message.{_F}")
+
+    # -- create_row / update_row / delete_row --
+    table_id: int | None = None
+    row_id: str | None = Field(
+        default=None, description=f"(update/delete_row) Row ID.{_F}"
+    )
+    values: list[AutomationFieldValue] | None = None
+
+    # -- ai_agent --
+    output_type: Literal["text", "choice"] | None = None
+    choices: list[str] | None = None
+    prompt: str | None = Field(default=None, description=f"(ai_agent) Prompt.{_F}")
+
+    def to_update_service_dict(self, current_type: str) -> dict[str, Any] | None:
+        """Build a service kwargs dict from non-None fields. Returns None if no service fields set."""
+        builder = _TO_UPDATE_SERVICE.get(current_type)
+        if builder is None:
+            return None
+        result = builder(self)
+        return result if result else None
+
+    def get_formulas_to_update(self, orm_node: AutomationNode) -> dict[str, str] | None:
+        """Return a {key: description} dict of formulas to generate, or None."""
+        fn = _GET_UPDATE_FORMULAS.get(
+            orm_node.service.get_type().type if orm_node.service else None
+        )
+        return fn(self, orm_node) if fn else None
+
+    def apply_direct_values(self, service: Service):
+        """Apply literal (non-$formula) values directly to the service."""
+        fn = _APPLY_UPDATE_DIRECT.get(service.get_type().type if service else None)
+        if fn is not None:
+            fn(self, service)
+
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        """Write generated formulas back to the ORM service."""
+        stype = service.get_type().type if service else None
+        fn = _UPDATE_FORMULAS.get(stype)
+        if fn is not None:
+            # Reuse the existing dispatch (expects ActionNodeCreate-like but works for our purposes)
+            fn(self, service, formulas)
+        else:
+            _default_update_formulas(service, formulas)
+
+
+# -- to_update_service dispatch --
+
+
+def _email_update_service(n: "NodeUpdate") -> dict[str, Any]:
+    d = {}
+    if n.to_emails is not None:
+        d["to_email"] = literal_or_placeholder(n.to_emails)
+    if n.cc_emails is not None:
+        d["cc_email"] = literal_or_placeholder(n.cc_emails)
+    if n.bcc_emails is not None:
+        d["bcc_email"] = literal_or_placeholder(n.bcc_emails)
+    if n.subject is not None:
+        d["subject"] = literal_or_placeholder(n.subject)
+    if n.body is not None:
+        d["body"] = literal_or_placeholder(n.body)
+    if n.body_type is not None:
+        d["body_type"] = f"'{n.body_type}'"
+    return d
+
+
+def _slack_update_service(n: "NodeUpdate") -> dict[str, Any]:
+    d = {}
+    if n.channel is not None:
+        d["channel"] = n.channel.lstrip("#")
+    if n.text is not None:
+        d["text"] = literal_or_placeholder(n.text)
+    return d
+
+
+def _row_action_update_service(n: "NodeUpdate") -> dict[str, Any]:
+    d = {}
+    if n.table_id is not None:
+        d["table_id"] = n.table_id
+    return d
+
+
+def _ai_agent_update_service(n: "NodeUpdate") -> dict[str, Any]:
+    d = {}
+    if n.prompt is not None:
+        d["ai_prompt"] = literal_or_placeholder(n.prompt)
+    if n.output_type is not None:
+        d["ai_output_type"] = n.output_type
+    if n.choices is not None:
+        d["ai_choices"] = n.choices
+    return d
+
+
+_TO_UPDATE_SERVICE: dict[str, Callable] = {
+    "smtp_email": _email_update_service,
+    "slack_write_message": _slack_update_service,
+    "create_row": _row_action_update_service,
+    "update_row": _row_action_update_service,
+    "delete_row": _row_action_update_service,
+    "ai_agent": _ai_agent_update_service,
+}
+
+
+# -- get_formulas_to_update dispatch --
+
+
+def _email_update_formulas(
+    n: "NodeUpdate", orm_node: AutomationNode
+) -> dict[str, str] | None:
+    fields = {
+        "to_emails": ("Recipients.", n.to_emails),
+        "cc_emails": ("CC.", n.cc_emails),
+        "bcc_emails": ("BCC.", n.bcc_emails),
+        "subject": ("Subject.", n.subject),
+        "body": ("Body.", n.body),
+    }
+    values = {
+        key: f"{base_desc} Value to resolve: {formula_desc(val)}"
+        for key, (base_desc, val) in fields.items()
+        if needs_formula(val)
+    }
+    return values or None
+
+
+def _slack_update_formulas(
+    n: "NodeUpdate", orm_node: AutomationNode
+) -> dict[str, str] | None:
+    if needs_formula(n.text):
+        return {
+            "text": f"The message content. Value to resolve: {formula_desc(n.text)}"
+        }
+    return None
+
+
+def _row_action_update_formulas(
+    n: "NodeUpdate", orm_node: AutomationNode
+) -> dict[str, str] | None:
+    from baserow_enterprise.assistant.tools.shared.formula_utils import (
+        minimize_json_schema,
+    )
+
+    service = orm_node.service.specific
+    schema = service.get_type().generate_schema(service.specific)
+    values_by_id = {fv.field_id: fv.value for fv in (n.values or [])}
+    values = {}
+
+    if needs_formula(n.row_id):
+        values["row_id"] = f"the row ID. Value to resolve: {formula_desc(n.row_id)}"
+
+    for v in minimize_json_schema(schema).values():
+        value = values_by_id.get(int(v["id"]))
+        if needs_formula(value):
+            desc = v["desc"] + f" Value to resolve: {formula_desc(value)}"
+            values[int(v["id"])] = {**v, "desc": desc}
+
+    return values or None
+
+
+def _ai_agent_update_formulas(
+    n: "NodeUpdate", orm_node: AutomationNode
+) -> dict[str, str] | None:
+    if needs_formula(n.prompt):
+        return {
+            "ai_prompt": f"The AI prompt. Value to resolve: {formula_desc(n.prompt)}"
+        }
+    return None
+
+
+_GET_UPDATE_FORMULAS: dict[str, Callable] = {
+    "smtp_email": _email_update_formulas,
+    "slack_write_message": _slack_update_formulas,
+    "create_row": _row_action_update_formulas,
+    "update_row": _row_action_update_formulas,
+    "delete_row": _row_action_update_formulas,
+    "ai_agent": _ai_agent_update_formulas,
+}
+
+
+# -- apply_direct_values dispatch for update --
+
+
+def _row_action_update_apply_direct(n: "NodeUpdate", service: Service):
+    """Write literal (non-$formula) field values as quoted formulas."""
+    _upsert_field_mappings(
+        service,
+        {
+            fv.field_id: (f"'{fv.value}'", True)
+            for fv in (n.values or [])
+            if not needs_formula(fv.value)
+        },
+    )
+    if n.row_id and not needs_formula(n.row_id):
+        service.row_id = f"'{n.row_id}'"
+        ServiceHandler().update_service(service.get_type(), service)
+
+
+_APPLY_UPDATE_DIRECT: dict[str, Callable] = {
+    "create_row": _row_action_update_apply_direct,
+    "update_row": _row_action_update_apply_direct,
+    "delete_row": _row_action_update_apply_direct,
+}
 
 
 class ActionNodeItem(BaseModel):

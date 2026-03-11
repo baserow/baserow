@@ -13,3 +13,8 @@ class AutomationToolType(AssistantToolType):
         from .tools import automation_toolset
 
         return automation_toolset
+
+    def get_routing_rules(self):
+        from .tools import ROUTING_RULES
+
+        return ROUTING_RULES
