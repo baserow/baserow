@@ -94,11 +94,13 @@
     "title": "History",
     "noRunsTitle": "No runs yet",
     "noRunsDescription": "When this workflow has run, the results will be shown here.",
+    "statusStarted": "In progress...",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
+    "running": "Running for {at}s",
     "testRun": "Test"
   },
   "nodeType": {

@@ -16,7 +16,6 @@ from baserow.core.mixins import (
     HierarchicalModelMixin,
     OrderableMixin,
     TrashableModelMixin,
-    WithRegistry,
 )
 
 if TYPE_CHECKING:
@@ -48,7 +47,6 @@ class AutomationWorkflow(
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
-    WithRegistry,
 ):
     automation = models.ForeignKey(
         "automation.Automation", on_delete=models.CASCADE, related_name="workflows"
@@ -93,6 +91,24 @@ class AutomationWorkflow(
     def get_last_order(cls, automation: "Automation"):
         queryset = AutomationWorkflow.objects.filter(automation=automation)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+    def is_original(self) -> bool:
+        """
+        Whether this is an original workflow.
+        """
+        return not bool(self.automation.published_from_id)
+
+    def get_original(self) -> "AutomationWorkflow":
+        """
+        Gets the original workflow related to the current instance.
+
+        :return: The original workflow that can be the current instance.
+        """
+
+        if self.automation.published_from_id:
+            return self.automation.published_from
+        else:
+            return self
 
     def get_trigger(self) -> "AutomationTriggerNode":
         """

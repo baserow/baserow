@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
 from django.utils import timezone
 
@@ -6,6 +6,7 @@ from celery.canvas import Signature
 
 from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.core.db import atomic_with_retry_on_deadlock
 
@@ -13,7 +14,7 @@ from baserow.core.db import atomic_with_retry_on_deadlock
 @app.task(queue="automation_workflow")
 def start_workflow_celery_task(
     workflow_id: int,
-    event_payload: Optional[Union[Dict, List[Dict]]],
+    history_id: int,
     simulate_until_node_id: Optional[int] = None,
 ):
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -21,9 +22,10 @@ def start_workflow_celery_task(
     @atomic_with_retry_on_deadlock()
     def _start():
         workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+        history = AutomationHistoryHandler().get_workflow_history(history_id)
         return AutomationWorkflowHandler().start_workflow(
             workflow,
-            event_payload,
+            history,
             simulate_until_node_id=simulate_until_node_id,
         )
 

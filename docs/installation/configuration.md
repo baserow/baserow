@@ -202,6 +202,19 @@ The installation methods referred to in the variable descriptions are:
 | BASEROW\_TWO\_WAY\_SYNC\_MAX\_CONSECUTIVE\_FAILURES | Indicates the maximum number of consecutive two-way data sync updates before deactivating the two-way sync.          | 8        |
 | BASEROW\_TWO\_WAY\_SYNC\_MAX_RETRIES                | Indicates the maximum of or two-way data sync create, update, or delete row retries before considering it a failure. | 3        |
 
+### Automation workflow configuration
+
+| Name                                                                | Description                                                                                                                                  | Defaults |
+|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| BASEROW\_AUTOMATION\_HISTORY\_PAGE\_SIZE\_LIMIT                     | The maximum number of automation history entries returned per page.                                                                          | 100      |
+| BASEROW\_AUTOMATION\_WORKFLOW\_RATE\_LIMIT\_MAX\_RUNS               | The maximum number of workflow runs that can be started within the rate limit window before new runs are blocked.                           | 10       |
+| BASEROW\_AUTOMATION\_WORKFLOW\_RATE\_LIMIT\_CACHE\_EXPIRY\_SECONDS  | The number of seconds the workflow rate limit counters are retained in cache.                                                               | 5        |
+| BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_RATE\_LIMIT\_CACHE\_EXPIRY\_SECONDS | The number of seconds the workflow history rate limit counters are retained in cache. If unset, it uses the workflow rate limit cache expiry. | 5        |
+| BASEROW\_AUTOMATION\_WORKFLOW\_MAX\_CONSECUTIVE\_ERRORS             | The maximum number of consecutive workflow errors allowed before the workflow is disabled.                                                  | 5        |
+| BASEROW\_AUTOMATION\_WORKFLOW\_TIMEOUT\_HOURS                       | The number of hours after which a running workflow is considered timed out.                                                                 | 24       |
+| BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_DAYS                   | The number of days automation workflow history entries are retained.                                                                         | 30       |
+| BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_ENTRIES                | The maximum number of workflow history entries retained per workflow.                                                                        | 50       |
+
 ### Backend Application Builder Configuration
 | Name                      | Description                                                                                                              | Defaults               |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------|------------------------|

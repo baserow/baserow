@@ -396,10 +396,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             dispatch, otherwise returns None.
         """
 
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
-
         history_handler = AutomationHistoryHandler()
 
         try:
@@ -450,9 +446,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             self._handle_workflow_error(node_history, error)
             return None
         except Exception as e:
-            original_workflow = AutomationWorkflowHandler().get_original_workflow(
-                node.workflow
-            )
+            original_workflow = node.workflow.get_original()
+
             error = (
                 f"Unexpected error while running workflow {original_workflow.id}. "
                 f"Error: {str(e)}"

@@ -72,6 +72,9 @@ venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")
 # Export for uv to use
 export UV_PROJECT_ENVIRONMENT := venv_dir
 
+# Prevent stdout buffering
+export PYTHONUNBUFFERED := "1"
+
 # Use --active to respect VIRTUAL_ENV, since venv may be in parent dir
 uv_run := "uv run --active"
 

@@ -3,7 +3,12 @@
     <template #header="{ expanded }">
       <div class="history-section__header">
         <Icon
-          v-if="props.item.status === 'success'"
+          v-if="props.item.status === 'started'"
+          icon="iconoir-refresh-double"
+          type="secondary"
+        />
+        <Icon
+          v-else-if="props.item.status === 'success'"
           icon="iconoir-check-circle"
           type="success"
         />
@@ -34,6 +39,7 @@
 <script setup>
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
+
 const app = useNuxtApp()
 
 const props = defineProps({
@@ -45,24 +51,34 @@ const props = defineProps({
 
 const statusTitle = computed(() => {
   switch (props.item.status) {
+    case 'started':
+      return app.$i18n.t('historySidePanel.statusStarted')
     case 'success':
       return app.$i18n.t('historySidePanel.statusSuccess')
-    case 'error':
-      return app.$i18n.t('historySidePanel.statusError')
-    default:
+    case 'disabled':
       return app.$i18n.t('historySidePanel.statusDisabled')
+    default:
+      return app.$i18n.t('historySidePanel.statusError')
   }
 })
 
 const completedDate = computed(() => {
-  return moment
-    .utc(props.item.completed_on)
-    .tz(getUserTimeZone())
-    .format('YYYY-MM-DD HH:mm:ss')
+  const date =
+    props.item.status === 'started'
+      ? props.item.started_on
+      : props.item.completed_on
+  return moment.utc(date).tz(getUserTimeZone()).format('YYYY-MM-DD HH:mm:ss')
 })
 
 const humanCompletedDate = computed(() => {
-  return moment.utc(props.item.completed_on).tz(getUserTimeZone()).fromNow()
+  const date =
+    props.item.status === 'started'
+      ? props.item.started_on
+      : props.item.completed_on
+  if (props.item.status === 'started') {
+    return moment.utc(date).tz(getUserTimeZone()).fromNow()
+  }
+  return moment.utc(date).tz(getUserTimeZone()).fromNow()
 })
 
 const historyTitlePrefix = computed(() => {
@@ -85,6 +101,15 @@ const historyMessage = computed(() => {
         s: deltaSeconds.toFixed(2),
       })
     }
+  } else if (props.item.status === 'started') {
+    const start = new Date(props.item.started_on)
+    const end = new Date()
+
+    const deltaMs = end - start
+    const deltaSeconds = deltaMs / 1000
+    return app.$i18n.t('historySidePanel.running', {
+      at: deltaSeconds.toFixed(2),
+    })
   } else {
     return props.item.message
   }
