@@ -41,10 +41,6 @@ if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
 
 
-class ToolInputError(Exception):
-    """Raised when tool input is invalid — returned to the model as an error message."""
-
-
 def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
     """Return all tables visible to the user in the given workspace."""
 
@@ -53,6 +49,8 @@ def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
 
 def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
     """Get a single table by ID, raising ToolInputError if not found."""
+
+    from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
 
     try:
         return filter_tables(user, workspace).get(id=table_id)
