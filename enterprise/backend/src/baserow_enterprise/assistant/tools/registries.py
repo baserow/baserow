@@ -119,16 +119,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         _mode_config: list[tuple[str, AgentMode, str]] = [
             ("database", AgentMode.DATABASE, routing_rules_by_type.get("database", "")),
-            (
-                "application",
-                AgentMode.APPLICATION,
-                routing_rules_by_type.get("builder", ""),
-            ),
-            (
-                "automation",
-                AgentMode.AUTOMATION,
-                routing_rules_by_type.get("automation", ""),
-            ),
+            ("application", AgentMode.APPLICATION, routing_rules_by_type.get("builder", "")),
+            ("automation", AgentMode.AUTOMATION, routing_rules_by_type.get("automation", "")),
         ]
 
         manifests = {}
