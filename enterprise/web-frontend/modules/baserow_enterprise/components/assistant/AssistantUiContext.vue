@@ -30,6 +30,8 @@ export default {
         return this.uiContext.table.name
       } else if (this.uiContext.workflow) {
         return this.uiContext.workflow.name
+      } else if (this.uiContext.page) {
+        return this.uiContext.page.name
       } else if (this.uiContext.application) {
         return this.uiContext.application.name
       } else if (this.uiContext.workspace) {
