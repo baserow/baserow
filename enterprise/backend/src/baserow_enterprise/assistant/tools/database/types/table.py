@@ -6,7 +6,7 @@ from pydantic import Field, ValidationError, model_validator
 
 from baserow_enterprise.assistant.types import BaseModel
 
-from .fields import FieldItem, FieldItemCreate, _FIELD_EXAMPLES, _TYPE_ALIASES
+from .fields import _FIELD_EXAMPLES, _TYPE_ALIASES, FieldItem, FieldItemCreate
 
 
 class BaseTableItemCreate(BaseModel):
@@ -48,11 +48,7 @@ class TableItemCreate(BaseTableItemCreate):
             error_field_indices: set[int] = set()
             for error in exc.errors():
                 loc = error.get("loc", ())
-                if (
-                    len(loc) >= 2
-                    and loc[0] == "fields"
-                    and isinstance(loc[1], int)
-                ):
+                if len(loc) >= 2 and loc[0] == "fields" and isinstance(loc[1], int):
                     error_field_indices.add(loc[1])
 
             if not error_field_indices:
@@ -74,8 +70,7 @@ class TableItemCreate(BaseTableItemCreate):
                 raise
 
             parts = [
-                f"Table '{table_name}': invalid fields: "
-                f"{', '.join(error_fields)}."
+                f"Table '{table_name}': invalid fields: {', '.join(error_fields)}."
             ]
             for ft in sorted(error_types):
                 parts.append(f"  {ft}: {json.dumps(_FIELD_EXAMPLES[ft])}")

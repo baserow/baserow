@@ -17,7 +17,13 @@ from baserow.contrib.database.fields.actions import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
+from baserow.contrib.database.rows.actions import (
+    CreateRowsActionType,
+    DeleteRowsActionType,
+    UpdateRowsActionType,
+)
 from baserow.contrib.database.table.actions import CreateTableActionType
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.actions import (
     CreateViewActionType,
     UpdateViewFieldOptionsActionType,
@@ -26,15 +32,9 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.toolset import inline_refs
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
-
-from baserow.contrib.database.rows.actions import (
-    CreateRowsActionType,
-    DeleteRowsActionType,
-    UpdateRowsActionType,
-)
-from baserow.contrib.database.table.models import Table
 
 from . import helpers
 from .agents import (
@@ -44,9 +44,9 @@ from .agents import (
     make_formula_fixer,
 )
 from .prompts import format_formula_generation_prompt
-from baserow_enterprise.assistant.tools.toolset import inline_refs
 from .types import (
     FieldItemCreate,
+    FieldItemUpdate,
     ListTablesFilterArg,
     TableItemCreate,
     ViewFiltersArgs,
@@ -295,7 +295,7 @@ def list_rows(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     tool_helpers.update_status(
         _("Listing rows in %(table_name)s ") % {"table_name": table.name}
@@ -345,7 +345,7 @@ def list_views(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     tool_helpers.update_status(
         _("Listing views in %(table_name)s...") % {"table_name": table.name}
@@ -411,7 +411,7 @@ def create_tables(
         At the end, this tool automatically navigates the user to the last created table.
     RETURNS: Created table schemas with all field IDs. Notes on any errors.
     DO NOT USE when: Tables already exist — check with list_tables first.
-    HOW: Pass ALL tables in a single call to speed up creation and sample-row generation. Choose appropriate field types for each column. Use link_row for relationships (linked table must exist first).
+    HOW: Pass ALL related tables in a single call — link_row fields can reference other tables in the same call by name (they are created internally before fields are added). Choose appropriate field types for each column.
         Use single_select/multiple_select with select_options for categorical data. The primary field is always text — pick a meaningful name for it.
     """
 
@@ -555,7 +555,7 @@ def create_fields(
     if not fields:
         return "No fields to create provided"
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     with transaction.atomic():
         formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
@@ -575,7 +575,119 @@ def create_fields(
 
 
 # ---------------------------------------------------------------------------
-# Tool 7: create_views
+# Tool 7: update_fields
+# ---------------------------------------------------------------------------
+
+
+def update_fields(
+    ctx: RunContext[AssistantDeps],
+    fields: Annotated[
+        list[FieldItemUpdate],
+        Field(
+            description="List of field updates, each with a field_id and the properties to change."
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any] | str:
+    """\
+    Update existing fields (rename, change properties).
+
+    WHEN to use: User wants to rename a field, change decimal places, update select options, or modify other field properties.
+    WHAT it does: Updates field properties. Cannot change field type or link_row targets — create a new field instead.
+    RETURNS: Updated fields with id, name, type and current properties.
+    DO NOT USE when: You need to change a field's type — delete and recreate it instead.
+    HOW: Call get_tables_schema first to see current field IDs and types.
+    """
+
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
+
+    if not fields:
+        return "No field updates provided"
+
+    updated = []
+    errors = []
+    formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
+
+    with transaction.atomic():
+        for field_update in fields:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(
+                _("Updating field %(field_id)s...")
+                % {"field_id": field_update.field_id}
+            )
+            try:
+                field_item = helpers.update_field(
+                    user, workspace, field_update, formula_fixer=formula_fixer
+                )
+                updated.append(field_item.model_dump())
+            except Exception as e:
+                errors.append(f"Error updating field {field_update.field_id}: {e}")
+
+    result: dict[str, Any] = {"updated_fields": updated}
+    if errors:
+        result["errors"] = errors
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Tool 8: delete_fields
+# ---------------------------------------------------------------------------
+
+
+def delete_fields(
+    ctx: RunContext[AssistantDeps],
+    field_ids: Annotated[
+        list[int],
+        Field(description="List of field IDs to delete."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any] | str:
+    """\
+    Delete fields (moves them to trash).
+
+    WHEN to use: User wants to remove fields from a table.
+    WHAT it does: Soft-deletes fields (moves to trash, can be restored). Primary fields cannot be deleted.
+    RETURNS: List of deleted field IDs.
+    DO NOT USE when: You want to change a field — use update_fields instead.
+    HOW: Call get_tables_schema first to confirm field IDs.
+    """
+
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
+
+    if not field_ids:
+        return "No field IDs provided"
+
+    deleted = []
+    errors = []
+
+    with transaction.atomic():
+        for field_id in field_ids:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(
+                _("Deleting field %(field_id)s...") % {"field_id": field_id}
+            )
+            try:
+                helpers.delete_field(user, workspace, field_id)
+                deleted.append(field_id)
+            except Exception as e:
+                errors.append(f"Error deleting field {field_id}: {e}")
+
+    result: dict[str, Any] = {"deleted_field_ids": deleted}
+    if errors:
+        result["errors"] = errors
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Tool 9: create_views
 # ---------------------------------------------------------------------------
 
 
@@ -611,7 +723,7 @@ def create_views(
     if not views:
         return "No views to create provided"
 
-    table = helpers.filter_tables(user, workspace).get(id=table_id)
+    table = helpers.get_table(user, workspace, table_id)
 
     created_views = []
     with transaction.atomic():
@@ -870,6 +982,7 @@ def _build_row_tools(
     workspace: Workspace,
     tool_helpers: "ToolHelpers",
     table: Table,
+    field_ids: list[int] | None = None,
 ) -> dict[str, Tool]:
     """
     Build pydantic-ai Tool objects for row CRUD on a single table.
@@ -882,9 +995,11 @@ def _build_row_tools(
     :param workspace: Current workspace.
     :param tool_helpers: Provides status updates and cancellation.
     :param table: The table to build row tools for.
+    :param field_ids: If given, only include these field IDs in the
+        create model (useful for excluding reverse link_row fields).
     """
 
-    row_model_for_create = get_create_row_model(table)
+    row_model_for_create = get_create_row_model(table, field_ids=field_ids)
     row_model_for_update = get_update_row_model(table)
     link_row_hints = get_link_row_hints(row_model_for_create)
 
@@ -1018,12 +1133,13 @@ def load_row_tools(
     ],
 ) -> str:
     """\
-    TOOL LOADER — unlocks create/update/delete row tools for specific tables. No need to know the schema beforehand, the loaded tools include it.
+    TOOL LOADER — unlocks create/update/delete row tools for directly manipulating DATABASE rows. No need to know the schema beforehand, the loaded tools include it.
 
-    WHEN to use: You need to create, update, or delete rows but don't have the row tools yet. Must be called before any row manipulation or any other tool call.
+    WHEN to use: You need to directly create, update, or delete rows in a database table. Must be called before any row manipulation.
     WHAT it does: Unlocks table-specific tools and their schema: create_rows_in_table_X, update_rows_in_table_X, delete_rows_in_table_X for each table ID provided. The loaded tools include the full field schema — no need to call get_tables_schema.
     RETURNS: Names of newly available tools.
     DO NOT USE when: Row tools for these tables are already loaded from a previous call in this session.
+    DO NOT USE for builder workflow actions — if you want a button/form in an Application Builder page to create/update/delete rows, use create_actions instead. load_row_tools is for direct database manipulation, NOT for configuring app behavior.
     HOW: Just call this with the table ID(s) and operations you need. The loaded row tools already contain the complete field schema in their parameters — do NOT call get_tables_schema or search_user_docs before or after this tool.
 
     EXAMPLES:
@@ -1075,9 +1191,19 @@ TOOL_FUNCTIONS = [
     list_views,
     create_tables,
     create_fields,
+    update_fields,
+    delete_fields,
     create_views,
     create_view_filters,
     generate_formula,
     load_row_tools,
 ]
 database_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+
+ROUTING_RULES = """\
+- Check list_* before create_* to avoid duplicates.
+- switch_mode: switch domain if task needs tools not in the current mode.
+- Database row CRUD → call load_row_tools first (includes schema — skip get_tables_schema).
+- create_tables: include ALL related tables in one call so link_row fields connect properly. Add sample rows unless told otherwise.
+- create_rows: fill EVERY field including ALL link_row fields.
+- After creating tables for an app/automation task, switch_mode back to continue building."""

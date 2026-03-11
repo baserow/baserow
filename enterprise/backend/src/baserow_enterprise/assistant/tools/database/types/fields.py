@@ -83,7 +83,7 @@ OptionColorCreate = Literal[
 
 class SelectOptionCreate(BaseModel):
     value: str
-    color: OptionColorCreate
+    color: OptionColorCreate | None = None
 
 
 class InvalidFormulaFieldError(Exception):
@@ -147,8 +147,16 @@ _TYPE_ALIASES: dict[str, str] = {
 }
 
 _SELECT_COLORS: list[str] = [
-    "blue", "green", "cyan", "orange", "yellow",
-    "red", "brown", "purple", "pink", "gray",
+    "blue",
+    "green",
+    "cyan",
+    "orange",
+    "yellow",
+    "red",
+    "brown",
+    "purple",
+    "pink",
+    "gray",
 ]
 
 _KEY_ALIASES: dict[str, str] = {
@@ -258,7 +266,11 @@ def _select_to_orm(f, table, user):
     return {
         "name": f.name,
         "select_options": [
-            {"id": -i, "value": opt.value, "color": opt.color}
+            {
+                "id": -i,
+                "value": opt.value,
+                "color": opt.color or _SELECT_COLORS[(i - 1) % len(_SELECT_COLORS)],
+            }
             for i, opt in enumerate(f.options, start=1)
         ],
     }
@@ -270,9 +282,7 @@ def _formula_to_orm(f, table, user):
         from baserow.core.formula.parser.exceptions import BaserowFormulaException
 
         try:
-            tmp = FormulaField(
-                formula=f.formula, table=table, name=f.name, order=0
-            )
+            tmp = FormulaField(formula=f.formula, table=table, name=f.name, order=0)
             tmp.recalculate_internal_fields(raise_if_invalid=True)
         except BaserowFormulaException as e:
             raise InvalidFormulaFieldError(f.name, f.formula, table, str(e))
@@ -287,8 +297,7 @@ def _lookup_to_orm(f, table, user):
 
     # Find existing link_row field pointing to linked table
     through = (
-        LinkRowField.objects
-        .filter(table=table, link_row_table=linked)
+        LinkRowField.objects.filter(table=table, link_row_table=linked)
         .order_by("id")
         .first()
     )
@@ -298,7 +307,9 @@ def _lookup_to_orm(f, table, user):
         from baserow.contrib.database.fields.actions import CreateFieldActionType
 
         through = CreateFieldActionType.do(
-            user, table, "link_row",
+            user,
+            table,
+            "link_row",
             name=linked.name,
             link_row_table=linked,
         )
@@ -523,3 +534,140 @@ class FieldItem(BaseModel):
         if builder:
             kwargs.update(builder(orm_field))
         return cls(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# FieldItemUpdate
+# ---------------------------------------------------------------------------
+
+
+def _update_simple(f, field_type):
+    kwargs = {}
+    if f.name is not None:
+        kwargs["name"] = f.name
+    return kwargs
+
+
+def _update_long_text(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.rich_text is not None:
+        kwargs["long_text_enable_rich_text"] = f.rich_text
+    return kwargs
+
+
+def _update_number(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.decimal_places is not None:
+        kwargs["number_decimal_places"] = f.decimal_places
+    if f.suffix is not None:
+        kwargs["number_suffix"] = f.suffix
+    return kwargs
+
+
+def _update_rating(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.max_value is not None:
+        kwargs["max_value"] = f.max_value
+    return kwargs
+
+
+def _update_date(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.include_time is not None:
+        kwargs["date_include_time"] = f.include_time
+    return kwargs
+
+
+def _update_select(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.options is not None:
+        kwargs["select_options"] = [
+            {
+                "id": -i,
+                "value": opt.value,
+                "color": opt.color or _SELECT_COLORS[(i - 1) % len(_SELECT_COLORS)],
+            }
+            for i, opt in enumerate(f.options, start=1)
+        ]
+    return kwargs
+
+
+def _update_formula(f, field_type):
+    kwargs = _update_simple(f, field_type)
+    if f.formula is not None:
+        kwargs["formula"] = f.formula
+    return kwargs
+
+
+_TO_UPDATE_ORM = {
+    "text": _update_simple,
+    "boolean": _update_simple,
+    "file": _update_simple,
+    "long_text": _update_long_text,
+    "number": _update_number,
+    "rating": _update_rating,
+    "date": _update_date,
+    "link_row": _update_simple,
+    "single_select": _update_select,
+    "multiple_select": _update_select,
+    "formula": _update_formula,
+    "lookup": _update_simple,
+}
+
+
+class FieldItemUpdate(BaseModel):
+    """Flat model for updating a field: field_id + optional type-specific fields."""
+
+    field_id: int = Field(..., description="The ID of the field to update.")
+    name: str | None = Field(None, description="New name for the field.")
+
+    # (long_text)
+    rich_text: bool | None = Field(
+        None, description="(long_text) Whether the field supports rich text."
+    )
+    # (number)
+    decimal_places: int | None = Field(
+        None, description="(number) Decimal places (0, 1, 2, ...)."
+    )
+    suffix: str | None = Field(
+        None, description="(number) Suffix displayed after the number."
+    )
+    # (rating)
+    max_value: int | None = Field(None, description="(rating) Maximum rating value.")
+    # (date)
+    include_time: bool | None = Field(
+        None, description="(date) Whether the date includes time."
+    )
+    # (single_select, multiple_select)
+    options: list[SelectOptionCreate] | None = Field(
+        None,
+        description="(single_select, multiple_select) List of options with colors.",
+    )
+    # (formula)
+    formula: str | None = Field(None, description="(formula) The formula expression.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        for old_key, new_key in _KEY_ALIASES.items():
+            if old_key in data and new_key not in data:
+                data[new_key] = data.pop(old_key)
+        # Convert string options to SelectOptionCreate dicts
+        if "options" in data and isinstance(data["options"], list):
+            normalized = []
+            for i, opt in enumerate(data["options"]):
+                if isinstance(opt, str):
+                    normalized.append(
+                        {"value": opt, "color": _SELECT_COLORS[i % len(_SELECT_COLORS)]}
+                    )
+                else:
+                    normalized.append(opt)
+            data["options"] = normalized
+        return data
+
+    def to_update_kwargs(self, field_type: str) -> dict[str, Any]:
+        """Build kwargs for UpdateFieldActionType.do() based on the field's current type."""
+        builder = _TO_UPDATE_ORM.get(field_type, _update_simple)
+        return builder(self, field_type)

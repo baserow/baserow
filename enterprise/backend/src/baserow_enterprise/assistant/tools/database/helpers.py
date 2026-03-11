@@ -12,7 +12,11 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 from django.utils.translation import gettext as _
 
-from baserow.contrib.database.fields.actions import CreateFieldActionType
+from baserow.contrib.database.fields.actions import (
+    CreateFieldActionType,
+    DeleteFieldActionType,
+    UpdateFieldActionType,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -29,6 +33,7 @@ from .types import (
     AnyViewFilterItemCreate,
     FieldItem,
     FieldItemCreate,
+    FieldItemUpdate,
     InvalidFormulaFieldError,
 )
 
@@ -36,10 +41,26 @@ if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
 
 
+class ToolInputError(Exception):
+    """Raised when tool input is invalid — returned to the model as an error message."""
+
+
 def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
     """Return all tables visible to the user in the given workspace."""
 
     return TableHandler().list_workspace_tables(user, workspace)
+
+
+def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
+    """Get a single table by ID, raising ToolInputError if not found."""
+
+    try:
+        return filter_tables(user, workspace).get(id=table_id)
+    except Table.DoesNotExist:
+        raise ToolInputError(
+            f"Table with ID {table_id} not found. "
+            "Use get_tables_schema to find valid table IDs."
+        )
 
 
 def get_tables_schema(
@@ -252,10 +273,16 @@ def create_view_filter(
 
     field = table_fields.get(view_filter_item.field_id)
     if field is None:
-        raise ValueError("Field not found for filter")
+        raise ValueError(
+            f"Field {view_filter_item.field_id} not found for filter. "
+            f"Available field IDs: {sorted(table_fields.keys())}"
+        )
     field_type = field_type_registry.get_by_model(field.specific_class)
     if field_type.type != view_filter_item.type:
-        raise ValueError("Field type mismatch for filter")
+        raise ValueError(
+            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
+            f"but filter declared type '{view_filter_item.type}'"
+        )
 
     filter_type = view_filter_item.get_django_orm_type(field)
     filter_value = view_filter_item.get_django_orm_value(
@@ -270,3 +297,92 @@ def create_view_filter(
         filter_value,
         filter_group_id=None,
     )
+
+
+def update_field(
+    user: AbstractUser,
+    workspace: Workspace,
+    field_update: "FieldItemUpdate",
+    formula_fixer: Callable[[Table, str, str], str | None] | None = None,
+) -> FieldItem:
+    """
+    Update an existing field.
+
+    :param user: The acting user.
+    :param workspace: Workspace the field must belong to.
+    :param field_update: The update definition.
+    :param formula_fixer: Optional callback for fixing invalid formulas.
+    :returns: Updated field as FieldItem.
+    """
+
+    base_field = FieldHandler().get_field(field_update.field_id)
+    field = base_field.specific
+
+    # Verify workspace access
+    filter_tables(user, workspace).filter(id=base_field.table_id).get()
+    field_type = field_type_registry.get_by_model(field).type
+    kwargs = field_update.to_update_kwargs(field_type)
+
+    if not kwargs:
+        return FieldItem.from_django_orm(field)
+
+    # Validate formula before updating
+    if "formula" in kwargs and kwargs["formula"]:
+        from baserow.contrib.database.fields.models import FormulaField
+        from baserow.core.formula.parser.exceptions import BaserowFormulaException
+
+        try:
+            tmp = FormulaField(
+                formula=kwargs["formula"],
+                table=field.table,
+                name=kwargs.get("name", field.name),
+                order=0,
+            )
+            tmp.recalculate_internal_fields(raise_if_invalid=True)
+        except BaserowFormulaException as e:
+            if formula_fixer:
+                fixed = formula_fixer(
+                    field.table,
+                    kwargs.get("name", field.name),
+                    kwargs["formula"],
+                )
+                if fixed:
+                    kwargs["formula"] = fixed
+                else:
+                    raise InvalidFormulaFieldError(
+                        kwargs.get("name", field.name),
+                        kwargs["formula"],
+                        field.table,
+                        str(e),
+                    )
+            else:
+                raise InvalidFormulaFieldError(
+                    kwargs.get("name", field.name),
+                    kwargs["formula"],
+                    field.table,
+                    str(e),
+                )
+
+    UpdateFieldActionType.do(user, field, **kwargs)
+    # Re-fetch the specific field to get the updated state
+    updated_field = FieldHandler().get_field(field_update.field_id).specific
+    return FieldItem.from_django_orm(updated_field)
+
+
+def delete_field(
+    user: AbstractUser,
+    workspace: Workspace,
+    field_id: int,
+) -> None:
+    """
+    Delete (soft-delete / trash) a field.
+
+    :param user: The acting user.
+    :param workspace: Workspace the field must belong to.
+    :param field_id: ID of the field to delete.
+    """
+
+    base_field = FieldHandler().get_field(field_id)
+    # Verify workspace access
+    filter_tables(user, workspace).filter(id=base_field.table_id).get()
+    DeleteFieldActionType.do(user, base_field.specific)

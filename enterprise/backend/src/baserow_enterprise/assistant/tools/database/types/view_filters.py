@@ -129,7 +129,9 @@ def _date_orm_value(f, field, **kwargs):
 
 
 _GET_ORM_VALUE = {
-    "text": lambda f, field, **kw: f.value if isinstance(f.value, str) else str(f.value or ""),
+    "text": lambda f, field, **kw: f.value
+    if isinstance(f.value, str)
+    else str(f.value or ""),
     "number": lambda f, field, **kw: str(f.value),
     "date": _date_orm_value,
     "single_select": _select_orm_value,
@@ -151,7 +153,8 @@ class ViewFilterItemCreate(BaseModel):
     type: FilterType = Field(..., description="Must match field type.")
     operator: str = Field(..., description="Filter operator.")
     value: str | float | int | bool | list[str] | None = Field(
-        None, description="Filter value (type-dependent).",
+        None,
+        description="Filter value (type-dependent).",
     )
     mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
     or_equal: bool = Field(False, description="(number, date) Include equal values.")
