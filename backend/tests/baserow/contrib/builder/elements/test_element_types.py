@@ -38,7 +38,6 @@ from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigu
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
-    FormElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
@@ -64,6 +63,7 @@ from baserow.contrib.builder.elements.registries import (
     element_type_registry,
 )
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.handler import CoreHandler
@@ -269,7 +269,7 @@ def test_link_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
@@ -300,7 +300,7 @@ def test_form_container_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.submit_button_label["formula"] == expected_formula
@@ -339,7 +339,7 @@ def test_text_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.value["formula"] == expected_formula
@@ -363,7 +363,7 @@ def test_input_text_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.label["formula"] == expected_formula
@@ -388,7 +388,7 @@ def test_image_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.image_url["formula"] == expected_formula
@@ -411,7 +411,7 @@ def test_button_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.value["formula"] == expected_formula
@@ -500,7 +500,7 @@ def test_choice_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.label["formula"] == expected_formula
@@ -793,18 +793,12 @@ def test_element_type_import_element_priority():
         for element_type in element_types
         if isinstance(element_type, ContainerElementTypeMixin)
     ]
-    form_element_types = [
-        element_type
-        for element_type in element_types
-        if isinstance(element_type, FormElementTypeMixin)
-    ]
     other_element_types = [
         element_type
         for element_type in element_types
         if not isinstance(element_type, ContainerElementTypeMixin)
-        and not isinstance(element_type, FormElementTypeMixin)
     ]
-    manual_ordering = container_element_types + form_element_types + other_element_types
+    manual_ordering = container_element_types + other_element_types
     expected_ordering = sorted(
         element_types,
         key=lambda element_type: element_type.import_element_priority,
@@ -812,7 +806,7 @@ def test_element_type_import_element_priority():
     )
     assert manual_ordering == expected_ordering, (
         "The element types ordering are expected to be: "
-        "containers first, then form elements, then everything else."
+        "containers first, then everything else."
     )
 
 
@@ -852,7 +846,7 @@ def test_checkbox_element_import_export_formula(data_fixture):
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.label["formula"] == expected_formula
@@ -909,8 +903,9 @@ def test_iframe_element_import_export_formula(data_fixture):
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
+    # rather than in element_type.import_serialized.
     id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.url["formula"] == expected_formula
@@ -961,8 +956,8 @@ def test_image_element_import_export(data_fixture, fake, storage):
     image_file.delete()
 
     with ZipFile(zip_buffer, "r", ZIP_DEFLATED, False) as files_zip:
-        imported_element = element_type.import_serialized(
-            page, serialized, id_mapping, files_zip=files_zip, storage=storage
+        [imported_element] = PageHandler().import_elements(
+            page, [serialized], id_mapping, files_zip=files_zip, storage=storage
         )
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
@@ -995,7 +990,7 @@ def test_choice_element_import_export(data_fixture):
     # the data source IDs
     id_mapping = {"builder_data_sources": {42: data_source_2.id}}
 
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     assert imported_element.label["formula"] == expected_formula

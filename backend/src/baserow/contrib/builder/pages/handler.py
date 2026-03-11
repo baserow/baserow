@@ -11,6 +11,7 @@ from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.types import ElementDictSubClass
+from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.constants import (
     ILLEGAL_PATH_SAMPLE_CHARACTER,
@@ -808,7 +809,6 @@ class PageHandler:
 
         # Sort the serialized elements so that we import:
         # Containers first
-        # Form elements second
         # Everything else after that.
         def element_priority_sort(element_to_sort):
             return element_type_registry.get(
@@ -848,6 +848,30 @@ class PageHandler:
                     was_imported = True
                     if progress:
                         progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+
+        # Now that all elements have been imported, loop back over them
+        # and start import their formulas. We do this because formulas can
+        # reference one another, so we need the full set of elements to be
+        # imported before we can safely import the formulas without running
+        # into issues of missing referenced elements in `id_mapping`.
+        updated_models = set()
+        for elt in imported_elements:
+            import_context = {}
+            if elt.parent_element_id:
+                import_context = ElementHandler().get_import_context_addition(
+                    elt.parent_element_id,
+                    element_map=cache.get("imported_element_map", None)
+                    if cache
+                    else None,
+                )
+            updated_models = updated_models | elt.get_type().import_formulas(
+                elt,
+                id_mapping,
+                import_formula,
+                **import_context,
+            )
+
+        [m.save() for m in updated_models]
 
         return imported_elements
 

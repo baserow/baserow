@@ -46,7 +46,7 @@ from baserow.core.utils import merge_dicts_no_duplicates
 
 class ContainerElementTypeMixin:
     # Container element types are imported first.
-    import_element_priority = 2
+    import_element_priority = 1
 
     class SerializedDict(ElementDict):
         pass
@@ -801,9 +801,6 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
 
 class FormElementTypeMixin:
-    # Form element types are imported second, after containers.
-    import_element_priority = 1
-
     def is_valid(
         self,
         element: Type[FormElement],
