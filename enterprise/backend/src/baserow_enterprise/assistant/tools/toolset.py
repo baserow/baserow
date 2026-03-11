@@ -20,6 +20,8 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
+from baserow_enterprise.assistant.deps import AgentMode
+
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import AssistantDeps
 
@@ -267,26 +269,68 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
 # ---------------------------------------------------------------------------
 
 
+def _build_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
+    """Build mode → tool-names mapping from actual function references.
+
+    Derives names via ``f.__name__`` instead of hand-maintained string
+    lists to eliminate typo risk.
+    """
+
+    from .automation.tools import TOOL_FUNCTIONS as AUTO_FN
+    from .core.tools import create_builders, list_builders, switch_mode
+    from .database.tools import TOOL_FUNCTIONS as DB_FN
+    from .navigation.tools import navigate
+    from .search_user_docs.tools import search_user_docs
+
+    try:
+        from .builder.tools import TOOL_FUNCTIONS as BUILDER_FN
+    except ImportError:
+        BUILDER_FN = []
+
+    n = frozenset  # alias for readability
+
+    def names(*funcs):
+        return n(f.__name__ for f in funcs)
+
+    shared = names(
+        navigate,
+        switch_mode,
+        list_builders,
+        # Read-only database tools available in every mode
+        *[f for f in DB_FN if f.__name__.startswith(("list_", "get_"))],
+    )
+
+    return {
+        AgentMode.DATABASE: shared | names(*DB_FN, create_builders),
+        AgentMode.APPLICATION: shared | names(*BUILDER_FN, create_builders),
+        AgentMode.AUTOMATION: shared | names(*AUTO_FN, create_builders),
+        AgentMode.EXPLAIN: shared
+        | names(
+            *[f for f in BUILDER_FN if f.__name__.startswith("list_")],
+            *[f for f in AUTO_FN if f.__name__.startswith("list_")],
+            search_user_docs,
+        ),
+    }
+
+
+_MODE_TOOL_MAP: dict[AgentMode, frozenset[str]] | None = None
+
+
+def _get_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
+    global _MODE_TOOL_MAP
+    if _MODE_TOOL_MAP is None:
+        _MODE_TOOL_MAP = _build_mode_tool_map()
+    return _MODE_TOOL_MAP
+
+
 class ModeAwareToolset(AbstractToolset[AgentDepsT]):
     """
     Filters the inner toolset based on the current :class:`AgentMode`.
 
-    In **DO** mode every tool is available except those in ``_DO_EXCLUDE``.
-    In **EXPLAIN** mode only tools listed in ``_EXPLAIN_INCLUDE`` are exposed.
+    Each domain mode (DATABASE, APPLICATION, AUTOMATION) exposes only its
+    relevant tools plus shared read-only tools. EXPLAIN mode exposes
+    read-only tools plus ``search_user_docs``.
     """
-
-    _DO_EXCLUDE: frozenset[str] = frozenset({"search_user_docs"})
-    _EXPLAIN_INCLUDE: frozenset[str] = frozenset({
-        "list_builders",
-        "list_tables",
-        "get_tables_schema",
-        "list_rows",
-        "list_views",
-        "list_workflows",
-        "navigate",
-        "search_user_docs",
-        "switch_mode",
-    })
 
     def __init__(self, inner: AbstractToolset[AgentDepsT], deps: "AssistantDeps"):
         self._inner = inner
@@ -313,12 +357,9 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         return ModeAwareToolset(self._inner.visit_and_replace(visitor), self._deps)
 
     async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
-        from baserow_enterprise.assistant.deps import AgentMode
-
         all_tools = await self._inner.get_tools(ctx)
-        if self._deps.mode == AgentMode.DO:
-            return {k: v for k, v in all_tools.items() if k not in self._DO_EXCLUDE}
-        return {k: v for k, v in all_tools.items() if k in self._EXPLAIN_INCLUDE}
+        allowed = _get_mode_tool_map()[self._deps.mode]
+        return {k: v for k, v in all_tools.items() if k in allowed}
 
     async def call_tool(
         self,
@@ -327,7 +368,21 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         ctx: Any,
         tool: ToolsetTool[AgentDepsT],
     ) -> Any:
-        return await self._inner.call_tool(name, tool_args, ctx, tool)
+        from baserow.core.exceptions import UserNotInWorkspace
+        from baserow_enterprise.assistant.tools.database.helpers import ToolInputError
+
+        try:
+            return await self._inner.call_tool(name, tool_args, ctx, tool)
+        except ToolInputError as exc:
+            return {"error": str(exc)}
+        except UserNotInWorkspace:
+            return {
+                "error": (
+                    "One or more IDs reference a resource outside the current "
+                    "workspace. Use the appropriate list_* tool to find "
+                    "the correct IDs and retry."
+                )
+            }
 
 
 # ---------------------------------------------------------------------------
@@ -343,15 +398,25 @@ def tool_manifest_line_compact(name: str, description: str) -> str:
     return f"- {name}: {first_line}"
 
 
+_MODULE_LABELS: dict[str, str] = {
+    "core": "Core (workspace & modules)",
+    "navigation": "Navigation",
+    "database": "Database (tables, fields, views, rows)",
+    "builder": "Application Builder (pages, elements, data sources, actions)",
+    "automation": "Automations (workflows, triggers, actions)",
+    "search_user_docs": "Documentation",
+}
+
+
 def generate_tool_manifest_compact(
-    func_lists: list[list[Callable]],
+    module_groups: list[tuple[str, list[Callable]]],
     routing_rules: str = "",
 ) -> str:
     """
-    Build a compact ``<available_tools>`` manifest: routing rules + first-line
-    descriptions only.  Full tool guidance stays in the pydantic-ai tool schemas.
+    Build a compact ``<available_tools>`` manifest: routing rules + tools
+    grouped by module with section headers.
 
-    :param func_lists: Ordered lists of tool functions, one per module.
+    :param module_groups: ``(module_type, funcs)`` pairs, one per module.
     :param routing_rules: Cross-tool routing rules to prepend.
     :return: A newline-separated manifest string.
     """
@@ -359,8 +424,13 @@ def generate_tool_manifest_compact(
     lines: list[str] = []
     if routing_rules:
         lines.append(routing_rules.strip())
-        lines.append("")  # blank line separator
-    for funcs in func_lists:
+        lines.append("")
+    for module_type, funcs in module_groups:
+        if not funcs:
+            continue
+        label = _MODULE_LABELS.get(module_type, module_type)
+        lines.append(f"## {label}")
         for func in funcs:
             lines.append(tool_manifest_line_compact(func.__name__, func.__doc__ or ""))
-    return "\n".join(lines)
+        lines.append("")
+    return "\n".join(lines).rstrip()

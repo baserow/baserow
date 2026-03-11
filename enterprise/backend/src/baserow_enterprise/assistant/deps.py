@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 class AgentMode(str, Enum):
     """Operating mode that controls which tools are available to the agent."""
 
-    DO = "do"
+    DATABASE = "database"
+    APPLICATION = "application"
+    AUTOMATION = "automation"
     EXPLAIN = "explain"
 
 
@@ -106,7 +108,7 @@ class AssistantDeps:
     Every agent run operates on behalf of a user in a given workspace.
     This runtime-context also allows tools to share information (e.g.
     sources), provide helpers for emitting events or requesting navigation,
-    switch between DO/EXPLAIN modes, and dynamically extend the toolset by
+    switch between domain modes, and dynamically extend the toolset by
     adding tools to ``dynamic_tools`` during a run (e.g. row tools loaded
     by the database agent).
 
@@ -117,11 +119,23 @@ class AssistantDeps:
     user: "AbstractUser"
     workspace: "Workspace"
     tool_helpers: ToolHelpers
-    mode: AgentMode = AgentMode.DO
+    mode: AgentMode = AgentMode.DATABASE
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
-    do_manifest: str = ""
+    database_manifest: str = ""
+    application_manifest: str = ""
+    automation_manifest: str = ""
     explain_manifest: str = ""
+    original_request: str = ""
+
+    @property
+    def active_manifest(self) -> str:
+        return {
+            AgentMode.DATABASE: self.database_manifest,
+            AgentMode.APPLICATION: self.application_manifest,
+            AgentMode.AUTOMATION: self.automation_manifest,
+            AgentMode.EXPLAIN: self.explain_manifest,
+        }[self.mode]
 
     def extend_sources(self, new_sources: list[str]):
         """
