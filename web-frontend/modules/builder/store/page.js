@@ -4,6 +4,7 @@ import PageService from '@baserow/modules/builder/services/page'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
+import { BUILDER_ACTION_SCOPES } from '@baserow/modules/builder/utils/undoRedoConstants'
 
 export function populatePage(page) {
   return {
@@ -86,7 +87,7 @@ const actions = {
   forceCreate({ commit }, { builder, page }) {
     commit('ADD_ITEM', { builder, page })
   },
-  selectById({ commit, getters }, { builder, pageId }) {
+  selectById({ commit, getters, dispatch }, { builder, pageId }) {
     const type = BuilderApplicationType.getType()
 
     // Check if the just selected application is a builder
@@ -96,6 +97,12 @@ const actions = {
       )
     }
 
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      BUILDER_ACTION_SCOPES.page(pageId),
+      { root: true }
+    )
+
     // Check if the provided page id is found in the just selected builder.
     const page = getters.getById(builder, pageId)
 
@@ -104,8 +111,13 @@ const actions = {
 
     return page
   },
-  unselect({ commit }) {
+  unselect({ commit, dispatch }) {
     commit('UNSELECT')
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      BUILDER_ACTION_SCOPES.page(null),
+      { root: true }
+    )
   },
   async forceDelete({ commit }, { builder, page }) {
     if (page._.selected) {
