@@ -1234,9 +1234,7 @@ def _setup_actions(
                     f"action {action_create.type} on {action_create.element}: {exc}"
                 )
     errors.extend(
-        agents.update_workflow_action_formulas(
-            user, page, action_pairs, tool_helpers
-        )
+        agents.update_workflow_action_formulas(user, page, action_pairs, tool_helpers)
     )
     return created, errors
 
@@ -1330,8 +1328,13 @@ def setup_page(
 
     # Phase 2: Elements
     created_el, el_errors = _setup_elements(
-        user, page, elements or [], el_ref_to_id, ds_ref_to_id,
-        shared_page_refs, tool_helpers,
+        user,
+        page,
+        elements or [],
+        el_ref_to_id,
+        ds_ref_to_id,
+        shared_page_refs,
+        tool_helpers,
     )
     all_errors.extend(el_errors)
     _track_element_refs(tool_helpers, page_id, el_ref_to_id)
@@ -1345,8 +1348,13 @@ def setup_page(
 
     # Phase 3: Actions
     created_actions, action_errors = _setup_actions(
-        user, page, actions or [], el_ref_to_id, ds_ref_to_id,
-        integration, tool_helpers,
+        user,
+        page,
+        actions or [],
+        el_ref_to_id,
+        ds_ref_to_id,
+        integration,
+        tool_helpers,
     )
     all_errors.extend(action_errors)
     if created_actions:

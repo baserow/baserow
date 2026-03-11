@@ -513,9 +513,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
     )
 
     integration = get_local_baserow_integration(page.builder)
-    action_pairs = create_table_button_actions(
-        user, page, orm_element, el, integration
-    )
+    action_pairs = create_table_button_actions(user, page, orm_element, el, integration)
 
     # Auto-enable filter/sort/search for text columns referencing real fields.
     table_fields = _resolve_table_fields(el.data_source)
