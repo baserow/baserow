@@ -7,14 +7,21 @@ from django.utils import translation
 from loguru import logger
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
 )
+from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
+    AgentMode,
     AssistantDeps,
     EventBus,
     QueueEvent,
@@ -29,6 +36,7 @@ from baserow_enterprise.assistant.model_profiles import (
     get_model_settings,
     get_model_string,
 )
+from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
@@ -88,7 +96,8 @@ class Assistant:
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model = get_model_string()
+        self._model_string = get_model_string()
+        self._model = RetryingModel(self._model_string)
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
@@ -98,16 +107,18 @@ class Assistant:
             workspace=self._workspace,
             tool_helpers=self._tool_helpers,
         )
-        self._toolset, do_manifest, explain_manifest = (
+        self._toolset, db_m, app_m, auto_m, explain_m = (
             assistant_tool_registry.build_toolset(
                 user=self._user,
                 workspace=self._workspace,
-                model=self._model,
+                model=self._model_string,
                 deps=self._deps,
             )
         )
-        self._deps.do_manifest = do_manifest
-        self._deps.explain_manifest = explain_manifest
+        self._deps.database_manifest = db_m
+        self._deps.application_manifest = app_m
+        self._deps.automation_manifest = auto_m
+        self._deps.explain_manifest = explain_m
 
         setup_instrumentation()
 
@@ -256,9 +267,42 @@ class Assistant:
         result = await title_agent.run(
             user_message,
             model=self._model,
-            model_settings=get_model_settings(self._model, TITLE),
+            model_settings=get_model_settings(self._model_string, TITLE),
         )
         return result.output
+
+    _MAX_TOOL_CALL_AS_TEXT_RETRIES = 2
+
+    _TOOL_CALL_CORRECTION_PROMPT = (
+        "Your previous response contained a raw JSON tool call instead of "
+        "actually invoking the tool. The malformed output was:\n\n"
+        "{malformed_output}\n\n"
+        "Please call the tool directly using the proper tool-calling "
+        "mechanism instead of outputting JSON text. Make sure the "
+        "arguments conform to the tool's schema."
+    )
+
+    async def _emit_answer(
+        self,
+        answer: str,
+        run_result: Any,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> None:
+        """Push the final answer and result events onto *queue*."""
+
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiMessageChunk(content=answer, sources=self._deps.sources),
+            )
+        )
+        queue.put_nowait(
+            QueueEvent(
+                kind=QueueEventKind.RESULT,
+                answer=answer,
+                messages_json=run_result.all_messages_json(),
+            )
+        )
 
     async def _run_agent(
         self,
@@ -266,49 +310,127 @@ class Assistant:
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[QueueEvent],
     ) -> None:
-        """Execute the main agent and push streaming events onto *queue*.
+        """Execute the main agent, retrying if it outputs tool calls as text.
 
-        On success a ``RESULT`` event carries the final answer and
-        serialised message history. On failure an ``ERROR`` event carries
-        the exception. A ``DONE`` sentinel is always sent last.
+        Delegates each streaming pass to ``_stream_agent_run``.  If the
+        final output looks like a raw JSON tool call, re-runs the agent
+        with the conversation history and a corrective prompt (up to
+        ``_MAX_TOOL_CALL_AS_TEXT_RETRIES`` times) so the model can
+        self-correct and invoke the tool properly.
+
+        Pushes ``STREAM``, ``RESULT``, ``ERROR``, and ``DONE`` events
+        onto *queue* for the consumer in ``astream_messages``.
         """
 
         try:
             with self._telemetry.trace(self._chat, user_prompt) as tracer:
-                async with main_agent.run_stream(
-                    user_prompt=user_prompt,
-                    deps=self._deps,
-                    model=self._model,
-                    message_history=message_history,
-                    usage_limits=UsageLimits(request_limit=120),
-                    toolsets=[self._toolset],
-                    model_settings=get_model_settings(self._model, ORCHESTRATOR),
-                    event_stream_handler=lambda ctx, events: self._relay_tool_events(
-                        events, queue
-                    ),
-                ) as result:
-                    answer = await self._stream_answer(result, queue)
-                    tracer.set_trace_output(answer)
-                    queue.put_nowait(
-                        QueueEvent(
-                            kind=QueueEventKind.RESULT,
-                            answer=answer,
-                            messages_json=result.all_messages_json(),
-                        )
-                    )
+                answer, run_result = await self._run_agent_with_retries(
+                    user_prompt, message_history, queue
+                )
+                tracer.set_trace_output(answer)
+                await self._emit_answer(answer, run_result, queue)
         except Exception as exc:
             logger.exception("Error running main agent")
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
 
-    @staticmethod
-    async def _relay_tool_events(events, queue: asyncio.Queue[QueueEvent]) -> None:
-        """Forward chain-of-thought ``thought`` arguments from tool calls
-        to the stream as reasoning chunks."""
+    async def _run_agent_with_retries(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, Any]:
+        """Stream the agent, retrying on tool-call-as-text outputs.
 
-        async for event in events:
-            if isinstance(event, FunctionToolCallEvent):
+        Returns ``(answer, run_result)`` — either the model's valid
+        answer or a fallback message after exhausting retries.
+
+        :raises RuntimeError: if the stream ends without a result event.
+        """
+
+        current_prompt = user_prompt
+        current_history = message_history
+
+        for attempt in range(1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES):
+            result = await self._stream_agent_run(
+                current_prompt, current_history, queue
+            )
+            if result is None:
+                raise RuntimeError("Agent stream ended without a result event")
+
+            answer, run_result = result
+
+            if not self._looks_like_json_tool_call(answer):
+                return answer, run_result
+
+            logger.warning(
+                "[assistant] Model output tool call as text (attempt {}/{}): {}",
+                attempt + 1,
+                1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
+                answer[:200],
+            )
+
+            if attempt < self._MAX_TOOL_CALL_AS_TEXT_RETRIES:
+                # Replace the malformed JSON visible in the UI with a
+                # reasoning indicator so the user doesn't see garbage.
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=AiReasoningChunk(content=""),
+                    )
+                )
+                current_history = run_result.all_messages()
+                current_prompt = self._TOOL_CALL_CORRECTION_PROMPT.format(
+                    malformed_output=answer[:500]
+                )
+
+        # Exhausted retries — give up gracefully.
+        logger.error(
+            "[assistant] Model persisted outputting tool "
+            "calls as text after {} retries",
+            self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
+        )
+        fallback = (
+            "I ran into a temporary issue processing "
+            "your request. Could you please try again?"
+        )
+        return fallback, run_result
+
+    async def _stream_agent_run(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, Any] | None:
+        """Run a single agent streaming pass.
+
+        Streams reasoning/text chunks to *queue* and returns
+        ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
+        received, or ``None`` if the stream ends without one.
+        """
+
+        text_parts: dict[int, str] = {}
+        tool_state = "no_tools"
+
+        is_anthropic = self._model_string.startswith("anthropic:")
+        default_chunk_cls = AiReasoningChunk if is_anthropic else AiMessageChunk
+
+        async for event in main_agent.run_stream_events(
+            user_prompt=user_prompt,
+            deps=self._deps,
+            model=self._model,
+            message_history=message_history,
+            usage_limits=UsageLimits(request_limit=200),
+            toolsets=[self._toolset],
+            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+        ):
+            if isinstance(event, AgentRunResultEvent):
+                return (event.result.output, event.result)
+            elif isinstance(event, FunctionToolCallEvent):
+                if tool_state == "after_tools":
+                    text_parts.clear()
+                tool_state = "tools_running"
                 thought = _extract_tool_thought(event)
                 if thought:
                     await queue.put(
@@ -317,23 +439,57 @@ class Assistant:
                             message=AiReasoningChunk(content=thought),
                         )
                     )
-
-    async def _stream_answer(self, result, queue: asyncio.Queue[QueueEvent]) -> str:
-        """Stream the agent's text output as ``AiMessageChunk`` events and
-        return the final accumulated answer."""
-
-        answer = ""
-        async for full_text in result.stream_text():
-            answer = full_text
-            await queue.put(
-                QueueEvent(
-                    kind=QueueEventKind.STREAM,
-                    message=AiMessageChunk(
-                        content=full_text, sources=self._deps.sources
-                    ),
+            elif isinstance(event, FunctionToolResultEvent):
+                tool_state = "after_tools"
+                text_parts.clear()
+            elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+                text_parts[event.index] = event.part.content
+                chunk_cls = (
+                    AiReasoningChunk
+                    if tool_state == "tools_running"
+                    else default_chunk_cls
                 )
-            )
-        return answer
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=chunk_cls(content=event.part.content),
+                    )
+                )
+            elif isinstance(event, PartDeltaEvent) and isinstance(
+                event.delta, TextPartDelta
+            ):
+                text_parts[event.index] = (
+                    text_parts.get(event.index, "") + event.delta.content_delta
+                )
+                chunk_cls = (
+                    AiReasoningChunk
+                    if tool_state == "tools_running"
+                    else default_chunk_cls
+                )
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=chunk_cls(content=text_parts[event.index]),
+                    )
+                )
+
+        return None
+
+    @staticmethod
+    def _looks_like_json_tool_call(text: str) -> bool:
+        """Return True if *text* looks like a tool call dumped as JSON.
+
+        Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
+        200 chars. Does not require valid JSON (the output may be truncated).
+        """
+
+        stripped = text.strip()
+        return (
+            bool(stripped)
+            and stripped[0] == "{"
+            and '"name"' in stripped[:200]
+            and '"arguments"' in stripped[:200]
+        )
 
     # ------------------------------------------------------------------
     # Cancellation
@@ -367,6 +523,18 @@ class Assistant:
         persisted answer. A ``ChatTitleMessage`` is appended on the first
         message in a chat.
         """
+
+        # Sticky task: capture on first message of the session
+        if not self._deps.original_request:
+            self._deps.original_request = message.content
+
+            # Auto-detect starting mode from UI context (only on first message)
+            if message.ui_context:
+                if message.ui_context.application or message.ui_context.page:
+                    self._deps.mode = AgentMode.APPLICATION
+                elif message.ui_context.automation or message.ui_context.workflow:
+                    self._deps.mode = AgentMode.AUTOMATION
+                # else stays DATABASE (default)
 
         human_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.HUMAN, message.content
@@ -416,7 +584,10 @@ class Assistant:
             self._event_bus.set_queue(None)
 
         if not self._chat.title:
-            title = await self._generate_chat_title(human_msg.content)
-            self._chat.title = title
-            await self._chat.asave(update_fields=["title", "updated_on"])
-            yield ChatTitleMessage(content=title)
+            try:
+                title = await self._generate_chat_title(human_msg.content)
+                self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
+                await self._chat.asave(update_fields=["title", "updated_on"])
+                yield ChatTitleMessage(content=self._chat.title)
+            except Exception:
+                logger.exception("Failed to generate chat title")

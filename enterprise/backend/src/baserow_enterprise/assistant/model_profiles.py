@@ -24,6 +24,7 @@ from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
 
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
+from baserow_enterprise.assistant.models import AssistantChat
 
 # ---------------------------------------------------------------------------
 # Agent roles
@@ -45,11 +46,13 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
         "temperature": 0.3,
         "timeout": 30,
         "parallel_tool_calls": False,
+        "max_tokens": 16384,
     },
     SUBAGENT: {
         "temperature": 0.3,
         "timeout": 20,
         "parallel_tool_calls": False,
+        "max_tokens": 16384,
     },
     UTILITY: {
         "temperature": 0.1,
@@ -62,6 +65,7 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     TITLE: {
         "temperature": 0.7,
         "timeout": 10,
+        "max_tokens": AssistantChat.TITLE_MAX_LENGTH,
     },
 }
 
