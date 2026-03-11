@@ -99,3 +99,18 @@ def test_create_builders_multiple(data_fixture):
     names = [b["name"] for b in result["created_builders"]]
     assert "DB One" in names
     assert "DB Two" in names
+
+
+@pytest.mark.django_db
+def test_create_database_ignores_theme(data_fixture):
+    """Creating a database should not fail even though databases have no theme."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    ctx = make_test_ctx(user, workspace)
+    builders = [BuilderItemCreate(name="My DB", type="database")]
+    result = create_builders(ctx, builders=builders, thought="create db")
+
+    assert len(result["created_builders"]) == 1
+    assert result["created_builders"][0]["type"] == "database"

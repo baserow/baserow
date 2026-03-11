@@ -1,10 +1,11 @@
-import contextlib
 from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
 
 import pytest
 from asgiref.sync import async_to_sync
+from pydantic_ai.messages import PartStartEvent
+from pydantic_ai.messages import TextPart as PaiTextPart
 
 from baserow_enterprise.assistant.assistant import (
     Assistant,
@@ -44,33 +45,32 @@ def _set_test_model(settings):
 
 
 # ---------------------------------------------------------------------------
-# Mock helpers for pydantic-ai's run_stream async context manager
+# Mock helpers for pydantic-ai's run_stream_events async generator
 # ---------------------------------------------------------------------------
 
 
-@contextlib.asynccontextmanager
-async def _make_mock_run_stream(answer: str, messages_json: bytes = b"[]"):
+async def _mock_run_stream_events(answer: str, messages_json: bytes = b"[]"):
     """
-    Create a mock async context manager that mimics
-    ``main_agent.run_stream()`` returning a result with ``stream_text()``
-    and ``all_messages_json()``.
+    Async generator that mimics ``main_agent.run_stream_events()``
+    yielding PartStartEvent, then AgentRunResultEvent.
     """
+    from pydantic_ai.run import AgentRunResultEvent
 
-    result = MagicMock()
+    # Emit a text part start with the full answer
+    yield PartStartEvent(index=0, part=PaiTextPart(content=answer))
 
-    async def stream_text():
-        yield answer
+    # Emit the final result event
+    mock_result = MagicMock()
+    mock_result.output = answer
+    mock_result.all_messages_json.return_value = messages_json
+    yield AgentRunResultEvent(result=mock_result)
 
-    result.stream_text = stream_text
-    result.all_messages_json.return_value = messages_json
-    yield result
 
-
-def make_mock_run_stream_side_effect(answer: str, messages_json: bytes = b"[]"):
-    """Return a side_effect callable that returns the mock context manager."""
+def make_mock_run_stream_events_side_effect(answer: str, messages_json: bytes = b"[]"):
+    """Return a side_effect callable that returns the mock async generator."""
 
     def side_effect(*args, **kwargs):
-        return _make_mock_run_stream(answer, messages_json)
+        return _mock_run_stream_events(answer, messages_json)
 
     return side_effect
 
@@ -312,9 +312,9 @@ class TestCompactMessageHistory:
 class TestAssistantMessagePersistence:
     """Test that messages are persisted correctly during streaming."""
 
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_persists_human_message(
-        self, mock_run_stream, enterprise_data_fixture
+        self, mock_run_stream_events, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -322,7 +322,9 @@ class TestAssistantMessagePersistence:
             user=user, workspace=workspace, title="Test Chat"
         )
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Hello")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Hello"
+        )
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -347,9 +349,9 @@ class TestAssistantMessagePersistence:
         ).first()
         assert saved_message.content == "Test message"
 
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_persists_ai_message(
-        self, mock_run_stream, enterprise_data_fixture
+        self, mock_run_stream_events, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -357,7 +359,9 @@ class TestAssistantMessagePersistence:
             user=user, workspace=workspace, title="Test Chat"
         )
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Based on docs")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Based on docs"
+        )
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -378,10 +382,10 @@ class TestAssistantMessagePersistence:
         assert ai_messages == 1
 
     @patch("baserow_enterprise.assistant.agents.title_agent.run")
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_persists_chat_title(
         self,
-        mock_run_stream,
+        mock_run_stream_events,
         mock_title_run,
         enterprise_data_fixture,
     ):
@@ -389,7 +393,9 @@ class TestAssistantMessagePersistence:
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Hello")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Hello"
+        )
 
         mock_title_result = MagicMock()
         mock_title_result.output = "Greeting"
@@ -416,9 +422,9 @@ class TestAssistantMessagePersistence:
 class TestAssistantStreaming:
     """Test streaming behavior of the Assistant."""
 
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_answer_chunks(
-        self, mock_run_stream, enterprise_data_fixture
+        self, mock_run_stream_events, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -426,7 +432,9 @@ class TestAssistantStreaming:
             user=user, workspace=workspace, title="Test Chat"
         )
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Hello world")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Hello world"
+        )
 
         assistant = Assistant(chat)
 
@@ -454,15 +462,17 @@ class TestAssistantStreaming:
         assert len(chunks) >= 1
 
     @patch("baserow_enterprise.assistant.agents.title_agent.run")
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_title_for_new_chat(
-        self, mock_run_stream, mock_title_run, enterprise_data_fixture
+        self, mock_run_stream_events, mock_title_run, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Answer")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Answer"
+        )
 
         mock_title_result = MagicMock()
         mock_title_result.output = "Title"
@@ -483,9 +493,9 @@ class TestAssistantStreaming:
         assert len(title_messages) == 1
         assert title_messages[0].content == "Title"
 
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_thinking_messages(
-        self, mock_run_stream, enterprise_data_fixture
+        self, mock_run_stream_events, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -493,30 +503,23 @@ class TestAssistantStreaming:
             user=user, workspace=workspace, title="Test Chat"
         )
 
-        # We need to emit a thinking message via the event bus during streaming
-        @contextlib.asynccontextmanager
-        async def mock_stream_with_thinking(*args, **kwargs):
-            # The event_stream_handler is passed as a kwarg, but we can
-            # also emit directly to the event bus. The assistant sets up
-            # the event bus before calling run_stream.
-            # We get a reference to the assistant's event bus.
-            result = MagicMock()
-
-            async def stream_text():
-                yield "Answer"
-
-            result.stream_text = stream_text
-            result.all_messages_json.return_value = b"[]"
-            yield result
-
         assistant = Assistant(chat)
 
-        def side_effect(*args, **kwargs):
-            # Emit thinking message before yielding the stream
-            assistant._event_bus.emit(AiThinkingMessage(content="still thinking..."))
-            return mock_stream_with_thinking()
+        async def mock_stream_with_thinking(*args, **kwargs):
+            from pydantic_ai.run import AgentRunResultEvent
 
-        mock_run_stream.side_effect = side_effect
+            # Emit thinking message via the event bus during streaming
+            assistant._event_bus.emit(AiThinkingMessage(content="still thinking..."))
+
+            # Yield text part then result
+            yield PartStartEvent(index=0, part=PaiTextPart(content="Answer"))
+
+            mock_result = MagicMock()
+            mock_result.output = "Answer"
+            mock_result.all_messages_json.return_value = b"[]"
+            yield AgentRunResultEvent(result=mock_result)
+
+        mock_run_stream_events.side_effect = mock_stream_with_thinking
 
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
@@ -536,9 +539,9 @@ class TestAssistantStreaming:
         assert len(thinking_messages) == 1
         assert thinking_messages[0].content == "still thinking..."
 
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_ai_started_message(
-        self, mock_run_stream, enterprise_data_fixture
+        self, mock_run_stream_events, enterprise_data_fixture
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -546,7 +549,9 @@ class TestAssistantStreaming:
             user=user, workspace=workspace, title="Test"
         )
 
-        mock_run_stream.side_effect = make_mock_run_stream_side_effect("Hello")
+        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
+            "Hello"
+        )
 
         assistant = Assistant(chat)
         human_message = HumanMessage(content="Hello")

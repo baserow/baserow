@@ -212,14 +212,72 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     )
 
     # Build the single-agent toolset (navigation + core + database + automation)
-    toolset, do_manifest, explain_manifest = assistant_tool_registry.build_toolset(
-        user, workspace, model, deps
+    toolset, db_manifest, app_manifest, auto_manifest, explain_manifest = (
+        assistant_tool_registry.build_toolset(user, workspace, model, deps)
     )
-    deps.do_manifest = do_manifest
+    deps.database_manifest = db_manifest
+    deps.application_manifest = app_manifest
+    deps.automation_manifest = auto_manifest
     deps.explain_manifest = explain_manifest
     usage_limits = UsageLimits(request_limit=max_iters)
 
     return main_agent, deps, tracker, model, usage_limits, toolset
+
+
+def get_tool_call_sequence(result) -> list[str]:
+    """
+    Return the ordered list of tool names called during an agent run.
+
+    Extracts assistant-side tool call entries from the message history,
+    preserving chronological order.
+    """
+
+    history = format_message_history(result)
+    return [
+        e["tool_name"]
+        for e in history
+        if e["role"] == "assistant" and "tool_name" in e and "args" in e
+    ]
+
+
+def assert_tool_call_order(result, expected_order: list[str]):
+    """
+    Assert that tools were called in the expected relative order.
+
+    For each consecutive pair (A, B) in *expected_order*, verifies that the
+    **last** call to A comes before the **first** call to B.  This guarantees
+    that all A work is fully completed before any B work begins.
+
+    Example::
+
+        assert_tool_call_order(result, [
+            "create_pages",
+            "create_layout_elements",
+            "create_display_elements",
+        ])
+    """
+
+    sequence = get_tool_call_sequence(result)
+
+    def _all_indices(tool_name: str) -> list[int]:
+        indices = [i for i, name in enumerate(sequence) if name == tool_name]
+        if not indices:
+            raise AssertionError(
+                f"Expected tool '{tool_name}' was never called. "
+                f"Actual sequence: {sequence}"
+            )
+        return indices
+
+    for i in range(len(expected_order) - 1):
+        name_a = expected_order[i]
+        name_b = expected_order[i + 1]
+        last_a = _all_indices(name_a)[-1]
+        first_b = _all_indices(name_b)[0]
+        assert last_a < first_b, (
+            f"Expected all '{name_a}' calls to finish before any '{name_b}' call, "
+            f"but last '{name_a}' at pos {last_a} >= first '{name_b}' at pos {first_b}. "
+            f"Actual sequence: {sequence}"
+        )
 
 
 def assert_no_tool_errors(tracker: EvalToolTracker, result=None):
