@@ -355,7 +355,7 @@ requires-dist = [
     { name = "icalendar", specifier = "==6.3.2" },
     { name = "itsdangerous", specifier = "==2.2.0" },
     { name = "jira2markdown", specifier = "==0.5" },
-    { name = "langchain", specifier = "==0.3.27" },
+    { name = "langchain", specifier = "==0.3.28" },
     { name = "langchain-openai", specifier = "==0.3.35" },
     { name = "loguru", specifier = "==0.7.3" },
     { name = "mcp", specifier = "==1.26.0" },
@@ -1787,7 +1787,7 @@ redis = [
 
 [[package]]
 name = "langchain"
-version = "0.3.27"
+version = "0.3.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -1798,9 +1798,9 @@ dependencies = [
     { name = "requests", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "sqlalchemy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/f6/f4f7f3a56626fe07e2bb330feb61254dbdf06c506e6b59a536a337da51cf/langchain-0.3.27.tar.gz", hash = "sha256:aa6f1e6274ff055d0fd36254176770f356ed0a8994297d1df47df341953cec62", size = 10233809, upload-time = "2025-07-24T14:42:32.959Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/bb/a65e29c8e4aaf0348c2617962e427c8e760d82a67adbd197019e49c7769d/langchain-0.3.28.tar.gz", hash = "sha256:30a32f44cc6690bcc6a6fb7c14d61a15406d5eda1a0e7eab60b3660944888741", size = 10242473, upload-time = "2026-03-06T22:45:17.911Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/d5/4861816a95b2f6993f1360cfb605aacb015506ee2090433a71de9cca8477/langchain-0.3.27-py3-none-any.whl", hash = "sha256:7b20c4f338826acb148d885b20a73a16e410ede9ee4f19bb02011852d5f98798", size = 1018194, upload-time = "2025-07-24T14:42:30.23Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/f5/ecd71e5b78e67944b2600a155ef63000bc00148e6794e8e7809b2453887a/langchain-0.3.28-py3-none-any.whl", hash = "sha256:1ba1244477b67b812b775f346209fa596e78bf055a34e45ce22acb7a45842a32", size = 1024717, upload-time = "2026-03-06T22:45:15.545Z" },
 ]
 
 [[package]]
