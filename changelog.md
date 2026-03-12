@@ -1,5 +1,19 @@
 # Changelog
 
+## Released 2.1.5
+
+### Bug fixes
+* [Core] Fix a bug that caused an error when running the backend and frontend images as different users.
+* [Core] Fix error page on token expiration to redirect to login
+* [Builder] Fixed a bug that could cause a stale page ID to be set even after deleting the page.
+* [Core] Improved the scheduling system in the periodic service.
+* [Automation] Resolved a bug which caused the periodic trigger to reset its minute value if the interval was set to minute.
+* [Automation] Resolved an issue which prevented hour and minute values from persisting in the periodic trigger form.
+
+### Refactors
+* [Automation] Add support for dispatching automation nodes asynchronously. [#3838](https://github.com/baserow/baserow/issues/3838)
+
+
 ## Released 2.1.4
 
 ### Bug fixes
