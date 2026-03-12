@@ -16,11 +16,6 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.core.types import (
-    THEME_CATALOG,
-    ThemeName,
-    apply_theme,
-)
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
@@ -1377,58 +1372,6 @@ def setup_page(
 
 
 # ---------------------------------------------------------------------------
-# Theme tools
-# ---------------------------------------------------------------------------
-
-
-def set_theme(
-    ctx: RunContext[AssistantDeps],
-    application_id: Annotated[int, Field(description="The builder application ID.")],
-    theme_name: Annotated[ThemeName, Field(description="Theme name to apply.")],
-    thought: Annotated[
-        str, Field(description="Brief reasoning for calling this tool.")
-    ],
-) -> dict[str, Any]:
-    """\
-    Change the theme of a builder application.
-
-    WHEN to use: User wants to change the look and feel of an existing application.
-    WHAT it does: Applies a predefined theme (colors, typography, button styles, etc.) to the application.
-    RETURNS: Confirmation with applied theme name.
-    DO NOT USE when: Creating a new application — use the theme parameter on create_builders instead.
-
-    ## Available Themes
-    {theme_list}
-    """
-
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
-
-    builder = helpers.get_builder(user, workspace, application_id)
-    tool_helpers.update_status(
-        _("Applying %(theme)s theme to %(app)s...")
-        % {"theme": theme_name, "app": builder.name}
-    )
-
-    apply_theme(builder, theme_name, user=user)
-
-    return {
-        "status": "ok",
-        "application_id": application_id,
-        "theme": theme_name,
-        "description": THEME_CATALOG.get(theme_name, ""),
-    }
-
-
-set_theme.__doc__ = set_theme.__doc__.format(
-    theme_list="\n    ".join(
-        f"- {name}: {desc}" for name, desc in THEME_CATALOG.items()
-    )
-)
-
-
-# ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
 
@@ -1451,7 +1394,6 @@ TOOL_FUNCTIONS = [
     create_actions,
     add_action_field_mapping,
     setup_page,
-    set_theme,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
 
