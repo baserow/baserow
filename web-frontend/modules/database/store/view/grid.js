@@ -3830,8 +3830,11 @@ export const getters = {
       return row._.selected && row._.selectedFieldId !== -1
     })
   },
-  getActiveGroupBys(state) {
-    return state.activeGroupBys
+  getActiveGroupBys(state, getters, rootState, rootGetters) {
+    const fields = rootGetters['field/getAll']
+    return state.activeGroupBys.filter((groupBy) =>
+      fields.some((f) => f.id === groupBy.field)
+    )
   },
   getGroupByMetadata(state) {
     return state.groupByMetadata
