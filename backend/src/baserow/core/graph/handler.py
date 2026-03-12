@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from baserow.core.graph.exceptions import (
     GraphPointDoesNotExist,
@@ -10,6 +10,7 @@ from baserow.core.graph.types import (
     GraphPoint,
     GraphPointPositionTriplet,
     GraphPointPositionType,
+    SerializedGraph,
 )
 
 
@@ -77,10 +78,10 @@ class BaseGraphHandler(ABC):
         self.instance = instance
 
     @property
-    def graph(self):
+    def graph(self) -> SerializedGraph:
         return self.instance.graph
 
-    def _update_graph(self, graph=None):
+    def _update_graph(self, graph: Optional[SerializedGraph] = None):
         """
         Responsible for updating the instance's `graph` field. If `graph` is provided,
         it will update the instance with it, otherwise it will update it with the
@@ -180,12 +181,12 @@ class BaseGraphHandler(ABC):
         """
 
         if self.graph.get("0") is None:
-            return (None, "south", "")
+            return None, "south", ""
 
         def search_last(point_id):
             next_points = self.get_info(point_id).get("next", {}).get("", [])
             if not next_points:
-                return (self.get_point(point_id), "south", "")
+                return self.get_point(point_id), "south", ""
             else:
                 return search_last(next_points[0])
 
@@ -310,12 +311,32 @@ class BaseGraphHandler(ABC):
 
         return [self.get_point(cid) for cid in self.get_info(point).get("children", [])]
 
+    def get_siblings(self, point: GraphPoint) -> List[GraphPoint]:
+        """
+        Get the siblings of the given point. Siblings are points that share the same
+        parent.
+
+        :param point: The point to get the siblings from.
+        :return: A list of siblings of the given point.
+        """
+
+        # Only consider it a "sibling" relationship if this point is a child
+        parent_point_id, position, output = self.get_position(point)
+        if position != "child":
+            return []
+
+        return [
+            self.get_point(pid)
+            for pid in self.get_info(parent_point_id).get("children", [])
+            if pid != point.id
+        ]
+
     def insert(
         self,
         point: GraphPoint,
         reference_point: GraphPoint,
         position: GraphPointPositionType,
-        output: str,
+        output: Optional[str] = "",
     ):
         """
         Insert a point at the given position in the graph. The position is described by
@@ -344,6 +365,36 @@ class BaseGraphHandler(ABC):
 
             if new_next:
                 point_info["next"] = {"": new_next}
+
+            self._update_graph()
+            return
+
+        if position == "north":
+            # Insert the point before the reference point. The new point takes
+            # the reference point's position, and the reference point becomes
+            # the new point's next on the default output.
+            ref_position_id, ref_position, ref_output = self.get_position(
+                reference_point
+            )
+
+            # If the reference itself has no reference ID, then it's the root.
+            # We'll then replace the root with our new `point`.
+            if ref_position_id is None:
+                graph["0"] = point.id
+            elif ref_position == "south":
+                self.get_info(ref_position_id)["next"][ref_output] = _replace(
+                    self.get_info(ref_position_id)["next"][ref_output],
+                    reference_point.id,
+                    point.id,
+                )
+            elif ref_position == "child":
+                self.get_info(ref_position_id)["children"] = _replace(
+                    self.get_info(ref_position_id)["children"],
+                    reference_point.id,
+                    point.id,
+                )
+
+            point_info["next"] = {"": [reference_point.id]}
 
             self._update_graph()
             return
@@ -459,7 +510,7 @@ class BaseGraphHandler(ABC):
         point_to_move: GraphPoint,
         reference_point: GraphPoint | None,
         position: GraphPointPositionType,
-        output: str,
+        output: str = "",
     ):
         """
         Move a point to another position. The point will be removed from its current
@@ -513,18 +564,6 @@ class BaseGraphHandler(ABC):
 
         self._update_graph(migrated)
 
-    # needs work
-    def _get_edge_label(self, point: GraphPoint, uid: str) -> str:
-        """
-        Returns the label of the given edge uid for the given point.
-        """
-
-        if not self.instance.supports_edges:
-            return f"Point{point.id}"
-
-        edges = point.service.get_type().get_edges(point.service.specific)
-        return edges[uid]["label"]
-
     def labeled_graph(self):
         """
         Generate a graph representation that doesn't depend on the point IDs and that is
@@ -533,29 +572,29 @@ class BaseGraphHandler(ABC):
 
         used_label = {}
 
-        def label(point_id):
+        def get_label(point_id) -> str:
             point_id = str(point_id)
-            label = self.get_point(point_id).get_label()
+            label = self.get_point(point_id).graph_point_label
 
             while used_label.setdefault(label, point_id) != point_id:
-                label += "-"
+                label += f"-{point_id}"
 
             return label
 
         result = {}
         for key, point_info in self.graph.items():
             if key == "0":
-                result[key] = label(point_info)
+                result[key] = get_label(point_info)
             else:
-                result[label(key)] = {}
+                result[get_label(key)] = {}
                 if "children" in point_info:
-                    result[label(key)]["children"] = [
-                        label(id) for id in point_info["children"]
+                    result[get_label(key)]["children"] = [
+                        get_label(id) for id in point_info["children"]
                     ]
                 if "next" in point_info:
-                    result[label(key)]["next"] = {
-                        self._get_edge_label(self.get_point(key), o): [
-                            label(id) for id in n
+                    result[get_label(key)]["next"] = {
+                        self.get_point(key).graph_point_edge_label(o): [
+                            get_label(id) for id in n
                         ]
                         for o, n in point_info["next"].items()
                     }

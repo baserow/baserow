@@ -321,6 +321,43 @@ def test_graph_handler_get_children(mock_get_points, node_id, expected_result):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "node_id, expected_result",
+    [
+        (1, []),
+        (7, []),
+        (10, [FakePoint(11)]),
+        (11, [FakePoint(10)]),
+    ],
+)
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_siblings(mock_get_points, node_id, expected_result):
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {"children": [7], "next": {"": [4]}},
+        "4": {"next": {"": [5], "randomUid": [9]}},
+        "5": {"next": {"": [6]}},
+        "6": {"next": {"": []}},
+        "7": {"next": {"": [8]}},
+        "8": {"children": []},
+        "9": {"children": [10, 11]},
+        "10": {},
+        "11": {},
+    }
+
+    mock_get_points.side_effect = FakePoint
+
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    assert graph_handler.get_siblings(FakePoint(node_id)) == expected_result
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "node_id, reference_node_id, position, output, expected_result",
     [
         (
@@ -436,6 +473,79 @@ def test_graph_handler_get_children(mock_get_points, node_id, expected_result):
                 "1": {"next": {"": [2]}},
                 "2": {"next": {"": [3]}},
                 "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # position="north" test cases
+        # Insert north of the root node - new node becomes root
+        (
+            11,
+            1,
+            "north",
+            "",
+            {
+                "0": 11,
+                "11": {"next": {"": [1]}},
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a middle node in the default output chain
+        (
+            11,
+            3,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [11]}},
+                "11": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a node on a non-default output (randomUid)
+        (
+            11,
+            9,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [11]}},
+                "11": {"next": {"": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a child node
+        (
+            11,
+            7,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": [11], "next": {"": [4]}},
+                "11": {"next": {"": [7]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
                 "7": {"next": {"": [8]}},
                 "8": {"children": []},

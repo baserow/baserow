@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
 from baserow.contrib.builder.elements.exceptions import (
-    ElementMoveNotAllowed,
+    ElementDoesNotExist,
     ElementNotInSamePage,
+    ElementMoveNotAllowed,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
@@ -27,11 +28,14 @@ from baserow.contrib.builder.elements.signals import (
 )
 from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
+    ElementMove,
     ElementsAndWorkflowActions,
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
 if TYPE_CHECKING:
@@ -107,13 +111,36 @@ class ElementService:
 
         return self.handler.get_builder_elements(builder, base_queryset=user_elements)
 
+    def _check_position(
+        self,
+        page: Page,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+    ):
+        """
+        Validates the position.
+        """
+
+        if reference_element is None:
+            return
+
+        if reference_element.page_id != page.id:
+            raise ElementNotInSamePage(
+                f"The reference element {reference_element.id} doesn't exist"
+            )
+
+        if position == "child" and not reference_element.get_type().is_container:
+            raise GraphPointReferencePointInvalid(
+                f"The reference node {reference_element.id} can't have child"
+            )
+
     def create_element(
         self,
         user: AbstractUser,
         element_type: ElementType,
         page: Page,
-        before: Optional[Element] = None,
-        order: Optional[int] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = "south",  # south, child
         **kwargs,
     ) -> Element:
         """
@@ -122,8 +149,8 @@ class ElementService:
         :param user: The user trying to create the element.
         :param element_type: The type of the element.
         :param page: The page the element exists in.
-        :param before: If set, the new element is inserted before this element.
-        :param order: If set, the new element is inserted at this order ignoring before.
+        :param reference_element_id: The element reference element for the position.
+        :param position: The position relative to the reference element.
         :param kwargs: Additional attributes of the element.
         :return: The created element.
         """
@@ -135,15 +162,33 @@ class ElementService:
             context=page,
         )
 
-        # Check we are on the same page.
-        if before and page.id != before.page_id:
-            raise ElementNotInSamePage()
+        # We currently only support one value for the output, other than
+        # a blank string, and that's the place inside a container.
+        instance_output = kwargs.pop("place_in_container", "")
+
+        try:
+            reference_element = (
+                self.handler.get_element(reference_element_id)
+                if reference_element_id
+                else None
+            )
+        except ElementDoesNotExist as e:
+            raise GraphPointReferencePointInvalid(
+                f"The reference element {reference_element_id} doesn't exist"
+            ) from e
+
+        # Verify the combination of the reference element, and the position.
+        self._check_position(page, reference_element, position)
+
+        # Before we create this element, verify if its type has any
+        # specific logic to execute before the creation of the element.
+        element_type.before_create(
+            page, reference_element, position, kwargs.get("place_in_container")
+        )
 
         try:
             with translation.override(user.profile.language):
-                new_element = self.handler.create_element(
-                    element_type, page, before=before, order=order, **kwargs
-                )
+                new_element = self.handler.create_element(element_type, page, **kwargs)
         except CannotCalculateIntermediateOrder:
             self.recalculate_full_orders(user, page)
             # If the `find_intermediate_order` fails with a
@@ -151,16 +196,18 @@ class ElementService:
             # calculate an intermediate fraction. Therefore, must reset all the
             # orders of the elements (while respecting their original order),
             # so that we can then can find the fraction any many more after.
-            before.refresh_from_db()
-            new_element = self.handler.create_element(
-                element_type, page, before=before, **kwargs
-            )
+            new_element = self.handler.create_element(element_type, page, **kwargs)
+
+        page.get_graph().insert(
+            new_element, reference_element, position, instance_output
+        )
+
+        element_type.after_create(new_element, kwargs)
 
         element_created.send(
             self,
             element=new_element,
             user=user,
-            before_id=before.id if before else None,
         )
 
         return new_element
@@ -218,21 +265,23 @@ class ElementService:
         user: AbstractUser,
         target_page: Page,
         element: ElementForUpdate,
-        parent_element: Optional[Element],
         place_in_container: str,
-        before: Optional[Element] = None,
-    ) -> Element:
+        reference_element_id: int | None,
+        position: GraphPointPositionType,
+    ) -> ElementMove:
         """
         Moves an element in the page before another element. If the `before` element is
         omitted the element is moved at the end of the page.
 
-        :param user: The user who move the element.
-        :param element: The element we want to move.
-        :param parent_element: The new parent element of the element.
+        :param user: The user who is moving the element.
+        :param element: The element to move.
         :param place_in_container: The new place in container of the element.
-        :param before: The element before which we want to move the given element.
-        :return: The element with an updated order.
+        :param reference_element_id: The element the new position is relative to.
+        :param position: The new position relative to the reference element.
+        :return: The `ElementMove` object, containing our previous position/reference.
         """
+
+        element_type = element.get_type()
 
         CoreHandler().check_permissions(
             user,
@@ -241,36 +290,56 @@ class ElementService:
             context=element,
         )
 
-        # Check we are on the same builder.
-        if target_page.builder != element.page.builder:
-            raise PageNotInBuilder()
-
-        if parent_element and parent_element.id == element.id:
-            raise ElementMoveNotAllowed(
-                "Moving a container inside itself is not allowed"
-            )
-
         try:
-            element = self.handler.move_element(
-                target_page, element, parent_element, place_in_container, before=before
+            reference_element = (
+                self.handler.get_element(reference_element_id)
+                if reference_element_id
+                else None
             )
-        except CannotCalculateIntermediateOrder:
-            # If it's failing, we need to recalculate all orders then move again.
-            self.recalculate_full_orders(user, element.page)
-            # Refresh the before element as the order might have changed.
-            before.refresh_from_db()
-            element = self.handler.move_element(
-                target_page, element, parent_element, place_in_container, before=before
-            )
+        except ElementDoesNotExist as e:
+            raise GraphPointReferencePointInvalid(
+                f"The reference element {reference_element_id} doesn't exist"
+            ) from e
+
+        self._check_position(target_page, reference_element, position)
+
+        # Check if the type has any before-move requirements.
+        element_type.before_move(element, reference_element, position)
+
+        # We extract the current element position
+        # to restore it if we undo the operation.
+        [
+            previous_reference_element_id,
+            previous_position,
+            _,
+        ] = target_page.get_graph().get_position(element)
+
+        previous_reference_element = (
+            self.handler.get_element(previous_reference_element_id)
+            if previous_reference_element_id
+            else None
+        )
+
+        target_page.get_graph().move(element, reference_element, position, place_in_container)
+
+        # If our place in the container has changed, update it.
+        if element.place_in_container != place_in_container:
+            element.place_in_container = place_in_container
+            element.save(update_fields=["place_in_container"])
 
         element_moved.send(
             self,
             element=element,
-            before=before,
+            position=position,
+            reference_element=reference_element,
             user=user,
         )
 
-        return element
+        return ElementMove(
+            element=element,
+            previous_position=previous_position,
+            previous_reference_element=previous_reference_element,
+        )
 
     def recalculate_full_orders(self, user: AbstractUser, page: Page):
         """

@@ -15,6 +15,7 @@ from baserow.contrib.builder.elements.operations import (
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.object_scopes import BuilderPageObjectScopeType
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
 
@@ -86,7 +87,12 @@ def element_updated(sender, element: Element, user: AbstractUser, **kwargs):
 
 @receiver(element_signals.element_moved)
 def element_moved(
-    sender, element: Element, before: Element, user: AbstractUser, **kwargs
+    sender,
+    element: Element,
+    position: GraphPointPosition,
+    reference_element: Element,
+    user: AbstractUser,
+    **kwargs,
 ):
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
@@ -97,8 +103,10 @@ def element_moved(
             {
                 "type": "element_moved",
                 "element_id": element.id,
-                "before_id": before.id if before else None,
-                "parent_element_id": element.parent_element_id,
+                "position": position,
+                "reference_element_id": reference_element.id
+                if reference_element
+                else None,
                 "place_in_container": element.place_in_container,
                 "page_id": element.page.id,
             },

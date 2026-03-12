@@ -193,7 +193,7 @@ class BuilderApplicationTypeInitApplication:
             style_padding_left=0,
             style_padding_right=0,
             placeholder="'Enter your first name'",
-            parent_element_id=form_container.id,
+            reference_element_id=form_container.id,
         )
         last_name_input = ElementHandler().create_element(
             element_type_registry.get("input_text"),
@@ -202,7 +202,7 @@ class BuilderApplicationTypeInitApplication:
             style_padding_left=0,
             style_padding_right=0,
             placeholder="'Enter your last name'",
-            parent_element_id=form_container.id,
+            reference_element_id=form_container.id,
         )
 
         # If the `Customers` table's schema didn't change, create a new service,
@@ -275,7 +275,7 @@ class BuilderApplicationTypeInitApplication:
             place_in_container=0,
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
+            reference_element_id=column_element.id,
             value="'Elements can be placed in containers...'",
         )
         ElementHandler().create_element(
@@ -284,7 +284,7 @@ class BuilderApplicationTypeInitApplication:
             place_in_container=1,
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
+            reference_element_id=column_element.id,
             value="'which you can configure with more, or fewer columns.'",
         )
         ElementHandler().create_element(
@@ -293,6 +293,6 @@ class BuilderApplicationTypeInitApplication:
             place_in_container=2,
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
+            reference_element_id=column_element.id,
             value="'The possibilities are endless!'",
         )

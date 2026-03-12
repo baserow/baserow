@@ -649,6 +649,7 @@ class PageHandler:
                 progress=progress,
                 cache=cache,
             )
+            page_instance.get_graph().migrate_graph(id_mapping)
 
         for page_instance, serialized_page in imported_pages:
             self.import_workflow_actions(

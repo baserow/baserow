@@ -40,23 +40,18 @@ from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import (
-    ButtonElement,
     CheckboxElement,
     ChoiceElement,
     ChoiceElementOption,
     CollectionField,
     DateTimePickerElement,
     Element,
-    FormContainerElement,
     HeadingElement,
-    IFrameElement,
-    ImageElement,
     InputTextElement,
     LinkElement,
     RatingInputElement,
     RecordSelectorElement,
     TableElement,
-    TextElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -247,8 +242,7 @@ def test_link_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = LinkElementType()
 
-    exported_element = data_fixture.create_builder_element(
-        LinkElement,
+    exported_element = data_fixture.create_builder_link_element(
         navigate_to_url=f"get('data_source.{data_source_1.id}.field_1')",
         value=f"get('data_source.{data_source_1.id}.field_1')",
         page_parameters=[
@@ -291,8 +285,7 @@ def test_form_container_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = FormContainerElementType()
 
-    exported_element = data_fixture.create_builder_element(
-        FormContainerElement,
+    exported_element = data_fixture.create_builder_form_container_element(
         submit_button_label=f"get('data_source.{data_source_1.id}.field_1')",
     )
     serialized = element_type.export_serialized(exported_element)
@@ -330,8 +323,7 @@ def test_text_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = TextElementType()
 
-    exported_text_element = data_fixture.create_builder_element(
-        TextElement,
+    exported_text_element = data_fixture.create_builder_text_element(
         value=f"get('data_source.{data_source_1.id}.field_1')",
     )
     serialized = element_type.export_serialized(exported_text_element)
@@ -352,8 +344,7 @@ def test_input_text_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = InputTextElementType()
 
-    exported_input_text_element = data_fixture.create_builder_element(
-        InputTextElement,
+    exported_input_text_element = data_fixture.create_builder_input_text_element(
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
         placeholder=f"get('data_source.{data_source_1.id}.field_1')",
@@ -378,8 +369,7 @@ def test_image_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = ImageElementType()
 
-    exported_image_element = data_fixture.create_builder_element(
-        ImageElement,
+    exported_image_element = data_fixture.create_builder_image_element(
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
         alt_text=f"get('data_source.{data_source_1.id}.field_1')",
     )
@@ -402,8 +392,7 @@ def test_button_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = ButtonElementType()
 
-    exported_image_element = data_fixture.create_builder_element(
-        ButtonElement,
+    exported_image_element = data_fixture.create_builder_button_element(
         value=f"get('data_source.{data_source_1.id}.field_1')",
     )
     serialized = element_type.export_serialized(exported_image_element)
@@ -487,8 +476,7 @@ def test_choice_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = ChoiceElementType()
 
-    exported_choice_element = data_fixture.create_builder_element(
-        ChoiceElement,
+    exported_choice_element = data_fixture.create_builder_choice_element(
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
         placeholder=f"get('data_source.{data_source_1.id}.field_1')",
@@ -816,7 +804,7 @@ def test_page_with_element_using_form_data_has_dependencies_import_first(data_fi
     page = data_fixture.create_builder_page(user=user)
     form_container = data_fixture.create_builder_form_container_element(page=page)
     form_input = data_fixture.create_builder_input_text_element(
-        page=page, parent_element=form_container
+        page=page, reference_element=form_container
     )
     data_fixture.create_builder_heading_element(
         page=page, value=f"get('form_data.{form_input.id}')"
@@ -836,8 +824,7 @@ def test_checkbox_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = CheckboxElementType()
 
-    exported_input_element = data_fixture.create_builder_element(
-        CheckboxElement,
+    exported_input_element = data_fixture.create_builder_checkbox_element(
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
     )
@@ -894,8 +881,7 @@ def test_iframe_element_import_export_formula(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = IFrameElementType()
 
-    exported_element = data_fixture.create_builder_element(
-        IFrameElement,
+    exported_element = data_fixture.create_builder_iframe_element(
         url=f"get('data_source.{data_source_1.id}.field_1')",
         embed=f"get('data_source.{data_source_1.id}.field_1')",
     )
@@ -929,8 +915,7 @@ def test_image_element_import_export(data_fixture, fake, storage):
         user, "test.jpg", BytesIO(fake.image()), storage=storage
     )
 
-    element_to_export = data_fixture.create_builder_element(
-        ImageElement,
+    element_to_export = data_fixture.create_builder_image_element(
         image_source_type="upload",
         image_file=image_file,
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
@@ -974,8 +959,7 @@ def test_choice_element_import_export(data_fixture):
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
     element_type = ChoiceElementType()
 
-    exported_element = data_fixture.create_builder_element(
-        ChoiceElement,
+    exported_element = data_fixture.create_builder_choice_element(
         label=f"get('data_source.42.field_1')",
         default_value=f"get('data_source.42.field_1')",
         placeholder=f"get('data_source.42.field_1')",

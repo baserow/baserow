@@ -36,6 +36,7 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.storage import ExportZipFile
@@ -255,6 +256,9 @@ class ElementHandler:
 
         return elements
 
+    def _get_elements_cache_key(self, page: Page, specific: bool) -> str:
+        return f"ab_get_{page.id}_elements_{specific}"
+
     def get_elements(
         self,
         page: Page,
@@ -273,30 +277,19 @@ class ElementHandler:
         :return: The elements of that page.
         """
 
-        # Our cache key varies if we're using specific or generic elements.
-        cache_key = "_page_elements" if not specific else "_page_elements_specific"
+        def _get_elements(base_queryset=base_queryset):
+            if base_queryset is None:
+                base_queryset = Element.objects.all()
 
-        # If a `base_queryset` is given, we can't use caching, clear
-        # both cache keys in case the specific argument has changed.
-        if base_queryset is not None:
-            use_cache = False
-            page._page_elements = None
-            page._page_elements_specific = None
+            queryset = base_queryset.filter(page=page)
+            return self._query_elements(queryset, specific=specific)
 
-        elements_cache = getattr(page, cache_key, None)
-        if use_cache and elements_cache is not None:
-            return elements_cache
-
-        queryset = base_queryset if base_queryset is not None else Element.objects.all()
-
-        queryset = queryset.filter(page=page)
-
-        elements = self._query_elements(queryset, specific=specific)
-
-        if use_cache:
-            setattr(page, cache_key, list(elements))
-
-        return elements
+        if use_cache and not base_queryset:
+            return local_cache.get(
+                self._get_elements_cache_key(page, specific),
+                _get_elements,
+            )
+        return _get_elements()
 
     def get_builder_elements(
         self,
@@ -326,7 +319,6 @@ class ElementHandler:
         self,
         element_type: ElementType,
         page: Page,
-        before: Optional[Element] = None,
         **kwargs,
     ) -> Element:
         """
@@ -334,8 +326,6 @@ class ElementHandler:
 
         :param element_type: The type of the element.
         :param page: The page the element exists in.
-        :param before: If provided and no order is provided, will place the new element
-            before the given element.
         :param kwargs: Additional attributes of the element.
         :raises CannotCalculateIntermediateOrder: If it's not possible to find an
             intermediate order. The full order of the element of the page must be
@@ -346,29 +336,13 @@ class ElementHandler:
         if element_type.is_deactivated(page.builder.workspace):
             raise ElementTypeDeactivated()
 
-        parent_element_id = kwargs.get("parent_element_id", None)
-        place_in_container = kwargs.get("place_in_container", None)
-
-        if before:
-            order = Element.get_unique_order_before_element(
-                before, parent_element_id, place_in_container
-            )
-        else:
-            order = Element.get_last_order(page, parent_element_id, place_in_container)
-
         allowed_values = extract_allowed(
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
 
-        allowed_values["page"] = page
-        allowed_values = element_type.prepare_value_for_db(allowed_values)
-
         model_class = cast(Element, element_type.model_class)
-
-        element = model_class(order=order, **allowed_values)
+        element = model_class(page=page, **allowed_values)
         element.save()
-
-        element_type.after_create(element, kwargs)
 
         return element
 
@@ -415,56 +389,6 @@ class ElementHandler:
         element.save()
 
         element.get_type().after_update(element, kwargs, element_changes)
-
-        return element
-
-    def move_element(
-        self,
-        target_page: Page,
-        element: ElementForUpdate,
-        parent_element: Optional[Element],
-        place_in_container: str,
-        before: Optional[Element] = None,
-    ) -> Element:
-        """
-        Moves the given element before the specified `before` element in the same page.
-
-        :param element: The element to move.
-        :param before: The element before which to move the `element`. If before is not
-            specified, the element is moved at the end of the list.
-        :param parent_element: The new parent element of the element.
-        :param place_in_container: The new place in container of the element.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the element of the page must be
-            recalculated in this case before calling this method again.
-        :return: The moved element.
-        """
-
-        if parent_element is not None:
-            parent_element = parent_element.specific
-
-        parent_element_id = getattr(parent_element, "id", None)
-
-        element.get_type().validate_place(
-            target_page, parent_element, place_in_container
-        )
-
-        if before:
-            element.order = Element.get_unique_order_before_element(
-                before, parent_element_id, place_in_container
-            )
-        else:
-            element.order = Element.get_last_order(
-                target_page, parent_element_id, place_in_container
-            )
-
-        element.page = target_page
-        element.parent_element = parent_element
-        element.place_in_container = place_in_container
-
-        element.save()
-
-        element.get_type().after_move(element)
 
         return element
 
@@ -595,31 +519,6 @@ class ElementHandler:
         element_type = element_type_registry.get_by_model(element)
 
         serialized = element_type.export_serialized(element)
-
-        next_element = (
-            element.page.element_set.filter(
-                parent_element_id=element.parent_element_id,
-                place_in_container=element.place_in_container,
-                order__gt=element.order,
-            )
-            .exclude(id=element.id)
-            .first()
-        )
-
-        if next_element:
-            # The duplicated element will be inserted right after the current one
-            serialized["order"] = Element.get_unique_order_before_element(
-                next_element,
-                element.parent_element_id,
-                element.place_in_container,
-            )
-        else:
-            # The duplicated element will be inserted at the end of the page
-            serialized["order"] = Element.get_last_order(
-                element.page,
-                element.parent_element_id,
-                element.place_in_container,
-            )
 
         element_duplicated = element_type.import_serialized(
             element.page, serialized, id_mapping

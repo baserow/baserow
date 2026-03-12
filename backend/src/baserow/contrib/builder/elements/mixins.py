@@ -17,6 +17,7 @@ from baserow.contrib.builder.api.elements.serializers import (
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
+    ElementNotMovable,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
@@ -39,17 +40,36 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
 
 
 class ContainerElementTypeMixin:
+    # Yes we're a container.
+    is_container = True
+
     # Container element types are imported first.
     import_element_priority = 1
 
     class SerializedDict(ElementDict):
         pass
+
+    def before_move(
+        self,
+        element: ContainerElement,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+    ):
+        """
+        Check the container node is not moved inside itself.
+        """
+
+        if element in reference_element.get_parent_points():
+            raise ElementNotMovable("A container element cannot be moved inside itself")
+
+        super().before_move(element, reference_element, position)
 
     @property
     def child_types_allowed(self) -> List[str]:

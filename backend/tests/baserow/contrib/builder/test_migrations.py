@@ -1,5 +1,7 @@
 import pytest
 
+from baserow.test_utils.helpers import is_dict_subset
+
 
 @pytest.mark.once_per_day_in_ci
 def test_0010_remove_orphan_collection_fields_forwards(
@@ -526,3 +528,140 @@ def test_0026_element_styles(migrator, teardown_table_metadata):
     }
     assert form.styles == {"button": {"button_alignment": "right"}}
     assert table.styles == {"button": {"button_alignment": "center"}}
+
+
+@pytest.mark.once_per_day_in_ci
+# You must add --run-once-per-day-in-ci to execute this test
+def test_0068_migrate_element_hierarchy_to_graph(migrator, teardown_table_metadata):
+    migrate_from = [
+        ("builder", "0067_slackwritemessageworkflowaction"),
+    ]
+    migrate_to = [
+        ("builder", "0068_migrate_element_hierarchy_to_graph"),
+    ]
+
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Builder = old_state.apps.get_model("builder", "Builder")
+    Page = old_state.apps.get_model("builder", "Page")
+
+    HeaderElement = old_state.apps.get_model("builder", "HeaderElement")
+    HeadingElement = old_state.apps.get_model("builder", "HeadingElement")
+    ColumnElement = old_state.apps.get_model("builder", "ColumnElement")
+    TextElement = old_state.apps.get_model("builder", "TextElement")
+
+    workspace = Workspace.objects.create(name="Workspace")
+    builder = Builder.objects.create(
+        order=2,
+        name="Builder",
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Builder),
+    )
+    shared_page = Page.objects.create(
+        order=1, builder=builder, name="__shared__", path="__shared__", shared=True
+    )
+    page = Page.objects.create(order=2, builder=builder, name="Page", path="")
+
+    shared_header = HeaderElement.objects.create(
+        page=page, content_type=ContentType.objects.get_for_model(HeaderElement)
+    )
+    shared_header.pages.add(*[page, shared_page])
+    heading = HeadingElement.objects.create(
+        order=1,
+        page=page,
+        parent_element=shared_header,
+        value="'Welcome to my website'",
+        content_type=ContentType.objects.get_for_model(HeadingElement),
+    )
+
+    column = ColumnElement.objects.create(
+        order=2,
+        page=page,
+        column_amount=3,
+        content_type=ContentType.objects.get_for_model(ColumnElement),
+    )
+    text_1_column_1 = TextElement.objects.create(
+        order=1,
+        page=page,
+        parent_element=column,
+        place_in_container="0",
+        value="'Text 1 Column 1'",
+        content_type=ContentType.objects.get_for_model(TextElement),
+    )
+    text_2_column_1 = TextElement.objects.create(
+        order=2,
+        page=page,
+        parent_element=column,
+        place_in_container="0",
+        value="'Text 2 Column 1'",
+        content_type=ContentType.objects.get_for_model(TextElement),
+    )
+    text_column_2 = TextElement.objects.create(
+        order=1,
+        page=page,
+        parent_element=column,
+        place_in_container="1",
+        value="'Text Column 2'",
+        content_type=ContentType.objects.get_for_model(TextElement),
+    )
+    text_column_3 = TextElement.objects.create(
+        order=1,
+        page=page,
+        parent_element=column,
+        place_in_container="2",
+        value="'Text Column 3'",
+        content_type=ContentType.objects.get_for_model(TextElement),
+    )
+
+    new_state = migrator.migrate(migrate_to)
+    Page = new_state.apps.get_model("builder", "Page")
+
+    migrated_page = Page.objects.get(pk=page.id)
+    assert is_dict_subset(
+        migrated_page.graph,
+        {
+            "0": str(shared_header.id),
+            str(shared_header.id): {
+                "next": {"": [column.id]},
+                "children": [heading.id],
+            },
+            str(heading.id): {},
+            str(column.id): {
+                "children": [
+                    text_1_column_1.id,
+                    text_2_column_1.id,
+                    text_column_2.id,
+                    text_column_3.id,
+                ]
+            },
+            str(text_1_column_1.id): {},
+            str(text_2_column_1.id): {},
+            str(text_column_2.id): {},
+            str(text_column_3.id): {},
+        },
+    )
+
+    rollback_old_state = migrator.migrate(migrate_from)
+
+    HeaderElement = rollback_old_state.apps.get_model("builder", "HeaderElement")
+    HeadingElement = rollback_old_state.apps.get_model("builder", "HeadingElement")
+    ColumnElement = rollback_old_state.apps.get_model("builder", "ColumnElement")
+    TextElement = rollback_old_state.apps.get_model("builder", "TextElement")
+
+    rollback_shared_header = HeaderElement.objects.get(pk=shared_header.id)
+    rollback_heading = HeadingElement.objects.get(pk=heading.id)
+    rollback_column = ColumnElement.objects.get(pk=column.id)
+    rollback_text_1_column_1 = TextElement.objects.get(pk=text_1_column_1.id)
+    rollback_text_2_column_1 = TextElement.objects.get(pk=text_2_column_1.id)
+    rollback_text_column_2 = TextElement.objects.get(pk=text_column_2.id)
+    rollback_text_column_3 = TextElement.objects.get(pk=text_column_3.id)
+
+    assert rollback_shared_header.parent_element is None
+    assert rollback_heading.parent_element_id == rollback_shared_header.id
+    assert rollback_column.parent_element is None
+    assert rollback_text_1_column_1.parent_element_id is rollback_column.id
+    assert rollback_text_2_column_1.parent_element_id is rollback_column.id
+    assert rollback_text_column_2.parent_element_id is rollback_column.id
+    assert rollback_text_column_3.parent_element_id is rollback_column.id

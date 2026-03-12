@@ -144,7 +144,7 @@ def test_builder_application_export(data_fixture):
         page=page1, column_amount=3, column_gap=50
     )
     element_inside_container = data_fixture.create_builder_text_element(
-        page=page1, parent_element=element_container, place_in_container="0"
+        page=page1, reference_element=element_container, place_in_container="0"
     )
 
     integration = data_fixture.create_local_baserow_integration(

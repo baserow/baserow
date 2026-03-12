@@ -126,9 +126,6 @@ def test_get_elements(data_fixture, django_assert_num_queries):
     with django_assert_num_queries(3):
         elements = ElementHandler().get_elements(page)
 
-    # Cache of specific elements is set.
-    assert page._page_elements_specific == elements
-
     assert [e.id for e in elements] == [
         element1.id,
         element2.id,
@@ -142,24 +139,23 @@ def test_get_elements(data_fixture, django_assert_num_queries):
     # Cache of specific elements is re-used.
     with django_assert_num_queries(0):
         elements = ElementHandler().get_elements(page)
-    assert page._page_elements_specific == elements
+        assert len(elements) == 3
 
     # We request non-specific records, the cache changes.
     with django_assert_num_queries(1):
         elements = list(ElementHandler().get_elements(page, specific=False))
-        assert page._page_elements == elements
+        assert len(elements) == 3
 
     # We request non-specific records, the cache is reused.
     with django_assert_num_queries(0):
         elements = list(ElementHandler().get_elements(page, specific=False))
-    assert page._page_elements == elements
+        assert len(elements) == 3
 
     # We pass in a base queryset, no caching strategy is available.
     base_queryset = Element.objects.filter(page=page, visibility="all")
-    with django_assert_num_queries(3):
-        ElementHandler().get_elements(page, base_queryset)
-    assert page._page_elements is None
-    assert page._page_elements_specific is None
+    with django_assert_num_queries(4):
+        elements = ElementHandler().get_elements(page, base_queryset)
+        assert len(elements) == 3
 
 
 @pytest.mark.django_db
@@ -452,10 +448,10 @@ def test_before_places_in_container_removed(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=3)
 
     element_one = data_fixture.create_builder_heading_element(
-        parent_element=column_element, place_in_container="2"
+        reference_element=column_element, place_in_container="2"
     )
     element_two = data_fixture.create_builder_heading_element(
-        parent_element=column_element, place_in_container="1"
+        reference_element=column_element, place_in_container="1"
     )
 
     result = ElementHandler().before_places_in_container_removed(
@@ -477,10 +473,10 @@ def test_before_places_in_container_removed_no_change(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=3)
 
     element_one = data_fixture.create_builder_heading_element(
-        parent_element=column_element, place_in_container="0"
+        reference_element=column_element, place_in_container="0"
     )
     element_two = data_fixture.create_builder_heading_element(
-        parent_element=column_element, place_in_container="0"
+        reference_element=column_element, place_in_container="0"
     )
 
     result = ElementHandler().before_places_in_container_removed(
@@ -511,10 +507,12 @@ def test_duplicate_element_single_element(data_fixture):
 def test_duplicate_element_multiple_elements(data_fixture):
     container_element = data_fixture.create_builder_column_element(column_amount=12)
     child = data_fixture.create_builder_text_element(
-        page=container_element.page, value="'test'", parent_element=container_element
+        page=container_element.page, value="'test'", reference_element=container_element
     )
     child_two = data_fixture.create_builder_text_element(
-        page=container_element.page, value="'test2'", parent_element=container_element
+        page=container_element.page,
+        value="'test2'",
+        reference_element=container_element,
     )
 
     [
@@ -543,10 +541,10 @@ def test_duplicate_element_multiple_elements(data_fixture):
 def test_duplicate_element_deeply_nested(data_fixture):
     container_element = data_fixture.create_builder_column_element(column_amount=12)
     child_first_level = data_fixture.create_builder_column_element(
-        parent_element=container_element, page=container_element.page
+        reference_element=container_element, page=container_element.page
     )
     child_second_level = data_fixture.create_builder_column_element(
-        parent_element=child_first_level, page=container_element.page
+        reference_element=child_first_level, page=container_element.page
     )
 
     [
@@ -621,10 +619,10 @@ def test_duplicate_element_with_workflow_action_in_container(data_fixture):
         column_amount=2, page=page
     )
     first_child = data_fixture.create_builder_button_element(
-        parent_element=container_element, page=page
+        reference_element=container_element, page=page
     )
     second_child = data_fixture.create_builder_button_element(
-        parent_element=container_element, page=page
+        reference_element=container_element, page=page
     )
 
     workflow_action1 = data_fixture.create_notification_workflow_action(
@@ -648,10 +646,10 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
     page = data_fixture.create_builder_page()
     grandparent = data_fixture.create_builder_column_element(column_amount=1, page=page)
     parent = data_fixture.create_builder_column_element(
-        column_amount=3, parent_element=grandparent, page=page
+        column_amount=3, reference_element=grandparent, page=page
     )
     child = data_fixture.create_builder_heading_element(
-        page=page, parent_element=parent
+        page=page, reference_element=parent
     )
 
     # Query and cache the page's elements for the same context.
@@ -680,9 +678,11 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     page = data_fixture.create_builder_page()
     grandparent = data_fixture.create_builder_column_element(column_amount=1, page=page)
     parent = data_fixture.create_builder_form_container_element(
-        parent_element=grandparent, page=page
+        reference_element=grandparent, page=page
     )
-    child = data_fixture.create_builder_choice_element(page=page, parent_element=parent)
+    child = data_fixture.create_builder_choice_element(
+        page=page, reference_element=parent
+    )
 
     with django_assert_num_queries(7):
         nearest_column_ancestor = ElementHandler().get_first_ancestor_of_type(

@@ -25,9 +25,9 @@ def test_column_element_can_have_children(data_fixture):
         child_element_one,
         child_element_two,
     ]
-    assert container_element.is_root_element is True
-    assert child_element_one.is_root_element is False
-    assert child_element_two.is_root_element is False
-    assert list(specific_iterator(child_element_one.get_sibling_elements())) == [
+    assert not container_element.is_nested_point
+    assert child_element_one.is_nested_point
+    assert child_element_two.is_nested_point
+    assert list(specific_iterator(child_element_one.get_sibling_points())) == [
         child_element_two
     ]

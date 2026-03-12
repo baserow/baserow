@@ -10,9 +10,7 @@ from baserow.core.workflow_actions.models import WorkflowAction
 
 class ElementDict(TypedDict):
     id: int
-    order: int
     type: str
-    parent_element_id: int
     place_in_container: str
     css_classes: str
     visibility: str

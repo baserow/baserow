@@ -118,8 +118,7 @@ def test_link_element_formula_generator(data_fixture, formula_generator_fixture)
     in its page_parameters JSON field that need to be specifically tested.
     """
 
-    exported_element = data_fixture.create_builder_element(
-        LinkElement,
+    exported_element = data_fixture.create_builder_link_element(
         value=formula_generator_fixture["formula_1"],
         page_parameters=[
             {

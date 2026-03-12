@@ -56,13 +56,13 @@ def test_get_places_in_container_removed(data_fixture):
 def test_apply_order_by_children(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=20)
     first_element = data_fixture.create_builder_heading_element(
-        parent_element=column_element, place_in_container="0"
+        reference_element=column_element, place_in_container="0"
     )
     last_element = data_fixture.create_builder_text_element(
-        parent_element=column_element, place_in_container="11"
+        reference_element=column_element, place_in_container="11"
     )
     middle_element = data_fixture.create_builder_text_element(
-        parent_element=column_element, place_in_container="5"
+        reference_element=column_element, place_in_container="5"
     )
 
     queryset = Element.objects.filter(parent_element=column_element)
@@ -175,11 +175,11 @@ def test_column_element_type_can_have_children(data_fixture):
         element_inside_container_ten,
         element_inside_container_eleven,
     ]
-    assert container.is_root_element is True
-    assert element_inside_container_one.is_root_element is False
-    assert element_inside_container_two.is_root_element is False
+    assert not container.is_nested_point
+    assert element_inside_container_one.is_nested_point
+    assert element_inside_container_two.is_nested_point
     assert list(
-        specific_iterator(element_inside_container_one.get_sibling_elements())
+        specific_iterator(element_inside_container_one.get_sibling_points())
     ) == [
         element_inside_container_two,
         element_inside_container_three,

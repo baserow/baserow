@@ -456,7 +456,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         if simulate_until_node:
             allowed_nodes = {
-                *simulate_until_node.get_previous_nodes(),
+                *simulate_until_node.get_previous_points(),
                 simulate_until_node,
             }
             if node not in allowed_nodes:
@@ -556,7 +556,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_history.save()
 
         # Handle non-iterator nodes, including iterator children.
-        next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+        next_nodes = node.get_next_points(dispatch_result.output_uid)
         if next_nodes:
             to_chain.append(
                 group(

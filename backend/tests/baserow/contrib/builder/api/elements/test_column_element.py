@@ -3,6 +3,8 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
+from baserow.core.graph.types import GraphPointPosition
+
 
 @pytest.mark.django_db
 def test_can_get_a_column_element(api_client, data_fixture):
@@ -188,7 +190,8 @@ def test_moving_an_element_to_new_column_appends_element(api_client, data_fixtur
     element_in_column_0 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column_element.id,
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
         place_in_container="0",
         order=1,
     )
@@ -196,7 +199,8 @@ def test_moving_an_element_to_new_column_appends_element(api_client, data_fixtur
     element_in_column_1 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column_element.id,
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
         order=4,
     )
@@ -208,7 +212,7 @@ def test_moving_an_element_to_new_column_appends_element(api_client, data_fixtur
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
             "place_in_container": "1",
         },
         format="json",
@@ -222,8 +226,6 @@ def test_moving_an_element_to_new_column_appends_element(api_client, data_fixtur
 
     assert element_in_column_0.place_in_container == "1"
     assert element_in_column_1.place_in_container == "1"
-
-    assert element_in_column_0.order > element_in_column_1.order
 
 
 @pytest.mark.django_db

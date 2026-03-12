@@ -353,7 +353,7 @@ def test_import_element_has_to_import_parent_first(data_fixture):
         page=page, column_amount=15
     )
     text_element = data_fixture.create_builder_text_element(
-        page=page, parent_element=parent_column
+        page=page, reference_element=parent_column
     )
     parent_serialized = element_type_registry.get_by_model(
         parent_column
@@ -383,7 +383,7 @@ def test_import_element_has_to_instance_already_created(data_fixture):
         page=page, column_amount=15
     )
     text_element = data_fixture.create_builder_text_element(
-        page=page, parent_element=parent_column
+        page=page, reference_element=parent_column
     )
     parent_serialized = element_type_registry.get_by_model(
         parent_column

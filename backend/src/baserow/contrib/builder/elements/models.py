@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -20,18 +20,15 @@ from baserow.core.constants import (
 )
 from baserow.core.formula.field import FormulaField, JSONFormulaField
 from baserow.core.formula.serializers import collect_json_formula_field_properties
+from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     HierarchicalModelMixin,
     PolymorphicContentTypeMixin,
     TrashableModelMixin,
     WithRegistry,
 )
 from baserow.core.user_files.models import UserFile
-
-if TYPE_CHECKING:
-    from baserow.contrib.builder.pages.models import Page
 
 
 class BackgroundTypes(models.TextChoices):
@@ -88,8 +85,8 @@ class Element(
     HierarchicalModelMixin,
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     PolymorphicContentTypeMixin,
+    GraphPointMixin,
     WithRegistry,
     models.Model,
 ):
@@ -109,29 +106,12 @@ class Element(
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
 
     page = models.ForeignKey("builder.Page", on_delete=models.CASCADE)
-    order = models.DecimalField(
-        help_text="Lowest first.",
-        max_digits=40,
-        decimal_places=20,
-        editable=False,
-        default=1,
-    )
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",
         related_name="page_elements",
         on_delete=models.SET(get_default_element_content_type),
     )
-    # This is used for container elements, if NULL then this is a root element
-    parent_element = models.ForeignKey(
-        "self",
-        on_delete=models.CASCADE,
-        null=True,
-        default=None,
-        help_text="The parent element, if inside a container.",
-        related_name="children",
-    )
-
     role_type = models.CharField(
         choices=ROLE_TYPES.choices,
         max_length=19,
@@ -141,16 +121,6 @@ class Element(
     roles = models.JSONField(
         default=list,
         help_text="User roles associated with this element, used in conjunction with role_type.",
-    )
-
-    # The following fields are used to store the position of the element in the
-    # container. If the element is a root element then this is null.
-    place_in_container = models.CharField(
-        null=True,
-        blank=True,
-        default=None,
-        max_length=255,
-        help_text="The place in the container.",
     )
 
     visibility = models.CharField(
@@ -296,7 +266,19 @@ class Element(
     )
 
     class Meta:
-        ordering = ("order", "id")
+        ordering = ("id",)
+
+    @property
+    def parent_element(self) -> Optional["Element"]:
+        point_ancestry = self.get_parent_points()
+        return point_ancestry[0] if point_ancestry else None
+
+    @property
+    def parent_element_id(self) -> Optional[int]:
+        return self.parent_element.id if self.parent_element else None
+
+    def graph_point_edge_label(self, uid: str) -> str:
+        return self.place_in_container or ""
 
     @staticmethod
     def get_type_registry():
@@ -306,82 +288,6 @@ class Element(
 
     def get_parent(self):
         return self.page
-
-    def get_sibling_elements(self):
-        return Element.objects.filter(
-            parent_element=self.parent_element, page=self.page
-        ).exclude(id=self.id)
-
-    @property
-    def is_root_element(self):
-        return self.parent_element is None
-
-    @classmethod
-    def get_last_order(
-        cls,
-        page: "Page",
-        parent_element_id: Optional[int] = None,
-        place_in_container: Optional[str] = None,
-    ):
-        """
-        Returns the last order for the given page.
-
-        :param page: The page we want the order for.
-        :param base_queryset: The base queryset to use.
-        :return: The last order.
-        """
-
-        return cls.get_last_orders(page, parent_element_id, place_in_container)[0]
-
-    @classmethod
-    def get_last_orders(
-        cls,
-        page: "Page",
-        parent_element_id: Optional[int] = None,
-        place_in_container: Optional[str] = None,
-        amount=1,
-    ):
-        """
-        Returns the last orders for the given page.
-
-        :param page: The page we want the order for.
-        :param parent_element_id: The id of the parent element.
-        :param place_in_container: The place in the container
-        :param amount: The number of orders you wish to have returned
-        :return: The last order.
-        """
-
-        queryset = Element.objects.filter(page=page)
-
-        queryset = cls._scope_queryset_to_container(
-            queryset, parent_element_id, place_in_container
-        )
-
-        return cls.get_highest_order_of_queryset(queryset, amount=amount)
-
-    @classmethod
-    def get_unique_order_before_element(
-        cls, before: "Element", parent_element_id: int, place_in_container: str
-    ):
-        """
-        Returns a safe order value before the given element in the given page.
-
-        :param before: The element before which we want the safe order
-        :param parent_element_id: The id of the parent element.
-        :param place_in_container: The place in the container
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the items must be recalculated in this
-            case before calling this method again.
-        :return: The order value.
-        """
-
-        queryset = Element.objects.filter(page=before.page)
-
-        queryset = cls._scope_queryset_to_container(
-            queryset, parent_element_id, place_in_container
-        )
-
-        return cls.get_unique_orders_before_item(before, queryset)[0]
 
     @classmethod
     def _scope_queryset_to_container(
