@@ -101,6 +101,7 @@ def create_builders(
     RETURNS: List of created builders with id, name, type.
     DO NOT USE when: A builder with that name may already exist — check with list_builders first.
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
+    THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
     """
 
     user = ctx.deps.user
