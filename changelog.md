@@ -8,6 +8,7 @@
 * [Core] Fix error page on token expiration to redirect to login
 * [Builder] Fixed a bug that could cause a stale page ID to be set even after deleting the page.
 * [Core] Improved the scheduling system in the periodic service.
+* [Builder] Resolved a bug where a container-type element with a visibility condition would be unable to use form data in its formula.
 * [Automation] Resolved a bug which caused the periodic trigger to reset its minute value if the interval was set to minute.
 * [Automation] Resolved an issue which prevented hour and minute values from persisting in the periodic trigger form.
 
