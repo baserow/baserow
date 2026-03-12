@@ -3,6 +3,7 @@
 ## Released 2.1.5
 
 ### Bug fixes
+* [Database] Remove ollama dependency [#4962](https://github.com/baserow/baserow/issues/4962)
 * [Core] Fix a bug that caused an error when running the backend and frontend images as different users.
 * [Core] Fix error page on token expiration to redirect to login
 * [Builder] Fixed a bug that could cause a stale page ID to be set even after deleting the page.
@@ -12,6 +13,7 @@
 
 ### Refactors
 * [Automation] Add support for dispatching automation nodes asynchronously. [#3838](https://github.com/baserow/baserow/issues/3838)
+* [Database] Update langchain to 0.3.28 [#4965](https://github.com/baserow/baserow/issues/4965)
 
 
 ## Released 2.1.4
