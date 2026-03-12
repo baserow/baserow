@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix a bug causing an error trying to run the backend and frontend image as different users.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-12"
+}

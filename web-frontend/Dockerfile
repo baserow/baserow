@@ -115,7 +115,8 @@ ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend"
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    chmod 755 /baserow
 
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
@@ -193,6 +194,7 @@ COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    chmod 755 /baserow && \
     echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
     chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
@@ -267,7 +269,8 @@ RUN apt-get update && apt-get upgrade -y --no-install-recommends \
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+    useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    chmod 755 /baserow
 
 USER $UID:$GID
 RUN mkdir -p /baserow/web-frontend/docker
