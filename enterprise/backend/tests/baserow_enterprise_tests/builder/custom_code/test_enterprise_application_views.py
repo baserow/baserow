@@ -263,3 +263,17 @@ def test_get_enterprise_builder_custom_code_public_no_licence(api_client, data_f
         url,
     )
     assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_get_enterprise_builder_custom_code_public_application_not_found(
+    enable_enterprise, api_client, data_fixture
+):
+    url = reverse(
+        "api:enterprise:custom_code:public_js",
+        kwargs={"builder_id": 123456},
+    )
+
+    response = api_client.get(url)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
