@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix a bug causing an error trying to run the backend and frontend image as different users.",
+    "message": "Fix a bug that caused an error when running the backend and frontend images as different users.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "core",
