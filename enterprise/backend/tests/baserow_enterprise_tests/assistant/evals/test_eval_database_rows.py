@@ -154,11 +154,6 @@ def test_agent_creates_rows_with_all_field_types(data_fixture, eval_model, db):
         toolsets=[toolset],
     )
 
-    print_message_history(result)
-
-    # No tool errors or validation retries
-    assert_no_tool_errors(tracker, result)
-
     # Verify rows were created
     table_model = table.get_model()
     row_count = table_model.objects.count()
@@ -192,3 +187,8 @@ def test_agent_creates_rows_with_all_field_types(data_fixture, eval_model, db):
     for field_name, check_fn in field_checks.items():
         matches = [r for r in sample_rows if check_fn(r)]
         assert matches, f"No rows had valid data for field '{field_name}'"
+
+    print_message_history(result)
+
+    # No tool errors or validation retries
+    assert_no_tool_errors(tracker, result)

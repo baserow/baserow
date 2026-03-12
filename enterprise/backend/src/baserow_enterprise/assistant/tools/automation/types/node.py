@@ -30,7 +30,7 @@ from baserow_enterprise.assistant.types import BaseModel
 
 # Short marker appended to fields that support $formula: dynamic values.
 # The full explanation lives in the create_workflows tool description.
-_F = f" Supports {FORMULA_PREFIX} prefix."
+SUPPORTS_FORMULA = f" Supports {FORMULA_PREFIX} prefix."
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ class AutomationFieldValue(BaseModel):
     """Field ID → value mapping for row actions."""
 
     field_id: int = Field(..., description="Database field ID.")
-    value: str = Field(..., description=f"Field value.{_F}")
+    value: str = Field(..., description=f"Field value.{SUPPORTS_FORMULA}")
 
 
 # ---------------------------------------------------------------------------
@@ -249,22 +249,32 @@ class ActionNodeCreate(BaseModel):
 
     # -- smtp_email --
     to_emails: str | None = Field(
-        default=None, description=f"(smtp_email) Recipients.{_F}"
+        default=None, description=f"(smtp_email) Recipients.{SUPPORTS_FORMULA}"
     )
-    cc_emails: str | None = Field(default=None, description=f"(smtp_email) CC.{_F}")
-    bcc_emails: str | None = Field(default=None, description=f"(smtp_email) BCC.{_F}")
-    subject: str | None = Field(default=None, description=f"(smtp_email) Subject.{_F}")
-    body: str | None = Field(default=None, description=f"(smtp_email) Body.{_F}")
+    cc_emails: str | None = Field(
+        default=None, description=f"(smtp_email) CC.{SUPPORTS_FORMULA}"
+    )
+    bcc_emails: str | None = Field(
+        default=None, description=f"(smtp_email) BCC.{SUPPORTS_FORMULA}"
+    )
+    subject: str | None = Field(
+        default=None, description=f"(smtp_email) Subject.{SUPPORTS_FORMULA}"
+    )
+    body: str | None = Field(
+        default=None, description=f"(smtp_email) Body.{SUPPORTS_FORMULA}"
+    )
     body_type: Literal["plain", "html"] = "plain"
 
     # -- slack_write_message --
     channel: str | None = None
-    text: str | None = Field(default=None, description=f"(slack) Message.{_F}")
+    text: str | None = Field(
+        default=None, description=f"(slack) Message.{SUPPORTS_FORMULA}"
+    )
 
     # -- create_row / update_row / delete_row --
     table_id: int | None = None
     row_id: str | None = Field(
-        default=None, description=f"(update/delete_row) Row ID.{_F}"
+        default=None, description=f"(update/delete_row) Row ID.{SUPPORTS_FORMULA}"
     )
     values: list[AutomationFieldValue] | None = None
 
@@ -277,7 +287,9 @@ class ActionNodeCreate(BaseModel):
         default=None,
         description="(ai_agent) Choices if output_type='choice'.",
     )
-    prompt: str | None = Field(default=None, description=f"(ai_agent) Prompt.{_F}")
+    prompt: str | None = Field(
+        default=None, description=f"(ai_agent) Prompt.{SUPPORTS_FORMULA}"
+    )
 
     # Required fields per type
     _REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
@@ -616,29 +628,41 @@ class NodeUpdate(BaseModel):
 
     # -- smtp_email --
     to_emails: str | None = Field(
-        default=None, description=f"(smtp_email) Recipients.{_F}"
+        default=None, description=f"(smtp_email) Recipients.{SUPPORTS_FORMULA}"
     )
-    cc_emails: str | None = Field(default=None, description=f"(smtp_email) CC.{_F}")
-    bcc_emails: str | None = Field(default=None, description=f"(smtp_email) BCC.{_F}")
-    subject: str | None = Field(default=None, description=f"(smtp_email) Subject.{_F}")
-    body: str | None = Field(default=None, description=f"(smtp_email) Body.{_F}")
+    cc_emails: str | None = Field(
+        default=None, description=f"(smtp_email) CC.{SUPPORTS_FORMULA}"
+    )
+    bcc_emails: str | None = Field(
+        default=None, description=f"(smtp_email) BCC.{SUPPORTS_FORMULA}"
+    )
+    subject: str | None = Field(
+        default=None, description=f"(smtp_email) Subject.{SUPPORTS_FORMULA}"
+    )
+    body: str | None = Field(
+        default=None, description=f"(smtp_email) Body.{SUPPORTS_FORMULA}"
+    )
     body_type: Literal["plain", "html"] | None = None
 
     # -- slack_write_message --
     channel: str | None = None
-    text: str | None = Field(default=None, description=f"(slack) Message.{_F}")
+    text: str | None = Field(
+        default=None, description=f"(slack) Message.{SUPPORTS_FORMULA}"
+    )
 
     # -- create_row / update_row / delete_row --
     table_id: int | None = None
     row_id: str | None = Field(
-        default=None, description=f"(update/delete_row) Row ID.{_F}"
+        default=None, description=f"(update/delete_row) Row ID.{SUPPORTS_FORMULA}"
     )
     values: list[AutomationFieldValue] | None = None
 
     # -- ai_agent --
     output_type: Literal["text", "choice"] | None = None
     choices: list[str] | None = None
-    prompt: str | None = Field(default=None, description=f"(ai_agent) Prompt.{_F}")
+    prompt: str | None = Field(
+        default=None, description=f"(ai_agent) Prompt.{SUPPORTS_FORMULA}"
+    )
 
     def to_update_service_dict(self, current_type: str) -> dict[str, Any] | None:
         """Build a service kwargs dict from non-None fields. Returns None if no service fields set."""

@@ -228,7 +228,7 @@ alias f := fix
 
 # PYTHONPATH for test fixtures across all test directories
 test_pythonpath := "tests:../premium/backend/tests:../enterprise/backend/tests"
-_pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest'
+_pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest -c pytest.ini'
 
 # Run tests. Pass -n=auto to run in parallel with pytest-xdist
 [group('3 - testing')]

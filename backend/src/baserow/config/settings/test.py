@@ -65,9 +65,9 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
     os.getenv("BASEROW_TESTS_SETUP_DB_FIXTURE", "on")
 )
-DATABASES["default"]["TEST"] = {
-    "MIGRATE": not BASEROW_TESTS_SETUP_DB_FIXTURE,
-}
+DATABASES["default"].setdefault("TEST", {})[
+    "MIGRATE"
+] = not BASEROW_TESTS_SETUP_DB_FIXTURE
 
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
