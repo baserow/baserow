@@ -3,15 +3,24 @@ export default (client) => {
     fetchAll(pageId) {
       return client.get(`builder/page/${pageId}/elements/`)
     },
-    create(pageId, elementType, beforeId = null, configuration = null) {
+    create(
+      pageId,
+      elementType,
+      referenceElement,
+      position,
+      configuration = null
+    ) {
       const payload = {
         type: elementType,
         ...configuration,
       }
 
-      if (beforeId !== null) {
-        payload.before_id = beforeId
+      if (referenceElement) {
+        payload.reference_element_id = referenceElement.id
+        payload.position = position
       }
+
+      console.log('Creating element with payload', payload)
 
       return client.post(`builder/page/${pageId}/elements/`, payload)
     },
