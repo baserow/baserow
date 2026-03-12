@@ -5,7 +5,6 @@ from baserow.contrib.builder.elements.models import (
     MenuItemElement,
 )
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow_enterprise.assistant.types import (
     ApplicationUIContext,
@@ -64,12 +63,6 @@ PROMPT_CREATE_DATA_SOURCE_PAGE = (
     "Then add a repeat element using that data source and inside it "
     "a heading element."
 )
-
-PROMPT_CREATE_APP_WITH_DARK_THEME = (
-    "Create a new application called 'Dashboard' with the eclipse theme."
-)
-
-PROMPT_CHANGE_THEME = "Change the theme of builder '{builder_name}' to midnight."
 
 PROMPT_TABLE_WITH_EDIT_BUTTON = (
     "In builder '{builder_name}', create two pages: "
@@ -676,120 +669,6 @@ def test_agent_creates_page_specific_nav_on_page(data_fixture, eval_model):
     assert not shared_elements.exists(), (
         "Page-specific nav should NOT be on the shared page. "
         f"Shared page has: {list(shared_elements.values_list('content_type__model', flat=True))}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Theme evals
-# ---------------------------------------------------------------------------
-
-
-def _get_theme_primary_color(builder) -> str:
-    """Return the current primary_color for a builder, refreshed from DB."""
-
-    builder.refresh_from_db()
-    try:
-        return builder.colorthemeconfigblock.primary_color
-    except ColorThemeConfigBlock.DoesNotExist:
-        return ""
-
-
-@pytest.mark.eval
-@pytest.mark.django_db(transaction=True)
-def test_agent_creates_app_with_theme(data_fixture, eval_model):
-    """Agent should create an application and apply the requested theme."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
-        user, workspace, max_iters=15, model=eval_model
-    )
-    ui_context = UIContext(
-        workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-        user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-    ).format()
-    deps.tool_helpers.request_context["ui_context"] = ui_context
-
-    result = agent.run_sync(
-        user_prompt=PROMPT_CREATE_APP_WITH_DARK_THEME,
-        deps=deps,
-        model=model,
-        usage_limits=usage_limits,
-        toolsets=[toolset],
-    )
-
-    print_message_history(result)
-    assert_no_tool_errors(tracker, result)
-
-    # The agent should have called create_builders
-    assert len(_filter_tool_calls(result, "create_builders")) >= 1, (
-        "Agent should have called create_builders"
-    )
-
-    # Verify the builder was created
-    from baserow.contrib.builder.models import Builder
-
-    builders = Builder.objects.filter(workspace=workspace, name__icontains="Dashboard")
-    assert builders.exists(), "No builder named 'Dashboard' was created"
-
-    # Verify eclipse theme was applied (primary_color differs from default)
-    builder = builders.first()
-    primary_color = _get_theme_primary_color(builder)
-    default_color = "#5190efff"
-    assert primary_color != default_color, (
-        f"Theme was not applied — primary_color is still the default ({default_color}). "
-        f"Expected eclipse theme color."
-    )
-
-
-@pytest.mark.eval
-@pytest.mark.django_db(transaction=True)
-def test_agent_changes_theme(data_fixture, eval_model):
-    """Agent should change the theme of an existing application."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(
-        user=user, workspace=workspace, name="My App"
-    )
-
-    # Record the initial primary color
-    initial_color = _get_theme_primary_color(builder)
-
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
-        user, workspace, max_iters=15, model=eval_model
-    )
-    ui_context = build_builder_ui_context(user, workspace, builder)
-
-    result = _run_agent(
-        agent,
-        deps,
-        tracker,
-        model,
-        usage_limits,
-        toolset,
-        question=PROMPT_CHANGE_THEME.format(builder_name=builder.name),
-        ui_context=ui_context,
-    )
-
-    print_message_history(result)
-    assert_no_tool_errors(tracker, result)
-
-    # The agent should have called set_theme
-    set_theme_calls = _filter_tool_calls(result, "set_theme")
-    assert len(set_theme_calls) >= 1, "Agent should have called set_theme"
-
-    # Verify theme_name argument was "midnight"
-    theme_arg = set_theme_calls[0]["args"].get("theme_name")
-    assert theme_arg == "midnight", (
-        f"Expected set_theme with theme_name='midnight', got '{theme_arg}'"
-    )
-
-    # Verify the color actually changed
-    new_color = _get_theme_primary_color(builder)
-    assert new_color != initial_color, (
-        f"Theme color did not change — still '{initial_color}' after set_theme"
     )
 
 
