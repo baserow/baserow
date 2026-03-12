@@ -330,7 +330,7 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
             raise GenerativeAIPromptError(str(exc)) from exc
 
 
-class OllamaGenerativeAIModelType(GenerativeAIModelType):
+class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "ollama"
 
     def get_host(self, workspace=None, settings_override=None):
@@ -339,6 +339,16 @@ class OllamaGenerativeAIModelType(GenerativeAIModelType):
             or settings.BASEROW_OLLAMA_HOST
         )
 
+    def get_api_key(self, workspace=None, settings_override=None):
+        return "ollama"
+
+    def get_organization(self, workspace=None, settings_override=None):
+        return None
+
+    def get_base_url(self, workspace=None, settings_override=None):
+        host = self.get_host(workspace, settings_override)
+        return f"{host}/v1"
+
     def get_enabled_models(self, workspace=None, settings_override=None):
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
@@ -346,38 +356,10 @@ class OllamaGenerativeAIModelType(GenerativeAIModelType):
         return workspace_models or settings.BASEROW_OLLAMA_MODELS
 
     def is_enabled(self, workspace=None, settings_override=None):
-        ollama_host = self.get_host(workspace, settings_override)
-        return bool(ollama_host) and bool(
+        host = self.get_host(workspace, settings_override)
+        return bool(host) and bool(
             self.get_enabled_models(workspace, settings_override)
         )
-
-    def get_client(self, workspace=None, settings_override=None):
-        from ollama import Client as OllamaClient
-
-        ollama_host = self.get_host(workspace, settings_override)
-        return OllamaClient(host=ollama_host)
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from ollama import RequestError as OllamaRequestError
-        from ollama import ResponseError as OllamaResponseError
-
-        client = self.get_client(workspace, settings_override)
-        options = {}
-        if temperature:
-            # Because some LLMs can have a temperature of 2, this is the maximum by
-            # default. We're changing it to a maximum of 1 because Ollama only
-            # accepts 1.
-            options["temperature"] = min(temperature, 1)
-        try:
-            response = client.generate(
-                model=model, prompt=prompt, stream=False, options=options
-            )
-        except (OllamaRequestError, OllamaResponseError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
-
-        return response["response"]
 
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import OllamaSettingsSerializer

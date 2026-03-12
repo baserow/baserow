@@ -541,7 +541,7 @@ def test_publish_workflow_error_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history(api_client, data_fixture):
+def test_get_workflow_histories(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     history = data_fixture.create_workflow_history(user=user)
 
@@ -567,7 +567,7 @@ def test_get_workflow_history(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history_invalid_workflow(api_client, data_fixture):
+def test_get_workflow_histories_invalid_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": 99999})
@@ -581,7 +581,7 @@ def test_get_workflow_history_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history_permission_error(api_client, data_fixture):
+def test_get_workflow_histories_permission_error(api_client, data_fixture):
     user, _ = data_fixture.create_user_and_token()
     history = data_fixture.create_workflow_history(user=user)
 

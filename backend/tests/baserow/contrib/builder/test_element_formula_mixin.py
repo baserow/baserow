@@ -27,6 +27,7 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
     TextElement,
 )
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
@@ -96,9 +97,9 @@ def test_element_formula_generator_mixin(
     )
     serialized_element = element_type().export_serialized(exported_element)
 
-    imported_element = element_type().import_serialized(
+    [imported_element] = PageHandler().import_elements(
         formula_generator_fixture["page"],
-        serialized_element,
+        [serialized_element],
         formula_generator_fixture["id_mapping"],
     )
 
@@ -143,9 +144,9 @@ def test_link_element_formula_generator(data_fixture, formula_generator_fixture)
     )
     serialized_element = LinkElementType().export_serialized(exported_element)
 
-    imported_element = LinkElementType().import_serialized(
+    [imported_element] = PageHandler().import_elements(
         formula_generator_fixture["page"],
-        serialized_element,
+        [serialized_element],
         formula_generator_fixture["id_mapping"],
     )
 
@@ -248,9 +249,9 @@ def test_menu_element_formula_generator(data_fixture, formula_generator_fixture)
 
     serialized_element = MenuElementType().export_serialized(menu_element)
 
-    imported_element = MenuElementType().import_serialized(
+    [imported_element] = PageHandler().import_elements(
         formula_generator_fixture["page"],
-        serialized_element,
+        [serialized_element],
         formula_generator_fixture["id_mapping"],
     )
 

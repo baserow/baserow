@@ -196,7 +196,8 @@ ENV DOCKER_USER=baserow_docker_user \
     DJANGO_SETTINGS_MODULE='baserow.config.settings.test'
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+      chmod 755 /baserow
 
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
@@ -266,6 +267,7 @@ ENV DOCKER_USER=baserow_docker_user \
 
 RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
     useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+    chmod 755 /baserow && \
     echo "${DOCKER_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${DOCKER_USER} && \
     chmod 0440 /etc/sudoers.d/${DOCKER_USER}
 
@@ -350,7 +352,8 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
-      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER}
+      useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
+      chmod 755 /baserow
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY ./backend/docker/mime.types /etc/

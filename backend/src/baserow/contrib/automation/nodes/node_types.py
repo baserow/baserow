@@ -1,8 +1,8 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import router
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -340,8 +340,8 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        services: QuerySet[Service],
-        event_payload: List[Dict] | None | Callable = None,
+        services: Iterable[Service],
+        event_payload: Dict | None | Callable = None,
         user: Optional[AbstractUser] = None,
     ):
         from baserow.contrib.automation.workflows.handler import (
@@ -363,12 +363,16 @@ class AutomationNodeTriggerType(AutomationNodeType):
             .select_related("workflow__automation__workspace")
         )
 
-        if triggers and callable(event_payload):
-            event_payload = event_payload()
+        # For perf reasons, store the trigger<->service relationship.
+        service_map = {service.id: service for service in services}
 
         for trigger in triggers:
-            workflow = trigger.workflow
+            # If we've received a callable payload, call it with the specific service,
+            # this can give us a payload that is specific to the trigger's service.
+            if callable(event_payload):
+                event_payload = event_payload(service_map[trigger.service_id])
 
+            workflow = trigger.workflow
             AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 event_payload,

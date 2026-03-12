@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug which caused the periodic trigger to reset its minute value if the interval was set to minute.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-03-04"
+}

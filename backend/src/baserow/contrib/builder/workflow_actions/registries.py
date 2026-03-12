@@ -99,7 +99,7 @@ class BuilderWorkflowActionType(
 
         # Migrate page id
         if prop_name == "page_id":
-            return id_mapping["builder_pages"][value]
+            return id_mapping["builder_pages"].get(value)
 
         # Migrate element id
         if prop_name == "element_id":

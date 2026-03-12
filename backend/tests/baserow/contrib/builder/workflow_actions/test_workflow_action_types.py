@@ -418,3 +418,20 @@ def test_builder_workflow_action_type_dispatch(workflow_action):
         instance.dispatch(mock_workflow_action, mock_dispatch_context)
 
     assert str(e.value) == "This service cannot be dispatched."
+
+
+def test_workflow_action_type_deserialize_property_with_stale_page_id():
+    """
+    Ensure that deserializing a workflow action with an invalid page ID
+    doesn't cause a crash.
+    """
+
+    action_type = OpenPageWorkflowActionType()
+    id_mapping = {"builder_pages": {}}
+
+    # This shouldn't fail when the page ID doesn't exist
+    result = action_type.deserialize_property("page_id", 100, id_mapping)
+    assert result is None
+
+    result = action_type.deserialize_property("navigate_to_page_id", 100, id_mapping)
+    assert result is None

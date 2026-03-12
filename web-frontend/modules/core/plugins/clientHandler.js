@@ -498,7 +498,10 @@ export function makeErrorResponseInterceptor(
 
     // user session expired. Redirect to login page to start a new session.
     if (rspData?.error === 'ERROR_INVALID_REFRESH_TOKEN') {
-      nuxtErrorHandler({ statusCode: 401, message: 'User session expired' })
+      store.dispatch('auth/forceLogoff')
+      nuxtErrorHandler(
+        createError({ statusCode: 401, message: 'User session expired' })
+      )
       return Promise.reject(error)
     }
 

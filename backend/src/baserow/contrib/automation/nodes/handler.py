@@ -3,7 +3,10 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
+from django.utils import timezone
 
+from celery.canvas import Signature, chain, group
+from loguru import logger
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -11,10 +14,17 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.automation.formula_importer import import_formula
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.exceptions import (
+    AutomationWorkflowHistoryDoesNotExist,
+)
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeMisconfiguredService,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -22,6 +32,10 @@ from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.signals import automation_node_updated
+from baserow.contrib.automation.nodes.tasks import (
+    dispatch_node_celery_task,
+)
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
@@ -349,66 +363,176 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         return node_instance
 
+    def _handle_workflow_error(
+        self,
+        node_history: AutomationNodeHistory,
+        error: str,
+    ) -> None:
+        now = timezone.now()
+        node_history.workflow_history.completed_on = now
+        node_history.workflow_history.message = error
+        node_history.workflow_history.status = HistoryStatusChoices.ERROR
+        node_history.workflow_history.save()
+
+        node_history.completed_on = now
+        node_history.message = error
+        node_history.status = HistoryStatusChoices.ERROR
+        node_history.save()
+
     def dispatch_node(
         self,
-        node: "AutomationNode",
-        dispatch_context: AutomationDispatchContext,
-        allowed_nodes=None,
-    ):
+        node_id: int,
+        history_id: int,
+        current_iterations: Optional[Dict[int, int]] = None,
+    ) -> Signature | None:
         """
-        Dispatch one node and recursively dispatch the next nodes.
+        Dispatch a single node and return a canvas for the next nodes.
 
-        :param node: The node to start with.
-        :param dispatch_context: The context in which the workflow is being dispatched,
-            which contains the event payload and other relevant data.
-        :param allowed_nodes: if set, only the nodes from the list will be dispatched.
+        :param node_id: The node to dispatch.
+        :param history_id: The AutomationWorkflowHistory ID from which the
+            workflow's event payload and node results are derived.
+        :param current_iterations: Used by the Iterator node's children.
+        :return result: A signature is returned if there is a next node to
+            dispatch, otherwise returns None.
         """
 
-        if dispatch_context.simulate_until_node and allowed_nodes is None:
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        history_handler = AutomationHistoryHandler()
+
+        try:
+            workflow_history = history_handler.get_workflow_history(
+                history_id=history_id
+            )
+        except AutomationWorkflowHistoryDoesNotExist as e:
+            logger.error(str(e))
+            return None
+
+        node = self.get_node(node_id)
+        simulate_until_node = (
+            node.workflow.get_graph().get_node(workflow_history.simulate_until_node_id)
+            if workflow_history.simulate_until_node_id
+            else None
+        )
+
+        if simulate_until_node:
             allowed_nodes = {
-                *dispatch_context.simulate_until_node.get_previous_nodes(),
-                dispatch_context.simulate_until_node,
+                *simulate_until_node.get_previous_nodes(),
+                simulate_until_node,
             }
+            if node not in allowed_nodes:
+                # Return early as the node is not in the path leading to
+                # the simulated node.
+                return None
 
-        if allowed_nodes is not None and node not in allowed_nodes:
-            # Return early as the node is not on the path until the simulated node
-            return
+        node_history = history_handler.create_node_history(
+            workflow_history=workflow_history,
+            node=node,
+            started_on=timezone.now(),
+        )
+
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            history_id,
+            event_payload=workflow_history.event_payload,
+            simulate_until_node=workflow_history.simulate_until_node,
+            current_iterations=current_iterations,
+        )
 
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
+
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
-            dispatch_context.after_dispatch(node, dispatch_result)
-
-            # Return early if this is a simulated dispatch
-            if until_node := dispatch_context.simulate_until_node:
-                if until_node.id == node.id:
-                    return
-
-            if children := node.get_children():
-                node_data = dispatch_result.data["results"]
-
-                if dispatch_context.simulate_until_node:
-                    iterations = [0]
-                else:
-                    iterations = range(len(node_data))
-
-                for index in iterations:
-                    sub_dispatch_context = dispatch_context.clone()
-                    sub_dispatch_context.set_current_iteration(node, index)
-
-                    # dispatch context build
-                    for child in children:
-                        self.dispatch_node(
-                            child, sub_dispatch_context, allowed_nodes=allowed_nodes
-                        )
-
-            next_nodes = node.get_next_nodes(dispatch_result.output_uid)
-
-            for next_node in next_nodes:
-                self.dispatch_node(
-                    next_node, dispatch_context, allowed_nodes=allowed_nodes
-                )
         except ServiceImproperlyConfiguredDispatchException as e:
-            raise AutomationNodeMisconfiguredService(
-                f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
-            ) from e
+            error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
+            self._handle_workflow_error(node_history, error)
+            return None
+        except Exception as e:
+            original_workflow = AutomationWorkflowHandler().get_original_workflow(
+                node.workflow
+            )
+            error = (
+                f"Unexpected error while running workflow {original_workflow.id}. "
+                f"Error: {str(e)}"
+            )
+            logger.exception(error)
+            self._handle_workflow_error(node_history, error)
+            return None
+
+        iteration_index = 0
+        parent_nodes = node.get_parent_nodes()
+        if parent_nodes:
+            # Use the normalized iteration index from the context.
+            iteration_index = dispatch_context.current_iterations[parent_nodes[-1].id]
+
+        history_handler.create_node_result(
+            node_history=node_history,
+            result=dispatch_result.data,
+            iteration=iteration_index,
+        )
+
+        # Return early if this is a simulation as we've reached the
+        # simulated node.
+        if until_node := simulate_until_node:
+            if until_node.id == node.id:
+                until_node.service.specific.refresh_from_db(fields=["sample_data"])
+                automation_node_updated.send(self, user=None, node=until_node)
+                return None
+
+        to_chain = []
+        if children := node.get_children():
+            node_data = dispatch_result.data["results"]
+
+            # For simulations, we only need the first iteration.
+            if simulate_until_node:
+                iterations = [0]
+            else:
+                iterations = range(len(node_data))
+
+            groups_to_chain = []
+            for index in iterations:
+                child_iterations = {
+                    **dispatch_context.current_iterations,
+                    node.id: index,
+                }
+                groups_to_chain.append(
+                    group(
+                        [
+                            dispatch_node_celery_task.si(
+                                c.id, history_id, child_iterations
+                            )
+                            for c in children
+                        ]
+                    ),
+                )
+
+            if groups_to_chain:
+                canvas = chain(*groups_to_chain)
+                to_chain.append(canvas)
+
+        now = timezone.now()
+        node_history.completed_on = now
+        node_history.status = HistoryStatusChoices.SUCCESS
+        node_history.save()
+
+        # Handle non-iterator nodes, including iterator children.
+        next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+        if next_nodes:
+            to_chain.append(
+                group(
+                    [
+                        dispatch_node_celery_task.si(
+                            n.id, history_id, current_iterations
+                        )
+                        for n in next_nodes
+                    ]
+                ),
+            )
+
+        if to_chain:
+            return chain(*to_chain)
+        else:
+            # This is the end of this branch
+            return None

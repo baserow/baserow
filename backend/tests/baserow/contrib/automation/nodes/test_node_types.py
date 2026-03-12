@@ -1,9 +1,12 @@
 import uuid
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
+from django.utils.timezone import now
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
@@ -17,7 +20,13 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.integrations.core.constants import (
+    PERIODIC_INTERVAL_DAY,
+)
+from baserow.contrib.integrations.core.models import CorePeriodicService
+from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.handler import CoreHandler
+from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -118,7 +127,7 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_create_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    dispatch_context = AutomationDispatchContext(node.workflow, 100)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -182,7 +191,7 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_update_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    dispatch_context = AutomationDispatchContext(node.workflow, 100)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -238,7 +247,7 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_delete_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    dispatch_context = AutomationDispatchContext(node.workflow, 100)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -443,7 +452,7 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 
     trigger = workflow.get_trigger().specific
 
-    dispatch_context = AutomationDispatchContext(workflow, "foo")
+    dispatch_context = AutomationDispatchContext(workflow, 100, event_payload="foo")
 
     result = trigger.get_type().dispatch(trigger, dispatch_context)
 
@@ -464,7 +473,9 @@ def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
 
     trigger = workflow.get_trigger()
 
-    dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=trigger)
+    dispatch_context = AutomationDispatchContext(
+        workflow, 100, simulate_until_node=trigger
+    )
     # If we don't reset this value, the trigger is considered as updatable and will
     # be dispatched.
     dispatch_context.update_sample_data_for = []
@@ -565,3 +576,125 @@ def test_core_http_trigger_node_duplicating_workflow_sets_unique_uid(data_fixtur
 
     assert isinstance(duplicated_service.uid, uuid.UUID)
     assert str(duplicated_service.uid) != str(trigger_node.service.uid)
+
+
+@pytest.mark.django_db
+def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fixture):
+    """
+    Given a workspace with:
+    - Automation
+        - Workflow A (draft): scheduled for today at noon
+        - Workflow B (live): scheduled for today at noon
+        - Workflow C: (live): scheduled for today at 9am.
+
+    Technically, services A, B1 (draft) and B2 (live) and C1 (draft) and C2 (live) are
+    all "due". This test is to ensure that when `CorePeriodicTriggerNodeType` calls
+    `on_event`, only the services B2+C2 have their two dates updated.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+
+    workflow_a = data_fixture.create_automation_workflow(
+        automation=automation,
+        state=WorkflowState.DRAFT,
+        create_trigger=False,
+    )
+    trigger_node_a = data_fixture.create_periodic_trigger_node(
+        workflow=workflow_a,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_DAY,
+            "hour": 12,
+            "minute": 0,
+            "last_periodic_run": None,
+            "next_run_at": None,
+        },
+    )
+
+    workflow_b1 = data_fixture.create_automation_workflow(
+        automation=automation, create_trigger=False
+    )
+    trigger_node_b1 = data_fixture.create_periodic_trigger_node(
+        workflow=workflow_b1,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_DAY,
+            "hour": 12,
+            "minute": 0,
+            "last_periodic_run": None,
+            "next_run_at": None,
+        },
+    )
+    workflow_b2 = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node_b2 = data_fixture.create_periodic_trigger_node(
+        workflow=workflow_b2,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_DAY,
+            "hour": 12,
+            "minute": 0,
+            "last_periodic_run": datetime(2026, 3, 3, 12, 0, 0),
+            "next_run_at": datetime(2026, 3, 4, 12, 0, 0),
+        },
+    )
+    workflow_b2.automation.published_from = workflow_b1
+    workflow_b2.automation.save()
+
+    workflow_c1 = data_fixture.create_automation_workflow(
+        automation=automation,
+        state=WorkflowState.DRAFT,
+        create_trigger=False,
+    )
+    trigger_node_c1 = data_fixture.create_periodic_trigger_node(
+        workflow=workflow_c1,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_DAY,
+            "hour": 9,
+            "minute": 0,
+            "last_periodic_run": None,
+            "next_run_at": None,
+        },
+    )
+
+    workflow_c2 = data_fixture.create_automation_workflow(
+        automation=automation,
+        state=WorkflowState.DRAFT,
+        create_trigger=False,
+    )
+    trigger_node_c2 = data_fixture.create_periodic_trigger_node(
+        workflow=workflow_c2,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_DAY,
+            "hour": 9,
+            "minute": 0,
+            "last_periodic_run": datetime(2026, 3, 4, 9, 0, 0),
+            "next_run_at": datetime(2026, 3, 5, 12, 0, 0),
+        },
+    )
+
+    with freeze_time("2026-03-04 12:00:00"):
+        current_time = now()
+        services_due = list(
+            CorePeriodicServiceType().get_periodic_services_that_are_due(current_time)
+        )
+        service_type_registry.get(
+            CorePeriodicServiceType.type
+        ).call_periodic_services_that_are_due()
+        services_dispatched = CorePeriodicService.objects.filter(
+            last_periodic_run=now()
+        )
+
+        assert services_due == [
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_a.service,
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_b1.service,
+            # Due because: its next run is now, and it's published.
+            trigger_node_b2.service,
+            # Due because: it's got no last/next runs, even though it's in draft.
+            trigger_node_c1.service,
+        ]
+
+        # `trigger_node_b2` is the only due service which we've found to be
+        # appropriate for dispatching (its workflow is live/published).
+        assert list(services_dispatched) == [trigger_node_b2.service]

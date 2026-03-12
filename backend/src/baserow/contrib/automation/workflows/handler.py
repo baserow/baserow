@@ -10,7 +10,7 @@ from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from loguru import logger
+from celery.canvas import chain
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -24,8 +24,10 @@ from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.signals import automation_node_updated
+from baserow.contrib.automation.nodes.tasks import dispatch_node_celery_task
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
@@ -42,13 +44,15 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
-from baserow.contrib.automation.workflows.tasks import start_workflow_celery_task
+from baserow.contrib.automation.workflows.tasks import (
+    handle_workflow_dispatch_done,
+    start_workflow_celery_task,
+)
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
-from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
@@ -387,8 +391,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The serialized version.
         """
 
-        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-
         serialized_nodes = [
             AutomationNodeHandler().export_node(
                 n, files_zip=files_zip, storage=storage, cache=cache
@@ -441,8 +443,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :param cache: A cache to use for storing temporary data.
         :return: A list of the newly created nodes.
         """
-
-        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         imported_nodes = []
 
@@ -688,6 +688,28 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         self._check_too_many_errors(workflow)
 
+        self._clear_old_history(workflow)
+
+    def _clear_old_history(self, workflow: AutomationWorkflow) -> None:
+        """
+        Clear any old history entries related to the workflow.
+
+        It will delete any history entries that are older than MAX_HISTORY_DAYS and only
+        keep the most recent MAX_HISTORY_ENTRIES entries.
+        """
+
+        oldest_history_date = timezone.now() - timedelta(
+            days=settings.AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS
+        )
+        workflow.workflow_histories.filter(started_on__lt=oldest_history_date).delete()
+
+        history_ids_to_keep = list(
+            workflow.workflow_histories.order_by("-started_on").values_list(
+                "id", flat=True
+            )[: settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES]
+        )
+        workflow.workflow_histories.exclude(id__in=history_ids_to_keep).delete()
+
     def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
 
@@ -928,7 +950,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
             dispatch_context = AutomationDispatchContext(
                 workflow,
-                None,
+                # This is a placeholder value, no actual history exists yet
+                # (it's created later in start_workflow). This is fine
+                # for now, because get_sample_data() doesn't use history.
+                history_id=0,
                 simulate_until_node=simulate_until_node,
             )
             if workflow.can_immediately_be_tested() or (
@@ -945,13 +970,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def start_workflow(
         self,
-        workflow: int,
+        workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]],
-        simulate_until_node: Optional[int] = None,
+        simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """Runs the workflow."""
-
-        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         original_workflow = self.get_original_workflow(workflow)
 
@@ -959,58 +982,48 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = original_workflow == workflow
 
-        is_simulation = simulate_until_node is not None
+        simulate_until_node = (
+            workflow.get_graph().get_node(simulate_until_node_id)
+            if simulate_until_node_id
+            else None
+        )
 
-        dispatch_context = AutomationDispatchContext(
-            workflow,
-            event_payload,
+        history_handler = AutomationHistoryHandler()
+        history = history_handler.create_workflow_history(
+            original_workflow,
+            started_on=timezone.now(),
+            is_test_run=is_test_run,
+            event_payload=event_payload,
             simulate_until_node=simulate_until_node,
         )
 
-        start_time = timezone.now()
-
-        history_handler = AutomationHistoryHandler()
-
-        if not is_simulation:
-            # No history stored in simulation, we want to populate the node sample data
-            history = history_handler.create_workflow_history(
-                original_workflow,
-                started_on=start_time,
-                is_test_run=is_test_run,
-            )
+        error: Optional[str] = None
+        history_status: Optional[HistoryStatusChoices] = None
 
         try:
             self.before_run(original_workflow)
-            AutomationNodeHandler().dispatch_node(
-                workflow.get_trigger(), dispatch_context
-            )
         except AutomationWorkflowTooManyErrors as e:
-            history_message = str(e)
+            error = str(e)
             history_status = HistoryStatusChoices.DISABLED
             self.disable_workflow(workflow)
-        except (DispatchException, AutomationWorkflowBeforeRunError) as e:
-            history_message = str(e)
+        except AutomationWorkflowBeforeRunError as e:
+            error = str(e)
             history_status = HistoryStatusChoices.ERROR
-        except Exception as e:
-            history_message = (
-                f"Unexpected error while running workflow {original_workflow.id}. "
-                f"Error: {str(e)}"
-            )
-            history_status = HistoryStatusChoices.ERROR
-            logger.exception(history_message)
-        else:
-            history_message = ""
-            history_status = HistoryStatusChoices.SUCCESS
-        finally:
-            if not is_simulation:
-                history.completed_on = timezone.now()
-                history.message = history_message
-                history.status = history_status
-                history.save()
-            else:
-                # sample_data was updated as it's a simulation we should tell to
-                # the frontend
-                simulate_until_node.service.specific.refresh_from_db(
-                    fields=["sample_data"]
-                )
-                automation_node_updated.send(self, user=None, node=simulate_until_node)
+
+        if error is not None and history_status is not None:
+            history.completed_on = timezone.now()
+            history.message = error
+            history.status = history_status
+            history.save()
+            return
+
+        return chain(
+            dispatch_node_celery_task.si(
+                workflow.get_trigger().id,
+                history.id,
+            ),
+            handle_workflow_dispatch_done.si(
+                history_id=history.id if not simulate_until_node_id else None,
+                simulate_until_node_id=simulate_until_node_id,
+            ),
+        )

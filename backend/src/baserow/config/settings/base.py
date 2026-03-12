@@ -158,9 +158,19 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_USERNAME = os.getenv("REDIS_USER", "")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_PROTOCOL = os.getenv("REDIS_PROTOCOL", "redis")
+REDIS_SSL_CERT_REQS = os.getenv("REDIS_SSL_CERT_REQS", "required")
+REDIS_SSL_CA_CERTS = os.getenv("REDIS_SSL_CA_CERTS", "")
+
+redis_auth = f"{REDIS_USERNAME}:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+redis_url_suffix = ""
+if REDIS_PROTOCOL == "rediss":
+    redis_url_suffix = f"?ssl_cert_reqs={REDIS_SSL_CERT_REQS}"
+    if REDIS_SSL_CA_CERTS:
+        redis_url_suffix += f"&ssl_ca_certs={REDIS_SSL_CA_CERTS}"
+
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    f"{REDIS_PROTOCOL}://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0",
+    f"{REDIS_PROTOCOL}://{redis_auth}{REDIS_HOST}:{REDIS_PORT}/0{redis_url_suffix}",
 )
 
 BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
@@ -206,6 +216,12 @@ CELERY_BEAT_MAX_LOOP_INTERVAL = os.getenv("CELERY_BEAT_MAX_LOOP_INTERVAL", 20)
 # scheduler will acquire the lock and take over.
 CELERY_REDBEAT_LOCK_TIMEOUT = os.getenv(
     "CELERY_REDBEAT_LOCK_TIMEOUT", CELERY_BEAT_MAX_LOOP_INTERVAL + 60
+)
+
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_RESULT_EXPIRES = int(
+    # default 1 hour
+    os.getenv("CELERY_RESULT_EXPIRES") or 3600
 )
 
 CHANNEL_LAYERS = {
@@ -453,7 +469,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.1.4",
+    "VERSION": "2.1.5",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -818,6 +834,12 @@ AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
 )
 AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
+)
+AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS", 30)
+)
+AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES", 50)
 )
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.

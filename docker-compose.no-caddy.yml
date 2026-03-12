@@ -52,6 +52,8 @@ x-backend-variables:
   REDIS_PROTOCOL:
   REDIS_URL:
   REDIS_USER:
+  REDIS_SSL_CERT_REQS:
+  REDIS_SSL_CA_CERTS:
 
   # Set these to enable Baserow to send emails.
   EMAIL_SMTP:
@@ -87,6 +89,8 @@ x-backend-variables:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
+  BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS:
+  BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
   ADDITIONAL_APPS:
@@ -191,7 +195,7 @@ x-backend-variables:
 
 services:
   backend:
-    image: baserow/backend:2.1.4
+    image: baserow/backend:2.1.5
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -206,7 +210,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.1.4
+    image: baserow/web-frontend:2.1.5
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -243,13 +247,15 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
+      BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS:
+      BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:2.1.4
+    image: baserow/backend:2.1.5
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -270,7 +276,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.1.4
+    image: baserow/backend:2.1.5
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -291,7 +297,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.1.4
+    image: baserow/backend:2.1.5
     restart: unless-stopped
     command: celery-beat
     environment:

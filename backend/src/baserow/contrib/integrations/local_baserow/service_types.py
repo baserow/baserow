@@ -2335,7 +2335,7 @@ class LocalBaserowRowsSignalServiceType(
         model: "GeneratedTableModel",
         **kwargs,
     ):
-        def get_data():
+        def get_data(service: Service):
             # Make sure we have an up to date model
             local_model = model.baserow_table.get_model()
 

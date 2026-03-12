@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Update langchain to 0.3.28",
+    "issue_origin": "github",
+    "issue_number": 4965,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-12"
+}

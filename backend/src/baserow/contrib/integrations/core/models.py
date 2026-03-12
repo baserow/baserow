@@ -206,6 +206,13 @@ class CorePeriodicService(Service):
         help_text="Timestamp when the service was last executed periodically. This "
         "value is used to calculate when it should be run.",
     )
+    next_run_at = models.DateTimeField(
+        null=True,
+        db_index=True,
+        db_default=None,
+        help_text="The next scheduled time for this service to run. Automatically "
+        "calculated based on the interval and schedule fields.",
+    )
     interval = models.CharField(
         max_length=10,
         choices=PERIODIC_INTERVAL_CHOICES,

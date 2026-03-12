@@ -44,6 +44,8 @@ stringData:
   REDIS_USER: "TODO"
   REDIS_PASSWORD: "TODO"
   REDIS_PROTOCOL: "TODO rediss or redis"
+  REDIS_SSL_CERT_REQS: "TODO required or optional or none" \
+  REDIS_SSL_CA_CERTS: "TODO"
   BASEROW_AMOUNT_OF_GUNICORN_WORKERS: "5"
   # S3 Compatible storage is recommended with K8S to get the exports and file storage working
   # See the docs for more info https://baserow.io/docs/installation%2Fconfiguration#user-file-upload-configuration
@@ -165,7 +167,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-asgi
-          image: baserow/backend:2.1.4
+          image: baserow/backend:2.1.5
           workingDir: /baserow
           args:
             - "gunicorn"
@@ -222,7 +224,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-wsgi
-          image: baserow/backend:2.1.4
+          image: baserow/backend:2.1.5
           workingDir: /baserow
           args:
             - "gunicorn-wsgi"
@@ -281,7 +283,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-worker
-          image: baserow/backend:2.1.4
+          image: baserow/backend:2.1.5
           args:
             - "celery-worker"
           imagePullPolicy: Always
@@ -298,7 +300,7 @@ spec:
             - secretRef:
                 name: YOUR_ENV_SECRET_REF
         - name: backend-export-worker
-          image: baserow/backend:2.1.4
+          image: baserow/backend:2.1.5
           args:
             - "celery-exportworker"
           imagePullPolicy: Always
@@ -315,7 +317,7 @@ spec:
             - secretRef:
                 name: YOUR_ENV_SECRET_REF
         - name: backend-beat-worker
-          image: baserow/backend:2.1.4
+          image: baserow/backend:2.1.5
           args:
             - "celery-beat"
           imagePullPolicy: Always
@@ -356,7 +358,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: web-frontend
-          image: baserow/web-frontend:2.1.4
+          image: baserow/web-frontend:2.1.5
           args:
             - nuxt
           ports:

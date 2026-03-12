@@ -5,6 +5,7 @@ from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
+    CorePeriodicService,
     CoreRouterService,
     CoreSMTPEmailService,
 )
@@ -139,6 +140,9 @@ class ServiceFixtures:
             kwargs["uid"] = uuid4()
 
         return self.create_service(CoreHTTPTriggerService, **kwargs)
+
+    def create_core_periodic_service(self, **kwargs) -> CorePeriodicService:
+        return self.create_service(CorePeriodicService, **kwargs)
 
     def create_service(self, model_class, **kwargs):
         if "integration" not in kwargs:

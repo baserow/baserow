@@ -157,6 +157,7 @@ export default {
         day_of_week: 0, // Monday=0..Sunday=6 (LOCAL)
         day_of_month: 1, // 1..31 (LOCAL)
       },
+      syncedFromValues: false, // Have we synced these from `values` yet?
     }
   },
   computed: {
@@ -259,16 +260,17 @@ export default {
     'user.day_of_week': 'syncValuesFromUser',
     'user.day_of_month': 'syncValuesFromUser',
     'values.interval'(newInterval, oldInterval) {
-      // When we change *to* MINUTE, we default to the minimum frequency
-      // that is granted to this Baserow instance type.
-      // When we change *from* MINUTE, reset minute to 0.
       if (
-        this.user.minute === 0 &&
+        this.syncedFromValues &&
         newInterval === 'MINUTE' &&
         oldInterval !== 'MINUTE'
       ) {
+        // Once `syncedFromValues` is true (which happens after the initial sync in
+        // mounted()), if the user changes the interval *to* MINUTE, we want to set the
+        // minute field to the minimum allowed frequency for this Baserow instance type.
         this.user.minute = this.minimumMinuteFrequency
       } else if (newInterval !== 'MINUTE' && oldInterval === 'MINUTE') {
+        // Otherwise if we're changing *from* MINUTE, then reset the `minute` to 0.
         this.user.minute = 0
       }
       this.syncValuesFromUser()
@@ -276,6 +278,8 @@ export default {
   },
   mounted() {
     this.syncUserFromValues()
+    // We've fully synced the user facing values.
+    this.syncedFromValues = true
   },
   methods: {
     fieldHasErrors(name) {
@@ -307,6 +311,12 @@ export default {
       }
     },
     syncValuesFromUser() {
+      if (!this.syncedFromValues) {
+        // This function could have been called before the initial sync from `values`
+        // to `user` in mounted() has completed. In that case, we don't want to run
+        // this logic yet since `user` won't have the correct values yet.
+        return
+      }
       this.v$.$touch()
       if (this.v$.values.interval.$invalid) return
       if (this.showMinuteFrequencyField && this.v$.user.minute.$invalid) return

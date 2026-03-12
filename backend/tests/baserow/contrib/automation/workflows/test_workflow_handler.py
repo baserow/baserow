@@ -8,6 +8,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
@@ -18,6 +19,7 @@ from baserow.contrib.automation.workflows.constants import (
     WorkflowState,
 )
 from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
@@ -870,3 +872,150 @@ def test_toggle_simulate_mode_on_immediate(
 
     mock_automation_workflow_updated.send.assert_called_once()
     mock_async_start_workflow.assert_called_once()
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7)
+@pytest.mark.django_db
+def test_clear_old_history_deletes_history_older_than_max_days(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-02-01 12:00:00"):
+        old_history = data_fixture.create_automation_workflow_history(workflow=workflow)
+
+    with freeze_time("2025-02-02 12:00:00"):
+        recent_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow
+        )
+
+    # This is 8 days after old_history was created, so it should be deleted.
+    with freeze_time("2025-02-09 12:00:00"):
+        AutomationWorkflowHandler()._clear_old_history(workflow)
+
+    assert workflow.workflow_histories.filter(id=old_history.id).exists() is False
+    assert workflow.workflow_histories.filter(id=recent_history.id).exists() is True
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=3)
+@pytest.mark.django_db
+def test_clear_old_history_keeps_only_max_entries(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    histories = []
+    day = 10
+    for i in range(5):
+        day += i
+        with freeze_time(f"2025-02-{day} 12:00:00"):
+            histories.append(
+                data_fixture.create_automation_workflow_history(workflow=workflow)
+            )
+
+    with freeze_time(f"2025-02-16 12:00:00"):
+        AutomationWorkflowHandler()._clear_old_history(workflow)
+
+    assert workflow.workflow_histories.all().count() == 3
+
+    # The two oldest should be deleted
+    for history in histories[:2]:
+        assert workflow.workflow_histories.filter(id=history.id).exists() is False
+
+    # The three newest should be kept
+    for history in histories[2:]:
+        assert workflow.workflow_histories.filter(id=history.id).exists() is True
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=3,
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=1,
+)
+@pytest.mark.django_db
+def test_clear_old_history_keeps_entries(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-02-01 12:00:00"):
+        history = data_fixture.create_automation_workflow_history(workflow=workflow)
+
+    with freeze_time("2025-02-02 12:00:00"):
+        AutomationWorkflowHandler()._clear_old_history(workflow)
+
+    # history is within limits, so it should be kept
+    assert workflow.workflow_histories.filter(id=history.id).exists() is True
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
+@patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
+def test_start_workflow_too_many_errors(
+    mock_dispatch_task, mock_before_run, data_fixture
+):
+    mock_before_run.side_effect = AutomationWorkflowTooManyErrors(
+        "mock too many errors"
+    )
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().start_workflow(published_workflow, None, None)
+
+    # Nodes shouldn't be dispatched because before_run() should return early.
+    mock_dispatch_task.delay.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+
+    assert len(histories) == 1
+
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == HistoryStatusChoices.DISABLED
+
+    error_msg = "mock too many errors"
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DISABLED
+    assert published_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
+@patch("baserow.contrib.automation.nodes.tasks.dispatch_node_celery_task")
+def test_start_workflow_before_run_error(
+    mock_dispatch_task, mock_before_run, data_fixture
+):
+    # We already test the specific AutomationWorkflowTooManyErrors error above,
+    # but we should also test that before_run() has error handling.
+    mock_before_run.side_effect = AutomationWorkflowBeforeRunError("unexpected error")
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().start_workflow(published_workflow, None, None)
+
+    # Nodes shouldn't be dispatched because before_run() should return early.
+    mock_dispatch_task.delay.assert_not_called()
+
+    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+
+    assert len(histories) == 1
+
+    history = histories[0]
+    assert history.workflow == original_workflow
+    assert history.status == HistoryStatusChoices.ERROR
+
+    error_msg = "unexpected error"
+    assert history.message == error_msg
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DRAFT
+    assert published_workflow.state == WorkflowState.LIVE

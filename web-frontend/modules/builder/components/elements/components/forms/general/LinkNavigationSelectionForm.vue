@@ -189,6 +189,7 @@ export default {
         this.values.navigate_to_url = ''
       } else if (value === 'custom') {
         this.values.navigation_type = 'custom'
+        this.values.navigate_to_page_id = null
       } else if (!isNaN(value)) {
         this.values.navigation_type = 'page'
         this.values.navigate_to_page_id = value

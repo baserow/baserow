@@ -15,7 +15,7 @@ class AutomationHistoryService:
         self.handler = AutomationHistoryHandler()
         self.workflow_handler = AutomationWorkflowHandler()
 
-    def get_workflow_history(
+    def get_workflow_histories(
         self, user: AbstractUser, workflow_id: int
     ) -> QuerySet[AutomationWorkflowHistory]:
         """
@@ -35,4 +35,4 @@ class AutomationHistoryService:
             context=workflow,
         )
 
-        return self.handler.get_workflow_history(workflow)
+        return self.handler.get_workflow_histories(workflow)
