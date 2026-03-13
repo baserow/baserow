@@ -5,6 +5,7 @@ from pydantic import Field
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Application as BaserowApplication
+from baserow.core.registries import application_type_registry
 from baserow_enterprise.assistant.types import BaseModel
 
 
