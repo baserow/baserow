@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug in the Periodic Trigger that could cause an invalid day of month to be calculated for shorter months.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-03-13"
+}

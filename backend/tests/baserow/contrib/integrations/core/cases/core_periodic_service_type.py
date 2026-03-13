@@ -507,6 +507,16 @@ PERIODIC_SERVICE_CALCULATE_NEXT_RUN_CASES = [
         datetime(2025, 2, 15, 10, 0, 0, tzinfo=timezone.utc),
         datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc),
     ),
+    (
+        PERIODIC_INTERVAL_MONTH,
+        0,
+        0,
+        0,
+        30,  # day 30 which isn't valid for February
+        datetime(2026, 2, 1, 0, 0, 0, tzinfo=timezone.utc),
+        # Should default to the last day of the month
+        datetime(2026, 2, 28, 0, 0, 0, tzinfo=timezone.utc),
+    ),
 ]
 
 PERIODIC_SERVICE_NEXT_RUN_SET_CASES = [

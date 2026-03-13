@@ -76,8 +76,13 @@ def calculate_next_periodic_run(
         next_run = next_run.replace(hour=hour, minute=minute)
 
     elif interval == PERIODIC_INTERVAL_MONTH:
-        # Run at the specified day_of_month at hour:minute each month
-        next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
+        try:
+            # Run at the specified day_of_month at hour:minute each month
+            next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
+        except ValueError:
+            # If the day doesn't exist, use the last day of the month
+            next_run = from_time.replace(day=1) + relativedelta(months=1, days=-1)
+            next_run = next_run.replace(hour=hour, minute=minute)
 
         # If we've already passed this time this month, move to next month
         if next_run <= from_time:
