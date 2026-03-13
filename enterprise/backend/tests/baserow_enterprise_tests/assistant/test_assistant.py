@@ -698,5 +698,9 @@ class TestGetModelString:
     def test_openai_model(self):
         assert get_model_string() == "openai:gpt-4"
 
+    @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="gpt-4o")
+    def test_bare_model_defaults_to_openai(self):
+        assert get_model_string() == "openai:gpt-4o"
+
     def test_explicit_model_overrides_setting(self):
         assert get_model_string("groq/custom-model") == "groq:custom-model"

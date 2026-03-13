@@ -154,6 +154,10 @@ def get_model_string(model: str | None = None) -> str:
     colon_pos = value.find(":")
     if slash_pos != -1 and (colon_pos == -1 or slash_pos < colon_pos):
         value = value.replace("/", ":", 1)
+    elif slash_pos == -1 and colon_pos == -1:
+        # No provider prefix at all (e.g. "gpt-4o") — default to OpenAI
+        # for backward compatibility with old UDSPY_LM_MODEL values.
+        value = f"openai:{value}"
     return value
 
 
