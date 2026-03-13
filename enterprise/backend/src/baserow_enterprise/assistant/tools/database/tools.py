@@ -369,6 +369,64 @@ def list_views(
 # ---------------------------------------------------------------------------
 
 
+def _create_empty_tables(
+    user: AbstractUser,
+    database: Database,
+    tables: list[TableItemCreate],
+    tool_helpers: "ToolHelpers",
+) -> list[Table]:
+    """Create bare tables and rename each one's auto-created primary field."""
+    created: list[Table] = []
+    with transaction.atomic():
+        for table in tables:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(
+                _("Creating table %(table_name)s...") % {"table_name": table.name}
+            )
+            created_table, __ = CreateTableActionType.do(
+                user, database, table.name, fill_example=False
+            )
+            created.append(created_table)
+            primary_field = created_table.get_primary_field().specific
+            UpdateFieldActionType.do(user, primary_field, name=table.primary_field_name)
+    return created
+
+
+def _create_table_fields(
+    user: AbstractUser,
+    tables: list[TableItemCreate],
+    created_tables: list[Table],
+    tool_helpers: "ToolHelpers",
+    formula_fixer,
+) -> list[str]:
+    """Create non-primary fields for each table; return collected notes/errors."""
+    notes: list[str] = []
+    for table, created_table in zip(tables, created_tables):
+        tool_helpers.raise_if_cancelled()
+        with transaction.atomic():
+            # Drop any field whose name matches the primary field name — it's
+            # already set via UpdateFieldActionType.do() above. Including it in
+            # fields too is a common model mistake that would otherwise produce
+            # a "field already exists" error note.
+            non_primary_fields = [
+                f
+                for f in table.fields
+                if f.name.lower() != table.primary_field_name.lower()
+            ]
+            _created, field_errors, formula_errors = helpers.create_fields(
+                user, created_table, non_primary_fields, tool_helpers,
+                formula_fixer=formula_fixer,
+            )
+            notes.extend(field_errors)
+            for err in formula_errors:
+                notes.append(
+                    f"Invalid formula for field '{err['field_name']}' "
+                    f"in table_{created_table.id}: {err['error']}. "
+                    f"Use generate_formula to fix it."
+                )
+    return notes
+
+
 def create_tables(
     ctx: RunContext[AssistantDeps],
     database_id: Annotated[
@@ -429,62 +487,23 @@ def create_tables(
         base_queryset=Database.objects.filter(workspace=workspace),
     )
 
-    created_tables = []
-    with transaction.atomic():
-        for i, table in enumerate(tables):
-            tool_helpers.raise_if_cancelled()
-            tool_helpers.update_status(
-                _("Creating table %(table_name)s...") % {"table_name": table.name}
-            )
+    created_tables = _create_empty_tables(user, database, tables, tool_helpers)
 
-            created_table, __ = CreateTableActionType.do(
-                user, database, table.name, fill_example=False
-            )
-            created_tables.append(created_table)
-
-            primary_field = created_table.get_primary_field().specific
-            UpdateFieldActionType.do(
-                user,
-                primary_field,
-                name=table.primary_field_name,
-            )
-
-    # Now that we have all the tables created, we can create the fields
-    notes = []
-    field_errors = []
     formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
-    for table, created_table in zip(tables, created_tables):
-        tool_helpers.raise_if_cancelled()
-        with transaction.atomic():
-            _created, iter_field_errors, formula_errors = helpers.create_fields(
-                user,
-                created_table,
-                table.fields,
-                tool_helpers,
-                formula_fixer=formula_fixer,
-            )
-            field_errors.extend(iter_field_errors)
-            notes.extend(iter_field_errors)
-            for err in formula_errors:
-                notes.append(
-                    f"Invalid formula for field '{err['field_name']}' "
-                    f"in table_{created_table.id}: {err['error']}. "
-                    f"Use generate_formula to fix it."
-                )
+    notes = _create_table_fields(user, tables, created_tables, tool_helpers, formula_fixer)
 
+    last_table = created_tables[-1]
     tool_helpers.navigate_to(
         TableNavigationType(
             type="database-table",
             database_id=database.id,
-            table_id=created_table.id,
-            table_name=created_table.name,
+            table_id=last_table.id,
+            table_name=last_table.name,
         )
     )
 
     created_rows = {}
-    # Skip sample rows on field errors to avoid empty cells when fields are
-    # created in a later retry.
-    if add_sample_rows and not field_errors:
+    if add_sample_rows:
         try:
             data_brief = add_sample_rows if isinstance(add_sample_rows, str) else None
             created_rows = generate_sample_rows(
@@ -503,10 +522,7 @@ def create_tables(
         for ts in helpers.get_tables_schema(created_tables, full_schema=True)
     ]
 
-    response = {
-        "created_tables": tables_schema,
-        "notes": notes,
-    }
+    response: dict[str, Any] = {"created_tables": tables_schema, "notes": notes}
     if created_rows:
         response["created_rows"] = {
             f"Row IDs for newly created rows in table_{table_id}": [

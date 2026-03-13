@@ -92,30 +92,6 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
             **_DEFAULT_PROFILE[TITLE],
         },
     },
-    "gpt-oss-20b": {
-        ORCHESTRATOR: {
-            **_DEFAULT_PROFILE[ORCHESTRATOR],
-            "groq_reasoning_format": "parsed",
-            "extra_body": {"reasoning_effort": "high"},
-        },
-        SUBAGENT: {
-            **_DEFAULT_PROFILE[SUBAGENT],
-            "groq_reasoning_format": "parsed",
-            "extra_body": {"reasoning_effort": "high"},
-        },
-        UTILITY: {
-            # No groq_reasoning_format: reasoning tokens pollute structured output.
-            **_DEFAULT_PROFILE[UTILITY],
-        },
-        SAMPLE: {
-            **_DEFAULT_PROFILE[SAMPLE],
-            "groq_reasoning_format": "parsed",
-            "extra_body": {"reasoning_effort": "high"},
-        },
-        TITLE: {
-            **_DEFAULT_PROFILE[TITLE],
-        },
-    },
 }
 
 
