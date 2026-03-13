@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 2.1.6
+
+### Bug fixes
+* [Integration] Resolved a bug in the periodic trigger which prevented it from being scheduled correctly.
+
+
 ## Released 2.1.5
 
 ### Bug fixes
