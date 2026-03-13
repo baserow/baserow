@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.utils import translation
 
 from loguru import logger
+from pydantic_ai._thinking_part import split_content_into_text_and_thinking
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -14,6 +15,8 @@ from pydantic_ai.messages import (
     PartStartEvent,
     TextPart,
     TextPartDelta,
+    ThinkingPart,
+    ThinkingPartDelta,
 )
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.usage import UsageLimits
@@ -57,6 +60,17 @@ from .types import (
 )
 
 _CANCELLATION_KEY_TTL = 300  # seconds
+_THINKING_TAGS = ("<think>", "</think>")
+
+
+def _strip_think_tags(text: str) -> str:
+    """Remove ``<think>...</think>`` blocks from *text*, returning only the
+    non-thinking content.  Uses pydantic-ai's own tag parser."""
+
+    if "<think>" not in text:
+        return text
+    parts = split_content_into_text_and_thinking(text, _THINKING_TAGS)
+    return "".join(p.content for p in parts if not isinstance(p, ThinkingPart)).strip()
 
 
 def get_assistant_cancellation_key(chat_uuid: str) -> str:
@@ -411,10 +425,8 @@ class Assistant:
         """
 
         text_parts: dict[int, str] = {}
-        tool_state = "no_tools"
-
-        is_anthropic = self._model_string.startswith("anthropic:")
-        default_chunk_cls = AiReasoningChunk if is_anthropic else AiMessageChunk
+        reasoning_sent: dict[int, int] = {}
+        seen_tool_result = False
 
         async for event in main_agent.run_stream_events(
             user_prompt=user_prompt,
@@ -425,55 +437,113 @@ class Assistant:
             toolsets=[self._toolset],
             model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
         ):
+            # Final result — strip residual <think> tags and return.
             if isinstance(event, AgentRunResultEvent):
-                return (event.result.output, event.result)
-            elif isinstance(event, FunctionToolCallEvent):
-                if tool_state == "after_tools":
+                answer = event.result.output
+                if isinstance(answer, str):
+                    answer = _strip_think_tags(answer)
+                return (answer, event.result)
+
+            # Tool lifecycle — clear accumulated text on transitions.
+            if isinstance(event, FunctionToolCallEvent):
+                if seen_tool_result:
                     text_parts.clear()
-                tool_state = "tools_running"
+                    seen_tool_result = False
                 thought = _extract_tool_thought(event)
                 if thought:
-                    await queue.put(
-                        QueueEvent(
-                            kind=QueueEventKind.STREAM,
-                            message=AiReasoningChunk(content=thought),
-                        )
-                    )
-            elif isinstance(event, FunctionToolResultEvent):
-                tool_state = "after_tools"
+                    await self._enqueue_reasoning(queue, thought)
+                continue
+
+            if isinstance(event, FunctionToolResultEvent):
+                seen_tool_result = True
                 text_parts.clear()
-            elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-                text_parts[event.index] = event.part.content
-                chunk_cls = (
-                    AiReasoningChunk
-                    if tool_state == "tools_running"
-                    else default_chunk_cls
-                )
-                await queue.put(
-                    QueueEvent(
-                        kind=QueueEventKind.STREAM,
-                        message=chunk_cls(content=event.part.content),
-                    )
-                )
-            elif isinstance(event, PartDeltaEvent) and isinstance(
-                event.delta, TextPartDelta
+                continue
+
+            # Thinking events (models with <think> tags).
+            if isinstance(event, PartStartEvent) and isinstance(
+                event.part, ThinkingPart
             ):
-                text_parts[event.index] = (
-                    text_parts.get(event.index, "") + event.delta.content_delta
-                )
-                chunk_cls = (
-                    AiReasoningChunk
-                    if tool_state == "tools_running"
-                    else default_chunk_cls
-                )
-                await queue.put(
-                    QueueEvent(
-                        kind=QueueEventKind.STREAM,
-                        message=chunk_cls(content=text_parts[event.index]),
-                    )
-                )
+                if event.part.content:
+                    await self._enqueue_reasoning(queue, event.part.content)
+                continue
+
+            if isinstance(event, PartDeltaEvent) and isinstance(
+                event.delta, ThinkingPartDelta
+            ):
+                if event.delta.content_delta:
+                    await self._enqueue_reasoning(queue, event.delta.content_delta)
+                continue
+
+            # Text streaming — accumulate and extract inline <think> tags.
+            text = self._accumulate_text(event, text_parts)
+            if text is None:
+                continue
+            reasoning_delta, display = self._extract_thinking(
+                text, event.index, reasoning_sent
+            )
+            if reasoning_delta:
+                await self._enqueue_reasoning(queue, reasoning_delta)
+            if display:
+                await self._enqueue_reasoning(queue, display)
 
         return None
+
+    @staticmethod
+    def _accumulate_text(event: Any, text_parts: dict[int, str]) -> str | None:
+        """Update *text_parts* from a text stream event, returning the
+        accumulated content or ``None`` for non-text events."""
+
+        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+            text_parts[event.index] = event.part.content
+            return text_parts[event.index]
+        if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+            text_parts[event.index] = (
+                text_parts.get(event.index, "") + event.delta.content_delta
+            )
+            return text_parts[event.index]
+        return None
+
+    @staticmethod
+    def _extract_thinking(
+        text: str, index: int, reasoning_sent: dict[int, int]
+    ) -> tuple[str | None, str]:
+        """Split accumulated *text* into a reasoning delta and display text.
+
+        Returns ``(reasoning_delta, display)`` where *reasoning_delta* is
+        the not-yet-sent thinking content (or ``None``) and *display* is the
+        non-thinking text to show.  Tracks how much reasoning has already
+        been sent via *reasoning_sent* so only new content is returned.
+        """
+
+        if "<think>" not in text:
+            return None, text
+
+        parts = split_content_into_text_and_thinking(text, _THINKING_TAGS)
+        reasoning = "".join(p.content for p in parts if isinstance(p, ThinkingPart))
+        display = "".join(
+            p.content for p in parts if not isinstance(p, ThinkingPart)
+        ).strip()
+
+        prev_len = reasoning_sent.get(index, 0)
+        reasoning_delta = None
+        if len(reasoning) > prev_len:
+            reasoning_delta = reasoning[prev_len:]
+            reasoning_sent[index] = len(reasoning)
+
+        return reasoning_delta, display
+
+    @staticmethod
+    async def _enqueue_reasoning(
+        queue: asyncio.Queue[QueueEvent], content: str
+    ) -> None:
+        """Push an ``AiReasoningChunk`` onto *queue*."""
+
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiReasoningChunk(content=content),
+            )
+        )
 
     @staticmethod
     def _looks_like_json_tool_call(text: str) -> bool:

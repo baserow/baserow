@@ -414,7 +414,10 @@ def _create_table_fields(
                 if f.name.lower() != table.primary_field_name.lower()
             ]
             _created, field_errors, formula_errors = helpers.create_fields(
-                user, created_table, non_primary_fields, tool_helpers,
+                user,
+                created_table,
+                non_primary_fields,
+                tool_helpers,
                 formula_fixer=formula_fixer,
             )
             notes.extend(field_errors)
@@ -490,7 +493,9 @@ def create_tables(
     created_tables = _create_empty_tables(user, database, tables, tool_helpers)
 
     formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
-    notes = _create_table_fields(user, tables, created_tables, tool_helpers, formula_fixer)
+    notes = _create_table_fields(
+        user, tables, created_tables, tool_helpers, formula_fixer
+    )
 
     last_table = created_tables[-1]
     tool_helpers.navigate_to(
