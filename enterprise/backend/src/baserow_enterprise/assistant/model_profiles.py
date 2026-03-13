@@ -80,8 +80,9 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
             "groq_reasoning_format": "parsed",
         },
         UTILITY: {
+            # No groq_reasoning_format here: formula generation is a precise
+            # structured-output task where reasoning tokens pollute the output.
             **_DEFAULT_PROFILE[UTILITY],
-            "groq_reasoning_format": "parsed",
         },
         SAMPLE: {
             **_DEFAULT_PROFILE[SAMPLE],
@@ -103,9 +104,8 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
             "extra_body": {"reasoning_effort": "high"},
         },
         UTILITY: {
+            # No groq_reasoning_format: reasoning tokens pollute structured output.
             **_DEFAULT_PROFILE[UTILITY],
-            "groq_reasoning_format": "parsed",
-            "extra_body": {"reasoning_effort": "high"},
         },
         SAMPLE: {
             **_DEFAULT_PROFILE[SAMPLE],

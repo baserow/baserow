@@ -153,7 +153,7 @@ def list_tables(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> list[dict[str, Any]] | str:
+) -> list[dict[str, Any]] | dict[str, Any]:
     """\
     List tables, optionally filtered by database or name.
 
@@ -197,7 +197,7 @@ def list_tables(
     )
 
     if len(databases) == 0:
-        return _no_tables_found_hint(user, workspace, filters)
+        return {"tables": [], "_info": _no_tables_found_hint(user, workspace, filters)}
     elif len(databases) == 1:
         # Return just the tables array when there's only one database
         return list(databases.values())[0]["tables"]
@@ -224,7 +224,7 @@ def get_tables_schema(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Get field definitions for tables (full_schema=True for all fields).
 
@@ -239,7 +239,7 @@ def get_tables_schema(
     tool_helpers = ctx.deps.tool_helpers
 
     if not table_ids:
-        return "no table IDs provided"
+        return {"tables_schema": []}
 
     tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
 
@@ -537,7 +537,7 @@ def create_fields(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Add fields to an existing table.
 
@@ -553,7 +553,7 @@ def create_fields(
     tool_helpers = ctx.deps.tool_helpers
 
     if not fields:
-        return "No fields to create provided"
+        return {"created_fields": []}
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -590,7 +590,7 @@ def update_fields(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Update existing fields (rename, change properties).
 
@@ -606,7 +606,7 @@ def update_fields(
     tool_helpers = ctx.deps.tool_helpers
 
     if not fields:
-        return "No field updates provided"
+        return {"updated_fields": [], "errors": []}
 
     updated = []
     errors = []
@@ -647,7 +647,7 @@ def delete_fields(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Delete fields (moves them to trash).
 
@@ -663,7 +663,7 @@ def delete_fields(
     tool_helpers = ctx.deps.tool_helpers
 
     if not field_ids:
-        return "No field IDs provided"
+        return {"deleted_field_ids": [], "errors": []}
 
     deleted = []
     errors = []
@@ -705,7 +705,7 @@ def create_views(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Create views (grid, form, gallery, kanban, calendar, timeline).
 
@@ -721,7 +721,7 @@ def create_views(
     tool_helpers = ctx.deps.tool_helpers
 
     if not views:
-        return "No views to create provided"
+        return {"created_views": []}
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -777,7 +777,7 @@ def create_view_filters(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     Add filters to views.
 
@@ -802,7 +802,7 @@ def create_view_filters(
     tool_helpers = ctx.deps.tool_helpers
 
     if not view_filters:
-        return "no view filters provided"
+        return {"created_view_filters": []}
 
     created_view_filters = []
     for vf in view_filters:

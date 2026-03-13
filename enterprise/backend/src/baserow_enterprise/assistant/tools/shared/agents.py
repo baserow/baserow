@@ -102,11 +102,15 @@ def get_formula_generator(
             )
 
             model = get_model_string()
-            result = formula_agent.run_sync(
-                user_prompt,
-                model=model,
-                model_settings=get_model_settings(model, UTILITY),
-            )
+            try:
+                result = formula_agent.run_sync(
+                    user_prompt,
+                    model=model,
+                    model_settings=get_model_settings(model, UTILITY),
+                )
+            except Exception as exc:
+                feedback += f"Formula agent error: {str(exc)}\n"
+                continue
 
             generated_formulas = result.output.generated_formulas
             for field_id, formula in generated_formulas.items():

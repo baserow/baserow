@@ -195,7 +195,12 @@ def create_workflow(
 
     # -- Action / router / iterator nodes --
     for node in workflow.nodes:
-        reference_node_id, output = node.to_orm_reference_node(node_mapping)
+        try:
+            reference_node_id, output = node.to_orm_reference_node(node_mapping)
+        except ValueError as exc:
+            from pydantic_ai import ModelRetry
+
+            raise ModelRetry(str(exc)) from exc
         orm_node = _create_node(
             user,
             orm_wf,

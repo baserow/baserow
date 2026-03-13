@@ -32,10 +32,10 @@ from baserow.contrib.database.views.models import View, ViewFilter
 from baserow.core.db import specific_iterator
 
 from .eval_utils import (
-    assert_no_tool_errors,
+    EvalChecklist,
     build_database_ui_context,
+    count_tool_errors,
     create_eval_assistant,
-    format_message_history,
     print_message_history,
 )
 
@@ -79,6 +79,87 @@ PROMPT_CREATE_RELATED_TABLES_WITH_SAMPLE_ROWS = (
     "(single select: Fiction, Non-Fiction, Science, History), "
     "Price, and a link to the Authors table."
 )
+
+# -- View creation prompts --------------------------------------------------
+
+PROMPT_CREATE_GRID_VIEW = (
+    "Create a grid view called 'All Tasks' for table {table_name}."
+)
+
+PROMPT_CREATE_KANBAN_VIEW = (
+    "Create a kanban view called 'Task Board' for table {table_name}. "
+    "Use the Status field (id: {status_field_name}) as the column field."
+)
+
+PROMPT_CREATE_CALENDAR_VIEW = (
+    "Create a calendar view called 'Schedule' for table {table_name}. "
+    "Use the Due Date field (id: {date_field_name}) as the date field."
+)
+
+PROMPT_CREATE_GALLERY_VIEW = (
+    "Create a gallery view called 'Image Gallery' for table {table_name}. "
+    "Use the Cover Image field (id: {file_field_name}) as the cover image."
+)
+
+PROMPT_CREATE_TIMELINE_VIEW = (
+    "Create a timeline view called 'Project Timeline' for table {table_name}. "
+    "Use Start Date (id: {start_field_name}) and End Date (id: {end_field_name})."
+)
+
+PROMPT_CREATE_FORM_VIEW = (
+    "Create a form view called 'Submit Task' for table {table_name}. "
+    "Include the Name field in the form."
+)
+
+# -- View filter prompts ----------------------------------------------------
+
+PROMPT_FILTER_TEXT_CONTAINS = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Description field (id: {text_field_name}) "
+    "to only show rows where it contains 'important'."
+)
+
+PROMPT_FILTER_NUMBER_GREATER_THAN = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Amount field (id: {number_field_name}) "
+    "to only show rows where it is greater than 100."
+)
+
+PROMPT_FILTER_DATE_AFTER = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Due Date field (id: {date_field_name}) "
+    "to only show rows where the date is after today."
+)
+
+PROMPT_FILTER_SINGLE_SELECT_ANY_OF = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Status field (id: {select_field_name}) "
+    "to only show rows where Status is any of 'Active' or 'Pending'."
+)
+
+PROMPT_FILTER_MULTIPLE_SELECT_HAS = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Tags field (id: {multi_field_name}) "
+    "to only show rows where Tags has 'Important'."
+)
+
+PROMPT_FILTER_BOOLEAN_IS = (
+    "Create a grid view called 'Filtered' for table {table_name}, "
+    "then add a filter on the Active field (id: {bool_field_name}) "
+    "to only show rows where Active is true."
+)
+
+# -- Field update/delete prompts --------------------------------------------
+
+PROMPT_UPDATE_FIELD_RENAME = (
+    "Rename the Description field to Summary in the {table_name} table."
+)
+
+PROMPT_UPDATE_FIELD_SELECT_OPTIONS = (
+    "Add an 'In Progress' option to the Status field in the {table_name} table."
+)
+
+PROMPT_DELETE_FIELD = "Delete the Notes field from the {table_name} table."
 
 
 def _run_agent(
@@ -124,53 +205,70 @@ def test_agent_creates_simple_table(data_fixture, eval_model):
         ui_context=ui_context,
     )
 
-    # Print message history for inspection
     print_message_history(result)
-    history = format_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Verify tool calls happened
-    tool_calls = [e for e in history if e.get("tool_name") and e["role"] == "assistant"]
-    assert len(tool_calls) > 0, "Agent should have made at least one tool call"
-
-    # Verify no tool errors
-    assert_no_tool_errors(tracker, result)
-
-    # Verify the table was created
     tables = Table.objects.filter(database=database)
     recipe_tables = [t for t in tables if "recipe" in t.name.lower()]
-    assert len(recipe_tables) == 1, (
-        f"Expected 1 Recipes table, got {len(recipe_tables)}: "
-        f"{[t.name for t in tables]}"
-    )
-
-    table = recipe_tables[0]
-    fields = specific_iterator(table.field_set.all())
-
-    # Check field types exist
+    table = recipe_tables[0] if recipe_tables else None
+    fields = list(specific_iterator(table.field_set.all())) if table else []
     field_names = {f.name.lower(): f for f in fields}
-
-    assert any("name" in name for name in field_names), (
-        f"Missing 'Name' field. Fields: {list(field_names.keys())}"
-    )
-    assert any("description" in name for name in field_names), (
-        f"Missing 'Description' field. Fields: {list(field_names.keys())}"
-    )
-
-    # Verify field types
     text_fields = [f for f in fields if isinstance(f, (TextField, LongTextField))]
-    assert len(text_fields) >= 2, (
-        f"Expected at least 2 text/long_text fields, got {len(text_fields)}"
-    )
-
     number_fields = [f for f in fields if isinstance(f, NumberField)]
-    assert len(number_fields) >= 2, (
-        f"Expected at least 2 number fields, got {len(number_fields)}"
-    )
-
     boolean_fields = [f for f in fields if isinstance(f, BooleanField)]
-    assert len(boolean_fields) >= 1, (
-        f"Expected at least 1 boolean field, got {len(boolean_fields)}"
+
+    prep_number = next(
+        (
+            f
+            for f in number_fields
+            if any(kw in f.name.lower() for kw in ("prep", "time", "minute"))
+        ),
+        None,
     )
+    veg_bool = next((f for f in boolean_fields if "vegetarian" in f.name.lower()), None)
+
+    with EvalChecklist("creates Recipes table") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Recipes table created",
+            len(recipe_tables) == 1,
+            hint=f"got {len(recipe_tables)}: {[t.name for t in tables]}",
+        )
+        checks.check(
+            "Name field exists",
+            any("name" in n for n in field_names),
+            hint=f"fields: {list(field_names.keys())}",
+        )
+        checks.check(
+            "Description field exists",
+            any("description" in n for n in field_names),
+            hint=f"fields: {list(field_names.keys())}",
+        )
+        checks.check(
+            ">=2 text/long_text fields",
+            len(text_fields) >= 2,
+            hint=f"got {len(text_fields)}",
+        )
+        checks.check(
+            ">=2 number fields",
+            len(number_fields) >= 2,
+            hint=f"got {len(number_fields)}",
+        )
+        checks.check(
+            ">=1 boolean field",
+            len(boolean_fields) >= 1,
+            hint=f"got {len(boolean_fields)}",
+        )
+        checks.check(
+            "Prep Time/Minutes field exists (number)",
+            prep_number is not None,
+            hint=f"number fields: {[f.name for f in number_fields]}",
+        )
+        checks.check(
+            "Vegetarian field exists (boolean)",
+            veg_bool is not None,
+            hint=f"boolean fields: {[f.name for f in boolean_fields]}",
+        )
 
 
 @pytest.mark.eval
@@ -203,41 +301,79 @@ def test_agent_creates_table_with_select_fields(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Verify the table was created
     tables = Table.objects.filter(database=database)
     task_tables = [t for t in tables if "task" in t.name.lower()]
-    assert len(task_tables) == 1, (
-        f"Expected 1 Tasks table, got {len(task_tables)}: {[t.name for t in tables]}"
-    )
-
-    table = task_tables[0]
-    fields = specific_iterator(table.field_set.all())
-
-    # Verify select fields exist with options
+    table = task_tables[0] if task_tables else None
+    fields = list(specific_iterator(table.field_set.all())) if table else []
     select_fields = [f for f in fields if isinstance(f, SingleSelectField)]
-    assert len(select_fields) >= 2, (
-        f"Expected at least 2 single select fields (Status, Priority), "
-        f"got {len(select_fields)}: {[f.name for f in select_fields]}"
-    )
-
-    # Check Status field has options
     status_field = next((f for f in select_fields if "status" in f.name.lower()), None)
-    assert status_field is not None, (
-        f"Missing 'Status' select field. Select fields: "
-        f"{[f.name for f in select_fields]}"
+    status_options = (
+        list(status_field.select_options.values_list("value", flat=True))
+        if status_field
+        else []
     )
-    status_options = list(status_field.select_options.values_list("value", flat=True))
-    assert len(status_options) >= 3, (
-        f"Status field should have at least 3 options, got: {status_options}"
-    )
-
-    # Check date field
     date_fields = [f for f in fields if isinstance(f, DateField)]
-    assert len(date_fields) >= 1, (
-        f"Expected at least 1 date field, got {len(date_fields)}"
+    field_names_lower = {f.name.lower(): f for f in fields}
+    priority_field = next(
+        (f for f in select_fields if "priority" in f.name.lower()), None
     )
+    priority_options = (
+        list(priority_field.select_options.values_list("value", flat=True))
+        if priority_field
+        else []
+    )
+    status_option_values = {o.lower() for o in status_options}
+    priority_option_values = {o.lower() for o in priority_options}
+
+    with EvalChecklist("creates Tasks table with selects") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Tasks table created",
+            len(task_tables) == 1,
+            hint=f"got {len(task_tables)}: {[t.name for t in tables]}",
+        )
+        checks.check(
+            ">=2 single select fields (Status, Priority)",
+            len(select_fields) >= 2,
+            hint=f"got {len(select_fields)}: {[f.name for f in select_fields]}",
+        )
+        checks.check(
+            "Status field exists",
+            status_field is not None,
+            hint=f"select fields: {[f.name for f in select_fields]}",
+        )
+        checks.check(
+            "Status has >=3 options",
+            len(status_options) >= 3,
+            hint=f"got: {status_options}",
+        )
+        checks.check(
+            ">=1 date field",
+            len(date_fields) >= 1,
+            hint=f"got {len(date_fields)}",
+        )
+        checks.check(
+            "Title text field exists",
+            any("title" in n for n in field_names_lower),
+            hint=f"fields: {list(field_names_lower.keys())}",
+        )
+        checks.check(
+            "Priority field exists",
+            priority_field is not None,
+            hint=f"select fields: {[f.name for f in select_fields]}",
+        )
+        checks.check(
+            "Status has To Do / In Progress / Done",
+            {"to do", "in progress", "done"} <= status_option_values,
+            hint=f"got: {status_options}",
+        )
+        checks.check(
+            "Priority has Low / Medium / High",
+            {"low", "medium", "high"} <= priority_option_values,
+            hint=f"got: {priority_options}",
+        )
 
 
 @pytest.mark.eval
@@ -268,40 +404,79 @@ def test_agent_creates_related_tables(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     tables = Table.objects.filter(database=database)
     table_names = {t.name.lower(): t for t in tables}
-
-    # Verify both tables were created
     project_tables = [name for name in table_names if "project" in name]
     task_tables = [name for name in table_names if "task" in name]
 
-    assert len(project_tables) >= 1, (
-        f"Expected a Projects table, got tables: {list(table_names.keys())}"
+    task_table = table_names[task_tables[0]] if task_tables else None
+    task_fields = (
+        list(specific_iterator(task_table.field_set.all())) if task_table else []
     )
-    assert len(task_tables) >= 1, (
-        f"Expected a Tasks table, got tables: {list(table_names.keys())}"
-    )
-
-    # Verify link_row field exists
-    task_table = table_names[task_tables[0]]
-    task_fields = specific_iterator(task_table.field_set.all())
     link_fields = [f for f in task_fields if isinstance(f, LinkRowField)]
-    assert len(link_fields) >= 1, (
-        f"Expected at least 1 link_row field in Tasks, got {len(link_fields)}. "
-        f"Fields: {[(f.name, type(f).__name__) for f in task_fields]}"
-    )
 
-    # The link field should point to the projects table
-    project_table = table_names[project_tables[0]]
-    link_to_projects = [
-        f for f in link_fields if f.link_row_table_id == project_table.id
-    ]
-    assert len(link_to_projects) >= 1, (
-        f"Expected a link_row field pointing to Projects table (id={project_table.id}), "
-        f"got links to: {[(f.name, f.link_row_table_id) for f in link_fields]}"
+    project_table = table_names[project_tables[0]] if project_tables else None
+    link_to_projects = (
+        [f for f in link_fields if f.link_row_table_id == project_table.id]
+        if project_table
+        else []
     )
+    project_fields = (
+        list(specific_iterator(project_table.field_set.all())) if project_table else []
+    )
+    project_text_fields = [
+        f for f in project_fields if isinstance(f, (TextField, LongTextField))
+    ]
+    task_select_fields = [f for f in task_fields if isinstance(f, SingleSelectField)]
+    status_field_in_tasks = next(
+        (f for f in task_select_fields if "status" in f.name.lower()), None
+    )
+    status_opts_in_tasks = (
+        list(status_field_in_tasks.select_options.values_list("value", flat=True))
+        if status_field_in_tasks
+        else []
+    )
+    status_opt_values = {o.lower() for o in status_opts_in_tasks}
+
+    with EvalChecklist("creates related tables") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Projects table exists",
+            len(project_tables) >= 1,
+            hint=f"got tables: {list(table_names.keys())}",
+        )
+        checks.check(
+            "Tasks table exists",
+            len(task_tables) >= 1,
+            hint=f"got tables: {list(table_names.keys())}",
+        )
+        checks.check(
+            ">=1 link_row field in Tasks",
+            len(link_fields) >= 1,
+            hint=f"fields: {[(f.name, type(f).__name__) for f in task_fields]}",
+        )
+        checks.check(
+            "link_row points to Projects table",
+            len(link_to_projects) >= 1,
+            hint=f"links to: {[(f.name, f.link_row_table_id) for f in link_fields]}",
+        )
+        checks.check(
+            "Projects has >=2 text fields (Name, Description)",
+            len(project_text_fields) >= 2,
+            hint=f"project text fields: {[f.name for f in project_text_fields]}",
+        )
+        checks.check(
+            "Tasks has Status single_select field",
+            status_field_in_tasks is not None,
+            hint=f"task select fields: {[f.name for f in task_select_fields]}",
+        )
+        checks.check(
+            "Tasks Status has To Do / In Progress / Done",
+            {"to do", "in progress", "done"} <= status_opt_values,
+            hint=f"got: {status_opts_in_tasks}",
+        )
 
 
 @pytest.mark.eval
@@ -334,44 +509,87 @@ def test_agent_creates_database_from_description(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     from baserow.contrib.database.models import Database
 
     databases = Database.objects.filter(workspace=workspace)
-    assert databases.exists(), "Agent should have created a database in the workspace"
-    tables = Table.objects.filter(database__in=databases)
+    tables = list(Table.objects.filter(database__in=databases))
     table_names_lower = [t.name.lower() for t in tables]
 
-    # Verify core tables were created
-    assert any("book" in name for name in table_names_lower), (
-        f"Expected a Books table, got: {[t.name for t in tables]}"
+    books_table = next((t for t in tables if "book" in t.name.lower()), None)
+    books_fields = (
+        list(specific_iterator(books_table.field_set.all())) if books_table else []
     )
-    assert any("author" in name for name in table_names_lower), (
-        f"Expected an Authors table, got: {[t.name for t in tables]}"
+    books_field_types = {type(f) for f in books_fields}
+
+    authors_table_obj = next((t for t in tables if "author" in t.name.lower()), None)
+    authors_fields = (
+        list(specific_iterator(authors_table_obj.field_set.all()))
+        if authors_table_obj
+        else []
     )
-
-    # Verify Books table has expected field types
-    books_table = next(t for t in tables if "book" in t.name.lower())
-    books_fields = specific_iterator(books_table.field_set.all())
-    books_field_types = {type(f).__name__ for f in books_fields}
-
-    assert TextField in {type(f) for f in books_fields} or LongTextField in {
-        type(f) for f in books_fields
-    }, f"Books should have text fields. Field types: {books_field_types}"
-
-    assert NumberField in {type(f) for f in books_fields}, (
-        f"Books should have a number field (price). Field types: {books_field_types}"
-    )
-
-    assert DateField in {type(f) for f in books_fields}, (
-        f"Books should have a date field. Field types: {books_field_types}"
+    authors_field_types = {type(f) for f in authors_fields}
+    books_link_fields = [f for f in books_fields if isinstance(f, LinkRowField)]
+    link_to_authors = (
+        [f for f in books_link_fields if f.link_row_table_id == authors_table_obj.id]
+        if authors_table_obj
+        else []
     )
 
-    assert LinkRowField in {type(f) for f in books_fields}, (
-        f"Books should have a link_row field to Authors. "
-        f"Field types: {books_field_types}"
-    )
+    with EvalChecklist("creates Bookstore database") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "database created",
+            databases.exists(),
+            hint="no database found in workspace",
+        )
+        checks.check(
+            "Books table exists",
+            any("book" in n for n in table_names_lower),
+            hint=f"got: {[t.name for t in tables]}",
+        )
+        checks.check(
+            "Authors table exists",
+            any("author" in n for n in table_names_lower),
+            hint=f"got: {[t.name for t in tables]}",
+        )
+        checks.check(
+            "Books has text/long_text field",
+            TextField in books_field_types or LongTextField in books_field_types,
+            hint=f"field types: {[t.__name__ for t in books_field_types]}",
+        )
+        checks.check(
+            "Books has number field (price)",
+            NumberField in books_field_types,
+            hint=f"field types: {[t.__name__ for t in books_field_types]}",
+        )
+        checks.check(
+            "Books has date field",
+            DateField in books_field_types,
+            hint=f"field types: {[t.__name__ for t in books_field_types]}",
+        )
+        checks.check(
+            "Books has link_row field to Authors",
+            LinkRowField in books_field_types,
+            hint=f"field types: {[t.__name__ for t in books_field_types]}",
+        )
+        checks.check(
+            "Books link_row points to Authors table",
+            len(link_to_authors) >= 1,
+            hint=f"link targets: {[f.link_row_table_id for f in books_link_fields]}",
+        )
+        checks.check(
+            "Authors has text field (name/bio)",
+            TextField in authors_field_types or LongTextField in authors_field_types,
+            hint=f"authors field types: {[t.__name__ for t in authors_field_types]}",
+        )
+        checks.check(
+            "Books has >=2 text/long_text fields (title + description)",
+            sum(1 for f in books_fields if isinstance(f, (TextField, LongTextField)))
+            >= 2,
+            hint=f"books text fields: {[f.name for f in books_fields if isinstance(f, (TextField, LongTextField))]}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -422,58 +640,27 @@ def _setup_form(data_fixture, table):
 
 
 _VIEW_TEST_CASES = [
+    pytest.param("grid", _setup_grid, PROMPT_CREATE_GRID_VIEW, id="grid"),
+    pytest.param("kanban", _setup_kanban, PROMPT_CREATE_KANBAN_VIEW, id="kanban"),
     pytest.param(
-        "grid",
-        _setup_grid,
-        "Create a grid view called 'All Tasks' for table {table_name}.",
-        id="grid",
+        "calendar", _setup_calendar, PROMPT_CREATE_CALENDAR_VIEW, id="calendar"
     ),
+    pytest.param("gallery", _setup_gallery, PROMPT_CREATE_GALLERY_VIEW, id="gallery"),
     pytest.param(
-        "kanban",
-        _setup_kanban,
-        (
-            "Create a kanban view called 'Task Board' for table {table_name}. "
-            "Use the Status field (id: {status_field_name}) as the column field."
-        ),
-        id="kanban",
+        "timeline", _setup_timeline, PROMPT_CREATE_TIMELINE_VIEW, id="timeline"
     ),
-    pytest.param(
-        "calendar",
-        _setup_calendar,
-        (
-            "Create a calendar view called 'Schedule' for table {table_name}. "
-            "Use the Due Date field (id: {date_field_name}) as the date field."
-        ),
-        id="calendar",
-    ),
-    pytest.param(
-        "gallery",
-        _setup_gallery,
-        (
-            "Create a gallery view called 'Image Gallery' for table {table_name}. "
-            "Use the Cover Image field (id: {file_field_name}) as the cover image."
-        ),
-        id="gallery",
-    ),
-    pytest.param(
-        "timeline",
-        _setup_timeline,
-        (
-            "Create a timeline view called 'Project Timeline' for table {table_name}. "
-            "Use Start Date (id: {start_field_name}) and End Date (id: {end_field_name})."
-        ),
-        id="timeline",
-    ),
-    pytest.param(
-        "form",
-        _setup_form,
-        (
-            "Create a form view called 'Submit Task' for table {table_name}. "
-            "Include the Name field in the form."
-        ),
-        id="form",
-    ),
+    pytest.param("form", _setup_form, PROMPT_CREATE_FORM_VIEW, id="form"),
 ]
+
+
+_EXPECTED_VIEW_NAMES = {
+    "grid": "all tasks",
+    "kanban": "task board",
+    "calendar": "schedule",
+    "gallery": "image gallery",
+    "timeline": "project timeline",
+    "form": "submit task",
+}
 
 
 @pytest.mark.eval
@@ -516,17 +703,29 @@ def test_agent_creates_view(
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Verify a view of the expected type was created (excluding the default grid view)
     views = View.objects.filter(table=table)
     typed_views = [
         v for v in views if v.get_type().type == view_type and v.name != "Grid"
     ]
-    assert len(typed_views) >= 1, (
-        f"Expected at least 1 {view_type} view (besides the default 'Grid'), "
-        f"got views: {[(v.name, v.get_type().type) for v in views]}"
+
+    view_name_ok = any(
+        _EXPECTED_VIEW_NAMES[view_type] in v.name.lower() for v in typed_views
     )
+
+    with EvalChecklist(f"creates {view_type} view") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            f"{view_type} view created",
+            len(typed_views) >= 1,
+            hint=f"got views: {[(v.name, v.get_type().type) for v in views]}",
+        )
+        checks.check(
+            "view name matches expected",
+            view_name_ok,
+            hint=f"expected '{_EXPECTED_VIEW_NAMES[view_type]}', got: {[v.name for v in typed_views]}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -574,68 +773,50 @@ _FILTER_TEST_CASES = [
     pytest.param(
         "text",
         _setup_text_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Description field (id: {text_field_name}) "
-            "to only show rows where it contains 'important'."
-        ),
+        PROMPT_FILTER_TEXT_CONTAINS,
         "contains",
+        "important",
         id="text_contains",
     ),
     pytest.param(
         "number",
         _setup_number_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Amount field (id: {number_field_name}) "
-            "to only show rows where it is higher than 100."
-        ),
+        PROMPT_FILTER_NUMBER_GREATER_THAN,
         "higher_than",
-        id="number_higher_than",
+        "100",
+        id="number_greater_than",
     ),
     pytest.param(
         "date",
         _setup_date_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Due Date field (id: {date_field_name}) "
-            "to only show rows where the date is after today."
-        ),
+        PROMPT_FILTER_DATE_AFTER,
         "date_is_after",
+        None,  # value contains UTC?date_mode format — fragile to check
         id="date_after",
     ),
     pytest.param(
         "single_select",
         _setup_single_select_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Status field (id: {select_field_name}) "
-            "to only show rows where Status is any of 'Active' or 'Pending'."
-        ),
+        PROMPT_FILTER_SINGLE_SELECT_ANY_OF,
         "single_select_is_any_of",
+        None,  # value is comma-separated option IDs — fragile to check
         id="single_select_is_any_of",
     ),
     pytest.param(
         "multiple_select",
         _setup_multiple_select_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Tags field (id: {multi_field_name}) "
-            "to only show rows where Tags has 'Important'."
-        ),
+        PROMPT_FILTER_MULTIPLE_SELECT_HAS,
         "multiple_select_has",
+        None,  # value is option ID — fragile to check
         id="multiple_select_has",
     ),
     pytest.param(
         "boolean",
         _setup_boolean_filter,
-        (
-            "Create a grid view called 'Filtered' for table {table_name}, "
-            "then add a filter on the Active field (id: {bool_field_name}) "
-            "to only show rows where Active is true."
-        ),
-        "boolean",
-        id="boolean_is",
+        PROMPT_FILTER_BOOLEAN_IS,
+        "equal",
+        "1",
+        id="boolean_equal",
     ),
 ]
 
@@ -643,10 +824,17 @@ _FILTER_TEST_CASES = [
 @pytest.mark.eval
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "filter_type,setup_fn,prompt_template,expected_orm_type", _FILTER_TEST_CASES
+    "filter_type,setup_fn,prompt_template,expected_orm_type,expected_value_fragment",
+    _FILTER_TEST_CASES,
 )
 def test_agent_creates_view_filter(
-    data_fixture, eval_model, filter_type, setup_fn, prompt_template, expected_orm_type
+    data_fixture,
+    eval_model,
+    filter_type,
+    setup_fn,
+    prompt_template,
+    expected_orm_type,
+    expected_value_fragment,
 ):
     """Agent should create a view with the correct filter type without tool errors."""
 
@@ -682,14 +870,176 @@ def test_agent_creates_view_filter(
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Verify a view filter of the expected ORM type was created
     filters = ViewFilter.objects.filter(view__table=table, type=expected_orm_type)
-    assert filters.exists(), (
-        f"Expected a ViewFilter with type='{expected_orm_type}', "
-        f"got: {list(ViewFilter.objects.filter(view__table=table).values_list('type', flat=True))}"
+    all_filter_types = list(
+        ViewFilter.objects.filter(view__table=table).values_list("type", flat=True)
     )
+    filter_obj = filters.first()
+    setup_field = list(extra.values())[0] if extra else None
+
+    with EvalChecklist(f"creates {filter_type} view filter") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            f"ViewFilter type='{expected_orm_type}' exists",
+            filters.exists(),
+            hint=f"got filter types: {all_filter_types}",
+        )
+        checks.check(
+            "filter is on the correct field",
+            filter_obj is not None
+            and setup_field is not None
+            and filter_obj.field_id == setup_field.id,
+            hint=f"filter field_id={filter_obj.field_id if filter_obj else None}, expected={setup_field.id if setup_field else None}",
+        )
+        if expected_value_fragment is not None:
+            checks.check(
+                "filter value is correct",
+                filter_obj is not None
+                and expected_value_fragment in (filter_obj.value or ""),
+                hint=f"filter value='{filter_obj.value if filter_obj else None}', expected fragment='{expected_value_fragment}'",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Field update/delete evals
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_renames_field(data_fixture, eval_model):
+    """Agent should rename a field when asked."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Tasks")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_long_text_field(table=table, name="Description")
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=15, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database, table)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_UPDATE_FIELD_RENAME.format(table_name=table.name),
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    field_names = list(table.field_set.all().values_list("name", flat=True))
+
+    with EvalChecklist("renames field") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Summary field exists",
+            any("summary" in n.lower() for n in field_names),
+            hint=f"fields: {field_names}",
+        )
+        checks.check(
+            "Description field gone",
+            not any(n.lower() == "description" for n in field_names),
+            hint=f"fields: {field_names}",
+        )
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_updates_select_options(data_fixture, eval_model):
+    """Agent should add a new option to a single_select field."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Tasks")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    status_field = data_fixture.create_single_select_field(table=table, name="Status")
+    data_fixture.create_select_option(field=status_field, value="To Do", order=1)
+    data_fixture.create_select_option(field=status_field, value="Done", order=2)
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=15, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database, table)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_UPDATE_FIELD_SELECT_OPTIONS.format(table_name=table.name),
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    status_field.refresh_from_db()
+    options = list(status_field.select_options.values_list("value", flat=True))
+
+    with EvalChecklist("updates select options") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "In Progress option added",
+            any("in progress" in o.lower() for o in options),
+            hint=f"options: {options}",
+        )
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_deletes_field(data_fixture, eval_model):
+    """Agent should delete a field when asked."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Tasks")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_long_text_field(table=table, name="Notes")
+    data_fixture.create_text_field(table=table, name="Priority")
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=15, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database, table)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_DELETE_FIELD.format(table_name=table.name),
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    field_names = list(table.field_set.all().values_list("name", flat=True))
+
+    with EvalChecklist("deletes field") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Notes field gone",
+            not any(n.lower() == "notes" for n in field_names),
+            hint=f"fields: {field_names}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -730,36 +1080,92 @@ def test_create_related_tables_with_sample_rows(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     tables = Table.objects.filter(database=database)
     table_names = {t.name.lower(): t for t in tables}
-
-    # Verify both tables exist
     author_tables = [name for name in table_names if "author" in name]
     book_tables = [name for name in table_names if "book" in name]
 
-    assert len(author_tables) >= 1, (
-        f"Expected an Authors table, got: {list(table_names.keys())}"
+    authors_count = (
+        table_names[author_tables[0]].get_model().objects.count()
+        if author_tables
+        else 0
     )
-    assert len(book_tables) >= 1, (
-        f"Expected a Books table, got: {list(table_names.keys())}"
+    books_count = (
+        table_names[book_tables[0]].get_model().objects.count() if book_tables else 0
     )
+    books_table_obj = table_names[book_tables[0]] if book_tables else None
+    books_fields_list = (
+        list(specific_iterator(books_table_obj.field_set.all()))
+        if books_table_obj
+        else []
+    )
+    genre_field = next(
+        (
+            f
+            for f in books_fields_list
+            if isinstance(f, SingleSelectField) and "genre" in f.name.lower()
+        ),
+        None,
+    )
+    genre_options = (
+        list(genre_field.select_options.values_list("value", flat=True))
+        if genre_field
+        else []
+    )
+    genre_option_values = {o.lower() for o in genre_options}
+    price_field = next(
+        (
+            f
+            for f in books_fields_list
+            if isinstance(f, NumberField) and "price" in f.name.lower()
+        ),
+        None,
+    )
+    books_link_fields_list = [
+        f for f in books_fields_list if isinstance(f, LinkRowField)
+    ]
 
-    # Verify Authors has sample rows
-    authors_table = table_names[author_tables[0]]
-    authors_model = authors_table.get_model()
-    authors_count = authors_model.objects.count()
-    assert authors_count >= 3, (
-        f"Expected at least 3 sample rows in Authors, got {authors_count}. "
-        f"Sample row generation likely failed."
-    )
-
-    # Verify Books has sample rows
-    books_table = table_names[book_tables[0]]
-    books_model = books_table.get_model()
-    books_count = books_model.objects.count()
-    assert books_count >= 3, (
-        f"Expected at least 3 sample rows in Books, got {books_count}. "
-        f"Sample row generation likely failed."
-    )
+    with EvalChecklist("creates Bookstore with sample rows") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "Authors table exists",
+            len(author_tables) >= 1,
+            hint=f"got: {list(table_names.keys())}",
+        )
+        checks.check(
+            "Books table exists",
+            len(book_tables) >= 1,
+            hint=f"got: {list(table_names.keys())}",
+        )
+        checks.check(
+            "Authors has >=3 sample rows",
+            authors_count >= 3,
+            hint=f"got {authors_count}",
+        )
+        checks.check(
+            "Books has >=3 sample rows",
+            books_count >= 3,
+            hint=f"got {books_count}",
+        )
+        checks.check(
+            "Books has Genre single_select field",
+            genre_field is not None,
+            hint=f"books select fields: {[f.name for f in books_fields_list if isinstance(f, SingleSelectField)]}",
+        )
+        checks.check(
+            "Genre has Fiction / Non-Fiction / Science / History options",
+            {"fiction", "non-fiction", "science", "history"} <= genre_option_values,
+            hint=f"got: {genre_options}",
+        )
+        checks.check(
+            "Books has Price (number) field",
+            price_field is not None,
+            hint=f"books number fields: {[f.name for f in books_fields_list if isinstance(f, NumberField)]}",
+        )
+        checks.check(
+            "Books has link_row to Authors",
+            len(books_link_fields_list) >= 1,
+            hint=f"books fields: {[f.name for f in books_fields_list]}",
+        )

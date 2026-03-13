@@ -280,36 +280,93 @@ def assert_tool_call_order(result, expected_order: list[str]):
         )
 
 
-def assert_no_tool_errors(tracker: EvalToolTracker, result=None):
+class EvalChecklist:
     """
-    Assert no tool errors occurred during the agent run.
+    Soft-assertion context manager for eval tests.
 
-    Inspects the pydantic-ai message history for ``RetryPromptPart``
-    entries, which indicate the LLM sent invalid arguments that failed
-    pydantic validation.
+    Collects labelled checks without raising immediately. On exit it prints a
+    score table (visible with ``-s``) and raises a single AssertionError that
+    lists every failed check. This lets you see "4/6 (66%)" instead of the
+    binary "FAIL at first assertion" behaviour of plain ``assert``.
+
+    Usage::
+
+        with EvalChecklist("creates Bookstore database") as checks:
+            checks.check("Books table exists", any("book" in n for n in names))
+            checks.check("Authors table exists", any("author" in n for n in names),
+                         hint=f"got: {names}")
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+        self._checks: list[tuple[str, bool, str]] = []
+
+    def check(self, label: str, condition: bool, hint: str = "") -> bool:
+        """Record a soft check. Returns the condition value for further use."""
+        self._checks.append((label, bool(condition), hint))
+        return bool(condition)
+
+    @property
+    def score(self) -> tuple[int, int]:
+        passed = sum(1 for _, ok, _ in self._checks if ok)
+        return passed, len(self._checks)
+
+    def assert_all(self):
+        passed, total = self.score
+        pct = 100 * passed // total if total else 0
+        lines = [
+            f"  {'✓' if ok else '✗'} {label}"
+            + (f"  ({hint})" if not ok and hint else "")
+            for label, ok, hint in self._checks
+        ]
+        summary = (
+            f"\nEVAL SCORE [{self.name}]: {passed}/{total} ({pct}%)\n"
+            + "\n".join(lines)
+        )
+        print(summary)
+        failed = [label for label, ok, _ in self._checks if not ok]
+        assert not failed, summary
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, *_):
+        if exc_type is None:
+            self.assert_all()
+        return False
+
+
+def count_tool_errors(result) -> tuple[int, str]:
+    """
+    Count tool validation errors in the agent result.
+
+    Inspects the pydantic-ai message history for ``RetryPromptPart`` entries,
+    which indicate the LLM sent invalid arguments that failed pydantic
+    validation.  "Unknown tool name" retries are excluded — the LLM explored a
+    non-existent tool and recovered on its own, which is acceptable.
+
+    Returns ``(error_count, hint)`` suitable for use with
+    :meth:`EvalChecklist.check`.
     """
     from pydantic_ai.messages import ModelRequest, RetryPromptPart
 
-    if result is not None:
-        messages = getattr(result, "all_messages", lambda: [])() or []
-        retry_errors = []
-        for msg in messages:
-            if isinstance(msg, ModelRequest):
-                for part in msg.parts:
-                    if isinstance(part, RetryPromptPart):
-                        content = str(part.content)
-                        # Skip "Unknown tool name" retries -- the LLM explored
-                        # a tool that doesn't exist but recovered on its own.
-                        if "Unknown tool name" in content:
-                            continue
-                        retry_errors.append(
-                            {
-                                "tool_name": getattr(part, "tool_name", None),
-                                "content": content,
-                            }
-                        )
-        assert not retry_errors, (
-            f"Validation errors (RetryPromptPart) occurred -- the LLM sent "
-            f"invalid tool arguments:\n"
-            + "\n".join(f"  - {e['tool_name']}: {e['content']}" for e in retry_errors)
-        )
+    if result is None:
+        return 0, ""
+
+    messages = getattr(result, "all_messages", lambda: [])() or []
+    retry_errors = []
+    for msg in messages:
+        if isinstance(msg, ModelRequest):
+            for part in msg.parts:
+                if isinstance(part, RetryPromptPart):
+                    content = str(part.content)
+                    if "Unknown tool name" in content:
+                        continue
+                    retry_errors.append(
+                        {
+                            "tool_name": getattr(part, "tool_name", None),
+                            "content": content,
+                        }
+                    )
+    hint = "\n".join(f"  - {e['tool_name']}: {e['content']}" for e in retry_errors)
+    return len(retry_errors), hint

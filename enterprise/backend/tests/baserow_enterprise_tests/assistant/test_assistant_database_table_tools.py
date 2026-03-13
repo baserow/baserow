@@ -134,7 +134,8 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=["Nonexistent Table"],
         ),
     )
-    assert "no tables matching" in response or "No tables found" in response
+    info = response["_info"]
+    assert "no tables matching" in info or "No tables found" in info
 
 
 @pytest.mark.django_db

@@ -3,6 +3,7 @@ from django.conf import settings
 import pytest
 
 from .eval_utils import (
+    EvalChecklist,
     build_database_ui_context,
     create_eval_assistant,
     format_message_history,
@@ -50,7 +51,7 @@ SEARCH_DOCS_CASES = [
         (
             "I'm trying to do a VLOOKUP to pull the 'Client Email' from my "
             "'Clients' tab into my 'Projects' tab based on the client name. "
-            "I can't find the formula for this."
+            "I can't find the formula for this. Does it exist in Baserow?"
         ),
         ["link-to-table", "lookup-field"],
         ["link row", "lookup", "link_row", "relationship"],
@@ -83,7 +84,7 @@ SEARCH_DOCS_CASES = [
         id="auto-save",
     ),
     pytest.param(
-        "I want to put a form on my website that sends data to my table.",
+        "How can I put a form on my website that sends data to my table?",
         ["creating-forms", "guide-to-creating-forms"],
         ["form", "embed", "share"],
         id="form-embed",
@@ -111,7 +112,9 @@ SEARCH_DOCS_CASES = [
         id="field-permissions",
     ),
     pytest.param(
-        ("I need a calendar that shows my tasks, but only the ones assigned to me."),
+        (
+            "How can I create a calendar that shows my tasks, but only the ones assigned to me."
+        ),
         ["calendar-view", "calendar", "filters"],
         ["calendar", "filter", "view"],
         id="calendar-with-filter",
@@ -119,7 +122,7 @@ SEARCH_DOCS_CASES = [
     pytest.param(
         (
             "I'm trying to combine the first name and last name columns "
-            "into one, but I want to make sure it's uppercase. How do I "
+            "into one, but I want to make sure it's uppercase. Can you tell me how to "
             "write that formula?"
         ),
         ["formula", "understanding-formulas"],
@@ -237,40 +240,37 @@ def test_search_user_docs(
 
     print_message_history(result)
 
-    # 1. Agent must have called search_user_docs
     history = format_message_history(result)
     search_calls = [
         e
         for e in history
         if e.get("tool_name") == "search_user_docs" and e["role"] == "assistant"
     ]
-    assert len(search_calls) >= 1, (
-        "Agent should have called search_user_docs. "
-        f"Tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}"
-    )
-
-    # 2. Check that at least one returned source URL matches expected patterns.
-    #    Sources are accumulated on deps.sources by the tool.
     sources = deps.sources
+    answer = result.output.lower()
+    keyword_match = any(kw.lower() in answer for kw in expected_keywords)
+
+    # Source URL matching is non-fatal — URLs change and the retrieval may
+    # return valid alternative sources.  Print a warning but don't score it.
     if expected_source_patterns and sources:
         source_match = any(
             any(pattern in url for pattern in expected_source_patterns)
             for url in sources
         )
         if not source_match:
-            # Non-fatal: print a warning but don't fail the test.
-            # Source URL matching can be brittle because URLs change and
-            # the retrieval may return valid alternative sources.
             print(
-                f"\n  WARNING: No source matched expected patterns "
-                f"{expected_source_patterns}.\n"
+                f"\n  WARNING: No source matched {expected_source_patterns}.\n"
                 f"  Returned sources: {sources}"
             )
 
-    # 3. Agent's final answer should mention expected concepts
-    answer = result.output.lower()
-    keyword_match = any(kw.lower() in answer for kw in expected_keywords)
-    assert keyword_match, (
-        f"Agent answer should mention at least one of {expected_keywords}.\n"
-        f"Answer (first 500 chars): {result.output[:500]}"
-    )
+    with EvalChecklist("search user docs") as checks:
+        checks.check(
+            "called search_user_docs",
+            len(search_calls) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
+            f"answer mentions one of {expected_keywords}",
+            keyword_match,
+            hint=f"answer (first 300 chars): {result.output[:300]}",
+        )

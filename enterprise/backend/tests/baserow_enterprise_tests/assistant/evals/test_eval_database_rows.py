@@ -17,8 +17,9 @@ import pytest
 from baserow.contrib.database.rows.handler import RowHandler
 
 from .eval_utils import (
-    assert_no_tool_errors,
+    EvalChecklist,
     build_database_ui_context,
+    count_tool_errors,
     create_eval_assistant,
     print_message_history,
 )
@@ -154,41 +155,74 @@ def test_agent_creates_rows_with_all_field_types(data_fixture, eval_model, db):
         toolsets=[toolset],
     )
 
-    # Verify rows were created
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
     table_model = table.get_model()
     row_count = table_model.objects.count()
-    assert row_count == 5, f"Expected 5 rows, got {row_count}"
-
-    # Verify every field type is populated in at least some rows
-    sample_rows = table_model.objects.all()
+    sample_rows = list(table_model.objects.all())
 
     def _get_field_value(row, field_name):
         return getattr(row, fields[field_name].db_column, None)
 
-    field_checks = {
-        "title": lambda r: bool(_get_field_value(r, "title")),
-        "description": lambda r: bool(_get_field_value(r, "description")),
-        "estimated_hours": lambda r: _get_field_value(r, "estimated_hours") is not None,
-        "completed": lambda r: _get_field_value(r, "completed") is not None,
-        "due_date": lambda r: _get_field_value(r, "due_date") is not None,
-        "created_at": lambda r: _get_field_value(r, "created_at") is not None,
-        "status": lambda r: _get_field_value(r, "status").value
-        in ["To Do", "In Progress", "Done"],
-        "tags": lambda r: set(
-            _get_field_value(r, "tags").values_list("value", flat=True)
-        )
-        & {"Bug", "Feature", "Docs"},
-        "category": lambda r: len(_get_field_value(r, "category").all()),
-        "related_categories": lambda r: len(
-            _get_field_value(r, "related_categories").all()
-        )
-        > 0,
-    }
-    for field_name, check_fn in field_checks.items():
-        matches = [r for r in sample_rows if check_fn(r)]
-        assert matches, f"No rows had valid data for field '{field_name}'"
+    def _any_row(check_fn):
+        return any(check_fn(r) for r in sample_rows)
 
-    print_message_history(result)
-
-    # No tool errors or validation retries
-    assert_no_tool_errors(tracker, result)
+    with EvalChecklist("creates rows with all field types") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check("5 rows created", row_count == 5, hint=f"got {row_count}")
+        checks.check(
+            "title populated",
+            _any_row(lambda r: bool(_get_field_value(r, "title"))),
+        )
+        checks.check(
+            "description populated",
+            _any_row(lambda r: bool(_get_field_value(r, "description"))),
+        )
+        checks.check(
+            "estimated_hours populated",
+            _any_row(lambda r: _get_field_value(r, "estimated_hours") is not None),
+        )
+        checks.check(
+            "estimated_hours > 0 in at least one row",
+            _any_row(lambda r: (_get_field_value(r, "estimated_hours") or 0) > 0),
+        )
+        checks.check(
+            "completed populated",
+            _any_row(lambda r: _get_field_value(r, "completed") is not None),
+        )
+        checks.check(
+            "due_date populated",
+            _any_row(lambda r: _get_field_value(r, "due_date") is not None),
+        )
+        checks.check(
+            "created_at populated",
+            _any_row(lambda r: _get_field_value(r, "created_at") is not None),
+        )
+        checks.check(
+            "status is a known option",
+            _any_row(
+                lambda r: bool(_get_field_value(r, "status"))
+                and _get_field_value(r, "status").value
+                in ["To Do", "In Progress", "Done"]
+            ),
+        )
+        checks.check(
+            "tags has at least one known option",
+            _any_row(
+                lambda r: bool(
+                    set(_get_field_value(r, "tags").values_list("value", flat=True))
+                    & {"Bug", "Feature", "Docs"}
+                )
+            ),
+        )
+        checks.check(
+            "category linked",
+            _any_row(lambda r: len(_get_field_value(r, "category").all()) > 0),
+        )
+        checks.check(
+            "related_categories linked",
+            _any_row(
+                lambda r: len(_get_field_value(r, "related_categories").all()) > 0
+            ),
+        )

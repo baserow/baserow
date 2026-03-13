@@ -50,7 +50,7 @@ def test_list_builders_empty(data_fixture):
     ctx = make_test_ctx(user, workspace)
     result = list_builders(ctx, builder_types=None, thought="list all")
 
-    assert result == "no builders found"
+    assert result == {}
 
 
 @pytest.mark.django_db

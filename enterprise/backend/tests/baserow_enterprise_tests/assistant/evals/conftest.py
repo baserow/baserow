@@ -1,12 +1,21 @@
 import asyncio
 import logging
 import os
+import sys
 
 from django.conf import settings
 
 import pytest
+from loguru import logger
 
 from baserow.config.settings.test import TEST_ENV_VARS
+
+# Suppress DEBUG-level loguru output during evals.  Baserow's cache layer logs
+# every cache hit/miss at DEBUG, which floods the output when using -s.  Agent
+# message history is printed via print() and is captured by pytest: it appears
+# in the failure report automatically without needing -s.
+logger.remove()
+logger.add(sys.stderr, level="WARNING")
 
 # Expose API keys from TEST_ENV_FILE to os.environ so that LLM provider
 # SDKs (which read os.getenv() at import/construction time) can find them.
@@ -39,15 +48,26 @@ def _evals_explicitly_requested(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip eval tests unless explicitly requested (``-m eval`` or by path)."""
+    """Skip eval tests unless explicitly requested (``-m eval`` or by path).
 
-    if _evals_explicitly_requested(config):
+    Also wires up ``EVAL_RETRIES``: when set to a positive integer, every eval
+    test is automatically marked with ``pytest.mark.retry(N)`` so that failing
+    tests are re-run up to N times.  A test that passes on retry is a flake
+    (LLM non-determinism); one that fails all N retries is a consistent bug.
+    """
+
+    if not _evals_explicitly_requested(config):
+        skip_eval = pytest.mark.skip(reason="eval tests only run with -m eval")
+        for item in items:
+            if item.get_closest_marker("eval"):
+                item.add_marker(skip_eval)
         return
 
-    skip_eval = pytest.mark.skip(reason="eval tests only run with -m eval")
-    for item in items:
-        if item.get_closest_marker("eval"):
-            item.add_marker(skip_eval)
+    eval_retries = int(os.environ.get("EVAL_RETRIES", "0"))
+    if eval_retries > 0:
+        for item in items:
+            if item.get_closest_marker("eval"):
+                item.add_marker(pytest.mark.retry(eval_retries))
 
 
 def pytest_generate_tests(metafunc):

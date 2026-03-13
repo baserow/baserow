@@ -373,15 +373,15 @@ def test_all_boolean_filters_conversion(data_fixture):
     table_fields = {field.id: field}
 
     # Test is true
-    filter_item = _make_filter(field.id, type="boolean", operator="is", value=True)
+    filter_item = _make_filter(field.id, type="boolean", operator="equal", value=True)
     created = create_view_filter(user, view, table_fields, filter_item)
-    assert created.type == "boolean"
+    assert created.type == "equal"
     assert created.value == "1"
 
     # Test is false
-    filter_item2 = _make_filter(field.id, type="boolean", operator="is", value=False)
+    filter_item2 = _make_filter(field.id, type="boolean", operator="equal", value=False)
     created2 = create_view_filter(user, view, table_fields, filter_item2)
-    assert created2.type == "boolean"
+    assert created2.type == "equal"
     assert created2.value == "0"
 
 
@@ -519,7 +519,7 @@ def test_comprehensive_all_filter_types_conversion(data_fixture):
             value=["Important"],
         ),
         # Boolean filter
-        _make_filter(boolean_field.id, type="boolean", operator="is", value=True),
+        _make_filter(boolean_field.id, type="boolean", operator="equal", value=True),
     ]
 
     created_filters = []
@@ -553,6 +553,6 @@ def test_comprehensive_all_filter_types_conversion(data_fixture):
         "single_select_is_none_of",
         "multiple_select_has",
         "multiple_select_has_not",
-        "boolean",
+        "equal",  # for boolean field
     }
     assert filter_types == expected_types

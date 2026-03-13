@@ -23,14 +23,14 @@ export GROQ_API_KEY=gsk_...
 
 # Run all evals with the default model (groq:openai/gpt-oss-120b)
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
-  -m eval -v -s
+  -m eval -v
 
 # Run a single eval file
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
-  -m eval -v -s
+  -m eval -v
 ```
 
-> **Tip:** Pass `-s` to see the agent's tool calls and message history printed to stdout.
+> **Tip:** Do **not** pass `-s`. Without it, pytest captures `print_message_history` output and shows it only in the failure report — passing tests stay silent. Use `-s` only when you want to watch the agent's tool calls in real time for a single test.
 
 > **Note:** Commands in this document use `just b test` and are meant to be
 > run from the **project root**. If you're already inside the `backend/`
@@ -44,6 +44,7 @@ All configuration is via environment variables:
 |----------|---------|-------------|
 | `EVAL_LLM_MODEL` | `groq:openai/gpt-oss-120b` | Model string in pydantic-ai format (`provider:model`). |
 | `EVAL_LLM_MODELS` | *(unset)* | Comma-separated list of models. When set, every eval is parametrized and runs once per model. |
+| `EVAL_RETRIES` | `0` | Retry each failing eval test up to N times. If a test passes on retry it's a flake (LLM non-determinism); if it fails all N retries it's a consistent bug. |
 | `GROQ_API_KEY` | — | Required when using a Groq model. |
 | `OPENAI_API_KEY` | — | Required when using an OpenAI model. |
 | `ANTHROPIC_API_KEY` | — | Required when using an Anthropic model. |
@@ -95,7 +96,7 @@ bodies.
 ## Writing a new eval
 
 1. Create a new `test_eval_<area>.py` file in the `evals/` directory.
-2. Define prompts as `PROMPT_*` constants at the top.
+2. Define prompts as `PROMPT_*` constants at the top, so it's easier to have an overview of the existing evals.
 3. Mark each test with `@pytest.mark.eval` and
    `@pytest.mark.django_db(transaction=True)`.
 4. Use the helpers from `eval_utils.py`:
@@ -144,7 +145,8 @@ def test_agent_does_something(data_fixture, eval_model):
 |--------|---------|
 | `create_eval_assistant(user, workspace, max_iters, model)` | Returns `(agent, deps, tracker, model, usage_limits, toolset)` configured like production. |
 | `build_database_ui_context(user, workspace, database, table)` | Builds the UI context JSON the agent receives. |
-| `assert_no_tool_errors(tracker, result)` | Fails if any tool raised an exception or the LLM sent invalid arguments. |
+| `assert_no_tool_errors(tracker, result, max_errors=0)` | Fails if the number of tool validation errors exceeds `max_errors`. Use `max_errors=1` for complex schemas where a single retry is acceptable. |
+| `EvalChecklist(name)` | Context manager for soft assertions: collects checks, prints a score table (`4/6 (66%)`), and only hard-fails at the end. Use for tests with multiple independent checks. |
 | `print_message_history(result)` | Prints the full agent conversation to stdout. |
 | `format_message_history(result)` | Returns the conversation as a list of dicts for programmatic assertions. |
 
@@ -255,8 +257,13 @@ OPENAI_API_KEY=sk-...
 
 LLM evals are inherently non-deterministic. If a test fails intermittently:
 
-- Re-run it a couple of times — a single failure doesn't necessarily indicate a
-  bug.
+- Use `EVAL_RETRIES` to automatically distinguish flakes from consistent bugs:
+  ```bash
+  EVAL_RETRIES=3 just b test \
+    ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_database_tables.py \
+    -m eval -v -s
+  ```
+  A test that passes on retry is a flake; one that fails all 3 retries is a real problem.
 - Check the printed message history (`-s` flag) to see what the agent did.
 - If a prompt is ambiguous, tighten the wording in the `PROMPT_*` constant.
 - Consider lowering the temperature in the model profile for the eval model.

@@ -4,8 +4,9 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.database.models import Database
 
 from .eval_utils import (
-    assert_no_tool_errors,
+    EvalChecklist,
     build_database_ui_context,
+    count_tool_errors,
     create_eval_assistant,
     format_message_history,
     print_message_history,
@@ -63,7 +64,7 @@ def test_agent_lists_databases(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     history = format_message_history(result)
     tool_calls = [
@@ -71,15 +72,19 @@ def test_agent_lists_databases(data_fixture, eval_model):
         for e in history
         if e.get("tool_name") == "list_builders" and e["role"] == "user"
     ]
-    assert len(tool_calls) >= 1, (
-        "Agent should have called list_builders. "
-        f"Tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}"
-    )
 
-    # The agent's answer should mention the database name
-    assert "Inventory" in result.output, (
-        f"Agent answer should mention 'Inventory', got: {result.output[:200]}"
-    )
+    with EvalChecklist("lists databases") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called list_builders",
+            len(tool_calls) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
+            "answer mentions 'Inventory'",
+            "Inventory" in result.output,
+            hint=f"answer: {result.output[:200]}",
+        )
 
 
 @pytest.mark.eval
@@ -108,7 +113,7 @@ def test_agent_creates_database(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     history = format_message_history(result)
     tool_calls = [
@@ -116,17 +121,20 @@ def test_agent_creates_database(data_fixture, eval_model):
         for e in history
         if e.get("tool_name") == "create_builders" and e["role"] == "user"
     ]
-    assert len(tool_calls) >= 1, (
-        "Agent should have called create_builders. "
-        f"Tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}"
-    )
-
-    # Verify the database was actually created
     created = Database.objects.filter(workspace=workspace, name__icontains="customer")
-    assert created.exists(), (
-        "Database 'Customer Portal' was not found in the workspace. "
-        f"Databases: {list(Database.objects.filter(workspace=workspace).values_list('name', flat=True))}"
-    )
+
+    with EvalChecklist("creates database") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called create_builders",
+            len(tool_calls) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
+            "database 'Customer Portal' exists",
+            created.exists(),
+            hint=f"databases: {list(Database.objects.filter(workspace=workspace).values_list('name', flat=True))}",
+        )
 
 
 @pytest.mark.eval
@@ -153,7 +161,7 @@ def test_agent_creates_automation(data_fixture, eval_model):
         ui_context=ui_context,
     )
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     history = format_message_history(result)
     tool_calls = [
@@ -161,30 +169,33 @@ def test_agent_creates_automation(data_fixture, eval_model):
         for e in history
         if e.get("tool_name") == "create_builders" and e["role"] == "user"
     ]
-    assert len(tool_calls) >= 1, (
-        "Agent should have called create_builders to create automation. "
-        f"Tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}"
-    )
+    created = list(Automation.objects.all())
+    automation = created[0] if created else None
 
-    # Verify the automation was actually created
-    created = Automation.objects.all()
-    assert len(created) == 1, (
-        "Expected exactly one automation to be created, but found "
-        f"{len(created)}. "
-        "Automations: "
-        f"{list(Automation.objects.filter(workspace=workspace).values_list('name', flat=True))}"
-    )
-    automation = created[0]
-    assert "overdue" in automation.name.lower(), (
-        f"Created automation should be named 'Overdue Task Reminder', but got '{automation.name}'."
-    )
-    assert automation.workspace_id == workspace.id, (
-        "Created automation should be in the correct workspace, but got "
-        f"{automation.workspace_id} instead of {workspace.id}."
-    )
-
-    # Verify the created automation has an empty workflow
-    assert automation.workflows.count() == 0, (
-        "Created automation should have no workflows, but found: "
-        f"{automation.workflows.all()}"
-    )
+    with EvalChecklist("creates automation") as checks:
+        checks.check("<=1 tool errors", err_count <= 1, hint=err_hint)
+        checks.check(
+            "called create_builders",
+            len(tool_calls) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
+            "exactly 1 automation created",
+            len(created) == 1,
+            hint=f"found {len(created)}: {[a.name for a in created]}",
+        )
+        checks.check(
+            "automation named 'Overdue Task Reminder'",
+            automation is not None and "overdue" in automation.name.lower(),
+            hint=f"got: '{automation.name if automation else None}'",
+        )
+        checks.check(
+            "automation in correct workspace",
+            automation is not None and automation.workspace_id == workspace.id,
+            hint=f"workspace_id={automation.workspace_id if automation else None} vs {workspace.id}",
+        )
+        checks.check(
+            "automation has no workflows",
+            automation is not None and automation.workflows.count() == 0,
+            hint=f"workflows: {list(automation.workflows.all()) if automation else []}",
+        )

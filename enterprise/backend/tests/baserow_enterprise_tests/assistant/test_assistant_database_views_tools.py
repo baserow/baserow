@@ -736,7 +736,7 @@ def test_create_boolean_is_true_filter(data_fixture):
                     ViewFilterItemCreate(
                         field_id=field.id,
                         type="boolean",
-                        operator="is",
+                        operator="equal",
                         value=True,
                     )
                 ],
@@ -745,7 +745,7 @@ def test_create_boolean_is_true_filter(data_fixture):
     )
 
     assert len(response["created_view_filters"]) == 1
-    assert ViewFilter.objects.filter(view=view, field=field, type="boolean").exists()
+    assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
 
 
 @pytest.mark.django_db
@@ -768,7 +768,7 @@ def test_create_boolean_is_false_filter(data_fixture):
                     ViewFilterItemCreate(
                         field_id=field.id,
                         type="boolean",
-                        operator="is",
+                        operator="equal",
                         value=False,
                     )
                 ],
@@ -777,7 +777,7 @@ def test_create_boolean_is_false_filter(data_fixture):
     )
 
     assert len(response["created_view_filters"]) == 1
-    assert ViewFilter.objects.filter(view=view, field=field, type="boolean").exists()
+    assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
 
 
 # Multiple select filter tests

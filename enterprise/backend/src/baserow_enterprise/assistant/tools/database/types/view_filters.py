@@ -21,7 +21,26 @@ _OPERATORS: dict[str, tuple[str, ...]] = {
     "single_select": ("is_any_of", "is_none_of"),
     "multiple_select": ("is_any_of", "is_none_of"),
     "link_row": ("has", "has_not"),
-    "boolean": ("is",),
+    "boolean": ("equal",),
+}
+
+# Operator aliases: normalize LLM-natural names to Baserow names before validation.
+_OPERATOR_ALIASES: dict[str, str] = {
+    "equals": "equal",
+    "is": "equal",
+    "not_equals": "not_equal",
+    "is_not": "not_equal",
+    "greater_than": "higher_than",
+    "greater_than_or_equal": "higher_than",  # or_equal flag handles the rest
+    "less_than": "lower_than",
+    "less_than_or_equal": "lower_than",  # or_equal flag handles the rest
+    "gte": "higher_than",
+    "lte": "lower_than",
+    "gt": "higher_than",
+    "lt": "lower_than",
+    "neq": "not_equal",
+    "ne": "not_equal",
+    "eq": "equal",
 }
 
 DateFilterMode = Literal[
@@ -98,7 +117,7 @@ _GET_ORM_TYPE = {
     "single_select": lambda f, field, **kw: _SINGLE_SELECT_ORM_TYPE[f.operator],
     "multiple_select": lambda f, field, **kw: _MULTIPLE_SELECT_ORM_TYPE[f.operator],
     "link_row": lambda f, field, **kw: _LINK_ROW_ORM_TYPE[f.operator],
-    "boolean": lambda f, field, **kw: "boolean",
+    "boolean": lambda f, field, **kw: "equal",
 }
 
 
@@ -151,13 +170,39 @@ class ViewFilterItemCreate(BaseModel):
 
     field_id: int = Field(..., description="Field ID to filter on.")
     type: FilterType = Field(..., description="Must match field type.")
-    operator: str = Field(..., description="Filter operator.")
+    operator: str = Field(
+        ...,
+        description=(
+            "Filter operator. "
+            "text: equal/not_equal/contains/contains_not/empty/not_empty. "
+            "number: equal/not_equal/greater_than/less_than/empty/not_empty "
+            "(use or_equal=true for ≥/≤). "
+            "date: equal/not_equal/after/before (use or_equal=true for on_or_after/on_or_before). "
+            "single_select/multiple_select: is_any_of/is_none_of. "
+            "link_row: has/has_not. "
+            "boolean: equal."
+        ),
+    )
     value: str | float | int | bool | list[str] | None = Field(
         None,
         description="Filter value (type-dependent).",
     )
     mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
     or_equal: bool = Field(False, description="(number, date) Include equal values.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_operator(cls, data):
+        if isinstance(data, dict) and "operator" in data:
+            op = data["operator"]
+            normalized = _OPERATOR_ALIASES.get(op)
+            if normalized:
+                data = dict(data)
+                data["operator"] = normalized
+                # Auto-set or_equal for _or_equal variants
+                if "or_equal" in op:
+                    data.setdefault("or_equal", True)
+        return data
 
     @model_validator(mode="after")
     def _validate_per_type(self):

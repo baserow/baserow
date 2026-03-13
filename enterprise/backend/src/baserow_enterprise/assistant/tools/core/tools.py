@@ -25,7 +25,7 @@ def list_builders(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, Any] | str:
+) -> dict[str, Any]:
     """\
     List databases, applications, automations, dashboards in the workspace.
 
@@ -62,7 +62,7 @@ def list_builders(
             builders.setdefault(item.type, []).append(item.model_dump())
 
     if not builders:
-        return "no builders found"
+        return {}
 
     total = sum(len(v) for v in builders.values())
     max_items = 20
@@ -161,6 +161,11 @@ def switch_mode(
         return f"Already in {target.value} mode."
 
     ctx.deps.mode = target
+    if target == AgentMode.EXPLAIN:
+        return (
+            "Switched to explain mode. "
+            "Call search_user_docs now to answer the user's question from the Baserow documentation."
+        )
     return f"Switched to {target.value} mode."
 
 
