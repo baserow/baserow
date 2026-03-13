@@ -225,10 +225,6 @@ export const state = () => ({
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
   checkboxSelectedRows: [], // Array of row IDs selected by checkboxes
-  // The rowId and fieldId of the single selected cell, persisted at the state
-  // level so ADD_ROWS can re-apply selection to newly fetched row objects.
-  selectedCellRowId: -1,
-  selectedCellFieldId: -1,
 })
 
 export const mutations = {
@@ -247,8 +243,6 @@ export const mutations = {
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
     state.checkboxSelectedRows = []
-    state.selectedCellRowId = -1
-    state.selectedCellFieldId = -1
     state.selectionType = null
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
@@ -333,14 +327,6 @@ export const mutations = {
         if (!row._.selectedBy.includes(0)) {
           row._.selectedBy.push(0)
         }
-      }
-      // Re-apply single-cell selection to newly fetched rows, matching the
-      // pattern used for checkbox selection above. Without this, the
-      // selection styling is lost when the buffer is refreshed because new
-      // row objects from populateRow() have _.selected = false.
-      if (row.id === state.selectedCellRowId) {
-        row._.selected = true
-        row._.selectedFieldId = state.selectedCellFieldId
       }
     })
   },
@@ -435,8 +421,6 @@ export const mutations = {
     }
   },
   SET_SELECTED_CELL(state, { rowId, fieldId }) {
-    state.selectedCellRowId = rowId
-    state.selectedCellFieldId = fieldId
     state.rows.forEach((row) => {
       if (row._.selected) {
         row._.selected = false

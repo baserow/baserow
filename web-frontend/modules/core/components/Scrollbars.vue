@@ -108,14 +108,14 @@ export default {
     updateVertical() {
       const element = this.$parent[this.vertical]()
       const show = element.scrollHeight > element.clientHeight
-      // @TODO if the client height is very high we have a minimum of 2%, but this needs
-      //  to be subtracted from the top position so that it fits. Same goes for the
-      //  horizontal handler.
       const height = Math.max(
         floor((element.clientHeight / element.scrollHeight) * 100, 2),
         2
       )
-      const top = ceil((element.scrollTop / element.scrollHeight) * 100, 2)
+      const top = Math.min(
+        ceil((element.scrollTop / element.scrollHeight) * 100, 2),
+        100 - height
+      )
 
       this.verticalShow = show
       this.verticalHeight = height
@@ -133,7 +133,10 @@ export default {
         floor((element.clientWidth / element.scrollWidth) * 100, 2),
         2
       )
-      const left = ceil((element.scrollLeft / element.scrollWidth) * 100, 2)
+      const left = Math.min(
+        ceil((element.scrollLeft / element.scrollWidth) * 100, 2),
+        100 - width
+      )
       this.horizontalShow = show
       this.horizontalWidth = width
       this.horizontalLeft = left

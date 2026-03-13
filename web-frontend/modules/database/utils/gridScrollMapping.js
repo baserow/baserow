@@ -57,3 +57,38 @@ export function virtualToRealScrollTop(
   if (maxVirtualScroll === 0) return virtualScrollTop
   return (virtualScrollTop / maxVirtualScroll) * maxRealScroll
 }
+
+/**
+ * Computes a new real scrollTop that preserves the current virtual scroll
+ * position after scale-factor inputs (count, windowHeight) change. This
+ * prevents the view from visually jumping when another user adds/removes
+ * rows or the browser window is resized.
+ */
+export function compensateScrollTop(
+  currentScrollTop,
+  oldCount,
+  newCount,
+  oldWindowHeight,
+  newWindowHeight,
+  rowHeight
+) {
+  const oldVirtualHeight = oldCount * rowHeight
+  const oldPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+
+  const virtualScrollTop = realToVirtualScrollTop(
+    currentScrollTop,
+    oldPlaceholder,
+    oldVirtualHeight,
+    oldWindowHeight
+  )
+
+  const newVirtualHeight = newCount * rowHeight
+  const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+
+  return virtualToRealScrollTop(
+    virtualScrollTop,
+    newPlaceholder,
+    newVirtualHeight,
+    newWindowHeight
+  )
+}

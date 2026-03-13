@@ -474,6 +474,7 @@ import {
   GRID_VIEW_MULTI_SELECT_AREA,
 } from '@baserow/modules/database/constants'
 import {
+  MAX_SAFE_SCROLL_HEIGHT,
   realToVirtualScrollTop,
   virtualToRealScrollTop,
 } from '@baserow/modules/database/utils/gridScrollMapping'
@@ -531,6 +532,10 @@ export default {
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
       resizeObserver: null,
+      // Stores the exact (non-rounded) virtual scroll position so that
+      // scroll compensation during resize doesn't accumulate rounding
+      // errors from integer DOM scrollTop values.
+      lastVirtualScrollTop: null,
     }
   },
   computed: {
@@ -653,6 +658,9 @@ export default {
         this.storePrefix + 'view/grid/isMultiSelectActive'
       ]
     },
+    rowCount() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getCount']
+    },
   },
   watch: {
     fieldOptions: {
@@ -704,6 +712,37 @@ export default {
           })
         }
       },
+    },
+    rowCount(newCount, oldCount) {
+      if (newCount === oldCount) return
+      const storePrefix = this.storePrefix + 'view/grid/'
+      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+      const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
+      const newVirtualHeight = newCount * rowHeight
+      // Only compensate when the scale factor is active (virtual height
+      // exceeds the browser-safe cap). Below the cap the mapping is 1:1
+      // and no compensation is needed.
+      if (
+        newVirtualHeight <= MAX_SAFE_SCROLL_HEIGHT ||
+        this.lastVirtualScrollTop === null
+      ) {
+        return
+      }
+
+      const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const newScrollTop = virtualToRealScrollTop(
+        this.lastVirtualScrollTop,
+        newPlaceholder,
+        newVirtualHeight,
+        windowHeight
+      )
+      // Update DOM and state synchronously so that any subsequent
+      // visibleByScrollTop call (e.g. from a fetch triggered by the
+      // same row-count change) uses the compensated value.
+      this.$refs.left.$refs.body.scrollTop = newScrollTop
+      this.$refs.right.$refs.body.scrollTop = newScrollTop
+      this.$store.commit(storePrefix + 'SET_SCROLL_TOP', newScrollTop)
+      this.$store.dispatch(storePrefix + 'visibleByScrollTop')
     },
     'view.row_height_size'(value, oldValue) {
       if (value === oldValue) {
@@ -1055,6 +1094,22 @@ export default {
       this.$refs.right.$refs.body.scrollTop = top
 
       const scrollTop = this.$refs.left.$refs.body.scrollTop
+      // Track exact virtual scroll position for scroll compensation
+      // during resize, avoiding rounding drift from integer DOM scrollTop.
+      const storePrefix = this.storePrefix + 'view/grid/'
+      const placeholderHeight =
+        this.$store.getters[storePrefix + 'getPlaceholderHeight']
+      const count = this.$store.getters[storePrefix + 'getCount']
+      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+      const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
+      const virtualHeight = count * rowHeight
+      this.lastVirtualScrollTop = realToVirtualScrollTop(
+        scrollTop,
+        placeholderHeight,
+        virtualHeight,
+        windowHeight
+      )
+
       this.$store.dispatch(
         this.storePrefix + 'view/grid/fetchByScrollTopDelayed',
         {
@@ -1899,10 +1954,40 @@ export default {
 
       // Update the window height to dynamically show the right amount of rows.
       const height = this.$refs.left.$refs.body.clientHeight
-      this.$store.dispatch(
-        this.storePrefix + 'view/grid/setWindowHeight',
-        height
-      )
+      const storePrefix = this.storePrefix + 'view/grid/'
+      const oldWindowHeight =
+        this.$store.getters[storePrefix + 'getWindowHeight']
+
+      // When the scale factor is active and the window height changes,
+      // compensate scrollTop so the view doesn't visually jump. We use
+      // the stored exact virtual scroll position (lastVirtualScrollTop)
+      // to avoid accumulated rounding drift from integer DOM scrollTop
+      // values during continuous resize. Both DOM and state must be
+      // updated synchronously BEFORE setWindowHeight runs, because
+      // setWindowHeight → visibleByScrollTop reads state.scrollTop.
+      if (height !== oldWindowHeight) {
+        const count = this.$store.getters[storePrefix + 'getCount']
+        const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+        const virtualHeight = count * rowHeight
+
+        if (
+          virtualHeight > MAX_SAFE_SCROLL_HEIGHT &&
+          this.lastVirtualScrollTop !== null
+        ) {
+          const newPlaceholder = Math.min(virtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+          const newScrollTop = virtualToRealScrollTop(
+            this.lastVirtualScrollTop,
+            newPlaceholder,
+            virtualHeight,
+            height
+          )
+          this.$refs.left.$refs.body.scrollTop = newScrollTop
+          this.$refs.right.$refs.body.scrollTop = newScrollTop
+          this.$store.commit(storePrefix + 'SET_SCROLL_TOP', newScrollTop)
+        }
+      }
+
+      this.$store.dispatch(storePrefix + 'setWindowHeight', height)
     },
     /**
      * Called when the user right clicks after selecting multiple cells.

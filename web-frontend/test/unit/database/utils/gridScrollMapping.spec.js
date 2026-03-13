@@ -3,6 +3,7 @@ import {
   getMiddleRowIndex,
   realToVirtualScrollTop,
   virtualToRealScrollTop,
+  compensateScrollTop,
 } from '@baserow/modules/database/utils/gridScrollMapping'
 
 describe('gridScrollMapping', () => {
@@ -319,6 +320,176 @@ describe('gridScrollMapping', () => {
           windowHeight
         )
       ).toBe(42)
+    })
+  })
+
+  describe('compensateScrollTop', () => {
+    const rowHeight = 33
+    const windowHeight = 600
+
+    test('preserves virtual position when count increases', () => {
+      const oldCount = 500000
+      const newCount = 500100
+      const oldVirtualHeight = oldCount * rowHeight
+      const oldPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const maxRealScroll = oldPlaceholder - windowHeight
+      const scrollTop = maxRealScroll / 2
+
+      // Compute the virtual position before and after compensation
+      const oldVirtual = realToVirtualScrollTop(
+        scrollTop,
+        oldPlaceholder,
+        oldVirtualHeight,
+        windowHeight
+      )
+
+      const newScrollTop = compensateScrollTop(
+        scrollTop,
+        oldCount,
+        newCount,
+        windowHeight,
+        windowHeight,
+        rowHeight
+      )
+
+      const newVirtualHeight = newCount * rowHeight
+      const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const newVirtual = realToVirtualScrollTop(
+        newScrollTop,
+        newPlaceholder,
+        newVirtualHeight,
+        windowHeight
+      )
+
+      expect(newVirtual).toBeCloseTo(oldVirtual, 2)
+    })
+
+    test('preserves virtual position when count decreases', () => {
+      const oldCount = 500000
+      const newCount = 499900
+      const oldVirtualHeight = oldCount * rowHeight
+      const oldPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const maxRealScroll = oldPlaceholder - windowHeight
+      const scrollTop = maxRealScroll * 0.75
+
+      const oldVirtual = realToVirtualScrollTop(
+        scrollTop,
+        oldPlaceholder,
+        oldVirtualHeight,
+        windowHeight
+      )
+
+      const newScrollTop = compensateScrollTop(
+        scrollTop,
+        oldCount,
+        newCount,
+        windowHeight,
+        windowHeight,
+        rowHeight
+      )
+
+      const newVirtualHeight = newCount * rowHeight
+      const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const newVirtual = realToVirtualScrollTop(
+        newScrollTop,
+        newPlaceholder,
+        newVirtualHeight,
+        windowHeight
+      )
+
+      expect(newVirtual).toBeCloseTo(oldVirtual, 2)
+    })
+
+    test('preserves virtual position when window height changes', () => {
+      const count = 500000
+      const oldWindowHeight = 600
+      const newWindowHeight = 800
+      const oldVirtualHeight = count * rowHeight
+      const oldPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const maxRealScroll = oldPlaceholder - oldWindowHeight
+      const scrollTop = maxRealScroll / 3
+
+      const oldVirtual = realToVirtualScrollTop(
+        scrollTop,
+        oldPlaceholder,
+        oldVirtualHeight,
+        oldWindowHeight
+      )
+
+      const newScrollTop = compensateScrollTop(
+        scrollTop,
+        count,
+        count,
+        oldWindowHeight,
+        newWindowHeight,
+        rowHeight
+      )
+
+      const newPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const newVirtual = realToVirtualScrollTop(
+        newScrollTop,
+        newPlaceholder,
+        oldVirtualHeight,
+        newWindowHeight
+      )
+
+      expect(newVirtual).toBeCloseTo(oldVirtual, 2)
+    })
+
+    test('no-op when below MAX_SAFE_SCROLL_HEIGHT', () => {
+      const count = 100
+      const scrollTop = 500
+
+      const result = compensateScrollTop(
+        scrollTop,
+        count,
+        count + 1,
+        windowHeight,
+        windowHeight,
+        rowHeight
+      )
+
+      // Both old and new virtual heights are below the cap, so the
+      // mapping is 1:1 and the result equals the input.
+      expect(result).toBeCloseTo(scrollTop, 5)
+    })
+
+    test('scrollTop=0 stays at 0', () => {
+      const result = compensateScrollTop(
+        0,
+        500000,
+        500100,
+        windowHeight,
+        windowHeight,
+        rowHeight
+      )
+      expect(result).toBe(0)
+    })
+
+    test('scrollTop at max maps correctly after count change', () => {
+      const oldCount = 500000
+      const newCount = 600000
+      const oldVirtualHeight = oldCount * rowHeight
+      const oldPlaceholder = Math.min(oldVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const maxRealScroll = oldPlaceholder - windowHeight
+
+      const result = compensateScrollTop(
+        maxRealScroll,
+        oldCount,
+        newCount,
+        windowHeight,
+        windowHeight,
+        rowHeight
+      )
+
+      // At max scroll with old params, virtual position was at the end.
+      // After compensation, it should map back to the same virtual end.
+      const newVirtualHeight = newCount * rowHeight
+      const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const newMaxRealScroll = newPlaceholder - windowHeight
+      // Since both are capped at MAX_SAFE_SCROLL_HEIGHT, maxRealScroll
+      // is the same, but the virtual position it maps to should be preserved.
+      expect(result).toBeLessThanOrEqual(newMaxRealScroll)
     })
   })
 })
