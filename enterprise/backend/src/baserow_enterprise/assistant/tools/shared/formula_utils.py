@@ -18,7 +18,7 @@ FORMULA_PREFIX = "$formula:"
 RAW_FORMULA_RE = re.compile(
     r"\bget\s*\(|\bconcat\s*\(|\{\{.*\}\}"
     r"|\b(?:equal|not_equal|greater_than|less_than"
-    r"|greater_than_equal|less_than_equal)\s*\("
+    r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal)\s*\("
     r"|\bif\s*\(|\btoday\s*\(|\bnow\s*\("
 )
 
@@ -76,7 +76,7 @@ def literal_or_placeholder(value: str | None) -> str:
 
     if not value or needs_formula(value):
         return "''"
-    return f"'{value}'"
+    return wrap_static_string(value)
 
 
 def wrap_static_string(value: str) -> str:

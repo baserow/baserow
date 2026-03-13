@@ -56,7 +56,7 @@ def list_builders(
     for app in applications_qs:
         try:
             item = builder_type_registry.from_django_orm(app)
-        except (KeyError, Exception):
+        except KeyError:
             continue
         if not builder_types or item.type in builder_types:
             builders.setdefault(item.type, []).append(item.model_dump())

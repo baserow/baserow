@@ -98,7 +98,7 @@ def test_list_nodes(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_add_node_after_existing(data_fixture):
-    """Add a router node between the trigger and existing slack node."""
+    """Add a router node between the trigger and existing email node."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
@@ -107,14 +107,14 @@ def test_add_node_after_existing(data_fixture):
     ctx = make_test_ctx(user, workspace)
     existing = list_nodes(ctx, workflow_id=workflow_id, thought="check")
     trigger_id = existing["nodes"][0]["id"]
-    slack_id = existing["nodes"][1]["id"]
+    email_id = existing["nodes"][1]["id"]
 
-    # Delete the existing slack node first (we'll re-add it after the router)
+    # Delete the existing email node first (we'll re-add it after the router)
     delete_nodes(
-        ctx, node_ids=[slack_id], thought="remove slack to re-add after router"
+        ctx, node_ids=[email_id], thought="remove email to re-add after router"
     )
 
-    # Add a router after the trigger, then a new slack after the router
+    # Add a router after the trigger, then a new email after the router
     result = add_nodes(
         ctx,
         workflow_id=workflow_id,
@@ -139,7 +139,7 @@ def test_add_node_after_existing(data_fixture):
                 body="Routed message",
             ),
         ],
-        thought="insert router between trigger and slack",
+        thought="insert router between trigger and email",
     )
 
     assert len(result["created_nodes"]) == 2
@@ -164,9 +164,9 @@ def test_add_node_append_to_workflow(data_fixture):
 
     ctx = make_test_ctx(user, workspace)
     existing = list_nodes(ctx, workflow_id=workflow_id, thought="check")
-    slack_id = existing["nodes"][1]["id"]
+    email_id = existing["nodes"][1]["id"]
 
-    # Append a new email node after the existing slack node
+    # Append a new email node after the existing email node
     result = add_nodes(
         ctx,
         workflow_id=workflow_id,
@@ -175,13 +175,13 @@ def test_add_node_append_to_workflow(data_fixture):
                 ref="email1",
                 label="Follow-up Email",
                 type="smtp_email",
-                previous_node_ref=str(slack_id),
+                previous_node_ref=str(email_id),
                 to_emails="followup@example.com",
                 subject="Follow-up",
                 body="This is a follow-up.",
             ),
         ],
-        thought="append email after slack",
+        thought="append email after email",
     )
 
     assert len(result["created_nodes"]) == 1

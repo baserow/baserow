@@ -74,12 +74,10 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
         ORCHESTRATOR: {
             **_DEFAULT_PROFILE[ORCHESTRATOR],
             "groq_reasoning_format": "parsed",
-            # "extra_body": {"reasoning_effort": "high"},
         },
         SUBAGENT: {
             **_DEFAULT_PROFILE[SUBAGENT],
             "groq_reasoning_format": "parsed",
-            # "extra_body": {"reasoning_effort": "high"},
         },
         UTILITY: {
             **_DEFAULT_PROFILE[UTILITY],
@@ -88,7 +86,6 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
         SAMPLE: {
             **_DEFAULT_PROFILE[SAMPLE],
             "groq_reasoning_format": "parsed",
-            # "extra_body": {"reasoning_effort": "high"},
         },
         TITLE: {
             **_DEFAULT_PROFILE[TITLE],

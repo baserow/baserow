@@ -56,9 +56,18 @@ prompts:
 | `create_views` | "Create a kanban view grouped by Status on the Projects table" |
 | `create_view_filters` | "Add a filter on the Projects grid view to only show Active rows" |
 | `generate_formula` | "Add a formula field that concatenates first name and last name" |
+| `update_fields` | "Rename the email field to Contact Email in the Customers table" |
+| `delete_fields` | "Delete the Contact Email field from the Customers table" |
 | `load_row_tools` | "Add a row to the Projects table: Name=Launch, Status=Active" (this implicitly triggers load_row_tools first) |
+| `update_rows_in_table_X` | "Change the Status of the Launch row in Projects to Done" |
+| `delete_rows_in_table_X` | "Delete the Launch row from the Projects table" |
+| `switch_mode` | "Switch to automation mode" |
 | `list_workflows` | "What automations do I have?" |
 | `create_workflows` | "Create an automation that sends a notification when a row is created in Projects" |
+| `list_nodes` | "What nodes are in my first workflow?" |
+| `add_nodes` | "Add a Slack notification action after the trigger in my workflow" |
+| `update_nodes` | "Rename the trigger node to New Project Trigger" |
+| `delete_nodes` | "Delete the Slack notification node from my workflow" |
 | `search_user_docs` | "How do I create a lookup field?" |
 
 ### 4. Manual: Feedback

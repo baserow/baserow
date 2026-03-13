@@ -72,8 +72,12 @@ PROMPT_CREATES_DATABASE_FROM_DESCRIPTION = (
     "Don't add sample rows."
 )
 
-PROMPT_MESSAGE_HISTORY_CONTAINS_TOOL_CALLS = (
-    "List all tables in database {database_id}."
+PROMPT_CREATE_RELATED_TABLES_WITH_SAMPLE_ROWS = (
+    "Set up the Bookstore database {database_name} with: "
+    "1. An Authors table with Name and Bio. "
+    "2. A Books table with Title, Genre "
+    "(single select: Fiction, Non-Fiction, Science, History), "
+    "Price, and a link to the Authors table."
 )
 
 
@@ -367,77 +371,6 @@ def test_agent_creates_database_from_description(data_fixture, eval_model):
     assert LinkRowField in {type(f) for f in books_fields}, (
         f"Books should have a link_row field to Authors. "
         f"Field types: {books_field_types}"
-    )
-
-
-@pytest.mark.eval
-@pytest.mark.django_db(transaction=True)
-def test_agent_message_history_contains_tool_calls(data_fixture, eval_model):
-    """
-    Verify that message history captures tool calls with arguments and results.
-
-    This is a meta-eval: it verifies the message history inspection works,
-    so we can use it to debug schema/tool-calling issues.
-    """
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(workspace=workspace)
-
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
-        user, workspace, max_iters=10, model=eval_model
-    )
-    ui_context = build_database_ui_context(user, workspace, database)
-
-    result = _run_agent(
-        agent,
-        deps,
-        tracker,
-        model,
-        usage_limits,
-        toolset,
-        question=PROMPT_MESSAGE_HISTORY_CONTAINS_TOOL_CALLS.format(
-            database_id=database.id
-        ),
-        ui_context=ui_context,
-    )
-
-    print_message_history(result)
-    history = format_message_history(result)
-
-    # Should have at least: system prompt, user message, assistant response
-    assert len(history) >= 2, (
-        f"Expected at least 2 messages in history, got {len(history)}"
-    )
-
-    # Verify we can find tool call entries
-    tool_call_entries = [
-        e for e in history if e.get("tool_name") and e["role"] == "assistant"
-    ]
-
-    # The agent should call list_tables
-    tool_names_called = {e["tool_name"] for e in tool_call_entries}
-    assert "list_tables" in tool_names_called, (
-        f"Expected agent to call 'list_tables', but called: {tool_names_called}"
-    )
-
-    # Verify tool call has arguments
-    list_tables_call = next(
-        e for e in tool_call_entries if e["tool_name"] == "list_tables"
-    )
-    assert "args" in list_tables_call, (
-        "Tool call should have 'args' in the message history"
-    )
-
-    # Verify tool result entries exist
-    tool_result_entries = [
-        e
-        for e in history
-        if e.get("tool_name") and e["role"] == "user" and "Return" in e.get("type", "")
-    ]
-    assert len(tool_result_entries) >= 1, (
-        f"Expected at least 1 tool result in history. "
-        f"User entries: {[e.get('type') for e in history if e['role'] == 'user']}"
     )
 
 
@@ -756,4 +689,77 @@ def test_agent_creates_view_filter(
     assert filters.exists(), (
         f"Expected a ViewFilter with type='{expected_orm_type}', "
         f"got: {list(ViewFilter.objects.filter(view__table=table).values_list('type', flat=True))}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sample rows eval
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_create_related_tables_with_sample_rows(data_fixture, eval_model):
+    """
+    Agent creates two related tables (Authors → Books) and sample rows
+    are generated for both, including link_row references.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Bookstore"
+    )
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=25, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_CREATE_RELATED_TABLES_WITH_SAMPLE_ROWS.format(
+            database_name=database.name
+        ),
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    assert_no_tool_errors(tracker, result)
+
+    tables = Table.objects.filter(database=database)
+    table_names = {t.name.lower(): t for t in tables}
+
+    # Verify both tables exist
+    author_tables = [name for name in table_names if "author" in name]
+    book_tables = [name for name in table_names if "book" in name]
+
+    assert len(author_tables) >= 1, (
+        f"Expected an Authors table, got: {list(table_names.keys())}"
+    )
+    assert len(book_tables) >= 1, (
+        f"Expected a Books table, got: {list(table_names.keys())}"
+    )
+
+    # Verify Authors has sample rows
+    authors_table = table_names[author_tables[0]]
+    authors_model = authors_table.get_model()
+    authors_count = authors_model.objects.count()
+    assert authors_count >= 3, (
+        f"Expected at least 3 sample rows in Authors, got {authors_count}. "
+        f"Sample row generation likely failed."
+    )
+
+    # Verify Books has sample rows
+    books_table = table_names[book_tables[0]]
+    books_model = books_table.get_model()
+    books_count = books_model.objects.count()
+    assert books_count >= 3, (
+        f"Expected at least 3 sample rows in Books, got {books_count}. "
+        f"Sample row generation likely failed."
     )

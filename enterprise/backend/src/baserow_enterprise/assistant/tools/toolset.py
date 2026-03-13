@@ -164,12 +164,14 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             tool.tool_def.parameters_json_schema = inline_refs(
                 tool.tool_def.parameters_json_schema
             )
-            # Save the original validator and schema, then replace with
+            # Save the original validator and schema once, then replace with
             # lenient passthrough so validation failures reach call_tool()
-            # where we can attempt an async fix.
-            self._original_validators[name] = tool.args_validator
-            self._schemas[name] = tool.tool_def.parameters_json_schema
-            tool.args_validator = _LENIENT_VALIDATOR
+            # where we can attempt an async fix. Guard against multiple calls
+            # so we don't overwrite the real validator with _LENIENT_VALIDATOR.
+            if name not in self._original_validators:
+                self._original_validators[name] = tool.args_validator
+                self._schemas[name] = tool.tool_def.parameters_json_schema
+                tool.args_validator = _LENIENT_VALIDATOR
         return tools
 
     async def call_tool(

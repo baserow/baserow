@@ -129,7 +129,7 @@ def _multiple_select_field_def(orm_field, orm_field_type):
             title=orm_field.name,
         ),
         lambda v: [opt for opt in v if opt in choices],
-        lambda v: [opt.value for opt in v.all()] if v is not None else None,
+        lambda v: [opt.value for opt in v.all()] if v is not None else [],
     )
 
 
@@ -166,7 +166,7 @@ def _link_row_field_def(orm_field, orm_field_type):
         desc = "List of values (as strings) or IDs (as integers) from the linked table or empty list."
         field_type = list[str | int] | None
     else:
-        desc = "Single value (as string) or ID (as integer) from the linked table or empty list."
+        desc = "Single value (as string) or ID (as integer) from the linked table."
         field_type = str | int | None
     if examples:
         desc += (
