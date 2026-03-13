@@ -507,6 +507,36 @@ PERIODIC_SERVICE_CALCULATE_NEXT_RUN_CASES = [
         datetime(2025, 2, 15, 10, 0, 0, tzinfo=timezone.utc),
         datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc),
     ),
+    # Day doesn't exist in current month (e.g., Feb 30th)
+    (
+        PERIODIC_INTERVAL_MONTH,
+        30,
+        14,
+        0,
+        30,  # Day 30 doesn't exist in February
+        datetime(2025, 2, 10, 10, 0, 0, tzinfo=timezone.utc),  # Currently Feb 10th
+        datetime(2025, 2, 28, 14, 30, 0, tzinfo=timezone.utc),  # Falls back to Feb 28th
+    ),
+    # Day doesn't exist in current month and time has passed (move to next month)
+    (
+        PERIODIC_INTERVAL_MONTH,
+        30,
+        14,
+        0,
+        30,  # Day 30 doesn't exist in February
+        datetime(2025, 2, 28, 15, 0, 0, tzinfo=timezone.utc),  # After 14:30 on Feb 28th
+        datetime(2025, 3, 30, 14, 30, 0, tzinfo=timezone.utc),  # March 30th exists
+    ),
+    # Day doesn't exist in current or next month (Feb -> Mar with day 31)
+    (
+        PERIODIC_INTERVAL_MONTH,
+        30,
+        14,
+        0,
+        31,  # Day 31
+        datetime(2025, 2, 10, 10, 0, 0, tzinfo=timezone.utc),  # Currently Feb 10th
+        datetime(2025, 2, 28, 14, 30, 0, tzinfo=timezone.utc),  # Falls back to Feb 28th
+    ),
 ]
 
 PERIODIC_SERVICE_NEXT_RUN_SET_CASES = [

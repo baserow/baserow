@@ -369,13 +369,16 @@ class AutomationNodeTriggerType(AutomationNodeType):
         for trigger in triggers:
             # If we've received a callable payload, call it with the specific service,
             # this can give us a payload that is specific to the trigger's service.
-            if callable(event_payload):
-                event_payload = event_payload(service_map[trigger.service_id])
+            service_payload = (
+                event_payload(service_map[trigger.service_id])
+                if callable(event_payload)
+                else event_payload
+            )
 
             workflow = trigger.workflow
             AutomationWorkflowHandler().async_start_workflow(
                 workflow,
-                event_payload,
+                service_payload,
             )
 
             # We don't want subsequent events to trigger a new test run

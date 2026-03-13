@@ -76,22 +76,26 @@ def calculate_next_periodic_run(
         next_run = next_run.replace(hour=hour, minute=minute)
 
     elif interval == PERIODIC_INTERVAL_MONTH:
-        # Run at the specified day_of_month at hour:minute each month
-        next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
+        # Run at the specified day_of_month at hour:minute each month.
+        # Handle case where day_of_month doesn't exist in the current month
+        # (e.g., day 30 in February) by using the last day of the month.
+        try:
+            next_run = from_time.replace(day=day_of_month, hour=hour, minute=minute)
+        except ValueError:
+            # Use last day of the current month
+            next_run = from_time.replace(day=1) + relativedelta(months=1, days=-1)
+            next_run = next_run.replace(hour=hour, minute=minute)
 
         # If we've already passed this time this month, move to next month
         if next_run <= from_time:
-            # Move to next month
             next_run += relativedelta(months=1)
-
-        # Handle case where day_of_month doesn't exist in the target month
-        # (e.g., day 31 in February)
-        try:
-            next_run = next_run.replace(day=day_of_month)
-        except ValueError:
-            # If the day doesn't exist, use the last day of the month
-            next_run = next_run.replace(day=1) + relativedelta(months=1, days=-1)
-            next_run = next_run.replace(hour=hour, minute=minute)
+            # Handle case where day_of_month doesn't exist in the target month
+            try:
+                next_run = next_run.replace(day=day_of_month)
+            except ValueError:
+                # Use last day of the target month
+                next_run = next_run.replace(day=1) + relativedelta(months=1, days=-1)
+                next_run = next_run.replace(hour=hour, minute=minute)
 
     else:
         # Unknown interval type, default to 1 hour from now
