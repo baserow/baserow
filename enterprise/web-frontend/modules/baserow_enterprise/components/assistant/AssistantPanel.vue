@@ -196,9 +196,7 @@ export default {
             )
             return (
               builder &&
-              builder.pages.find(
-                (page) => page.id === newLocation.page_id
-              )
+              builder.pages.find((page) => page.id === newLocation.page_id)
             )
           }).then(() => {
             router.push({

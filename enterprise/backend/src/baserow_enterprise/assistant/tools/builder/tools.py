@@ -553,6 +553,7 @@ def create_display_elements(
     """\
     Create display elements on a page: heading, text, button, link, image.
 
+    PREREQUISITE: The page must already exist. Call create_pages first if it doesn't.
     WHEN to use: User wants to add text content, headings, buttons, links, or images.
     WHAT it does: Creates display elements with formula support for dynamic values.
     RETURNS: Created elements with ref-to-ID mapping.
