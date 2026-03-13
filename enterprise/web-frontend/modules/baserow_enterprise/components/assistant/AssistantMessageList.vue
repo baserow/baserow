@@ -28,10 +28,27 @@
               <!-- eslint-disable vue/no-v-html -->
               <div
                 class="assistant__message-text"
+                :class="{
+                  'assistant__message-text--collapsed':
+                    message.reasoning && !expandedReasoning[message.id],
+                }"
                 @click="interceptLinkClick"
                 v-html="formatMessage(message.content)"
               ></div>
             </div>
+            <button
+              v-if="message.reasoning"
+              class="assistant__reasoning-toggle"
+              @click="toggleReasoning(message.id)"
+            >
+              <i
+                class="iconoir-nav-arrow-down assistant__reasoning-chevron"
+                :class="{
+                  'assistant__reasoning-chevron--expanded':
+                    expandedReasoning[message.id],
+                }"
+              ></i>
+            </button>
 
             <AssistantMessageSources
               v-if="message.role === 'ai'"
@@ -82,6 +99,7 @@ export default {
   data() {
     return {
       expandedSources: {},
+      expandedReasoning: {},
     }
   },
   methods: {
@@ -129,6 +147,10 @@ export default {
 
     toggleSources(messageId) {
       this.expandedSources[messageId] = !this.expandedSources[messageId]
+    },
+
+    toggleReasoning(messageId) {
+      this.expandedReasoning[messageId] = !this.expandedReasoning[messageId]
     },
 
     isLastMessage(index) {

@@ -463,6 +463,12 @@
   border: 0;
   outline: 0;
 
+  &--collapsed {
+    max-height: 250px;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, black 200px, transparent);
+  }
+
   // Markdown styles
   p {
     margin: 0 0 8px;
@@ -627,6 +633,32 @@
   display: inline-block;
   margin-right: 8px;
   vertical-align: middle;
+}
+
+.assistant__reasoning-toggle {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 2px 0 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: #16829c;
+  opacity: 0.6;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.assistant__reasoning-chevron {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+
+  &--expanded {
+    transform: rotate(180deg);
+  }
 }
 
 .assistant__chat-history-spacer {

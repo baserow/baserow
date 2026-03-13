@@ -424,9 +424,7 @@ class Assistant:
         received, or ``None`` if the stream ends without one.
         """
 
-        text_parts: dict[int, str] = {}
-        reasoning_sent: dict[int, int] = {}
-        seen_tool_result = False
+        reasoning_so_far = ""
 
         async for event in main_agent.run_stream_events(
             user_prompt=user_prompt,
@@ -437,100 +435,47 @@ class Assistant:
             toolsets=[self._toolset],
             model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
         ):
-            # Final result — strip residual <think> tags and return.
             if isinstance(event, AgentRunResultEvent):
                 answer = event.result.output
                 if isinstance(answer, str):
                     answer = _strip_think_tags(answer)
                 return (answer, event.result)
 
-            # Tool lifecycle — clear accumulated text on transitions.
             if isinstance(event, FunctionToolCallEvent):
-                if seen_tool_result:
-                    text_parts.clear()
-                    seen_tool_result = False
                 thought = _extract_tool_thought(event)
                 if thought:
-                    await self._enqueue_reasoning(queue, thought)
+                    reasoning_so_far += thought
+                    await self._enqueue_reasoning(queue, reasoning_so_far)
                 continue
 
             if isinstance(event, FunctionToolResultEvent):
-                seen_tool_result = True
-                text_parts.clear()
                 continue
 
-            # Thinking events (models with <think> tags).
-            if isinstance(event, PartStartEvent) and isinstance(
-                event.part, ThinkingPart
-            ):
-                if event.part.content:
-                    await self._enqueue_reasoning(queue, event.part.content)
-                continue
-
-            if isinstance(event, PartDeltaEvent) and isinstance(
-                event.delta, ThinkingPartDelta
-            ):
-                if event.delta.content_delta:
-                    await self._enqueue_reasoning(queue, event.delta.content_delta)
-                continue
-
-            # Text streaming — accumulate and extract inline <think> tags.
-            text = self._accumulate_text(event, text_parts)
-            if text is None:
-                continue
-            reasoning_delta, display = self._extract_thinking(
-                text, event.index, reasoning_sent
-            )
-            if reasoning_delta:
-                await self._enqueue_reasoning(queue, reasoning_delta)
-            if display:
-                await self._enqueue_reasoning(queue, display)
+            # Accumulate text/thinking deltas and send full reasoning.
+            # The frontend replaces content on each chunk, so we must
+            # send the complete text every time.
+            content = self._get_content_delta(event)
+            if content:
+                reasoning_so_far += content
+                cleaned = _strip_think_tags(reasoning_so_far)
+                if cleaned:
+                    await self._enqueue_reasoning(queue, cleaned)
 
         return None
 
     @staticmethod
-    def _accumulate_text(event: Any, text_parts: dict[int, str]) -> str | None:
-        """Update *text_parts* from a text stream event, returning the
-        accumulated content or ``None`` for non-text events."""
+    def _get_content_delta(event: Any) -> str | None:
+        """Extract text or thinking content from a stream event delta."""
 
-        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-            text_parts[event.index] = event.part.content
-            return text_parts[event.index]
-        if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
-            text_parts[event.index] = (
-                text_parts.get(event.index, "") + event.delta.content_delta
-            )
-            return text_parts[event.index]
+        if isinstance(event, PartStartEvent) and isinstance(
+            event.part, (TextPart, ThinkingPart)
+        ):
+            return event.part.content or None
+        if isinstance(event, PartDeltaEvent) and isinstance(
+            event.delta, (TextPartDelta, ThinkingPartDelta)
+        ):
+            return event.delta.content_delta or None
         return None
-
-    @staticmethod
-    def _extract_thinking(
-        text: str, index: int, reasoning_sent: dict[int, int]
-    ) -> tuple[str | None, str]:
-        """Split accumulated *text* into a reasoning delta and display text.
-
-        Returns ``(reasoning_delta, display)`` where *reasoning_delta* is
-        the not-yet-sent thinking content (or ``None``) and *display* is the
-        non-thinking text to show.  Tracks how much reasoning has already
-        been sent via *reasoning_sent* so only new content is returned.
-        """
-
-        if "<think>" not in text:
-            return None, text
-
-        parts = split_content_into_text_and_thinking(text, _THINKING_TAGS)
-        reasoning = "".join(p.content for p in parts if isinstance(p, ThinkingPart))
-        display = "".join(
-            p.content for p in parts if not isinstance(p, ThinkingPart)
-        ).strip()
-
-        prev_len = reasoning_sent.get(index, 0)
-        reasoning_delta = None
-        if len(reasoning) > prev_len:
-            reasoning_delta = reasoning[prev_len:]
-            reasoning_sent[index] = len(reasoning)
-
-        return reasoning_delta, display
 
     @staticmethod
     async def _enqueue_reasoning(
