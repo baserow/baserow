@@ -270,6 +270,11 @@ def test_search_user_docs(
             hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
         )
         checks.check(
+            f"returned at least one source URL for user docs",
+            len(sources) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
             f"answer mentions one of {expected_keywords}",
             keyword_match,
             hint=f"answer (first 300 chars): {result.output[:300]}",

@@ -1,15 +1,8 @@
-"""
-Shared helpers for the database assistant tools.
-
-Contains query helpers, schema builders, and action orchestration used by
-``tools.py`` and ``agents.py``.
-"""
-
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from baserow.contrib.database.fields.actions import (
@@ -20,7 +13,7 @@ from baserow.contrib.database.fields.actions import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.mcp.services import filter_tables
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.actions import CreateViewFilterActionType
 from baserow.contrib.database.views.handler import ViewHandler
@@ -39,12 +32,6 @@ from .types import (
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
-
-
-def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
-    """Return all tables visible to the user in the given workspace."""
-
-    return TableHandler().list_workspace_tables(user, workspace)
 
 
 def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:

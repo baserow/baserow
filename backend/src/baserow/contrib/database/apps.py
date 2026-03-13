@@ -1037,20 +1037,42 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
-        from baserow.contrib.database.mcp.rows.tools import (
-            CreateRowMcpTool,
-            DeleteRowMcpTool,
-            ListRowsMcpTool,
-            UpdateRowMcpTool,
+        from baserow.contrib.database.mcp.fields.tools import (
+            CreateFieldsMcpTool,
+            DeleteFieldsMcpTool,
+            UpdateFieldsMcpTool,
         )
-        from baserow.contrib.database.mcp.table.tools import ListTablesMcpTool
+        from baserow.contrib.database.mcp.rows.tools import (
+            CreateRowsMcpTool,
+            DeleteRowsMcpTool,
+            ListRowsMcpTool,
+            UpdateRowsMcpTool,
+        )
+        from baserow.contrib.database.mcp.table.tools import (
+            CreateDatabaseMcpTool,
+            CreateTableMcpTool,
+            DeleteTableMcpTool,
+            GetTableSchemaMcpTool,
+            ListDatabasesMcpTool,
+            ListTablesMcpTool,
+            UpdateTableMcpTool,
+        )
         from baserow.core.mcp.registries import mcp_tool_registry
 
+        mcp_tool_registry.register(ListDatabasesMcpTool())
+        mcp_tool_registry.register(CreateDatabaseMcpTool())
         mcp_tool_registry.register(ListTablesMcpTool())
+        mcp_tool_registry.register(CreateTableMcpTool())
+        mcp_tool_registry.register(UpdateTableMcpTool())
+        mcp_tool_registry.register(DeleteTableMcpTool())
+        mcp_tool_registry.register(GetTableSchemaMcpTool())
+        mcp_tool_registry.register(CreateFieldsMcpTool())
+        mcp_tool_registry.register(UpdateFieldsMcpTool())
+        mcp_tool_registry.register(DeleteFieldsMcpTool())
         mcp_tool_registry.register(ListRowsMcpTool())
-        mcp_tool_registry.register(CreateRowMcpTool())
-        mcp_tool_registry.register(UpdateRowMcpTool())
-        mcp_tool_registry.register(DeleteRowMcpTool())
+        mcp_tool_registry.register(CreateRowsMcpTool())
+        mcp_tool_registry.register(UpdateRowsMcpTool())
+        mcp_tool_registry.register(DeleteRowsMcpTool())
 
         from baserow.contrib.database.rows.history_providers import (
             CreateRowHistoryProvider,

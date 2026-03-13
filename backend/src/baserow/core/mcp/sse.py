@@ -107,9 +107,15 @@ class DjangoChannelsSseServerTransport:
         group_name = f"mcp_sse_{session_id.hex}"
         channel_name = f"sse_client_{session_id.hex}"
 
+        group_ready = anyio.Event()
+
         async def sse_writer():
             logger.debug("Starting SSE writer")
             async with sse_stream_writer, write_stream_reader:
+                # Wait until group_listener has joined the channel group so that
+                # no POSTed messages can be lost between the client receiving the
+                # endpoint event and the group being ready to receive.
+                await group_ready.wait()
                 await sse_stream_writer.send({"event": "endpoint", "data": session_uri})
                 logger.debug(f"Sent endpoint event: {session_uri}")
 
@@ -127,6 +133,7 @@ class DjangoChannelsSseServerTransport:
         async def group_listener():
             logger.debug(f"Listening for incoming messages on group: {group_name}")
             await channel_layer.group_add(group_name, channel_name)
+            group_ready.set()
             try:
                 while True:
                     incoming = await channel_layer.receive(channel_name)
