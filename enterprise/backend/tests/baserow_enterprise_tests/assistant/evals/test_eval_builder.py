@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from baserow.contrib.builder.elements.models import (
@@ -14,8 +16,9 @@ from baserow_enterprise.assistant.types import (
 )
 
 from .eval_utils import (
-    assert_no_tool_errors,
+    EvalChecklist,
     assert_tool_call_order,
+    count_tool_errors,
     create_eval_assistant,
     format_message_history,
     print_message_history,
@@ -36,10 +39,17 @@ def build_builder_ui_context(user, workspace, builder, page=None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Prompts
+# Prompts — one per test, all at the top for easy coverage scanning
 # ---------------------------------------------------------------------------
 
 PROMPT_LIST_PAGES = "List all pages in builder '{builder_name}'."
+
+PROMPT_CREATE_LANDING_PAGE = (
+    "In builder '{builder_name}', create a page called "
+    "'Home' at path '/'. Add a heading saying 'Welcome' and a text element "
+    "saying 'This is our landing page'. Also add a button labeled 'Get Started' "
+    "that links to '/contact'."
+)
 
 PROMPT_CREATE_CONTACT_FORM = (
     "In builder '{builder_name}', create a page called "
@@ -49,19 +59,28 @@ PROMPT_CREATE_CONTACT_FORM = (
     "in table '{table_name}' mapping the Name and the Email."
 )
 
-PROMPT_CREATE_LANDING_PAGE = (
-    "In builder '{builder_name}', create a page called "
-    "'Home' at path '/'. Add a heading saying 'Welcome' and a text element "
-    "saying 'This is our landing page'. Also add a button labeled 'Get Started' "
-    "that links to '/contact'."
-)
-
 PROMPT_CREATE_DATA_SOURCE_PAGE = (
     "In builder '{builder_name}', create a page called "
     "'Products' at path '/products'. Add a list_rows data source called "
     "'All Products' that reads from table '{table_name}'. "
     "Then add a repeat element using that data source and inside it "
     "a heading element."
+)
+
+PROMPT_SHARED_HEADER_WITH_MENU = (
+    "In builder '{builder_name}', add a shared header with "
+    "a menu that links to all three pages: Home, About, "
+    "and Contact."
+)
+
+PROMPT_BACK_BUTTON_ON_DETAIL = (
+    "In builder '{builder_name}', add a 'Back to List' button "
+    "on the Detail page that navigates to the List page."
+)
+
+PROMPT_BACK_LINK_ON_DETAIL = (
+    "In builder '{builder_name}', add a 'Back to list' link "
+    "on the Detail page that goes to the List page."
 )
 
 PROMPT_TABLE_WITH_EDIT_BUTTON = (
@@ -83,7 +102,6 @@ def _run_agent(
 ):
     deps.tool_helpers.request_context["ui_context"] = ui_context
 
-    # Auto-detect starting mode from UI context, matching astream_messages()
     from baserow_enterprise.assistant.deps import AgentMode
 
     ctx = UIContext.model_validate_json(ui_context)
@@ -104,12 +122,7 @@ def _run_agent(
 
 
 def _filter_tool_calls(result, tool_names=None):
-    """Return assistant-side tool call entries, optionally filtered by name(s).
-
-    :param tool_names: A single tool name (str), a collection of names, or
-        ``None`` to return all tool calls.
-    """
-
+    """Return assistant-side tool call entries, optionally filtered by name(s)."""
     history = format_message_history(result)
     calls = [e for e in history if e["role"] == "assistant" and "args" in e]
     if tool_names is None:
@@ -127,6 +140,16 @@ _ELEMENT_CREATION_TOOLS = {
     "create_form_elements",
     "create_collection_elements",
 }
+
+
+def _collect_element_args(result, tool_names=None):
+    """Flatten all element dicts from element-creation tool calls."""
+    tools = tool_names or _ELEMENT_CREATION_TOOLS
+    calls = _filter_tool_calls(result, tools)
+    elements = []
+    for call in calls:
+        elements.extend(call["args"].get("elements", []))
+    return elements
 
 
 # ---------------------------------------------------------------------------
@@ -159,20 +182,33 @@ def test_agent_lists_pages(data_fixture, eval_model):
         model,
         usage_limits,
         toolset,
-        question=PROMPT_LIST_PAGES.format(
-            builder_name=builder.name, builder_id=builder.id
-        ),
+        question=PROMPT_LIST_PAGES.format(builder_name=builder.name),
         ui_context=ui_context,
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    calls = _filter_tool_calls(result, "list_pages")
-    assert len(calls) >= 1, (
-        "Agent should have called list_pages. "
-        f"Tools called: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}"
-    )
+    history = format_message_history(result)
+    list_page_calls = _filter_tool_calls(result, "list_pages")
+
+    with EvalChecklist("lists pages") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called list_pages",
+            len(list_page_calls) >= 1,
+            hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
+        )
+        checks.check(
+            "response mentions 'Home'",
+            "Home" in result.output,
+            hint=f"output: {result.output[:300]}",
+        )
+        checks.check(
+            "response mentions 'About'",
+            "About" in result.output,
+            hint=f"output: {result.output[:300]}",
+        )
 
 
 @pytest.mark.eval
@@ -198,28 +234,60 @@ def test_agent_creates_landing_page(data_fixture, eval_model):
         model,
         usage_limits,
         toolset,
-        question=PROMPT_CREATE_LANDING_PAGE.format(
-            builder_name=builder.name, builder_id=builder.id
-        ),
+        question=PROMPT_CREATE_LANDING_PAGE.format(builder_name=builder.name),
         ui_context=ui_context,
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Page should be created
+    # Pages must be created before elements — only enforce when no errors, because
+    # a failed early call (retry) would make first_B appear before last_A even though
+    # the model ultimately did it right. The EvalChecklist "no tool errors" check
+    # captures the retry case.
+    if err_count == 0:
+        assert_tool_call_order(result, ["create_pages", "create_display_elements"])
+
     pages = Page.objects.filter(builder=builder, shared=False)
-    assert pages.exists(), "No page was created"
-
-    # Pages must be created before elements
-    assert_tool_call_order(result, ["create_pages", "create_display_elements"])
-
-    # Verify elements were created on the page
     page = pages.first()
-    elements = Element.objects.filter(page=page)
-    assert elements.count() >= 3, (
-        f"Expected at least 3 elements (heading, text, button), got {elements.count()}"
-    )
+    elements = Element.objects.filter(page=page) if page else Element.objects.none()
+
+    all_el_args = _collect_element_args(result)
+    heading_args = [e for e in all_el_args if e.get("type") == "heading"]
+    button_args = [e for e in all_el_args if e.get("type") == "button"]
+    heading_texts = [str(e.get("value", "")).lower() for e in heading_args]
+    button_texts = [
+        str(e.get("value", "") or e.get("label", "")).lower() for e in button_args
+    ]
+
+    with EvalChecklist("creates landing page") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check("page created", pages.exists(), hint="no pages found in DB")
+        checks.check(
+            "page name is 'Home'",
+            page is not None and "home" in page.name.lower(),
+            hint=f"page name: {page.name if page else None}",
+        )
+        checks.check(
+            "page path is '/'",
+            page is not None and page.path == "/",
+            hint=f"page path: {page.path if page else None}",
+        )
+        checks.check(
+            ">=3 elements (heading, text, button)",
+            elements.count() >= 3,
+            hint=f"got {elements.count()} elements",
+        )
+        checks.check(
+            "heading element with 'Welcome'",
+            any("welcome" in t for t in heading_texts),
+            hint=f"heading texts from args: {heading_texts}",
+        )
+        checks.check(
+            "button labeled 'Get Started'",
+            any("get started" in t for t in button_texts),
+            hint=f"button texts from args: {button_texts}",
+        )
 
 
 @pytest.mark.eval
@@ -256,7 +324,6 @@ def test_agent_creates_contact_form(data_fixture, eval_model):
         toolset,
         question=PROMPT_CREATE_CONTACT_FORM.format(
             builder_name=builder.name,
-            builder_id=builder.id,
             table_name=table.name,
             table_id=table.id,
             name_field_id=name_field.id,
@@ -266,69 +333,91 @@ def test_agent_creates_contact_form(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
+
     # Pages → form elements → actions
     assert_tool_call_order(result, ["setup_page"])
 
-    # Page should be created
     pages = Page.objects.filter(builder=builder, shared=False)
-    assert pages.exists(), "No page was created"
-
-    # Elements should exist (form_container + inputs + button at minimum)
     page = pages.first()
-    elements = Element.objects.filter(page=page)
-    assert elements.count() >= 3, (
-        f"Expected at least 3 elements (form + 2 inputs), got {elements.count()}"
+    elements = Element.objects.filter(page=page) if page else Element.objects.none()
+
+    actions = (
+        BuilderWorkflowAction.objects.filter(page=page)
+        if page
+        else BuilderWorkflowAction.objects.none()
     )
-
-    # A create_row workflow action should exist, targeting the Contacts table
-    actions = BuilderWorkflowAction.objects.filter(page=page)
-    assert actions.exists(), "No workflow action was created for the form submit"
-
     create_row_action = actions.filter(
         content_type__model="localbaserowcreaterowworkflowaction"
     ).first()
-    assert create_row_action is not None, (
-        f"Expected a create_row action, got types: "
-        f"{list(actions.values_list('content_type__model', flat=True))}"
-    )
 
-    # The action's service should point to the Contacts table
-    service = create_row_action.specific.service.specific
-    assert service.table_id == table.id, (
-        f"create_row action should target table '{table.name}' (id={table.id}), "
-        f"but targets table_id={service.table_id}"
-    )
-
-    # Field mappings should cover Name and Email, referencing form inputs
-    mappings = {
-        m.field_id: m.value
-        for m in service.field_mappings.filter(enabled=True).select_related("field")
-    }
-    assert name_field.id in mappings, (
-        f"Name field (id={name_field.id}) not mapped. Mapped IDs: {set(mappings)}"
-    )
-    assert email_field.id in mappings, (
-        f"Email field (id={email_field.id}) not mapped. Mapped IDs: {set(mappings)}"
-    )
-
-    # Each mapping value should reference a form input via get('form_data.<element_id>')
-    import re
+    # Field mappings
+    service = None
+    mappings = {}
+    if create_row_action is not None:
+        service = create_row_action.specific.service.specific
+        mappings = {
+            m.field_id: m.value for m in service.field_mappings.filter(enabled=True)
+        }
 
     form_input_ids = set(
         elements.filter(
             content_type__model__in=["inputtextelement", "inputemailelement"]
         ).values_list("id", flat=True)
     )
-    assert form_input_ids, "Expected form input elements on the page"
 
     form_data_re = re.compile(r"form_data\.(\d+)")
-    for field_id, formula in mappings.items():
-        formula_str = str(formula)
-        referenced_ids = {int(m) for m in form_data_re.findall(formula_str)}
-        assert referenced_ids & form_input_ids, (
-            f"Mapping for field {field_id} should reference a form input element. "
-            f"Formula: {formula_str}, form input IDs: {form_input_ids}"
+    all_map_formulas_ok = (
+        all(
+            bool({int(m) for m in form_data_re.findall(str(formula))} & form_input_ids)
+            for formula in mappings.values()
+        )
+        if mappings and form_input_ids
+        else False
+    )
+
+    with EvalChecklist("creates contact form") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check("page created", pages.exists(), hint="no pages found in DB")
+        checks.check(
+            "page name is 'Contact'",
+            page is not None and "contact" in page.name.lower(),
+            hint=f"page name: {page.name if page else None}",
+        )
+        checks.check(
+            "page path is '/contact'",
+            page is not None and page.path == "/contact",
+            hint=f"page path: {page.path if page else None}",
+        )
+        checks.check(
+            ">=3 elements (form container + inputs)",
+            elements.count() >= 3,
+            hint=f"got {elements.count()} elements",
+        )
+        checks.check(
+            "create_row workflow action exists",
+            create_row_action is not None,
+            hint=f"action types: {list(actions.values_list('content_type__model', flat=True))}",
+        )
+        checks.check(
+            "create_row targets Contacts table",
+            service is not None and service.table_id == table.id,
+            hint=f"service table_id={service.table_id if service else None}, expected={table.id}",
+        )
+        checks.check(
+            "Name field is mapped",
+            name_field.id in mappings,
+            hint=f"mapped field IDs: {set(mappings)}",
+        )
+        checks.check(
+            "Email field is mapped",
+            email_field.id in mappings,
+            hint=f"mapped field IDs: {set(mappings)}",
+        )
+        checks.check(
+            "all field mappings reference form input elements",
+            all_map_formulas_ok,
+            hint=f"formulas: {list(mappings.values())}, form input IDs: {form_input_ids}",
         )
 
 
@@ -365,7 +454,6 @@ def test_agent_creates_data_source_with_repeat(data_fixture, eval_model):
         toolset,
         question=PROMPT_CREATE_DATA_SOURCE_PAGE.format(
             builder_name=builder.name,
-            builder_id=builder.id,
             table_name=table.name,
             table_id=table.id,
         ),
@@ -373,61 +461,85 @@ def test_agent_creates_data_source_with_repeat(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Page should be created
+    # Pages must be created before data setup. Accept either the low-level path
+    # (create_data_sources + create_collection_elements) or the high-level
+    # setup_page which handles both in one call.
+    if _filter_tool_calls(result, "setup_page"):
+        assert_tool_call_order(result, ["create_pages", "setup_page"])
+    else:
+        assert_tool_call_order(
+            result,
+            ["create_pages", "create_data_sources", "create_collection_elements"],
+        )
+
     pages = Page.objects.filter(builder=builder, shared=False)
-    assert pages.exists(), "No page was created"
+    page = pages.first()
 
-    # Pages → data sources → collection elements
-    assert_tool_call_order(
-        result,
-        [
-            "create_pages",
-            "create_data_sources",
-            "create_collection_elements",
-        ],
-    )
-
-    # Data source args should reference the table
+    # Data source args — from create_data_sources or setup_page (both are valid)
     ds_calls = _filter_tool_calls(result, "create_data_sources")
-    ds_args = ds_calls[0]["args"]
-    data_sources = ds_args.get("data_sources", [])
-    assert len(data_sources) >= 1, "Expected at least 1 data source"
-    assert data_sources[0].get("type") == "list_rows", (
-        f"Expected list_rows data source, got {data_sources[0].get('type')}"
-    )
+    setup_calls = _filter_tool_calls(result, "setup_page")
+    if ds_calls:
+        data_sources = ds_calls[0]["args"].get("data_sources", [])
+    elif setup_calls:
+        data_sources = setup_calls[0]["args"].get("data_sources", []) or []
+    else:
+        data_sources = []
+    first_ds = data_sources[0] if data_sources else {}
+    ds_name = first_ds.get("name", "")
+    ds_table_id = first_ds.get("table_id")
+    ds_type = first_ds.get("type")
 
-    # Elements should include a repeat
-    el_calls = _filter_tool_calls(result, _ELEMENT_CREATION_TOOLS)
-    all_elements = []
-    for call in el_calls:
-        all_elements.extend(call["args"].get("elements", []))
-    repeat_elements = [e for e in all_elements if e.get("type") == "repeat"]
-    assert len(repeat_elements) >= 1, (
-        f"Expected a repeat element, got types: {[e.get('type') for e in all_elements]}"
-    )
+    # Element args — from individual tools or setup_page
+    all_el_args = _collect_element_args(result)
+    for call in setup_calls:
+        all_el_args.extend(call["args"].get("elements", []) or [])
+    repeat_elements = [e for e in all_el_args if e.get("type") == "repeat"]
+
+    with EvalChecklist("creates data source with repeat") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check("page created", pages.exists(), hint="no pages found in DB")
+        checks.check(
+            "page name is 'Products'",
+            page is not None and "product" in page.name.lower(),
+            hint=f"page name: {page.name if page else None}",
+        )
+        checks.check(
+            "page path is '/products'",
+            page is not None and page.path == "/products",
+            hint=f"page path: {page.path if page else None}",
+        )
+        checks.check(
+            "data source created",
+            len(data_sources) >= 1,
+            hint=f"ds_calls: {len(ds_calls)}, setup_calls: {len(setup_calls)}",
+        )
+        checks.check(
+            "data source type is list_rows",
+            ds_type == "list_rows",
+            hint=f"got type: {ds_type}",
+        )
+        checks.check(
+            "data source named 'All Products'",
+            "all products" in ds_name.lower(),
+            hint=f"got name: '{ds_name}'",
+        )
+        checks.check(
+            "data source table_id matches Products table",
+            ds_table_id == table.id,
+            hint=f"got table_id={ds_table_id}, expected={table.id}",
+        )
+        checks.check(
+            "repeat element in args",
+            len(repeat_elements) >= 1,
+            hint=f"element types: {[e.get('type') for e in all_el_args]}",
+        )
 
 
 # ---------------------------------------------------------------------------
 # Shared element evals
 # ---------------------------------------------------------------------------
-
-PROMPT_SHARED_HEADER_WITH_MENU = (
-    "In builder '{builder_name}', add a shared header with "
-    "a menu that links to all three pages: Home, About, "
-    "and Contact."
-)
-
-PROMPT_BACK_BUTTON_ON_DETAIL = (
-    "In builder '{builder_name}', add a 'Back to List' button "
-    "on the Detail page that navigates to the List page."
-)
-
-PROMPT_BACK_LINK_ON_DETAIL = (
-    "In builder '{builder_name}', add a 'Back to list' link "
-    "on the Detail page that goes to the List page."
-)
 
 
 @pytest.mark.eval
@@ -462,57 +574,68 @@ def test_agent_creates_header_with_menu(data_fixture, eval_model):
         toolset,
         question=PROMPT_SHARED_HEADER_WITH_MENU.format(
             builder_name=builder.name,
-            builder_id=builder.id,
-            home_id=home.id,
-            about_id=about.id,
-            contact_id=contact.id,
         ),
         ui_context=ui_context,
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
     # Layout (header) must be created before display elements (menu)
     assert_tool_call_order(result, ["create_layout_elements"])
 
-    # Header should be created on the shared page
     shared_page = builder.shared_page
     shared_elements = Element.objects.filter(page=shared_page)
     header_elements = shared_elements.filter(content_type__model="headerelement")
-    assert header_elements.exists(), (
-        f"Expected a header element on the shared page, "
-        f"got types: {list(shared_elements.values_list('content_type__model', flat=True))}"
-    )
-
-    # A menu element should exist on the shared page (child of the header)
     menu_elements = shared_elements.filter(content_type__model="menuelement")
-    assert menu_elements.exists(), (
-        "Expected a menu element on the shared page inside the header"
+
+    menu_element = menu_elements.first().specific if menu_elements.exists() else None
+    menu_items = (
+        MenuItemElement.objects.filter(
+            pk__in=menu_element.menu_items.values_list("pk", flat=True)
+        ).select_related("navigate_to_page")
+        if menu_element is not None
+        else MenuItemElement.objects.none()
     )
-
-    # The menu should have 3 items linking to Home, About, and Contact pages
-    menu_element = menu_elements.first().specific
-    menu_items = MenuItemElement.objects.filter(
-        pk__in=menu_element.menu_items.values_list("pk", flat=True)
-    ).select_related("navigate_to_page")
-
-    assert menu_items.count() >= 3, (
-        f"Expected at least 3 menu items (Home, About, Contact), "
-        f"got {menu_items.count()}"
-    )
-
     linked_page_ids = {
         item.navigate_to_page_id
         for item in menu_items
         if item.navigate_to_page_id is not None
     }
     expected_page_ids = {home.id, about.id, contact.id}
-    assert expected_page_ids <= linked_page_ids, (
-        f"Menu items should link to Home ({home.id}), About ({about.id}), "
-        f"and Contact ({contact.id}) pages. "
-        f"Linked page IDs: {linked_page_ids}"
-    )
+
+    with EvalChecklist("creates header with menu") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "header element on shared page",
+            header_elements.exists(),
+            hint=f"shared page elements: {list(shared_elements.values_list('content_type__model', flat=True))}",
+        )
+        checks.check(
+            "menu element on shared page",
+            menu_elements.exists(),
+            hint="expected a menu element inside the header on the shared page",
+        )
+        checks.check(
+            ">=3 menu items (Home, About, Contact)",
+            menu_items.count() >= 3,
+            hint=f"got {menu_items.count()} menu items",
+        )
+        checks.check(
+            "menu links to Home page",
+            home.id in linked_page_ids,
+            hint=f"linked page IDs: {linked_page_ids}, expected Home={home.id}",
+        )
+        checks.check(
+            "menu links to About page",
+            about.id in linked_page_ids,
+            hint=f"linked page IDs: {linked_page_ids}, expected About={about.id}",
+        )
+        checks.check(
+            "menu links to Contact page",
+            contact.id in linked_page_ids,
+            hint=f"linked page IDs: {linked_page_ids}, expected Contact={contact.id}",
+        )
 
 
 @pytest.mark.eval
@@ -546,30 +669,46 @@ def test_agent_puts_back_button_on_page_not_header(data_fixture, eval_model):
         toolset,
         question=PROMPT_BACK_BUTTON_ON_DETAIL.format(
             builder_name=builder.name,
-            builder_id=builder.id,
-            detail_id=detail_page.id,
-            list_id=list_page.id,
         ),
         ui_context=ui_context,
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
-    assert len(_filter_tool_calls(result, "create_display_elements")) >= 1, (
-        "Agent should have called create_display_elements for the back button"
-    )
+    err_count, err_hint = count_tool_errors(result)
 
-    # The back button/link should be on the Detail page, NOT on the shared page
     detail_elements = Element.objects.filter(page=detail_page)
-    assert detail_elements.exists(), "Expected elements on the Detail page"
-
     shared_page = builder.shared_page
     shared_elements = Element.objects.filter(page=shared_page)
-    # No new elements should have been added to the shared page
-    assert not shared_elements.exists(), (
-        "Back button should NOT be on the shared page. "
-        f"Shared page has: {list(shared_elements.values_list('content_type__model', flat=True))}"
-    )
+
+    button_args = [
+        e for e in _collect_element_args(result) if e.get("type") == "button"
+    ]
+    button_texts = [
+        str(e.get("value", "") or e.get("label", "")).lower() for e in button_args
+    ]
+
+    with EvalChecklist("back button on page not header") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called create_display_elements",
+            len(_filter_tool_calls(result, "create_display_elements")) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "elements exist on Detail page",
+            detail_elements.exists(),
+            hint="no elements on Detail page",
+        )
+        checks.check(
+            "button labeled 'Back to List'",
+            any("back" in t for t in button_texts),
+            hint=f"button texts: {button_texts}",
+        )
+        checks.check(
+            "no elements added to shared page",
+            not shared_elements.exists(),
+            hint=f"shared page has: {list(shared_elements.values_list('content_type__model', flat=True))}",
+        )
 
 
 @pytest.mark.eval
@@ -603,73 +742,76 @@ def test_agent_creates_page_specific_nav_on_page(data_fixture, eval_model):
         toolset,
         question=PROMPT_BACK_LINK_ON_DETAIL.format(
             builder_name=builder.name,
-            builder_id=builder.id,
-            detail_id=detail_page.id,
-            list_id=list_page.id,
         ),
         ui_context=ui_context,
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
-    assert len(_filter_tool_calls(result, "create_display_elements")) >= 1, (
-        "Agent should have called create_display_elements for the back link"
-    )
+    err_count, err_hint = count_tool_errors(result)
 
-    # The link should be on the Detail page
     detail_elements = Element.objects.filter(page=detail_page)
-    assert detail_elements.exists(), "Expected elements on the Detail page"
+    shared_page = builder.shared_page
+    shared_elements = Element.objects.filter(page=shared_page)
 
-    # Check that a link, button, or menu element exists on the detail page
     link_elements = detail_elements.filter(content_type__model="linkelement")
     button_elements = detail_elements.filter(content_type__model="buttonelement")
     menu_elements = detail_elements.filter(content_type__model="menuelement")
-    element_types = list(detail_elements.values_list("content_type__model", flat=True))
-    assert (
-        link_elements.exists() or button_elements.exists() or menu_elements.exists()
-    ), (
-        f"Expected a link, button, or menu element on the Detail page, "
-        f"got types: {element_types}"
-    )
 
-    # If a menu element was created, verify it has items linking to the List page
+    # Navigation target checks for link element
+    link_targets_list = False
+    if link_elements.exists():
+        link_el = link_elements.first().specific
+        link_targets_list = (
+            link_el.navigate_to_page_id == list_page.id
+            or "/list" in str(link_el.navigate_to_url)
+        )
+
+    # Navigation target checks for menu element
+    menu_links_list = False
     if menu_elements.exists():
         menu_element = menu_elements.first().specific
         menu_items = MenuItemElement.objects.filter(
             pk__in=menu_element.menu_items.values_list("pk", flat=True)
-        ).select_related("navigate_to_page")
-        assert menu_items.count() >= 1, (
-            f"Menu element exists but has no menu items. "
-            f"Expected at least 1 item linking to the List page."
         )
-        linked_page_ids = {
+        linked_ids = {
             item.navigate_to_page_id
             for item in menu_items
             if item.navigate_to_page_id is not None
         }
-        assert list_page.id in linked_page_ids, (
-            f"Menu items should link to the List page (id={list_page.id}). "
-            f"Linked page IDs: {linked_page_ids}"
-        )
+        menu_links_list = list_page.id in linked_ids
 
-    # If a link element was created, verify it navigates to the List page
-    if link_elements.exists():
-        link_el = link_elements.first().specific
-        assert link_el.navigate_to_page_id == list_page.id or "/list" in str(
-            link_el.navigate_to_url
-        ), (
-            f"Link element should navigate to List page (id={list_page.id}), "
-            f"but navigate_to_page_id={link_el.navigate_to_page_id}, "
-            f"navigate_to_url={link_el.navigate_to_url}"
-        )
-
-    # No elements should have been added to the shared page
-    shared_page = builder.shared_page
-    shared_elements = Element.objects.filter(page=shared_page)
-    assert not shared_elements.exists(), (
-        "Page-specific nav should NOT be on the shared page. "
-        f"Shared page has: {list(shared_elements.values_list('content_type__model', flat=True))}"
+    has_nav_element = (
+        link_elements.exists() or button_elements.exists() or menu_elements.exists()
     )
+    nav_targets_list_page = link_targets_list or menu_links_list
+
+    with EvalChecklist("page-specific nav on page not header") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called create_display_elements",
+            len(_filter_tool_calls(result, "create_display_elements")) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "elements exist on Detail page",
+            detail_elements.exists(),
+            hint="no elements on Detail page",
+        )
+        checks.check(
+            "link/button/menu element on Detail page",
+            has_nav_element,
+            hint=f"detail page elements: {list(detail_elements.values_list('content_type__model', flat=True))}",
+        )
+        checks.check(
+            "nav element targets List page",
+            nav_targets_list_page,
+            hint=f"link_targets_list={link_targets_list}, menu_links_list={menu_links_list}",
+        )
+        checks.check(
+            "no elements added to shared page",
+            not shared_elements.exists(),
+            hint=f"shared page has: {list(shared_elements.values_list('content_type__model', flat=True))}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -718,74 +860,103 @@ def test_agent_creates_table_with_edit_button(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
-    assert len(_filter_tool_calls(result, ["setup_page", "create_pages"])) >= 1, (
-        "Agent should have called setup_page for creating pages and elements"
-    )
+    err_count, err_hint = count_tool_errors(result)
 
-    # Both pages should exist
     pages = Page.objects.filter(builder=builder, shared=False)
     list_page = pages.filter(name__icontains="List").first()
     edit_page = pages.filter(name__icontains="Edit").first()
-    assert list_page is not None, (
-        f"No 'List' page found. Pages: {list(pages.values_list('name', flat=True))}"
-    )
-    assert edit_page is not None, (
-        f"No 'Edit' page found. Pages: {list(pages.values_list('name', flat=True))}"
-    )
 
-    # A table element should exist on the list page
-    list_elements = Element.objects.filter(page=list_page)
+    list_elements = (
+        Element.objects.filter(page=list_page) if list_page else Element.objects.none()
+    )
     table_elements = list_elements.filter(content_type__model="tableelement")
-    assert table_elements.exists(), (
-        f"Expected a table element on the List page, "
-        f"got types: {list(list_elements.values_list('content_type__model', flat=True))}"
-    )
+    table_el = table_elements.first().specific if table_elements.exists() else None
 
-    # The table should have columns
-    table_el = table_elements.first().specific
-    columns = table_el.fields.all().order_by("order")
-    assert columns.count() >= 2, (
-        f"Expected at least 2 columns (Name, Price), got {columns.count()}"
-    )
+    columns = table_el.fields.all().order_by("order") if table_el else []
+    col_count = len(list(columns)) if table_el else 0
 
-    # Verify data columns reference the right fields via formulas
-    import re
-
-    data_columns = columns.filter(type__in=["text", "number"])
-    col_formulas = {c.name: str(c.config) for c in data_columns}
+    # Check data columns reference correct fields
     field_id_re = re.compile(r"field_(\d+)")
     referenced_field_ids = set()
-    for formula in col_formulas.values():
-        referenced_field_ids.update(int(m) for m in field_id_re.findall(formula))
-    assert name_field.id in referenced_field_ids or any(
-        "Name" in name for name in col_formulas
-    ), (
-        f"No column references the Name field (id={name_field.id}). "
-        f"Column formulas: {col_formulas}"
+    link_columns = []
+    if table_el:
+        for col in columns:
+            formula = str(getattr(col, "config", "") or "")
+            referenced_field_ids.update(int(m) for m in field_id_re.findall(formula))
+            if getattr(col, "type", None) in ("link", "button"):
+                link_columns.append(col)
+
+    name_col_ok = name_field.id in referenced_field_ids or any(
+        "Name" in (getattr(col, "name", "") or "")
+        for col in (columns if table_el else [])
     )
 
-    # Verify there's a button/link column pointing to the edit page
-    link_columns = columns.filter(type__in=["link", "button"])
-    assert link_columns.exists(), (
-        f"Expected a link/button column for 'Edit'. "
-        f"Column types: {list(columns.values_list('type', flat=True))}"
-    )
+    # Edit button workflow action
+    action = None
+    if link_columns:
+        link_col = link_columns[0]
+        action = BuilderWorkflowAction.objects.filter(
+            page=list_page, event=f"{link_col.uid}_click", element=table_el
+        ).first()
 
-    # The link column's config should navigate to the edit page
-    link_col = link_columns.first()
-    assert link_col.type == "button", (
-        f"Expected a button column for 'Edit', got type '{link_col.type}'"
-    )
-
-    action = BuilderWorkflowAction.objects.filter(
-        page=list_page, event=f"{link_col.uid}_click", element=table_el
-    ).first()
-    assert action is not None, (
-        f"No workflow action found for the edit button clicks. "
-        f"Expected event: '{link_col.uid}_click'"
-    )
-    assert action.specific.navigate_to_page_id == edit_page.id, (
-        f"Edit button action should navigate to page id {edit_page.id}, "
-        f"but navigates to {action.specific.navigate_to_page_id}"
-    )
+    with EvalChecklist("creates table with edit button") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called setup_page or create_pages",
+            len(_filter_tool_calls(result, ["setup_page", "create_pages"])) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "List page created",
+            list_page is not None,
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        )
+        checks.check(
+            "List page path is '/list'",
+            list_page is not None and list_page.path == "/list",
+            hint=f"list page path: {list_page.path if list_page else None}",
+        )
+        checks.check(
+            "Edit page created",
+            edit_page is not None,
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        )
+        checks.check(
+            "Edit page path contains '/edit'",
+            edit_page is not None and "/edit" in edit_page.path,
+            hint=f"edit page path: {edit_page.path if edit_page else None}",
+        )
+        checks.check(
+            "table element on List page",
+            table_elements.exists(),
+            hint=f"list page elements: {list(list_elements.values_list('content_type__model', flat=True))}",
+        )
+        checks.check(
+            ">=2 columns (Name, Price)",
+            col_count >= 2,
+            hint=f"got {col_count} columns",
+        )
+        checks.check(
+            "Name field referenced in column config",
+            name_col_ok,
+            hint=f"referenced field IDs: {referenced_field_ids}, name_field.id={name_field.id}",
+        )
+        checks.check(
+            "link/button column for 'Edit'",
+            len(link_columns) >= 1,
+            hint=f"column types: {[getattr(c, 'type', None) for c in columns]}",
+        )
+        checks.check(
+            "edit button column is type 'button'",
+            any(getattr(c, "type", None) == "button" for c in link_columns),
+            hint=f"link column types: {[getattr(c, 'type', None) for c in link_columns]}",
+        )
+        checks.check(
+            "edit button action navigates to Edit page",
+            action is not None and action.specific.navigate_to_page_id == edit_page.id,
+            hint=(
+                f"action={action}, navigate_to_page_id="
+                f"{action.specific.navigate_to_page_id if action else None}, "
+                f"expected={edit_page.id if edit_page else None}"
+            ),
+        )
