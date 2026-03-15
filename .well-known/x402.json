@@ -1,0 +1,43 @@
+{
+  "name": "bram2w/baserow",
+  "description": "Baserow database integration with table search, list, and row create, read, update, and delete capabilities.",
+  "accepts": [
+    {
+      "network": "eip155:8453",
+      "asset": "USDC",
+      "address": "YOUR_WALLET_ADDRESS"
+    }
+  ],
+  "resources": [
+    {
+      "path": "/api/database/rows/table/{table_id}/",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/database/rows/table/{table_id}/"
+    },
+    {
+      "path": "/api/database/tables/table/{table_id}/",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/database/tables/table/{table_id}/"
+    },
+    {
+      "path": "/api/database/views/{view_id}/",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/database/views/{view_id}/"
+    },
+    {
+      "path": "/api/applications/",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/applications/"
+    },
+    {
+      "path": "/api/user/me/",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/user/me/"
+    },
+    {
+      "path": "/api/schema.json",
+      "price": "0.01",
+      "description": "Pay-per-call access to /api/schema.json"
+    }
+  ]
+}
