@@ -15,7 +15,6 @@ from baserow.core.db import atomic_with_retry_on_deadlock
 def start_workflow_celery_task(
     workflow_id: int,
     history_id: int,
-    simulate_until_node_id: Optional[int] = None,
 ):
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
@@ -26,7 +25,6 @@ def start_workflow_celery_task(
         return AutomationWorkflowHandler().start_workflow(
             workflow,
             history,
-            simulate_until_node_id=simulate_until_node_id,
         )
 
     result = _start()

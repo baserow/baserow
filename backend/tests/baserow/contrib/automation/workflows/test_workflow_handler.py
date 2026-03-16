@@ -619,7 +619,7 @@ def test_check_is_rate_limited_returns_true_if_too_many_started_workflows(
 )
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
 def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
-    mock_celery_task, data_fixture
+    mock_celery_task, data_fixture, django_capture_on_commit_callbacks
 ):
     user = data_fixture.create_user()
 
@@ -636,9 +636,10 @@ def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
     )
 
     with freeze_time("2026-01-26 13:00:00"):
-        # First 2 calls should queue workflow runs
-        handler.async_start_workflow(published_workflow)
-        handler.async_start_workflow(published_workflow)
+        with django_capture_on_commit_callbacks(execute=True):
+            # First 2 calls should queue workflow runs
+            handler.async_start_workflow(published_workflow)
+            handler.async_start_workflow(published_workflow)
         assert mock_celery_task.delay.call_count == 2
 
         # 3rd call should be rate limited
@@ -1074,6 +1075,52 @@ def test_async_start_workflow_too_many_errors(
 
 
 @pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_async_start_workflow_with_simulate_until_node(
+    mock_start_workflow_celery_task, data_fixture, django_capture_on_commit_callbacks
+):
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+    workflow.simulate_until_node = trigger
+    workflow.save(update_fields=["simulate_until_node"])
+
+    with django_capture_on_commit_callbacks(execute=True):
+        AutomationWorkflowHandler().async_start_workflow(workflow)
+
+    workflow.refresh_from_db()
+    history = workflow.workflow_histories.get()
+
+    assert workflow.simulate_until_node is None
+    assert history.is_test_run is True
+    assert history.simulate_until_node_id == trigger.id
+
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        workflow.id, history.id
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_async_start_workflow_with_simulate_until_node_and_error_creates_no_history(
+    mock_start_workflow_celery_task, mock_before_run, data_fixture
+):
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+    workflow.simulate_until_node = trigger
+    workflow.save(update_fields=["simulate_until_node"])
+
+    mock_before_run.side_effect = AutomationWorkflowBeforeRunError("unexpected error")
+
+    AutomationWorkflowHandler().async_start_workflow(workflow)
+
+    workflow.refresh_from_db()
+
+    assert workflow.workflow_histories.count() == 0
+    mock_start_workflow_celery_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=4,
     AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=2,
@@ -1082,7 +1129,7 @@ def test_async_start_workflow_too_many_errors(
 )
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
 def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
-    mock_start_workflow_celery_task, data_fixture
+    mock_start_workflow_celery_task, data_fixture, django_capture_on_commit_callbacks
 ):
     original_workflow = data_fixture.create_automation_workflow()
     with freeze_time("2026-03-08 12:00:00"):
@@ -1093,9 +1140,10 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
         published_workflow.automation.save()
 
     with freeze_time("2026-03-10 12:00:00"):
-        # Two regular history entries
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        with django_capture_on_commit_callbacks(execute=True):
+            # Two regular history entries
+            AutomationWorkflowHandler().async_start_workflow(published_workflow)
+            AutomationWorkflowHandler().async_start_workflow(published_workflow)
         # only this one is an error
         AutomationWorkflowHandler().async_start_workflow(published_workflow)
 
@@ -1110,7 +1158,8 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
     assert original_workflow.workflow_histories.count() == 4
 
     with freeze_time("2026-03-10 12:00:06"):
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        with django_capture_on_commit_callbacks(execute=True):
+            AutomationWorkflowHandler().async_start_workflow(published_workflow)
 
         # Another error is created but we also disable the workflow
         AutomationWorkflowHandler().async_start_workflow(published_workflow)
@@ -1139,8 +1188,7 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 
     assert histories[5].status == HistoryStatusChoices.DISABLED
     assert histories[5].message == (
-        f"The workflow {published_workflow.id} was disabled due to too many "
-        "consecutive errors."
+        "The workflow was disabled due to too many consecutive errors."
     )
 
     # We should have 6 successful call
@@ -1151,6 +1199,27 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 
     assert original_workflow.state == WorkflowState.DISABLED
     assert published_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.transaction.on_commit")
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_async_start_workflow_queues_celery_task_on_commit(
+    mock_start_workflow_celery_task, mock_on_commit, data_fixture
+):
+    workflow = data_fixture.create_automation_workflow()
+
+    AutomationWorkflowHandler().async_start_workflow(workflow)
+
+    history = workflow.workflow_histories.get()
+
+    mock_on_commit.assert_called_once()
+    mock_start_workflow_celery_task.delay.assert_not_called()
+
+    mock_on_commit.call_args.args[0]()
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        workflow.id, history.id
+    )
 
 
 @pytest.mark.django_db
@@ -1207,6 +1276,37 @@ def test_async_start_workflow_before_run_error(
     # The workflow shouldn't be started because before_run() should return early.
     mock_start_workflow_celery_task.delay.assert_not_called()
     assert_history(original_workflow, 1, "error", "unexpected error")
+
+    original_workflow.refresh_from_db()
+    published_workflow.refresh_from_db()
+
+    assert original_workflow.state == WorkflowState.DRAFT
+    assert published_workflow.state == WorkflowState.LIVE
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.AutomationWorkflowHandler.before_run")
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_async_start_workflow_unexpected_error_creates_history(
+    mock_start_workflow_celery_task, mock_before_run, data_fixture
+):
+    mock_before_run.side_effect = Exception("unexpected error")
+
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().async_start_workflow(published_workflow)
+
+    mock_start_workflow_celery_task.delay.assert_not_called()
+    assert_history(original_workflow, 1, "error", "Unknown exception: unexpected error")
+
+    history = original_workflow.workflow_histories.get()
+    assert history.started_on is not None
+    assert history.completed_on == history.started_on
 
     original_workflow.refresh_from_db()
     published_workflow.refresh_from_db()

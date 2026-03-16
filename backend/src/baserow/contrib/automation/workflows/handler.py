@@ -6,11 +6,11 @@ from zipfile import ZipFile
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
-from celery.canvas import chain
+from celery.canvas import Signature, chain
 from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -666,6 +666,123 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return duplicate_automation.workflows.first()
 
+    def disable_workflow(self, workflow: AutomationWorkflow) -> None:
+        """
+        Disable the provided workflow, as well as the original workflow.
+        """
+
+        original_workflow = workflow.get_original()
+
+        # The two workflows are always different because we call it only for published
+        # workflows
+        workflow.state = WorkflowState.DISABLED
+        workflow.save(update_fields=["state"])
+        original_workflow.state = WorkflowState.DISABLED
+        original_workflow.save(update_fields=["state"])
+
+        automation_workflow_updated.send(self, user=None, workflow=original_workflow)
+
+    def set_workflow_temporary_states(self, workflow, simulate_until_node=None):
+        """
+        Sets the temporary states necessary to allow an unpublished workflow to be
+        ran by the next event. By default a full test run is scheduled unless the
+        simulate_until_node parameter is used.
+
+        :param workflow: The workflow to consider.
+        :param simulate_until_node: If set, schedules a simulation run instead.
+        """
+
+        fields_to_save = []
+        if simulate_until_node is not None:
+            # Switch to simulate until the given node
+            workflow.simulate_until_node = simulate_until_node
+
+            automation_node_updated.send(self, user=None, node=simulate_until_node)
+
+            fields_to_save.append("simulate_until_node")
+
+        else:
+            # Full test run
+            workflow.allow_test_run_until = timezone.now() + timedelta(
+                minutes=ALLOW_TEST_RUN_MINUTES
+            )
+            fields_to_save.append("allow_test_run_until")
+
+        if fields_to_save:
+            workflow.save(update_fields=fields_to_save)
+            automation_workflow_updated.send(self, user=None, workflow=workflow)
+
+    def reset_workflow_temporary_states(self, workflow):
+        """
+        Reset the temporary states set when we want to test or simulate a workflow.
+        This should be executed after an event for this workflow is received.
+        """
+
+        fields_to_save = []
+        if workflow.allow_test_run_until:
+            workflow.allow_test_run_until = None
+            fields_to_save.append("allow_test_run_until")
+
+        if workflow.simulate_until_node:
+            workflow.simulate_until_node = None
+            fields_to_save.append("simulate_until_node")
+
+        if fields_to_save:
+            workflow.save(update_fields=fields_to_save)
+            automation_workflow_updated.send(self, user=None, workflow=workflow)
+
+    def toggle_test_run(
+        self, workflow: AutomationWorkflow, simulate_until_node: bool = None
+    ):
+        """
+        Trigger a test run if none is in progress or cancel the planned run. If the
+        workflow can immediately be dispatched, it will be by this function, otherwise
+        the workflow is switched in "listening" state and wait for the trigger event to
+        happens. When in simulate mode, the sample data of the simulated node will be
+        updated.
+
+        :param workflow: The workflow we want to trigger the test run for.
+        :param simulate_until_node: If we want to simulate until a particular node.
+        """
+
+        if workflow.simulate_until_node is not None or workflow.allow_test_run_until:
+            # We just stop waiting for the event
+            self.reset_workflow_temporary_states(workflow)
+            return
+
+        if simulate_until_node is None:  # Full test
+            AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
+            if workflow.can_immediately_be_tested():
+                # If the service related to the trigger can immediately be tested
+                # we immediately trigger the workflow run
+                self.async_start_workflow(workflow)
+
+        else:
+            AutomationWorkflowHandler().set_workflow_temporary_states(
+                workflow, simulate_until_node=simulate_until_node
+            )
+            trigger = workflow.get_trigger()
+
+            dispatch_context = AutomationDispatchContext(
+                workflow,
+                # This is a placeholder value, no actual history exists yet
+                # (it's created later in start_workflow). This is fine
+                # for now, because get_sample_data() doesn't use history.
+                history_id=0,
+                simulate_until_node=simulate_until_node,
+            )
+            if workflow.can_immediately_be_tested() or (
+                trigger.service.get_type().get_sample_data(
+                    trigger.service.specific, dispatch_context
+                )
+                is not None
+                and trigger.id != simulate_until_node.id
+            ):
+                # If the trigger is immediately dispatchable or if we already have
+                # the sample data for it we can immediately dispatch the workflow
+                # except if we are updating the trigger sample data by itself
+                self.async_start_workflow(workflow)
+
     def _clear_old_history(self, original_workflow: AutomationWorkflow) -> None:
         """
         Clear any old history entries related to the workflow.
@@ -807,71 +924,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             len([s for s in statuses if s == HistoryStatusChoices.ERROR]) > max_errors
         )
 
-    def disable_workflow(self, workflow: AutomationWorkflow) -> None:
-        """
-        Disable the provided workflow, as well as the original workflow.
-        """
-
-        original_workflow = workflow.get_original()
-
-        # The two workflows are always different because we call it only for published
-        # workflows
-        workflow.state = WorkflowState.DISABLED
-        workflow.save(update_fields=["state"])
-        original_workflow.state = WorkflowState.DISABLED
-        original_workflow.save(update_fields=["state"])
-
-        automation_workflow_updated.send(self, user=None, workflow=original_workflow)
-
-    def set_workflow_temporary_states(self, workflow, simulate_until_node=None):
-        """
-        Sets the temporary states necessary to allow an unpublished workflow to be
-        ran by the next event. By default a full test run is scheduled unless the
-        simulate_until_node parameter is used.
-
-        :param workflow: The workflow to consider.
-        :param simulate_until_node: If set, schedules a simulation run instead.
-        """
-
-        fields_to_save = []
-        if simulate_until_node is not None:
-            # Switch to simulate until the given node
-            workflow.simulate_until_node = simulate_until_node
-
-            automation_node_updated.send(self, user=None, node=simulate_until_node)
-
-            fields_to_save.append("simulate_until_node")
-
-        else:
-            # Full test run
-            workflow.allow_test_run_until = timezone.now() + timedelta(
-                minutes=ALLOW_TEST_RUN_MINUTES
-            )
-            fields_to_save.append("allow_test_run_until")
-
-        if fields_to_save:
-            workflow.save(update_fields=fields_to_save)
-            automation_workflow_updated.send(self, user=None, workflow=workflow)
-
-    def reset_workflow_temporary_states(self, workflow):
-        """
-        Reset the temporary states set when we want to test or simulate a workflow.
-        This should be executed after an event for this workflow is received.
-        """
-
-        fields_to_save = []
-        if workflow.allow_test_run_until:
-            workflow.allow_test_run_until = None
-            fields_to_save.append("allow_test_run_until")
-
-        if workflow.simulate_until_node:
-            workflow.simulate_until_node = None
-            fields_to_save.append("simulate_until_node")
-
-        if fields_to_save:
-            workflow.save(update_fields=fields_to_save)
-            automation_workflow_updated.send(self, user=None, workflow=workflow)
-
     def before_run(self, workflow: AutomationWorkflow) -> None:
         """
         Runs pre-flight checks  and actions before a workflow is allowed to run.
@@ -894,8 +946,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         if self._check_too_many_errors(workflow):
             raise AutomationWorkflowTooManyErrors(
-                f"The workflow {workflow.id} was disabled due to too "
-                "many consecutive errors."
+                "The workflow was disabled due to too many consecutive errors."
             )
 
         if self._check_is_rate_limited(workflow):
@@ -922,6 +973,12 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         create_history_entry = True
 
         original_workflow = workflow.get_original()
+
+        simulate_until_node = (
+            workflow.get_graph().get_node(workflow.simulate_until_node_id)
+            if workflow.simulate_until_node_id
+            else None
+        )
 
         try:
             self.before_run(workflow)
@@ -958,7 +1015,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             error = f"Unknown exception: {str(e)}"
 
         if error:
-            if create_history_entry:
+            if create_history_entry and simulate_until_node is None:
                 now = timezone.now()
 
                 AutomationHistoryHandler().create_workflow_history(
@@ -975,12 +1032,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = original_workflow == workflow
 
-        simulate_until_node = (
-            workflow.get_graph().get_node(workflow.simulate_until_node_id)
-            if workflow.simulate_until_node_id
-            else None
-        )
-
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow,
             started_on=timezone.now(),
@@ -989,72 +1040,18 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             simulate_until_node=simulate_until_node,
         )
 
-        start_workflow_celery_task.delay(
-            workflow.id,
-            history.id,
-            simulate_until_node_id=simulate_until_node.id
-            if simulate_until_node
-            else None,
+        transaction.on_commit(
+            lambda: start_workflow_celery_task.delay(
+                workflow.id,
+                history.id,
+            )
         )
-
-    def toggle_test_run(
-        self, workflow: AutomationWorkflow, simulate_until_node: bool = None
-    ):
-        """
-        Trigger a test run if none is in progress or cancel the planned run. If the
-        workflow can immediately be dispatched, it will be by this function, otherwise
-        the workflow is switched in "listening" state and wait for the trigger event to
-        happens. When in simulate mode, the sample data of the simulated node will be
-        updated.
-
-        :param workflow: The workflow we want to trigger the test run for.
-        :param simulate_until_node: If we want to simulate until a particular node.
-        """
-
-        if workflow.simulate_until_node is not None or workflow.allow_test_run_until:
-            # We just stop waiting for the event
-            self.reset_workflow_temporary_states(workflow)
-            return
-
-        if simulate_until_node is None:  # Full test
-            AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
-            if workflow.can_immediately_be_tested():
-                # If the service related to the trigger can immediately be tested
-                # we immediately trigger the workflow run
-                self.async_start_workflow(workflow)
-
-        else:
-            AutomationWorkflowHandler().set_workflow_temporary_states(
-                workflow, simulate_until_node=simulate_until_node
-            )
-            trigger = workflow.get_trigger()
-
-            dispatch_context = AutomationDispatchContext(
-                workflow,
-                # This is a placeholder value, no actual history exists yet
-                # (it's created later in start_workflow). This is fine
-                # for now, because get_sample_data() doesn't use history.
-                history_id=0,
-                simulate_until_node=simulate_until_node,
-            )
-            if workflow.can_immediately_be_tested() or (
-                trigger.service.get_type().get_sample_data(
-                    trigger.service.specific, dispatch_context
-                )
-                is not None
-                and trigger.id != simulate_until_node.id
-            ):
-                # If the trigger is immediately dispatchable or if we already have
-                # the sample data for it we can immediately dispatch the workflow
-                # except if we are updating the trigger sample data by itself
-                self.async_start_workflow(workflow)
 
     def start_workflow(
         self,
         workflow: AutomationWorkflow,
         history: AutomationWorkflowHistory,
-        simulate_until_node_id: Optional[int] = None,
-    ) -> None:
+    ) -> Signature:
         """Runs the workflow."""
 
         return chain(
@@ -1063,7 +1060,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 history.id,
             ),
             handle_workflow_dispatch_done.si(
-                history_id=history.id if not simulate_until_node_id else None,
-                simulate_until_node_id=simulate_until_node_id,
+                history_id=history.id if not history.simulate_until_node_id else None,
+                simulate_until_node_id=history.simulate_until_node_id,
             ),
         )
