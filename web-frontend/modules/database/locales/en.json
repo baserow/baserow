@@ -554,7 +554,8 @@
     "EnablePassword": "Restrict access with a password",
     "DisablePassword": "Access is password-protected",
     "ChangePassword": "Change",
-    "notSharedYetText": "Allow anyone to see the data in this view or sync events to your external calendar."
+    "notSharedYetText": "Allow anyone to see the data in this view or sync events to your external calendar.",
+    "shareViewWarningTitle": "Warning"
   },
   "viewGroupByContext": {
     "noGroupByTitle": "You have not yet created any groupings",

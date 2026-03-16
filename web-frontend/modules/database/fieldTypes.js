@@ -845,6 +845,16 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Can optionally return a warning message to display in the share view link context
+   * when the view is being shared publicly. This is called once per field type with
+   * all visible fields of that type, allowing the implementation to produce a
+   * single combined warning.
+   */
+  getShareViewWarning(fields, context) {
+    return null
+  }
+
+  /**
    * Determines whether the field type is inherently read-only, such as a
    * FormulaFieldType or CreatedOnFieldType, which are always read-only. Some fields may
    * have the `read_only` attribute set, indicating that while the field type itself is
@@ -5094,5 +5104,27 @@ export class FormViewEditRowFieldType extends FieldType {
 
   shouldFetchDataWhenAdded() {
     return true
+  }
+
+  getShareViewWarning(fields, { allViews }) {
+    const views = allViews || []
+    const formNames = [
+      ...new Set(
+        fields
+          .map((field) => {
+            const formView = views.find((v) => v.id === field.form_view_id)
+            return formView ? formView.name : null
+          })
+          .filter((name) => name !== null)
+      ),
+    ]
+    if (formNames.length === 0) {
+      return null
+    }
+    const { $i18n: i18n } = this.app
+    return i18n.t('fieldType.formViewEditRowShareWarning', {
+      count: formNames.length,
+      formNames: formNames.join(', '),
+    })
   }
 }
