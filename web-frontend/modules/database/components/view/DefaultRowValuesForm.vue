@@ -6,7 +6,7 @@
         :key="'row-edit-field-' + field.id"
         class="row-modal__field-item"
       >
-        <RowEditModalField
+        <DefaultRowValueField
           :ref="'field-' + field.id"
           :field="field"
           :can-be-hidden="false"
@@ -29,12 +29,12 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import RowEditModalField from '@baserow/modules/database/components/row/RowEditModalField'
+import DefaultRowValueField from '@baserow/modules/database/components/view/DefaultRowValueField'
 
 export default {
   name: 'DefaultRowValuesForm',
   components: {
-    RowEditModalField,
+    DefaultRowValueField,
   },
   mixins: [form],
   props: {
