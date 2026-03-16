@@ -2329,7 +2329,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+    return [new ArrayOfNumbersBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {

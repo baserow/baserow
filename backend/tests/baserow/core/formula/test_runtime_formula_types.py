@@ -1735,16 +1735,15 @@ def test_runtime_and_execute(args, expected):
         ([True, False], None),
         ([True, "false"], None),
         ([True, "False"], None),
-        # Invalid types for 1st arg
-        (["foo", True], "foo"),
-        ([{}, True], {}),
-        (["", True], ""),
-        ([100, True], 100),
-        # Invalid types for 2nd arg
-        ([True, "foo"], "foo"),
-        ([True, {}], {}),
-        ([True, ""], ""),
-        ([True, 100], 100),
+        # With strict=False, all values are valid (converted via bool())
+        (["foo", True], None),
+        ([{}, True], None),
+        (["", True], None),
+        ([True, "foo"], None),
+        ([True, {}], None),
+        ([True, ""], None),
+        ([100, True], None),
+        ([True, 100], None),
     ],
 )
 def test_runtime_and_validate_type_of_args(args, expected):
@@ -1797,15 +1796,15 @@ def test_runtime_or_execute(args, expected):
         ([True, False], None),
         ([True, "false"], None),
         ([True, "False"], None),
-        # Invalid types for 1st or 2nd arg
-        (["foo", True], "foo"),
-        ([{}, True], {}),
-        (["", True], ""),
-        ([100, True], 100),
-        ([True, "foo"], "foo"),
-        ([True, {}], {}),
-        ([True, ""], ""),
-        ([True, 100], 100),
+        # With strict=False, all values are valid (converted via bool())
+        (["foo", True], None),
+        ([{}, True], None),
+        (["", True], None),
+        ([True, "foo"], None),
+        ([True, {}], None),
+        ([True, ""], None),
+        ([100, True], None),
+        ([True, 100], None),
     ],
 )
 def test_runtime_or_validate_type_of_args(args, expected):
