@@ -1,23 +1,13 @@
-# PR Test Plan: Port AI Assistant to pydantic-ai
-
-## Context
-
-This PR replaces `udspy` with `pydantic-ai` as the agent framework for the
-Baserow AI assistant. It touches the entire assistant stack: deps, agents,
-tools, telemetry, history, streaming, and tests. The PR also adds an LLM eval
-suite.
-
----
+# AI Assistant Test Plan
 
 ## How to test
 
 ### 1. Automated tests (unit)
 
-Run the existing unit test suite (uses `TestModel`/`FunctionModel`, no LLM
-needed):
+Run the unit test suite (no LLM needed):
 
 ```bash
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
+just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
   -v --ignore=enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
 ```
 
@@ -26,16 +16,22 @@ telemetry event emission, history compaction, and streaming.
 
 ### 2. Automated tests (evals, optional)
 
-Run the eval suite against a live LLM. Requires an API key:
+Run the eval suite against a live LLM. The default model is
+`groq:openai/gpt-oss-120b`, so you need a `GROQ_API_KEY`. Evals that exercise
+the `search_user_docs` tool also require a running embedding service — set
+`BASEROW_EMBEDDINGS_API_URL` to point to it, or those evals will fail.
 
 ```bash
-export GROQ_API_KEY=gsk_...
+GROQ_API_KEY=gsk_... BASEROW_EMBEDDINGS_API_URL=http://... \
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 ```
 
-See [ai-assistant-evals.md](ai-assistant-evals.md) for configuration details
-(multi-model, env file, etc).
+> **Note:** Evals are non-deterministic and are not guaranteed to pass every
+> run. When a failure occurs, check whether the model did something
+> fundamentally wrong or whether the result is still acceptable. See
+> [ai-assistant-evals.md](ai-assistant-evals.md) for details on configuration,
+> multi-model runs, and how to interpret results.
 
 ### 3. Manual: Tool smoke tests
 
@@ -61,14 +57,15 @@ prompts:
 | `load_row_tools` | "Add a row to the Projects table: Name=Launch, Status=Active" (this implicitly triggers load_row_tools first) |
 | `update_rows_in_table_X` | "Change the Status of the Launch row in Projects to Done" |
 | `delete_rows_in_table_X` | "Delete the Launch row from the Projects table" |
-| `switch_mode` | "Switch to automation mode" |
 | `list_workflows` | "What automations do I have?" |
 | `create_workflows` | "Create an automation that sends a notification when a row is created in Projects" |
 | `list_nodes` | "What nodes are in my first workflow?" |
 | `add_nodes` | "Add a Slack notification action after the trigger in my workflow" |
 | `update_nodes` | "Rename the trigger node to New Project Trigger" |
 | `delete_nodes` | "Delete the Slack notification node from my workflow" |
-| `search_user_docs` | "How do I create a lookup field?" |
+| `search_user_docs` | "How do I create a lookup field?"* |
+
+* Make sure you synced the knowledge base first, look at [ai-assistant.md](../installation/ai-assistant.md) for more info.
 
 ### 4. Manual: Feedback
 
@@ -104,7 +101,7 @@ Requires PostHog configured (`POSTHOG_API_KEY`, `POSTHOG_HOST` etc.):
 
 ### 7. Manual: Knowledge base (search_user_docs)
 
-Requires an embeddings server and synced KB. Verify:
+Requires an embeddings server and synced KB (look at [ai-assistant.md](../installation/ai-assistant.md) for more info). Verify:
 
 - Ask a Baserow how-to question (e.g. "How do I set up SSO?") -> agent should
   call `search_user_docs` and cite sources
@@ -133,5 +130,5 @@ Verify the agent acts rather than describes:
 
 - Misconfigure the LLM API key and try to chat -> should show a clear error,
   not a stack trace
-- Send a prompt referencing a non-existent table/database -> agent should
+- Send a prompt referencing a non-existent table/database/any other resource -> agent should
   handle gracefully

@@ -1,17 +1,3 @@
-"""
-Eval: verify the agent can create rows with all managed field types.
-
-Sets up a table with text, long_text, number, boolean, date, datetime,
-single_select, multiple_select, and link_row fields, then asks the agent
-to create 5 rows with sample data.
-
-Run with: pytest -m eval -k test_eval_database_rows -v -s
-
-Configuration (via environment variables):
-- EVAL_LLM_MODEL: The model to use (default: "groq:openai/gpt-oss-120b")
-- GROQ_API_KEY / OPENAI_API_KEY: Required depending on the model
-"""
-
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -188,8 +174,8 @@ def test_agent_creates_rows_with_all_field_types(data_fixture, eval_model, db):
             _any_row(lambda r: (_get_field_value(r, "estimated_hours") or 0) > 0),
         )
         checks.check(
-            "completed populated",
-            _any_row(lambda r: _get_field_value(r, "completed") is not None),
+            "completed has at least one True",
+            _any_row(lambda r: _get_field_value(r, "completed") is True),
         )
         checks.check(
             "due_date populated",

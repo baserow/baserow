@@ -82,7 +82,10 @@ def get_formula_type_tool(
 
         nonlocal user, workspace
 
-        table = helpers.filter_tables(user, workspace).get(id=table_id)
+        table = helpers.filter_tables(user, workspace).filter(id=table_id).first()
+        if not table:
+            raise ValueError(f"Table with ID {table_id} not found in workspace.")
+
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
         field.recalculate_internal_fields(raise_if_invalid=True)
 
@@ -94,7 +97,7 @@ def get_formula_type_tool(
                 .filter(table=table)
                 .values_list("name", flat=True)
             )
-            raise Exception(
+            raise TypeError(
                 f"Invalid formula: {result['error']}. "
                 f"Available fields in table '{table.name}': {', '.join(field_names)}"
             )

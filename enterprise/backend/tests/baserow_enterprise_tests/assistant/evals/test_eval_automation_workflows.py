@@ -207,6 +207,19 @@ def test_agent_creates_workflow(data_fixture, eval_model):
         "processing" in str(v.get("value", "")).lower() for v in ur_values
     )
 
+    db_ok = workflows.exists()
+    if db_ok:
+        workflow, trigger_node, action_nodes = _get_workflow_nodes(automation)
+        db_trigger_type = trigger_node.service.get_type().type
+        db_update_actions = [
+            n
+            for n in action_nodes
+            if n.service.get_type().type == "local_baserow_upsert_row"
+        ]
+    else:
+        db_trigger_type = None
+        db_update_actions = []
+
     with EvalChecklist("creates workflow") as checks:
         checks.check("no tool errors", err_count == 0, hint=err_hint)
         checks.check(
@@ -216,7 +229,7 @@ def test_agent_creates_workflow(data_fixture, eval_model):
         )
         checks.check(
             "workflow created in DB",
-            workflows.exists(),
+            db_ok,
         )
         checks.check(
             "trigger is rows_created",
@@ -237,6 +250,15 @@ def test_agent_creates_workflow(data_fixture, eval_model):
             "update_row sets field to 'Processing'",
             ur_has_processing,
             hint=f"values: {ur_values}",
+        )
+        checks.check(
+            "DB trigger is rows_created",
+            db_trigger_type == "local_baserow_rows_created",
+            hint=f"got {db_trigger_type}",
+        )
+        checks.check(
+            "update_row action in DB",
+            len(db_update_actions) >= 1,
         )
 
 

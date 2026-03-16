@@ -74,13 +74,10 @@ def pytest_generate_tests(metafunc):
     """Auto-parametrize tests that use the ``eval_model`` fixture."""
 
     if "eval_model" in metafunc.fixturenames:
-        models_str = os.environ.get("EVAL_LLM_MODELS", "")
-        if models_str:
-            models = [m.strip() for m in models_str.split(",") if m.strip()]
-        else:
-            from .eval_utils import get_eval_model
+        from .eval_utils import get_eval_model
 
-            models = [get_eval_model()]
+        model_str = get_eval_model()
+        models = [m.strip() for m in model_str.split(",") if m.strip()]
         metafunc.parametrize("eval_model", models, scope="session")
 
 

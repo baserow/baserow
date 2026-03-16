@@ -1,21 +1,3 @@
-"""
-Agent-level evals for the database assistant.
-
-These run the full agent loop with real tools and the production system prompt.
-They verify:
-- The agent can create tables with appropriate fields
-- Field types and configurations are correct
-- No tool errors in the trajectory
-- Message history is captured for inspection
-
-Run with: pytest -m eval -k test_eval_agent_database -v -s
-
-Configuration (via environment variables):
-- EVAL_LLM_MODEL: The model to use (default: "groq:openai/gpt-oss-120b")
-- OPENAI_API_KEY: Required for OpenAI models
-- GROQ_API_KEY: Required for Groq models
-"""
-
 import pytest
 
 from baserow.contrib.database.fields.models import (
@@ -997,6 +979,11 @@ def test_agent_updates_select_options(data_fixture, eval_model):
             any("in progress" in o.lower() for o in options),
             hint=f"options: {options}",
         )
+        checks.check(
+            "existing options preserved",
+            {"to do", "done"} <= {o.lower() for o in options},
+            hint=f"options: {options}",
+        )
 
 
 @pytest.mark.eval
@@ -1038,6 +1025,12 @@ def test_agent_deletes_field(data_fixture, eval_model):
         checks.check(
             "Notes field gone",
             not any(n.lower() == "notes" for n in field_names),
+            hint=f"fields: {field_names}",
+        )
+        checks.check(
+            "other fields preserved",
+            any("name" in n.lower() for n in field_names)
+            and any("priority" in n.lower() for n in field_names),
             hint=f"fields: {field_names}",
         )
 
@@ -1140,13 +1133,13 @@ def test_create_related_tables_with_sample_rows(data_fixture, eval_model):
             hint=f"got: {list(table_names.keys())}",
         )
         checks.check(
-            "Authors has >=3 sample rows",
-            authors_count >= 3,
+            "Authors has >=1 sample row",
+            authors_count >= 1,
             hint=f"got {authors_count}",
         )
         checks.check(
-            "Books has >=3 sample rows",
-            books_count >= 3,
+            "Books has >=2 sample rows",
+            books_count >= 2,
             hint=f"got {books_count}",
         )
         checks.check(

@@ -32,9 +32,6 @@ just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
 
 > **Tip:** Do **not** pass `-s`. Without it, pytest captures `print_message_history` output and shows it only in the failure report — passing tests stay silent. Use `-s` only when you want to watch the agent's tool calls in real time for a single test.
 
-> **Note:** Commands in this document use `just b test` and are meant to be
-> run from the **project root**. If you're already inside the `backend/`
-> directory, drop the `b` and run `just test ../enterprise/...` instead.
 
 ## Configuration
 
@@ -42,8 +39,7 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EVAL_LLM_MODEL` | `groq:openai/gpt-oss-120b` | Model string in pydantic-ai format (`provider:model`). |
-| `EVAL_LLM_MODELS` | *(unset)* | Comma-separated list of models. When set, every eval is parametrized and runs once per model. |
+| `EVAL_LLM_MODEL` | `groq:openai/gpt-oss-120b` | Model string in pydantic-ai format (`provider:model`). Accepts a comma-separated list to parametrize every eval across multiple models. |
 | `EVAL_RETRIES` | `0` | Retry each failing eval test up to N times. If a test passes on retry it's a flake (LLM non-determinism); if it fails all N retries it's a consistent bug. |
 | `GROQ_API_KEY` | — | Required when using a Groq model. |
 | `OPENAI_API_KEY` | — | Required when using an OpenAI model. |
@@ -65,7 +61,7 @@ Variables already present in `os.environ` take precedence.
 ### Running against multiple models
 
 ```bash
-GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_LLM_MODELS="groq:openai/gpt-oss-120b,openai:gpt-4o"
+GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,openai:gpt-4o" \
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 ```
