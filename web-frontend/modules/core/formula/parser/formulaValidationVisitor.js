@@ -2,14 +2,14 @@ import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generate
 import { InvalidFormulaType, UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors.js'
 
 /**
- * Marker class representing a value that will be resolved at execution time.
+ * Marker symbol representing a value that will be resolved at execution time.
  *
  * During validation, when we encounter nested function calls (e.g., `is_even(get('foo.bar'))`),
  * the inner function's return value isn't available yet. Instead of failing validation
  * because we can't type-check an unknown value, we return this marker to indicate
  * "this will be a valid value at runtime, skip type validation for now."
  */
-export class DeferredValue {}
+export const DeferredValue = Symbol('DeferredValue')
 
 /**
  * A visitor that validates formula functions and their arguments during parsing.
@@ -125,7 +125,7 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     }
 
     return acceptedArgs.map((arg, index) => {
-      if (arg instanceof DeferredValue) {
+      if (arg === DeferredValue) {
         // Preserve deferred values - they'll be resolved at execution time
         return arg
       } else if (index < formulaFunctionType.args.length) {
@@ -165,13 +165,13 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     // Only run validateArgs if none of the arguments are DeferredValue.
     // DeferredValue represents nested function calls whose values aren't
     // available until execution time, so we can't type-check them.
-    const hasDeferred = argsParsed.some((arg) => arg instanceof DeferredValue)
+    const hasDeferred = argsParsed.some((arg) => arg === DeferredValue)
     if (!hasDeferred) {
       formulaFunctionType.validateArgs(argsParsed, { ctx, validationContext: this.validationContext})
     }
 
     // Return DeferredValue to indicate this function's result
     // will only be available at execution time
-    return new DeferredValue()
+    return DeferredValue
   }
 }
