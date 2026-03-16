@@ -1,5 +1,5 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
-import { InvalidFormulaType } from '@baserow/modules/core/formula/parser/errors.js'
+import { InvalidFormulaType, UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors.js'
 
 /**
  * Marker class representing a value that will be resolved at execution time.
@@ -69,6 +69,38 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     return ctx.expr().accept(this)
   }
 
+  visitBinaryOp(ctx) {
+    let op
+    if (ctx.PLUS()) {
+      op = 'add'
+    } else if (ctx.MINUS()) {
+      op = 'minus'
+    } else if (ctx.SLASH()) {
+      op = 'divide'
+    } else if (ctx.EQUAL()) {
+      op = 'equal'
+    } else if (ctx.BANG_EQUAL()) {
+      op = 'not_equal'
+    } else if (ctx.STAR()) {
+      op = 'multiply'
+    } else if (ctx.GT()) {
+      op = 'greater_than'
+    } else if (ctx.LT()) {
+      op = 'less_than'
+    } else if (ctx.GTE()) {
+      op = 'greater_than_or_equal'
+    } else if (ctx.LTE()) {
+      op = 'less_than_or_equal'
+    } else if (ctx.AMP_AMP()) {
+      op = 'and'
+    } else if (ctx.PIPE_PIPE()) {
+      op = 'or'
+    } else {
+      throw new UnknownOperatorError(ctx.getText())
+    }
+    return this.visitFunctionCall(ctx, op)
+  }
+
   processString(ctx) {
     const literalWithoutOuterQuotes = ctx.getText().slice(1, -1)
     let literal
@@ -107,8 +139,8 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
   /**
    * Visit a function call and validate its arguments.
    */
-  visitFunctionCall(ctx) {
-    const functionName = ctx.func_name().getText().toLowerCase()
+  visitFunctionCall(ctx, operatorFn = null) {
+    const functionName = operatorFn || ctx.func_name().getText().toLowerCase()
     const functionArgumentExpressions = ctx.expr()
     let formulaFunctionType = null
     try {

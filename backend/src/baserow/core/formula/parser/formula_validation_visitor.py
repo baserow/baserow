@@ -5,6 +5,7 @@ from baserow.core.formula.parser.exceptions import (
     FieldByIdReferencesAreDeprecated,
     FormulaFunctionTypeDoesNotExist,
     InvalidNumberOfArguments,
+    UnknownOperator,
 )
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
@@ -49,6 +50,36 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
     def visitStringLiteral(self, ctx: BaserowFormula.StringLiteralContext):
         # noinspection PyTypeChecker
         return self.process_string(ctx)
+
+    def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
+        if ctx.PLUS():
+            op = "add"
+        elif ctx.MINUS():
+            op = "minus"
+        elif ctx.SLASH():
+            op = "divide"
+        elif ctx.EQUAL():
+            op = "equal"
+        elif ctx.BANG_EQUAL():
+            op = "not_equal"
+        elif ctx.STAR():
+            op = "multiply"
+        elif ctx.GT():
+            op = "greater_than"
+        elif ctx.LT():
+            op = "less_than"
+        elif ctx.GTE():
+            op = "greater_than_or_equal"
+        elif ctx.LTE():
+            op = "less_than_or_equal"
+        elif ctx.AMP_AMP():
+            op = "and"
+        elif ctx.PIPE_PIPE():
+            op = "or"
+        else:
+            raise UnknownOperator(ctx.getText())
+
+        return self.visitFunctionCall(ctx, op)
 
     def process_string(self, ctx):
         literal_without_outer_quotes = ctx.getText()[1:-1]
@@ -123,13 +154,17 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
                 result.append(arg)
         return result
 
-    def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
+    def visitFunctionCall(
+        self, ctx: BaserowFormula.FunctionCallContext, function_name: str = None
+    ):
         """
         Visits a function call node in the parse tree. For each function we encounter,
         we validate its args using the corresponding function type's `validate_args`
         method.
 
         :param ctx: The function call context from the parse tree.
+        :param function_name: Optional function name to use instead of
+            the one in the context. Mainly used for operator visits.
         :raises InvalidNumberOfArguments: If the number of arguments provided to the
             function does not match the expected number.
         :return: DeferredValue marker to indicate this function's result will be
@@ -137,7 +172,7 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
         """
 
         accepted_args = [expr.accept(self) for expr in ctx.expr()]
-        function_name = ctx.func_name().getText().lower()
+        function_name = function_name or ctx.func_name().getText().lower()
         try:
             formula_function_type = self.functions.get(function_name)
         except FormulaFunctionTypeDoesNotExist:

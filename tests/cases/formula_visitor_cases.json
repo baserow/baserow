@@ -92,9 +92,14 @@
             "description": "Multiple nested get() calls are deferred"
         },
         {
-            "formula": "is_even(add(1, 2))",
-            "context": {},
-            "description": "Nested function calls with literals are deferred"
+          "formula": "is_even(add(1, 2))",
+          "context": {},
+          "description": "Nested function calls with literals are deferred"
+        },
+        {
+          "formula": "is_odd(1 + 2)",
+          "context": {},
+          "description": "Literal numeric values with an operator validate correctly"
         }
     ],
     "INVALID_FORMULA_VALIDATION_TESTS": [
@@ -165,6 +170,13 @@
             "frontendError": null,
             "backend_error": "is not a valid number or convertible to a number",
             "description": "Mixed literal types fail validation"
+        },
+        {
+          "formula": "is_even(1 + 'two')",
+          "context": {},
+          "frontendError": null,
+          "backend_error": "is not a valid number or convertible to a number",
+          "description": "Mixed literal types fail validation"
         }
     ]
 }
