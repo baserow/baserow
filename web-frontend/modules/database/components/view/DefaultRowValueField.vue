@@ -78,9 +78,7 @@ export default {
       required: true,
     },
   },
-  emits: [
-    'update',
-  ],
+  emits: ['update'],
   computed: {
     hasDefaultValueSet() {
       return !!Object.hasOwn(this.viewDefaultValues, this.field.id)
