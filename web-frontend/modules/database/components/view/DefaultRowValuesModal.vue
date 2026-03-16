@@ -11,12 +11,14 @@
       <DefaultRowValuesForm
         v-if="fetched"
         ref="form"
-        :default-values="row"
         :database="database"
         :table="table"
         :view="view"
         :fields="defaultValueFields"
         :all-fields-in-table="allFieldsInTable"
+        :row="row"
+        :default-values="row"
+        :view-default-values="viewDefaultValues"
         :read-only="readOnly"
         @submitted="handleSubmit"
       >
@@ -76,7 +78,7 @@ export default {
   data() {
     return {
       fetched: false,
-      defaultValues: {},
+      viewDefaultValues: {},
       row: {},
       saving: false,
     }
@@ -106,7 +108,7 @@ export default {
       this.row = Object.fromEntries(
         this.defaultValueFields.map((field) => {
           const fieldType = this.$registry.get('field', field.type)
-          const defaultValue = this.defaultValues[field.id]
+          const defaultValue = this.viewDefaultValues[field.id]
 
           if (defaultValue !== undefined) {
             const convertedValue = fieldType.convertViewDefaultValue(
@@ -128,7 +130,7 @@ export default {
         const { data } = await ViewService(this.$client).fetchDefaultValues(
           this.view.id
         )
-        this.defaultValues = data
+        this.viewDefaultValues = data
         this.buildRow()
         this.fetched = true
       } catch (error) {
@@ -136,6 +138,8 @@ export default {
       }
     },
     async handleSubmit(formValues) {
+      console.log({ formValues })
+
       this.saving = true
       this.hideError()
       try {

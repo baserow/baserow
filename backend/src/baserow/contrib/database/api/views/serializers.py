@@ -157,6 +157,7 @@ class DefaultValuesSerializer(serializers.Serializer):
             result[field.id] = {
                 "field_type": field_type.type,
                 "value": serialized_value,
+                "enabled": True,
             }
         return result
 

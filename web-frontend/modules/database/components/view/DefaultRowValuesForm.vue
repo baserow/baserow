@@ -9,16 +9,14 @@
         <DefaultRowValueField
           :ref="'field-' + field.id"
           :field="field"
-          :can-be-hidden="false"
           :hidden="false"
           :read-only="readOnly"
-          :row="values"
+          :row="row"
           :view="view"
           :table="table"
           :database="database"
-          :sortable="false"
-          :can-modify-fields="false"
           :all-fields-in-table="allFieldsInTable"
+          :view-default-values="viewDefaultValues"
           @update="updateField($event)"
         />
       </li>
@@ -64,10 +62,17 @@ export default {
       required: false,
       default: false,
     },
+    row: {
+      type: Object,
+      required: true,
+    },
+    viewDefaultValues: {
+      type: Object,
+      required: true,
+    },
   },
   data() {
     return {
-      allowedValues: null,
       values: {},
     }
   },
