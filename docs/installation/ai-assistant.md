@@ -59,7 +59,9 @@ ANTHROPIC_API_KEY=your_api_key
 
 ### AWS Bedrock
 
-Authentication uses standard AWS credentials via boto3.
+pydantic-ai supports two authentication methods for Bedrock. Use whichever matches your setup.
+
+**Option A — Standard AWS credentials (boto3)**
 
 ```dotenv
 BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
@@ -68,7 +70,15 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=eu-central-1
 ```
 
-Any boto3-compatible credential method works (IAM roles, profiles, etc.).
+Any boto3-compatible credential method works: env vars, IAM roles, instance profiles, `~/.aws/credentials`, etc.
+
+**Option B — Bedrock bearer token**
+
+```dotenv
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
+AWS_BEARER_TOKEN_BEDROCK=your_bearer_token
+AWS_DEFAULT_REGION=eu-central-1
+```
 
 ### Groq
 
@@ -135,11 +145,20 @@ just dcd run --rm web-frontend bash -c env | grep LLM_MODEL
 
 Both commands must return the same value for `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`. If either is missing or they differ, update your environment configuration and restart the services.
 
-## 6) Framework change: UDSPy to pydantic-ai
+## 6) Supported models
+
+pydantic-ai supports a wide range of providers. For the full list see the
+[pydantic-ai model overview](https://ai.pydantic.dev/models/overview/).
+
+Key providers: OpenAI, Anthropic, AWS Bedrock, Groq, Mistral, Gemini/Vertex AI,
+xAI, Cerebras, Cohere, Hugging Face, OpenRouter, Ollama, and any OpenAI-compatible
+endpoint (Azure, DeepSeek, Fireworks, LiteLLM, Perplexity, Together AI, etc.).
+
+## 7) Framework change: UDSPy to pydantic-ai
 
 The assistant previously used [UDSPy](https://github.com/baserow/udspy/) as its agent
 framework. It now uses [pydantic-ai](https://ai.pydantic.dev/). Most environment
-variables are unchanged, but some provider-specific variables have changed.
+variables are unchanged or bridged for backward compatibility.
 
 ### What stays the same
 
@@ -149,14 +168,22 @@ variables are unchanged, but some provider-specific variables have changed.
 | `BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE` | Still supported. Overrides the orchestrator temperature when set. |
 | `OPENAI_API_KEY` | Unchanged. |
 | `GROQ_API_KEY` | Unchanged. |
+| `AWS_BEARER_TOKEN_BEDROCK` | Still works — pydantic-ai supports Bedrock bearer token auth natively. |
 
-### What changed
+### Bridged for backward compatibility (no action needed)
 
-| Old variable | New variable | Notes |
-|--------------|--------------|-------|
-| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | `OPENAI_BASE_URL` | pydantic-ai reads the standard OpenAI env var. |
-| `AWS_BEARER_TOKEN_BEDROCK` | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | pydantic-ai uses standard boto3 credentials. Any boto3-compatible auth method works (env vars, IAM roles, profiles). |
-| `AWS_REGION_NAME` | `AWS_DEFAULT_REGION` | Standard boto3 region variable. |
-| `OLLAMA_API_KEY` | `OLLAMA_API_KEY` | Still supported, but only needed for Ollama Cloud. |
-| *(N/A)* | `OLLAMA_BASE_URL` | Replaces `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` for Ollama. Defaults to `http://localhost:11434/v1`. |
-| *(N/A)* | `ANTHROPIC_API_KEY` | New provider — Anthropic models are now supported. |
+| Old variable | Equivalent | Notes |
+|--------------|------------|-------|
+| `UDSPY_LM_MODEL` | `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | If set and the new var is absent, the old value is used automatically. |
+| `UDSPY_LM_API_KEY` | `OPENAI_API_KEY` / `GROQ_API_KEY` / etc. | Propagated to all provider key variables as a fallback. |
+| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | `OPENAI_BASE_URL` | Still works; bridged automatically. |
+| `AWS_REGION_NAME` | `AWS_DEFAULT_REGION` | Still works; bridged automatically. |
+
+### New variables
+
+| Variable | Notes |
+|----------|-------|
+| `OPENAI_BASE_URL` | Preferred replacement for `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL`. |
+| `AWS_DEFAULT_REGION` | Preferred replacement for `AWS_REGION_NAME`. |
+| `OLLAMA_BASE_URL` | Replaces `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` for Ollama. Defaults to `http://localhost:11434/v1`. |
+| `ANTHROPIC_API_KEY` | New provider — Anthropic models are now supported. |

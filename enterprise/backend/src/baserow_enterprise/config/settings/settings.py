@@ -106,3 +106,8 @@ def setup(settings):
     if _udspy_base_url:
         # pydantic-ai's OpenAI provider reads OPENAI_BASE_URL.
         os.environ.setdefault("OPENAI_BASE_URL", _udspy_base_url)
+
+    # Bridge old AWS_REGION_NAME to boto3's standard AWS_DEFAULT_REGION.
+    _aws_region = os.getenv("AWS_REGION_NAME", "")
+    if _aws_region:
+        os.environ.setdefault("AWS_DEFAULT_REGION", _aws_region)
