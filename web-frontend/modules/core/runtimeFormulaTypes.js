@@ -8,6 +8,7 @@ import {
   TimezoneBaserowRuntimeFormulaArgumentType,
   AnyBaserowRuntimeFormulaArgumentType,
   ArrayBaserowRuntimeFormulaArgumentType,
+  ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgument,
@@ -2372,7 +2373,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+    return [new ArrayOfNumbersBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {

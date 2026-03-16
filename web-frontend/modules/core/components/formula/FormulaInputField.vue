@@ -12,12 +12,28 @@
         @data-node-clicked="dataNodeClicked"
       />
     </div>
-    <Alert
-      v-if="formulaErrorContext.scope && formulaErrorContext.scope !== 'syntax'"
-      type="error"
-    >
+    <Alert v-if="formulaErrorContext.message" type="error">
       <template #title>{{ formulaErrorContext.title }}</template>
-      <p>{{ formulaErrorContext.message }}</p>
+      <p v-if="formulaErrorContext.scope === 'human'">
+        {{ formulaErrorContext.message }}
+      </p>
+      <p v-else>
+        <template v-if="!errorExpanded">
+          {{ formulaErrorContext.message.slice(0, 75)
+          }}<template v-if="formulaErrorContext.message.length > 75"
+            >...
+            <a
+              class="formula-input-field__view-full-error"
+              href="#"
+              @click.prevent="errorExpanded = true"
+              >{{ $t('formulaInputField.viewFullError') }}</a
+            >
+          </template>
+        </template>
+        <template v-else>
+          {{ formulaErrorContext.message }}
+        </template>
+      </p>
     </Alert>
 
     <FormulaInputContext
@@ -174,6 +190,7 @@ export default {
       content: null,
       isFormulaInvalid: false,
       formulaErrorContext: { scope: null, title: '', message: '' },
+      errorExpanded: false,
       isFocused: false,
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
@@ -468,6 +485,7 @@ export default {
     },
     emitChange() {
       this.formulaErrorContext = { scope: null, title: '', message: '' }
+      this.errorExpanded = false
 
       const functions = new RuntimeFunctionCollection(this.$registry)
       // this.wrapperContent can be stale content, so get the data

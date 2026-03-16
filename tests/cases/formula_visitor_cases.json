@@ -100,6 +100,11 @@
           "formula": "is_odd(1 + 2)",
           "context": {},
           "description": "Literal numeric values with an operator validate correctly"
+        },
+        {
+          "formula": "if(1 + 3, 'true', 'false')",
+          "context": {},
+          "description": "The boolean expression in the first argument is not strict."
         }
     ],
     "INVALID_FORMULA_VALIDATION_TESTS": [
@@ -177,6 +182,13 @@
           "frontendError": null,
           "backend_error": "is not a valid number or convertible to a number",
           "description": "Mixed literal types fail validation"
+        },
+        {
+          "formula": "avg('foobar')",
+          "context": {},
+          "frontendError": null,
+          "backend_error": "is not a valid number or convertible to a number",
+          "description": "Cannot be ensured to an array of numbers."
         }
     ]
 }

@@ -5,7 +5,6 @@ export class BaserowFormulaParserError extends Error {
     this.line = line
     this.character = character
     this.message = message
-    this.scope = 'syntax'
   }
 }
 
@@ -16,13 +15,19 @@ export class UnknownOperatorError extends Error {
   }
 }
 
-export class InvalidNumberOfArguments extends Error {
+/**
+ * A base class for errors that are meant to be shown to the user. These errors
+ * should have a human-readable message that can be directly shown to the user,
+ * and should not contain any technical info about the formula parser or runtime
+ */
+export class BaseHumanReadableError extends Error {}
+
+export class InvalidNumberOfArguments extends BaseHumanReadableError {
   constructor(formulaFunctionType, minArgs, maxArgs = null) {
     super()
     this.formulaFunctionType = formulaFunctionType
     this.minArgs = minArgs
     this.maxArgs = maxArgs
-    this.scope = 'argument'
     this.message = this.getMessage()
   }
 
@@ -48,28 +53,25 @@ export class InvalidNumberOfArguments extends Error {
   }
 }
 
-export class InvalidFormulaType extends Error {
+export class InvalidFormulaType extends BaseHumanReadableError {
   constructor(message) {
     super()
-    this.scope = 'function'
     this.message = message
   }
 }
 
-export class InvalidFormulaArgumentType extends Error {
+export class InvalidFormulaArgumentType extends BaseHumanReadableError {
   constructor(formulaFunctionType, arg) {
     super()
     this.formulaFunctionType = formulaFunctionType
-    this.scope = 'argument'
     this.arg = arg
   }
 }
 
-export class InvalidFormulaArgument extends Error {
+export class InvalidFormulaArgument extends BaseHumanReadableError {
   constructor(arg, message) {
     super()
     this.arg = arg
-    this.scope = 'argument'
     this.message = message
   }
 }

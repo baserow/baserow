@@ -843,7 +843,8 @@
   "formulaInputField": {
     "errorInvalidFormula": "The formula is invalid.",
     "advancedFormulaMode": "Advanced formula mode",
-    "invalidFormulaTitle": "Invalid formula"
+    "invalidFormulaTitle": "Invalid formula",
+    "viewFullError": "View full error"
   },
   "formulaInputContext": {
     "variables": "Variables",

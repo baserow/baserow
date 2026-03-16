@@ -129,6 +129,27 @@ export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormul
   }
 }
 
+export class ArrayOfNumbersBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    try {
+      value = ensureArray(value)
+    } catch (e) {
+      return false
+    }
+    try {
+      value.forEach((item) => ensureNumeric(item))
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    value = ensureArray(value)
+    return value.map((item) => ensureNumeric(item))
+  }
+}
+
 export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
   test(value) {
     try {

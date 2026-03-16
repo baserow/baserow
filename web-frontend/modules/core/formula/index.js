@@ -2,6 +2,7 @@ import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser/formulaExecutionVisitor.js'
 import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
+import { BaseHumanReadableError } from '~/modules/core/formula/parser/errors.js'
 
 /**
  * Resolves a formula in the context of the given context.
@@ -67,7 +68,11 @@ export const isFormulaValid = (
     }
     return { errors: [], valid: true, scope: null }
   } catch (err) {
-    return { scope: err.scope, valid: false, errors: [err.message] }
+    return {
+      valid: false,
+      errors: [err.message],
+      scope: err instanceof BaseHumanReadableError ? 'human' : 'internal',
+    }
   }
 }
 

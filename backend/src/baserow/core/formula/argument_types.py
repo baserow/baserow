@@ -87,13 +87,13 @@ class DictBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
 class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def test(self, value):
         try:
-            ensure_boolean(value)
+            ensure_boolean(value, False)
             return True
         except ValidationError:
             return False
 
     def parse(self, value):
-        return ensure_boolean(value)
+        return ensure_boolean(value, False)
 
 
 class TimezoneBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
