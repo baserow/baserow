@@ -2,11 +2,10 @@ import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import requests
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
-import advocate
-from advocate import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import compare_date
@@ -226,7 +225,7 @@ class JiraIssuesDataSyncType(DataSyncType):
 
         url = f"{instance.jira_url}/rest/api/2/search/approximate-count"
         try:
-            response = advocate.post(
+            response = requests.post(
                 url,
                 headers={**headers, "Content-Type": "application/json"},
                 json={"jql": jql},
@@ -235,7 +234,7 @@ class JiraIssuesDataSyncType(DataSyncType):
             )
             if response.ok:
                 return response.json().get("count", 0)
-        except (RequestException, UnacceptableAddressException, ConnectionError):
+        except (RequestException, ConnectionError):
             pass
         return 0
 
@@ -278,7 +277,7 @@ class JiraIssuesDataSyncType(DataSyncType):
                 if next_page_token:
                     params["nextPageToken"] = next_page_token
 
-                response = advocate.get(
+                response = requests.get(
                     url, headers=headers, params=params, timeout=10, **kwargs
                 )
                 if not response.ok:
@@ -307,7 +306,7 @@ class JiraIssuesDataSyncType(DataSyncType):
                 next_page_token = data.get("nextPageToken")
                 if not next_page_token:
                     break
-        except (RequestException, UnacceptableAddressException, ConnectionError) as e:
+        except (RequestException, ConnectionError) as e:
             raise SyncError(f"Error connecting to Jira: {str(e)}")
 
         return issues
