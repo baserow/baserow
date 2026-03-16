@@ -38,7 +38,7 @@ def start_workflow_celery_task(
 
 @app.task
 def handle_workflow_dispatch_done(
-    history_id: Optional[int] = None,
+    history_id: int,
     simulate_until_node_id: Optional[int] = None,
 ):
     """
@@ -50,11 +50,12 @@ def handle_workflow_dispatch_done(
     """
 
     if simulate_until_node_id:
+        # We just delete the history entry as we don't need it.
         AutomationWorkflowHistory.objects.filter(
-            simulate_until_node_id=simulate_until_node_id
+            id=history_id, simulate_until_node_id=simulate_until_node_id
         ).delete()
 
-    if history_id:
+    else:
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
         # don't want to overwrite it.

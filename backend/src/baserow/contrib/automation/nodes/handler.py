@@ -462,12 +462,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             # Use the normalized iteration index from the context.
             iteration_index = dispatch_context.current_iterations[parent_nodes[-1].id]
 
-        history_handler.create_node_result(
-            node_history=node_history,
-            result=dispatch_result.data,
-            iteration=iteration_index,
-        )
-
         # Return early if this is a simulation as we've reached the
         # simulated node.
         if until_node := simulate_until_node:
@@ -475,6 +469,12 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 until_node.service.specific.refresh_from_db(fields=["sample_data"])
                 automation_node_updated.send(self, user=None, node=until_node)
                 return None
+
+        history_handler.create_node_result(
+            node_history=node_history,
+            result=dispatch_result.data,
+            iteration=iteration_index,
+        )
 
         to_chain = []
         if children := node.get_children():

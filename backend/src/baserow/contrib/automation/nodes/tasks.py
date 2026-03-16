@@ -37,3 +37,5 @@ def dispatch_node_celery_task(
     # by a worker (which again calls dispatch_node_celery_task).
     if isinstance(result, Signature):
         return self.replace(result)
+
+    return None

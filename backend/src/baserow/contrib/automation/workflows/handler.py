@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import IntegrityError, transaction
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -791,23 +791,21 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         keep the most recent MAX_HISTORY_ENTRIES entries.
         """
 
-        is_finished = ~Q(status=HistoryStatusChoices.STARTED)
-
         oldest_history_date = timezone.now() - timedelta(
             days=settings.AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS
         )
-        original_workflow.workflow_histories.filter(
-            is_finished, started_on__lt=oldest_history_date
-        ).delete()
+        original_workflow.workflow_histories.exclude(
+            status=HistoryStatusChoices.STARTED
+        ).filter(started_on__lt=oldest_history_date).delete()
 
         history_ids_to_keep = list(
             original_workflow.workflow_histories.order_by("-started_on").values_list(
                 "id", flat=True
             )[: settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES]
         )
-        original_workflow.workflow_histories.filter(is_finished).exclude(
-            id__in=history_ids_to_keep
-        ).delete()
+        original_workflow.workflow_histories.exclude(
+            status=HistoryStatusChoices.STARTED
+        ).exclude(id__in=history_ids_to_keep).delete()
 
     def _mark_failure_for_timed_out_history(
         self, original_workflow: AutomationWorkflow
@@ -1041,10 +1039,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(
-                workflow.id,
-                history.id,
-            )
+            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
         )
 
     def start_workflow(
@@ -1060,7 +1055,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 history.id,
             ),
             handle_workflow_dispatch_done.si(
-                history_id=history.id if not history.simulate_until_node_id else None,
+                history_id=history.id,
                 simulate_until_node_id=history.simulate_until_node_id,
             ),
         )

@@ -415,7 +415,9 @@ def test_dispatch_node_dispatches_trigger_simulation(
 
     # Ensure workflow history is deleted, since we don't want history
     # entries for simulations.
-    handle_workflow_dispatch_done(simulate_until_node_id=trigger_node.id)
+    handle_workflow_dispatch_done(
+        workflow_history.id, simulate_until_node_id=trigger_node.id
+    )
     assert (
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is False
@@ -528,7 +530,9 @@ def test_dispatch_node_dispatches_action_simulation(
 
     # Ensure workflow history is deleted, since we don't want history
     # entries for simulations.
-    handle_workflow_dispatch_done(simulate_until_node_id=action_node.id)
+    handle_workflow_dispatch_done(
+        workflow_history.id, simulate_until_node_id=action_node.id
+    )
     assert (
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is False
@@ -588,7 +592,9 @@ def test_dispatch_node_dispatches_iterator_simulation(
     # No more nodes to dispatch
     assert result is None
 
-    handle_workflow_dispatch_done(simulate_until_node_id=iterator_child_2_node.id)
+    handle_workflow_dispatch_done(
+        workflow_history.id, simulate_until_node_id=iterator_child_2_node.id
+    )
 
     # Make sure the last iterator node simulation saves a history entry
     iterator_child_2_node.service.specific.refresh_from_db()
@@ -1100,7 +1106,9 @@ def test_dispatch_node_dispatches_router_edge_simulation(
     )
 
     # Verify workflow history is deleted for simulations
-    handle_workflow_dispatch_done(simulate_until_node_id=action_node.id)
+    handle_workflow_dispatch_done(
+        workflow_history.id, simulate_until_node_id=action_node.id
+    )
     assert (
         AutomationWorkflowHistory.objects.filter(id=workflow_history.id).exists()
         is False
