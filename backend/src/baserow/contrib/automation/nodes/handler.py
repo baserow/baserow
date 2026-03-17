@@ -42,6 +42,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -379,6 +380,23 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_history.status = HistoryStatusChoices.ERROR
         node_history.save()
 
+    def _handle_simulation_notify(
+        self, simulate_until_node: AutomationNode | None, node: AutomationNode
+    ) -> bool:
+        """
+        When the simulated node is the current node, refresh the sample data
+        and send a node updated signal so that the frontend receives the
+        updated sample data.
+
+        Returns True if a signal was sent, False otherwise.
+        """
+
+        if simulate_until_node and simulate_until_node.id == node.id:
+            node.service.specific.refresh_from_db(fields=["sample_data"])
+            automation_node_updated.send(self, user=None, node=node)
+            return True
+        return False
+
     def dispatch_node(
         self,
         node_id: int,
@@ -444,6 +462,16 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, error)
+            self._handle_simulation_notify(simulate_until_node, node)
+            return None
+        except UnexpectedDispatchException as e:
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.warning(error)
+            self._handle_workflow_error(node_history, error)
+            self._handle_simulation_notify(simulate_until_node, node)
             return None
         except Exception as e:
             original_workflow = node.workflow.get_original()
@@ -454,6 +482,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             )
             logger.exception(error)
             self._handle_workflow_error(node_history, error)
+            self._handle_simulation_notify(simulate_until_node, node)
             return None
 
         iteration_index = 0
@@ -464,11 +493,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Return early if this is a simulation as we've reached the
         # simulated node.
-        if until_node := simulate_until_node:
-            if until_node.id == node.id:
-                until_node.service.specific.refresh_from_db(fields=["sample_data"])
-                automation_node_updated.send(self, user=None, node=until_node)
-                return None
+        if self._handle_simulation_notify(simulate_until_node, node):
+            return None
 
         history_handler.create_node_result(
             node_history=node_history,
