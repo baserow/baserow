@@ -1,6 +1,6 @@
 {
   "type": "refactor",
-  "message": "Removed the use of `advocate` for the Jira data sync so that connection can be made to local network.",
+  "message": "Removed the use of `advocate` for the Jira data sync so that a connection can be made to the local network.",
   "issue_origin": "github",
   "issue_number": null,
   "domain": "database",
