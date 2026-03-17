@@ -65,10 +65,24 @@ _THINKING_TAGS = ("<think>", "</think>")
 
 def _strip_think_tags(text: str) -> str:
     """Remove ``<think>...</think>`` blocks from *text*, returning only the
-    non-thinking content.  Uses pydantic-ai's own tag parser."""
+    non-thinking content.  Uses pydantic-ai's own tag parser.
+
+    Also strips any trailing unclosed ``<think>`` block that may appear
+    during streaming (the closing tag hasn't arrived yet).
+    """
 
     if "<think>" not in text:
         return text
+
+    # Strip any trailing unclosed <think> block (common during streaming)
+    last_open = text.rfind("<think>")
+    last_close = text.rfind("</think>")
+    if last_open > last_close:
+        text = text[:last_open]
+
+    if "<think>" not in text:
+        return text.strip()
+
     parts = split_content_into_text_and_thinking(text, _THINKING_TAGS)
     return "".join(p.content for p in parts if not isinstance(p, ThinkingPart)).strip()
 
@@ -445,10 +459,12 @@ class Assistant:
                 thought = _extract_tool_thought(event)
                 if thought:
                     reasoning_so_far += thought
-                    await self._enqueue_reasoning(queue, reasoning_so_far)
+                    cleaned = _strip_think_tags(reasoning_so_far)
+                    await self._enqueue_reasoning(queue, cleaned)
                 continue
 
             if isinstance(event, FunctionToolResultEvent):
+                reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
                 continue
 
             # Accumulate text/thinking deltas and send full reasoning.
