@@ -12,33 +12,17 @@
         @data-node-clicked="dataNodeClicked"
       />
     </div>
-    <Alert v-if="formulaErrorContext.message" type="error">
-      <template #title>{{ formulaErrorContext.title }}</template>
-      <p v-if="formulaErrorContext.scope === 'human'">
-        {{ formulaErrorContext.message }}
-      </p>
-      <p v-else>
-        <template v-if="!errorExpanded">
-          {{ formulaErrorContext.message.slice(0, 75)
-          }}<template v-if="formulaErrorContext.message.length > 75"
-            >...
-            <a
-              class="formula-input-field__view-full-error"
-              href="#"
-              @click.prevent="errorExpanded = true"
-              >{{ $t('formulaInputField.viewFullError') }}</a
-            >
-          </template>
-        </template>
-        <template v-else>
-          {{ formulaErrorContext.message }}
-        </template>
-      </p>
-    </Alert>
 
-    <FormulaInputContext
+    <FormulaInputErrorContext
+      v-if="isFocused && !readOnly && isFormulaInvalid"
+      ref="formulaInputErrorContext"
+      :formula-error-context="formulaErrorContext"
+      @mousedown="onContextMouseDown"
+    />
+
+    <FormulaInputExplorerContext
       v-if="isFocused && !readOnly"
-      ref="formulaInputContext"
+      ref="formulaInputExplorerContext"
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
@@ -49,7 +33,7 @@
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown="onDataExplorerMouseDown"
+      @mousedown="onContextMouseDown"
     />
 
     <NodeHelpTooltip
@@ -94,7 +78,8 @@ import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVi
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
-import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
+import FormulaInputErrorContext from '~/modules/core/components/formula/FormulaInputErrorContext'
+import FormulaInputExplorerContext from '@baserow/modules/core/components/formula/FormulaInputExplorerContext'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
@@ -102,7 +87,8 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 export default {
   name: 'FormulaInputField',
   components: {
-    FormulaInputContext,
+    FormulaInputErrorContext,
+    FormulaInputExplorerContext,
     EditorContent,
     NodeHelpTooltip,
   },
@@ -498,7 +484,8 @@ export default {
         formula,
         functions,
         false,
-        this.validationContext
+        this.validationContext,
+        this.$t('formulaInputField.invalidSyntax')
       )
       this.isFormulaInvalid = !validationResult.valid
       if (this.isFormulaInvalid) {
@@ -533,8 +520,8 @@ export default {
           break
       }
     },
-    onDataExplorerMouseDown() {
-      this.editor?.commands.handleDataExplorerMouseDown()
+    onContextMouseDown() {
+      this.editor?.commands.handleContextMouseDown()
     },
     toContent(formula) {
       if (!formula) {

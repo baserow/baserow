@@ -2,7 +2,6 @@ import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser/formulaExecutionVisitor.js'
 import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
-import { BaseHumanReadableError } from '~/modules/core/formula/parser/errors.js'
 
 /**
  * Resolves a formula in the context of the given context.
@@ -48,13 +47,16 @@ export const resolveFormula = (
  * @param {boolean} syntaxOnly - If true, only syntax is validated; if false, functions
  *  and their arguments are also validated.
  * @param validationContext - Context needed for validation (e.g., { dataProviderRegistry })
+ * @param localisedInvalidSyntaxMessage - the localised 'Invalid formula syntax' message.
+ *  Only used if the thrown error isn't human-readable (e.g. a syntax / runtime error).
  * @returns {Object} - Object with { scope: string, valid: boolean, errors: Array<string> }
  */
 export const isFormulaValid = (
   formula,
   functions,
   syntaxOnly = true,
-  validationContext = {}
+  validationContext = {},
+  localisedInvalidSyntaxMessage = null
 ) => {
   if (!formula) {
     return { scope: null, valid: true, errors: [] }
@@ -68,10 +70,13 @@ export const isFormulaValid = (
     }
     return { errors: [], valid: true, scope: null }
   } catch (err) {
+    const isReadableError = err?.isHumanReadableError === true
+    const fallbackMessage =
+      localisedInvalidSyntaxMessage || 'Invalid formula syntax'
     return {
       valid: false,
-      errors: [err.message],
-      scope: err instanceof BaseHumanReadableError ? 'human' : 'internal',
+      errors: [isReadableError ? err.message : fallbackMessage],
+      scope: isReadableError ? 'human' : 'internal',
     }
   }
 }

@@ -1,4 +1,4 @@
-.formula-input-context {
+.formula-input-explorer-context {
   width: 400px;
   display: flex;
   flex-direction: column;
@@ -54,7 +54,7 @@
   }
 }
 
-.formula-input-context__footer {
+.formula-input-explorer-context__footer {
   flex-shrink: 0;
   padding: 12px 16px;
   border-top: 1px solid $palette-neutral-200;
@@ -67,6 +67,6 @@
   @include rounded($rounded);
 }
 
-.formula-input-context__advanced-mode-modal {
+.formula-input-explorer-context__advanced-mode-modal {
   z-index: $z-index-modal + 1;
 }

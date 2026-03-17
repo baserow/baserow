@@ -49,6 +49,16 @@ export default {
       default: () => false,
       required: false,
     },
+    /**
+     * When `checkForEdges` is called, this prop allows us to force the
+     * position to remain fixed, even if the context could result in it
+     * getting clipped.
+     */
+    forcePosition: {
+      type: Boolean,
+      default: false,
+      required: false,
+    },
   },
   emits: ['hidden', 'shown'],
   data() {
@@ -501,6 +511,11 @@ export default {
           contextRect.width -
           horizontalOffset >
         0
+
+      // If forcePosition is true, don't adjust the position based on edges.
+      if (this.forcePosition) {
+        return { vertical, horizontal }
+      }
 
       // If bottom, top, left or right doesn't fit, but their opposite does we switch to
       // that.

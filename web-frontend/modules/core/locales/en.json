@@ -844,9 +844,12 @@
     "errorInvalidFormula": "The formula is invalid.",
     "advancedFormulaMode": "Advanced formula mode",
     "invalidFormulaTitle": "Invalid formula",
+    "invalidSyntax": "Not a valid expert formula, please check the syntax."
+  },
+  "formulaInputErrorContext": {
     "viewFullError": "View full error"
   },
-  "formulaInputContext": {
+  "formulaInputExplorerContext": {
     "variables": "Variables",
     "functions": "Functions",
     "operators": "Operators",

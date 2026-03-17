@@ -1,9 +1,11 @@
 <template>
   <Context
     ref="context"
-    class="formula-input-context"
+    class="formula-input-explorer-context"
     max-height-if-outside-viewport
     overflow-scroll
+    data-formula-input-context
+    :hide-on-click-outside="false"
   >
     <NodeExplorer
       :node-selected="nodeSelected"
@@ -14,7 +16,10 @@
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
     />
-    <div v-if="advancedModeEnabled" class="formula-input-context__footer">
+    <div
+      v-if="advancedModeEnabled"
+      class="formula-input-explorer-context__footer"
+    >
       <ButtonText
         type="primary"
         icon="iconoir-input-field"
@@ -22,24 +27,24 @@
         @click="toggleMode"
         >{{
           isAdvancedMode
-            ? $t('formulaInputContext.useSimpleInput')
-            : $t('formulaInputContext.useAdvancedInput')
+            ? $t('formulaInputExplorerContext.useSimpleInput')
+            : $t('formulaInputExplorerContext.useAdvancedInput')
         }}</ButtonText
       >
     </div>
 
     <Modal
       ref="advancedModeModal"
-      class="formula-input-context__advanced-mode-modal"
+      class="formula-input-explorer-context__advanced-mode-modal"
     >
       <h2 class="box__title">
         {{
           isAdvancedMode
-            ? $t('formulaInputContext.useSimpleInputModalTitle')
-            : $t('formulaInputContext.useAdvancedInputModalTitle')
+            ? $t('formulaInputExplorerContext.useSimpleInputModalTitle')
+            : $t('formulaInputExplorerContext.useAdvancedInputModalTitle')
         }}
       </h2>
-      <p>{{ $t('formulaInputContext.modalMessage') }}</p>
+      <p>{{ $t('formulaInputExplorerContext.modalMessage') }}</p>
 
       <div class="actions margin-bottom-0">
         <div class="align-right">
@@ -49,8 +54,8 @@
           <Button type="danger" size="large" @click="confirmModeChange">
             {{
               isAdvancedMode
-                ? $t('formulaInputContext.useSimpleInput')
-                : $t('formulaInputContext.useAdvancedInput')
+                ? $t('formulaInputExplorerContext.useSimpleInput')
+                : $t('formulaInputExplorerContext.useAdvancedInput')
             }}
           </Button>
         </div>
@@ -65,7 +70,7 @@ import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExpl
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
-  name: 'FormulaInputContext',
+  name: 'FormulaInputExplorerContext',
   components: {
     NodeExplorer,
   },
@@ -175,8 +180,8 @@ export default {
     },
     getTabTitle(tabName) {
       const titleMap = {
-        Functions: this.$t('formulaInputContext.functions'),
-        Operators: this.$t('formulaInputContext.operators'),
+        Functions: this.$t('formulaInputExplorerContext.functions'),
+        Operators: this.$t('formulaInputExplorerContext.operators'),
       }
       return titleMap[tabName] || tabName
     },

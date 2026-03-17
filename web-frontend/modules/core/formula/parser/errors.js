@@ -20,7 +20,9 @@ export class UnknownOperatorError extends Error {
  * should have a human-readable message that can be directly shown to the user,
  * and should not contain any technical info about the formula parser or runtime
  */
-export class BaseHumanReadableError extends Error {}
+export class BaseHumanReadableError extends Error {
+  isHumanReadableError = true
+}
 
 export class InvalidNumberOfArguments extends BaseHumanReadableError {
   constructor(formulaFunctionType, minArgs, maxArgs = null) {
