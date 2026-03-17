@@ -32,6 +32,13 @@ BASEROW_BOOLEAN_FIELD_FALSE_VALUES = [
 ]
 SINGLE_SELECT_SORT_BY_ORDER = "order"
 
+# Maximum number of characters per text column to include in sort expressions used
+# for view index creation and ORDER BY clauses. This prevents PostgreSQL btree index
+# row size errors (max ~8191 bytes) when sorting on text/long_text fields with large
+# values. Values differing only after this prefix will fall through to the "order"
+# and "id" tiebreakers.
+SORT_INDEX_TEXT_MAX_CHARS = 200
+
 UNIQUE_WITH_EMPTY_CONSTRAINT_NAME = "unique_with_empty"
 
 

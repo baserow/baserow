@@ -49,7 +49,7 @@ from django.db.models import (
 )
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Cast, Coalesce, RowNumber
+from django.db.models.functions import Cast, Coalesce, Left, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -279,7 +279,9 @@ class CollationSortMixin:
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
-        field_expr = collate_expression(F(field_name))
+        from baserow.contrib.database.fields.constants import SORT_INDEX_TEXT_MAX_CHARS
+
+        field_expr = collate_expression(Left(F(field_name), SORT_INDEX_TEXT_MAX_CHARS))
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)

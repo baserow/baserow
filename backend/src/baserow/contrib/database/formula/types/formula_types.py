@@ -8,7 +8,7 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models import Field as DjangoField
-from django.db.models.functions import Cast, Concat
+from django.db.models.functions import Cast, Concat, Left
 
 from dateutil import parser
 from rest_framework import serializers
@@ -144,7 +144,9 @@ class BaserowFormulaBaseTextType(BaserowFormulaTypeHasEmptyBaserowExpression):
         return literal("")
 
     def _get_order_field_expression(self, field_name: str) -> Expression | F:
-        return collate_expression(F(field_name))
+        from baserow.contrib.database.fields.constants import SORT_INDEX_TEXT_MAX_CHARS
+
+        return collate_expression(Left(F(field_name), SORT_INDEX_TEXT_MAX_CHARS))
 
 
 class BaserowFormulaTextType(
