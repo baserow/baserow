@@ -2298,3 +2298,166 @@ def test_update_table_element_add_and_remove_fields(data_fixture):
     assert fields[1].name == "Phone"
     assert fields[2].name == "Actions"
     assert fields[2].type == "button"
+
+
+# ===========================================================================
+# User source tools tests
+# ===========================================================================
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_user_source_new_table(data_fixture):
+    """Create a user source with a brand-new users table."""
+
+    from baserow.contrib.database.fields.models import Field
+    from baserow.core.db import specific_iterator
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+        UserSourceSetup,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+
+    ctx = make_test_ctx(user, workspace)
+    result = setup_user_source(
+        ctx,
+        application_id=builder.id,
+        setup=UserSourceSetup(
+            name="App Users",
+            database_id=database.id,
+            roles=["Admin", "Editor"],
+        ),
+        thought="test",
+    )
+
+    assert "user_source_id" in result
+    assert "table_id" in result
+    assert "Admin" in result["roles"]
+    assert "Editor" in result["roles"]
+
+    # Verify table fields
+    table_fields = list(
+        specific_iterator(
+            Field.objects.filter(table_id=result["table_id"])
+            .order_by("order")
+            .select_related("content_type")
+        )
+    )
+    field_names = [f.name for f in table_fields]
+    assert "Name" in field_names
+    assert "Email" in field_names
+    assert "Password" in field_names
+    assert "Role" in field_names
+
+    # Verify example rows (one per role)
+    from baserow.contrib.database.table.models import Table
+
+    table = Table.objects.get(id=result["table_id"])
+    model = table.get_model()
+    rows = list(model.objects.all())
+    assert len(rows) == 2  # Admin + Editor
+
+    # Verify user source has auth provider
+    from baserow.core.user_sources.handler import UserSourceHandler
+
+    us = UserSourceHandler().get_user_source(result["user_source_id"])
+    assert us.table_id == result["table_id"]
+    providers = list(us.auth_providers.all())
+    assert len(providers) == 1
+
+    # Verify login page was created with auth_form element
+    assert "login_page_id" in result
+    builder.refresh_from_db()
+    assert builder.login_page_id == result["login_page_id"]
+
+    from baserow.contrib.builder.elements.handler import ElementHandler
+    from baserow.contrib.builder.pages.handler import PageHandler
+
+    login_page = PageHandler().get_page(result["login_page_id"])
+    elements = ElementHandler().get_elements(login_page)
+    auth_forms = [e for e in elements if e.get_type().type == "auth_form"]
+    assert len(auth_forms) == 1
+    assert auth_forms[0].specific.user_source_id == result["user_source_id"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_user_source_existing_table(data_fixture):
+    """Use an existing table that has the required fields."""
+
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+        UserSourceSetup,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Members")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_email_field(table=table, name="Email")
+    data_fixture.create_password_field(table=table, name="Password")
+
+    ctx = make_test_ctx(user, workspace)
+    result = setup_user_source(
+        ctx,
+        application_id=builder.id,
+        setup=UserSourceSetup(name="Members Source", table_id=table.id),
+        thought="test",
+    )
+
+    assert result["table_id"] == table.id
+    assert "user_source_id" in result
+
+    from baserow.core.user_sources.handler import UserSourceHandler
+
+    us = UserSourceHandler().get_user_source(result["user_source_id"])
+    assert us.table_id == table.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_user_source_existing_table_creates_password_field(data_fixture):
+    """If the existing table lacks a password field, one is created."""
+
+    from baserow.contrib.database.fields.models import Field
+    from baserow.core.db import specific_iterator
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+        UserSourceSetup,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="People")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_email_field(table=table, name="Email")
+    # No password field
+
+    ctx = make_test_ctx(user, workspace)
+    result = setup_user_source(
+        ctx,
+        application_id=builder.id,
+        setup=UserSourceSetup(name="People Source", table_id=table.id),
+        thought="test",
+    )
+
+    assert result["table_id"] == table.id
+
+    # Verify password field was created
+    table_fields = list(
+        specific_iterator(
+            Field.objects.filter(table=table)
+            .order_by("order")
+            .select_related("content_type")
+        )
+    )
+    from baserow.contrib.database.fields.models import PasswordField
+
+    password_fields = [f for f in table_fields if isinstance(f, PasswordField)]
+    assert len(password_fields) == 1
+    assert password_fields[0].name == "Password"

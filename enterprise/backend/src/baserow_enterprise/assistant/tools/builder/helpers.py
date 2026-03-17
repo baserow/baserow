@@ -32,6 +32,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Workspace
+from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
 
 from .types import (
@@ -170,7 +171,8 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
 
     from baserow.contrib.builder.pages.service import PageService
 
-    return PageService().create_page(
+    svc = PageService()
+    page = svc.create_page(
         user,
         builder,
         page_create.name,
@@ -178,6 +180,20 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
         path_params=[p.model_dump() for p in page_create.path_params],
         query_params=[p.model_dump() for p in page_create.query_params],
     )
+
+    # PageService.create_page doesn't accept visibility/role kwargs,
+    # so we update them separately if non-default.
+    update_kwargs: dict = {}
+    if page_create.visibility != "all":
+        update_kwargs["visibility"] = page_create.visibility
+    if page_create.role_type != "allow_all":
+        update_kwargs["role_type"] = page_create.role_type
+    if page_create.roles:
+        update_kwargs["roles"] = page_create.roles
+    if update_kwargs:
+        page = svc.update_page(user, page, **update_kwargs)
+
+    return page
 
 
 # ---------------------------------------------------------------------------
@@ -754,3 +770,226 @@ def add_field_mapping_to_action(
     ]
 
     return {"status": status, "field_mappings": mappings}
+
+
+# ---------------------------------------------------------------------------
+# User source helpers
+# ---------------------------------------------------------------------------
+
+
+def create_users_table(
+    user: AbstractUser,
+    database_id: int,
+    workspace: Workspace,
+    roles: list[str],
+):
+    """
+    Create a new users table with Name, Email, Password, and Role fields.
+
+    :returns: (table, field_map) where field_map has keys
+              "name", "email", "password", "role".
+    """
+
+    from baserow.contrib.database.fields.actions import CreateFieldActionType
+    from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.models import Database
+    from baserow.contrib.database.table.actions import CreateTableActionType
+
+    database = (
+        CoreService()
+        .list_applications_in_workspace(
+            user, workspace, base_queryset=Database.objects.filter(id=database_id)
+        )
+        .first()
+    )
+    if not database:
+        raise ValueError(f"Database with ID {database_id} not found in this workspace.")
+    table, _ = CreateTableActionType.do(user, database, "Users", fill_example=False)
+
+    # The table comes with a primary "Name" text field already
+    name_field = Field.objects.get(table=table, primary=True)
+
+    email_field = CreateFieldActionType.do(user, table, "email", name="Email")
+    password_field = CreateFieldActionType.do(user, table, "password", name="Password")
+    role_field = CreateFieldActionType.do(
+        user,
+        table,
+        "single_select",
+        name="Role",
+        select_options=[{"value": r, "color": "blue"} for r in roles],
+    )
+
+    # Add example users, one per role
+    from baserow.contrib.database.rows.actions import CreateRowsActionType
+
+    role_options = {opt.value: opt.id for opt in role_field.select_options.all()}
+    example_rows = []
+    for i, role_name in enumerate(roles, start=1):
+        example_rows.append(
+            {
+                name_field.db_column: role_name,
+                email_field.db_column: f"{role_name.lower()}@example.com",
+                role_field.db_column: role_options.get(role_name),
+            }
+        )
+    if example_rows:
+        CreateRowsActionType.do(user, table, example_rows, model=table.get_model())
+
+    return table, {
+        "name": name_field,
+        "email": email_field,
+        "password": password_field,
+        "role": role_field,
+        "hint": "Remember to set a password for each user to enable login!",
+    }
+
+
+def resolve_existing_table(
+    user: AbstractUser,
+    workspace: Workspace,
+    table_id: int,
+):
+    """
+    Validate an existing table for use as a user source.
+
+    Auto-detects email, name, password, and role fields by type and name.
+    Creates a password field if one doesn't exist.
+
+    :returns: (table, field_map) with keys "name", "email", "password",
+              and optionally "role".
+    :raises ValueError: If required fields can't be detected.
+    """
+
+    from baserow.contrib.database.fields.actions import CreateFieldActionType
+    from baserow.contrib.database.fields.models import (
+        EmailField,
+        Field,
+        LongTextField,
+        PasswordField,
+        SingleSelectField,
+        TextField,
+    )
+    from baserow.core.db import specific_iterator
+    from baserow_enterprise.assistant.tools.database.helpers import filter_tables
+
+    table = filter_tables(user, workspace).get(id=table_id)
+
+    fields_qs = Field.objects.filter(table=table).order_by("order", "id")
+    fields = list(specific_iterator(fields_qs.select_related("content_type")))
+
+    field_map: dict[str, Any] = {}
+
+    for field in fields:
+        name_lower = field.name.lower()
+
+        if "email" not in field_map:
+            if isinstance(field, EmailField):
+                field_map["email"] = field
+            elif (
+                isinstance(field, (TextField, LongTextField)) and "email" in name_lower
+            ):
+                field_map["email"] = field
+
+        if "name" not in field_map:
+            if isinstance(field, TextField) and "name" in name_lower:
+                field_map["name"] = field
+
+        if "password" not in field_map:
+            if isinstance(field, PasswordField):
+                field_map["password"] = field
+
+        if "role" not in field_map:
+            if isinstance(field, SingleSelectField) and "role" in name_lower:
+                field_map["role"] = field
+            elif isinstance(field, TextField) and "role" in name_lower:
+                field_map["role"] = field
+
+    # Fall back to primary field for name
+    if "name" not in field_map:
+        for field in fields:
+            if field.primary:
+                field_map["name"] = field
+                break
+
+    missing = []
+    if "email" not in field_map:
+        missing.append("email (EmailField or TextField with 'email' in name)")
+    if "name" not in field_map:
+        missing.append("name (TextField with 'name' in name, or a primary field)")
+    if missing:
+        raise ValueError(
+            f"Table '{table.name}' is missing required fields: {', '.join(missing)}"
+        )
+
+    # Create password field if missing
+    if "password" not in field_map:
+        field_map["password"] = CreateFieldActionType.do(
+            user, table, "password", name="Password"
+        )
+
+    return table, field_map
+
+
+def create_user_source(
+    user: AbstractUser,
+    application: Builder,
+    name: str,
+    table,
+    field_map: dict,
+    integration: Integration,
+):
+    """
+    Create a Local Baserow user source with password authentication.
+
+    :param field_map: Must have "name", "email", "password"; optionally "role".
+    :returns: The created user source.
+    """
+
+    from baserow.core.user_sources.registries import user_source_type_registry
+    from baserow.core.user_sources.service import UserSourceService
+
+    us_type = user_source_type_registry.get("local_baserow")
+
+    kwargs: dict[str, Any] = {
+        "name": name,
+        "table_id": table.id,
+        "integration": integration,
+        "email_field_id": field_map["email"].id,
+        "name_field_id": field_map["name"].id,
+        "auth_providers": [
+            {
+                "type": "local_baserow_password",
+                "password_field_id": field_map["password"].id,
+            }
+        ],
+    }
+
+    if "role" in field_map:
+        kwargs["role_field_id"] = field_map["role"].id
+
+    return UserSourceService().create_user_source(user, us_type, application, **kwargs)
+
+
+def create_login_page(
+    user: AbstractUser, builder: Builder, user_source_id: int
+) -> Page:
+    """
+    Create a login page with an auth_form element and set it as the
+    builder's login page.
+    """
+
+    from baserow.contrib.builder.elements.registries import element_type_registry
+    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.contrib.builder.pages.service import PageService
+    from baserow.core.handler import CoreHandler
+
+    page = PageService().create_page(user, builder, "Login", "/login")
+
+    auth_form_type = element_type_registry.get("auth_form")
+    ElementService().create_element(
+        user, auth_form_type, page, user_source_id=user_source_id
+    )
+
+    CoreHandler().update_application(user, builder, login_page_id=page.id)
+    builder.refresh_from_db()
+    return page

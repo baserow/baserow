@@ -35,6 +35,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.user_source import UserSourceSetup
 
 # ---------------------------------------------------------------------------
 # Page-scoped ref tracking
@@ -84,10 +85,12 @@ def list_pages(
     List all pages in an application builder.
 
     WHEN to use: Check existing pages, find page IDs, or verify page names before creating new ones.
-    WHAT it does: Lists all non-shared pages with their id, name, path, and parameters.
-    RETURNS: Pages array with id, name, path, path_params, query_params, visibility.
+    WHAT it does: Lists all non-shared pages with their id, name, path, parameters, and visibility.
+    RETURNS: Pages, login_page_id, user_sources with table info, and available_roles.
     DO NOT USE when: You already have the page IDs you need.
     """
+
+    from baserow.core.user_sources.handler import UserSourceHandler
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
@@ -99,7 +102,22 @@ def list_pages(
     )
 
     pages = helpers.list_pages(builder)
-    return {"pages": [p.model_dump() for p in pages]}
+
+    user_sources = UserSourceHandler().get_user_sources(builder)
+    user_source_data = []
+    for us in user_sources:
+        entry = {"id": us.id, "name": us.name}
+        specific = us.specific if hasattr(us, "specific") else us
+        if hasattr(specific, "table_id"):
+            entry["table_id"] = specific.table_id
+        user_source_data.append(entry)
+
+    return {
+        "pages": [p.model_dump() for p in pages],
+        "login_page_id": builder.login_page_id,
+        "user_sources": user_source_data,
+        "available_roles": UserSourceHandler().get_all_roles_for_application(builder),
+    }
 
 
 def create_pages(
@@ -1378,6 +1396,83 @@ def setup_page(
 
 
 # ---------------------------------------------------------------------------
+# Tool: setup_user_source
+# ---------------------------------------------------------------------------
+
+
+def setup_user_source(
+    ctx: RunContext[AssistantDeps],
+    application_id: Annotated[int, Field(description="The builder application ID.")],
+    setup: Annotated[UserSourceSetup, Field(description="User source configuration.")],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Set up a user source so the application can have logged-in users with roles.
+
+    WHEN to use: User wants login, authentication, role-based access, or user accounts in their app.
+    WHAT it does: Creates a users table (or uses an existing one) and configures a Local Baserow user source with password authentication.
+    RETURNS: User source ID, table ID, available roles.
+    DO NOT USE when: A user source already exists for this application.
+    HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
+    """
+
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
+
+    try:
+        builder = helpers.get_builder(user, workspace, application_id)
+    except Exception as exc:
+        return {"error": f"Could not find application: {exc}"}
+
+    tool_helpers.update_status(_("Setting up user source..."))
+    integration = helpers.get_local_baserow_integration(builder)
+
+    try:
+        with transaction.atomic():
+            if setup.table_id:
+                tool_helpers.update_status(_("Validating existing table..."))
+                table, field_map = helpers.resolve_existing_table(
+                    user, workspace, setup.table_id
+                )
+            else:
+                tool_helpers.update_status(_("Creating users table..."))
+                table, field_map = helpers.create_users_table(
+                    user, setup.database_id, workspace, setup.get_roles()
+                )
+
+            tool_helpers.update_status(_("Creating user source..."))
+            user_source = helpers.create_user_source(
+                user, builder, setup.name, table, field_map, integration
+            )
+    except Exception as exc:
+        return {"error": str(exc)}
+
+    # Create login page if not already set
+    login_page_id = builder.login_page_id
+    if not login_page_id:
+        tool_helpers.update_status(_("Creating login page..."))
+        login_page = helpers.create_login_page(user, builder, user_source.id)
+        login_page_id = login_page.id
+
+    from baserow.core.user_sources.handler import UserSourceHandler
+
+    roles = UserSourceHandler().get_all_roles_for_application(builder)
+
+    result: dict[str, Any] = {
+        "user_source_id": user_source.id,
+        "table_id": table.id,
+        "roles": roles,
+        "login_page_id": login_page_id,
+    }
+    if "hint" in field_map:
+        result["hint"] = field_map["hint"]
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
 
@@ -1400,6 +1495,7 @@ TOOL_FUNCTIONS = [
     create_actions,
     add_action_field_mapping,
     setup_page,
+    setup_user_source,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
 
@@ -1408,4 +1504,5 @@ ROUTING_RULES = """\
 - switch_mode: switch domain if task needs tools not in the current mode.
 - Builder workflow actions (button/form actions) → use create_actions, NOT load_row_tools.
 - Builder apps that need tables: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page for each page.
-- Builder completeness: every data page needs a data source. Table/repeat elements must specify columns. Forms need inputs + submit action. No page left empty."""
+- Builder completeness: every data page needs a data source. Table/repeat elements must specify columns. Forms need inputs + submit action. No page left empty.
+- User authentication: if the app needs login/roles, call setup_user_source before creating pages with visibility="logged-in"."""

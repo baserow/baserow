@@ -258,8 +258,7 @@ class DataSourceUpdate(BaseModel):
     view_id: int | None = Field(
         default=None,
         description=(
-            "ID of a database table view whose filters and sortings "
-            "will be applied."
+            "ID of a database table view whose filters and sortings will be applied."
         ),
     )
 
