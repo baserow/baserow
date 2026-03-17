@@ -59,9 +59,13 @@ export default (client) => {
     },
     blacklistToken(refreshToken) {
       // Yes, we use the same service as the main auth.
-      return client.post('/user-source-token-blacklist/', {
-        refresh_token: refreshToken,
-      })
+      return client.post(
+        '/user-source-token-blacklist/',
+        {
+          refresh_token: refreshToken,
+        },
+        { skipAuthRefresh: true }
+      )
     },
   }
 }
