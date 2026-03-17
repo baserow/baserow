@@ -223,6 +223,9 @@ class BaserowExpressionField(models.Field):
         # expression field.
         return self.expression_field.__class__
 
+    def get_placeholder(self, value, compiler, connection):
+        return "%s"
+
     def get_transform(self, name):
         # When a model field of this type is pickled and stored in the Baserow model
         # cache, the lookups on the class setup in the __init__ are not persisted.
