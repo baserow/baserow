@@ -42,6 +42,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -443,6 +444,14 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
+            self._handle_workflow_error(node_history, error)
+            return None
+        except UnexpectedDispatchException as e:
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.warning(error)
             self._handle_workflow_error(node_history, error)
             return None
         except Exception as e:

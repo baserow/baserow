@@ -12,6 +12,7 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
+from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 TRIGGER_NODE_TYPE_PATH = (
@@ -205,6 +206,41 @@ def test_dispatch_node_unexpected_error(mock_logger, mock_dispatch, data_fixture
         "Error: Unexpected error!"
     )
     mock_logger.exception.assert_called_once_with(error)
+    assert error in workflow_history.message
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+
+    node_history = AutomationNodeHistory.objects.get(workflow_history=workflow_history)
+    assert error in node_history.message
+    assert node_history.status == HistoryStatusChoices.ERROR
+
+
+@pytest.mark.django_db
+@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):
+    mock_dispatch.side_effect = UnexpectedDispatchException("Mock external API error")
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert result is None
+    workflow_history.refresh_from_db()
+    error = (
+        f"Error while running workflow {trigger_node.workflow.id}. "
+        "Error: Mock external API error"
+    )
+
+    mock_logger.warning.assert_called_once_with(error)
+    # Ensure error/exception are not logged, since that would cause
+    # Sentry to create an issue.
+    mock_logger.error.assert_not_called()
+    mock_logger.exception.assert_not_called()
+
     assert error in workflow_history.message
     assert workflow_history.status == HistoryStatusChoices.ERROR
 
