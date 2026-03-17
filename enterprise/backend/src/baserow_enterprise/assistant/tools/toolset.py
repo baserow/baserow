@@ -280,7 +280,7 @@ def _build_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
 
     from .automation.tools import TOOL_FUNCTIONS as AUTO_FN
     from .builder.tools import TOOL_FUNCTIONS as BUILDER_FN
-    from .core.tools import create_builders, list_builders, switch_mode
+    from .core.tools import create_builders, list_builders, switch_mode, update_builder
     from .database.tools import TOOL_FUNCTIONS as DB_FN
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
@@ -299,9 +299,10 @@ def _build_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
     )
 
     return {
-        AgentMode.DATABASE: shared | names(*DB_FN, create_builders),
-        AgentMode.APPLICATION: shared | names(*BUILDER_FN, create_builders),
-        AgentMode.AUTOMATION: shared | names(*AUTO_FN, create_builders),
+        AgentMode.DATABASE: shared | names(*DB_FN, create_builders, update_builder),
+        AgentMode.APPLICATION: shared
+        | names(*BUILDER_FN, create_builders, update_builder),
+        AgentMode.AUTOMATION: shared | names(*AUTO_FN, create_builders, update_builder),
         AgentMode.EXPLAIN: shared
         | names(
             *[f for f in BUILDER_FN if f.__name__.startswith("list_")],
