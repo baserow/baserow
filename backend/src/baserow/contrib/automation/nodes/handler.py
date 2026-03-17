@@ -473,14 +473,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             self._handle_workflow_error(node_history, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
-        except UnexpectedDispatchException as e:
-            original_workflow = node.workflow.get_original()
-            error = (
-                f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
-            )
-            logger.warning(error)
-            self._handle_workflow_error(node_history, error)
-            return None
         except Exception as e:
             original_workflow = node.workflow.get_original()
 
