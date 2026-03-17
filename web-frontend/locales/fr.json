@@ -64,7 +64,7 @@
     },
     "adminType": {
         "settings": "Paramètres",
-        "health": "Santé"
+        "health": "Maintenance"
     },
     "applicationType": {
         "database": "Base de données",
@@ -626,7 +626,7 @@
     },
     "health": {
         "description": "Ces indicateurs indiquent l’état actuel de votre installation de Baserow.",
-        "title": "Bilans de santé de Baserow"
+        "title": "Maintenance de Baserow"
     },
     "fieldConstraint": {
         "uniqueWithEmpty": "Unique avec vide"
