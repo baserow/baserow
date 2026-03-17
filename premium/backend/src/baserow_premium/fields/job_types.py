@@ -512,6 +512,9 @@ class AIValueGenerator:
         # additional prompt trying to force the output, for example.
         message = ai_output_type.format_prompt(message, ai_field)
 
+        if not message or not message.strip():
+            return None
+
         if self.use_file_fields:
             try:
                 file_ids = AIFileManager.upload_files_from_file_field(

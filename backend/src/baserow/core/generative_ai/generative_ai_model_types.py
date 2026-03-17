@@ -319,9 +319,7 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
                 # accepts 1.
                 kwargs["temperature"] = min(temperature, 1)
             response = client.chat.complete(
-                messages=[
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
-                ],
+                messages=[{"role": "user", "content": prompt}],
                 model=model,
                 **kwargs,
             )
