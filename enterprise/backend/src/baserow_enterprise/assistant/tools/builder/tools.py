@@ -278,6 +278,11 @@ def create_data_sources(
     ## Dynamic Values with $formula:
     - get_row row_id: "$formula: the id from the page parameter"
     - list_rows search_query: "$formula: the text from the search input"
+
+    ## Filtering with view_id
+    To filter a list_rows data source, create a database table view with the
+    desired filters (using create_views + create_view_filters), then pass
+    its view_id here. The view's filters and sortings are applied automatically.
     """
 
     user = ctx.deps.user
