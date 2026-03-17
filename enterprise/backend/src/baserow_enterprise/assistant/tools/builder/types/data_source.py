@@ -100,6 +100,14 @@ class DataSourceCreate(BaseModel):
         default=None,
         description="(list_rows) Sort configuration.",
     )
+    view_id: int | None = Field(
+        default=None,
+        description=(
+            "(list_rows) ID of a database table view whose filters and sortings "
+            "will be applied to this data source. Use create_views and "
+            "create_view_filters to set up the view first."
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_required(self):
@@ -144,6 +152,11 @@ class DataSourceCreate(BaseModel):
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
+
+        if self.view_id is not None:
+            from baserow_enterprise.assistant.tools.database.helpers import get_view
+
+            kwargs["view"] = get_view(user, workspace, self.view_id)
 
         return kwargs
 
@@ -242,6 +255,13 @@ class DataSourceUpdate(BaseModel):
         default=None,
         description="(list_rows) Search query. Supports $formula: prefix.",
     )
+    view_id: int | None = Field(
+        default=None,
+        description=(
+            "ID of a database table view whose filters and sortings "
+            "will be applied."
+        ),
+    )
 
     def to_update_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
         """Return kwargs for ``DataSourceService.update_data_source()``."""
@@ -270,6 +290,11 @@ class DataSourceUpdate(BaseModel):
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
+
+        if self.view_id is not None:
+            from baserow_enterprise.assistant.tools.database.helpers import get_view
+
+            kwargs["view"] = get_view(user, workspace, self.view_id)
 
         return kwargs
 
