@@ -10,6 +10,8 @@ from pydantic import Field
 
 from baserow_enterprise.assistant.types import BaseModel
 
+RoleType = Literal["allow_all", "allow_all_except", "disallow_all_except"]
+
 
 class PagePathParam(BaseModel):
     """A path parameter definition (e.g. ``id`` in ``/products/:id``)."""
@@ -39,6 +41,17 @@ class PageCreate(BaseModel):
     visibility: Literal["all", "logged-in"] = Field(
         "all", description="'all' or 'logged-in'."
     )
+    role_type: RoleType = Field(
+        "allow_all",
+        description=(
+            "Role access strategy. Only relevant when visibility='logged-in'. "
+            "Use list_pages to see available_roles."
+        ),
+    )
+    roles: list[str] = Field(
+        default_factory=list,
+        description="Role names for the access strategy.",
+    )
 
 
 class PageUpdate(BaseModel):
@@ -60,6 +73,12 @@ class PageUpdate(BaseModel):
     visibility: Literal["all", "logged-in"] | None = Field(
         default=None, description="Page visibility."
     )
+    role_type: RoleType | None = Field(
+        default=None, description="Role access strategy."
+    )
+    roles: list[str] | None = Field(
+        default=None, description="Role names for the access strategy."
+    )
 
     def to_update_kwargs(self) -> dict:
         """Return kwargs for ``PageService.update_page()``."""
@@ -75,6 +94,10 @@ class PageUpdate(BaseModel):
             kwargs["query_params"] = [q.model_dump() for q in self.query_params]
         if self.visibility is not None:
             kwargs["visibility"] = self.visibility
+        if self.role_type is not None:
+            kwargs["role_type"] = self.role_type
+        if self.roles is not None:
+            kwargs["roles"] = self.roles
         return kwargs
 
     def get_updated_field_names(self) -> list[str]:
@@ -97,6 +120,8 @@ class PageItem(BaseModel):
     path_params: list[PagePathParam] = Field(default_factory=list)
     query_params: list[PageQueryParam] = Field(default_factory=list)
     visibility: str = "all"
+    role_type: str = "allow_all"
+    roles: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_orm(cls, page) -> "PageItem":
@@ -123,4 +148,6 @@ class PageItem(BaseModel):
             path_params=path_params,
             query_params=query_params,
             visibility=page.visibility,
+            role_type=page.role_type,
+            roles=page.roles or [],
         )

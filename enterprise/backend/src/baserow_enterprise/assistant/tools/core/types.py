@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Type
 
 from pydantic import Field
 
@@ -174,3 +174,35 @@ class BuilderItemRegistry:
 
 
 builder_type_registry = BuilderItemRegistry()
+
+
+class BuilderUpdate(BaseModel):
+    """
+    Update an existing application's settings.
+
+    Fields are type-specific — only set the ones relevant to the application type.
+    """
+
+    builder_id: int = Field(..., description="ID of the application to update.")
+    name: str | None = Field(default=None, description="New name.")
+
+    # Application (builder) specific
+    login_page_id: int | None = Field(
+        default=None,
+        description="(application) ID of the page to use as the login page.",
+    )
+
+    def to_update_kwargs(self, app: Type[BaserowApplication]) -> dict:
+        """Return kwargs for ``CoreHandler().update_application()``."""
+
+        app_type = application_type_registry.get_by_model(app.specific_class).type
+
+        kwargs: dict = {}
+        if self.name is not None:
+            kwargs["name"] = self.name
+
+        match app_type:
+            case "builder" | "application":
+                if self.login_page_id is not None:
+                    kwargs["login_page_id"] = self.login_page_id
+        return kwargs

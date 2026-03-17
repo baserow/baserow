@@ -66,6 +66,7 @@ ElementType = Literal[
     "header",
     "footer",
     "menu",
+    "auth_form",
 ]
 
 CONTAINER_ELEMENT_TYPES = {
@@ -439,6 +440,14 @@ _TO_ORM: dict[str, Any] = {
     "header": _header_orm,
     "footer": _footer_orm,
     "menu": _menu_orm,
+    "auth_form": lambda el, u, p: {
+        k: v
+        for k, v in {
+            "user_source_id": el.user_source_id,
+            "login_button_label": el.login_button_label or "",
+        }.items()
+        if v is not None
+    },
 }
 
 
@@ -831,6 +840,14 @@ class ElementItemCreate(BaseModel):
         default=None, description="Position in parent container (e.g. '0', '1')."
     )
     visibility: Literal["all", "logged-in", "not-logged"] = Field(default="all")
+    role_type: Literal["allow_all", "allow_all_except", "disallow_all_except"] = Field(
+        default="allow_all",
+        description="Role access strategy. Only relevant when visibility='logged-in'.",
+    )
+    roles: list[str] = Field(
+        default_factory=list,
+        description="Role names for the access strategy.",
+    )
 
     data_source: int | str | None = Field(
         default=None,
@@ -988,6 +1005,16 @@ class ElementItemCreate(BaseModel):
         default=None, description="(menu) Menu item configurations."
     )
 
+    # -- Auth form fields ---------------------------------------------------
+
+    user_source_id: int | None = Field(
+        default=None,
+        description="(auth_form) ID of the user source. Get it from setup_user_source.",
+    )
+    login_button_label: str | None = Field(
+        default=None, description="(auth_form) Label for the login button."
+    )
+
     # -- Properties ---------------------------------------------------------
 
     @property
@@ -1000,7 +1027,16 @@ class ElementItemCreate(BaseModel):
     def to_orm_kwargs(self, user: "AbstractUser", page: "Page") -> dict:
         """Return kwargs for ``ElementService.create_element()``."""
         fn = _TO_ORM.get(self.type)
-        return fn(self, user, page) if fn else {}
+        kwargs = fn(self, user, page) if fn else {}
+
+        if self.visibility != "all":
+            kwargs["visibility"] = self.visibility
+        if self.role_type != "allow_all":
+            kwargs["role_type"] = self.role_type
+        if self.roles:
+            kwargs["roles"] = self.roles
+
+        return kwargs
 
     def post_create(
         self,
@@ -1655,6 +1691,12 @@ class ElementUpdate(BaseModel):
     visibility: Literal["all", "logged-in", "not-logged"] | None = Field(
         default=None, description="Element visibility."
     )
+    role_type: (
+        Literal["allow_all", "allow_all_except", "disallow_all_except"] | None
+    ) = Field(default=None, description="Role access strategy.")
+    roles: list[str] | None = Field(
+        default=None, description="Role names for the access strategy."
+    )
 
     # -- Display fields -------------------------------------------------------
     value: str | None = Field(
@@ -1796,6 +1838,10 @@ class ElementUpdate(BaseModel):
         # Handle visibility (common to all types)
         if self.visibility is not None:
             kwargs["visibility"] = self.visibility
+        if self.role_type is not None:
+            kwargs["role_type"] = self.role_type
+        if self.roles is not None:
+            kwargs["roles"] = self.roles
 
         return kwargs
 
