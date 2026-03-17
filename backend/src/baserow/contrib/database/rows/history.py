@@ -2,7 +2,7 @@ from datetime import datetime
 from itertools import groupby
 
 from django.conf import settings
-from django.db import router
+from django.db import connection
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
@@ -18,6 +18,7 @@ from baserow.contrib.database.rows.signals import rows_history_updated
 from baserow.contrib.database.rows.types import ActionData
 from baserow.core.action.signals import action_done
 from baserow.core.models import Workspace
+from baserow.core.psycopg import sql
 from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.types import AnyUser
 
@@ -68,15 +69,33 @@ class RowHistoryHandler:
         return queryset
 
     @classmethod
-    def delete_entries_older_than(cls, cutoff: datetime):
+    def delete_entries_older_than(cls, cutoff: datetime, batch_size: int = 20_000):
         """
-        Deletes all row history entries that are older than the given cutoff date.
+        Deletes all row history entries that are older than the given cutoff date
+        in batches to avoid long-running transactions.
 
         :param cutoff: The date and time before which all entries will be deleted.
+        :param batch_size: The number of rows to delete per batch.
         """
 
-        delete_qs = RowHistory.objects.filter(action_timestamp__lt=cutoff)
-        delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
+        table = sql.Identifier(RowHistory._meta.db_table)
+        query = sql.SQL(
+            """
+            WITH to_delete AS (
+                SELECT id FROM {table}
+                WHERE action_timestamp < %s
+                LIMIT %s
+            )
+            DELETE FROM {table}
+            USING to_delete
+            WHERE {table}.id = to_delete.id
+            """
+        ).format(table=table)
+        while True:
+            with connection.cursor() as cursor:
+                cursor.execute(query, [cutoff, batch_size])
+                if cursor.rowcount == 0:
+                    break
 
 
 @receiver(action_done)
