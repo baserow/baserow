@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
@@ -282,11 +283,12 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # Make sure that the assistant knowledge base is up to date after running the
         # migrations.
-        post_migrate.connect(
-            sync_assistant_knowledge_base,
-            sender=self,
-            dispatch_uid="sync_assistant_knowledge_base",
-        )
+        if not settings.TESTS:
+            post_migrate.connect(
+                sync_assistant_knowledge_base,
+                sender=self,
+                dispatch_uid="sync_assistant_knowledge_base",
+            )
 
         from baserow_enterprise.teams.receivers import (
             connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects,

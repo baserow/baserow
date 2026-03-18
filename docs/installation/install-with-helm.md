@@ -183,7 +183,7 @@ Add to your `config.yaml`:
 ```yaml
 baserow-embeddings:
   enabled: true
-  assistantLLMModel: "groq/openai/gpt-oss-120b"
+  assistantLLMModel: "groq:openai/gpt-oss-120b"
 
 backendSecrets:
   GROQ_API_KEY: "your-groq-api-key"

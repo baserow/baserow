@@ -126,7 +126,7 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
             settings, "BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", None
         )
         if env_temp is not None:
-            result["temperature"] = float(env_temp)
+            result["temperature"] = env_temp
 
     return result
 

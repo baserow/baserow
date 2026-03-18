@@ -72,22 +72,11 @@ Each test will run once per model, with the model name shown in the test ID.
 
 File names follow the pattern `test_eval_{module}_{feature}.py`, where module
 maps to the tool directory (`core`, `database`, `automation`, `navigation`,
-`search_user_docs`).
-
-| File | Module | What it covers |
-|------|--------|----------------|
-| `test_eval_navigation.py` | navigation | Navigate to tables and workspaces |
-| `test_eval_core_builders.py` | core | List/create databases, create automations |
-| `test_eval_database_tables.py` | database | Create tables, fields, views, view filters; parametrized across view/filter types |
-| `test_eval_database_rows.py` | database | Create rows with all managed field types (text, number, boolean, date, select, link_row, …) |
-| `test_eval_database_sample_rows.py` | database | Automatic sample-row generation when creating tables |
-| `test_eval_automation_workflows.py` | automation | Create workflows with triggers, actions, routers, and field-value mappings |
-| `test_eval_search_user_docs.py` | search_user_docs | Documentation Q&A: source retrieval and answer quality (requires KB) |
-| `test_eval_tool_structured_output.py` | *(cross-cutting)* | Schema compatibility: every registered tool produces valid structured output |
-
-Each file defines its prompts as module-level `PROMPT_*` constants at the top,
-making it easy to scan which scenarios are covered without reading the test
-bodies.
+`search_user_docs`). Browse
+`enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/` for the
+full list. Each file defines its prompts as module-level `PROMPT_*` constants
+at the top, making it easy to scan which scenarios are covered without reading
+the test bodies.
 
 ## Writing a new eval
 
@@ -100,8 +89,9 @@ bodies.
 ```python
 import pytest
 from .eval_utils import (
-    assert_no_tool_errors,
+    EvalChecklist,
     build_database_ui_context,
+    count_tool_errors,
     create_eval_assistant,
     print_message_history,
 )
@@ -130,9 +120,12 @@ def test_agent_does_something(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # Add domain-specific assertions here
+    with EvalChecklist("does something") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        # Add domain-specific checks here
+        checks.check("created the thing", some_condition, hint="details if failed")
 ```
 
 ### Key helpers
@@ -141,7 +134,7 @@ def test_agent_does_something(data_fixture, eval_model):
 |--------|---------|
 | `create_eval_assistant(user, workspace, max_iters, model)` | Returns `(agent, deps, tracker, model, usage_limits, toolset)` configured like production. |
 | `build_database_ui_context(user, workspace, database, table)` | Builds the UI context JSON the agent receives. |
-| `assert_no_tool_errors(tracker, result, max_errors=0)` | Fails if the number of tool validation errors exceeds `max_errors`. Use `max_errors=1` for complex schemas where a single retry is acceptable. |
+| `count_tool_errors(result)` | Returns `(error_count, hint)` — count of tool validation errors (pydantic retries) and a formatted hint string. Use with `EvalChecklist`: `checks.check("no tool errors", err_count == 0, hint=err_hint)`. |
 | `EvalChecklist(name)` | Context manager for soft assertions: collects checks, prints a score table (`4/6 (66%)`), and only hard-fails at the end. Use for tests with multiple independent checks. |
 | `print_message_history(result)` | Prints the full agent conversation to stdout. |
 | `format_message_history(result)` | Returns the conversation as a list of dicts for programmatic assertions. |
@@ -166,7 +159,10 @@ available. To enable them:
 
 1. **Embeddings server** — start the embeddings service and set:
    ```bash
-   export BASEROW_EMBEDDINGS_API_URL=http://localhost:8090
+   # Running tests outside Docker (local dev):
+   export BASEROW_EMBEDDINGS_API_URL=http://localhost:7999
+   # Running tests inside Docker:
+   export BASEROW_EMBEDDINGS_API_URL=http://embeddings
    ```
 
 2. **pgvector extension** — the PostgreSQL instance must have the `vector`
@@ -241,13 +237,7 @@ synced, all search docs tests will be skipped with a clear message.
 
 ### `FAILED — No API key`
 
-Make sure the correct `*_API_KEY` env var is set for your provider, or
-create a `.vscode/env` file at the repo root:
-
-```dotenv
-GROQ_API_KEY=gsk_...
-OPENAI_API_KEY=sk-...
-```
+Make sure the correct `*_API_KEY` env var is set for your provider/
 
 ### Flaky results
 

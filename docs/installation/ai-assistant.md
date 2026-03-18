@@ -21,7 +21,7 @@ Set the model you want, restart Baserow, and let migrations run.
 
 ```dotenv
 # Required
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-4o
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai:gpt-5.2
 OPENAI_API_KEY=your_api_key
 
 # Optional - adjust LLM temperature (default: 0.3)
@@ -29,10 +29,10 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0.3
 ```
 
 **About temperature:**
-- Controls randomness in the main assistant's LLM responses (0.0 to 2.0)
-- **Default: 0.3** (focused, consistent responses - recommended for production)
-- Higher values (e.g., 0.7-1.0) = more creative/varied responses
-- Lower values (e.g., 0-0.1) = more deterministic responses
+- Controls randomness in the main assistant's LLM responses.
+- **Default: 0.3** (focused, consistent responses)
+- Higher values (depending on the model) = more creative/varied responses.
+- Lower values (e.g., 0-0.1) = more analytical responses. Note that even with temperature of 0.0, the results will not be fully deterministic.
 
 ## 3) Provider presets
 
@@ -42,7 +42,7 @@ environment variables for each provider (e.g. `OPENAI_API_KEY`, `GROQ_API_KEY`).
 ### OpenAI / OpenAI-compatible
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-4o
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai:gpt-5.2
 OPENAI_API_KEY=your_api_key
 # Optional: point to an alternative OpenAI-compatible endpoint
 OPENAI_BASE_URL=https://eu.api.openai.com/v1
@@ -53,7 +53,7 @@ OPENAI_BASE_URL=https://<your-resource-name>.openai.azure.com
 ### Anthropic
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=anthropic/claude-sonnet-4-20250514
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=anthropic:claude-sonnet-4-20250514
 ANTHROPIC_API_KEY=your_api_key
 ```
 
@@ -64,7 +64,7 @@ pydantic-ai supports two authentication methods for Bedrock. Use whichever match
 **Option A — Standard AWS credentials (boto3)**
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock:openai.gpt-oss-120b-1:0
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=eu-central-1
@@ -75,7 +75,7 @@ Any boto3-compatible credential method works: env vars, IAM roles, instance prof
 **Option B — Bedrock bearer token**
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock/openai.gpt-oss-120b-1:0
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=bedrock:openai.gpt-oss-120b-1:0
 AWS_BEARER_TOKEN_BEDROCK=your_bearer_token
 AWS_DEFAULT_REGION=eu-central-1
 ```
@@ -83,14 +83,14 @@ AWS_DEFAULT_REGION=eu-central-1
 ### Groq
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=groq/openai/gpt-oss-120b
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=groq:openai/gpt-oss-120b
 GROQ_API_KEY=your_api_key
 ```
 
 ### Ollama
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=ollama/gpt-oss:120b
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=ollama:gpt-oss:120b
 # Point to your Ollama instance (defaults to http://localhost:11434/v1)
 OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
@@ -147,11 +147,7 @@ Both commands must return the same value for `BASEROW_ENTERPRISE_ASSISTANT_LLM_M
 
 ## 6) Supported models
 
-pydantic-ai supports a wide range of providers. For the full list see the
-[pydantic-ai model overview](https://ai.pydantic.dev/models/overview/).
-
-Key providers: OpenAI, Anthropic, AWS Bedrock, Groq, Mistral, Gemini/Vertex AI,
-xAI, Cerebras, Cohere, Hugging Face, OpenRouter, Ollama, and any OpenAI-compatible
+OpenAI, Anthropic, AWS Bedrock, Groq, Gemini/Vertex AI and any OpenAI-compatible
 endpoint (Azure, DeepSeek, Fireworks, LiteLLM, Perplexity, Together AI, etc.).
 
 ## 7) Framework change: UDSPy to pydantic-ai
