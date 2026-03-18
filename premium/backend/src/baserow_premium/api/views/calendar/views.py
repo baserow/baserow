@@ -44,6 +44,7 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.api.views.serializers import ViewSerializer
 from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
     get_public_view_authorization_token,
     parse_limit_linked_items_params,
 )
@@ -228,6 +229,7 @@ class CalendarViewView(APIView):
             )
 
         model = view.table.get_model()
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
         adhoc_filters = AdHocFilters.from_request(request)
 
         grouped_rows = get_rows_grouped_by_date_field(
@@ -250,7 +252,11 @@ class CalendarViewView(APIView):
         serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
 
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, extra_kwargs=serializer_extra_kwargs
+            model,
+            RowSerializer,
+            is_response=True,
+            exclude_field_ids=hidden_field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
 
         grouped_rows_serialized = {}
@@ -264,7 +270,10 @@ class CalendarViewView(APIView):
 
         if field_options:
             view_type = view_type_registry.get_by_model(view)
-            context = {"fields": [o["field"] for o in model._field_objects.values()]}
+            fields = [o["field"] for o in model._field_objects.values()]
+            if hidden_field_ids is not None:
+                fields = [f for f in fields if f.id not in hidden_field_ids]
+            context = {"fields": fields}
             serializer_class = view_type.get_field_options_serializer_class(
                 create_if_missing=True
             )

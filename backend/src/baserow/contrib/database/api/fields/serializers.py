@@ -587,6 +587,10 @@ class PasswordSerializer(serializers.CharField):
         return make_password(data)
 
 
+class ListFieldsQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
 class LinkRowFieldSerializerMixin(serializers.ModelSerializer):
     link_row_table_primary_field = serializers.SerializerMethodField(
         help_text="The primary field of the table that is linked to."

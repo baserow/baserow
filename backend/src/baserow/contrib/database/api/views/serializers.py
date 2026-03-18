@@ -121,6 +121,15 @@ class FieldOptionsField(serializers.Field):
                 field_options = value.get_field_options(
                     self.create_if_missing, self.context.get("fields")
                 )
+            # `get_field_options` returns options for all fields in the table, but
+            # restricted views must hide options for fields the user can't access. The
+            # context fields list acts as an allow-list.
+            context_fields = self.context.get("fields")
+            if context_fields is not None:
+                allowed_field_ids = {f.id for f in context_fields}
+                field_options = [
+                    fo for fo in field_options if fo.field_id in allowed_field_ids
+                ]
             return {
                 field_options.field_id: self.serializer_class(field_options).data
                 for field_options in field_options

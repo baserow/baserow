@@ -101,6 +101,7 @@ def get_row_serializer_class(
     base_class=None,
     is_response=False,
     field_ids=None,
+    exclude_field_ids=None,
     field_names_to_include=None,
     user_field_names=False,
     field_kwargs=None,
@@ -128,6 +129,9 @@ def get_row_serializer_class(
         to be included. Note that the field id must exist in the model in
         order to work.
     :type field_ids: Optional[Iterable[int]]
+    :param exclude_field_ids: If provided the field ids in the list will be
+        excluded from the serializer.
+    :type exclude_field_ids: Optional[Iterable[int]]
     :param field_names_to_include: If provided only the field names in the list will be
         included in the serializer. By default all the fields of the model are going
         to be included. Note that the field name must exist in the model in
@@ -158,11 +162,14 @@ def get_row_serializer_class(
 
     for field in field_objects.values():
         field_id_matches = field_ids is None or (field["field"].id in field_ids)
+        field_id_excluded = (
+            exclude_field_ids is not None and field["field"].id in exclude_field_ids
+        )
         field_name_matches = field_names_to_include is None or (
             field["field"].name in field_names_to_include
         )
 
-        if field_id_matches and field_name_matches:
+        if field_id_matches and field_name_matches and not field_id_excluded:
             name = field["field"].name if user_field_names else field["name"]
             field_extra_kwargs = field_kwargs.get(field["name"], {})
             # If the field is configured to be read-only, then we want the API to

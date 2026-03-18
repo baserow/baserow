@@ -120,7 +120,7 @@ describe('GalleryView component with decoration', () => {
       decorations,
     })
     mockServer.createFields(application, table, fieldData)
-    await store.dispatch('field/fetchAll', table)
+    await store.dispatch('field/fetchAll', { table })
     const fields = store.getters['field/getAll']
 
     mockServer.createGalleryRows(view, fields, rows)

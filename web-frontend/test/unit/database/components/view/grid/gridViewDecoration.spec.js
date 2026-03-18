@@ -124,7 +124,7 @@ describe('GridView component with decoration', () => {
       decorations,
     })
     mockServer.createFields(application, table, fieldData)
-    await store.dispatch('field/fetchAll', table)
+    await store.dispatch('field/fetchAll', { table })
     const primary = store.getters['field/getPrimary']
     const fields = store.getters['field/getAll']
 

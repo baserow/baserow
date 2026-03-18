@@ -46,6 +46,7 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.api.views.serializers import FieldOptionsField
 from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
     get_public_view_authorization_token,
     paginate_and_serialize_queryset,
     serialize_rows_metadata,
@@ -236,9 +237,15 @@ class TimelineViewView(APIView):
         field_ids = get_include_exclude_field_ids(
             view.table, include_fields, exclude_fields
         )
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 
         queryset = get_timeline_view_filtered_queryset(
-            request.user, view, adhoc_filters, order_by, query_params
+            request.user,
+            view,
+            adhoc_filters,
+            order_by,
+            query_params,
+            hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
 
@@ -246,11 +253,15 @@ class TimelineViewView(APIView):
             return Response({"count": queryset.count()})
 
         response, page, _ = paginate_and_serialize_queryset(
-            queryset, request, field_ids
+            queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
         if field_options:
-            response.data.update(**serialize_view_field_options(view, model))
+            response.data.update(
+                **serialize_view_field_options(
+                    view, model, exclude_field_ids=hidden_field_ids
+                )
+            )
 
         if row_metadata:
             response.data.update(

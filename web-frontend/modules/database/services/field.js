@@ -2,8 +2,14 @@ import { getUndoRedoActionRequestConfig } from '@baserow/modules/database/utils/
 
 export default (client) => {
   return {
-    fetchAll(tableId) {
-      return client.get(`/database/fields/table/${tableId}/`)
+    fetchAll(tableId, viewId) {
+      const config = { params: {} }
+
+      if (viewId) {
+        config.params.view = viewId
+      }
+
+      return client.get(`/database/fields/table/${tableId}/`, config)
     },
     create(tableId, values, undoRedoActionGroupId = null) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })

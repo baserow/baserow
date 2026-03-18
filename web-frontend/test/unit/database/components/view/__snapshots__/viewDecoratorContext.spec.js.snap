@@ -460,6 +460,7 @@ exports[`GridViewRows component with decoration > View with decoration configure
         <div>
           fake_value_provider_form
         </div>
+        <!--v-if-->
       </div>
       <div
         class="decorator-context__decorator"
@@ -544,6 +545,7 @@ exports[`GridViewRows component with decoration > View with decoration configure
           </div>
           
         </div>
+        <!--v-if-->
       </div>
       
     </div>

@@ -562,7 +562,8 @@
     "noGroupByText": "Group rows together by a field.",
     "groupBy": "Group by",
     "thenBy": "Then by",
-    "addGroupBy": "choose a field to group by"
+    "addGroupBy": "choose a field to group by",
+    "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {
     "groupBy": "Group | Group by 1 fields | Group by {count} fields"
@@ -572,13 +573,15 @@
     "noSortText": "Sorts allow you to sort rows by a field.",
     "sortBy": "Sort by",
     "thenBy": "Then by",
-    "addSort": "choose a field to sort by"
+    "addSort": "choose a field to sort by",
+    "hiddenFieldWarning": "One or more sorts reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewSort": {
     "sort": "Sort | 1 Sort | {count} Sorts"
   },
   "viewDecorator": {
-    "decorator": "Color | 1 Color | {count} Colors"
+    "decorator": "Color | 1 Color | {count} Colors",
+    "hiddenFieldWarning": "Decorations are removed for editors and lower roles because they may reference hidden fields."
   },
   "viewRotateSlugModal": {
     "title": "Refresh URL",

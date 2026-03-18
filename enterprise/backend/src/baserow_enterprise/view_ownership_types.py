@@ -1,9 +1,18 @@
+from typing import Optional, Set
+
 from django.contrib.auth.models import AbstractUser
+from django.db.models import QuerySet
 
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
-from baserow.contrib.database.views.operations import CreateViewFilterOperationType
-from baserow.contrib.database.views.registries import ViewOwnershipType
+from baserow.contrib.database.views.operations import (
+    CreateViewFilterOperationType,
+    UpdateViewFieldOptionsOperationType,
+)
+from baserow.contrib.database.views.registries import (
+    ViewOwnershipType,
+    view_type_registry,
+)
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -45,15 +54,36 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             raise_permission_exceptions=False,
         )
 
+    def get_hidden_field_ids_for_user(
+        self, user: Optional[AbstractUser], view: View
+    ) -> Optional[Set[int]]:
+        if user is None:
+            return None
+        if CoreHandler().check_permissions(
+            user,
+            UpdateViewFieldOptionsOperationType.type,
+            workspace=view.table.database.workspace,
+            context=view,
+            raise_permission_exceptions=False,
+        ):
+            return None
+        view_type = view_type_registry.get_by_model(view.specific_class)
+        return view_type.get_hidden_fields(view.specific)
+
     def prepare_views_for_user(self, user, views):
         if len(views) == 0 or user is None:
             return views
 
         permission_checks = {}
         for view in views:
-            permission_checks[view.id] = PermissionCheck(
+            permission_checks[f"filter{view.id}"] = PermissionCheck(
                 user,
                 CreateViewFilterOperationType.type,
+                context=view,
+            )
+            permission_checks[f"update_field_options{view.id}"] = PermissionCheck(
+                user,
+                UpdateViewFieldOptionsOperationType.type,
                 context=view,
             )
 
@@ -62,15 +92,61 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
         )
 
         for view in views:
-            check_result = check_results[permission_checks[view.id]]
+            filter_check_result = check_results[permission_checks[f"filter{view.id}"]]
             # If the user does not have create view filter permissions for the provided
             # view, then the filters are omitted because the they're forcefully applied
             # so that the user can only see the rows that match the filter.
-            if not check_result:
+            if not filter_check_result:
                 if not hasattr(view, "_prefetched_objects_cache"):
                     view._prefetched_objects_cache = {}
                 view._prefetched_objects_cache["viewfilter_set"] = []
                 view._prefetched_objects_cache["filter_groups"] = []
+
+            field_options_check_result = check_results[
+                permission_checks[f"update_field_options{view.id}"]
+            ]
+            # If the user does not have update field options permissions for the
+            # provided view, then the hidden fields are omitted because they should not
+            # be exposed to the user.
+            if not field_options_check_result:
+                # Cache hidden field IDs to avoid repeated permission checks.
+                view_type = view_type_registry.get_by_model(view.specific_class)
+                # This could cause N number of queries, but if the views are fetched
+                # using the `ViewHandler::list_views`, which is used when listing the
+                # views via the API, it won't be a problem because everything is then
+                # prefetched.
+                hidden_field_ids = view_type.get_hidden_fields(view.specific)
+                view._hidden_field_ids = hidden_field_ids
+
+                # Remove sorts and group_bys that reference hidden fields so
+                # that editors don't see them in the API response.
+                if hidden_field_ids:
+                    if "viewsort_set" not in view._prefetched_objects_cache:
+                        view._prefetched_objects_cache["viewsort_set"] = list(
+                            view.viewsort_set.all()
+                        )
+                    view._prefetched_objects_cache["viewsort_set"] = [
+                        s
+                        for s in view._prefetched_objects_cache["viewsort_set"]
+                        if s.field_id not in hidden_field_ids
+                    ]
+
+                    if "viewgroupby_set" not in view._prefetched_objects_cache:
+                        view._prefetched_objects_cache["viewgroupby_set"] = list(
+                            view.viewgroupby_set.all()
+                        )
+                    view._prefetched_objects_cache["viewgroupby_set"] = [
+                        g
+                        for g in view._prefetched_objects_cache["viewgroupby_set"]
+                        if g.field_id not in hidden_field_ids
+                    ]
+
+                    # Remove all decorations for editors because decorations may have
+                    # conditions referencing hidden fields, which would cause errors on
+                    # the frontend.
+                    view._prefetched_objects_cache["viewdecoration_set"] = []
+            else:
+                view._hidden_field_ids = None
 
         return views
 
@@ -88,3 +164,21 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             id__in=rows_in_view
         )
         return not rows_outside_view.exists()
+
+    def enhance_list_fields_queryset(
+        self, user: AbstractUser, view: View, queryset: QuerySet
+    ) -> QuerySet:
+        if CoreHandler().check_permissions(
+            user,
+            UpdateViewFieldOptionsOperationType.type,
+            workspace=view.table.database.workspace,
+            context=view,
+            raise_permission_exceptions=False,
+        ):
+            return queryset
+
+        view_type = view_type_registry.get_by_model(view.specific_class)
+        hidden_field_ids = view_type.get_hidden_fields(view.specific)
+        if hidden_field_ids:
+            return queryset.exclude(id__in=hidden_field_ids)
+        return queryset

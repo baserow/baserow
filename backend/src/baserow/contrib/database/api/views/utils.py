@@ -1,5 +1,5 @@
 from dataclasses import Field
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -29,7 +29,10 @@ from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
-from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.views.registries import (
+    view_ownership_type_registry,
+    view_type_registry,
+)
 
 
 def get_public_view_authorization_token(request: Request) -> Optional[str]:
@@ -48,6 +51,20 @@ def get_public_view_authorization_token(request: Request) -> Optional[str]:
     return token
 
 
+def get_hidden_field_ids_for_view_user(
+    user: AbstractUser, view: View
+) -> Optional[Set[int]]:
+    """
+    Returns the set of field IDs that should be hidden from `user` in this view,
+    or `None` if no restriction applies (all fields visible).
+    """
+
+    if hasattr(view, "_hidden_field_ids"):
+        return view._hidden_field_ids
+    ownership_type = view_ownership_type_registry.get(view.ownership_type)
+    return ownership_type.get_hidden_field_ids_for_user(user, view)
+
+
 def get_view_filtered_queryset(
     user: AbstractUser,
     view: Type[View],
@@ -55,6 +72,7 @@ def get_view_filtered_queryset(
     order_by: Optional[str] = None,
     query_params: Optional[Dict[str, Any]] = None,
     model: Optional[GeneratedTableModel] = None,
+    hidden_field_ids: Optional[Set[int]] = None,
 ) -> QuerySet:
     """
     Returns a queryset that is filtered based on the provided view, adhoc filters, and
@@ -67,6 +85,8 @@ def get_view_filtered_queryset(
     :param order_by: The order by string to apply to the queryset.
     :param query_params: The query parameters to apply to the queryset.
     :param model: The model to filter the queryset by.
+    :param hidden_field_ids: Optional set of field IDs hidden from the user. When
+        provided, search will be restricted to visible fields only.
     :return: The filtered queryset.
     """
 
@@ -81,6 +101,14 @@ def get_view_filtered_queryset(
     search_value = query_params.get("search")
     search_mode = query_params.get("search_mode")
 
+    only_search_by_field_ids = None
+    if hidden_field_ids:
+        only_search_by_field_ids = [
+            field_id
+            for field_id in model._field_objects.keys()
+            if field_id not in hidden_field_ids
+        ]
+
     queryset = ViewHandler().get_queryset(
         user,
         view,
@@ -89,6 +117,7 @@ def get_view_filtered_queryset(
         search=search_value,
         search_mode=search_mode,
         model=model,
+        only_search_by_field_ids=only_search_by_field_ids,
     )
 
     if has_adhoc_sorts:
@@ -204,6 +233,7 @@ def paginate_and_serialize_queryset(
     queryset: QuerySet[GeneratedTableModel],
     request: Request,
     field_ids: Optional[Iterable[int]],
+    exclude_field_ids: Optional[Iterable[int]] = None,
 ) -> PaginatedData:
     """
     Paginate and serialize the data for the provided queryset and view.
@@ -211,6 +241,8 @@ def paginate_and_serialize_queryset(
     :param queryset: The queryset to paginate and serialize.
     :param request: The request containing the pagination query parameters.
     :param field_ids: The (optional) field IDs to restrict the serialized data to.
+    :param exclude_field_ids: Field IDs hidden by restricted view ownership. None
+        means no restriction applies.
     :return: The paginated data containing the paginator, the page of results, and
         response containing the serialized data.
     """
@@ -226,6 +258,7 @@ def paginate_and_serialize_queryset(
         RowSerializer,
         is_response=True,
         field_ids=field_ids,
+        exclude_field_ids=exclude_field_ids,
         extra_kwargs=extra_kwargs,
     )
     serializer = serializer_class(page, many=True)
@@ -239,6 +272,7 @@ def serialize_view_field_options(
     model: GeneratedTableModel,
     create_if_missing: bool = True,
     context: Optional[Dict[str, Any]] = None,
+    exclude_field_ids: Optional[Iterable[int]] = None,
 ) -> Dict[str, Any]:
     """
     Serializes the view field options for the provided view and the given model.
@@ -247,11 +281,16 @@ def serialize_view_field_options(
     :param model: The model to serialize the field options for.
     :param create_if_missing: Whether to create the field options if they are missing.
     :param context: The context to serialize the field options with.
+    :param exclude_field_ids: Field IDs hidden by restricted view ownership. None
+        means no restriction applies.
     :return: The serialized view field options.
     """
 
     if context is None:
-        context = {"fields": [o["field"] for o in model._field_objects.values()]}
+        fields = [o["field"] for o in model._field_objects.values()]
+        if exclude_field_ids is not None:
+            fields = [f for f in fields if f.id not in exclude_field_ids]
+        context = {"fields": fields}
 
     view_type = view_type_registry.get_by_model(view)
     serializer_class = view_type.get_field_options_serializer_class(

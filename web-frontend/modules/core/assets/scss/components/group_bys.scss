@@ -141,6 +141,14 @@
   }
 }
 
+.group-bys__warning {
+  color: $palette-red-500;
+  max-width: 445px;
+  font-size: 13px;
+  line-height: 18px;
+  padding: 0 20px;
+}
+
 .group-bys__add {
   @include absolute(calc(100% + 4px), auto, auto, 0);
 }

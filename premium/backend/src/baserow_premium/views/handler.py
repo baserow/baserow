@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import AbstractUser
@@ -327,6 +327,7 @@ def get_timeline_view_filtered_queryset(
     adhoc_filters: Optional[AdHocFilters] = None,
     order_by: Optional[str] = None,
     query_params: Optional[Dict[str, str]] = None,
+    hidden_field_ids: Optional[Set[int]] = None,
 ) -> QuerySet:
     """
     Checks if the provided timeline view has a valid date field and raises an exception
@@ -339,13 +340,21 @@ def get_timeline_view_filtered_queryset(
         instead of view filters.
     :param order_by: The order by fields and directions.
     :param query_params: The query parameters that can be used to filter the rows.
+    :param hidden_field_ids: Optional set of field IDs hidden from the user.
     :return: The filtered queryset.
     """
 
     timeline_view_type: TimelineViewType = view_type_registry.get_by_model(view)
     timeline_view_type.raise_if_invalid_date_settings(view)
 
-    return get_view_filtered_queryset(user, view, adhoc_filters, order_by, query_params)
+    return get_view_filtered_queryset(
+        user,
+        view,
+        adhoc_filters,
+        order_by,
+        query_params,
+        hidden_field_ids=hidden_field_ids,
+    )
 
 
 def get_public_timeline_view_filtered_queryset(

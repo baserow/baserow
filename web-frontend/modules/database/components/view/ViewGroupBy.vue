@@ -17,10 +17,12 @@
     </a>
     <ViewGroupByContext
       ref="context"
+      :database="database"
       :view="view"
       :fields="fields"
       :read-only="readOnly"
       :disable-group-by="disableGroupBy"
+      :store-prefix="storePrefix"
       @changed="$emit('changed')"
     ></ViewGroupByContext>
   </div>
@@ -33,6 +35,10 @@ export default {
   name: 'ViewGroupBy',
   components: { ViewGroupByContext },
   props: {
+    database: {
+      type: Object,
+      required: true,
+    },
     fields: {
       type: Array,
       required: true,
@@ -49,6 +55,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['changed'],

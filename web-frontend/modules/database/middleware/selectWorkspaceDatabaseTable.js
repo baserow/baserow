@@ -4,7 +4,7 @@ import { getDefaultView } from '@baserow/modules/database/utils/view'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const nuxtApp = useNuxtApp()
-  const { $store } = nuxtApp
+  const { $store, $registry } = nuxtApp
 
   const databaseId = parseInt(to.params.databaseId)
   const tableId = parseInt(to.params.tableId)
@@ -28,11 +28,10 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     })
   }
 
-  // Fetch views and fields only if the table has changed because there is no need
+  // Fetch views only if the table has changed because there is no need
   // to fetch them if the view or row changes.
   if ($store.state.view.tableId !== table.id) {
     await $store.dispatch('view/fetchAll', table)
-    await $store.dispatch('field/fetchAll', table)
   }
 
   // If the viewId is not provided, redirect to the default view. This prevents the
@@ -53,6 +52,28 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
         query: to.query,
       })
     }
+  }
+
+  // In some cases, the backend needs the view ID to scope which fields to list.
+  // This can happen when a user does not have full access to a table for
+  // example.
+  const view = $store.getters['view/get'](viewId)
+  const ownershipType = $registry.get('viewOwnershipType', view.ownership_type)
+  const fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
+    database,
+    table,
+    view
+  )
+  const fieldCheckViewId = fieldsRequireViewId ? viewId : null
+  const fieldsLoadedFor = $store.getters['field/isLoadedFor'](
+    tableId,
+    fieldCheckViewId
+  )
+  if (!fieldsLoadedFor) {
+    await $store.dispatch('field/fetchAll', {
+      table,
+      viewId: fieldCheckViewId,
+    })
   }
 
   // Handle enlarged row modal state by already fetching the row if needed because
