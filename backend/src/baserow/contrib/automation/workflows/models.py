@@ -82,7 +82,6 @@ class AutomationWorkflow(
 
     class Meta:
         ordering = ("order",)
-        unique_together = [["automation", "name"]]
 
     def get_parent(self):
         return self.automation

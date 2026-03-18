@@ -6,7 +6,7 @@ from zipfile import ZipFile
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
@@ -37,7 +37,6 @@ from baserow.contrib.automation.workflows.constants import (
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
-    AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
     AutomationWorkflowRateLimited,
     AutomationWorkflowTooManyErrors,
@@ -51,7 +50,6 @@ from baserow.contrib.automation.workflows.tasks import (
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.telemetry.utils import baserow_trace_methods
@@ -169,20 +167,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # Find a name unused in a trashed or existing workflow
         unused_name = self.find_unused_workflow_name(automation, name)
 
-        try:
-            workflow = AutomationWorkflow.objects.create(
-                automation=automation,
-                name=unused_name,
-                order=last_order,
-            )
-        except IntegrityError as e:
-            if "unique constraint" in e.args[0] and "name" in e.args[0]:
-                raise AutomationWorkflowNameNotUnique(
-                    name=name, automation_id=automation.id
-                ) from e
-            raise
-
-        return workflow
+        return AutomationWorkflow.objects.create(
+            automation=automation,
+            name=unused_name,
+            order=last_order,
+        )
 
     def delete_workflow(self, user: AbstractUser, workflow: AutomationWorkflow) -> None:
         """
@@ -238,14 +227,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
-        try:
-            workflow.save()
-        except IntegrityError as e:
-            if is_unique_violation_error(e) and "name" in str(e):
-                raise AutomationWorkflowNameNotUnique(
-                    name=workflow.name, automation_id=workflow.automation_id
-                ) from e
-            raise
+        workflow.save()
 
         new_workflow_values = self.export_prepared_values(workflow)
 

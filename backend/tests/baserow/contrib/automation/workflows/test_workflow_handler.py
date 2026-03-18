@@ -21,7 +21,6 @@ from baserow.contrib.automation.workflows.constants import (
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
-    AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
     AutomationWorkflowRateLimited,
     AutomationWorkflowTooManyErrors,
@@ -115,8 +114,7 @@ def test_create_workflow_name_not_unique(data_fixture):
     # Simulate it returning the same name
     handler.find_unused_workflow_name = MagicMock(return_value="test")
 
-    with pytest.raises(AutomationWorkflowNameNotUnique):
-        handler.create_workflow(workflow.automation, name="test")
+    handler.create_workflow(workflow.automation, name="test")
 
     handler.find_unused_workflow_name.assert_called_once_with(
         workflow.automation, "test"
@@ -172,8 +170,12 @@ def test_update_workflow_name_not_unique(data_fixture):
         automation=workflow_1.automation, name="test2"
     )
 
-    with pytest.raises(AutomationWorkflowNameNotUnique):
-        AutomationWorkflowHandler().update_workflow(workflow_2, name=workflow_1.name)
+    AutomationWorkflowHandler().update_workflow(workflow_2, name=workflow_1.name)
+
+    workflow_1.refresh_from_db()
+    assert workflow_1.name == "test1"
+    workflow_2.refresh_from_db()
+    assert workflow_2.name == "test1"
 
 
 @pytest.mark.django_db

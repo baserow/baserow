@@ -181,7 +181,7 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
         user, automation=automation, name="test"
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        user, automation=automation, name="test2"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
@@ -192,8 +192,11 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    workflow.refresh_from_db()
+    assert workflow.name == "test"
+    workflow_2.refresh_from_db()
+    assert workflow_2.name == "test"
 
 
 @pytest.mark.django_db
@@ -617,5 +620,8 @@ def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    workflow_1.refresh_from_db()
+    assert workflow_1.name == "test1"
+    workflow_2.refresh_from_db()
+    assert workflow_2.name == "test1"

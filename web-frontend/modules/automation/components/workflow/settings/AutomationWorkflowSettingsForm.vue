@@ -100,9 +100,6 @@ export default {
     getFormValues() {
       return Object.assign({}, this.values, this.getChildFormsValues(), {})
     },
-    isNameUnique(name) {
-      return !this.workflowNames.includes(name) || name === this.workflow?.name
-    },
   },
   validations() {
     return {
@@ -111,10 +108,6 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
-          ),
-          isUnique: helpers.withMessage(
-            this.$t('automationWorkflowErrors.errorNameNotUnique'),
-            this.isNameUnique
           ),
           maxLength: helpers.withMessage(
             this.$t('error.maxLength', { max: 255 }),
