@@ -97,14 +97,14 @@ const actions = {
       )
     }
 
-    dispatch(
-      'undoRedo/updateCurrentScopeSet',
-      BUILDER_ACTION_SCOPES.page(pageId),
-      { root: true }
-    )
-
     // Check if the provided page id is found in the just selected builder.
     const page = getters.getById(builder, pageId)
+
+    dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      BUILDER_ACTION_SCOPES.page(page.id),
+      { root: true }
+    )
 
     commit('UNSELECT')
     commit('SET_SELECTED', { builder, page })

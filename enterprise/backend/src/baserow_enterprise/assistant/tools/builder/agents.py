@@ -545,9 +545,13 @@ def update_single_element_formulas(
 
     # Push collection context if inside a repeat/table
     pushed = False
-    ancestor = ElementHandler().get_first_ancestor_of_type(
-        orm_element.id, CollectionElementTypeMixin
-    )
+    try:
+        ancestor = ElementHandler().get_first_ancestor_of_type(
+            orm_element.id, CollectionElementTypeMixin
+        )
+    except KeyError:
+        # Parent element may be on a different page (e.g. shared page header)
+        ancestor = None
     if ancestor:
         context.push_current_record_context(ancestor.data_source_id)
         pushed = True
