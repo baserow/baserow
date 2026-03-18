@@ -246,24 +246,32 @@ Fields with dependencies (`link_row`, `lookup`, `formula`) are automatically cre
 ## Adding a new tool
 
 1. Create a class that extends `MCPTool` in the appropriate `mcp/*/tools.py` file.
-2. Implement `async def list(self, endpoint)` — returns a list of `mcp.Tool` objects.
-3. Implement `async def call(self, endpoint, call_arguments)` — returns a list of `mcp.types.TextContent`.
+2. Define a Pydantic model for the tool's input and assign it to `input_schema`.
+3. Implement `_sync_call(self, endpoint, args)` — returns a JSON-serialisable value or a string.
 4. Register it in `backend/src/baserow/contrib/database/apps.py`.
 5. Add tests in `backend/tests/baserow/contrib/database/mcp/`.
 
 ```python
+from pydantic import BaseModel, Field
+from baserow.contrib.database.mcp import services
+from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.mcp.registries import MCPTool
+
+
+class MyNewToolInput(BaseModel):
+    arg: str = Field(..., description="Description of the argument.")
+
+
 class MyNewTool(MCPTool):
+    """
+    Tool description (used as the MCP tool description).
+    """
+
     type = "my_new_tool"
-    name = "my_new_tool"
+    input_schema = MyNewToolInput
 
-    async def list(self, endpoint):
-        from mcp import Tool
-        return [Tool(name=self.name, description="...", inputSchema={...})]
-
-    async def call(self, endpoint, call_arguments):
-        from mcp.types import TextContent
-        result = await sync_to_async(services.some_function)(
-            endpoint.user, endpoint.workspace, call_arguments["arg"]
+    def _sync_call(self, endpoint: MCPEndpoint, args: MyNewToolInput) -> dict:
+        return services.some_function(
+            endpoint.user, endpoint.workspace, args.arg
         )
-        return [TextContent(type="text", text=json.dumps(result))]
 ```

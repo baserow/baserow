@@ -72,16 +72,13 @@ class MCPTool(Instance):
         """
         from mcp.types import TextContent
 
-        try:
-            if self.input_schema:
-                args = self.input_schema(**call_arguments)
-            else:
-                args = call_arguments
-            result = await sync_to_async(self._sync_call)(endpoint, args)
-            text = result if isinstance(result, str) else json.dumps(result)
-            return [TextContent(type="text", text=text)]
-        except Exception as e:
-            return [TextContent(type="text", text=f"Error: {e}")]
+        if self.input_schema:
+            args = self.input_schema(**call_arguments)
+        else:
+            args = call_arguments
+        result = await sync_to_async(self._sync_call)(endpoint, args)
+        text = result if isinstance(result, str) else json.dumps(result)
+        return [TextContent(type="text", text=text)]
 
     def _sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
         """

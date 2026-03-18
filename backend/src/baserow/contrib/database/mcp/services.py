@@ -11,6 +11,7 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
@@ -140,22 +141,37 @@ def get_table_schema(
         .select_related("database")
     }
 
-    result = []
-    for table_id in table_ids:
-        if table_id not in tables:
-            continue
-        table = tables[table_id]
-        fields_qs = Field.objects.filter(table=table).order_by("order", "id")
-        fields = list(specific_iterator(fields_qs.select_related("content_type")))
-        result.append(
-            {
-                "id": table.id,
-                "name": table.name,
-                "database_id": table.database_id,
-                "fields": [_serialize_field(f) for f in fields],
-            }
+    valid_table_ids = [tid for tid in table_ids if tid in tables]
+    if not valid_table_ids:
+        return []
+
+    all_fields = list(
+        specific_iterator(
+            FieldHandler()
+            .get_base_fields_queryset()
+            .filter(table_id__in=valid_table_ids)
+            .order_by("table_id", "-primary", "order", "id"),
+            per_content_type_queryset_hook=(
+                lambda model, queryset: field_type_registry.get_by_model(
+                    model
+                ).enhance_field_queryset(queryset, model)
+            ),
         )
-    return result
+    )
+
+    fields_by_table: dict[int, list] = {}
+    for field in all_fields:
+        fields_by_table.setdefault(field.table_id, []).append(field)
+
+    return [
+        {
+            "id": tables[tid].id,
+            "name": tables[tid].name,
+            "database_id": tables[tid].database_id,
+            "fields": [_serialize_field(f) for f in fields_by_table.get(tid, [])],
+        }
+        for tid in valid_table_ids
+    ]
 
 
 def _serialize_field(field) -> dict:
@@ -280,7 +296,6 @@ def get_field(user: AbstractUser, workspace: Workspace, field_id: int):
 
     :raises Field.DoesNotExist: if not found or outside workspace.
     """
-    from baserow.contrib.database.fields.handler import FieldHandler
 
     try:
         field = Field.objects.select_related("table__database").get(id=field_id)
@@ -375,9 +390,15 @@ def list_rows(
 
     :returns: Dict with ``count`` and ``results`` (list of row dicts).
     """
+    from django.conf import settings
+
     from baserow.contrib.database.api.rows.serializers import (
         serialize_rows_for_response,
     )
+
+    # Clamp pagination parameters to safe bounds.
+    page = max(1, page)
+    size = max(1, min(size, settings.ROW_PAGE_SIZE_LIMIT))
 
     table = get_table(user, workspace, table_id)
     model = table.get_model()

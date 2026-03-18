@@ -27,8 +27,7 @@ class CreateFieldsMcpTool(MCPTool):
 
 class UpdateFieldsMcpTool(MCPTool):
     """
-    Update one or more existing fields (rename, change properties).
-    Cannot change field type — delete and recreate instead.
+    Update one or more existing fields (rename, change type, change properties).
     Call get_table_schema first to get field IDs and current types.
     """
 
