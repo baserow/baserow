@@ -15,6 +15,7 @@ from baserow.core.formula.types import (
 )
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    literal_or_placeholder,
     needs_formula,
 )
 from baserow_enterprise.assistant.types import BaseModel
@@ -91,11 +92,11 @@ def _strip_formula_prefix(value: str) -> str:
 def _notification_orm_kwargs(action: "ActionCreate") -> dict:
     return {
         "title": BaserowFormulaObject.create(
-            _strip_formula_prefix(action.title or ""),
+            literal_or_placeholder(action.title),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "description": BaserowFormulaObject.create(
-            _strip_formula_prefix(action.description or ""),
+            literal_or_placeholder(action.description),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -109,7 +110,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": BaserowFormulaObject.create(
-                    _strip_formula_prefix(p.value),
+                    literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -119,7 +120,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
             {
                 "name": p.name,
                 "value": BaserowFormulaObject.create(
-                    _strip_formula_prefix(p.value),
+                    literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
             }
@@ -160,9 +161,12 @@ _SERVICE_TYPE: dict[str, str | None] = {
 def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
     """Build service kwargs for row-based actions (create/update/delete)."""
 
+    from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
     from baserow_enterprise.assistant.tools.database.helpers import filter_tables
 
     table = filter_tables(user, workspace).filter(id=action.table_id).first()
+    if table is None:
+        raise ToolInputError(f"Table with id {action.table_id} not found.")
     kwargs: dict[str, Any] = {"table": table}
 
     if action.type in ("update_row", "delete_row") and action.row_id:
