@@ -513,9 +513,12 @@ class AIValueGenerator:
         message = ai_output_type.format_prompt(message, ai_field)
 
         if not message or not message.strip():
-            return None
+            # If the resolved prompt is empty, preserve the existing value instead
+            # of overwriting it with NULL in the database.
+            return getattr(row, ai_field.db_column, None)
 
         if self.use_file_fields:
+            file_ids = []
             try:
                 file_ids = AIFileManager.upload_files_from_file_field(
                     ai_field, row, generative_ai_model_type
