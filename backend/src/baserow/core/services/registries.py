@@ -248,6 +248,9 @@ class ServiceType(
 
         return None
 
+    def requires_integration(self, service: ServiceSubClass) -> bool:
+        return self.integration_type is not None
+
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
 

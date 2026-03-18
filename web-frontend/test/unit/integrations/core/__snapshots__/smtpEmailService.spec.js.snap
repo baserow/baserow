@@ -1,0 +1,1038 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Core SMTP email service form > defaults to instance SMTP settings when available even if an SMTP integration is already selected 1`] = `
+<form>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.smtpConfigurationMode"
+    small-label=""
+  >
+    
+    <label
+      class="checkbox"
+    >
+      <input
+        class="checkbox__native"
+        id="checkboxv-0-0-0"
+        type="checkbox"
+      />
+      <div
+        class="checkbox__button"
+      >
+        <svg
+          class="checkbox__tick"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 9 8"
+          width="9"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g
+            clip-path="url(#clipv-0-0-0)"
+          >
+            <path
+              d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+              stroke="white"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </g>
+          <defs>
+            <clippath
+              id="clipv-0-0-0"
+            >
+              <rect
+                fill="white"
+                height="8"
+                transform="translate(0.5)"
+                width="8"
+              />
+            </clippath>
+          </defs>
+        </svg>
+        <svg
+          class="checkbox__tick-indeterminate"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 8 8"
+          width="8"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1.5 4L6.5 4"
+            stroke="white"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+      </div>
+      <span
+        class="checkbox__label"
+      >
+        
+        smtpEmailForm.useInstanceSmtpSettings
+        
+      </span>
+    </label>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.integrationDropdownLabel"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      application="[object Object]"
+      integration-type="[object Object]"
+      integrations=""
+      modelvalue="123"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromEmail"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromEmailPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromName"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromNamePlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.toEmails"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.toEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.ccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.ccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.subject"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.subjectPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bodyType"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="plain"
+    >
+      
+      <div
+        name="smtpEmailForm.bodyTypePlain"
+        value="plain"
+      />
+      <div
+        name="smtpEmailForm.bodyTypeHtml"
+        value="html"
+      />
+      
+    </div>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.body"
+    small-label=""
+  >
+    
+    <div
+      enabled-modes="raw,simple,advanced"
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bodyPlaceholder"
+      textarea=""
+    />
+    
+  </div>
+</form>
+`;
+
+exports[`Core SMTP email service form > defaults to instance SMTP settings when available even if custom SMTP fields already exist 1`] = `
+<form>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.smtpConfigurationMode"
+    small-label=""
+  >
+    
+    <label
+      class="checkbox"
+    >
+      <input
+        class="checkbox__native"
+        id="checkboxv-0-0-0"
+        type="checkbox"
+      />
+      <div
+        class="checkbox__button"
+      >
+        <svg
+          class="checkbox__tick"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 9 8"
+          width="9"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g
+            clip-path="url(#clipv-0-0-0)"
+          >
+            <path
+              d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+              stroke="white"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </g>
+          <defs>
+            <clippath
+              id="clipv-0-0-0"
+            >
+              <rect
+                fill="white"
+                height="8"
+                transform="translate(0.5)"
+                width="8"
+              />
+            </clippath>
+          </defs>
+        </svg>
+        <svg
+          class="checkbox__tick-indeterminate"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 8 8"
+          width="8"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1.5 4L6.5 4"
+            stroke="white"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+      </div>
+      <span
+        class="checkbox__label"
+      >
+        
+        smtpEmailForm.useInstanceSmtpSettings
+        
+      </span>
+    </label>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.integrationDropdownLabel"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      application="[object Object]"
+      integration-type="[object Object]"
+      integrations=""
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromEmail"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromEmailPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromName"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromNamePlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.toEmails"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.toEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.ccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.ccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.subject"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.subjectPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bodyType"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="plain"
+    >
+      
+      <div
+        name="smtpEmailForm.bodyTypePlain"
+        value="plain"
+      />
+      <div
+        name="smtpEmailForm.bodyTypeHtml"
+        value="html"
+      />
+      
+    </div>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.body"
+    small-label=""
+  >
+    
+    <div
+      enabled-modes="raw,simple,advanced"
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bodyPlaceholder"
+      textarea=""
+    />
+    
+  </div>
+</form>
+`;
+
+exports[`Core SMTP email service form > defaults to instance SMTP settings when available without an existing custom SMTP configuration 1`] = `
+<form>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.smtpConfigurationMode"
+    small-label=""
+  >
+    
+    <label
+      class="checkbox"
+    >
+      <input
+        class="checkbox__native"
+        id="checkboxv-0-0-0"
+        type="checkbox"
+      />
+      <div
+        class="checkbox__button"
+      >
+        <svg
+          class="checkbox__tick"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 9 8"
+          width="9"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g
+            clip-path="url(#clipv-0-0-0)"
+          >
+            <path
+              d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+              stroke="white"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </g>
+          <defs>
+            <clippath
+              id="clipv-0-0-0"
+            >
+              <rect
+                fill="white"
+                height="8"
+                transform="translate(0.5)"
+                width="8"
+              />
+            </clippath>
+          </defs>
+        </svg>
+        <svg
+          class="checkbox__tick-indeterminate"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 8 8"
+          width="8"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1.5 4L6.5 4"
+            stroke="white"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+      </div>
+      <span
+        class="checkbox__label"
+      >
+        
+        smtpEmailForm.useInstanceSmtpSettings
+        
+      </span>
+    </label>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.integrationDropdownLabel"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      application="[object Object]"
+      integration-type="[object Object]"
+      integrations=""
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromEmail"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromEmailPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromName"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromNamePlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.toEmails"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.toEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.ccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.ccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.subject"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.subjectPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bodyType"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="plain"
+    >
+      
+      <div
+        name="smtpEmailForm.bodyTypePlain"
+        value="plain"
+      />
+      <div
+        name="smtpEmailForm.bodyTypeHtml"
+        value="html"
+      />
+      
+    </div>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.body"
+    small-label=""
+  >
+    
+    <div
+      enabled-modes="raw,simple,advanced"
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bodyPlaceholder"
+      textarea=""
+    />
+    
+  </div>
+</form>
+`;
+
+exports[`Core SMTP email service form > does not default to instance SMTP settings when custom SMTP mode was explicitly selected 1`] = `
+<form>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.smtpConfigurationMode"
+    small-label=""
+  >
+    
+    <label
+      class="checkbox"
+    >
+      <input
+        class="checkbox__native"
+        id="checkboxv-0-0-0"
+        type="checkbox"
+      />
+      <div
+        class="checkbox__button"
+      >
+        <svg
+          class="checkbox__tick"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 9 8"
+          width="9"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g
+            clip-path="url(#clipv-0-0-0)"
+          >
+            <path
+              d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+              stroke="white"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </g>
+          <defs>
+            <clippath
+              id="clipv-0-0-0"
+            >
+              <rect
+                fill="white"
+                height="8"
+                transform="translate(0.5)"
+                width="8"
+              />
+            </clippath>
+          </defs>
+        </svg>
+        <svg
+          class="checkbox__tick-indeterminate"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 8 8"
+          width="8"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1.5 4L6.5 4"
+            stroke="white"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+      </div>
+      <span
+        class="checkbox__label"
+      >
+        
+        smtpEmailForm.useInstanceSmtpSettings
+        
+      </span>
+    </label>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.integrationDropdownLabel"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      application="[object Object]"
+      integration-type="[object Object]"
+      integrations=""
+      modelvalue="123"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromEmail"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromEmailPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromName"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromNamePlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.toEmails"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.toEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.ccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.ccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.subject"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.subjectPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bodyType"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="plain"
+    >
+      
+      <div
+        name="smtpEmailForm.bodyTypePlain"
+        value="plain"
+      />
+      <div
+        name="smtpEmailForm.bodyTypeHtml"
+        value="html"
+      />
+      
+    </div>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.body"
+    small-label=""
+  >
+    
+    <div
+      enabled-modes="raw,simple,advanced"
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bodyPlaceholder"
+      textarea=""
+    />
+    
+  </div>
+</form>
+`;
+
+exports[`Core SMTP email service form > shows custom SMTP fields when instance SMTP is unchecked 1`] = `
+<form>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.smtpConfigurationMode"
+    small-label=""
+  >
+    
+    <label
+      class="checkbox"
+    >
+      <input
+        class="checkbox__native"
+        id="checkboxv-0-0-0"
+        type="checkbox"
+      />
+      <div
+        class="checkbox__button"
+      >
+        <svg
+          class="checkbox__tick"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 9 8"
+          width="9"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g
+            clip-path="url(#clipv-0-0-0)"
+          >
+            <path
+              d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+              stroke="white"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+          </g>
+          <defs>
+            <clippath
+              id="clipv-0-0-0"
+            >
+              <rect
+                fill="white"
+                height="8"
+                transform="translate(0.5)"
+                width="8"
+              />
+            </clippath>
+          </defs>
+        </svg>
+        <svg
+          class="checkbox__tick-indeterminate"
+          fill="none"
+          height="8"
+          style="display: none;"
+          viewBox="0 0 8 8"
+          width="8"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M1.5 4L6.5 4"
+            stroke="white"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+          />
+        </svg>
+      </div>
+      <span
+        class="checkbox__label"
+      >
+        
+        smtpEmailForm.useInstanceSmtpSettings
+        
+      </span>
+    </label>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.integrationDropdownLabel"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      application="[object Object]"
+      integration-type="[object Object]"
+      integrations=""
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromEmail"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromEmailPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.fromName"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.fromNamePlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.toEmails"
+    required=""
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.toEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.ccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.ccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bccEmails"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bccEmailsPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.subject"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.subjectPlaceholder"
+    />
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.bodyType"
+    small-label=""
+  >
+    
+    <div
+      modelvalue="plain"
+    >
+      
+      <div
+        name="smtpEmailForm.bodyTypePlain"
+        value="plain"
+      />
+      <div
+        name="smtpEmailForm.bodyTypeHtml"
+        value="html"
+      />
+      
+    </div>
+    
+  </div>
+  <div
+    class="margin-bottom-2"
+    label="smtpEmailForm.body"
+    small-label=""
+  >
+    
+    <div
+      enabled-modes="raw,simple,advanced"
+      modelvalue="[object Object]"
+      placeholder="smtpEmailForm.bodyPlaceholder"
+      textarea=""
+    />
+    
+  </div>
+</form>
+`;

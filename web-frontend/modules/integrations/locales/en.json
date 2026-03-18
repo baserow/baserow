@@ -247,6 +247,8 @@
     "passwordPlaceholder": "your-password"
   },
   "smtpEmailForm": {
+    "smtpConfigurationMode": "SMTP configuration",
+    "useInstanceSmtpSettings": "Use the instance SMTP server",
     "integrationDropdownLabel": "Integration",
     "fromEmail": "From Email",
     "fromEmailPlaceholder": "sender{'@'}example.com",
