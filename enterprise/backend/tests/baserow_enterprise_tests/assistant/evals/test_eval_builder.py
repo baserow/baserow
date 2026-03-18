@@ -843,7 +843,7 @@ def test_agent_creates_app_with_theme(data_fixture, eval_model):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+    agent, deps, _, model, usage_limits, toolset = create_eval_assistant(
         user, workspace, max_iters=15, model=eval_model
     )
     ui_context = UIContext(
@@ -861,27 +861,32 @@ def test_agent_creates_app_with_theme(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # The agent should have called create_builders
-    assert len(_filter_tool_calls(result, "create_builders")) >= 1, (
-        "Agent should have called create_builders"
-    )
-
-    # Verify the builder was created
     from baserow.contrib.builder.models import Builder
 
     builders = Builder.objects.filter(workspace=workspace, name__icontains="Dashboard")
-    assert builders.exists(), "No builder named 'Dashboard' was created"
-
-    # Verify eclipse theme was applied (primary_color differs from default)
     builder = builders.first()
-    primary_color = _get_theme_primary_color(builder)
+    primary_color = _get_theme_primary_color(builder) if builder else ""
     default_color = "#5190efff"
-    assert primary_color != default_color, (
-        f"Theme was not applied — primary_color is still the default ({default_color}). "
-        f"Expected eclipse theme color."
-    )
+
+    with EvalChecklist("creates app with theme") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called create_builders",
+            len(_filter_tool_calls(result, "create_builders")) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "builder 'Dashboard' created",
+            builders.exists(),
+            hint="no builder named 'Dashboard' found",
+        )
+        checks.check(
+            "eclipse theme applied (color differs from default)",
+            primary_color != default_color,
+            hint=f"primary_color={primary_color}, default={default_color}",
+        )
 
 
 @pytest.mark.eval
@@ -898,7 +903,7 @@ def test_agent_changes_theme(data_fixture, eval_model):
     # Record the initial primary color
     initial_color = _get_theme_primary_color(builder)
 
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+    agent, deps, _, model, usage_limits, toolset = create_eval_assistant(
         user, workspace, max_iters=15, model=eval_model
     )
     ui_context = build_builder_ui_context(user, workspace, builder)
@@ -906,7 +911,7 @@ def test_agent_changes_theme(data_fixture, eval_model):
     result = _run_agent(
         agent,
         deps,
-        tracker,
+        _,
         model,
         usage_limits,
         toolset,
@@ -915,23 +920,31 @@ def test_agent_changes_theme(data_fixture, eval_model):
     )
 
     print_message_history(result)
-    assert_no_tool_errors(tracker, result)
+    err_count, err_hint = count_tool_errors(result)
 
-    # The agent should have called set_theme
     set_theme_calls = _filter_tool_calls(result, "set_theme")
-    assert len(set_theme_calls) >= 1, "Agent should have called set_theme"
-
-    # Verify theme_name argument was "midnight"
-    theme_arg = set_theme_calls[0]["args"].get("theme_name")
-    assert theme_arg == "midnight", (
-        f"Expected set_theme with theme_name='midnight', got '{theme_arg}'"
+    theme_arg = (
+        set_theme_calls[0]["args"].get("theme_name") if set_theme_calls else None
     )
-
-    # Verify the color actually changed
     new_color = _get_theme_primary_color(builder)
-    assert new_color != initial_color, (
-        f"Theme color did not change — still '{initial_color}' after set_theme"
-    )
+
+    with EvalChecklist("changes theme") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called set_theme",
+            len(set_theme_calls) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "theme_name is 'midnight'",
+            theme_arg == "midnight",
+            hint=f"got theme_name='{theme_arg}'",
+        )
+        checks.check(
+            "theme color changed",
+            new_color != initial_color,
+            hint=f"color still '{initial_color}' after set_theme",
+        )
 
 
 # ---------------------------------------------------------------------------
