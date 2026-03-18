@@ -1,5 +1,6 @@
 from typing import Annotated
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext as _
 
 from pydantic import Field
@@ -38,8 +39,8 @@ def navigate(
 
     try:
         location = request.to_location(user, workspace, request)
-    except Exception:
-        return f"Error: could not navigate — the target was not found. Check that the ID is correct."
+    except ObjectDoesNotExist:
+        return "Error: could not navigate — the target was not found. Check that the ID is correct."
 
     tool_helpers.update_status(
         _("Navigating to %(location)s...")

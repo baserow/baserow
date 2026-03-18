@@ -102,12 +102,13 @@ class ListTablesFilterArg(BaseModel):
         elif isinstance(self.database_id_or_name, str):
             q_filter &= Q(database__name__icontains=self.database_id_or_name)
         if self.table_ids_or_names:
-            id_filter = Q()
-            name_filter = Q()
-            for item in self.table_ids_or_names:
-                if isinstance(item, int):
-                    id_filter |= Q(id=item)
-                elif isinstance(item, str):
-                    name_filter |= Q(name__icontains=item)
-            q_filter &= id_filter | name_filter
+            combined = Q()
+            ids = [item for item in self.table_ids_or_names if isinstance(item, int)]
+            names = [item for item in self.table_ids_or_names if isinstance(item, str)]
+            if ids:
+                combined |= Q(id__in=ids)
+            if names:
+                for name in names:
+                    combined |= Q(name__icontains=name)
+            q_filter &= combined
         return q_filter

@@ -294,7 +294,9 @@ def get_create_row_model(
         def from_django_orm(
             cls, orm_row: GeneratedTableModel, field_ids: list[int] | None = None
         ) -> "CreateRowModel":
-            init_data = {"id": orm_row.id}
+            init_data = {}
+            if "id" in cls.model_fields:
+                init_data["id"] = orm_row.id
             for field_object in orm_row.get_field_objects():
                 field = field_object["field"]
                 if field.name not in field_conversions:
