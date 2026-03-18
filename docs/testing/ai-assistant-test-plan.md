@@ -41,7 +41,7 @@ prompts:
 | Tool | Prompt |
 |------|--------|
 | `navigate` | "Go to the Customers table" |
-| `list_builders` | "What applications do I have?" |
+| `list_builders` | "What builders do I have?" |
 | `create_builders` | "Create a new application called Test App" |
 | `list_tables` | "What tables are in my database?" |
 | `get_tables_schema` | "Show me the schema of the Customers table" |

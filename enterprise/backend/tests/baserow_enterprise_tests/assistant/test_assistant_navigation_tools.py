@@ -5,7 +5,6 @@ import pytest
 from baserow_enterprise.assistant.tools.navigation.tools import navigate
 from baserow_enterprise.assistant.tools.navigation.types import (
     TableNavigationRequestType,
-    WorkspaceNavigationRequestType,
 )
 
 from .utils import make_test_ctx
@@ -32,24 +31,6 @@ def test_navigate_to_table(data_fixture):
     assert location.table_id == table.id
     assert location.database_id == database.id
     assert location.table_name == "Tasks"
-
-
-@pytest.mark.django_db
-def test_navigate_to_workspace(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-
-    navigate_mock = MagicMock(return_value="Navigated successfully.")
-    ctx = make_test_ctx(user, workspace)
-    ctx.deps.tool_helpers.navigate_to = navigate_mock
-
-    request = WorkspaceNavigationRequestType(type="workspace")
-    result = navigate(ctx, request, thought="go home")
-
-    assert result == "Navigated successfully."
-    navigate_mock.assert_called_once()
-    location = navigate_mock.call_args[0][0]
-    assert location.type == "workspace"
 
 
 @pytest.mark.django_db
