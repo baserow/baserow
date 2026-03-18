@@ -165,6 +165,7 @@ export default {
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
+      isEditorInitialized: false,
     }
   },
   computed: {
@@ -348,6 +349,11 @@ export default {
     },
 
     mode(newMode, oldMode) {
+      // In Vue 3, watchers can fire during the initial render cycle before
+      // mounted() completes. Skip if editor hasn't been initialized yet.
+      if (!this.isEditorInitialized) {
+        return
+      }
       // Skip automatic recreation if we're handling it manually in handleModeChange
       if (this.isHandlingModeChange) {
         return
@@ -437,6 +443,7 @@ export default {
           }),
         },
       })
+      this.isEditorInitialized = true
     },
     recreateEditor(formula = null) {
       const currentFormula =
