@@ -41,6 +41,10 @@ class UserSourceSetup(BaseModel):
     def _check_table_or_database(self):
         if not self.table_id and not self.database_id:
             raise ValueError("One of 'table_id' or 'database_id' is required.")
+        if self.table_id and self.database_id:
+            raise ValueError(
+                "Only one of 'table_id' or 'database_id' can be provided, not both."
+            )
         return self
 
     def get_roles(self) -> list[str]:

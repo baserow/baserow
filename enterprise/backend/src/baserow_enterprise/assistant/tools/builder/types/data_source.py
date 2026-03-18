@@ -136,9 +136,12 @@ class DataSourceCreate(BaseModel):
     def to_service_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
         """Build kwargs for ``DataSourceService.create_data_source()``."""
 
+        from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
         from baserow_enterprise.assistant.tools.database.helpers import filter_tables
 
         table = filter_tables(user, workspace).filter(id=self.table_id).first()
+        if table is None:
+            raise ToolInputError(f"Table with id {self.table_id} not found.")
         kwargs: dict[str, Any] = {"table": table}
 
         if self.type == "get_row" and self.row_id is not None:
@@ -271,11 +274,16 @@ class DataSourceUpdate(BaseModel):
             kwargs["name"] = self.name
 
         if self.table_id is not None:
+            from baserow_enterprise.assistant.tools.builder.helpers import (
+                ToolInputError,
+            )
             from baserow_enterprise.assistant.tools.database.helpers import (
                 filter_tables,
             )
 
             table = filter_tables(user, workspace).filter(id=self.table_id).first()
+            if table is None:
+                raise ToolInputError(f"Table with id {self.table_id} not found.")
             kwargs["table"] = table
 
         if self.row_id is not None:
