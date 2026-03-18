@@ -2715,7 +2715,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         row.order = self.get_unique_orders_before_row(before_row, model)[0]
-        row.save(update_fields=["order", "updated_on"])
+        row.save(update_fields=["order"])
 
         # All fields must be marked as updated because the lookup fields can depend
         # on the row order. Only fields that are specifically marked as
