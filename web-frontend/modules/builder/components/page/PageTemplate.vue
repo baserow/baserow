@@ -12,7 +12,7 @@
 <script>
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import PageTemplateContent from '@baserow/modules/builder/components/page/PageTemplateContent'
-import PageSkeleton from '@baserow/modules/builder/components/page/PageSkeleton'
+import PageSkeleton from '@baserow/modules/core/components/template/PageSkeleton'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import { clone } from '@baserow/modules/core/utils/object'

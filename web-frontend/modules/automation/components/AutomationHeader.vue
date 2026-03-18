@@ -1,24 +1,24 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <ul class="header__filter">
-      <li
-        v-if="
-          $hasPermission(
-            'application.update',
-            automation,
-            automation.workspace.id
-          )
-        "
-        class="header__filter-item"
-      >
+    <ul
+      class="header__filter"
+      v-if="
+        $hasPermission(
+          'application.update',
+          automation,
+          automation.workspace.id
+        )
+      "
+    >
+      <li class="header__filter-item">
         <a
           data-item-type="settings"
           class="header__filter-link"
           @click="openSettingsModal"
           ><i class="header__filter-icon iconoir-settings"></i>
-          <span class="header__filter-name">{{
-            $t('automationHeader.settingsBtn')
-          }}</span>
+          <span class="header__filter-name"
+            >{{ $t('automationHeader.settingsBtn') }}
+          </span>
         </a>
       </li>
       <li class="header__filter-item">

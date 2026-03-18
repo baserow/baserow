@@ -64,7 +64,7 @@ export class AutomationApplicationType extends ApplicationType {
 
   getTemplatePage(application) {
     return {
-      builder: application,
+      automation: application,
       page: application.workflows[0],
     }
   }

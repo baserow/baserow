@@ -12,7 +12,7 @@
 <script>
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import AutomationWorkflowContent from '@baserow/modules/automation/components/AutomationWorkflowContent'
-import PageSkeleton from '@baserow/modules/builder/components/page/PageSkeleton'
+import PageSkeleton from '@baserow/modules/core/components/template/PageSkeleton'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
 export default {
