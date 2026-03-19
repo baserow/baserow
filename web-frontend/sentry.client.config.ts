@@ -31,6 +31,13 @@ if (dsn && dsn !== '') {
     beforeSend(event, hint) {
       const err = hint?.originalException
       if (err?.fatal === false || err?.response?.status === 401) return null
+
+      // Filter out axios errors without a response like
+      // network error, timeout, aborted, cancelled requests
+      if (err?.name === 'AxiosError' && !err?.response) {
+        return null
+      }
+
       if (isDev) {
         console.error('[Sentry captured error]', `${err}`)
         return null
