@@ -449,7 +449,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         dispatch_context = AutomationDispatchContext(
             node.workflow,
-            history_id,
+            workflow_history,
             event_payload=workflow_history.event_payload,
             simulate_until_node=workflow_history.simulate_until_node,
             current_iterations=current_iterations,
@@ -485,12 +485,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             self._handle_simulation_notify(simulate_until_node, node)
             return None
 
-        iteration_index = 0
-        parent_nodes = node.get_parent_nodes()
-        if parent_nodes:
-            # Use the normalized iteration index from the context.
-            iteration_index = dispatch_context.current_iterations[parent_nodes[-1].id]
-
         # Return early if this is a simulation as we've reached the
         # simulated node.
         if self._handle_simulation_notify(simulate_until_node, node):
@@ -499,7 +493,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         history_handler.create_node_result(
             node_history=node_history,
             result=dispatch_result.data,
-            iteration=iteration_index,
+            iteration_path=dispatch_context.get_iteration_path(node),
         )
 
         to_chain = []

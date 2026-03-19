@@ -9,10 +9,6 @@ class AutomationHistory(models.Model):
 
     message = models.TextField()
 
-    is_test_run = models.BooleanField(
-        db_default=False
-    )  # TODO ZDM: Remove after next release
-
     status = models.CharField(
         choices=HistoryStatusChoices.choices,
         max_length=8,
@@ -78,6 +74,12 @@ class AutomationNodeResult(models.Model):
     iteration = models.PositiveIntegerField(
         db_default=0,
         help_text="Keeps track of the current iteration of the Iterator node.",
+    )  # TODO ZDM: Remove after next release
+
+    iteration_path = models.CharField(
+        db_default="",
+        default="",
+        help_text="Keeps track of the iteration path that generated the result.",
     )
 
     result = models.JSONField(

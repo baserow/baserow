@@ -328,3 +328,184 @@ class AutomationNodeFixtures:
             "after_iteration_table": after_iteration_table,
             "after_iteration_table_fields": after_iteration_table_fields,
         }
+
+    def nested_iterator_graph_fixture(self, create_after_iteration_node: bool = True):
+        """
+        Fixture that creates the following graph:
+        - trigger_node
+            - parent_iterator_node
+                - child_iterator_node
+                    - child_iterator_child_1
+                    - child_iterator_child_2
+            - after_iteration_node
+
+        trigger sample data are
+        [
+            {
+                "Name": "Apple",
+                "Items": [
+                    {"Name": "Fuji", "Color": "Red"},
+                    {"Name": "Granny Smith", "Color": "Green"},
+                ],
+            },
+            {
+                "Name": "Banana",
+                "Items": [
+                    {"Name": "Cavendish", "Color": "Yellow"},
+                    {"Name": "Plantain", "Color": "Green"},
+                ],
+            },
+        ]
+        """
+
+        user = self.create_user()
+
+        trigger_table, trigger_table_fields, _ = self.build_table(
+            user=user,
+            columns=[("Name", "text"), ("Items", "text")],
+            rows=[],
+        )
+        child_iterator_child_1_table, child_iterator_child_1_table_fields, _ = (
+            self.build_table(
+                user=user,
+                columns=[("Name", "text")],
+                rows=[],
+            )
+        )
+        child_iterator_child_2_table, child_iterator_child_2_table_fields, _ = (
+            self.build_table(
+                user=user,
+                columns=[("Color", "text")],
+                rows=[],
+            )
+        )
+        after_iteration_table, after_iteration_table_fields, _ = self.build_table(
+            user=user,
+            columns=[("Name", "text")],
+            rows=[],
+        )
+
+        integration = self.create_local_baserow_integration(user=user)
+
+        workflow = self.create_automation_workflow(
+            user=user,
+            state=WorkflowState.LIVE,
+            trigger_type="local_baserow_rows_created",
+            trigger_service_kwargs={
+                "table": trigger_table,
+                "integration": integration,
+                "sample_data": {
+                    "data": {
+                        "results": [
+                            {
+                                trigger_table_fields[0].name: "Apple",
+                                trigger_table_fields[1].name: [
+                                    {"Name": "Fuji", "Color": "Red"},
+                                    {"Name": "Granny Smith", "Color": "Green"},
+                                ],
+                            },
+                            {
+                                trigger_table_fields[0].name: "Banana",
+                                trigger_table_fields[1].name: [
+                                    {"Name": "Cavendish", "Color": "Yellow"},
+                                    {"Name": "Plantain", "Color": "Green"},
+                                ],
+                            },
+                        ]
+                    }
+                },
+            },
+        )
+
+        trigger = workflow.get_trigger()
+
+        parent_iterator_node = self.create_core_iterator_action_node(
+            workflow=workflow,
+            reference_node=trigger,
+            position="south",
+            output="",
+            service_kwargs={
+                "source": f'get("previous_node.{trigger.id}")',
+                "integration": integration,
+            },
+        )
+
+        child_iterator_node = self.create_core_iterator_action_node(
+            workflow=workflow,
+            reference_node=parent_iterator_node,
+            position="child",
+            output="",
+            service_kwargs={
+                "source": f'get("current_iteration.{parent_iterator_node.id}.item.{trigger_table_fields[1].name}")',
+                "integration": integration,
+            },
+        )
+
+        child_iterator_child_1_node = self.create_local_baserow_create_row_action_node(
+            workflow=workflow,
+            reference_node=child_iterator_node,
+            position="child",
+            output="",
+            label="First child iterator child",
+            service_kwargs={
+                "table": child_iterator_child_1_table,
+                "integration": integration,
+            },
+        )
+        child_iterator_child_1_node.service.specific.field_mappings.create(
+            field=child_iterator_child_1_table_fields[0],
+            value=f'get("current_iteration.{child_iterator_node.id}.item.Name")',
+        )
+
+        child_iterator_child_2_node = self.create_local_baserow_create_row_action_node(
+            workflow=workflow,
+            reference_node=child_iterator_child_1_node,
+            position="south",
+            output="",
+            label="Second child iterator child",
+            service_kwargs={
+                "table": child_iterator_child_2_table,
+                "integration": integration,
+            },
+        )
+        child_iterator_child_2_node.service.specific.field_mappings.create(
+            field=child_iterator_child_2_table_fields[0],
+            value=f'get("previous_node.{child_iterator_child_1_node.id}.{child_iterator_child_1_table_fields[0].db_column}")',
+        )
+
+        if create_after_iteration_node:
+            after_iteration_node = self.create_local_baserow_create_row_action_node(
+                workflow=workflow,
+                reference_node=parent_iterator_node,
+                position="south",
+                output="",
+                label="After parent iterator",
+                service_kwargs={
+                    "table": after_iteration_table,
+                    "integration": integration,
+                },
+            )
+            after_iteration_node.service.specific.field_mappings.create(
+                field=after_iteration_table_fields[0],
+                value=f'get("previous_node.{parent_iterator_node.id}.*.{trigger_table_fields[0].name}")',
+            )
+        else:
+            after_iteration_node = None
+
+        return {
+            "workflow": workflow,
+            "trigger_node": trigger,
+            "trigger_table": trigger_table,
+            "trigger_table_fields": trigger_table_fields,
+            "parent_iterator_node": parent_iterator_node,
+            "child_iterator_node": child_iterator_node,
+            "child_iterator_child_1_node": child_iterator_child_1_node,
+            "child_iterator_child_1_table": child_iterator_child_1_table,
+            "child_iterator_child_1_table_fields": child_iterator_child_1_table_fields,
+            "child_iterator_child_2_node": child_iterator_child_2_node,
+            "child_iterator_child_2_table": child_iterator_child_2_table,
+            "child_iterator_child_2_table_fields": child_iterator_child_2_table_fields,
+            "after_iteration_node": after_iteration_node,
+            "after_iteration_table": after_iteration_table,
+            "after_iteration_table_fields": after_iteration_table_fields,
+        }

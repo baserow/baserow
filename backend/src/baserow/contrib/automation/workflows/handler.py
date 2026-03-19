@@ -768,7 +768,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 # This is a placeholder value, no actual history exists yet
                 # (it's created later in start_workflow). This is fine
                 # for now, because get_sample_data() doesn't use history.
-                history_id=0,
+                history=None,
                 simulate_until_node=simulate_until_node,
             )
             if workflow.can_immediately_be_tested() or (

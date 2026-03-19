@@ -127,7 +127,7 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_create_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, 100)
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -191,7 +191,7 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_update_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, 100)
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -247,7 +247,7 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
         user=user, type="local_baserow_delete_row"
     )
 
-    dispatch_context = AutomationDispatchContext(node.workflow, 100)
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
@@ -452,7 +452,7 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 
     trigger = workflow.get_trigger().specific
 
-    dispatch_context = AutomationDispatchContext(workflow, 100, event_payload="foo")
+    dispatch_context = AutomationDispatchContext(workflow, None, event_payload="foo")
 
     result = trigger.get_type().dispatch(trigger, dispatch_context)
 
@@ -474,7 +474,7 @@ def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     trigger = workflow.get_trigger()
 
     dispatch_context = AutomationDispatchContext(
-        workflow, 100, simulate_until_node=trigger
+        workflow, None, simulate_until_node=trigger
     )
     # If we don't reset this value, the trigger is considered as updatable and will
     # be dispatched.

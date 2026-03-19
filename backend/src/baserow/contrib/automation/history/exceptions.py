@@ -15,3 +15,7 @@ class AutomationWorkflowHistoryDoesNotExist(AutomationWorkflowHistoryError):
             *args,
             **kwargs,
         )
+
+
+class AutomationWorkflowHistoryNodeResultDoesNotExist(AutomationWorkflowHistoryError):
+    """When the result entry doesn't exist for the given node/history."""
