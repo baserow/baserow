@@ -723,7 +723,7 @@ def test_updating_router_node_without_service_allowed(
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
