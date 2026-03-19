@@ -201,7 +201,7 @@
         "fromName": "Nom d'émission",
         "fromNamePlaceholder": "Votre nom",
         "toEmails": "Adresse mails d'envoi",
-        "toEmailsPlaceholder": "destinataire1{'@'}exemple.com,destinataire2{'@'}exemple.com",
+        "toEmailsPlaceholder": "dest1{'@'}exemple.com,dest2{'@'}exemple.com",
         "ccEmails": "Adresses mail CC",
         "ccEmailsPlaceholder": "cc1{'@'}exemple.com,cc2{'@'}exemple.com",
         "bccEmails": "Adresses email BCC",
