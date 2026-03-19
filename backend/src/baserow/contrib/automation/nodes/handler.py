@@ -444,7 +444,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             simulate_until_node = (
-                node.workflow.get_graph().get_node(
+                node.workflow.get_graph().get_point(
                     workflow_history.simulate_until_node_id
                 )
                 if workflow_history.simulate_until_node_id
