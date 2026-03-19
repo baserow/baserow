@@ -27,6 +27,33 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 
 # =============================================================================
+# Builder for libpng 1.6.55 (security fix not yet released in Pillow 12.1.1)
+# Pillow wheels bundle libpng 1.6.53 which has known vulnerabilities.
+# See: https://github.com/python-pillow/Pillow/pull/9425
+# Remove this stage once Pillow ships a release with libpng >= 1.6.55.
+# =============================================================================
+FROM tool-builder AS libpng-builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV LIBPNG_VERSION=1.6.55
+
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends zlib1g-dev && \
+    curl -fsSL "https://download.sourceforge.net/libpng/libpng-${LIBPNG_VERSION}.tar.gz" \
+        -o /tmp/libpng.tar.gz && \
+    cd /tmp && tar xzf libpng.tar.gz && \
+    cd "libpng-${LIBPNG_VERSION}" && \
+    ./configure --prefix=/opt/libpng --disable-static && \
+    make -j"$(nproc)" && \
+    make install && \
+    rm -rf /tmp/libpng*
+
+
+# =============================================================================
 # Production base builder stage: builds runtime dependencies only
 # =============================================================================
 FROM ${PYTHON_BASE_IMAGE} AS builder-prod-base
@@ -77,6 +104,12 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
         -not -path "*/django/*" -not -path "*/rest_framework/*" -prune -exec rm -rf {} \; || true) \
     && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
         -not -path "*/botocore/*" -not -path "*/boto3/*" -prune -exec rm -rf {} \; || true)
+
+# Patch Pillow's bundled libpng with 1.6.55 (security fix).
+# Remove once Pillow ships a release with libpng >= 1.6.55.
+COPY --from=libpng-builder /opt/libpng/lib/libpng16.so.16.55.0 /tmp/libpng16.so
+COPY backend/docker/patch-pillow-libpng.sh /tmp/patch-pillow-libpng.sh
+RUN bash /tmp/patch-pillow-libpng.sh /tmp/libpng16.so /baserow/venv
 
 
 # =============================================================================
@@ -295,6 +328,12 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
     --mount=type=bind,source=premium/backend/pyproject.toml,target=/baserow/premium/backend/pyproject.toml \
     --mount=type=bind,source=enterprise/backend/pyproject.toml,target=/baserow/enterprise/backend/pyproject.toml \
     uv sync --frozen --no-install-workspace --no-install-project
+
+# Patch Pillow's bundled libpng with 1.6.55 (security fix).
+# Remove once Pillow ships a release with libpng >= 1.6.55.
+COPY --from=libpng-builder /opt/libpng/lib/libpng16.so.16.55.0 /tmp/libpng16.so
+COPY backend/docker/patch-pillow-libpng.sh /tmp/patch-pillow-libpng.sh
+RUN bash /tmp/patch-pillow-libpng.sh /tmp/libpng16.so /baserow/venv
 
 # Configure tmux and bashrc
 RUN echo "set -g default-command \"\${SHELL}\"" > /baserow/.tmux.conf && \
