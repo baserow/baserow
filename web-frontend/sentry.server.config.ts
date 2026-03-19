@@ -1,6 +1,7 @@
 import { useRuntimeConfig } from '#imports'
 import * as Sentry from '@sentry/nuxt'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
+import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
 
 const config = useRuntimeConfig()
 const dsn =
@@ -18,7 +19,14 @@ if (dsn && dsn !== '') {
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
-      if (err?.fatal === false || err?.response?.status === 401) return null
+      if (err?.fatal === false) return null
+
+      // Filter known API errors that are handled by the application (e.g. forceLogoff).
+      const status = err?.response?.status || err?.statusCode
+      const errorCode = err?.response?.data?.error || err?.data?.error
+      if (SILENCED_API_ERRORS[status]?.includes(errorCode)) {
+        return null
+      }
       if (isDev) {
         console.error('[Sentry captured error]', err)
         return null

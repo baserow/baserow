@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Silence defined error codes in Sentry",
+    "issue_origin": "github",
+    "issue_number": 5011,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-19"
+}
