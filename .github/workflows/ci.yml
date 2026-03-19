@@ -201,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     steps:
       - uses: actions/checkout@v4
 
@@ -222,7 +222,7 @@ jobs:
     needs:
       - build-frontend
       - detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
       packages: read
@@ -244,7 +244,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
-    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
     steps:
@@ -285,7 +285,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
-    if: needs.detect-changes.outputs.helm == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.helm == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
     steps:
@@ -320,7 +320,7 @@ jobs:
     needs:
       - build-backend
       - detect-changes
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
       packages: read
@@ -379,7 +379,7 @@ jobs:
       - build-backend
       - backend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
       packages: read
@@ -452,7 +452,7 @@ jobs:
     needs:
       - build-frontend
       - detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
       packages: read
@@ -506,7 +506,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
-    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
     steps:
@@ -531,7 +531,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
-    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
     steps:
@@ -571,7 +571,7 @@ jobs:
       - detect-changes
       - build-backend
       - build-frontend
-    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55'
     permissions:
       contents: read
       packages: read
@@ -895,7 +895,7 @@ jobs:
   build-final-backend:
     name: Build Final Backend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55' || github.event_name == 'workflow_dispatch')
     needs:
       - test-backend
       - test-e2e
@@ -937,7 +937,7 @@ jobs:
   build-final-web-frontend:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55' || github.event_name == 'workflow_dispatch')
     needs:
       - test-frontend
       - frontend-lint
@@ -979,7 +979,7 @@ jobs:
   build-final-all-in-one:
     name: Build All-in-One Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-backend
       - build-final-web-frontend
@@ -1020,7 +1020,7 @@ jobs:
   build-cloudron:
     name: Build Cloudron Image
     runs-on: ubuntu-latest
-    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master' || github.event_name == 'workflow_dispatch')
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'patch-pillow-1-6-55' || github.event_name == 'workflow_dispatch')
     needs:
       - build-final-all-in-one
       - check-build-and-publish
