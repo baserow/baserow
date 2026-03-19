@@ -59,7 +59,8 @@ def test_choice_output_type(premium_data_fixture, api_client):
             workspace=None,
             temperature=None,
             settings_override=None,
-            output_choices=None,
+            output_type=None,
+            content=None,
         ):
             self.i += 1
             if self.i == 1:

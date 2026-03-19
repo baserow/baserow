@@ -108,7 +108,7 @@ def test_generate_formula(premium_data_fixture, api_client):
 
     with patch.object(
         generative_ai_instance,
-        "prompt_structured",
+        "prompt",
         return_value=BaserowFormulaModel(formula="field()"),
     ) as mock:
         formula = AIFieldHandler.generate_formula_with_ai(

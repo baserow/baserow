@@ -225,7 +225,7 @@ class AIAgentServiceType(ServiceType):
                         "No valid choices provided for 'choice' output type."
                     )
 
-                kwargs["output_choices"] = choices
+                kwargs["output_type"] = choices
 
             result = ai_model_type.prompt(
                 model=service.ai_generative_ai_model,
