@@ -25,7 +25,12 @@ def mock_ai_prompt(return_value="AI response", should_fail=False):
     """
 
     def _prompt(
-        model, prompt, workspace=None, temperature=None, settings_override=None
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_choices=None,
     ):
         if should_fail:
             raise GenerativeAIPromptError("AI API error")
@@ -34,6 +39,30 @@ def mock_ai_prompt(return_value="AI response", should_fail=False):
     return patch(
         "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt",
         side_effect=_prompt,
+    )
+
+
+def mock_ai_prompt_structured(return_value=None, should_fail=False):
+    """
+    Context manager to mock AI model prompt_structured calls.
+    The return_value should be an enum member or Pydantic model instance.
+    """
+
+    def _prompt_structured(
+        model,
+        prompt,
+        output_type,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+    ):
+        if should_fail:
+            raise GenerativeAIPromptError("AI API error")
+        return return_value
+
+    return patch(
+        "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt_structured",
+        side_effect=_prompt_structured,
     )
 
 
@@ -271,6 +300,7 @@ def test_ai_agent_service_dispatch_choice_output(data_fixture, settings):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
+    # prompt() with output_choices returns the matched choice string
     with mock_ai_prompt(return_value="positive"):
         result = service_type.dispatch(service, dispatch_context)
 

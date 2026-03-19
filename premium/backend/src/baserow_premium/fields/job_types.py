@@ -507,10 +507,7 @@ class AIValueGenerator:
             )
         )
 
-        # The AI output type should be able to format the prompt because it can add
-        # additional instructions to it. The choice output type for example adds
-        # additional prompt trying to force the output, for example.
-        message = ai_output_type.format_prompt(message, ai_field)
+        choices = ai_output_type.get_choices(ai_field)
 
         if not message or not message.strip():
             # If the resolved prompt is empty, preserve the existing value instead
@@ -532,7 +529,20 @@ class AIValueGenerator:
                 )
             finally:
                 generative_ai_model_type.delete_files(file_ids, workspace=workspace)
+            value = ai_output_type.parse_output(value, ai_field)
+        elif choices is not None:
+            # Choice output: prompt with constrained choices, then map to
+            # the appropriate field value (e.g. SelectOption).
+            value = generative_ai_model_type.prompt(
+                ai_field.ai_generative_ai_model,
+                message,
+                workspace=workspace,
+                temperature=ai_field.ai_temperature,
+                output_choices=choices,
+            )
+            value = ai_output_type.resolve_choice(value, ai_field)
         else:
+            # Text output: plain prompt.
             value = generative_ai_model_type.prompt(
                 ai_field.ai_generative_ai_model,
                 message,
@@ -540,11 +550,6 @@ class AIValueGenerator:
                 temperature=ai_field.ai_temperature,
             )
 
-        # Because the AI output type can change the prompt to try to force the
-        # output a certain way, then it should give the opportunity to parse the
-        # output when it's given. With the choice output type, it will try to
-        # match it to a `SelectOption`, for example.
-        value = ai_output_type.parse_output(value, ai_field)
         return value
 
     def handle_error(self, error_message: str):

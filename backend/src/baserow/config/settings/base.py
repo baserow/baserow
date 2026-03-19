@@ -1318,7 +1318,6 @@ BASEROW_LAZY_LOADED_LIBRARIES = [
     "anthropic",
     "mistralai",
     "ollama",
-    "langchain_core",
     "jira2markdown",
     "saml2",
     "openpyxl",
@@ -1336,14 +1335,13 @@ if SENTRY_DSN:
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
     # Exclude integrations whose module-level imports are incompatible:
-    # - langchain: Python 3.14 type evaluation crash
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
     #   removed in pydantic-ai >= 1.x (now execute_tool_call)
 
     _sentry_integrations._AUTO_ENABLING_INTEGRATIONS[:] = [
         entry
         for entry in _sentry_integrations._AUTO_ENABLING_INTEGRATIONS
-        if "langchain" not in entry and "pydantic_ai" not in entry
+        if "pydantic_ai" not in entry
     ]
 
     SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]

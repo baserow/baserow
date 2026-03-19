@@ -38,7 +38,17 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_choices=None,
+    ):
+        if output_choices:
+            return output_choices[0]
         return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):

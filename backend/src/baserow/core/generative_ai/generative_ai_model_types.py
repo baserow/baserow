@@ -47,31 +47,25 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         base_url = self.get_base_url(workspace, settings_override)
         return OpenAI(api_key=api_key, organization=organization, base_url=base_url)
 
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        from openai import AsyncOpenAI
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
+        base_url = self.get_base_url(workspace, settings_override)
+        client = AsyncOpenAI(
+            api_key=api_key, organization=organization, base_url=base_url
+        )
+        return OpenAIChatModel(
+            model_name, provider=OpenAIProvider(openai_client=client)
+        )
+
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
 
         return BaseOpenAISettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from openai import APIStatusError as OpenAIAPIStatusError
-        from openai import OpenAIError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                kwargs["temperature"] = temperature
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=model,
-                stream=False,
-                **kwargs,
-            )
-        except (OpenAIError, OpenAIAPIStatusError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
-        return chat_completion.choices[0].message.content
 
 
 class OpenAIGenerativeAIModelType(
@@ -233,42 +227,24 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_client(self, workspace=None, settings_override=None):
-        from anthropic import Anthropic
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.providers.anthropic import AnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
-        return Anthropic(api_key=api_key)
+        return AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
+
+    def _prepare_model_settings(self, temperature=None):
+        settings = {}
+        if temperature is not None:
+            # Anthropic only accepts temperature up to 1.0
+            settings["temperature"] = min(temperature, 1)
+        return settings
 
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import AnthropicSettingsSerializer
 
         return AnthropicSettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from anthropic import APIStatusError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                # Because some LLMs can have a temperature of 2, this is the maximum by
-                # default. We're changing it to a maximum of 1 because Anthropic only
-                # accepts 1.
-                kwargs["temperature"] = min(temperature, 1)
-            message = client.messages.create(
-                messages=[
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
-                ],
-                model=model,
-                max_tokens=4096,
-                stream=False,
-                **kwargs,
-            )
-            return message.content[0].text
-        except APIStatusError as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
 
 
 class MistralGenerativeAIModelType(GenerativeAIModelType):
@@ -294,38 +270,24 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_client(self, workspace=None, settings_override=None):
-        from mistralai import Mistral
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        from pydantic_ai.models.mistral import MistralModel
+        from pydantic_ai.providers.mistral import MistralProvider
 
         api_key = self.get_api_key(workspace, settings_override)
-        return Mistral(api_key=api_key)
+        return MistralModel(model_name, provider=MistralProvider(api_key=api_key))
+
+    def _prepare_model_settings(self, temperature=None):
+        settings = {}
+        if temperature is not None:
+            # Mistral only accepts temperature up to 1.0
+            settings["temperature"] = min(temperature, 1)
+        return settings
 
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import MistralSettingsSerializer
 
         return MistralSettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from mistralai.models import HTTPValidationError, SDKError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                # Because some LLMs can have a temperature of 2, this is the maximum by
-                # default. We're changing it to a maximum of 1 because Mistral only
-                # accepts 1.
-                kwargs["temperature"] = min(temperature, 1)
-            response = client.chat.complete(
-                messages=[{"role": "user", "content": prompt}],
-                model=model,
-                **kwargs,
-            )
-            return response.choices[0].message.content
-        except (HTTPValidationError, SDKError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
 
 
 class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
@@ -357,6 +319,15 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         host = self.get_host(workspace, settings_override)
         return bool(host) and bool(
             self.get_enabled_models(workspace, settings_override)
+        )
+
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.ollama import OllamaProvider
+
+        host = self.get_host(workspace, settings_override)
+        return OpenAIChatModel(
+            model_name, provider=OllamaProvider(base_url=f"{host}/v1")
         )
 
     def get_settings_serializer(self):
@@ -392,6 +363,22 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     def get_base_url(self, workspace=None, settings_override=None):
         return "https://openrouter.ai/api/v1"
+
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        from openai import AsyncOpenAI
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
+        client = AsyncOpenAI(
+            api_key=api_key,
+            organization=organization,
+            base_url="https://openrouter.ai/api/v1",
+        )
+        return OpenAIChatModel(
+            model_name, provider=OpenRouterProvider(openai_client=client)
+        )
 
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer
