@@ -339,7 +339,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         models = ai_type.get_enabled_models(workspace=workspace)
         if model_type not in models:
             raise ModelDoesNotBelongToType(model_name=model_type)
-        if ai_file_field_id is not None and not hasattr(ai_type, "is_file_compatible"):
+        if ai_file_field_id is not None and not ai_type.supports_files:
             raise GenerativeAITypeDoesNotSupportFileField()
 
     def get_field_dependencies(
