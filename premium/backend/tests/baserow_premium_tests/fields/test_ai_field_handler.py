@@ -9,6 +9,7 @@ from baserow.core.generative_ai.exceptions import (
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.fields.handler import AIFieldHandler
+from baserow_premium.fields.pydantic_models import BaserowFormulaModel
 
 
 @pytest.mark.django_db
@@ -106,7 +107,9 @@ def test_generate_formula(premium_data_fixture, api_client):
     generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
 
     with patch.object(
-        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+        generative_ai_instance,
+        "prompt_structured",
+        return_value=BaserowFormulaModel(formula="field()"),
     ) as mock:
         formula = AIFieldHandler.generate_formula_with_ai(
             table,

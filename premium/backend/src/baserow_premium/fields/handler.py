@@ -4,7 +4,10 @@ from typing import Optional
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
-from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
+from baserow.core.generative_ai.exceptions import (
+    GenerativeAIPromptError,
+    ModelDoesNotBelongToType,
+)
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.prompts import get_generate_formula_prompt
@@ -35,10 +38,6 @@ class AIFieldHandler:
         :return: The generated model.
         """
 
-        from langchain_core.exceptions import OutputParserException
-        from langchain_core.output_parsers import JsonOutputParser
-        from langchain_core.prompts import PromptTemplate
-
         generative_ai_model_type = generative_ai_model_type_registry.get(ai_type)
         ai_models = generative_ai_model_type.get_enabled_models(
             table.database.workspace
@@ -53,26 +52,20 @@ class AIFieldHandler:
             table_schema.append(field_type.export_serialized(field))
 
         table_schema_json = json.dumps(table_schema, indent=4)
-        output_parser = JsonOutputParser(pydantic_object=BaserowFormulaModel)
-        format_instructions = output_parser.get_format_instructions()
-        prompt = PromptTemplate(
-            template=get_generate_formula_prompt() + "\n{format_instructions}",
-            input_variables=["table_schema_json", "user_prompt"],
-            partial_variables={"format_instructions": format_instructions},
-        )
-        message = prompt.format(
+        message = get_generate_formula_prompt().format(
             table_schema_json=table_schema_json, user_prompt=ai_prompt
         )
 
-        response = generative_ai_model_type.prompt(
-            ai_model,
-            message,
-            workspace=table.database.workspace,
-            temperature=ai_temperature,
-        )
         try:
-            return output_parser.parse(response)["formula"]
-        except (OutputParserException, TypeError, KeyError) as e:
+            result = generative_ai_model_type.prompt_structured(
+                ai_model,
+                message,
+                output_type=BaserowFormulaModel,
+                workspace=table.database.workspace,
+                temperature=ai_temperature,
+            )
+            return result.formula
+        except GenerativeAIPromptError as e:
             raise AiFieldOutputParserException(
                 "The model didn't respond with the correct output. Please try again."
             ) from e

@@ -111,8 +111,88 @@ class GenerativeAIModelType(Instance):
     def get_enabled_models(self, workspace=None):
         return []
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
-        raise NotImplementedError("The prompt function must be implemented.")
+    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+        """Return a pydantic-ai Model instance configured with provider credentials."""
+
+        raise NotImplementedError("The get_ai_model function must be implemented.")
+
+    def _prepare_model_settings(self, temperature=None):
+        """Build model settings dict. Override in subclasses for provider quirks."""
+
+        settings = {}
+        if temperature is not None:
+            settings["temperature"] = temperature
+        return settings
+
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_choices=None,
+    ):
+        import json
+        from difflib import get_close_matches
+
+        from pydantic_ai import Agent
+
+        from .exceptions import GenerativeAIPromptError
+
+        if output_choices is not None:
+            choices_json = json.dumps(output_choices)
+            prompt = (
+                f"{prompt}\n\n"
+                f"Select exactly one option from: {choices_json}\n"
+                f"Respond with only the option name, nothing else."
+            )
+
+        try:
+            ai_model = self.get_ai_model(model, workspace, settings_override)
+            model_settings = self._prepare_model_settings(temperature)
+            result = Agent(output_type=str).run_sync(
+                prompt, model=ai_model, model_settings=model_settings
+            )
+            text = result.output
+
+            if output_choices is not None:
+                closest = get_close_matches(
+                    text.strip(), output_choices, n=1, cutoff=0.6
+                )
+                return closest[0] if closest else None
+
+            return text
+        except GenerativeAIPromptError:
+            raise
+        except Exception as e:
+            raise GenerativeAIPromptError(str(e)) from e
+
+    def prompt_structured(
+        self,
+        model,
+        prompt,
+        output_type,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+    ):
+        from pydantic_ai import Agent
+
+        from .exceptions import GenerativeAIPromptError
+
+        try:
+            ai_model = self.get_ai_model(model, workspace, settings_override)
+            model_settings = self._prepare_model_settings(temperature)
+            agent = Agent(output_type=output_type, output_retries=3)
+            result = agent.run_sync(
+                prompt, model=ai_model, model_settings=model_settings
+            )
+            return result.output
+        except GenerativeAIPromptError:
+            raise
+        except Exception as e:
+            raise GenerativeAIPromptError(str(e)) from e
 
     def get_settings_serializer(self):
         raise NotImplementedError(

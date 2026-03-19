@@ -42,12 +42,38 @@ class AIFieldOutputType(abc.ABC, Instance):
         output parser formatting instructions are added in `format_prompt`, then this
         hook can be used to parse it.
 
+        Used in the prompt_with_files fallback path where structured output is not
+        available.
+
         :param output: The text output of the generative AI.
         :param ai_field: The AI field related to the output type.
         :return: Should return the parsed output.
         """
 
         return output
+
+    def get_choices(self, ai_field: "AIField"):
+        """
+        Return a list of valid choice strings for constrained output, or None if
+        this output type doesn't use choice selection.
+
+        :param ai_field: The AI field related to the output type.
+        :return: A list of choice strings, or None.
+        """
+
+        return None
+
+    def resolve_choice(self, value, ai_field: "AIField"):
+        """
+        Map a choice string returned by prompt(output_choices=...) to the
+        appropriate field value (e.g. a SelectOption).
+
+        :param value: The matched choice string, or None if no match.
+        :param ai_field: The AI field related to the output type.
+        :return: The resolved value.
+        """
+
+        return value
 
     def prepare_data_sync_value(self, value: Any, field: Field, metadata: dict) -> Any:
         """

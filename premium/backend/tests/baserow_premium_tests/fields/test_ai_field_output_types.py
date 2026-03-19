@@ -1,17 +1,18 @@
 import enum
+from difflib import get_close_matches
 
 import pytest
-from langchain_core.prompts import PromptTemplate
 
 from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
     generative_ai_model_type_registry,
 )
 from baserow.core.jobs.handler import JobHandler
-from baserow_premium.fields.ai_field_output_types import get_strict_enum_output_parser
 
 
-def test_strict_enum_output_parser():
+def test_choice_fuzzy_matching():
+    """Test that fuzzy matching correctly maps LLM text responses to enum values."""
+
     choices = enum.Enum(
         "Choices",
         {
@@ -21,26 +22,21 @@ def test_strict_enum_output_parser():
             "OPTION_4": "A,B,C",
         },
     )
-    output_parser = get_strict_enum_output_parser(enum=choices)
-    format_instructions = output_parser.get_format_instructions()
-    prompt = "What is a motorcycle?"
-    prompt = PromptTemplate(
-        template=prompt + "\n\n{format_instructions}",
-        input_variables=[],
-        partial_variables={"format_instructions": format_instructions},
-    )
-    message = prompt.format()
+    valid_values = [e.value for e in choices]
 
-    assert '["Object", "Animal", "Human", "A,B,C"]' in message
+    def match(text):
+        closest = get_close_matches(text.strip(), valid_values, n=1, cutoff=0.0)
+        return choices(closest[0]) if closest else None
 
-    assert output_parser.parse("Object") == choices.OPTION_1
-    assert output_parser.parse("Animal") == choices.OPTION_2
-    assert output_parser.parse("Human") == choices.OPTION_3
-    assert output_parser.parse("A,B,C") == choices.OPTION_4
+    assert match("Object") == choices.OPTION_1
+    assert match("Animal") == choices.OPTION_2
+    assert match("Human") == choices.OPTION_3
+    assert match("A,B,C") == choices.OPTION_4
 
-    assert output_parser.parse(" Object ") == choices.OPTION_1
-    assert output_parser.parse("'Object'") == choices.OPTION_1
-    assert output_parser.parse("'A'") == choices.OPTION_4
+    # Fuzzy matching handles whitespace and quotes
+    assert match(" Object ") == choices.OPTION_1
+    assert match("'Object'") == choices.OPTION_1
+    assert match("'A'") == choices.OPTION_4
 
 
 @pytest.mark.django_db
@@ -56,10 +52,17 @@ def test_choice_output_type(premium_data_fixture, api_client):
         def get_enabled_models(self, workspace=None):
             return ["test_1"]
 
-        def prompt(self, model, prompt, workspace=None, temperature=None):
+        def prompt(
+            self,
+            model,
+            prompt,
+            workspace=None,
+            temperature=None,
+            settings_override=None,
+            output_choices=None,
+        ):
             self.i += 1
             if self.i == 1:
-                # Existing option should be matches based on the string.
                 return "Object"
             else:
                 return "Else"

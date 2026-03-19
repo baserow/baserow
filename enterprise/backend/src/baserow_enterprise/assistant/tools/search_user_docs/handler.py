@@ -85,7 +85,6 @@ class VectorHandler:
             return []
 
         embedder = self.embedder
-        # Support both embedders as callables and LangChain-style embedders
         if callable(embedder):
             return embedder(texts)
         else:
