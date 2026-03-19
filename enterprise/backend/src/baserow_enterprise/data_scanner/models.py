@@ -14,7 +14,7 @@ from baserow.core.models import Workspace
 class DataScan(models.Model):
     SCAN_TYPE_CHOICES = [
         ("pattern", "Pattern"),
-        ("list_upload", "List Upload"),
+        ("list_of_values", "List of values"),
         ("list_table", "List Table"),
     ]
 

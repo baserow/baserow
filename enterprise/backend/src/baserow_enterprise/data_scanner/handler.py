@@ -104,13 +104,13 @@ class DataScannerHandler:
 
         :param user: The staff user performing the action.
         :param name: Human-readable name for the scan.
-        :param scan_type: One of `pattern`, `list_upload`, or `list_table`.
+        :param scan_type: One of `pattern`, `list_of_values`, or `list_table`.
         :param pattern: Required when scan_type is `pattern`.
         :param frequency: How often the scan runs automatically.
         :param scan_all_workspaces: When False, only the given workspace_ids are
             scanned.
         :param workspace_ids: Workspace IDs to restrict scanning to.
-        :param list_items: Values to match when scan_type is `list_upload`.
+        :param list_items: Values to match when scan_type is `list_of_values`.
         :param source_table_id: Source table ID when scan_type is `list_table`.
         :param source_field_id: Source field ID when scan_type is `list_table`.
         :return: The newly created DataScan instance.
@@ -133,7 +133,7 @@ class DataScannerHandler:
             workspaces = Workspace.objects.filter(id__in=workspace_ids)
             scan.workspaces.set(workspaces)
 
-        if scan_type == "list_upload" and list_items:
+        if scan_type == "list_of_values" and list_items:
             DataScanListItem.objects.bulk_create(
                 [DataScanListItem(scan=scan, value=v) for v in list_items]
             )
@@ -215,7 +215,7 @@ class DataScannerHandler:
             scan.results.all().delete()
             return
 
-        if "list_items" in kwargs and scan.scan_type == "list_upload":
+        if "list_items" in kwargs and scan.scan_type == "list_of_values":
             new_items = set(kwargs["list_items"] or [])
             if not new_items:
                 scan.results.all().delete()
@@ -370,7 +370,7 @@ class DataScannerHandler:
                 pre_computed["regex"] = regex
                 pre_computed["compiled"] = re.compile(regex, re.IGNORECASE)
 
-            elif scan.scan_type == "list_upload":
+            elif scan.scan_type == "list_of_values":
                 pre_computed["values"] = list(
                     DataScanListItem.objects.filter(scan=scan).values_list(
                         "value", flat=True
@@ -436,7 +436,7 @@ class DataScannerHandler:
                                 trashed_field_ids,
                             )
                         )
-                    elif scan.scan_type == "list_upload":
+                    elif scan.scan_type == "list_of_values":
                         new_results_count += DataScannerHandler._run_list_scan(
                             scan,
                             search_model,

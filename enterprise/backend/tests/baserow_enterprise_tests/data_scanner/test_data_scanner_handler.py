@@ -119,18 +119,18 @@ def test_create_scan_pattern(enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_scan_list_upload(enterprise_data_fixture):
+def test_create_scan_list_of_values(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user(is_staff=True)
 
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Blacklist Scan",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["value1", "value2", "value3"],
     )
 
-    assert scan.scan_type == "list_upload"
+    assert scan.scan_type == "list_of_values"
     assert scan.list_items.count() == 3
     assert list(scan.list_items.values_list("value", flat=True)) == [
         "value1",
@@ -339,7 +339,7 @@ def test_update_scan_list_items(enterprise_data_fixture):
     scan = DataScannerHandler.create_scan(
         user=user,
         name="List Scan",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["a", "b"],
     )
     assert scan.list_items.count() == 2
@@ -435,7 +435,7 @@ def test_cleanup_stale_results_on_type_change(enterprise_data_fixture):
     assert scan.results.count() == 1
 
     DataScannerHandler.update_scan(
-        user=user, scan_id=scan.id, scan_type="list_upload", list_items=["x"]
+        user=user, scan_id=scan.id, scan_type="list_of_values", list_items=["x"]
     )
     assert scan.results.count() == 0
 
@@ -478,7 +478,10 @@ def test_cleanup_stale_results_on_list_items_change(enterprise_data_fixture):
     )
 
     scan = DataScannerHandler.create_scan(
-        user=user, name="Test", scan_type="list_upload", list_items=["keep", "remove"]
+        user=user,
+        name="Test",
+        scan_type="list_of_values",
+        list_items=["keep", "remove"],
     )
     now = timezone.now()
     DataScanResult.objects.create(
@@ -516,7 +519,7 @@ def test_cleanup_stale_results_on_empty_list(enterprise_data_fixture):
     )
 
     scan = DataScannerHandler.create_scan(
-        user=user, name="Test", scan_type="list_upload", list_items=["val"]
+        user=user, name="Test", scan_type="list_of_values", list_items=["val"]
     )
     now = timezone.now()
     DataScanResult.objects.create(
@@ -542,7 +545,7 @@ def test_delete_scan(enterprise_data_fixture):
     scan = DataScannerHandler.create_scan(
         user=user,
         name="To Delete",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["val1"],
     )
     scan_id = scan.id
@@ -800,7 +803,7 @@ def test_run_pattern_scan_dutch_iban_with_escaped_literals(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_run_list_upload_scan(enterprise_data_fixture, populate_search_table):
+def test_run_list_of_values_scan(enterprise_data_fixture, populate_search_table):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user(is_staff=True)
     table, fields, rows = enterprise_data_fixture.build_table(
@@ -815,8 +818,8 @@ def test_run_list_upload_scan(enterprise_data_fixture, populate_search_table):
 
     scan = DataScannerHandler.create_scan(
         user=user,
-        name="List Upload Test",
-        scan_type="list_upload",
+        name="List of Values Test",
+        scan_type="list_of_values",
         list_items=["secret123"],
         scan_all_workspaces=False,
         workspace_ids=[workspace.id],
@@ -941,7 +944,7 @@ def test_run_scan_removes_result_when_cell_cleared(
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Cell Cleared Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
         scan_all_workspaces=False,
         workspace_ids=[workspace.id],
@@ -1363,7 +1366,7 @@ def test_run_scan_excludes_trashed_field(
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Trashed Field Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
     )
 
@@ -1395,7 +1398,7 @@ def test_run_scan_excludes_trashed_table(
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Trashed Table Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
     )
 
@@ -1427,7 +1430,7 @@ def test_run_scan_excludes_trashed_database(
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Trashed Database Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
     )
 
@@ -1458,7 +1461,7 @@ def test_run_scan_excludes_trashed_row(enterprise_data_fixture, populate_search_
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Trashed Row Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123", "secret456"],
     )
 
@@ -1492,7 +1495,7 @@ def test_run_scan_excludes_trashed_workspace(
     scan = DataScannerHandler.create_scan(
         user=user,
         name="Trashed Workspace Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
     )
 

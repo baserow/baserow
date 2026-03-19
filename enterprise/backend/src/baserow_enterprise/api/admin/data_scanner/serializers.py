@@ -135,9 +135,9 @@ class DataScanCreateSerializer(DataScanWriteSerializer):
             raise serializers.ValidationError(
                 {"pattern": "Pattern is required for pattern scan type."}
             )
-        if scan_type == "list_upload" and not data.get("list_items"):
+        if scan_type == "list_of_values" and not data.get("list_items"):
             raise serializers.ValidationError(
-                {"list_items": "List items are required for list upload scan type."}
+                {"list_items": "List items are required for list of values scan type."}
             )
         if scan_type == "list_table":
             if not data.get("source_table_id") or not data.get("source_field_id"):

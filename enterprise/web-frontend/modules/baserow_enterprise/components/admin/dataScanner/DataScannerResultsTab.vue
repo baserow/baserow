@@ -88,9 +88,7 @@ export default {
   },
   data() {
     return {
-      filters: this.initialScanFilter
-        ? { scan_id: this.initialScanFilter.id }
-        : {},
+      filters: { scan_id: this.initialScanFilter?.id || null },
       loading: true,
       initialScanFilterName: null,
     }
@@ -174,12 +172,7 @@ export default {
       return scansPaginatedService.fetch(scansUrl, page, search, [], {})
     },
     filterByScan(scanId) {
-      if (scanId === null || scanId === undefined) {
-        const { scan_id: _, ...rest } = this.filters
-        this.filters = rest
-      } else {
-        this.filters = { ...this.filters, scan_id: scanId }
-      }
+      this.filters = { ...this.filters, scan_id: scanId }
     },
     clearFilters() {
       this.$refs.scanFilter?.clear()

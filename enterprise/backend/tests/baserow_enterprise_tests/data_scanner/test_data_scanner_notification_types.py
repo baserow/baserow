@@ -159,7 +159,7 @@ def test_run_scan_sends_notification_on_new_results(
     scan = DataScannerHandler.create_scan(
         user=admin1,
         name="Secret Scanner",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
         scan_all_workspaces=False,
         workspace_ids=[workspace.id],
@@ -225,7 +225,7 @@ def test_run_scan_no_notification_when_only_existing_results(
     scan = DataScannerHandler.create_scan(
         user=admin,
         name="Test",
-        scan_type="list_upload",
+        scan_type="list_of_values",
         list_items=["secret123"],
         scan_all_workspaces=False,
         workspace_ids=[workspace.id],

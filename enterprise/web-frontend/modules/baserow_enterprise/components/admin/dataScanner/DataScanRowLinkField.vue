@@ -1,6 +1,6 @@
 <template>
   <div>
-    <nuxt-link v-if="hasAccess" :to="rowRoute">
+    <nuxt-link v-if="hasAccess" :to="rowRoute" target="blank">
       {{ row.row_id }}
     </nuxt-link>
     <span v-else>{{ row.row_id }}</span>

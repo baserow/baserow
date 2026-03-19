@@ -3,7 +3,6 @@ from datetime import timedelta
 from baserow.contrib.database.fields.models import (
     AutonumberField,
     EmailField,
-    LongTextField,
     NumberField,
     PhoneNumberField,
     TextField,
@@ -14,7 +13,6 @@ from baserow.contrib.database.fields.models import (
 # Contains the field types that can be used in the Baserow source table.
 SCANNABLE_FIELD_TYPES = [
     TextField,
-    LongTextField,
     URLField,
     EmailField,
     NumberField,

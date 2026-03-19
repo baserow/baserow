@@ -72,7 +72,7 @@ def test_list_scans(api_client, enterprise_data_fixture):
     scan = DataScan.objects.create(
         name="Scan 1", scan_type="pattern", pattern="AA", created_by=user
     )
-    DataScan.objects.create(name="Scan 2", scan_type="list_upload", created_by=user)
+    DataScan.objects.create(name="Scan 2", scan_type="list_of_values", created_by=user)
 
     response = api_client.get(
         reverse("api:enterprise:admin:data_scanner:list"),
@@ -151,7 +151,7 @@ def test_list_scans_query_count_is_constant(api_client, enterprise_data_fixture)
         name="Scan 1", scan_type="pattern", pattern="AA", created_by=user
     )
     scan2 = DataScan.objects.create(
-        name="Scan 2", scan_type="list_upload", created_by=user
+        name="Scan 2", scan_type="list_of_values", created_by=user
     )
     scan2.workspaces.add(workspace)
 
@@ -259,7 +259,7 @@ def test_create_scan_pattern(api_client, enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_scan_list_upload(api_client, enterprise_data_fixture):
+def test_create_scan_list_of_values(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
     _, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
 
@@ -267,7 +267,7 @@ def test_create_scan_list_upload(api_client, enterprise_data_fixture):
         reverse("api:enterprise:admin:data_scanner:list"),
         {
             "name": "List Scan",
-            "scan_type": "list_upload",
+            "scan_type": "list_of_values",
             "list_items": ["val1", "val2"],
         },
         format="json",
@@ -275,7 +275,7 @@ def test_create_scan_list_upload(api_client, enterprise_data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert data["scan_type"] == "list_upload"
+    assert data["scan_type"] == "list_of_values"
     assert data["list_items"] == ["val1", "val2"]
 
 
@@ -349,13 +349,13 @@ def test_create_scan_pattern_missing_pattern(api_client, enterprise_data_fixture
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_scan_list_upload_missing_items(api_client, enterprise_data_fixture):
+def test_create_scan_list_of_values_missing_items(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
     _, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
 
     response = api_client.post(
         reverse("api:enterprise:admin:data_scanner:list"),
-        {"name": "Missing Items", "scan_type": "list_upload"},
+        {"name": "Missing Items", "scan_type": "list_of_values"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

@@ -89,7 +89,7 @@ export default {
       lastFinishedJobs: [],
     }
   },
-  async fetch() {
+  async mounted() {
     this.loading = true
     const jobs = await AuditLogAdminService(this.$client).getLastExportJobs(
       MAX_EXPORT_FILES
@@ -105,7 +105,6 @@ export default {
       this.loading = false
     }
   },
-  fetchOnServer: false,
   methods: {
     loadRunningJob() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(

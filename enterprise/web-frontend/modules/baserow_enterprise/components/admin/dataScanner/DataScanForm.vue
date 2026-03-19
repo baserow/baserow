@@ -30,8 +30,8 @@
           value="pattern"
         />
         <DropdownItem
-          :name="$t('dataScanner.scanTypeListUpload')"
-          value="list_upload"
+          :name="$t('dataScanner.scanTypeListOfValues')"
+          value="list_of_values"
         />
         <DropdownItem
           :name="$t('dataScanner.scanTypeListTable')"
@@ -63,7 +63,7 @@
       </FormGroup>
     </template>
 
-    <template v-if="values.scan_type === 'list_upload'">
+    <template v-if="values.scan_type === 'list_of_values'">
       <FormGroup
         :label="$t('dataScanner.listItemsLabel')"
         required
@@ -154,6 +154,16 @@
             </div>
           </div>
         </div>
+        <Alert
+          v-if="values.source_table_id && tableFields.length === 0"
+          type="info-neutral"
+          class="margin-top-1"
+        >
+          <template #title>{{
+            $t('dataScanner.noCompatibleFieldsTitle')
+          }}</template>
+          <p>{{ $t('dataScanner.noCompatibleFieldsDescription') }}</p>
+        </Alert>
       </FormGroup>
     </template>
 
@@ -190,6 +200,7 @@
       :label="$t('dataScanner.workspaceScopeLabel')"
       small-label
       class="margin-bottom-2"
+      :error="v$.values.workspace_ids.$error"
     >
       <Checkbox v-model="values.scan_all_workspaces">
         {{ $t('dataScanner.scanAllWorkspaces') }}
@@ -224,6 +235,9 @@
           </li>
         </ul>
       </div>
+      <template #error>
+        {{ v$.values.workspace_ids.$errors[0]?.$message }}
+      </template>
     </FormGroup>
 
     <slot />
@@ -291,7 +305,7 @@ export default {
           listItemsRequired: helpers.withMessage(
             this.$t('error.requiredField'),
             (value) => {
-              if (this.values.scan_type !== 'list_upload') return true
+              if (this.values.scan_type !== 'list_of_values') return true
               return Array.isArray(value) && value.length > 0
             }
           ),
@@ -300,6 +314,15 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => this.values.scan_type === 'list_table')
+          ),
+        },
+        workspace_ids: {
+          required: helpers.withMessage(
+            this.$t('error.requiredField'),
+            (value) => {
+              if (this.values.scan_all_workspaces) return true
+              return Array.isArray(value) && value.length > 0
+            }
           ),
         },
       },
@@ -404,6 +427,14 @@ export default {
           // Clear so it doesn't interfere on subsequent workspace changes
           this.values.source_database_id = null
         }
+        // Clear source field if it's no longer in the compatible fields list
+        // (e.g. the field type was changed to an incompatible one).
+        if (
+          this.values.source_field_id &&
+          !this.tableFields.some((f) => f.id === this.values.source_field_id)
+        ) {
+          this.values.source_field_id = null
+        }
       } catch (error) {
         notifyIf(error)
       } finally {
@@ -456,7 +487,7 @@ export default {
       if (data.scan_type !== 'pattern') {
         delete data.pattern
       }
-      if (data.scan_type !== 'list_upload') {
+      if (data.scan_type !== 'list_of_values') {
         delete data.list_items
       }
       if (data.scan_type !== 'list_table') {

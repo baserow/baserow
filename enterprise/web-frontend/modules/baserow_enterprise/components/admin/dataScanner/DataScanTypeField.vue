@@ -5,7 +5,7 @@
 <script>
 const TYPE_MAP = {
   pattern: 'dataScanner.scanTypePattern',
-  list_upload: 'dataScanner.scanTypeListUpload',
+  list_of_values: 'dataScanner.scanTypeListOfValues',
   list_table: 'dataScanner.scanTypeListTable',
 }
 

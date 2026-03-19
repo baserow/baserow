@@ -112,7 +112,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("pattern", "Pattern"),
-                            ("list_upload", "List Upload"),
+                            ("list_of_values", "List of values"),
                             ("list_table", "List Table"),
                         ],
                         max_length=20,
