@@ -32,10 +32,7 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
 )
-from baserow.core.generative_ai.registries import (
-    GenerativeAIWithFilesModelType,
-    generative_ai_model_type_registry,
-)
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -452,11 +449,8 @@ class AIValueGenerator:
 
         self.ai_output_type = ai_field_output_registry.get(self.ai_field.ai_output_type)
 
-        self.use_file_fields = (
-            self.ai_field.ai_file_field_id is not None
-            and isinstance(
-                self.generative_ai_model_type, GenerativeAIWithFilesModelType
-            )
+        self.use_file_fields = self.ai_field.ai_file_field_id is not None and hasattr(
+            self.generative_ai_model_type, "is_file_compatible"
         )
 
     def generate_value_for(self, row: GeneratedTableModel):
@@ -509,46 +503,27 @@ class AIValueGenerator:
 
         choices = ai_output_type.get_choices(ai_field)
 
-        if not message or not message.strip():
-            # If the resolved prompt is empty, preserve the existing value instead
-            # of overwriting it with NULL in the database.
-            return getattr(row, ai_field.db_column, None)
+        prompt_kwargs = {
+            "workspace": workspace,
+            "temperature": ai_field.ai_temperature,
+        }
 
         if self.use_file_fields:
-            file_ids = []
-            try:
-                file_ids = AIFileManager.upload_files_from_file_field(
-                    ai_field, row, generative_ai_model_type
-                )
-                value = generative_ai_model_type.prompt_with_files(
-                    ai_field.ai_generative_ai_model,
-                    message,
-                    file_ids=file_ids,
-                    workspace=workspace,
-                    temperature=ai_field.ai_temperature,
-                )
-            finally:
-                generative_ai_model_type.delete_files(file_ids, workspace=workspace)
-            value = ai_output_type.parse_output(value, ai_field)
-        elif choices is not None:
-            # Choice output: prompt with constrained choices, then map to
-            # the appropriate field value (e.g. SelectOption).
-            value = generative_ai_model_type.prompt(
-                ai_field.ai_generative_ai_model,
-                message,
-                workspace=workspace,
-                temperature=ai_field.ai_temperature,
-                output_choices=choices,
+            prompt_kwargs["content"] = AIFileManager.get_file_contents(
+                ai_field, row, generative_ai_model_type
             )
+
+        if choices is not None:
+            prompt_kwargs["output_choices"] = choices
+
+        value = generative_ai_model_type.prompt(
+            ai_field.ai_generative_ai_model,
+            message,
+            **prompt_kwargs,
+        )
+
+        if choices is not None:
             value = ai_output_type.resolve_choice(value, ai_field)
-        else:
-            # Text output: plain prompt.
-            value = generative_ai_model_type.prompt(
-                ai_field.ai_generative_ai_model,
-                message,
-                workspace=workspace,
-                temperature=ai_field.ai_temperature,
-            )
 
         return value
 

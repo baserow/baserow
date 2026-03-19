@@ -15,7 +15,3 @@ class ModelDoesNotBelongToType(Exception):
 
 class GenerativeAIPromptError(Exception):
     """Raised when an error occurs while prompting the model."""
-
-
-class AIFileError(Exception):
-    """Raised when the processing of a file for AI purposes fails"""
