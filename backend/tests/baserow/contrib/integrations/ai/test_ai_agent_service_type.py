@@ -30,7 +30,8 @@ def mock_ai_prompt(return_value="AI response", should_fail=False):
         workspace=None,
         temperature=None,
         settings_override=None,
-        output_choices=None,
+        output_type=None,
+        content=None,
     ):
         if should_fail:
             raise GenerativeAIPromptError("AI API error")
@@ -39,30 +40,6 @@ def mock_ai_prompt(return_value="AI response", should_fail=False):
     return patch(
         "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt",
         side_effect=_prompt,
-    )
-
-
-def mock_ai_prompt_structured(return_value=None, should_fail=False):
-    """
-    Context manager to mock AI model prompt_structured calls.
-    The return_value should be an enum member or Pydantic model instance.
-    """
-
-    def _prompt_structured(
-        model,
-        prompt,
-        output_type,
-        workspace=None,
-        temperature=None,
-        settings_override=None,
-    ):
-        if should_fail:
-            raise GenerativeAIPromptError("AI API error")
-        return return_value
-
-    return patch(
-        "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt_structured",
-        side_effect=_prompt_structured,
     )
 
 

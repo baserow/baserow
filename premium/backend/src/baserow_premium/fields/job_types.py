@@ -514,7 +514,7 @@ class AIValueGenerator:
             )
 
         if choices is not None:
-            prompt_kwargs["output_choices"] = choices
+            prompt_kwargs["output_type"] = choices
 
         value = generative_ai_model_type.prompt(
             ai_field.ai_generative_ai_model,

@@ -57,7 +57,7 @@ class AIFieldHandler:
         )
 
         try:
-            result = generative_ai_model_type.prompt_structured(
+            result = generative_ai_model_type.prompt(
                 ai_model,
                 message,
                 output_type=BaserowFormulaModel,

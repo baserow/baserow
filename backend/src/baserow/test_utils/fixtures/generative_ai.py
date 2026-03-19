@@ -39,11 +39,15 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         workspace=None,
         temperature=None,
         settings_override=None,
-        output_choices=None,
+        output_type=None,
         content=None,
     ):
-        if output_choices:
-            return output_choices[0]
+        if isinstance(output_type, list):
+            return output_type[0]
+        if output_type is not None:
+            raise GenerativeAIPromptError(
+                "Test fixture does not support structured output."
+            )
         return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
@@ -67,11 +71,11 @@ class TestGenerativeAIWithFilesModelType(GenerativeAIModelType):
         workspace=None,
         temperature=None,
         settings_override=None,
-        output_choices=None,
+        output_type=None,
         content=None,
     ):
-        if output_choices:
-            return output_choices[0]
+        if isinstance(output_type, list):
+            return output_type[0]
         if content:
             return f"Generated with files and temperature {temperature}: {prompt}"
         return f"Generated with temperature {temperature}: {prompt}"
