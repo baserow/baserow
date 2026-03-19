@@ -1,33 +1,58 @@
+from __future__ import annotations
+
 import os
+from typing import Any, Callable, Optional
 
 from django.conf import settings
+
+from baserow.core.models import Workspace
 
 from .registries import GenerativeAIModelType
 
 
 class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENAI_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OPENAI_MODELS
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENAI_ORGANIZATION
         )
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return None
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -35,9 +60,14 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
         from openai import AsyncOpenAI
-        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.models.openai import OpenAIResponsesModel
         from pydantic_ai.providers.openai import OpenAIProvider
 
         api_key = self.get_api_key(workspace, settings_override)
@@ -46,11 +76,11 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         client = AsyncOpenAI(
             api_key=api_key, organization=organization, base_url=base_url
         )
-        return OpenAIChatModel(
+        return OpenAIResponsesModel(
             model_name, provider=OpenAIProvider(openai_client=client)
         )
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
 
         return BaseOpenAISettingsSerializer
@@ -59,56 +89,159 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "openai"
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OpenAISettingsSerializer
 
         return OpenAISettingsSerializer
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "base_url", settings_override)
             or settings.BASEROW_OPENAI_BASE_URL
         )
 
-    def is_file_compatible(self, file_name: str) -> bool:
-        supported_file_extensions = {
-            ".csv",
-            ".doc",
-            ".docx",
-            ".html",
-            ".json",
-            ".md",
-            ".pdf",
-            ".pptx",
-            ".txt",
-            ".tex",
-            ".xlsx",
-            ".xls",
-        }
+    supports_files = True
 
-        _, ext = os.path.splitext(file_name)
-        return ext in supported_file_extensions
+    _EMBEDDABLE_EXTENSIONS = {".gif", ".jpg", ".jpeg", ".png", ".webp"}
+    _UPLOADABLE_EXTENSIONS = {
+        ".csv",
+        ".doc",
+        ".docx",
+        ".html",
+        ".json",
+        ".md",
+        ".pdf",
+        ".pptx",
+        ".txt",
+        ".tex",
+        ".xlsx",
+        ".xls",
+    }
+    _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus some headroom
+    _MAX_EMBEDS_PER_REQUEST = 500
 
-    def get_max_file_size(self) -> int:
-        return min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB)
+    def _get_max_upload_bytes(self) -> int:
+        return (
+            min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB) * 1024 * 1024
+        )
+
+    def prepare_files(
+        self,
+        files: list[tuple[str, int, str]],
+        read_file: Callable[[str], bytes],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> tuple[list[Any], list[str]]:
+        from pydantic_ai import BinaryContent, UploadedFile
+
+        content_parts: list[Any] = []
+        file_ids: list[str] = []
+        embed_payload = 0
+        embed_count = 0
+        max_upload = self._get_max_upload_bytes()
+
+        for name, size, media_type in files:
+            _, ext = os.path.splitext(name)
+            ext = ext.lower()
+
+            if ext in self._EMBEDDABLE_EXTENSIONS:
+                if (
+                    embed_count >= self._MAX_EMBEDS_PER_REQUEST
+                    or embed_payload + size > self._MAX_EMBED_PAYLOAD_BYTES
+                ):
+                    continue
+                data = read_file(name)
+                content_parts.append(BinaryContent(data=data, media_type=media_type))
+                embed_payload += size
+                embed_count += 1
+
+            elif ext in self._UPLOADABLE_EXTENSIONS:
+                if size > max_upload:
+                    continue
+                data = read_file(name)
+                file_id = self._upload_file(name, data, workspace, settings_override)
+                file_ids.append(file_id)
+                content_parts.append(
+                    UploadedFile(
+                        file_id=file_id,
+                        provider_name="openai",
+                        media_type=media_type,
+                    )
+                )
+
+        return content_parts, file_ids
+
+    def _get_upload_client(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        """Return a sync OpenAI client for file upload/delete operations."""
+
+        from openai import OpenAI
+
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
+        base_url = self.get_base_url(workspace, settings_override)
+        return OpenAI(api_key=api_key, organization=organization, base_url=base_url)
+
+    def _upload_file(
+        self,
+        file_name: str,
+        file_bytes: bytes,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
+        client = self._get_upload_client(workspace, settings_override)
+        uploaded = client.files.create(
+            file=(file_name, file_bytes), purpose="user_data"
+        )
+        return uploaded.id
+
+    def delete_file(
+        self,
+        file_id: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Delete an uploaded file from OpenAI."""
+
+        client = self._get_upload_client(workspace, settings_override)
+        client.files.delete(file_id)
 
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_ANTHROPIC_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_ANTHROPIC_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -116,21 +249,28 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
         from pydantic_ai.models.anthropic import AnthropicModel
         from pydantic_ai.providers.anthropic import AnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         return AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
 
-    def _prepare_model_settings(self, temperature=None):
-        settings = {}
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        settings: dict[str, Any] = {}
         if temperature is not None:
             # Anthropic only accepts temperature up to 1.0
             settings["temperature"] = min(temperature, 1)
         return settings
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import AnthropicSettingsSerializer
 
         return AnthropicSettingsSerializer
@@ -139,19 +279,31 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
 class MistralGenerativeAIModelType(GenerativeAIModelType):
     type = "mistral"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_MISTRAL_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_MISTRAL_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -159,21 +311,28 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
         from pydantic_ai.models.mistral import MistralModel
         from pydantic_ai.providers.mistral import MistralProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         return MistralModel(model_name, provider=MistralProvider(api_key=api_key))
 
-    def _prepare_model_settings(self, temperature=None):
-        settings = {}
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        settings: dict[str, Any] = {}
         if temperature is not None:
             # Mistral only accepts temperature up to 1.0
             settings["temperature"] = min(temperature, 1)
         return settings
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import MistralSettingsSerializer
 
         return MistralSettingsSerializer
@@ -182,35 +341,64 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
 class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "ollama"
 
-    def get_host(self, workspace=None, settings_override=None):
+    def get_host(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "host", settings_override)
             or settings.BASEROW_OLLAMA_HOST
         )
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         return "ollama"
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
         return None
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         host = self.get_host(workspace, settings_override)
         return f"{host}/v1"
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OLLAMA_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         host = self.get_host(workspace, settings_override)
         return bool(host) and bool(
             self.get_enabled_models(workspace, settings_override)
         )
 
-    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.ollama import OllamaProvider
 
@@ -219,7 +407,7 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
             model_name, provider=OllamaProvider(base_url=f"{host}/v1")
         )
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OllamaSettingsSerializer
 
         return OllamaSettingsSerializer
@@ -232,28 +420,49 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     type = "openrouter"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENROUTER_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OPENROUTER_MODELS
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENROUTER_ORGANIZATION
         )
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         return "https://openrouter.ai/api/v1"
 
-    def get_ai_model(self, model_name, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
         from openai import AsyncOpenAI
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openrouter import OpenRouterProvider
@@ -269,7 +478,7 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
             model_name, provider=OpenRouterProvider(openai_client=client)
         )
 
-    def get_settings_serializer(self):
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer
 
         return OpenRouterSettingsSerializer

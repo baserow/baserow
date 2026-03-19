@@ -449,8 +449,9 @@ class AIValueGenerator:
 
         self.ai_output_type = ai_field_output_registry.get(self.ai_field.ai_output_type)
 
-        self.use_file_fields = self.ai_field.ai_file_field_id is not None and hasattr(
-            self.generative_ai_model_type, "is_file_compatible"
+        self.use_file_fields = (
+            self.ai_field.ai_file_field_id is not None
+            and self.generative_ai_model_type.supports_files
         )
 
     def generate_value_for(self, row: GeneratedTableModel):
@@ -508,19 +509,27 @@ class AIValueGenerator:
             "temperature": ai_field.ai_temperature,
         }
 
-        if self.use_file_fields:
-            prompt_kwargs["content"] = AIFileManager.get_file_contents(
-                ai_field, row, generative_ai_model_type
-            )
-
         if choices is not None:
             prompt_kwargs["output_type"] = choices
 
-        value = generative_ai_model_type.prompt(
-            ai_field.ai_generative_ai_model,
-            message,
-            **prompt_kwargs,
-        )
+        file_ids = []
+        try:
+            if self.use_file_fields:
+                content_parts, file_ids = AIFileManager.prepare_file_content(
+                    ai_field, row, generative_ai_model_type, workspace=workspace
+                )
+                prompt_kwargs["content"] = content_parts
+
+            value = generative_ai_model_type.prompt(
+                ai_field.ai_generative_ai_model,
+                message,
+                **prompt_kwargs,
+            )
+        finally:
+            if file_ids:
+                AIFileManager.delete_files(
+                    file_ids, generative_ai_model_type, workspace=workspace
+                )
 
         if choices is not None:
             value = ai_output_type.resolve_choice(value, ai_field)
