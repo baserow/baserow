@@ -221,13 +221,10 @@ msgstr ""
 msgid "Previous scheduled run"
 msgstr ""
 
-<<<<<<< HEAD
-=======
 #: src/baserow/contrib/integrations/core/service_types.py:1442
 msgid "Next scheduled run"
 msgstr ""
 
->>>>>>> e78dbc14d (Implement data scanner feature)
 #: src/baserow/contrib/integrations/local_baserow/service_types.py:1688
 msgid "No rows found"
 msgstr ""

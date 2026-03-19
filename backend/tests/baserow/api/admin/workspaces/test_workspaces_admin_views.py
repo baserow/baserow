@@ -2,26 +2,39 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_admin_list_workspaces_as_options(api_client, enterprise_data_fixture):
+def test_non_admin_list_workspaces_as_options(api_client, data_fixture):
     (
         admin_user,
         admin_token,
-    ) = enterprise_data_fixture.create_enterprise_admin_user_and_token()
-    workspace_1 = enterprise_data_fixture.create_workspace(
-        name="workspace 1", user=admin_user
-    )
-    workspace_2 = enterprise_data_fixture.create_workspace(
-        name="workspace 2", user=admin_user
-    )
+    ) = data_fixture.create_user_and_token()
 
     # no search query should return all workspaces
     response = api_client.get(
-        reverse("api:enterprise:admin:workspaces:list"),
+        reverse("api:admin:workspaces:options"),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_list_workspaces_as_options(api_client, data_fixture):
+    (
+        admin_user,
+        admin_token,
+    ) = data_fixture.create_user_and_token(is_staff=True)
+    workspace_1 = data_fixture.create_workspace(name="workspace 1", user=admin_user)
+    workspace_2 = data_fixture.create_workspace(name="workspace 2", user=admin_user)
+
+    # no search query should return all workspaces
+    response = api_client.get(
+        reverse("api:admin:workspaces:options"),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -38,7 +51,7 @@ def test_admin_list_workspaces_as_options(api_client, enterprise_data_fixture):
 
     # searching by name should return only the correct workspace
     response = api_client.get(
-        reverse("api:enterprise:admin:workspaces:list") + "?search=1",
+        reverse("api:admin:workspaces:options") + "?search=1",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -53,24 +66,18 @@ def test_admin_list_workspaces_as_options(api_client, enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_admin_list_workspaces_as_options_filter_by_ids(
-    api_client, enterprise_data_fixture
-):
+def test_admin_list_workspaces_as_options_filter_by_ids(api_client, data_fixture):
     (
         admin_user,
         admin_token,
-    ) = enterprise_data_fixture.create_enterprise_admin_user_and_token()
-    workspace_1 = enterprise_data_fixture.create_workspace(
-        name="workspace 1", user=admin_user
-    )
-    workspace_2 = enterprise_data_fixture.create_workspace(
-        name="workspace 2", user=admin_user
-    )
-    enterprise_data_fixture.create_workspace(name="workspace 3", user=admin_user)
+    ) = data_fixture.create_user_and_token(is_staff=True)
+    workspace_1 = data_fixture.create_workspace(name="workspace 1", user=admin_user)
+    workspace_2 = data_fixture.create_workspace(name="workspace 2", user=admin_user)
+    data_fixture.create_workspace(name="workspace 3", user=admin_user)
 
     # filtering by a single id should return only that workspace
     response = api_client.get(
-        reverse("api:enterprise:admin:workspaces:list") + f"?ids={workspace_1.id}",
+        reverse("api:admin:workspaces:options") + f"?ids={workspace_1.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -84,7 +91,7 @@ def test_admin_list_workspaces_as_options_filter_by_ids(
 
     # filtering by multiple ids should return all matching workspaces
     response = api_client.get(
-        reverse("api:enterprise:admin:workspaces:list")
+        reverse("api:admin:workspaces:options")
         + f"?ids={workspace_1.id},{workspace_2.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",

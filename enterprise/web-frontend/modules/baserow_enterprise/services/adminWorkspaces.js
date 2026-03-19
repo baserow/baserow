@@ -1,1 +1,1 @@
-export const ADMIN_WORKSPACE_OPTIONS_URL = '/admin/workspace-options/'
+export const ADMIN_WORKSPACE_OPTIONS_URL = '/admin/workspaces/options/'
