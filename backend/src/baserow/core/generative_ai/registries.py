@@ -1,86 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Optional
-
-from baserow.core.generative_ai.types import FileId
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .exceptions import GenerativeAITypeDoesNotExist
-
-
-class GenerativeAIWithFilesModelType(ABC):
-    @abstractmethod
-    def is_file_compatible(self, file_name: str) -> bool:
-        """
-        Method to determine whether provided file can be used
-        for processing.
-
-        :param file_name: The name of the file.
-        """
-
-        raise NotImplementedError(
-            "The is_file_compatible function must be implemented."
-        )
-
-    @abstractmethod
-    def get_max_file_size(self) -> int:
-        """
-        Returns the maximum size of the file in MB that can be used.
-        """
-
-        raise NotImplementedError("The get_max_file_size function must be implemented.")
-
-    @abstractmethod
-    def upload_file(
-        self, file_name: str, file: bytes, workspace: Optional[Workspace] = None
-    ) -> FileId:
-        """
-        Method to upload files for processing.
-
-        :param file_name: The name for the uploaded file including file extension.
-        :param file: File to upload as bytes.
-        :param workspace: Workspace where the processing happens.
-        :raises AIFileError: If the file has not been uploaded.
-        :return: List of file ids to keep as a reference to processed files.
-        """
-
-        raise NotImplementedError("The upload_file function must be implemented.")
-
-    @abstractmethod
-    def delete_files(
-        self, file_ids: list[FileId], workspace: Optional[Workspace] = None
-    ):
-        """
-        Method to clean up processed files that are no longer needed.
-
-        :param file_ids: File ids of files to delete.
-        :param workspace: Workspace where the processing happens.
-        :raises AIFileError: If the file has not been deleted.
-        """
-
-        raise NotImplementedError("The delete_files function must be implemented.")
-
-    @abstractmethod
-    def prompt_with_files(
-        self,
-        model: str,
-        prompt: str,
-        file_ids: list[FileId],
-        workspace: Optional[Workspace] = None,
-        temperature: Optional[float] = None,
-    ):
-        """
-        Prompt AI model for an answer using the provided files as file ids as the
-        knowledge base.
-
-        :param model: The name of the model to use.
-        :param prompt: The model's prompt to use.
-        :param file_ids: File ids of files to use as the knowledge base.
-        :param workspace: The workspace related to the prompt.
-        :param temperature: The temperature that must be used when executing the prompt.
-        """
-
-        raise NotImplementedError("The prompt_with_files function must be implemented.")
 
 
 class GenerativeAIModelType(Instance):
@@ -132,6 +53,7 @@ class GenerativeAIModelType(Instance):
         temperature=None,
         settings_override=None,
         output_choices=None,
+        content=None,
     ):
         import json
         from difflib import get_close_matches
@@ -148,11 +70,15 @@ class GenerativeAIModelType(Instance):
                 f"Respond with only the option name, nothing else."
             )
 
+        # Build user prompt: multi-modal sequence if content is provided,
+        # plain string otherwise.
+        user_prompt = [prompt] + content if content else prompt
+
         try:
             ai_model = self.get_ai_model(model, workspace, settings_override)
             model_settings = self._prepare_model_settings(temperature)
             result = Agent(output_type=str).run_sync(
-                prompt, model=ai_model, model_settings=model_settings
+                user_prompt, model=ai_model, model_settings=model_settings
             )
             text = result.output
 

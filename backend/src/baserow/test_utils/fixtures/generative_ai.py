@@ -1,15 +1,9 @@
-import random
-from typing import Optional
-
 from baserow.api.generative_ai.serializers import GenerativeAIModelsSerializer
 from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
-    GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
-from baserow.core.generative_ai.types import FileId
-from baserow.core.models import Workspace
 
 
 class TestGenerativeAINoModelType(GenerativeAIModelType):
@@ -46,6 +40,7 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         temperature=None,
         settings_override=None,
         output_choices=None,
+        content=None,
     ):
         if output_choices:
             return output_choices[0]
@@ -55,9 +50,7 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         return GenerativeAIModelsSerializer
 
 
-class TestGenerativeAIWithFilesModelType(
-    GenerativeAIWithFilesModelType, GenerativeAIModelType
-):
+class TestGenerativeAIWithFilesModelType(GenerativeAIModelType):
     type = "test_generative_ai_with_files"
 
     def is_enabled(self, workspace=None):
@@ -67,7 +60,20 @@ class TestGenerativeAIWithFilesModelType(
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_choices=None,
+        content=None,
+    ):
+        if output_choices:
+            return output_choices[0]
+        if content:
+            return f"Generated with files and temperature {temperature}: {prompt}"
         return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
@@ -78,35 +84,6 @@ class TestGenerativeAIWithFilesModelType(
 
     def get_max_file_size(self):
         return 1  # 1 megabyte
-
-    def upload_file(
-        self, file_name: str, file: bytes, workspace: Optional[Workspace] = None
-    ):
-        if getattr(self, "_files", None) is None:
-            self._files = {}
-
-        gen_id = str(random.randint(0, 1000))
-        self._files[gen_id] = {
-            "file_name": file_name,
-            "file": file,
-        }
-        return gen_id
-
-    def delete_files(
-        self, file_ids: list[FileId], workspace: Optional[Workspace] = None
-    ):
-        for file_id in file_ids:
-            del self._files[file_id]
-
-    def prompt_with_files(
-        self,
-        model: str,
-        prompt: str,
-        file_ids: list[FileId],
-        workspace: Optional[Workspace] = None,
-        temperature: Optional[float] = None,
-    ):
-        return f"Generated with files {str(file_ids)} and temperature {temperature}: {prompt}"
 
 
 class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):

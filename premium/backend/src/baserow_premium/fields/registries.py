@@ -18,40 +18,6 @@ class AIFieldOutputType(abc.ABC, Instance):
         used to do various Baserow operations like filtering, sorting, etc.
         """
 
-    def format_prompt(self, prompt: str, ai_field: "AIField"):
-        """
-        Hook that can be used to change and format the provided prompt for this output
-        type. It accepts the original already resolved prompt and should return the
-        updated one.
-
-        It can be used to include the format instructions of an output parser, for
-        example.
-
-        :param prompt: The resolved prompt provided by the user. This already contains
-            the resolved variables.
-        :param ai_field: The AI field related to the output type.
-        :return: Should return the formatted prompt. This can include additional
-            information that can change the outcome of the prompt.
-        """
-
-        return prompt
-
-    def parse_output(self, output: str, ai_field: "AIField"):
-        """
-        Hook that can be used to parse the output of the generative AI prompt. If an
-        output parser formatting instructions are added in `format_prompt`, then this
-        hook can be used to parse it.
-
-        Used in the prompt_with_files fallback path where structured output is not
-        available.
-
-        :param output: The text output of the generative AI.
-        :param ai_field: The AI field related to the output type.
-        :return: Should return the parsed output.
-        """
-
-        return output
-
     def get_choices(self, ai_field: "AIField"):
         """
         Return a list of valid choice strings for constrained output, or None if
