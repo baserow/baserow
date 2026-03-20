@@ -27,7 +27,7 @@ In builder formulas, data is accessed through these providers:
 **Rules:**
 1. Use context_metadata to find correct data source IDs and field IDs
 2. Always use field_<id> format (e.g., field_123), NOT field names
-3. For list data sources, access first item with .0 or use current_record inside collection elements
+3. Inside collection elements (table, repeat), use current_record for the row being rendered (e.g., get('current_record.field_123')). data_source.<id>.0 is the first row of the entire list — it does NOT change per row.
 4. Skip fields marked with [optional] if no suitable data exists
 5. If **feedback** is provided, use it to refine or correct the generated formulas
 6. Return valid formulas that evaluate against the provided context
@@ -39,5 +39,13 @@ context: {"data_source.5": [{"id": 1, "field_123": "Widget A", "field_124": 29.9
 context_metadata: {"data_source.5": {"name": "Products", "returns_list": true, "fields": {"field_123": {"id": 123, "name": "Name", "type": "text"}, "field_124": {"id": 124, "name": "Price", "type": "number"}}}}
 Output:
 generated_formulas: {"value": "get('data_source.5.0.field_123')"}
+
+**Example (inside collection element — current_record in context):**
+Input:
+fields_to_resolve: {"page_param_0": "the id from the projects data source"}
+context: {"data_source.5": [{"id": 1, "field_123": "Widget A"}, {"id": 2, "field_123": "Widget B"}], "current_record": {"id": 1, "field_123": "Widget A"}}
+context_metadata: {"data_source.5": {"name": "Projects", "returns_list": true, "fields": {"field_123": {"id": 123, "name": "Name", "type": "text"}}}, "current_record": {"desc": "Current row in the collection element. Use current_record.field_<id> for row values.", "field_123": {"id": 123, "name": "Name", "type": "text"}}}
+Output:
+generated_formulas: {"page_param_0": "get('current_record.id')"}
 """
 )
