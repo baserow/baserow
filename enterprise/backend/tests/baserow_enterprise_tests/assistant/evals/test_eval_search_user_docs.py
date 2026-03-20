@@ -22,7 +22,7 @@ def _require_knowledge_base(synced_knowledge_base):
     if not getattr(settings, "BASEROW_EMBEDDINGS_API_URL", ""):
         pytest.skip(
             "BASEROW_EMBEDDINGS_API_URL not set. "
-            "See docs/development/ai-assistant-evals.md for setup instructions."
+            "See docs/testing/ai-assistant-evals.md for setup instructions."
         )
 
     from baserow_enterprise.assistant.tools.search_user_docs.handler import (
@@ -33,7 +33,7 @@ def _require_knowledge_base(synced_knowledge_base):
         pytest.skip(
             "Knowledge base not available. "
             "Requires: pgvector extension and synced KB data. "
-            "See docs/development/ai-assistant-evals.md for setup instructions."
+            "See docs/testing/ai-assistant-evals.md for setup instructions."
         )
 
 
