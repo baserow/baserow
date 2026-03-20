@@ -37,6 +37,7 @@ BASEROW_KNOWLEDGE = """\
 Workspace → Databases, Applications, Automations, Dashboards
 Database → Tables → Fields (30+ types, link_row for relations) + Views (grid, form, kanban, calendar, gallery, timeline) + Rows
 Application → Pages → Elements + Data Sources + Actions
+Shared elements: Headers/footers live on a shared page and appear on ALL pages. ONLY put site-wide navigation in them (menus, logo, links). NEVER put page-specific content inside headers/footers.
 Automation → Workflows → Trigger + Action/Router/Iterator nodes (use {{ node.ref }} for formulas)
 </baserow_knowledge>
 """

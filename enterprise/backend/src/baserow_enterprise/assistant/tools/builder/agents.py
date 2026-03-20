@@ -222,9 +222,12 @@ class BuilderFormulaContext:
             if isinstance(example, list) and example:
                 example = example[0]
             self.context["current_record"] = example
-            self.context_metadata["current_record"] = self.context_metadata[ds_key].get(
-                "fields", {}
-            )
+            ds_meta = self.context_metadata[ds_key]
+            self.context_metadata["current_record"] = {
+                "desc": "Current row in the collection element. "
+                "Use current_record.field_<id> for row values.",
+                **ds_meta.get("fields", {}),
+            }
 
     def pop_current_record_context(self) -> None:
         """Remove current_record context when exiting a collection."""

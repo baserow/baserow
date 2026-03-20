@@ -441,6 +441,9 @@ def list_elements(
     WHEN to use: Check existing elements, find element IDs or container structure.
     WHAT it does: Lists elements with id, type, order, parent_element_id, is_container.
     RETURNS: Elements array.
+
+    Elements with page_name="[shared]" are headers/footers visible on ALL pages.
+    Do not add page-specific children to them.
     """
 
     user = ctx.deps.user
@@ -1318,6 +1321,16 @@ def setup_page(
     ## Dynamic Values
     Use "$formula: <intent>" — describe the data you want using references or ids when possible.
     Examples: "$formula: the Name field from the projects data source", "$formula: the Email form input".
+
+    ## Shared Elements (header, footer) — CRITICAL
+    Headers and footers are shared across ALL pages. Any element placed inside
+    a header/footer (as a child) is also shared and appears on every page.
+    - ONLY put site-wide navigation in headers/footers: menus, logo, links to fixed pages.
+    - NEVER put page-specific content as children of headers/footers: page titles,
+      data-bound text, forms, "back" buttons, or content that varies per page.
+    - Page-specific content belongs directly on the page root, NOT inside shared containers.
+    - If a header already exists (page_name="[shared]" in list_elements), do NOT
+      add page-specific children to it.
     """
 
     user = ctx.deps.user
