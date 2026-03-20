@@ -109,7 +109,7 @@ class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):
     def get_enabled_models(self, workspace=None):
         return ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(self, model, prompt, workspace=None, temperature=None, output_type=None):
         raise GenerativeAIPromptError("Test error")
 
     def get_settings_serializer(self):
