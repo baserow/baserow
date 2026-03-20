@@ -162,7 +162,7 @@ def _form_field_options_from_orm(orm_view):
 
 
 _FROM_DJANGO_ORM: dict[str, Any] = {
-    "grid": lambda v: {"row_height": "small"},
+    "grid": lambda v: {"row_height": v.row_height_size},
     "kanban": lambda v: {"column_field_id": v.single_select_field_id},
     "calendar": lambda v: {"date_field_id": v.date_field_id},
     "gallery": lambda v: {"cover_field_id": v.card_cover_image_field_id},
@@ -187,7 +187,7 @@ class ViewItemCreate(BaseModel):
     """Flat model for creating a view: name + type + type-specific options."""
 
     name: str = Field(..., description="Descriptive view name.")
-    public: bool = Field(..., description="Publicly accessible? Default false.")
+    public: bool = Field(False, description="Publicly accessible? Default false.")
     type: ViewType = Field(..., description="View type.")
 
     # -- grid --
@@ -246,7 +246,7 @@ class ViewItemCreate(BaseModel):
     def _validate_required_for_type(self):
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
-            missing = [name for attr, name in required if not getattr(self, attr)]
+            missing = [name for attr, name in required if getattr(self, attr) is None]
             if missing:
                 raise ValueError(
                     f"{self.type} requires {', '.join(missing)}. "
