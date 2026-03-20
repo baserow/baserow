@@ -88,7 +88,7 @@ lose essential context.
 
 ### 6. Manual: Telemetry / PostHog traces
 
-Requires PostHog configured (`POSTHOG_API_KEY`, `POSTHOG_HOST` etc.):
+Requires PostHog configured (`POSTHOG_PROJECT_API_KEY`, `POSTHOG_HOST` etc.):
 
 1. Send a few messages exercising different tools
 2. Go to PostHog > LLM Analytics > Traces
