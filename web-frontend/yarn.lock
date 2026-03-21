@@ -6984,9 +6984,9 @@ gzip-size@^7.0.0:
     srvx "^0.10.0"
 
 h3@^1.12.0, h3@^1.15.4:
-  version "1.15.8"
-  resolved "https://registry.yarnpkg.com/h3/-/h3-1.15.8.tgz#bf90969bc1141a88be0940b7290f8353456b9f2a"
-  integrity sha512-iOH6Vl8mGd9nNfu9C0IZ+GuOAfJHcyf3VriQxWaSWIB76Fg4BnFuk4cxBxjmQSSxJS664+pgjP6e7VBnUzFfcg==
+  version "1.15.9"
+  resolved "https://registry.yarnpkg.com/h3/-/h3-1.15.9.tgz#ee3a480674b2e35106155544cc0a6de69a6dc14f"
+  integrity sha512-H7UPnyIupUOYUQu7f2x7ABVeMyF/IbJjqn20WSXpMdnQB260luADUkSgJU7QTWLutq8h3tUayMQ1DdbSYX5LkA==
   dependencies:
     cookie-es "^1.2.2"
     crossws "^0.3.5"
