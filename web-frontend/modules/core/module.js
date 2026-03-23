@@ -130,6 +130,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/ensureRender.js'))
     addPlugin(resolve('plugins/version.js'))
     addPlugin(resolve('plugins/posthog.js'))
+    addPlugin(resolve('plugins/sentry-user.js'))
     addPlugin(resolve('plugins/vueDatepicker.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
     addPlugin(resolve('plugins/storeRegister.js'))
