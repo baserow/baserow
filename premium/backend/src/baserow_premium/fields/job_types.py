@@ -502,6 +502,11 @@ class AIValueGenerator:
             )
         )
 
+        if not message or not message.strip():
+            # If the resolved prompt is empty, preserve the existing value instead
+            # of overwriting it with NULL in the database.
+            return getattr(row, ai_field.db_column, None)
+
         choices = ai_output_type.get_choices(ai_field)
 
         prompt_kwargs = {
