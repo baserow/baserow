@@ -221,10 +221,19 @@ class GenerativeAIModelType(Instance):
         :return: The matched choice string, or None if no good match is found.
         """
 
+        import re
         from difflib import get_close_matches
 
-        closest = get_close_matches(text.strip(), choices, n=1, cutoff=cutoff)
-        return closest[0] if closest else None
+        # Normalize common LLM formatting: quotes, markdown bold, trailing
+        # punctuation, etc. Case-insensitive matching to handle ALL CAPS or
+        # lowercase responses.
+        normalized = re.sub(r"^[\s\"'`*]+|[\s\"'`*.!,]+$", "", text).lower()
+
+        lower_choices = [c.lower() for c in choices]
+        closest = get_close_matches(normalized, lower_choices, n=1, cutoff=cutoff)
+        if closest:
+            return choices[lower_choices.index(closest[0])]
+        return None
 
     def prompt(
         self,
