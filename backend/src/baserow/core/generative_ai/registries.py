@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from pydantic_ai.messages import UserContent
 
@@ -8,6 +8,9 @@ from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .exceptions import GenerativeAITypeDoesNotExist
+
+if TYPE_CHECKING:
+    from pydantic_ai import Agent
 
 
 class GenerativeAIModelType(Instance):
@@ -72,14 +75,25 @@ class GenerativeAIModelType(Instance):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        """Return a pydantic-ai Model instance configured with provider credentials."""
+        """
+        Return a pydantic-ai Model instance configured with provider credentials.
+
+        :param model_name: The name of the model to retrieve.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
 
         raise NotImplementedError("The get_ai_model function must be implemented.")
 
     def _prepare_model_settings(
         self, temperature: Optional[float] = None
     ) -> dict[str, Any]:
-        """Build model settings dict. Override in subclasses for provider quirks."""
+        """
+        Build model settings dict. Override in subclasses for provider quirks.
+
+        :param temperature: Optional temperature override.
+        :return: Dictionary of model settings.
+        """
 
         settings: dict[str, Any] = {}
         if temperature is not None:
@@ -87,6 +101,13 @@ class GenerativeAIModelType(Instance):
         return settings
 
     def _is_choices(self, output_type: Any) -> bool:
+        """
+        Determine if the output_type represents a list of string choices.
+
+        :param output_type: The output_type to check.
+        :return: True if output_type is a list of strings, False otherwise.
+        """
+
         return isinstance(output_type, list) and all(
             isinstance(c, str) for c in output_type
         )
@@ -97,8 +118,15 @@ class GenerativeAIModelType(Instance):
         output_type: Any = None,
         content: Optional[list[UserContent]] = None,
     ) -> str | list[UserContent]:
-        """Build the user prompt, optionally adding choice constraints and
-        multi-modal content."""
+        """
+        Build the user prompt, optionally adding choice constraints and
+        multi-modal content.
+
+        :param prompt: The base text prompt.
+        :param output_type: The output_type to determine if choices should be added.
+        :param content: Optional list of UserContent for multi-modal input.
+        :return: The final prompt, either as a string or list of UserContent.
+        """
 
         import json
 
@@ -115,8 +143,13 @@ class GenerativeAIModelType(Instance):
 
         return prompt
 
-    def _build_agent(self, output_type: Any = None) -> Any:
-        """Create a pydantic-ai Agent with the appropriate output type."""
+    def _build_agent(self, output_type: Any = None) -> "Agent":
+        """
+        Create a pydantic-ai Agent with the appropriate output type.
+
+        :param output_type: The output_type to determine the Agent's output format.
+        :return: A configured Agent instance.
+        """
 
         from pydantic_ai import Agent, PromptedOutput
 
@@ -128,12 +161,23 @@ class GenerativeAIModelType(Instance):
 
         return Agent(output_type=str)
 
-    def _resolve_choices(self, text: str, choices: list[str]) -> Optional[str]:
-        """Fuzzy-match the model's text response against the valid choices."""
+    def _resolve_choices(
+        self, text: str, choices: list[str], cutoff: float = 0.6
+    ) -> Optional[str]:
+        """
+        Fuzzy-match the model's text response against the valid choices. If the
+        best match is above the cutoff threshold, return it; otherwise return
+        None.
+
+        :param text: The model's raw text response.
+        :param choices: The list of valid choice strings.
+        :param cutoff: The similarity threshold for matching (0.0 to 1.0).
+        :return: The matched choice string, or None if no good match is found.
+        """
 
         from difflib import get_close_matches
 
-        closest = get_close_matches(text.strip(), choices, n=1, cutoff=0.6)
+        closest = get_close_matches(text.strip(), choices, n=1, cutoff=cutoff)
         return closest[0] if closest else None
 
     def prompt(
@@ -147,7 +191,16 @@ class GenerativeAIModelType(Instance):
         content: Optional[list[UserContent]] = None,
     ) -> Any:
         """
-        Prompt the AI model and return the result.
+        Prompt the AI model and return the result. Handles model retrieval,
+        prompt construction, agent execution, and choice resolution.
+
+        If output_type is a list of strings, the model's response will be
+        fuzzy-matched against those choices, and the matched choice will be
+        returned (or None if no good match). If output_type is a Pydantic model,
+        the response will be validated and returned as an instance of that model.
+
+        If content is provided, it will be included as multi-modal input alongside
+        the text prompt.
 
         :param model: The model name to use.
         :param prompt: The text prompt to send.

@@ -4,12 +4,8 @@ from typing import Optional
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.core.db import specific_iterator
-from baserow.core.generative_ai.exceptions import (
-    GenerativeAIPromptError,
-    ModelDoesNotBelongToType,
-)
+from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
-from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.prompts import get_generate_formula_prompt
 
 from .pydantic_models import BaserowFormulaModel
@@ -56,16 +52,11 @@ class AIFieldHandler:
             table_schema_json=table_schema_json, user_prompt=ai_prompt
         )
 
-        try:
-            result = generative_ai_model_type.prompt(
-                ai_model,
-                message,
-                output_type=BaserowFormulaModel,
-                workspace=table.database.workspace,
-                temperature=ai_temperature,
-            )
-            return result.formula
-        except GenerativeAIPromptError as e:
-            raise AiFieldOutputParserException(
-                "The model didn't respond with the correct output. Please try again."
-            ) from e
+        result = generative_ai_model_type.prompt(
+            ai_model,
+            message,
+            output_type=BaserowFormulaModel,
+            workspace=table.database.workspace,
+            temperature=ai_temperature,
+        )
+        return result.formula
