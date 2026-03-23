@@ -255,7 +255,7 @@ def test_generate_formula_output_parser_error(premium_data_fixture, api_client):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_OUTPUT_PARSER"
+    assert response.json()["error"] == "ERROR_GENERATIVE_AI_PROMPT"
 
 
 @pytest.mark.django_db
